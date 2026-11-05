@@ -19,7 +19,7 @@ public sealed record ImportCommandOptions
     public string ContentSource { get; init; } = "notion";
     public string BuildSource { get; init; } = "markdown";
     public string? SitePath { get; init; }
-    public string Language { get; init; } = "zh";
+    public string Language { get; init; } = "";
     public bool DryRun { get; init; }
     public string? StrictMode { get; init; }
     public bool Overwrite { get; init; }

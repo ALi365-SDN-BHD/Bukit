@@ -6,17 +6,15 @@ namespace Bukit.Importing;
 
 internal static partial class ThemeGenerator
 {
-    private static readonly Regex CssLinkRegex = CssLinkPattern();
-    private static readonly Regex ScriptSrcRegex = ScriptSrcPattern();
-    private static readonly Regex InlineStyleRegex = InlineStylePattern();
-
     internal static ImportResult Generate(
         HtmlDemoImportOptions options,
         List<DiscoveredPage> pages,
         LayoutExtractor.LayoutInfo layout,
         List<string> warnings,
         Dictionary<string, string> pathMappings,
-        RouteMapConfig? routeMap = null)
+        RouteMapConfig? routeMap = null,
+        PageTemplatePlan? plan = null,
+        IReadOnlyList<DiscoveredComponent>? components = null)
     {
         var themeDir = HtmlDemoImporter.GetThemeDir(options);
 
@@ -26,60 +24,39 @@ internal static partial class ThemeGenerator
         Directory.CreateDirectory(Path.Combine(themeDir, "assets"));
         Directory.CreateDirectory(Path.Combine(themeDir, "static"));
 
+        plan ??= PageTemplatePlan.Build(pages, routeMap);
+        // Shared partials hold the root page's links ("about.html"), so resolve them from there.
+        var partialSource = (pages.FirstOrDefault(p => p.Type == PageType.Home && !DemoLinks.Normalize(p.RelativePath).Contains('/'))
+                             ?? pages.FirstOrDefault(p => !DemoLinks.Normalize(p.RelativePath).Contains('/'))
+                             ?? pages.FirstOrDefault())?.RelativePath ?? "index.html";
+
         var partialCount = 0;
         if (!string.IsNullOrWhiteSpace(layout.Header))
         {
-            WritePartial(themeDir, "header.html", layout.Header, pathMappings);
+            WritePartial(themeDir, "header.html", layout.Header, pathMappings, partialSource, plan);
             partialCount++;
         }
 
         if (!string.IsNullOrWhiteSpace(layout.Nav) && !layout.HeaderContainsNav)
         {
-            WritePartial(themeDir, "nav.html", layout.Nav, pathMappings);
+            WritePartial(themeDir, "nav.html", layout.Nav, pathMappings, partialSource, plan);
             partialCount++;
         }
 
         if (!string.IsNullOrWhiteSpace(layout.Footer))
         {
-            WritePartial(themeDir, "footer.html", layout.Footer, pathMappings);
+            WritePartial(themeDir, "footer.html", layout.Footer, pathMappings, partialSource, plan);
             partialCount++;
         }
 
-        var (cssLinks, scriptTags) = ExtractHeadAssets(layout.HeadExtras, pages);
-        WriteBaseLayout(themeDir, layout, cssLinks, scriptTags, pathMappings);
+        // base.html holds structure only; every asset is written by the page that declares it.
+        WriteBaseLayout(themeDir, layout);
 
         var templateCount = 0;
-        var usedTemplateNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         foreach (var page in pages)
         {
-            var templateName = GetTemplateFileName(page, routeMap);
-            var templatePath = Path.Combine(themeDir, "layouts", "pages", templateName);
-            if (!usedTemplateNames.Add(templateName))
-            {
-                templateName = SanitizeTemplateName(page.Slug) + ".html";
-                if (templateName is "index.html" or "list.html")
-                    templateName = "page-" + templateName;
-                templatePath = Path.Combine(themeDir, "layouts", "pages", templateName);
-                usedTemplateNames.Add(templateName);
-            }
-
-            WritePageTemplate(templatePath, page, pathMappings);
-            templateCount++;
-        }
-
-        var indexExists = pages.Any(p =>
-            GetTemplateFileName(p, routeMap) == "index.html");
-        if (!indexExists)
-        {
-            WriteIndexTemplate(themeDir, pages, pathMappings);
-            templateCount++;
-        }
-
-        var listExists = pages.Any(p =>
-            GetTemplateFileName(p, routeMap) == "list.html");
-        if (!listExists)
-        {
-            WriteListTemplate(themeDir, pathMappings);
+            var templatePath = Path.Combine(themeDir, "layouts", "pages", plan.NameFor(page) + ".html");
+            WritePageTemplate(templatePath, page, pathMappings, plan, components);
             templateCount++;
         }
 
@@ -87,7 +64,18 @@ internal static partial class ThemeGenerator
         foreach (var page in pages)
             pageTypes.Add(page.Type);
 
-        WriteThemeYaml(themeDir, options.ThemeName, pageTypes, pages.FirstOrDefault(p => p.Type == PageType.PostList)?.Slug);
+        if (!pageTypes.Contains(PageType.Home))
+        {
+            WriteIndexTemplate(themeDir, pages, plan);
+            templateCount++;
+        }
+
+        templateCount += WriteFallbackTemplates(themeDir, pageTypes);
+
+        string? ListName(PageType type)
+            => pages.FirstOrDefault(p => p.Type == type) is { } list ? plan.NameFor(list) : null;
+        WriteThemeYaml(themeDir, options.ThemeName, pageTypes,
+            ListName(PageType.PostList), ListName(PageType.CompanyList), ListName(PageType.ServiceList));
 
         return new ImportResult
         {
@@ -105,51 +93,37 @@ internal static partial class ThemeGenerator
         };
     }
 
-    private static (List<string> CssLinks, List<string> ScriptTags) ExtractHeadAssets(
-        string headContent, List<DiscoveredPage> pages)
+    /// <summary>
+    /// Generic templates Core uses when content has no template of its own. They are
+    /// written from fixed bodies and never carry a specific page's markup or assets.
+    /// </summary>
+    private static int WriteFallbackTemplates(string themeDir, HashSet<PageType> pageTypes)
     {
-        var cssLinks = new List<string>();
-        var scriptTags = new List<string>();
-        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-
-        void AddFromText(string text)
+        var count = 0;
+        void Write(string name, PageType bodyType)
         {
-            foreach (Match m in CssLinkRegex.Matches(text))
-                if (seen.Add(m.Value)) cssLinks.Add(m.Value);
-            foreach (Match m in ScriptSrcRegex.Matches(text))
-                if (seen.Add(m.Value)) scriptTags.Add(m.Value);
+            File.WriteAllText(
+                Path.Combine(themeDir, "layouts", "pages", name + ".html"),
+                LayoutDirective + Environment.NewLine + BaseUrlPrelude + Environment.NewLine + GetDefaultTemplateBody(bodyType));
+            count++;
         }
 
-        AddFromText(headContent);
-        foreach (var page in pages)
-            AddFromText(page.HeadContent ?? "");
-
-        return (cssLinks, scriptTags);
+        Write("page", PageType.Page);
+        Write("list", PageType.PostList);
+        if (pageTypes.Contains(PageType.PostDetail) || pageTypes.Contains(PageType.PostList))
+            Write("post", PageType.PostDetail);
+        if (pageTypes.Contains(PageType.CompanyDetail) || pageTypes.Contains(PageType.CompanyList))
+            Write("company", PageType.CompanyDetail);
+        if (pageTypes.Contains(PageType.ServiceDetail) || pageTypes.Contains(PageType.ServiceList))
+            Write("service", PageType.ServiceDetail);
+        return count;
     }
 
-    private static string GetTemplateFileName(DiscoveredPage page, RouteMapConfig? routeMap = null)
-    {
-        if (routeMap != null)
-        {
-            var fileName = Path.GetFileNameWithoutExtension(page.RelativePath);
-            var routeTemplate = PageClassifier.GetTemplate(routeMap, fileName);
-            if (routeTemplate != null)
-                return routeTemplate + ".html";
-        }
+    private const string LayoutDirective = "{% layout \"layouts/base.html\" %}";
 
-        return page.Type switch
-        {
-            PageType.Home => "index.html",
-            PageType.Page => "page.html",
-            PageType.PostList => SanitizeTemplateName(page.Slug) + ".html",
-            PageType.PostDetail => "post.html",
-            PageType.CompanyList => "companies.html",
-            PageType.CompanyDetail => "company.html",
-            PageType.ServiceList => "services.html",
-            PageType.ServiceDetail => "service.html",
-            _ => SanitizeTemplateName(page.Slug) + ".html"
-        };
-    }
+    // Page templates render before base.html, so they set base_url themselves.
+    private const string BaseUrlPrelude =
+        "{{ base_url = site.base_url }}{{ if base_url == \"/\" }}{{ base_url = \"\" }}{{ end }}";
 
     internal static string SanitizeTemplateName(string name)
     {
@@ -161,11 +135,19 @@ internal static partial class ThemeGenerator
     }
 
     private static void WritePartial(string themeDir, string fileName, string content,
-        Dictionary<string, string> pathMappings)
+        Dictionary<string, string> pathMappings, string sourceRelativePath, PageTemplatePlan plan)
     {
         if (string.IsNullOrWhiteSpace(content)) return;
 
-        var rewritten = MakeNavigationDataAware(AssetImporter.RewritePaths(content, pathMappings));
+        var linked = InternalLinkRewriter.RewriteTemplate(
+            PageAssetCollector.RewriteSrcsets(
+                AssetImporter.RewritePaths(ScribanText.Escape(PageAssetCollector.StripAssets(content)), pathMappings),
+                pathMappings,
+                "{{ base_url }}"),
+            sourceRelativePath,
+            plan);
+        var rewritten = MakeNavigationDataAware(linked);
+        if (string.IsNullOrWhiteSpace(rewritten)) return;
         var fullPath = Path.Combine(themeDir, "layouts", "partials", fileName);
         File.WriteAllText(fullPath, LayoutExtractor.NormalizeBlock(rewritten));
     }
@@ -205,9 +187,7 @@ internal static partial class ThemeGenerator
         => string.Join(Environment.NewLine, text.Split(["\r\n", "\n"], StringSplitOptions.None)
             .Select(line => string.IsNullOrWhiteSpace(line) ? line : prefix + line));
 
-    private static void WriteBaseLayout(string themeDir, LayoutExtractor.LayoutInfo layout,
-        List<string> cssLinks, List<string> scriptTags,
-        Dictionary<string, string> pathMappings)
+    private static void WriteBaseLayout(string themeDir, LayoutExtractor.LayoutInfo layout)
     {
         var sb = new StringBuilder();
         sb.AppendLine("<!DOCTYPE html>");
@@ -215,11 +195,7 @@ internal static partial class ThemeGenerator
         sb.AppendLine("<head>");
         sb.AppendLine("  <meta charset=\"UTF-8\" />");
         sb.AppendLine("  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1\" />");
-        sb.AppendLine("  {{ base_url = site.base_url }}{{ if base_url == \"/\" }}{{ base_url = \"\" }}{{ end }}");
-
-        foreach (var css in cssLinks)
-            sb.AppendLine($"  {RewriteHeadAssetTag(css.Trim(), pathMappings)}");
-
+        sb.AppendLine("  " + BaseUrlPrelude);
         sb.AppendLine("  {{ if page.fields.seo_title }}");
         sb.AppendLine("  <title>{{ page.fields.seo_title.value }} | {{ site.title }}</title>");
         sb.AppendLine("  {{ else }}");
@@ -231,6 +207,8 @@ internal static partial class ThemeGenerator
         sb.AppendLine("  {{ if page.seo }}");
         sb.AppendLine("  <link rel=\"canonical\" href=\"{{ page.seo.canonical }}\" />");
         sb.AppendLine("  {{ end }}");
+        // Filled by the rendering page template; fallback templates leave it empty.
+        sb.AppendLine("  {{ page_head }}");
         sb.AppendLine("</head>");
         sb.AppendLine("<body>");
 
@@ -245,9 +223,7 @@ internal static partial class ThemeGenerator
         if (!string.IsNullOrWhiteSpace(layout.Footer))
             sb.AppendLine("  {{ include 'partials/footer.html' }}");
 
-        foreach (var script in scriptTags)
-            sb.AppendLine($"  {RewriteHeadAssetTag(script.Trim(), pathMappings)}");
-
+        sb.AppendLine("  {{ page_scripts }}");
         sb.AppendLine("</body>");
         sb.AppendLine("</html>");
 
@@ -255,23 +231,34 @@ internal static partial class ThemeGenerator
             Path.Combine(themeDir, "layouts", "layouts", "base.html"), sb.ToString());
     }
 
-    private static string RewriteHeadAssetTag(string tag, Dictionary<string, string> pathMappings)
+    private static void WritePageTemplate(string templatePath, DiscoveredPage page,
+        Dictionary<string, string> pathMappings, PageTemplatePlan plan,
+        IReadOnlyList<DiscoveredComponent>? components)
     {
-        var rewritten = AssetImporter.RewritePaths(tag, pathMappings);
-        return Regex.Replace(
-            rewritten,
-            @"\b(href|src)=[""'](/(?!/)[^""']*)[""']",
-            m => $"{m.Groups[1].Value}=\"{{{{ base_url }}}}{m.Groups[2].Value}\"",
-            RegexOptions.IgnoreCase);
+        var assets = PageAssetCollector.Collect(page, pathMappings);
+        var sb = new StringBuilder();
+        sb.AppendLine(LayoutDirective);
+        sb.AppendLine(BaseUrlPrelude);
+        AppendCapture(sb, "page_head", assets.Head);
+        AppendCapture(sb, "page_scripts", assets.Scripts);
+        // Scripts that sat before <main> keep their place, ahead of the page content.
+        foreach (var script in assets.BodyStart)
+            sb.AppendLine(script);
+        sb.AppendLine(InternalLinkRewriter.RewriteTemplate(
+            TemplateBodyTransformer.Transform(page, pathMappings, components), page.RelativePath, plan));
+        File.WriteAllText(templatePath, sb.ToString());
     }
 
-    private static void WritePageTemplate(string templatePath, DiscoveredPage page,
-        Dictionary<string, string> pathMappings)
+    // base.html prints these variables in <head> and before </body>.
+    private static void AppendCapture(StringBuilder sb, string variable, IReadOnlyList<string> tags)
     {
-        var sb = new StringBuilder();
-        sb.AppendLine("{% layout \"layouts/base.html\" %}");
-        sb.AppendLine(TemplateBodyTransformer.Transform(page, pathMappings));
-        File.WriteAllText(templatePath, sb.ToString());
+        if (tags.Count == 0)
+            return;
+
+        sb.AppendLine($"{{{{ capture {variable} }}}}");
+        foreach (var tag in tags)
+            sb.AppendLine("  " + tag);
+        sb.AppendLine("{{ end }}");
     }
 
     internal static string GetDefaultTemplateBody(PageType pageType)
@@ -285,7 +272,7 @@ internal static partial class ThemeGenerator
   {{ if page.content }}<div class="content">{{ page.content }}</div>{{ end }}
   {{ for p in pages }}
   <article>
-    <h2><a href="{{ p.url }}">{{ p.title }}</a></h2>
+    <h2><a href="{{ base_url }}{{ p.url }}">{{ p.title }}</a></h2>
     {{ if p.summary }}<p>{{ p.summary }}</p>{{ end }}
   </article>
   {{ end }}
@@ -313,7 +300,7 @@ internal static partial class ThemeGenerator
   {{ end }}
   {{ for p in pages }}
   <article>
-    <h2><a href="{{ p.url }}">{{ p.title }}</a></h2>
+    <h2><a href="{{ base_url }}{{ p.url }}">{{ p.title }}</a></h2>
     {{ if p.summary }}<p>{{ p.summary }}</p>{{ end }}
   </article>
   {{ end }}
@@ -321,57 +308,30 @@ internal static partial class ThemeGenerator
 """;
     }
 
-    private static void WriteIndexTemplate(string themeDir, List<DiscoveredPage> pages,
-        Dictionary<string, string> pathMappings)
+    private static void WriteIndexTemplate(string themeDir, List<DiscoveredPage> pages, PageTemplatePlan plan)
     {
         var sb = new StringBuilder();
-        sb.AppendLine("{% layout \"layouts/base.html\" %}");
+        sb.AppendLine(LayoutDirective);
+        sb.AppendLine(BaseUrlPrelude);
         sb.AppendLine("<main>");
         sb.AppendLine("  <h1>{{ page.title }}</h1>");
         sb.AppendLine("  <ul>");
 
         foreach (var page in pages)
         {
-            var slug = page.Slug;
-            var href = string.IsNullOrEmpty(slug) ? "/" : $"/{slug}/";
-            sb.AppendLine($"    <li><a href=\"{href}\">{System.Net.WebUtility.HtmlEncode(page.Title ?? page.Slug)}</a></li>");
+            if (plan.UrlFor(page) is not { } url)
+                continue;
+            sb.AppendLine($"    <li><a href=\"{{{{ base_url }}}}{url}\">{System.Net.WebUtility.HtmlEncode(page.Title ?? page.Slug)}</a></li>");
         }
 
         sb.AppendLine("  </ul>");
         sb.AppendLine("</main>");
-        var content = AssetImporter.RewritePaths(sb.ToString(), pathMappings);
         File.WriteAllText(
-            Path.Combine(themeDir, "layouts", "pages", "index.html"), content);
+            Path.Combine(themeDir, "layouts", "pages", "index.html"), sb.ToString());
     }
 
-    private static void WriteListTemplate(string themeDir,
-        Dictionary<string, string> pathMappings)
-    {
-        var sb = new StringBuilder();
-        sb.AppendLine("{% layout \"layouts/base.html\" %}");
-        sb.AppendLine("<main>");
-        sb.AppendLine("  <h1>{{ page.title }}</h1>");
-        sb.AppendLine("  {{ for p in pages }}");
-        sb.AppendLine("  <article>");
-        sb.AppendLine("    <h2><a href=\"{{ p.url }}\">{{ p.title }}</a></h2>");
-        sb.AppendLine("  </article>");
-        sb.AppendLine("  {{ end }}");
-        sb.AppendLine("</main>");
-        var content = AssetImporter.RewritePaths(sb.ToString(), pathMappings);
-        File.WriteAllText(
-            Path.Combine(themeDir, "layouts", "pages", "list.html"), content);
-    }
-
-    [GeneratedRegex(@"<link[^>]*rel=[""']stylesheet[""'][^>]*>", RegexOptions.IgnoreCase)]
-    private static partial Regex CssLinkPattern();
-
-    [GeneratedRegex(@"<script[^>]*src=[""'][^""']*[""'][^>]*>\s*</script>", RegexOptions.IgnoreCase)]
-    private static partial Regex ScriptSrcPattern();
-
-    [GeneratedRegex(@"<style[^>]*>.*?</style>", RegexOptions.IgnoreCase | RegexOptions.Singleline)]
-    private static partial Regex InlineStylePattern();
-
-    private static void WriteThemeYaml(string themeDir, string themeName, HashSet<PageType> pageTypes, string? postListSlug)
+    private static void WriteThemeYaml(string themeDir, string themeName, HashSet<PageType> pageTypes,
+        string? postListName, string? companyListName, string? serviceListName)
     {
         var sb = new StringBuilder();
         sb.AppendLine($"name: {JsonSerializer.Serialize(themeName)}");
@@ -383,7 +343,7 @@ internal static partial class ThemeGenerator
         sb.AppendLine("    template: pages/index.html");
         sb.AppendLine("    required: true");
 
-        if (pageTypes.Contains(PageType.Page))
+        if (pageTypes.Contains(PageType.Page) || pageTypes.Contains(PageType.Unknown))
         {
             sb.AppendLine("  page:");
             sb.AppendLine("    template: pages/page.html");
@@ -401,9 +361,7 @@ internal static partial class ThemeGenerator
 
         if (pageTypes.Contains(PageType.PostList))
         {
-            var listName = !string.IsNullOrWhiteSpace(postListSlug)
-                ? SanitizeTemplateName(postListSlug)
-                : "insights";
+            var listName = postListName ?? "insights";
             sb.AppendLine("  list:");
             sb.AppendLine($"    template: pages/{listName}.html");
             sb.AppendLine("    accepts:");
@@ -419,7 +377,7 @@ internal static partial class ThemeGenerator
             if (pageTypes.Contains(PageType.CompanyList))
             {
                 sb.AppendLine("  company-list:");
-                sb.AppendLine("    template: pages/companies.html");
+                sb.AppendLine($"    template: pages/{companyListName ?? "companies"}.html");
                 sb.AppendLine("    accepts:");
                 sb.AppendLine("      kind: list");
             }
@@ -434,7 +392,7 @@ internal static partial class ThemeGenerator
             if (pageTypes.Contains(PageType.ServiceList))
             {
                 sb.AppendLine("  service-list:");
-                sb.AppendLine("    template: pages/services.html");
+                sb.AppendLine($"    template: pages/{serviceListName ?? "services"}.html");
                 sb.AppendLine("    accepts:");
                 sb.AppendLine("      kind: list");
             }

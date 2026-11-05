@@ -9,7 +9,7 @@ public static class ImportPluginResponseMapper
     public static PluginInvokeResponse FromResult(
         PluginInvokeRequest request,
         ImportCommandResult result,
-        ImportPluginConsoleCaptureResult<ImportCommandResult> capture)
+        ImportConsoleCaptureResult<ImportCommandResult> capture)
     {
         var messages = new List<PluginMessage>();
         var diagnostics = new List<PluginDiagnostic>();

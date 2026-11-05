@@ -19,13 +19,21 @@ public static class ImportSeedRecordReader
         var records = new List<ImportSeedRecord>();
         foreach (var (fileBase, collection) in KnownFiles)
         {
+            // One format per file base. A directory can contain both after a format
+            // migration; reading both would push every record twice.
             var jsonPath = Path.Combine(inputDir, $"{fileBase}.json");
             if (File.Exists(jsonPath))
+            {
                 records.AddRange(ReadJson(jsonPath, collection));
+                continue;
+            }
 
             var yamlPath = Path.Combine(inputDir, $"{fileBase}.yaml");
             if (File.Exists(yamlPath))
+            {
                 records.AddRange(ReadYaml(yamlPath, collection));
+                continue;
+            }
 
             var ymlPath = Path.Combine(inputDir, $"{fileBase}.yml");
             if (File.Exists(ymlPath))

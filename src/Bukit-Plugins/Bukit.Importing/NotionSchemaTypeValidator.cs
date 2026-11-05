@@ -56,7 +56,7 @@ internal static class NotionSchemaTypeValidator
         {
             "rich_text" or "select" => value is string,
             "multi_select" => false,
-            "url" => value is string text && Uri.TryCreate(text, UriKind.Absolute, out var uri) && uri.Scheme is "http" or "https",
+            "url" => value is string text && IsAbsoluteHttpUrl(text),
             "date" => value is string text && IsIsoDate(text),
             "number" => false,
             "checkbox" => value is bool,
@@ -92,11 +92,24 @@ internal static class NotionSchemaTypeValidator
             }
         }
 
+        // Imported links and page routes are site paths ("/about/"). Notion url properties
+        // are not documented to accept relative values, so such fields are text instead.
+        foreach (var name in fields.Keys.Where(name => fields[name] == "url").ToList())
+        {
+            if (records.Any(record => HasNonHttpValue(record, name)))
+                fields[name] = "rich_text";
+        }
+
         return fields
             .OrderBy(f => f.Key, StringComparer.OrdinalIgnoreCase)
             .Select(f => (f.Key, f.Value))
             .ToArray();
     }
+
+    private static bool HasNonHttpValue(ImportSeedRecord record, string propertyName)
+        => record.ExtraFields?.Any(field =>
+               NotionPropertyNaming.Canonicalize(field.Key).Equals(propertyName, StringComparison.OrdinalIgnoreCase) &&
+               field.Value is string text && !IsAbsoluteHttpUrl(text)) == true;
 
     private static string ToNotionPropertyType(string propertyName, object value)
     {
@@ -110,6 +123,9 @@ internal static class NotionSchemaTypeValidator
             return "url";
         return "rich_text";
     }
+
+    internal static bool IsAbsoluteHttpUrl(string text)
+        => Uri.TryCreate(text, UriKind.Absolute, out var uri) && uri.Scheme is "http" or "https";
 
     private static bool IsNumeric(object value)
         => value is sbyte or byte or short or ushort or int or uint or long or ulong or float or double or decimal;

@@ -94,9 +94,8 @@ public static class NotionBlockJsonWriter
                 writer.WriteEndObject();
                 writer.WriteEndObject();
                 writer.WriteEndArray();
-                writer.WriteStartObject("language");
-                writer.WriteString("name", code.Language);
-                writer.WriteEndObject();
+                // Notion expects the code language as a plain enum string, not an object.
+                writer.WriteString("language", NormalizeLanguage(code.Language));
                 writer.WriteEndObject();
                 writer.WriteEndObject();
                 break;
@@ -116,6 +115,39 @@ public static class NotionBlockJsonWriter
                 writer.WriteEndObject();
                 break;
         }
+    }
+
+    private static readonly Dictionary<string, string> LanguageAliases = new(StringComparer.Ordinal)
+    {
+        ["js"] = "javascript",
+        ["jsx"] = "javascript",
+        ["ts"] = "typescript",
+        ["tsx"] = "typescript",
+        ["sh"] = "shell",
+        ["bash"] = "shell",
+        ["zsh"] = "shell",
+        ["py"] = "python",
+        ["rb"] = "ruby",
+        ["cs"] = "c#",
+        ["csharp"] = "c#",
+        ["cpp"] = "c++",
+        ["yml"] = "yaml",
+        ["md"] = "markdown",
+        ["txt"] = "plain text",
+        ["text"] = "plain text"
+    };
+
+    internal static string NormalizeLanguage(string? language)
+    {
+        var value = (language ?? "").Trim();
+        if (value.StartsWith("language-", StringComparison.OrdinalIgnoreCase))
+            value = value["language-".Length..];
+
+        if (string.IsNullOrWhiteSpace(value))
+            return "plain text";
+
+        value = value.ToLowerInvariant();
+        return LanguageAliases.TryGetValue(value, out var mapped) ? mapped : value;
     }
 
     private static void WriteHeadingBlock(Utf8JsonWriter writer, string type, string text)

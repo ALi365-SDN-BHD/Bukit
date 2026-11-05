@@ -4,7 +4,7 @@ namespace Bukit.Importing;
 
 internal static class ContentDraftWriter
 {
-    internal static void Write(HtmlDemoImportOptions options, ExtractedContent content)
+    internal static void Write(HtmlDemoImportOptions options, ExtractedContent content, ImportManifest? manifest = null)
     {
         if (IsNotionBuildSource(options))
         {
@@ -15,34 +15,36 @@ internal static class ContentDraftWriter
         var siteDir = HtmlDemoImporter.GetSiteDir(options);
         var contentDir = Path.Combine(siteDir, "content");
         Directory.CreateDirectory(contentDir);
+        manifest?.Produced(contentDir);
+        var claimed = new HashSet<string>(ImportWriteGuard.PathComparer);
 
         foreach (var page in content.Pages.Where(IsBuildPageDraft))
-            WritePageDraft(contentDir, page, options.Overwrite);
+            WritePageDraft(contentDir, page, claimed, options.Overwrite, manifest);
 
         foreach (var post in content.Posts)
-            WriteCollectionDraft(Path.Combine(contentDir, "posts"), post.Title, post.Slug, "post", post.Summary, post.Content, options.Overwrite);
+            WriteCollectionDraft(Path.Combine(contentDir, "posts"), post.Title, post.Slug, "post", post.Summary, post.Content, post.Image, post.SeoTitle, post.SeoDescription, post.TemplatePath, claimed, options.Overwrite, manifest);
 
         foreach (var company in content.Companies)
-            WriteCollectionDraft(Path.Combine(contentDir, "companies"), company.Title, company.Slug, "company", company.Summary, company.Content, options.Overwrite);
+            WriteCollectionDraft(Path.Combine(contentDir, "companies"), company.Title, company.Slug, "company", company.Summary, company.Content, company.Image, company.SeoTitle, company.SeoDescription, company.TemplatePath, claimed, options.Overwrite, manifest);
 
         foreach (var service in content.Services)
-            WriteCollectionDraft(Path.Combine(contentDir, "services"), service.Title, service.Slug, "service", service.Summary, service.Content, options.Overwrite);
+            WriteCollectionDraft(Path.Combine(contentDir, "services"), service.Title, service.Slug, "service", service.Summary, service.Content, service.Image, service.SeoTitle, service.SeoDescription, service.TemplatePath, claimed, options.Overwrite, manifest);
     }
 
     private static bool IsNotionBuildSource(HtmlDemoImportOptions options)
         => options.BuildSource.Equals("notion", StringComparison.OrdinalIgnoreCase);
 
-    private static void WritePageDraft(string contentDir, PageRecord page, bool overwrite)
+    private static void WritePageDraft(string contentDir, PageRecord page, HashSet<string> claimed, bool overwrite, ImportManifest? manifest)
     {
         var slug = string.IsNullOrWhiteSpace(page.Slug) ? "index" : page.Slug;
-        var dir = page.Type.Equals("Home", StringComparison.OrdinalIgnoreCase)
-            ? contentDir
-            : Path.Combine(contentDir, "pages");
-        WriteCollectionDraft(dir, page.Title, slug, "page", page.Summary, page.Content, overwrite);
+        WriteCollectionDraft(Path.Combine(contentDir, "pages"), page.Title, slug, "page", page.Summary, page.Content,
+            null, page.SeoTitle, page.SeoDescription, page.TemplatePath, claimed, overwrite, manifest, page.Url);
     }
 
+    // Core renders the home page at "/" from pages/index.html on its own; a home
+    // draft would only publish a duplicate at /index/.
     private static bool IsBuildPageDraft(PageRecord page)
-        => page.Type.Equals("Home", StringComparison.OrdinalIgnoreCase) ||
+        => !page.Type.Equals("Home", StringComparison.OrdinalIgnoreCase) &&
            page.Template.Equals("page", StringComparison.OrdinalIgnoreCase);
 
     private static void WriteCollectionDraft(
@@ -52,35 +54,52 @@ internal static class ContentDraftWriter
         string collection,
         string? summary,
         string? content,
-        bool overwrite)
+        string? image,
+        string? seoTitle,
+        string? seoDescription,
+        string? templatePath,
+        HashSet<string> claimed,
+        bool overwrite,
+        ImportManifest? manifest,
+        string? url = null)
     {
         Directory.CreateDirectory(dir);
 
         var safeSlug = string.IsNullOrWhiteSpace(slug) ? "index" : slug;
         var path = Path.Combine(dir, $"{safeSlug}.md");
-        if (File.Exists(path) && !overwrite) return;
+        if (!ImportWriteGuard.IsInside(path, dir))
+        {
+            Console.Error.WriteLine($"Skipped unsafe content slug '{safeSlug}' (record '{title}').");
+            return;
+        }
+
+        if (!ImportWriteGuard.TryClaim(claimed, path, $"record '{title}'"))
+            return;
+        if (manifest is not null ? !manifest.CanWrite(path) : File.Exists(path) && !overwrite) return;
+
+        var fields = new List<KeyValuePair<string, object?>>
+        {
+            new("title", title),
+            new("slug", safeSlug),
+            new("collection", collection),
+            // The demo page's own template; without one Core falls back to the collection template.
+            new("template", templatePath),
+            // Route-map URL; without it Core uses the collection permalink.
+            new("url", url),
+            new("summary", summary),
+            new("image", image),
+            new("seo_title", seoTitle),
+            new("seo_desc", seoDescription),
+            new("draft", false)
+        };
 
         var sb = new StringBuilder();
         sb.AppendLine("---");
-        sb.AppendLine($"title: \"{EscapeYaml(title)}\"");
-        sb.AppendLine($"slug: \"{EscapeYaml(safeSlug)}\"");
-        sb.AppendLine($"collection: \"{collection}\"");
-        if (!string.IsNullOrWhiteSpace(summary))
-            sb.AppendLine($"summary: \"{EscapeYaml(summary)}\"");
-        sb.AppendLine("published: true");
+        sb.Append(YamlEmitter.Emit(fields));
         sb.AppendLine("---");
         sb.AppendLine();
-        sb.AppendLine(content?.Trim() ?? "");
-        File.WriteAllText(path, sb.ToString());
-    }
-
-    private static string EscapeYaml(string value)
-    {
-        return value
-            .Replace("\\", "\\\\")
-            .Replace("\"", "\\\"")
-            .Replace("\n", "\\n")
-            .Replace("\r", "\\r")
-            .Replace("\t", "\\t");
+        sb.AppendLine(HtmlToMarkdownConverter.Convert(content));
+        ImportWriteGuard.WriteAllTextAtomic(path, sb.ToString());
+        manifest?.Record(path);
     }
 }

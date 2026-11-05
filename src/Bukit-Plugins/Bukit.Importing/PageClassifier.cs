@@ -29,21 +29,46 @@ internal static class PageClassifier
         ["join"] = PageType.Page,
     };
 
-    internal static PageType Classify(string fileNameWithoutExtension, string html)
-        => Classify(fileNameWithoutExtension, html, null);
-
-    internal static PageType Classify(string fileNameWithoutExtension, string html, RouteMapConfig? routeMap)
+    /// <summary>
+    /// The name a demo file stands for: "about" for about.html and for about/index.html.
+    /// Only the demo's root index.html is "index" (the home page). Accepts a relative
+    /// path or a bare name.
+    /// </summary>
+    internal static string PageName(string relativePathOrName)
     {
-        if (routeMap != null)
-        {
-            var match = routeMap.Pages.FirstOrDefault(p =>
-                string.Equals(p.Source, $"{fileNameWithoutExtension}.html", StringComparison.OrdinalIgnoreCase) ||
-                string.Equals(Path.GetFileNameWithoutExtension(p.Source), fileNameWithoutExtension, StringComparison.OrdinalIgnoreCase));
-            if (match != null)
-                return ParsePageType(match.Type);
-        }
+        var path = relativePathOrName.Replace('\\', '/').Trim('/');
+        var name = Path.GetFileNameWithoutExtension(path);
+        if (!name.Equals("index", StringComparison.OrdinalIgnoreCase))
+            return name;
 
-        if (FileNameMapping.TryGetValue(fileNameWithoutExtension, out var type))
+        var dir = Path.GetDirectoryName(path)?.Replace('\\', '/') ?? "";
+        return dir.Length == 0 ? name : dir[(dir.LastIndexOf('/') + 1)..];
+    }
+
+    /// <summary>
+    /// The folder a demo page belongs to: "news" for news/a.html and for
+    /// news/a/index.html, "" for root pages.
+    /// </summary>
+    internal static string PageFolder(string relativePath)
+    {
+        var path = relativePath.Replace('\\', '/').Trim('/');
+        var dir = Path.GetDirectoryName(path)?.Replace('\\', '/') ?? "";
+        if (Path.GetFileNameWithoutExtension(path).Equals("index", StringComparison.OrdinalIgnoreCase))
+            dir = Path.GetDirectoryName(dir)?.Replace('\\', '/') ?? "";
+        return dir.Length == 0 ? "" : dir[(dir.LastIndexOf('/') + 1)..];
+    }
+
+    internal static PageType Classify(string relativePathOrName, string html)
+        => Classify(relativePathOrName, html, null);
+
+    internal static PageType Classify(string relativePathOrName, string html, RouteMapConfig? routeMap)
+    {
+        // An entry without a type only sets the route or template; the usual rules decide the kind.
+        var entry = FindEntry(routeMap, relativePathOrName);
+        if (entry != null && !string.IsNullOrWhiteSpace(entry.Type))
+            return ParsePageType(entry.Type);
+
+        if (FileNameMapping.TryGetValue(PageName(relativePathOrName), out var type))
             return type;
 
         return ClassifyByContent(html);
@@ -68,24 +93,38 @@ internal static class PageClassifier
         };
     }
 
-    internal static string? GetRoute(RouteMapConfig? routeMap, string fileNameWithoutExtension)
-    {
-        if (routeMap == null) return null;
+    internal static string? GetRoute(RouteMapConfig? routeMap, string relativePathOrName)
+        => FindEntry(routeMap, relativePathOrName)?.Route;
 
-        var match = routeMap.Pages.FirstOrDefault(p =>
-            string.Equals(p.Source, $"{fileNameWithoutExtension}.html", StringComparison.OrdinalIgnoreCase) ||
-            string.Equals(Path.GetFileNameWithoutExtension(p.Source), fileNameWithoutExtension, StringComparison.OrdinalIgnoreCase));
-        return match?.Route;
+    internal static string? GetTemplate(RouteMapConfig? routeMap, string relativePathOrName)
+        => FindEntry(routeMap, relativePathOrName)?.Template;
+
+    /// <summary>
+    /// The route-map entry for a demo file. A source that names a path
+    /// ("about/index.html", "en/about.html") matches only that file, so each such entry
+    /// belongs to one page. A bare file name ("about.html") matches every page of that
+    /// name, including about/index.html; an exact path entry wins over it.
+    /// </summary>
+    internal static RouteMapPage? FindEntry(RouteMapConfig? routeMap, string relativePathOrName)
+    {
+        if (routeMap is null)
+            return null;
+
+        var path = relativePathOrName.Replace('\\', '/').Trim('/');
+        var name = PageName(path);
+        return routeMap.Pages.FirstOrDefault(p =>
+                   string.Equals(NormalizeSource(p.Source), path, StringComparison.OrdinalIgnoreCase))
+               ?? routeMap.Pages.FirstOrDefault(p =>
+                   !NormalizeSource(p.Source).Contains('/') &&
+                   string.Equals(PageName(NormalizeSource(p.Source)), name, StringComparison.OrdinalIgnoreCase));
     }
 
-    internal static string? GetTemplate(RouteMapConfig? routeMap, string fileNameWithoutExtension)
+    private static string NormalizeSource(string source)
     {
-        if (routeMap == null) return null;
-
-        var match = routeMap.Pages.FirstOrDefault(p =>
-            string.Equals(p.Source, $"{fileNameWithoutExtension}.html", StringComparison.OrdinalIgnoreCase) ||
-            string.Equals(Path.GetFileNameWithoutExtension(p.Source), fileNameWithoutExtension, StringComparison.OrdinalIgnoreCase));
-        return match?.Template;
+        var normalized = source.Replace('\\', '/').Trim('/');
+        while (normalized.StartsWith("./", StringComparison.Ordinal))
+            normalized = normalized[2..].TrimStart('/');
+        return normalized;
     }
 
     private static PageType ClassifyByContent(string html)

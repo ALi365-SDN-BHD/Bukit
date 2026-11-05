@@ -16,10 +16,7 @@ internal static partial class TemplateResidueAnalyzer
         "©", "&copy;", "&reg;", "&trade;"
     };
 
-    internal static HardcodedContentReport Analyze(
-        string themePath,
-        List<ExtractedContent>? contents,
-        RouteMapConfig? routeMap)
+    internal static HardcodedContentReport Analyze(string themePath)
     {
         var residues = new List<TemplateResidueAnalysis>();
         var templateFiles = FindTemplateFiles(themePath);

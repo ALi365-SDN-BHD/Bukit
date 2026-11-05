@@ -66,12 +66,50 @@ public static class ImportPluginOptionsMapper
             workingDir,
             ReadString(request, "--config") ?? request.Context.ConfigPath,
             "--config");
-        var sitePath = ImportPluginPathGuard.ResolveOptionalPath(rootDir, rootDir, ReadString(request, "--site-path"), "--site-path");
+        var sitePath = ResolveWritablePath(rootDir, rootDir, ReadString(request, "--site-path"), "--site-path");
+        var notionSiteDir = sitePath
+            ?? Path.Combine(rootDir, "sites", ReadString(request, "--theme") ?? Path.GetFileName(workingDir));
+        var createMissing = ReadBool(request, "--create-missing-notion-databases");
+        var generatedMap = ResolveWritablePath(
+            rootDir,
+            notionSiteDir,
+            ReadString(request, "--notion-generated-database-map"),
+            "--notion-generated-database-map");
+        var databaseMap = ImportPluginPathGuard.PreserveSafeRelativeOrRootedPath(
+            rootDir,
+            ReadString(request, "--notion-database-map"),
+            "--notion-database-map");
+        // With --create-missing-notion-databases and no generated map, the workflow
+        // writes ids back into this very file, so it must be inside the write scope.
+        if (createMissing && generatedMap is null && databaseMap is not null)
+        {
+            var mapWritePath = Path.IsPathRooted(databaseMap)
+                ? databaseMap
+                : Path.Combine(notionSiteDir, databaseMap);
+            if (!ImportPluginCommandSpecs.IsWritablePath(rootDir, mapWritePath))
+            {
+                throw new ImportPluginOptionsException(
+                    "plugin.import.pathDenied",
+                    "--notion-database-map is rewritten when --create-missing-notion-databases is used; " +
+                    "it must stay inside the plugin's declared write scope.");
+            }
+        }
         var routeMapPath = ImportPluginPathGuard.ResolveOptionalPath(rootDir, demoDir ?? workingDir, ReadString(request, "--route-map"), "--route-map");
         var tokenEnv = ReadString(request, "--notion-token-env") ?? "NOTION_TOKEN";
         var pushNotion = ReadBool(request, "--push-notion");
         if (pushNotion)
             EnsureEnvironmentGranted(request, tokenEnv);
+
+        var dryRun = ReadBool(request, "--dry-run");
+        var use = ReadBool(request, "--use");
+        // --use writes the theme name into the config; a read-only config is fine otherwise.
+        if (use && !dryRun && configPath is not null &&
+            !ImportPluginCommandSpecs.IsWritableConfigPath(rootDir, configPath))
+        {
+            throw new ImportPluginOptionsException(
+                "plugin.import.pathDenied",
+                "--use rewrites the theme name in --config; the config must be a writable file inside the plugin's declared write scope.");
+        }
 
         return new ImportCommandOptions
         {
@@ -83,15 +121,15 @@ public static class ImportPluginOptionsMapper
             DemoDir = demoDir,
             ThemeName = ReadString(request, "--theme"),
             Force = ReadBool(request, "--force"),
-            Use = ReadBool(request, "--use"),
+            Use = use,
             Verify = ReadBool(request, "--verify"),
             ExtractContent = !ReadBool(request, "--no-extract-content"),
             GenerateSeed = !ReadBool(request, "--no-seed"),
             ContentSource = ReadString(request, "--content-source") ?? "notion",
             BuildSource = ReadString(request, "--build-source") ?? "markdown",
             SitePath = sitePath,
-            Language = ReadString(request, "--language") ?? "zh",
-            DryRun = ReadBool(request, "--dry-run"),
+            Language = ReadString(request, "--language") ?? "",
+            DryRun = dryRun,
             StrictMode = ResolveStrictMode(ReadString(request, "--strict")),
             Overwrite = ReadBool(request, "--overwrite"),
             PreserveHtml = !ReadBool(request, "--no-preserve-html"),
@@ -100,19 +138,14 @@ public static class ImportPluginOptionsMapper
             RouteMapPath = routeMapPath,
             PushNotion = pushNotion,
             NotionDatabaseId = ReadString(request, "--notion-database-id"),
-            NotionDatabaseMap = ImportPluginPathGuard.PreserveSafeRelativeOrRootedPath(
-                rootDir,
-                ReadString(request, "--notion-database-map"),
-                "--notion-database-map"),
-            CreateMissingNotionDatabases = ReadBool(request, "--create-missing-notion-databases"),
+            NotionDatabaseMap = databaseMap,
+            CreateMissingNotionDatabases = createMissing,
             NotionParentPageId = ReadString(request, "--notion-parent-page-id"),
-            NotionGeneratedDatabaseMap = ImportPluginPathGuard.PreserveSafeRelativeOrRootedPath(
-                rootDir,
-                ReadString(request, "--notion-generated-database-map"),
-                "--notion-generated-database-map"),
+            NotionGeneratedDatabaseMap = generatedMap,
             NotionTokenEnv = tokenEnv,
-            NotionReport = ImportPluginPathGuard.PreserveSafeRelativeOrRootedPath(
+            NotionReport = ResolveWritablePath(
                 rootDir,
+                notionSiteDir,
                 ReadString(request, "--notion-report"),
                 "--notion-report"),
             ValidateNotionSchema = !ReadBool(request, "--no-validate-notion-schema")
@@ -134,7 +167,7 @@ public static class ImportPluginOptionsMapper
             SeedDir = request.Command.Arguments.Count > 0
                 ? ImportPluginPathGuard.ResolveRequiredPath(rootDir, workingDir, request.Command.Arguments[0], "seed-dir")
                 : null,
-            OutputDir = ImportPluginPathGuard.ResolveOptionalPath(rootDir, workingDir, ReadString(request, "--output"), "--output"),
+            OutputDir = ResolveWritablePath(rootDir, workingDir, ReadString(request, "--output"), "--output"),
             Force = ReadBool(request, "--force")
         };
 
@@ -148,26 +181,93 @@ public static class ImportPluginOptionsMapper
         if (!dryRun || request.Command.Options.ContainsKey("--token-env"))
             EnsureEnvironmentGranted(request, tokenEnv);
 
+        var createMissing = ReadBool(request, "--create-missing-databases");
+        var generatedMapValue = ReadString(request, "--generated-database-map");
+        var reportValue = ReadString(request, "--report");
+        var inputDir = ImportPluginPathGuard.ResolveOptionalPath(
+            rootDir,
+            workingDir,
+            ReadString(request, "--input"),
+            "--input") ?? "";
+        var databaseMap = ImportPluginPathGuard.ResolveOptionalPath(
+            rootDir,
+            workingDir,
+            ReadString(request, "--database-map"),
+            "--database-map");
+        if (databaseMap is not null &&
+            createMissing &&
+            string.IsNullOrWhiteSpace(generatedMapValue) &&
+            !ImportPluginCommandSpecs.IsWritablePath(rootDir, databaseMap))
+        {
+            throw new ImportPluginOptionsException(
+                "plugin.import.pathDenied",
+                "--database-map is rewritten when --create-missing-databases is used; it must stay inside the plugin's declared write scope.");
+        }
+
+        EnsureDefaultOutputsAreWritable(
+            rootDir, inputDir, dryRun, createMissing, reportValue, generatedMapValue, databaseMap);
+
         return new ImportNotionSeedPushOptions
         {
-            InputDir = ImportPluginPathGuard.ResolveOptionalPath(rootDir, workingDir, ReadString(request, "--input"), "--input") ?? "",
+            InputDir = inputDir,
             DatabaseId = ReadString(request, "--database-id"),
-            DatabaseMapPath = ImportPluginPathGuard.ResolveOptionalPath(rootDir, workingDir, ReadString(request, "--database-map"), "--database-map"),
-            CreateMissingDatabases = ReadBool(request, "--create-missing-databases"),
+            DatabaseMapPath = databaseMap,
+            CreateMissingDatabases = createMissing,
             ParentPageId = ReadString(request, "--parent-page-id"),
-            GeneratedDatabaseMapPath = ImportPluginPathGuard.ResolveOptionalPath(
+            GeneratedDatabaseMapPath = ResolveWritablePath(
                 rootDir,
                 workingDir,
-                ReadString(request, "--generated-database-map"),
+                generatedMapValue,
                 "--generated-database-map"),
             TokenEnv = tokenEnv,
             Mode = ReadString(request, "--mode") ?? "create",
             UniqueField = ReadString(request, "--unique-field") ?? "Slug",
             UpdateContent = ReadString(request, "--update-content") ?? "",
             DryRun = dryRun,
-            ReportPath = ImportPluginPathGuard.ResolveOptionalPath(rootDir, workingDir, ReadString(request, "--report"), "--report"),
+            ReportPath = ResolveWritablePath(rootDir, workingDir, reportValue, "--report"),
             ValidateSchema = !ReadBool(request, "--no-validate-schema")
         };
+    }
+
+    /// <summary>
+    /// Paths the workflow derives itself (default report, default generated map,
+    /// push lock) also have to stay inside the declared write scope.
+    /// </summary>
+    private static void EnsureDefaultOutputsAreWritable(
+        string rootDir,
+        string inputDir,
+        bool dryRun,
+        bool createMissing,
+        string? reportValue,
+        string? generatedMapValue,
+        string? databaseMap)
+    {
+        if (string.IsNullOrWhiteSpace(inputDir))
+            return;
+
+        var defaults = new List<string>();
+        if (!dryRun)
+            defaults.Add(Path.Combine(inputDir, ".notion-push.lock"));
+        if (string.IsNullOrWhiteSpace(reportValue))
+            defaults.Add(Path.Combine(inputDir, dryRun ? "notion-push-plan.json" : "notion-push-report.json"));
+        if (createMissing &&
+            string.IsNullOrWhiteSpace(generatedMapValue) &&
+            string.IsNullOrWhiteSpace(databaseMap))
+        {
+            defaults.Add(Path.Combine(inputDir, "notion-database-map.generated.yaml"));
+        }
+
+        foreach (var path in defaults)
+        {
+            if (!ImportPluginCommandSpecs.IsWritablePath(rootDir, path))
+            {
+                throw new ImportPluginOptionsException(
+                    "plugin.import.pathDenied",
+                    $"Default output '{path}' is outside the plugin's declared write scope: " +
+                    $"{string.Join(", ", ImportPluginCommandSpecs.WriteRoots)}. " +
+                    "Move the seed directory under one of those roots or pass an explicit output path.");
+            }
+        }
     }
 
     private static ImportNotionSchemaValidationOptions MapNotionValidateSchema(
@@ -182,8 +282,22 @@ public static class ImportPluginOptionsMapper
         {
             DatabaseId = ReadString(request, "--database-id"),
             TokenEnv = tokenEnv,
-            ReportPath = ImportPluginPathGuard.ResolveOptionalPath(rootDir, workingDir, ReadString(request, "--report"), "--report")
+            ReportPath = ResolveWritablePath(rootDir, workingDir, ReadString(request, "--report"), "--report")
         };
+    }
+
+    private static string? ResolveWritablePath(string rootDir, string baseDir, string? value, string name)
+    {
+        var resolved = ImportPluginPathGuard.ResolveOptionalPath(rootDir, baseDir, value, name);
+        if (resolved is null)
+            return null;
+
+        if (!ImportPluginCommandSpecs.IsWritablePath(rootDir, resolved))
+            throw new ImportPluginOptionsException(
+                "plugin.import.pathDenied",
+                $"{name} must stay inside the plugin's declared write scope: {string.Join(", ", ImportPluginCommandSpecs.WriteRoots)}.");
+
+        return resolved;
     }
 
     private static void EnsureEnvironmentGranted(PluginInvokeRequest request, string tokenEnv)

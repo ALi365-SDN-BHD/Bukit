@@ -320,13 +320,14 @@ public sealed class PluginCliIntegrationTests : IDisposable
             "db-single",
             "--dry-run",
             "--report",
-            "reports/notion-plan.json"
+            ".bukit/reports/plugin-output/import/notion-plan.json"
         ]);
 
         Assert.Equal(0, result.ExitCode);
         Assert.Contains("notion push dry-run complete: records=1", result.StdOut, StringComparison.Ordinal);
         Assert.Empty(result.StdErr);
-        Assert.True(File.Exists(Path.Combine(_tempDir, "reports", "notion-plan.json")));
+        Assert.True(File.Exists(Path.Combine(
+            _tempDir, ".bukit", "reports", "plugin-output", "import", "notion-plan.json")));
         string lockText = ReadImportLock();
         Assert.Contains("  import:", lockText, StringComparison.Ordinal);
         Assert.Contains("source: plugins/import", lockText, StringComparison.Ordinal);
@@ -336,6 +337,30 @@ public sealed class PluginCliIntegrationTests : IDisposable
         Assert.Contains("\"notion\"", report, StringComparison.Ordinal);
         Assert.Contains("\"push\"", report, StringComparison.Ordinal);
         Assert.Contains("\"success\": true", report, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task Main_OfficialImportFixture_NotionPushReportOutsideWriteScope_IsRejected()
+    {
+        using var cwd = new CurrentDirectoryScope(_tempDir);
+        await InstallImportFixtureAsync(enabled: true);
+        CreateSeedInput("seed");
+
+        var result = await InvokeEntryPointAsync([
+            "notion",
+            "push",
+            "--input",
+            "seed",
+            "--database-id",
+            "db-single",
+            "--dry-run",
+            "--report",
+            "reports/notion-plan.json"
+        ]);
+
+        Assert.Equal(2, result.ExitCode);
+        Assert.Contains("write scope", result.StdOut + result.StdErr, StringComparison.Ordinal);
+        Assert.False(File.Exists(Path.Combine(_tempDir, "reports", "notion-plan.json")));
     }
 
     [Fact]

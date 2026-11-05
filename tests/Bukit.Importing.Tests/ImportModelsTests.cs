@@ -21,7 +21,7 @@ public sealed class ImportModelsTests
         Assert.False(options.Force);
         Assert.False(options.Use);
         Assert.False(options.Verify);
-        Assert.Equal("zh", options.Language);
+        Assert.Equal("", options.Language);
         Assert.True(options.PreserveHtml);
         Assert.True(options.GenerateReport);
     }

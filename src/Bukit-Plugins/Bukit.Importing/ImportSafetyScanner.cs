@@ -6,11 +6,22 @@ internal static partial class ImportSafetyScanner
         HtmlDemoImportOptions options, List<DiscoveredPage> pages)
     {
         var diagnostics = new List<ImportDiagnostic>();
-        var htmlFiles = Directory.GetFiles(options.InputPath, "*.html", SearchOption.AllDirectories)
+        var htmlFiles = DemoFiles.Enumerate(options.InputPath)
+            .Where(HtmlDemoScanner.IsPageFile)
+            .Where(path => !ImportSafetyPatterns.IsBuiltOutputPath(options.InputPath, path))
             .Select(path => Path.GetRelativePath(options.InputPath, path).Replace('\\', '/'))
             .ToHashSet(StringComparer.OrdinalIgnoreCase);
 
-        ScanSensitiveFiles(options.InputPath, diagnostics);
+        var tree = DemoFiles.Walk(options.InputPath, ImportSafetyPatterns.SkipDirectoryNames);
+        ScanSensitiveFiles(options.InputPath, tree, diagnostics);
+        foreach (var link in tree.Links)
+        {
+            diagnostics.Add(new ImportDiagnostic(
+                ImportDiagnosticSeverity.Warning,
+                "SYMLINK_SKIPPED",
+                $"跳过符号链接（不会被复制或导入）: {Path.GetRelativePath(options.InputPath, link)}",
+                link));
+        }
 
         foreach (var page in pages)
         {
@@ -21,55 +32,32 @@ internal static partial class ImportSafetyScanner
         return diagnostics;
     }
 
-    private static void ScanSensitiveFiles(string inputPath, List<ImportDiagnostic> diagnostics)
+    private static void ScanSensitiveFiles(
+        string inputPath,
+        DemoFiles.Tree tree,
+        List<ImportDiagnostic> diagnostics)
     {
-        foreach (var pattern in ImportSafetyPatterns.SensitiveFileNames)
+        foreach (var file in tree.Files)
         {
-            var fileMatches = Directory.GetFiles(inputPath, pattern, SearchOption.AllDirectories);
-            foreach (var match in fileMatches)
-            {
-                diagnostics.Add(new ImportDiagnostic(
-                    ImportDiagnosticSeverity.Error,
-                    "SENSITIVE_FILE",
-                    $"发现敏感文件: {Path.GetRelativePath(inputPath, match)}",
-                    match));
-            }
-
-            var dirMatches = Directory.GetDirectories(inputPath, pattern, SearchOption.AllDirectories);
-            foreach (var match in dirMatches)
-            {
-                diagnostics.Add(new ImportDiagnostic(
-                    ImportDiagnosticSeverity.Error,
-                    "SENSITIVE_FILE",
-                    $"发现敏感目录: {Path.GetRelativePath(inputPath, match)}",
-                    match));
-            }
-        }
-
-        foreach (var pattern in ImportSafetyPatterns.SensitiveFilePatterns)
-        {
-            var matches = Directory.GetFiles(inputPath, pattern, SearchOption.AllDirectories);
-            foreach (var match in matches)
-            {
-                diagnostics.Add(new ImportDiagnostic(
-                    ImportDiagnosticSeverity.Error,
-                    "SENSITIVE_FILE",
-                    $"发现敏感文件: {Path.GetRelativePath(inputPath, match)}",
-                    match));
-            }
-        }
-
-        var allFiles = Directory.GetFiles(inputPath, "*.*", SearchOption.AllDirectories);
-        foreach (var file in allFiles)
-        {
-            var ext = Path.GetExtension(file);
-            if (ImportSafetyPatterns.SensitiveExtensions.Contains(ext, StringComparer.OrdinalIgnoreCase))
+            if (ImportSafetyPatterns.IsSensitiveFileName(Path.GetFileName(file)))
             {
                 diagnostics.Add(new ImportDiagnostic(
                     ImportDiagnosticSeverity.Error,
                     "SENSITIVE_FILE",
                     $"发现敏感文件: {Path.GetRelativePath(inputPath, file)}",
                     file));
+            }
+        }
+
+        foreach (var directory in tree.Directories)
+        {
+            if (ImportSafetyPatterns.IsSensitiveDirectoryName(Path.GetFileName(directory)))
+            {
+                diagnostics.Add(new ImportDiagnostic(
+                    ImportDiagnosticSeverity.Error,
+                    "SENSITIVE_FILE",
+                    $"发现敏感目录: {Path.GetRelativePath(inputPath, directory)}",
+                    directory));
             }
         }
     }
@@ -139,6 +127,15 @@ internal static partial class ImportSafetyScanner
                 page.FilePath));
         }
 
+        if (page.GuessedEncoding is { } guessed)
+        {
+            diagnostics.Add(new ImportDiagnostic(
+                ImportDiagnosticSeverity.Warning,
+                "ENCODING_GUESSED",
+                $"页面未声明编码且不是 UTF-8，已按 {guessed} 读取；如有乱码，请在页面中加入 <meta charset> 声明实际编码",
+                page.FilePath));
+        }
+
         if (string.IsNullOrWhiteSpace(page.Title))
         {
             diagnostics.Add(new ImportDiagnostic(
@@ -183,7 +180,8 @@ internal static partial class ImportSafetyScanner
                 : Path.GetRelativePath(inputPath, Path.GetFullPath(Path.Combine(
                     inputPath, baseDir, cleanHref))).Replace('\\', '/');
 
-            if (!htmlFiles.Contains(candidate))
+            var alternate = DemoLinks.AlternatePageExtension(candidate);
+            if (!htmlFiles.Contains(candidate) && (alternate is null || !htmlFiles.Contains(alternate)))
             {
                 diagnostics.Add(new ImportDiagnostic(
                     ImportDiagnosticSeverity.Warning,

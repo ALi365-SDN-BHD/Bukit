@@ -70,11 +70,11 @@ internal static class ImportReportWriter
     {
         Console.WriteLine("=== DRY-RUN Analysis Results ===");
         Console.WriteLine($"  HTML pages scanned:   {result.PagesFound}");
-        Console.WriteLine($"  Templates to generate:  {result.TemplatesGenerated}");
-        Console.WriteLine($"  Partials to generate:   {result.PartialsGenerated}");
-        Console.WriteLine($"  Components to generate: {result.ComponentsGenerated}");
-        Console.WriteLine($"  Records to extract:     {result.RecordsExtracted}");
-        Console.WriteLine($"  Assets to copy:         {result.AssetsCopied}");
+        Console.WriteLine($"  Templates (estimated):  {result.TemplatesGenerated}");
+        Console.WriteLine($"  Partials (estimated):   {result.PartialsGenerated}");
+        Console.WriteLine($"  Components (estimated): {result.ComponentsGenerated}");
+        Console.WriteLine($"  Records (estimated):    {result.RecordsExtracted}");
+        Console.WriteLine($"  Assets (estimated):     {result.AssetsCopied}");
         Console.WriteLine("  (no files written)");
     }
 
@@ -235,7 +235,7 @@ internal static class ImportReportWriter
         sb.AppendLine();
         sb.AppendLine("## Visual Verification");
         sb.AppendLine();
-        sb.AppendLine("- `--verify` runs `bukit doctor` and `bukit build` against the generated site config.");
+        sb.AppendLine("- `--verify` loads the generated site config and runs `bukit build` (it does not run `bukit doctor`).");
         sb.AppendLine("- Before publishing, compare the generated preview against the original demo at desktop/tablet/mobile breakpoints.");
         sb.AppendLine("- Treat visual parity as pending until screenshots or browser review confirm layout, navigation, CTA, and responsive behavior.");
 

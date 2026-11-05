@@ -70,11 +70,27 @@ public sealed class NotionBlockJsonWriterTests
 
         Assert.Equal("code", blocks[5].GetProperty("type").GetString());
         Assert.Equal("Console.WriteLine(\"hi\");", GetSingleRichTextContent(blocks[5], "code"));
-        Assert.Equal("csharp", blocks[5].GetProperty("code").GetProperty("language").GetProperty("name").GetString());
+        var language = blocks[5].GetProperty("code").GetProperty("language");
+        Assert.Equal(JsonValueKind.String, language.ValueKind);
+        Assert.Equal("c#", language.GetString());
 
         Assert.Equal("callout", blocks[6].GetProperty("type").GetString());
         Assert.Equal("Heads up", GetSingleRichTextContent(blocks[6], "callout"));
         Assert.Equal("💡", blocks[6].GetProperty("callout").GetProperty("icon").GetProperty("emoji").GetString());
+    }
+
+    [Theory]
+    [InlineData("language-Python", "python")]
+    [InlineData("csharp", "c#")]
+    [InlineData("js", "javascript")]
+    [InlineData("ts", "typescript")]
+    [InlineData("sh", "shell")]
+    [InlineData("yml", "yaml")]
+    [InlineData("", "plain text")]
+    [InlineData(null, "plain text")]
+    public void NormalizeLanguage_StripsClassPrefixAndDefaultsToPlainText(string? input, string expected)
+    {
+        Assert.Equal(expected, NotionBlockJsonWriter.NormalizeLanguage(input));
     }
 
     [Fact]

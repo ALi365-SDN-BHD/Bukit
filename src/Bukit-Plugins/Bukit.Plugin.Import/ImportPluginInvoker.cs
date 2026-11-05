@@ -11,7 +11,7 @@ public static class ImportPluginInvoker
         try
         {
             var invocation = ImportPluginOptionsMapper.MapInvocation(request);
-            var capture = await ImportPluginConsoleCapture.CaptureAsync(() => RunMappedInvocationAsync(invocation));
+            var capture = await ImportConsoleCapture.CaptureAsync(() => RunMappedInvocationAsync(invocation));
 
             if (capture.Exception is not null)
                 return ImportPluginResponseMapper.FromException(request, capture.Exception);

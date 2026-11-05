@@ -118,12 +118,12 @@ public sealed class ImportPluginOptionsMapperTests : IDisposable
                 ["--database-map"] = Json("maps/notion.yaml"),
                 ["--create-missing-databases"] = Json(true),
                 ["--parent-page-id"] = Json("parent"),
-                ["--generated-database-map"] = Json("maps/generated.yaml"),
+                ["--generated-database-map"] = Json("data/generated.yaml"),
                 ["--mode"] = Json("upsert"),
                 ["--unique-field"] = Json("Slug"),
                 ["--update-content"] = Json("replace"),
                 ["--dry-run"] = Json(true),
-                ["--report"] = Json("reports/notion.json"),
+                ["--report"] = Json(".bukit/reports/plugin-output/import/notion.json"),
                 ["--no-validate-schema"] = Json(true)
             });
 
@@ -136,13 +136,220 @@ public sealed class ImportPluginOptionsMapperTests : IDisposable
         Assert.Equal(Path.Combine(_rootDir, "maps", "notion.yaml"), options.DatabaseMapPath);
         Assert.True(options.CreateMissingDatabases);
         Assert.Equal("parent", options.ParentPageId);
-        Assert.Equal(Path.Combine(_rootDir, "maps", "generated.yaml"), options.GeneratedDatabaseMapPath);
+        Assert.Equal(Path.Combine(_rootDir, "data", "generated.yaml"), options.GeneratedDatabaseMapPath);
         Assert.Equal("upsert", options.Mode);
         Assert.Equal("Slug", options.UniqueField);
         Assert.Equal("replace", options.UpdateContent);
         Assert.True(options.DryRun);
-        Assert.Equal(Path.Combine(_rootDir, "reports", "notion.json"), options.ReportPath);
+        Assert.Equal(Path.Combine(_rootDir, ".bukit", "reports", "plugin-output", "import", "notion.json"), options.ReportPath);
         Assert.False(options.ValidateSchema);
+    }
+
+    [Fact]
+    public void Map_HtmlDemo_RejectsReportOutsideDeclaredWriteScope()
+    {
+        var request = Request(
+            path: ["notion", "push"],
+            arguments: [],
+            options: new Dictionary<string, JsonElement>
+            {
+                ["--input"] = Json("seed"),
+                ["--database-id"] = Json("db-single"),
+                ["--dry-run"] = Json(true),
+                ["--report"] = Json("bukit.yaml")
+            });
+
+        var ex = Assert.Throws<ImportPluginOptionsException>(() => ImportPluginOptionsMapper.MapInvocation(request));
+
+        Assert.Equal("plugin.import.pathDenied", ex.Code);
+        Assert.Contains("write scope", ex.Message);
+    }
+
+    [Fact]
+    public void Map_HtmlDemo_RejectsUseWhenConfigIsOutsideWriteScope()
+    {
+        var request = Request(
+            path: ["import", "html-demo"],
+            arguments: ["demo"],
+            options: new Dictionary<string, JsonElement>
+            {
+                ["--theme"] = Json("demo-theme"),
+                ["--use"] = Json(true),
+                ["--config"] = Json(Path.Combine(_rootDir, "config", "custom.yaml"))
+            });
+
+        var ex = Assert.Throws<ImportPluginOptionsException>(() => ImportPluginOptionsMapper.Map(request));
+
+        Assert.Equal("plugin.import.pathDenied", ex.Code);
+        Assert.Contains("--use", ex.Message);
+    }
+
+    [Theory]
+    [InlineData("site.yaml")]
+    [InlineData("bukit.yaml")]
+    public void Map_HtmlDemo_AllowsUseForTheDeclaredProjectConfig(string configName)
+    {
+        var request = Request(
+            path: ["import", "html-demo"],
+            arguments: ["demo"],
+            options: new Dictionary<string, JsonElement>
+            {
+                ["--theme"] = Json("demo-theme"),
+                ["--use"] = Json(true),
+                ["--config"] = Json(configName)
+            });
+
+        var options = ImportPluginOptionsMapper.Map(request);
+
+        Assert.True(options.Use);
+        Assert.Equal(Path.Combine(_rootDir, configName), options.ConfigPath);
+    }
+
+    [Fact]
+    public void Map_Seed_RejectsOutputOutsideDeclaredWriteScope()
+    {
+        var request = Request(
+            path: ["import", "seed"],
+            arguments: ["seed"],
+            options: new Dictionary<string, JsonElement>
+            {
+                ["--output"] = Json("src")
+            });
+
+        var ex = Assert.Throws<ImportPluginOptionsException>(() => ImportPluginOptionsMapper.Map(request));
+
+        Assert.Equal("plugin.import.pathDenied", ex.Code);
+    }
+
+    [Fact]
+    public void Map_HtmlDemo_CreateMissingDatabasesRejectsDatabaseMapOutsideWriteScope()
+    {
+        var request = Request(
+            path: ["import", "html-demo"],
+            arguments: ["demo"],
+            options: new Dictionary<string, JsonElement>
+            {
+                ["--theme"] = Json("demo-theme"),
+                ["--push-notion"] = Json(true),
+                ["--create-missing-notion-databases"] = Json(true),
+                ["--notion-parent-page-id"] = Json("parent"),
+                ["--notion-database-map"] = Json(Path.Combine(_rootDir, "bukit.yaml"))
+            },
+            permissions: new PluginPermissionSet(Environment: new PluginEnvironmentPermission(Read: ["NOTION_TOKEN"])));
+
+        var ex = Assert.Throws<ImportPluginOptionsException>(() => ImportPluginOptionsMapper.Map(request));
+
+        Assert.Equal("plugin.import.pathDenied", ex.Code);
+        Assert.Contains("--notion-database-map", ex.Message);
+    }
+
+    [Fact]
+    public void Map_HtmlDemo_ReadOnlyDatabaseMapOutsideWriteScopeIsAllowed()
+    {
+        var request = Request(
+            path: ["import", "html-demo"],
+            arguments: ["demo"],
+            options: new Dictionary<string, JsonElement>
+            {
+                ["--theme"] = Json("demo-theme"),
+                ["--push-notion"] = Json(true),
+                ["--notion-database-map"] = Json(Path.Combine(_rootDir, "bukit.yaml"))
+            },
+            permissions: new PluginPermissionSet(Environment: new PluginEnvironmentPermission(Read: ["NOTION_TOKEN"])));
+
+        var options = ImportPluginOptionsMapper.Map(request);
+
+        Assert.Equal(Path.Combine(_rootDir, "bukit.yaml"), options.NotionDatabaseMap);
+    }
+
+    [Fact]
+    public void MapInvocation_NotionPushRejectsOutOfScopeDefaultReport()
+    {
+        var request = Request(
+            path: ["notion", "push"],
+            arguments: [],
+            options: new Dictionary<string, JsonElement>
+            {
+                ["--input"] = Json("seed"),
+                ["--database-id"] = Json("db-single"),
+                ["--dry-run"] = Json(true)
+            });
+
+        var ex = Assert.Throws<ImportPluginOptionsException>(() => ImportPluginOptionsMapper.MapInvocation(request));
+
+        Assert.Equal("plugin.import.pathDenied", ex.Code);
+        Assert.Contains("notion-push-plan.json", ex.Message);
+    }
+
+    [Fact]
+    public void MapInvocation_NotionPushRejectsOutOfScopeLock()
+    {
+        var request = Request(
+            path: ["notion", "push"],
+            arguments: [],
+            options: new Dictionary<string, JsonElement>
+            {
+                ["--input"] = Json("seed"),
+                ["--database-id"] = Json("db-single"),
+                ["--report"] = Json(".bukit/reports/plugin-output/import/report.json")
+            },
+            permissions: new PluginPermissionSet(Environment: new PluginEnvironmentPermission(Read: ["NOTION_TOKEN"])));
+
+        var ex = Assert.Throws<ImportPluginOptionsException>(() => ImportPluginOptionsMapper.MapInvocation(request));
+
+        Assert.Equal("plugin.import.pathDenied", ex.Code);
+        Assert.Contains(".notion-push.lock", ex.Message);
+    }
+
+    [Fact]
+    public void MapInvocation_NotionPushInScopeSeed_AllowsDerivedDefaults()
+    {
+        var request = Request(
+            path: ["notion", "push"],
+            arguments: [],
+            options: new Dictionary<string, JsonElement>
+            {
+                ["--input"] = Json("data/seed"),
+                ["--database-id"] = Json("db-single"),
+                ["--dry-run"] = Json(true)
+            });
+
+        var invocation = ImportPluginOptionsMapper.MapInvocation(request);
+
+        var options = Assert.IsType<ImportNotionSeedPushOptions>(invocation.NotionPushOptions);
+        Assert.Equal(Path.Combine(_rootDir, "data", "seed"), options.InputDir);
+        Assert.Null(options.ReportPath);
+    }
+
+    [Fact]
+    public void Map_Seed_RejectsSymlinkThatEscapesProjectRoot()
+    {
+        if (OperatingSystem.IsWindows())
+            return; // Directory symlinks need elevated privileges on Windows.
+
+        var outside = Path.Combine(Path.GetTempPath(), "bukit-import-outside-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(outside);
+        try
+        {
+            Directory.CreateSymbolicLink(Path.Combine(_rootDir, "escape"), outside);
+
+            var request = Request(
+                path: ["import", "seed"],
+                arguments: ["seed"],
+                options: new Dictionary<string, JsonElement>
+                {
+                    ["--output"] = Json("escape/content")
+                });
+
+            var ex = Assert.Throws<ImportPluginOptionsException>(() => ImportPluginOptionsMapper.Map(request));
+
+            Assert.Equal("plugin.import.pathDenied", ex.Code);
+        }
+        finally
+        {
+            if (Directory.Exists(outside))
+                Directory.Delete(outside, recursive: true);
+        }
     }
 
     [Fact]
@@ -174,7 +381,7 @@ public sealed class ImportPluginOptionsMapperTests : IDisposable
             {
                 ["--database-id"] = Json("db-schema"),
                 ["--token-env"] = Json("CUSTOM_TOKEN"),
-                ["--report"] = Json("reports/schema.json")
+                ["--report"] = Json(".bukit/reports/plugin-output/import/schema.json")
             },
             permissions: new PluginPermissionSet(Environment: new PluginEnvironmentPermission(Read: ["CUSTOM_TOKEN"])));
 
@@ -184,7 +391,7 @@ public sealed class ImportPluginOptionsMapperTests : IDisposable
         var options = Assert.IsType<ImportNotionSchemaValidationOptions>(invocation.SchemaValidationOptions);
         Assert.Equal("db-schema", options.DatabaseId);
         Assert.Equal("CUSTOM_TOKEN", options.TokenEnv);
-        Assert.Equal(Path.Combine(_rootDir, "reports", "schema.json"), options.ReportPath);
+        Assert.Equal(Path.Combine(_rootDir, ".bukit", "reports", "plugin-output", "import", "schema.json"), options.ReportPath);
     }
 
     private PluginInvokeRequest Request(

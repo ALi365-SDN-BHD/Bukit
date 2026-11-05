@@ -23,16 +23,19 @@ public sealed class ComponentExtractorTests
     }
 
     [Fact]
-    public void Extract_HeroClass_FindsComponent()
+    public void Extract_SectionClasses_AreNotExtracted()
     {
         var pages = new List<DiscoveredPage>
         {
-            MakePage("<section class=\"hero\"><h1>Welcome</h1><p>Description</p><a href=\"/about/\">Learn</a></section>")
+            MakePage(
+                "<section class=\"hero\"><h1>Welcome</h1></section>" +
+                "<section class=\"cta\"><h2>Get Started</h2></section>" +
+                "<div class=\"faq-item\"><h3>Question?</h3></div>")
         };
 
         var components = ComponentExtractor.Extract(pages);
 
-        Assert.Contains(components, c => c.Name == "hero");
+        Assert.Empty(components);
     }
 
     [Fact]
@@ -61,31 +64,6 @@ public sealed class ComponentExtractorTests
         Assert.Contains(components, c => c.Name == "company-card");
     }
 
-    [Fact]
-    public void Extract_FaqItemClass_FindsComponent()
-    {
-        var pages = new List<DiscoveredPage>
-        {
-            MakePage("<div class=\"faq-item\"><h3>Question?</h3><p>Answer.</p></div>")
-        };
-
-        var components = ComponentExtractor.Extract(pages);
-
-        Assert.Contains(components, c => c.Name == "faq");
-    }
-
-    [Fact]
-    public void Extract_CtaClass_FindsComponent()
-    {
-        var pages = new List<DiscoveredPage>
-        {
-            MakePage("<section class=\"cta\"><h2>Get Started</h2><a href=\"/signup/\">Sign Up</a></section>")
-        };
-
-        var components = ComponentExtractor.Extract(pages);
-
-        Assert.Contains(components, c => c.Name == "cta");
-    }
 
     [Fact]
     public void Extract_NoMatchingClass_ReturnsEmpty()
@@ -105,29 +83,32 @@ public sealed class ComponentExtractorTests
     {
         var pages = new List<DiscoveredPage>
         {
-            MakePage("<section class=\"hero\"><h1>Welcome</h1><p>Description</p></section>")
+            MakePage("<article class=\"article-card\"><h3>Title</h3><p>Summary</p></article>", "insights", PageType.PostList)
         };
 
         var components = ComponentExtractor.Extract(pages);
 
-        var hero = components.First(c => c.Name == "hero");
-        Assert.NotNull(hero.NormalizedTemplate);
-        Assert.Contains("{{ section.heading }}", hero.NormalizedTemplate);
+        var card = components.First(c => c.Name == "article-card");
+        Assert.NotNull(card.NormalizedTemplate);
+        Assert.Contains("{{ item.title }}", card.NormalizedTemplate);
+        Assert.Contains("{{ item.summary }}", card.NormalizedTemplate);
+        Assert.DoesNotContain("Title", card.NormalizedTemplate);
     }
 
     [Fact]
     public void Extract_MultiplePages_SharesComponent()
     {
+        const string card = "<article class=\"article-card\"><h3>Title</h3><p>Summary</p></article>";
         var pages = new List<DiscoveredPage>
         {
-            MakePage("<section class=\"hero\"><h1>Home</h1></section>", "index", PageType.Home),
-            MakePage("<section class=\"hero\"><h1>About</h1></section>", "about", PageType.Page),
+            MakePage(card, "news", PageType.PostList),
+            MakePage(card, "blog", PageType.PostList),
         };
 
         var components = ComponentExtractor.Extract(pages);
 
-        var hero = components.First(c => c.Name == "hero");
-        Assert.Equal(2, hero.UsedBy.Count);
+        var articleCard = components.First(c => c.Name == "article-card");
+        Assert.Equal(2, articleCard.UsedBy.Count);
     }
 
     [Fact]

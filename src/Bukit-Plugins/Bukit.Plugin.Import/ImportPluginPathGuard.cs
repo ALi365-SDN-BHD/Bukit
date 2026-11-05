@@ -1,3 +1,5 @@
+using Bukit.Shared;
+
 namespace Bukit.Plugin.Import;
 
 public static class ImportPluginPathGuard
@@ -46,22 +48,13 @@ public static class ImportPluginPathGuard
 
     private static string EnsureUnderRoot(string rootDir, string fullPath, string name)
     {
-        var normalizedRoot = Path.GetFullPath(rootDir);
-        var rootWithSeparator = normalizedRoot.EndsWith(Path.DirectorySeparatorChar)
-            ? normalizedRoot
-            : normalizedRoot + Path.DirectorySeparatorChar;
-
-        if (!fullPath.Equals(normalizedRoot, PathComparison) &&
-            !fullPath.StartsWith(rootWithSeparator, PathComparison))
-        {
+        // IsSameOrSubPathOf canonicalizes both sides, so a symlink under the root
+        // cannot redirect a write outside it.
+        if (!PathUtils.IsSameOrSubPathOf(fullPath, rootDir))
             throw new ImportPluginOptionsException("plugin.import.pathDenied", $"{name} must stay under the project root.");
-        }
 
         return fullPath;
     }
-
-    private static StringComparison PathComparison =>
-        OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal;
 }
 
 public sealed class ImportPluginOptionsException : Exception

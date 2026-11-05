@@ -1,8 +1,8 @@
 namespace Bukit.Importing;
 
 /// <summary>
-/// Builds ImportResult from analysis data. Used by both dry-run preview and real execution,
-/// ensuring consistent statistics and report data regardless of execution path.
+/// Builds ImportResult from analysis data. Used by the dry-run preview; counts that
+/// need files on disk are estimates there and are labeled as such by the report.
 /// </summary>
 internal static class ImportResultBuilder
 {
@@ -35,7 +35,7 @@ internal static class ImportResultBuilder
             AssetsCopied = pages.Sum(p => p.AssetPaths.Count),
             Warnings = warnings,
             Diagnostics = diagnostics,
-            ReportPages = BuildReportPages(pages, routeMap),
+            ReportPages = BuildReportPages(pages, routeMap, analysis.TemplatePlan),
             ReportComponents = BuildReportComponents(components),
             ReportSeedFiles = options.GenerateSeed ? BuildReportSeedFiles(options, content, pages, components) : [],
             PageTypes = pageTypes,
@@ -56,12 +56,15 @@ internal static class ImportResultBuilder
         => content.Pages.Count + content.Navigation.Count + content.Posts.Count + content.Companies.Count +
            content.Services.Count + content.Faqs.Count + content.Sections.Count;
 
-    internal static List<ImportReportPage> BuildReportPages(List<DiscoveredPage> pages, RouteMapConfig? routeMap)
+    internal static List<ImportReportPage> BuildReportPages(
+        List<DiscoveredPage> pages,
+        RouteMapConfig? routeMap,
+        PageTemplatePlan? plan = null)
         => pages.Select(p => new ImportReportPage(
             p.RelativePath,
             RouteForPage(p, routeMap),
             p.Type.ToString(),
-            TemplateForPage(p, routeMap),
+            plan?.NameFor(p) ?? TemplateForPage(p, routeMap),
             "generated")).ToList();
 
     internal static List<ImportReportComponent> BuildReportComponents(List<DiscoveredComponent> components)
@@ -79,7 +82,7 @@ internal static class ImportResultBuilder
         var ext = options.ContentSource.Equals("yaml", StringComparison.OrdinalIgnoreCase) ? "yaml" : "json";
         return
         [
-            new($"pages.{ext}", content.Pages.Count),
+            new($"pages.{ext}", SeedGenerator.SeedPages(content).Count),
             new($"navigation.{ext}", content.Navigation.Count),
             new($"sections.{ext}", content.Sections.Count),
             new($"posts.{ext}", content.Posts.Count),
@@ -93,8 +96,7 @@ internal static class ImportResultBuilder
 
     private static string RouteForPage(DiscoveredPage page, RouteMapConfig? routeMap = null)
     {
-        var fileName = Path.GetFileNameWithoutExtension(page.RelativePath);
-        var routeMapRoute = PageClassifier.GetRoute(routeMap, fileName);
+        var routeMapRoute = PageClassifier.GetRoute(routeMap, page.RelativePath);
         if (routeMapRoute != null)
             return routeMapRoute;
 
@@ -110,8 +112,7 @@ internal static class ImportResultBuilder
 
     private static string TemplateForPage(DiscoveredPage page, RouteMapConfig? routeMap = null)
     {
-        var fileName = Path.GetFileNameWithoutExtension(page.RelativePath);
-        var routeMapTemplate = PageClassifier.GetTemplate(routeMap, fileName);
+        var routeMapTemplate = PageClassifier.GetTemplate(routeMap, page.RelativePath);
         if (routeMapTemplate != null)
             return routeMapTemplate;
 

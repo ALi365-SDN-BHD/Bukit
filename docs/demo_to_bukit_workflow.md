@@ -247,9 +247,7 @@ themes/
 | 文章详情 | `pages/article.html` | 渲染单篇内容 |
 | 企业列表 | `pages/companies.html` | 数据驱动企业目录 |
 | 企业详情 | `pages/company.html` | 渲染单个企业资料 |
-| Hero 区块 | `components/hero.html` | 可配置标题、副标题、按钮 |
-| FAQ 区块 | `components/faq.html` | 从数据源循环渲染 |
-| CTA 区块 | `components/cta.html` | 多页面复用 |
+| Hero / FAQ / CTA 区块 | `pages/*.html` | 文案原样保留在各自页面模板，不抽成共享组件 |
 | CSS | `assets/css/style.css` | 保持独立资源 |
 | JS | `assets/js/app.js` | 只保留必要交互 |
 | 页面文案 | Notion / JSON | 不长期写死在模板中 |
@@ -975,30 +973,26 @@ components/footer.html
 
 | HTML 特征 | 组件类型 |
 |---|---|
-| `.hero` / `<section id="hero">` | hero |
-| `.card` 重复出现 | card |
-| `.article-card` | article-card |
+| `.article-card` / `.post-card` | article-card |
 | `.company-card` | company-card |
 | `.service-card` | service-card |
-| `.faq` / `.faq-item` | faq |
-| `.cta` | cta |
+| `.card` 重复出现 | card |
 | `.pagination` | pagination |
-| `.breadcrumb` | breadcrumb |
-| `.stats` | stats |
 
 生成组件：
 
 ```text
-components/hero.html
 components/article-card.html
 components/company-card.html
-components/faq.html
-components/cta.html
+components/service-card.html
+components/card.html
+components/pagination.html
 ```
 
 原则：
 
-- 重复结构必须组件化
+- 只有绑定数据的列表项和分页抽成组件
+- 区块文案（hero / faq / cta / stats / testimonial）原样留在页面模板
 - 列表项必须变成循环渲染
 - 详情页模板不得硬编码某一条 Demo 数据
 - 组件文件只保留结构，不保留具体业务文案
@@ -1431,6 +1425,8 @@ Notion 推送支持两种模式：
 - 多 database：传 `--database-map`，或传 `--create-missing-databases --parent-page-id <id>` 让 Bukit 按 seed collection 自动创建 `pages/navigation/posts/companies/services` 对应的 databases。已有 `databaseId` 时先校验 schema 再 upsert；自动创建后也会立即校验 schema；缺少 `databaseId` 且未启用自动创建时直接报错，不隐式创建。`sections/faqs/media/components` 当前会生成为审核 seed，但不属于默认 Notion push 主链路。
 
 `import html-demo --content-source notion` 会默认生成可编辑的 `notion-seed/notion-database-map.yaml`，其中 `databaseId` 为空。填写已有 database ID 后，`bukit notion push --input sites/silkroadbiz/notion-seed` 会自动读取该默认 map；如果 map 放在其他路径，再显式传 `--database-map`。如果希望自动创建，则使用 `--create-missing-databases --parent-page-id <id>`。
+
+该默认 map 只在首次导入时创建，之后不会被覆盖（`bukit notion push` 写回的 `databaseId` 会一直保留）。如果新版本的默认模板增加了集合，删除 `notion-seed/notion-database-map.yaml` 后重新导入即可生成新版；记得先备份其中已有的 database ID。
 
 当同时使用 `--build-source notion` 且存在多 database map 时，生成的 `site.yaml` 会使用 Bukit 现有的 `content.sources[]` 多源 Notion 配置，把 `pages/posts/companies/services` 映射为 `mode: content`，把 `navigation` 映射为 `mode: data` 并注入到 `site.modules.navigation`。没有填写 `databaseId` 的默认 map 会生成 `${NOTION_PAGES_DATABASE_ID}`、`${NOTION_NAVIGATION_DATABASE_ID}`、`${NOTION_POSTS_DATABASE_ID}` 等占位符，需要发布前替换或通过配置覆盖。
 

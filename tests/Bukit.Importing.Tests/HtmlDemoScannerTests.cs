@@ -34,6 +34,51 @@ public sealed class HtmlDemoScannerTests : IDisposable
     }
 
     [Fact]
+    public void Scan_HtmFiles_ArePages()
+    {
+        File.WriteAllText(Path.Combine(_tempDir, "index.html"),
+            "<html><head><title>Home</title></head><body><main><h1>Home</h1></main></body></html>");
+        File.WriteAllText(Path.Combine(_tempDir, "about.htm"),
+            "<html><head><title>About</title></head><body><main><h1>About</h1></main></body></html>");
+
+        var pages = HtmlDemoScanner.Scan(_tempDir);
+
+        Assert.Equal(2, pages.Count);
+        Assert.Contains(pages, page => page.RelativePath == "about.htm");
+    }
+
+    [Fact]
+    public void Scan_RootIndexHtmlAndHtm_PrefersHtml()
+    {
+        File.WriteAllText(Path.Combine(_tempDir, "index.html"),
+            "<html><head><title>Html Home</title></head><body><main><h1>Html Home</h1></main></body></html>");
+        File.WriteAllText(Path.Combine(_tempDir, "index.htm"),
+            "<html><head><title>Htm Home</title></head><body><main><h1>Htm Home</h1></main></body></html>");
+
+        var pages = HtmlDemoScanner.Scan(_tempDir);
+
+        var home = Assert.Single(pages);
+        Assert.Equal("Html Home", home.Title);
+    }
+
+    [Theory]
+    [InlineData("dist")]
+    [InlineData("build")]
+    public void Scan_BuiltOutputHtml_IsSkipped(string folder)
+    {
+        Directory.CreateDirectory(Path.Combine(_tempDir, folder));
+        File.WriteAllText(Path.Combine(_tempDir, "index.html"),
+            "<html><head><title>Home</title></head><body><main><h1>Home</h1></main></body></html>");
+        File.WriteAllText(Path.Combine(_tempDir, folder, "about.html"),
+            "<html><head><title>Built About</title></head><body><main><h1>Built About</h1></main></body></html>");
+
+        var pages = HtmlDemoScanner.Scan(_tempDir);
+
+        Assert.Single(pages);
+        Assert.DoesNotContain(pages, page => page.RelativePath.Contains(folder, StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
     public void Scan_MultipleHtmlFiles_ReturnsAllPages()
     {
         File.WriteAllText(Path.Combine(_tempDir, "index.html"),

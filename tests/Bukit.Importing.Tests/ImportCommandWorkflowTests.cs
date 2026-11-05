@@ -94,6 +94,45 @@ public sealed class ImportCommandWorkflowTests : IDisposable
     }
 
     [Fact]
+    public async Task RunAsync_HtmlDemoDryRunWithVerify_DoesNotRunBuild()
+    {
+        var demoDir = CreateMinimalDemo();
+        var siteDir = Path.Combine(_rootDir, "sites", "demo-theme");
+        Directory.CreateDirectory(siteDir);
+        // Invalid site.yaml would make VerifyAsync fail; a dry run must never get there.
+        File.WriteAllText(Path.Combine(siteDir, "site.yaml"), "site: [");
+
+        var result = await ImportCommandWorkflow.RunAsync(BaseOptions("html-demo") with
+        {
+            DemoDir = demoDir,
+            ThemeName = "demo-theme",
+            DryRun = true,
+            Verify = true
+        });
+
+        Assert.Equal(0, result.ExitCode);
+        Assert.DoesNotContain(result.Messages, m => m.Level == "error");
+        Assert.Contains(result.Messages, m => m.Level == "info" && m.Message == "  Verify skipped (--dry-run)");
+    }
+
+    [Fact]
+    public async Task RunAsync_HtmlDemoMissingRouteMap_FailsWithoutWritingTheme()
+    {
+        var demoDir = CreateMinimalDemo();
+
+        var result = await ImportCommandWorkflow.RunAsync(BaseOptions("html-demo") with
+        {
+            DemoDir = demoDir,
+            ThemeName = "demo-theme",
+            RouteMapPath = "route-mpa.yaml"
+        });
+
+        Assert.Equal(2, result.ExitCode);
+        Assert.Contains(result.Messages, m => m.Level == "error" && m.Message.Contains("was not found", StringComparison.Ordinal));
+        Assert.False(Directory.Exists(Path.Combine(_rootDir, "themes", "demo-theme")));
+    }
+
+    [Fact]
     public async Task RunAsync_HtmlDemoPushNotionCannotCombineWithDryRun()
     {
         var demoDir = CreateMinimalDemo();

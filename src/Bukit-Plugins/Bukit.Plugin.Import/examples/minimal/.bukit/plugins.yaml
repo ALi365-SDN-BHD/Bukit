@@ -18,6 +18,8 @@ plugins:
           - ./data
           - ./docs/research
           - .bukit/reports/plugin-output/import
+          - ./site.yaml
+          - ./bukit.yaml
       network: true
       environment:
         read:

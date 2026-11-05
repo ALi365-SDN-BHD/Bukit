@@ -8,7 +8,7 @@ public sealed record HtmlDemoImportOptions
     public bool Force { get; init; }
     public bool Use { get; init; }
     public bool Verify { get; init; }
-    public string Language { get; init; } = "zh";
+    public string Language { get; init; } = "";
     public bool ExtractContent { get; init; } = true;
     public bool GenerateSeed { get; init; } = true;
     public string ContentSource { get; init; } = "notion";
@@ -33,6 +33,14 @@ public sealed record DiscoveredPage
     public required string Slug { get; init; }
     public required PageType Type { get; init; }
     public string? Title { get; init; }
+    /// <summary>The page's &lt;meta name="description"&gt;, if it has one.</summary>
+    public string? MetaDescription { get; init; }
+    /// <summary>The page's canonical or og:url address, if it declares one.</summary>
+    public string? CanonicalUrl { get; init; }
+    /// <summary>The encoding guessed for a file that declares none and is not UTF-8.</summary>
+    public string? GuessedEncoding { get; init; }
+    /// <summary>The &lt;html lang&gt; value, if set.</summary>
+    public string? Language { get; init; }
     public string FullHtml { get; init; } = "";
     public string? HeadContent { get; init; }
     public string BodyContent { get; init; } = "";
@@ -100,6 +108,8 @@ public sealed record DiscoveredComponent
     public required string HtmlFragment { get; init; }
     public required List<DiscoveredPage> UsedBy { get; init; }
     public string? NormalizedTemplate { get; init; }
+    /// <summary>The demo CSS class this component was extracted from.</summary>
+    public string? SourceClass { get; init; }
 }
 
 public sealed record ExtractedContent
@@ -125,6 +135,10 @@ public sealed record PageRecord
     public bool Published { get; init; } = true;
     public string? SeoTitle { get; init; }
     public string? SeoDescription { get; init; }
+    /// <summary>Own template ("pages/x.html") of the demo page this record came from.</summary>
+    public string? TemplatePath { get; init; }
+    /// <summary>Route-map URL for this page; null keeps the collection's /{slug}/ route.</summary>
+    public string? Url { get; init; }
 }
 
 public sealed record SectionRecord
@@ -173,12 +187,15 @@ public sealed record PostRecord
     public string Slug { get; init; } = "";
     public string? Summary { get; init; }
     public string? Content { get; init; }
+    public string? Image { get; init; }
     public string? Category { get; init; }
     public List<string> Tags { get; init; } = [];
     public string Language { get; init; } = "zh";
     public bool Published { get; init; } = true;
     public string? SeoTitle { get; init; }
     public string? SeoDescription { get; init; }
+    /// <summary>Own template ("pages/x.html") of the demo page this record came from.</summary>
+    public string? TemplatePath { get; init; }
 }
 
 public sealed record CompanyRecord
@@ -187,12 +204,15 @@ public sealed record CompanyRecord
     public string Slug { get; init; } = "";
     public string? Summary { get; init; }
     public string? Content { get; init; }
+    public string? Image { get; init; }
     public string? Country { get; init; }
     public string? Industry { get; init; }
     public string Language { get; init; } = "zh";
     public bool Published { get; init; } = true;
     public string? SeoTitle { get; init; }
     public string? SeoDescription { get; init; }
+    /// <summary>Own template ("pages/x.html") of the demo page this record came from.</summary>
+    public string? TemplatePath { get; init; }
 }
 
 public sealed record ServiceRecord
@@ -201,10 +221,13 @@ public sealed record ServiceRecord
     public string Slug { get; init; } = "";
     public string? Summary { get; init; }
     public string? Content { get; init; }
+    public string? Image { get; init; }
     public string Language { get; init; } = "zh";
     public bool Published { get; init; } = true;
     public string? SeoTitle { get; init; }
     public string? SeoDescription { get; init; }
+    /// <summary>Own template ("pages/x.html") of the demo page this record came from.</summary>
+    public string? TemplatePath { get; init; }
 }
 
 public sealed record FaqRecord

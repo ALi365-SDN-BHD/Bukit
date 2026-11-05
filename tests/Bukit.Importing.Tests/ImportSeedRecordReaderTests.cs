@@ -189,4 +189,18 @@ public sealed class ImportSeedRecordReaderTests : IDisposable
             System.Globalization.CultureInfo.CurrentUICulture = previousUiCulture;
         }
     }
+    [Fact]
+    public void ReadDirectory_WithJsonAndYaml_ReadsOnlyOneFormat()
+    {
+        File.WriteAllText(Path.Combine(_tempDir, "pages.json"), """[{ "title": "About", "slug": "about" }]""");
+        File.WriteAllText(Path.Combine(_tempDir, "pages.yaml"), """
+- title: About duplicate
+  slug: about-duplicate
+""");
+
+        var records = ImportSeedRecordReader.ReadDirectory(_tempDir);
+
+        Assert.Single(records);
+        Assert.Equal("About", records[0].Title);
+    }
 }

@@ -1,5 +1,7 @@
 using System.Text;
 
+using Bukit.Shared;
+
 namespace Bukit.Importing;
 
 public static class HtmlDemoImporter
@@ -125,11 +127,31 @@ public static class HtmlDemoImporter
         return Path.Combine(options.RootDir, "themes", options.ThemeName);
     }
 
-    internal static void PreserveOriginalHtml(HtmlDemoImportOptions options, List<DiscoveredPage> pages)
+    /// <summary>
+    /// Output folders of this import that sit strictly inside the demo, such as
+    /// <c>sites/x</c> when the demo is the project root. A folder that is the demo
+    /// or contains it (<c>--site-path .</c> with the demo under the root) is not
+    /// listed, or every demo file would be skipped.
+    /// </summary>
+    internal static IReadOnlyList<string> GetOutputRootsInsideInput(HtmlDemoImportOptions options)
+    {
+        var siteDir = GetSiteDir(options);
+        return new[] { siteDir, GetThemeDir(options), Path.Combine(siteDir, "original-demo") }
+            .Where(root => PathUtils.IsSameOrSubPathOf(root, options.InputPath) &&
+                           !PathUtils.IsSameOrSubPathOf(options.InputPath, root))
+            .ToList();
+    }
+
+    internal static void PreserveOriginalHtml(HtmlDemoImportOptions options)
     {
         var siteDir = GetSiteDir(options);
         var preserveDir = Path.Combine(siteDir, "original-demo");
-        var sourceFiles = Directory.GetFiles(options.InputPath, "*", SearchOption.AllDirectories)
+        // The demo may be the project root; never copy this import's own output.
+        var outputRoots = GetOutputRootsInsideInput(options);
+        var sourceFiles = DemoFiles.Enumerate(options.InputPath)
+            .Where(file => !ImportSafetyPatterns.IsBuiltOutputPath(options.InputPath, file))
+            .Where(file => !outputRoots.Any(root => PathUtils.IsSameOrSubPathOf(file, root)))
+            .Where(file => !IsImportLockFile(file))
             .ToList();
         Directory.CreateDirectory(preserveDir);
 
@@ -149,10 +171,23 @@ public static class HtmlDemoImporter
         Console.WriteLine($"  Original HTML preserved: {preserveDir}");
     }
 
+    private static bool IsImportLockFile(string path)
+    {
+        var name = Path.GetFileName(path);
+        return name.Equals(".bukit-import.lock", StringComparison.OrdinalIgnoreCase) ||
+               (name.StartsWith(".import-", StringComparison.OrdinalIgnoreCase) &&
+                name.EndsWith(".lock", StringComparison.OrdinalIgnoreCase));
+    }
+
     internal static void WriteComponentTemplates(HtmlDemoImportOptions options,
-        List<DiscoveredComponent> components)
+        List<DiscoveredComponent> components,
+        Dictionary<string, string> pathMappings,
+        List<DiscoveredPage> pages,
+        RouteMapConfig? routeMap,
+        PageTemplatePlan? plan = null)
     {
         if (components.Count == 0) return;
+        plan ??= PageTemplatePlan.Build(pages, routeMap);
 
         var compDir = Path.Combine(GetThemeDir(options), "layouts", "components");
         Directory.CreateDirectory(compDir);
@@ -163,7 +198,14 @@ public static class HtmlDemoImporter
 
             var filePath = Path.Combine(compDir, $"{component.Name}.html");
             if (File.Exists(filePath) && !options.Overwrite) continue;
-            File.WriteAllText(filePath, component.NormalizedTemplate);
+
+            var content = AssetImporter.RewritePaths(component.NormalizedTemplate, pathMappings);
+            content = PageAssetCollector.RewriteCssUrls(content, pathMappings);
+            content = PageAssetCollector.RewriteSrcsets(content, pathMappings, "{{ base_url }}");
+            // Components render inside page templates, which set base_url.
+            var source = component.UsedBy.FirstOrDefault()?.RelativePath ?? "index.html";
+            content = InternalLinkRewriter.RewriteTemplate(content, source, plan);
+            File.WriteAllText(filePath, content);
         }
     }
 
@@ -172,9 +214,10 @@ public static class HtmlDemoImporter
         if (!Directory.Exists(options.InputPath))
             throw new ImportException(ImportErrorKind.UserInput, $"Input directory does not exist: {options.InputPath}");
 
-        var indexPath = Path.Combine(options.InputPath, "index.html");
-        if (!File.Exists(indexPath))
-            throw new ImportException(ImportErrorKind.UserInput, $"Missing index.html in input directory: {options.InputPath}");
+        var hasIndex = File.Exists(Path.Combine(options.InputPath, "index.html")) ||
+                       File.Exists(Path.Combine(options.InputPath, "index.htm"));
+        if (!hasIndex)
+            throw new ImportException(ImportErrorKind.UserInput, $"Missing index.html or index.htm in input directory: {options.InputPath}");
 
         ValidateThemeName(options.ThemeName);
 
@@ -190,27 +233,23 @@ public static class HtmlDemoImporter
 
     private static void ScanDangerousFiles(string inputPath)
     {
-        foreach (var pattern in ImportSafetyPatterns.DangerousInputPatterns)
+        var tree = DemoFiles.Walk(inputPath, ImportSafetyPatterns.SkipDirectoryNames);
+
+        foreach (var file in tree.Files)
         {
-            if (pattern.Contains('*', StringComparison.Ordinal))
+            if (ImportSafetyPatterns.IsSensitiveFileName(Path.GetFileName(file)))
             {
-                var matches = Directory.GetFiles(inputPath, pattern, SearchOption.AllDirectories);
-                if (matches.Length > 0)
-                    throw new ImportException(ImportErrorKind.UserInput, $"Input directory contains sensitive files ({pattern}): {Path.GetRelativePath(inputPath, matches[0])}");
+                throw new ImportException(ImportErrorKind.UserInput,
+                    $"Input directory contains sensitive file: {Path.GetRelativePath(inputPath, file)}");
             }
-            else
+        }
+
+        foreach (var directory in tree.Directories)
+        {
+            if (ImportSafetyPatterns.IsSensitiveDirectoryName(Path.GetFileName(directory)))
             {
-                var fullPath = Path.Combine(inputPath, pattern);
-                if (File.Exists(fullPath) || Directory.Exists(fullPath))
-                    throw new ImportException(ImportErrorKind.UserInput, $"Input directory contains sensitive item: {pattern}");
-
-                var fileMatches = Directory.GetFiles(inputPath, pattern, SearchOption.AllDirectories);
-                if (fileMatches.Length > 0)
-                    throw new ImportException(ImportErrorKind.UserInput, $"Input directory contains sensitive files ({pattern}): {Path.GetRelativePath(inputPath, fileMatches[0])}");
-
-                var dirMatches = Directory.GetDirectories(inputPath, pattern, SearchOption.AllDirectories);
-                if (dirMatches.Length > 0)
-                    throw new ImportException(ImportErrorKind.UserInput, $"Input directory contains sensitive directory ({pattern}): {Path.GetRelativePath(inputPath, dirMatches[0])}");
+                throw new ImportException(ImportErrorKind.UserInput,
+                    $"Input directory contains sensitive directory: {Path.GetRelativePath(inputPath, directory)}");
             }
         }
     }

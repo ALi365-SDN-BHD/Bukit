@@ -8,11 +8,8 @@ internal static partial class LayoutExtractor
         string Header,
         string Nav,
         string Footer,
-        string HeadExtras,
         bool HeaderContainsNav);
 
-    private static readonly Regex HeaderRegex = HeaderTagPattern();
-    private static readonly Regex FooterRegex = FooterTagPattern();
     private static readonly Regex ClassAttrRegex = ClassAttrStripPattern();
 
     internal static LayoutInfo Extract(List<DiscoveredPage> pages, List<string> warnings)
@@ -33,7 +30,6 @@ internal static partial class LayoutExtractor
                 Header: string.IsNullOrWhiteSpace(extractedHeader) ? "" : extractedHeader,
                 Nav: extractedNav,
                 Footer: string.IsNullOrWhiteSpace(extractedFooter) ? "" : extractedFooter,
-                HeadExtras: single.HeadContent ?? "",
                 HeaderContainsNav: !string.IsNullOrWhiteSpace(extractedNav));
         }
 
@@ -61,7 +57,6 @@ internal static partial class LayoutExtractor
                 Header: fallbackHeader,
                 Nav: fallbackNav,
                 Footer: fallbackFooter,
-                HeadExtras: first.HeadContent ?? "",
                 HeaderContainsNav: !string.IsNullOrWhiteSpace(fallbackNav));
         }
 
@@ -79,13 +74,10 @@ internal static partial class LayoutExtractor
 
         var navContent = ExtractNavBlock(headerContent);
 
-        var firstHead = pages[0].HeadContent ?? "";
-
         return new LayoutInfo(
             Header: headerContent,
             Nav: navContent,
             Footer: footerContent,
-            HeadExtras: firstHead,
             HeaderContainsNav: !string.IsNullOrWhiteSpace(ExtractNavBlock(headerContent)));
     }
 
@@ -247,12 +239,6 @@ internal static partial class LayoutExtractor
         return string.Join('\n', lines.Select(l =>
             l.Length >= minIndent ? l[minIndent..] : l.TrimStart()));
     }
-
-    [GeneratedRegex(@"<header[\s>]", RegexOptions.IgnoreCase)]
-    private static partial Regex HeaderTagPattern();
-
-    [GeneratedRegex(@"<footer[\s>]", RegexOptions.IgnoreCase)]
-    private static partial Regex FooterTagPattern();
 
     [GeneratedRegex(@"\s+(?:class|id)\s*=\s*""[^""]*""", RegexOptions.IgnoreCase)]
     private static partial Regex ClassAttrStripPattern();

@@ -34,7 +34,6 @@ public sealed class LayoutExtractorTests
 
         Assert.Contains("Nav", result.Header);
         Assert.Contains("End", result.Footer);
-        Assert.Contains("style.css", result.HeadExtras);
     }
 
     [Fact]
