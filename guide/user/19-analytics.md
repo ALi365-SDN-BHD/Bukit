@@ -75,10 +75,15 @@ true, but `providers` defaults to an empty array, so a new site emits nothing.
 
 | Type | Required fields | Optional fields | Placement |
 |---|---|---|---|
-| `google-analytics` | `measurementId` | none | after opening `<head>` |
-| `google-tag-manager` | `containerId` | none | after opening `<head>` and `<body>` |
+| `google-analytics` | `measurementId` | none | after the first encoding `<meta>` in `<head>` |
+| `google-tag-manager` | `containerId` | none | after the first encoding `<meta>` in `<head>`, and after opening `<body>` for the `<noscript>` iframe |
 | `plausible` | `domain`, `snippetMode`, `scriptUrl` | none | end of `<head>` |
 | `umami` | `websiteId`, `scriptUrl` | none | end of `<head>` |
+
+Head-start fragments follow the first `<meta charset>` or legacy
+`<meta http-equiv="Content-Type">` declaration so the encoding declaration
+stays within the first 1024 bytes. When the page has no encoding declaration,
+they are inserted immediately after the opening `<head>` tag.
 
 Provider types are exact, lowercase kebab-case values. Provider-specific
 fields cannot be mixed: for example, a Google Analytics entry cannot carry a
@@ -152,17 +157,24 @@ a GTM consent template using `setDefaultConsentState` and
 `updateConsentState`; Bukit does not add a competing update helper. Advanced
 mode can still load Google resources and send cookieless pings while consent
 is denied. This setting is therefore not a promise of zero network traffic or
-legal compliance. See the [Google Consent Mode guide](https://developers.google.com/tag-platform/security/guides/consent).
+legal compliance. When any Google consent default is denied, Bukit omits the
+GTM `<noscript>` iframe: Consent Mode cannot run without JavaScript, so that
+iframe would load Google resources without applying the configured defaults.
+See the [Google Consent Mode guide](https://developers.google.com/tag-platform/security/guides/consent).
 
 ## CSP Requirements Report
 
 `site.analytics.csp.mode: requirements-report` is optional and requires
 `build.report.enabled: true`. It extends `.bukit/analytics-report.json` with
 the exact SHA-256 sources for Bukit-generated inline scripts, required
-`script-src` and `frame-src` origins, and a flag when GTM may introduce
-container-defined destinations. The report explicitly sets
-`completePolicy: false`: it covers only Bukit Analytics fragments, not theme
-scripts, content, headers, CMP code, or destinations configured inside GTM.
+`script-src`, `frame-src`, `connect-src`, and `img-src` sources, and a flag
+when GTM may introduce container-defined destinations. The report explicitly
+sets `completePolicy: false`: it covers only Bukit Analytics fragments, not
+theme scripts, content, headers, CMP code, or destinations configured inside
+GTM. `connect-src` and `img-src` values are CSP source expressions, so Google
+Analytics uses wildcard hosts such as `https://*.google-analytics.com` rather
+than a single origin. Plausible and Umami contribute their script origin to
+both `script-src` and `connect-src`.
 
 Bukit is a static generator and does not issue a fixed or placeholder CSP
 nonce. A safe nonce must be random and unique per HTTP response, so it belongs
@@ -206,7 +218,8 @@ provider types, Google consent summary, optional CSP requirements,
 processed/injected counts, and fixed skip reasons. It never includes
 measurement IDs, container IDs, the Plausible tracking domain, website IDs,
 or full script URLs. When CSP reporting is enabled, it intentionally includes
-path-free scheme-and-authority origins such as `https://plausible.io`.
+path-free origins and wildcard source expressions such as
+`https://plausible.io` and `https://*.google-analytics.com`.
 The report uses `analytics-report.v2`; the separate frozen `build-report.v1`
 shape is unchanged.
 

@@ -28,9 +28,24 @@ internal static class AnalyticsFragmentRenderer
                 continue;
             }
 
+            if (renderer is GoogleTagManagerProvider)
+            {
+                fragments.Add(GoogleTagManagerProvider.RenderFragments(
+                    provider,
+                    includeNoScript: AllowsGoogleTagManagerNoScript(config.GoogleConsent)));
+                continue;
+            }
+
             fragments.Add(renderer.Render(provider, renderContext));
         }
 
         return fragments.ToArray();
     }
+
+    private static bool AllowsGoogleTagManagerNoScript(ResolvedGoogleConsent? consent)
+        => consent is null ||
+           (consent.AdStorage == "granted" &&
+            consent.AnalyticsStorage == "granted" &&
+            consent.AdUserData == "granted" &&
+            consent.AdPersonalization == "granted");
 }

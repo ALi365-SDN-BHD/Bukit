@@ -54,6 +54,12 @@ public sealed class AnalyticsReportWriterTests : IDisposable
             ["https://www.googletagmanager.com"],
             csp.GetProperty("scriptSrcOrigins").EnumerateArray().Select(value => value.GetString()));
         Assert.Empty(csp.GetProperty("frameSrcOrigins").EnumerateArray());
+        Assert.Equal(
+            ["https://*.analytics.google.com", "https://*.google-analytics.com", "https://*.googletagmanager.com"],
+            csp.GetProperty("connectSrc").EnumerateArray().Select(value => value.GetString()));
+        Assert.Equal(
+            ["https://*.google-analytics.com", "https://*.googletagmanager.com"],
+            csp.GetProperty("imgSrc").EnumerateArray().Select(value => value.GetString()));
         Assert.False(csp.GetProperty("dynamicContainerDestinationsUnknown").GetBoolean());
         var hashes = csp.GetProperty("inlineScriptSha256")
             .EnumerateArray().Select(value => value.GetString()!).ToArray();
@@ -172,6 +178,18 @@ public sealed class AnalyticsReportWriterTests : IDisposable
         Assert.Equal(
             ["https://www.googletagmanager.com"],
             csp.GetProperty("frameSrcOrigins").EnumerateArray().Select(value => value.GetString()));
+        Assert.Equal(
+            [
+                "https://*.analytics.google.com",
+                "https://*.google-analytics.com",
+                "https://*.googletagmanager.com",
+                "https://metrics.example.net",
+                "https://plausible.io"
+            ],
+            csp.GetProperty("connectSrc").EnumerateArray().Select(value => value.GetString()));
+        Assert.Equal(
+            ["https://*.google-analytics.com", "https://*.googletagmanager.com"],
+            csp.GetProperty("imgSrc").EnumerateArray().Select(value => value.GetString()));
         Assert.True(csp.GetProperty("dynamicContainerDestinationsUnknown").GetBoolean());
         Assert.DoesNotContain("G-PRIVATE1", json, StringComparison.Ordinal);
         Assert.DoesNotContain("GTM-PRIVATE2", json, StringComparison.Ordinal);

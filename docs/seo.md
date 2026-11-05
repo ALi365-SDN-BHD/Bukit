@@ -134,13 +134,13 @@ visible summary.
 
 Bukit builds a `SeoIndex` per final route, including content pages, derived pages, homepage, taxonomy pages, pagination pages, and collection/list pages. It uses that index as the policy source for sitemap, RSS, search index outputs, HTML SEO models, and diagnostics. A page with `robots: noindex` or `robots: none` is excluded from those outputs even if the theme forgets to render a robots meta tag.
 
-Canonical URLs are generated from `site.url + site.baseUrl + route.url` with normalized slashes. i18n alternate relationships become HTML `hreflang` links when related pages exist.
+Canonical URLs are generated from `site.url + site.baseUrl + route.url` with normalized slashes. An explicit content `canonical` may be an absolute HTTP(S) URL or a site-relative path. Site-relative paths resolve against `site.url + site.baseUrl`; a path that already starts with `baseUrl` is not prefixed twice, and a protocol-relative value resolves to HTTPS. Absolute off-site URLs remain unchanged. Open Graph locale values use underscore separators (`zh-CN` becomes `zh_CN`). i18n alternate relationships become HTML `hreflang` links when related pages exist.
 
 When GEO is enabled and `renderMode` is `inject`, indexable content pages also get `<link rel="alternate" type="text/markdown">` and `type="application/json"` links to their `content/<output path>.md` and `.json` versions, and `llms.txt` links `agent-manifest.json` in its `## Optional` section. See `guide/user/17-geo.md`.
 
 Sitemap `<loc>` entries are canonical URLs, and a sitemap only lists URLs under its own location (`site.url + site.baseUrl`; for i18n `split` and `index` modes, the language base such as `/en/`). A page whose canonical points to another host or outside that base path, such as a syndicated post whose canonical is the original article, is left out of the sitemap. Pages that share a canonical are listed once. The SEO and publish audits do not report out-of-scope pages as `seo.sitemap_missing_url` or `publish.sitemap_missing_route`, and do not list `sitemap` in their `representationKinds`. Each left-out route is logged as `event=sitemap.canonical_out_of_scope` (info) or `event=sitemap.canonical_duplicate` (debug).
 
-Diagnostics run at both index and HTML levels. Bukit reports missing `site.url`, double-slash or external canonical URLs, duplicate canonical URLs across final routes, missing `x-default` on hreflang groups, missing core head tags, and duplicate canonical tags. Use `diagnostics: strict` in CI to fail the build instead of logging warnings.
+Diagnostics run at both index and HTML levels. Bukit reports missing `site.url`, double-slash, relative, or external canonical URLs, duplicate canonical URLs across final routes, missing `x-default` on hreflang groups, missing core head tags, and duplicate canonical tags. Use `diagnostics: strict` in CI to fail the build instead of logging warnings.
 
 The schema audit requires a WebSite SearchAction only when the effective
 configuration above enables it. A SearchAction that is present is always

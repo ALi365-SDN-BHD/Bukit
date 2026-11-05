@@ -155,6 +155,8 @@ internal static class AnalyticsReportWriter
         WriteStringArray(writer, "inlineScriptSha256", csp.InlineScriptSha256);
         WriteStringArray(writer, "scriptSrcOrigins", csp.ScriptSrcOrigins);
         WriteStringArray(writer, "frameSrcOrigins", csp.FrameSrcOrigins);
+        WriteStringArray(writer, "connectSrc", csp.ConnectSrc);
+        WriteStringArray(writer, "imgSrc", csp.ImgSrc);
         writer.WriteBoolean(
             "dynamicContainerDestinationsUnknown",
             csp.DynamicContainerDestinationsUnknown);
