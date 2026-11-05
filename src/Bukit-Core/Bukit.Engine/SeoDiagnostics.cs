@@ -49,6 +49,14 @@ internal static partial class SeoDiagnostics
                 Report(config, logger, $"seo.canonical_external route={entry.Route.Url} canonical={entry.Canonical}");
             }
 
+            if (!string.IsNullOrWhiteSpace(config.Site.Url) &&
+                !string.IsNullOrWhiteSpace(entry.Canonical) &&
+                !entry.Canonical.StartsWith("http://", StringComparison.OrdinalIgnoreCase) &&
+                !entry.Canonical.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
+            {
+                Report(config, logger, $"seo.canonical_relative route={entry.Route.Url} canonical={entry.Canonical}");
+            }
+
             if (models.TryGetValue(BuildPathUtils.NormalizeRelPath(entry.Route.OutputPath), out var model) &&
                 model.Alternates.Count > 0 &&
                 !model.Alternates.Any(x => string.Equals(x.Hreflang, "x-default", StringComparison.OrdinalIgnoreCase)))

@@ -703,4 +703,36 @@ public sealed class SeoIndexBuilderTests
         Assert.Null(result.Entries["unmatched/index.html"].Collection);
         Assert.All(result.Entries.Values, entry => Assert.Equal("list", entry.ContentType));
     }
+
+    [Fact]
+    public void Build_RelativeCanonicalWithBaseUrl_StaysInsideSitemapScope()
+    {
+        var config = CreateConfig();
+        var routed = new (ContentDocument, RouteInfo)[]
+        {
+            (ContentDocument.Create(
+                id: "relative-canonical",
+                title: "Relative canonical",
+                slug: "relative-canonical",
+                publishAt: DateTimeOffset.UtcNow,
+                contentHtml: null,
+                fields: ContentFieldReader.ToFieldMap(new Dictionary<string, object>
+                {
+                    ["type"] = "post",
+                    ["canonical"] = "/blog/relative-canonical/"
+                })),
+             new RouteInfo("/blog/relative-canonical/", "blog/relative-canonical/index.html", "pages/post.html"))
+        };
+
+        var result = SeoIndexBuilder.Build(
+            config,
+            "/repo/",
+            routed.ToRoutedDocuments(),
+            Array.Empty<RouteInfo>(),
+            new Dictionary<string, IReadOnlyList<SeoAlternateModel>>());
+
+        var entry = result.Entries["blog/relative-canonical/index.html"];
+        Assert.Equal("https://example.com/repo/blog/relative-canonical/", entry.Canonical);
+        Assert.True(new SitemapLocFilter(config.Site.Url!, "/repo/").IsInScope(entry.Canonical));
+    }
 }
