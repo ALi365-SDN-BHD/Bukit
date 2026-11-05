@@ -58,7 +58,7 @@ internal static class SiteConfigGenerator
             };
         }
 
-        if (pageTypes.Contains(PageType.PostDetail))
+        if (pageTypes.Contains(PageType.PostDetail) || pageTypes.Contains(PageType.PostList))
         {
             var post = new Dictionary<string, object?>(StringComparer.Ordinal)
             {
@@ -72,11 +72,12 @@ internal static class SiteConfigGenerator
                     : "insights";
                 post["listRoute"] = "/insights/";
                 post["listTemplate"] = ListTemplate(PageType.PostList, fallbackName, plan, discoveredPages);
+                AddListTitle(post, PageType.PostList, discoveredPages);
             }
             collections["post"] = post;
         }
 
-        if (pageTypes.Contains(PageType.CompanyDetail))
+        if (pageTypes.Contains(PageType.CompanyDetail) || pageTypes.Contains(PageType.CompanyList))
         {
             var company = new Dictionary<string, object?>(StringComparer.Ordinal)
             {
@@ -87,11 +88,12 @@ internal static class SiteConfigGenerator
             {
                 company["listRoute"] = "/companies/";
                 company["listTemplate"] = ListTemplate(PageType.CompanyList, "companies", plan, discoveredPages);
+                AddListTitle(company, PageType.CompanyList, discoveredPages);
             }
             collections["company"] = company;
         }
 
-        if (pageTypes.Contains(PageType.ServiceDetail))
+        if (pageTypes.Contains(PageType.ServiceDetail) || pageTypes.Contains(PageType.ServiceList))
         {
             var service = new Dictionary<string, object?>(StringComparer.Ordinal)
             {
@@ -102,6 +104,7 @@ internal static class SiteConfigGenerator
             {
                 service["listRoute"] = "/services/";
                 service["listTemplate"] = ListTemplate(PageType.ServiceList, "services", plan, discoveredPages);
+                AddListTitle(service, PageType.ServiceList, discoveredPages);
             }
             collections["service"] = service;
         }
@@ -121,13 +124,23 @@ internal static class SiteConfigGenerator
         }
         else
         {
-            var sources = new List<object?> { BuildMarkdownSource("page", contentDir) };
-            if (pageTypes.Contains(PageType.PostDetail))
-                sources.Add(BuildMarkdownSource("post", contentDir));
-            if (pageTypes.Contains(PageType.CompanyDetail))
-                sources.Add(BuildMarkdownSource("company", contentDir));
-            if (pageTypes.Contains(PageType.ServiceDetail))
-                sources.Add(BuildMarkdownSource("service", contentDir));
+            // Each collection reads only its own folder; a shared folder made every
+            // page a post (and a company, and a service) as well.
+            var sources = new List<object?>();
+            void AddSource(string collection, string folder)
+            {
+                Directory.CreateDirectory(Path.Combine(siteDir, "content", folder));
+                sources.Add(BuildMarkdownSource(collection, $"{contentDir}/{folder}"));
+            }
+
+            if (collections.ContainsKey("page"))
+                AddSource("page", "pages");
+            if (collections.ContainsKey("post"))
+                AddSource("post", "posts");
+            if (collections.ContainsKey("company"))
+                AddSource("company", "companies");
+            if (collections.ContainsKey("service"))
+                AddSource("service", "services");
             content["sources"] = sources;
         }
 
@@ -209,6 +222,26 @@ internal static class SiteConfigGenerator
                 ["dir"] = contentDir
             }
         };
+
+    // The list route shows the list page's own heading instead of Core's default title.
+    private static void AddListTitle(
+        Dictionary<string, object?> collection,
+        PageType listType,
+        IReadOnlyList<DiscoveredPage>? discoveredPages)
+    {
+        var listPage = discoveredPages?.FirstOrDefault(p => p.Type == listType);
+        if (listPage is null)
+            return;
+
+        var h1 = System.Text.RegularExpressions.Regex.Match(
+            listPage.UniqueBody, @"<h1[^>]*>(.*?)</h1>",
+            System.Text.RegularExpressions.RegexOptions.IgnoreCase | System.Text.RegularExpressions.RegexOptions.Singleline);
+        var title = h1.Success
+            ? System.Net.WebUtility.HtmlDecode(System.Text.RegularExpressions.Regex.Replace(h1.Groups[1].Value, "<[^>]+>", "")).Trim()
+            : listPage.Title?.Trim();
+        if (!string.IsNullOrWhiteSpace(title))
+            collection["listTitle"] = title;
+    }
 
     // A list route renders the list page's own template, the same file ThemeGenerator wrote.
     private static string ListTemplate(

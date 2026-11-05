@@ -11,7 +11,7 @@ internal static class ImportAnalyzer
         HtmlDemoImporter.ValidateInput(options);
 
         var routeMap = RouteMapLoader.Load(options.RouteMapPath);
-        var pages = HtmlDemoScanner.Scan(options.InputPath, routeMap);
+        var pages = DetailPageLinker.Apply(HtmlDemoScanner.Scan(options.InputPath, routeMap), routeMap);
         var warnings = new List<string>();
         var layout = LayoutExtractor.Extract(pages, warnings);
 
@@ -40,12 +40,14 @@ internal static class ImportAnalyzer
 
         // Fails early (also on dry runs) when two pages claim the same template.
         var templatePlan = PageTemplatePlan.Build(pages, routeMap);
+        warnings.AddRange(templatePlan.RenamedSlugs);
         var components = options.ExtractContent ? ComponentExtractor.Extract(pages) : [];
-        var content = options.ExtractContent ? ContentExtractor.Extract(pages, routeMap, templatePlan, warnings) : new ExtractedContent();
+        var content = options.ExtractContent ? ContentExtractor.Extract(pages, routeMap, templatePlan) : new ExtractedContent();
 
         if (options.ExtractContent)
         {
             NavigationImportAdvisor.AddMissingNavigationWarnings(pages, content, warnings);
+            ContentExtractor.EnsureUniqueCollectionSlugs(content, warnings);
             AddFallbackTemplateWarnings(content, warnings);
             ImportContentMetadataAuditor.AddDiagnostics(options, content, diagnostics);
         }

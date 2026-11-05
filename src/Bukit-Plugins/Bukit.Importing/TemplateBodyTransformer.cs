@@ -67,7 +67,7 @@ internal static partial class TemplateBodyTransformer
             result += Environment.NewLine + """
 {{ for p in pages }}
 <article>
-  <h2><a href="{{ p.url }}">{{ p.title }}</a></h2>
+  <h2><a href="{{ base_url }}{{ p.url }}">{{ p.title }}</a></h2>
   {{ if p.summary }}<p>{{ p.summary }}</p>{{ end }}
 </article>
 {{ end }}
@@ -84,27 +84,16 @@ internal static partial class TemplateBodyTransformer
         {
             if (!ContainsClass(result, className)) continue;
 
+            // The component file holds the whole element, so the include replaces it;
+            // keeping the original tag around it rendered the element twice.
             var componentName = className == "faq-item" ? "faq" : className;
-            result = ReplaceElementsByClass(result, className, match =>
-            {
-                var tag = match.Groups["tag"].Value;
-                var attrs = match.Groups["attrs"].Value;
-                return "<" + tag + attrs + ">" + Environment.NewLine +
-                       "  {{ include 'components/" + componentName + ".html' }}" + Environment.NewLine +
-                       "</" + tag + ">";
-            });
+            result = ReplaceElementsByClass(result, className, _ =>
+                "{{ include 'components/" + componentName + ".html' }}");
         }
 
         if (ContainsClass(result, "faq-item") && !result.Contains("components/faq.html", StringComparison.Ordinal))
         {
-            result = ReplaceElementsByClass(result, "faq-item", match =>
-            {
-                var tag = match.Groups["tag"].Value;
-                var attrs = match.Groups["attrs"].Value;
-                return "<" + tag + attrs + ">" + Environment.NewLine +
-                       "  {{ include 'components/faq.html' }}" + Environment.NewLine +
-                       "</" + tag + ">";
-            });
+            result = ReplaceElementsByClass(result, "faq-item", _ => "{{ include 'components/faq.html' }}");
         }
 
         return result;
@@ -135,12 +124,9 @@ internal static partial class TemplateBodyTransformer
 
         var first = matches[0];
         var last = matches[^1];
-        var tag = first.Groups["tag"].Value;
-        var attrs = first.Groups["attrs"].Value;
+        // The card component is the whole card element; no extra wrapper per item.
         var loop = "{{ for item in pages }}" + Environment.NewLine +
-                   "<" + tag + attrs + ">" + Environment.NewLine +
                    "  {{ include 'components/" + componentName + ".html' }}" + Environment.NewLine +
-                   "</" + tag + ">" + Environment.NewLine +
                    "{{ end }}";
 
         var start = first.Index;
@@ -178,8 +164,46 @@ internal static partial class TemplateBodyTransformer
         }
 
         var contentStart = h1.Index + h1.Length;
-        return html[..contentStart] + $"{Environment.NewLine}  {{{{ {variable} }}}}{Environment.NewLine}" + html[mainClose..];
+        // Wrappers opened before the heading (e.g. <article>) close inside the replaced
+        // part; keep those closing tags so the template stays well formed.
+        var closers = UnmatchedClosingTags(html[contentStart..mainClose]);
+        return html[..contentStart] + $"{Environment.NewLine}  {{{{ {variable} }}}}{Environment.NewLine}" + closers + html[mainClose..];
     }
+
+    private static readonly HashSet<string> VoidElements = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "area", "base", "br", "col", "embed", "hr", "img", "input", "link", "meta", "source", "track", "wbr"
+    };
+
+    private static string UnmatchedClosingTags(string fragment)
+    {
+        var open = new Stack<string>();
+        var closers = new System.Text.StringBuilder();
+        foreach (Match tag in TagRegex().Matches(fragment))
+        {
+            var name = tag.Groups["name"].Value;
+            if (VoidElements.Contains(name) || tag.Groups["self"].Success)
+                continue;
+
+            if (!tag.Groups["close"].Success)
+            {
+                open.Push(name);
+            }
+            else if (open.Count > 0 && open.Peek().Equals(name, StringComparison.OrdinalIgnoreCase))
+            {
+                open.Pop();
+            }
+            else
+            {
+                closers.Append(tag.Value);
+            }
+        }
+
+        return closers.ToString();
+    }
+
+    [GeneratedRegex(@"<(?<close>/)?(?<name>[a-zA-Z][a-zA-Z0-9-]*)\b[^>]*?(?<self>/)?>")]
+    private static partial Regex TagRegex();
 
     private static string ReplaceElementsByClass(string html, string className, Func<Match, string> replacement)
     {

@@ -23,34 +23,39 @@ internal static partial class ThemeGenerator
         Directory.CreateDirectory(Path.Combine(themeDir, "assets"));
         Directory.CreateDirectory(Path.Combine(themeDir, "static"));
 
+        plan ??= PageTemplatePlan.Build(pages, routeMap);
+        // Shared partials hold the root page's links ("about.html"), so resolve them from there.
+        var partialSource = (pages.FirstOrDefault(p => p.Type == PageType.Home && !DemoLinks.Normalize(p.RelativePath).Contains('/'))
+                             ?? pages.FirstOrDefault(p => !DemoLinks.Normalize(p.RelativePath).Contains('/'))
+                             ?? pages.FirstOrDefault())?.RelativePath ?? "index.html";
+
         var partialCount = 0;
         if (!string.IsNullOrWhiteSpace(layout.Header))
         {
-            WritePartial(themeDir, "header.html", layout.Header, pathMappings);
+            WritePartial(themeDir, "header.html", layout.Header, pathMappings, partialSource, plan);
             partialCount++;
         }
 
         if (!string.IsNullOrWhiteSpace(layout.Nav) && !layout.HeaderContainsNav)
         {
-            WritePartial(themeDir, "nav.html", layout.Nav, pathMappings);
+            WritePartial(themeDir, "nav.html", layout.Nav, pathMappings, partialSource, plan);
             partialCount++;
         }
 
         if (!string.IsNullOrWhiteSpace(layout.Footer))
         {
-            WritePartial(themeDir, "footer.html", layout.Footer, pathMappings);
+            WritePartial(themeDir, "footer.html", layout.Footer, pathMappings, partialSource, plan);
             partialCount++;
         }
 
         // base.html holds structure only; every asset is written by the page that declares it.
         WriteBaseLayout(themeDir, layout);
 
-        plan ??= PageTemplatePlan.Build(pages, routeMap);
         var templateCount = 0;
         foreach (var page in pages)
         {
             var templatePath = Path.Combine(themeDir, "layouts", "pages", plan.NameFor(page) + ".html");
-            WritePageTemplate(templatePath, page, pathMappings);
+            WritePageTemplate(templatePath, page, pathMappings, plan);
             templateCount++;
         }
 
@@ -60,7 +65,7 @@ internal static partial class ThemeGenerator
 
         if (!pageTypes.Contains(PageType.Home))
         {
-            WriteIndexTemplate(themeDir, pages, pathMappings);
+            WriteIndexTemplate(themeDir, pages, plan);
             templateCount++;
         }
 
@@ -98,7 +103,7 @@ internal static partial class ThemeGenerator
         {
             File.WriteAllText(
                 Path.Combine(themeDir, "layouts", "pages", name + ".html"),
-                LayoutDirective + Environment.NewLine + GetDefaultTemplateBody(bodyType));
+                LayoutDirective + Environment.NewLine + BaseUrlPrelude + Environment.NewLine + GetDefaultTemplateBody(bodyType));
             count++;
         }
 
@@ -129,12 +134,15 @@ internal static partial class ThemeGenerator
     }
 
     private static void WritePartial(string themeDir, string fileName, string content,
-        Dictionary<string, string> pathMappings)
+        Dictionary<string, string> pathMappings, string sourceRelativePath, PageTemplatePlan plan)
     {
         if (string.IsNullOrWhiteSpace(content)) return;
 
-        var rewritten = MakeNavigationDataAware(
-            AssetImporter.RewritePaths(PageAssetCollector.StripAssets(content), pathMappings));
+        var linked = InternalLinkRewriter.RewriteTemplate(
+            AssetImporter.RewritePaths(PageAssetCollector.StripAssets(content), pathMappings),
+            sourceRelativePath,
+            plan);
+        var rewritten = MakeNavigationDataAware(linked);
         if (string.IsNullOrWhiteSpace(rewritten)) return;
         var fullPath = Path.Combine(themeDir, "layouts", "partials", fileName);
         File.WriteAllText(fullPath, LayoutExtractor.NormalizeBlock(rewritten));
@@ -220,7 +228,7 @@ internal static partial class ThemeGenerator
     }
 
     private static void WritePageTemplate(string templatePath, DiscoveredPage page,
-        Dictionary<string, string> pathMappings)
+        Dictionary<string, string> pathMappings, PageTemplatePlan plan)
     {
         var assets = PageAssetCollector.Collect(page, pathMappings);
         var sb = new StringBuilder();
@@ -228,7 +236,8 @@ internal static partial class ThemeGenerator
         sb.AppendLine(BaseUrlPrelude);
         AppendCapture(sb, "page_head", assets.Head);
         AppendCapture(sb, "page_scripts", assets.Scripts);
-        sb.AppendLine(TemplateBodyTransformer.Transform(page, pathMappings));
+        sb.AppendLine(InternalLinkRewriter.RewriteTemplate(
+            TemplateBodyTransformer.Transform(page, pathMappings), page.RelativePath, plan));
         File.WriteAllText(templatePath, sb.ToString());
     }
 
@@ -255,7 +264,7 @@ internal static partial class ThemeGenerator
   {{ if page.content }}<div class="content">{{ page.content }}</div>{{ end }}
   {{ for p in pages }}
   <article>
-    <h2><a href="{{ p.url }}">{{ p.title }}</a></h2>
+    <h2><a href="{{ base_url }}{{ p.url }}">{{ p.title }}</a></h2>
     {{ if p.summary }}<p>{{ p.summary }}</p>{{ end }}
   </article>
   {{ end }}
@@ -283,7 +292,7 @@ internal static partial class ThemeGenerator
   {{ end }}
   {{ for p in pages }}
   <article>
-    <h2><a href="{{ p.url }}">{{ p.title }}</a></h2>
+    <h2><a href="{{ base_url }}{{ p.url }}">{{ p.title }}</a></h2>
     {{ if p.summary }}<p>{{ p.summary }}</p>{{ end }}
   </article>
   {{ end }}
@@ -291,27 +300,26 @@ internal static partial class ThemeGenerator
 """;
     }
 
-    private static void WriteIndexTemplate(string themeDir, List<DiscoveredPage> pages,
-        Dictionary<string, string> pathMappings)
+    private static void WriteIndexTemplate(string themeDir, List<DiscoveredPage> pages, PageTemplatePlan plan)
     {
         var sb = new StringBuilder();
-        sb.AppendLine("{% layout \"layouts/base.html\" %}");
+        sb.AppendLine(LayoutDirective);
+        sb.AppendLine(BaseUrlPrelude);
         sb.AppendLine("<main>");
         sb.AppendLine("  <h1>{{ page.title }}</h1>");
         sb.AppendLine("  <ul>");
 
         foreach (var page in pages)
         {
-            var slug = page.Slug;
-            var href = string.IsNullOrEmpty(slug) ? "/" : $"/{slug}/";
-            sb.AppendLine($"    <li><a href=\"{href}\">{System.Net.WebUtility.HtmlEncode(page.Title ?? page.Slug)}</a></li>");
+            if (plan.UrlFor(page) is not { } url)
+                continue;
+            sb.AppendLine($"    <li><a href=\"{{{{ base_url }}}}{url}\">{System.Net.WebUtility.HtmlEncode(page.Title ?? page.Slug)}</a></li>");
         }
 
         sb.AppendLine("  </ul>");
         sb.AppendLine("</main>");
-        var content = AssetImporter.RewritePaths(sb.ToString(), pathMappings);
         File.WriteAllText(
-            Path.Combine(themeDir, "layouts", "pages", "index.html"), content);
+            Path.Combine(themeDir, "layouts", "pages", "index.html"), sb.ToString());
     }
 
     private static void WriteThemeYaml(string themeDir, string themeName, HashSet<PageType> pageTypes,

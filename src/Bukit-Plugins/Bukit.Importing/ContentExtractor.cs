@@ -21,26 +21,28 @@ internal static partial class ContentExtractor
     internal static ExtractedContent Extract(
         List<DiscoveredPage> pages,
         RouteMapConfig? routeMap = null,
-        PageTemplatePlan? plan = null,
-        List<string>? warnings = null)
+        PageTemplatePlan? plan = null)
     {
         var content = new ExtractedContent();
         ExtractNavigation(pages, content, routeMap);
-        var pageSlugs = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
         foreach (var page in pages)
         {
             var marks = (Pages: content.Pages.Count, Posts: content.Posts.Count,
                 Companies: content.Companies.Count, Services: content.Services.Count);
-            ExtractPageContent(page, content);
-            ExtractCollectionItems(page, content);
+            // Links to other demo pages become the site URLs those pages are published at.
+            var source = plan is null
+                ? page
+                : page with { UniqueBody = InternalLinkRewriter.RewriteContentLinks(page.UniqueBody, page.RelativePath, plan) };
+            ExtractPageContent(source, content);
+            ExtractCollectionItems(source, content);
             if (plan is not null)
             {
                 AssignTemplate(content, page, plan.PathFor(page), marks);
-                AssignPageRoute(content, page, plan, marks.Pages, pageSlugs, warnings);
+                AssignPageRoute(content, page, plan, marks.Pages);
             }
-            ExtractSections(page, content);
-            ExtractFaqs(page, content);
+            ExtractSections(source, content);
+            ExtractFaqs(source, content);
         }
 
         // The list page yields a summary-only card; the detail page has the body.
@@ -79,15 +81,9 @@ internal static partial class ContentExtractor
                 content.Services[i] = content.Services[i] with { TemplatePath = templatePath };
     }
 
-    // Page drafts share content/pages/, so their slugs must be unique; the route-map
-    // route (when this page owns its entry) goes into the draft's own `url:`.
-    private static void AssignPageRoute(
-        ExtractedContent content,
-        DiscoveredPage page,
-        PageTemplatePlan plan,
-        int firstPage,
-        HashSet<string> pageSlugs,
-        List<string>? warnings)
+    // The plan holds each ordinary page's unique slug and, when the page owns its
+    // route-map entry, the route that goes into the draft's own `url:`.
+    private static void AssignPageRoute(ExtractedContent content, DiscoveredPage page, PageTemplatePlan plan, int firstPage)
     {
         for (var i = firstPage; i < content.Pages.Count; i++)
         {
@@ -96,19 +92,60 @@ internal static partial class ContentExtractor
                 !record.Template.Equals("page", StringComparison.OrdinalIgnoreCase))
                 continue;
 
-            var slug = string.IsNullOrWhiteSpace(record.Slug) ? "index" : record.Slug;
-            if (!pageSlugs.Add(slug))
+            content.Pages[i] = record with { Slug = plan.SlugFor(page), Url = plan.RouteFor(page) };
+        }
+    }
+
+    /// <summary>
+    /// Collection drafts are written to {collection}/{slug}.md, so slugs must be unique.
+    /// Records from their own detail page keep their slug (it matches that page's URL);
+    /// list cards that collide are renamed from their title, with a warning.
+    /// </summary>
+    internal static void EnsureUniqueCollectionSlugs(ExtractedContent content, List<string> warnings)
+    {
+        content.Posts = Unique(content.Posts, p => p.Slug, p => p.Title, p => p.TemplatePath is not null,
+            (p, slug) => p with { Slug = slug }, "post", warnings);
+        content.Companies = Unique(content.Companies, c => c.Slug, c => c.Title, c => c.TemplatePath is not null,
+            (c, slug) => c with { Slug = slug }, "company", warnings);
+        content.Services = Unique(content.Services, s => s.Slug, s => s.Title, s => s.TemplatePath is not null,
+            (s, slug) => s with { Slug = slug }, "service", warnings);
+    }
+
+    private static List<T> Unique<T>(
+        List<T> items,
+        Func<T, string> slugOf,
+        Func<T, string> titleOf,
+        Func<T, bool> ownsPage,
+        Func<T, string, T> withSlug,
+        string kind,
+        List<string> warnings)
+    {
+        var reserved = new HashSet<string>(items.Where(ownsPage).Select(slugOf), StringComparer.OrdinalIgnoreCase);
+        var used = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var result = new List<T>(items.Count);
+
+        foreach (var item in items)
+        {
+            var slug = slugOf(item);
+            var owns = ownsPage(item);
+            if (slug.Length > 0 && (owns || !reserved.Contains(slug)) && used.Add(slug))
             {
-                var baseSlug = plan.NameFor(page);
-                var unique = baseSlug;
-                for (var n = 2; !pageSlugs.Add(unique); n++)
-                    unique = $"{baseSlug}-{n}";
-                warnings?.Add($"Page '{page.RelativePath}' uses slug '{slug}', which another page already has; it was imported as '{unique}'.");
-                slug = unique;
+                result.Add(item);
+                continue;
             }
 
-            content.Pages[i] = record with { Slug = slug, Url = plan.RouteFor(page) };
+            var baseSlug = SlugHelper.Slugify(titleOf(item));
+            if (string.IsNullOrWhiteSpace(baseSlug))
+                baseSlug = kind;
+            var unique = baseSlug;
+            for (var n = 2; reserved.Contains(unique) || !used.Add(unique); n++)
+                unique = $"{baseSlug}-{n}";
+
+            warnings.Add($"{kind} '{titleOf(item)}' uses slug '{slug}', which another {kind} already has; it was imported as '{unique}'.");
+            result.Add(withSlug(item, unique));
         }
+
+        return result;
     }
 
     private static IEnumerable<T> PreferDetail<T>(IEnumerable<T> records, Func<T, string> title, Func<T, string?> content)

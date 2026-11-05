@@ -194,7 +194,10 @@ public sealed class HtmlDemoImporterTests : IDisposable
         Assert.Contains("sources:", yaml);
         Assert.Contains("type: markdown", yaml);
         Assert.DoesNotContain("provider: markdown", yaml);
-        Assert.True(File.Exists(Path.Combine(_tempDir, "sites", "test-theme", "content", "index.md")));
+        // Core renders the home page from pages/index.html; a home draft would duplicate it at /index/.
+        Assert.False(File.Exists(Path.Combine(_tempDir, "sites", "test-theme", "content", "index.md")));
+        Assert.True(Directory.Exists(Path.Combine(_tempDir, "sites", "test-theme", "content", "pages")));
+        Assert.Contains("dir: sites/test-theme/content/pages", yaml);
     }
 
     [Fact]
@@ -523,7 +526,7 @@ public sealed class HtmlDemoImporterTests : IDisposable
         Assert.Contains("{{ include 'partials/header.html' }}", layout);
         Assert.DoesNotContain("{{ include 'partials/nav.html' }}", layout);
         Assert.Contains("site.modules.navigation", header);
-        Assert.Contains("<a href=\"/\">Home</a>", header);
+        Assert.Contains("<a href=\"{{ base_url }}/\">Home</a>", header);
         Assert.Contains("\"title\": \"Home\"", navigationSeed);
         Assert.Contains("\"link\": \"/\"", navigationSeed);
         Assert.Contains("navigation:", databaseMap);
@@ -672,8 +675,9 @@ public sealed class HtmlDemoImporterTests : IDisposable
         HtmlDemoImporter.Import(options);
 
         var indexTemplate = File.ReadAllText(Path.Combine(_tempDir, "themes", "structure-test", "layouts", "pages", "index.html"));
-        Assert.Contains("class=\"hero\"", indexTemplate);
-        Assert.Contains("class=\"faq", indexTemplate);
+        // Components hold the whole element; the template only includes them (no double wrapper).
+        Assert.DoesNotContain("class=\"hero\"", indexTemplate);
+        Assert.Contains("class=\"hero\"", File.ReadAllText(Path.Combine(_tempDir, "themes", "structure-test", "layouts", "components", "hero.html")));
         Assert.Contains("{{ include 'components/hero.html' }}", indexTemplate);
         Assert.Contains("{{ include 'components/article-card.html' }}", indexTemplate);
         Assert.Contains("{{ include 'components/faq.html' }}", indexTemplate);
@@ -939,8 +943,8 @@ pages:
         });
 
         var hero = File.ReadAllText(Path.Combine(_tempDir, "themes", "component-assets", "layouts", "components", "hero.html"));
-        Assert.Contains("src=\"/img/hero.png\"", hero, StringComparison.Ordinal);
-        Assert.Contains("href=\"/contact/\"", hero, StringComparison.Ordinal);
+        Assert.Contains("src=\"{{ base_url }}/img/hero.png\"", hero, StringComparison.Ordinal);
+        Assert.Contains("href=\"{{ base_url }}/contact/\"", hero, StringComparison.Ordinal);
         Assert.True(File.Exists(Path.Combine(_tempDir, "themes", "component-assets", "static", "img", "hero.png")));
     }
 
@@ -1237,18 +1241,16 @@ pages:
         HtmlDemoImporter.Import(options);
 
         var contentDir = Path.Combine(_tempDir, "sites", "collection-fm-test", "content");
-        var index = File.ReadAllText(Path.Combine(contentDir, "index.md"));
+        Assert.False(File.Exists(Path.Combine(contentDir, "index.md")));
         var about = File.ReadAllText(Path.Combine(contentDir, "pages", "about.md"));
         var post = File.ReadAllText(Path.Combine(contentDir, "posts", "article-detail.md"));
         var company = File.ReadAllText(Path.Combine(contentDir, "companies", "company-detail.md"));
-        Assert.Contains("collection: page", index);
         Assert.Contains("collection: page", about);
         Assert.Contains("collection: post", post);
         Assert.Contains("collection: company", company);
-        Assert.Contains("draft: false", index);
+        Assert.Contains("draft: false", about);
         Assert.False(File.Exists(Path.Combine(contentDir, "pages", "article-detail.md")));
         Assert.False(File.Exists(Path.Combine(contentDir, "pages", "company-detail.md")));
-        Assert.DoesNotContain("type: \"", index);
         Assert.DoesNotContain("type: \"", about);
         Assert.DoesNotContain("type: \"", post);
         Assert.DoesNotContain("type: \"", company);
@@ -1538,6 +1540,32 @@ pages:
         var pagesDir = Path.Combine(_tempDir, "themes", "index-as-page", "layouts", "pages");
         Assert.DoesNotContain(".landing{", File.ReadAllText(Path.Combine(pagesDir, "index.html")), StringComparison.Ordinal);
         Assert.Contains(".landing{", File.ReadAllText(Path.Combine(pagesDir, "index-2.html")), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Import_CardsSharingOneDetailTemplate_KeepEveryPostWithAWarning()
+    {
+        File.WriteAllText(Path.Combine(_tempDir, "index.html"),
+            "<html><head><title>Home</title></head><body><main><h1>Home</h1></main></body></html>");
+        File.WriteAllText(Path.Combine(_tempDir, "article.html"),
+            "<html><head><title>Article</title></head><body><main><article><h1>First Post</h1><p>Body.</p></article></main></body></html>");
+        File.WriteAllText(Path.Combine(_tempDir, "news.html"),
+            "<html><head><title>News</title></head><body><main><h1>News</h1>" +
+            "<article class=\"article-card\"><h3><a href=\"article.html\">First Post</a></h3><p>One.</p></article>" +
+            "<article class=\"article-card\"><h3><a href=\"article.html\">Second Post</a></h3><p>Two.</p></article>" +
+            "</main></body></html>");
+
+        var result = HtmlDemoImporter.Import(new HtmlDemoImportOptions
+        {
+            InputPath = _tempDir,
+            ThemeName = "shared-detail",
+            RootDir = _tempDir,
+            Force = true
+        });
+
+        var posts = Path.Combine(_tempDir, "sites", "shared-detail", "content", "posts");
+        Assert.Equal(2, Directory.GetFiles(posts, "*.md").Length);
+        Assert.Contains(result.Warnings, warning => warning.Contains("Second Post", StringComparison.Ordinal));
     }
 
     [Fact]

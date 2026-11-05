@@ -148,11 +148,14 @@ internal static partial class ComponentExtractor
 
         var content = ParagraphRegex.Replace(fragment, _ => "<p>{{ item.summary }}</p>");
         content = LinkRegex.Replace(content, _ =>
-            "<a href=\"{{ item.url }}\">{{ item.title }}</a>");
+            "<a href=\"{{ base_url }}{{ item.url }}\">{{ item.title }}</a>");
         content = HeadingRegex.Replace(content, m =>
         {
             var tagName = m.Groups[1].Value;
-            return $"<{tagName}>{{{{ item.title }}}}</{tagName}>";
+            // A linked heading keeps its link, or the card no longer reaches its detail page.
+            return m.Value.Contains("{{ item.url }}", StringComparison.Ordinal)
+                ? $"<{tagName}><a href=\"{{{{ base_url }}}}{{{{ item.url }}}}\">{{{{ item.title }}}}</a></{tagName}>"
+                : $"<{tagName}>{{{{ item.title }}}}</{tagName}>";
         });
 
         return content;

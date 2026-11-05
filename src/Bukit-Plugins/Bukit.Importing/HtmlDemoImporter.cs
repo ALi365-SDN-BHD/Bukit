@@ -153,9 +153,11 @@ public static class HtmlDemoImporter
         List<DiscoveredComponent> components,
         Dictionary<string, string> pathMappings,
         List<DiscoveredPage> pages,
-        RouteMapConfig? routeMap)
+        RouteMapConfig? routeMap,
+        PageTemplatePlan? plan = null)
     {
         if (components.Count == 0) return;
+        plan ??= PageTemplatePlan.Build(pages, routeMap);
 
         var compDir = Path.Combine(GetThemeDir(options), "layouts", "components");
         Directory.CreateDirectory(compDir);
@@ -168,7 +170,9 @@ public static class HtmlDemoImporter
             if (File.Exists(filePath) && !options.Overwrite) continue;
 
             var content = AssetImporter.RewritePaths(component.NormalizedTemplate, pathMappings);
-            content = ContentExtractor.RewriteNavigationLinks(content, pages, routeMap);
+            // Components render inside page templates, which set base_url.
+            var source = component.UsedBy.FirstOrDefault()?.RelativePath ?? "index.html";
+            content = InternalLinkRewriter.RewriteTemplate(content, source, plan);
             File.WriteAllText(filePath, content);
         }
     }

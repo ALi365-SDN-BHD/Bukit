@@ -36,15 +36,14 @@ internal static class ContentDraftWriter
     private static void WritePageDraft(string contentDir, PageRecord page, HashSet<string> claimed, bool overwrite)
     {
         var slug = string.IsNullOrWhiteSpace(page.Slug) ? "index" : page.Slug;
-        var dir = page.Type.Equals("Home", StringComparison.OrdinalIgnoreCase)
-            ? contentDir
-            : Path.Combine(contentDir, "pages");
-        WriteCollectionDraft(dir, page.Title, slug, "page", page.Summary, page.Content,
+        WriteCollectionDraft(Path.Combine(contentDir, "pages"), page.Title, slug, "page", page.Summary, page.Content,
             page.SeoTitle, page.SeoDescription, page.TemplatePath, claimed, overwrite, page.Url);
     }
 
+    // Core renders the home page at "/" from pages/index.html on its own; a home
+    // draft would only publish a duplicate at /index/.
     private static bool IsBuildPageDraft(PageRecord page)
-        => page.Type.Equals("Home", StringComparison.OrdinalIgnoreCase) ||
+        => !page.Type.Equals("Home", StringComparison.OrdinalIgnoreCase) &&
            page.Template.Equals("page", StringComparison.OrdinalIgnoreCase);
 
     private static void WriteCollectionDraft(

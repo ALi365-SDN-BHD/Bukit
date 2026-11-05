@@ -13,11 +13,56 @@ internal sealed class PageTemplatePlan
 
     private readonly Dictionary<string, string> _names;
     private readonly Dictionary<string, RouteMapPage> _ownedEntries;
+    private readonly Dictionary<string, string> _pageSlugs;
+    private readonly Dictionary<string, DiscoveredPage> _pages;
 
-    private PageTemplatePlan(Dictionary<string, string> names, Dictionary<string, RouteMapPage> ownedEntries)
+    private PageTemplatePlan(
+        Dictionary<string, string> names,
+        Dictionary<string, RouteMapPage> ownedEntries,
+        Dictionary<string, string> pageSlugs,
+        Dictionary<string, DiscoveredPage> pages,
+        List<string> renamedSlugs)
     {
         _names = names;
         _ownedEntries = ownedEntries;
+        _pageSlugs = pageSlugs;
+        _pages = pages;
+        RenamedSlugs = renamedSlugs;
+    }
+
+    /// <summary>One message per ordinary page whose slug was taken and had to change.</summary>
+    internal IReadOnlyList<string> RenamedSlugs { get; }
+
+    /// <summary>The demo page at a demo-relative path ("news/a.html"), or null.</summary>
+    internal DiscoveredPage? PageAt(string relativePath)
+        => _pages.TryGetValue(Key(relativePath), out var page) ? page : null;
+
+    /// <summary>
+    /// Unique slug of an ordinary page (its draft is content/pages/{slug}.md), or the
+    /// page's own slug for other kinds.
+    /// </summary>
+    internal string SlugFor(DiscoveredPage page)
+        => _pageSlugs.TryGetValue(Key(page.RelativePath), out var slug) ? slug : page.Slug;
+
+    /// <summary>
+    /// Site URL ("/about/") the page is published at, matching the routes site.yaml and
+    /// the drafts produce, or null when the page has no route of its own.
+    /// </summary>
+    internal string? UrlFor(DiscoveredPage page)
+    {
+        var slug = SlugFor(page);
+        return page.Type switch
+        {
+            PageType.Home => "/",
+            PageType.PostList => "/insights/",
+            PageType.CompanyList => "/companies/",
+            PageType.ServiceList => "/services/",
+            PageType.PostDetail when slug.Length > 0 => $"/insights/{slug}/",
+            PageType.CompanyDetail when slug.Length > 0 => $"/companies/{slug}/",
+            PageType.ServiceDetail when slug.Length > 0 => $"/services/{slug}/",
+            PageType.Page or PageType.Unknown => RouteFor(page) ?? $"/{(slug.Length == 0 ? "index" : slug)}/",
+            _ => null
+        };
     }
 
     /// <summary>
@@ -116,7 +161,30 @@ internal sealed class PageTemplatePlan
                 names[key] = Claim(used, DerivedName(page));
         }
 
-        return new PageTemplatePlan(names, ownedEntries);
+        // Ordinary page drafts share content/pages/, so their slugs must be unique. A page
+        // that loses its slug takes its template name, which is derived from its path.
+        var pageSlugs = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        var usedSlugs = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var renamed = new List<string>();
+        foreach (var page in pages.Where(p => p.Type is PageType.Page or PageType.Unknown))
+        {
+            var key = Key(page.RelativePath);
+            var slug = string.IsNullOrWhiteSpace(page.Slug) ? "index" : page.Slug;
+            if (!usedSlugs.Add(slug))
+            {
+                var original = slug;
+                slug = Claim(usedSlugs, names[key]);
+                renamed.Add($"Page '{page.RelativePath}' uses slug '{original}', which another page already has; it was imported as '{slug}'.");
+            }
+
+            pageSlugs[key] = slug;
+        }
+
+        var byPath = new Dictionary<string, DiscoveredPage>(StringComparer.OrdinalIgnoreCase);
+        foreach (var page in pages)
+            byPath.TryAdd(Key(page.RelativePath), page);
+
+        return new PageTemplatePlan(names, ownedEntries, pageSlugs, byPath, renamed);
     }
 
     // A route-map template naming a generic fallback (e.g. "page") is a type hint,

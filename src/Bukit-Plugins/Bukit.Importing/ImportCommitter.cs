@@ -31,6 +31,7 @@ internal static class ImportCommitter
         // Import assets (this writes to theme dir directly — assets are not subject to residue check)
         var assetResult = AssetImporter.Import(options, pages);
         content = RewriteContentAssetPaths(content, assetResult.PathMappings);
+        content = PrefixContentBasePath(content, InternalLinkRewriter.BasePath(options.BaseUrl));
 
         // Generate theme (layouts, pages, partials, theme.yaml)
         var result = ThemeGenerator.Generate(options, pages, layout, warnings, assetResult.PathMappings, routeMap, analysis.TemplatePlan);
@@ -40,7 +41,7 @@ internal static class ImportCommitter
         // Write component templates and content drafts
         if (options.ExtractContent)
         {
-            HtmlDemoImporter.WriteComponentTemplates(options, components, assetResult.PathMappings, pages, routeMap);
+            HtmlDemoImporter.WriteComponentTemplates(options, components, assetResult.PathMappings, pages, routeMap, analysis.TemplatePlan);
             ContentDraftWriter.Write(options, content);
             NavigationImportAdvisor.AddMissingNavigationWarnings(pages, content, result.Warnings);
 
@@ -89,6 +90,20 @@ internal static class ImportCommitter
         ImportReportWriter.Write(options, result, diagnostics);
 
         return result;
+    }
+
+    // Record content cannot read base_url, so a sub-path deploy needs it written in.
+    private static ExtractedContent PrefixContentBasePath(ExtractedContent content, string basePath)
+    {
+        if (basePath.Length == 0)
+            return content;
+
+        string? Prefix(string? value) => value is null ? null : InternalLinkRewriter.PrefixRootUrls(value, basePath);
+        content.Pages = content.Pages.Select(page => page with { Content = Prefix(page.Content) }).ToList();
+        content.Posts = content.Posts.Select(post => post with { Content = Prefix(post.Content) }).ToList();
+        content.Companies = content.Companies.Select(company => company with { Content = Prefix(company.Content) }).ToList();
+        content.Services = content.Services.Select(service => service with { Content = Prefix(service.Content) }).ToList();
+        return content;
     }
 
     private static ExtractedContent RewriteContentAssetPaths(
