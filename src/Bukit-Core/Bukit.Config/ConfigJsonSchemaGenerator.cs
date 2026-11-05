@@ -5,6 +5,7 @@ namespace Bukit.Config;
 
 public static class ConfigJsonSchemaGenerator
 {
+    private const string AiBotNamePattern = "^\\s*[A-Za-z0-9._-]+\\s*$";
     private const string AnalyticsScriptUrlPattern = "^https://(?![^/?#]*@)(?:\\[[0-9A-Fa-f:.]+\\]|[^/?#:@]+)(?::443)?/[^?#]*\\.js(?:\\?[^#]*)?$";
     private const string PlausibleCloudScriptUrlPrefixPattern = "^https://[Pp][Ll][Aa][Uu][Ss][Ii][Bb][Ll][Ee]\\.[Ii][Oo](?::443)?/";
     private const string PlausibleCloudSiteSpecificScriptUrlPattern = "^https://[Pp][Ll][Aa][Uu][Ss][Ii][Bb][Ll][Ee]\\.[Ii][Oo](?::443)?/js/pa-[A-Za-z0-9_-]+\\.js(?:\\?[^#]*)?$";
@@ -205,8 +206,8 @@ public static class ConfigJsonSchemaGenerator
             ("llmsFullTxt", BoolSchema()),
             ("llmsTxtMaxArticles", IntSchema(0)),
             ("aiBotMode", EnumSchema("allow", "block-training", "block", "selective")),
-            ("aiBotAllowList", StringArraySchema()),
-            ("aiBotBlockList", StringArraySchema()),
+            ("aiBotAllowList", AiBotNameArraySchema()),
+            ("aiBotBlockList", AiBotNameArraySchema()),
             ("llmsTxtOptionalLinks", Obj(("type", "array"), ("items", LlmsTxtOptionalLinkSchema()))))));
 
     private static JsonObject LlmsTxtOptionalLinkSchema()
@@ -701,6 +702,10 @@ public static class ConfigJsonSchemaGenerator
     }
 
     private static JsonObject StringArraySchema() => Obj(("type", "array"), ("items", StringSchema()));
+
+    // Matches the loader check: each name becomes a robots.txt "User-agent:" line (surrounding spaces are trimmed).
+    private static JsonObject AiBotNameArraySchema()
+        => Obj(("type", "array"), ("items", Obj(("type", "string"), ("pattern", AiBotNamePattern))));
 
     private static JsonObject StringMapSchema()
         => Obj(("type", "object"), ("additionalProperties", StringSchema()));
