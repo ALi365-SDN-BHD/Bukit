@@ -134,6 +134,13 @@ internal sealed class ImportManifest
         }
 
         var path = Path.Combine(_siteDir, FileName);
+        if (File.Exists(path) &&
+            _current.Count == _previous.Count &&
+            _current.All(entry => _previous.TryGetValue(entry.Key, out var hash) && hash == entry.Value))
+        {
+            return;
+        }
+
         Directory.CreateDirectory(_siteDir);
         var ordered = _current.OrderBy(entry => entry.Key, StringComparer.Ordinal)
             .ToDictionary(entry => entry.Key, entry => entry.Value);

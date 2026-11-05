@@ -235,7 +235,7 @@ internal static class ImportReportWriter
         sb.AppendLine();
         sb.AppendLine("## Visual Verification");
         sb.AppendLine();
-        sb.AppendLine("- `--verify` runs `bukit doctor` and `bukit build` against the generated site config.");
+        sb.AppendLine("- `--verify` loads the generated site config and runs `bukit build` (it does not run `bukit doctor`).");
         sb.AppendLine("- Before publishing, compare the generated preview against the original demo at desktop/tablet/mobile breakpoints.");
         sb.AppendLine("- Treat visual parity as pending until screenshots or browser review confirm layout, navigation, CTA, and responsive behavior.");
 

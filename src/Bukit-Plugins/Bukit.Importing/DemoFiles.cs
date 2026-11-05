@@ -22,22 +22,50 @@ internal static partial class DemoFiles
     internal static string[] Enumerate(string root, string pattern = "*")
         => Directory.GetFiles(root, pattern, Recursive);
 
-    /// <summary>Directories under <paramref name="root"/>, not following symbolic links.</summary>
-    internal static string[] EnumerateDirectories(string root, string pattern = "*")
-        => Directory.GetDirectories(root, pattern, Recursive);
+    internal sealed record Tree(
+        IReadOnlyList<string> Files,
+        IReadOnlyList<string> Directories,
+        IReadOnlyList<string> Links);
 
-    /// <summary>Symbolic links under <paramref name="root"/>, which the import skips.</summary>
-    internal static IEnumerable<string> SymbolicLinks(string root)
-        // Reports each link once and never descends into one, so a link to a parent
-        // folder or to a large tree outside the demo is not walked.
-        => new FileSystemEnumerable<string>(
-            root,
-            (ref FileSystemEntry entry) => entry.ToFullPath(),
-            new EnumerationOptions { RecurseSubdirectories = true, AttributesToSkip = 0 })
+    /// <summary>
+    /// One walk over the demo: files, directories and links, without descending into
+    /// links or into the given directory names. Used by the safety checks so each
+    /// pattern does not walk the tree again.
+    /// </summary>
+    internal static Tree Walk(string root, IReadOnlySet<string> skipDirectoryNames)
+    {
+        var files = new List<string>();
+        var directories = new List<string>();
+        var links = new List<string>();
+
+        var options = new EnumerationOptions
         {
-            ShouldIncludePredicate = (ref FileSystemEntry entry) => IsLink(entry.Attributes),
-            ShouldRecursePredicate = (ref FileSystemEntry entry) => !IsLink(entry.Attributes)
+            RecurseSubdirectories = true,
+            AttributesToSkip = 0,
+            IgnoreInaccessible = false
         };
+        var enumerable = new FileSystemEnumerable<(string Path, bool IsDirectory, bool IsLink)>(
+            root,
+            (ref FileSystemEntry entry) => (entry.ToFullPath(), entry.IsDirectory, IsLink(entry.Attributes)),
+            options)
+        {
+            ShouldIncludePredicate = static (ref FileSystemEntry _) => true,
+            ShouldRecursePredicate = (ref FileSystemEntry entry) =>
+                !IsLink(entry.Attributes) && !skipDirectoryNames.Contains(entry.FileName.ToString())
+        };
+
+        foreach (var entry in enumerable)
+        {
+            if (entry.IsLink)
+                links.Add(entry.Path);
+            else if (entry.IsDirectory)
+                directories.Add(entry.Path);
+            else
+                files.Add(entry.Path);
+        }
+
+        return new Tree(files, directories, links);
+    }
 
     private static bool IsLink(FileAttributes attributes) => (attributes & FileAttributes.ReparsePoint) != 0;
 

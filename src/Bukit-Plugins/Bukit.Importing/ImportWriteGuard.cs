@@ -23,4 +23,12 @@ internal static class ImportWriteGuard
 
     internal static bool IsInside(string path, string directory)
         => PathUtils.IsSameOrSubPathOf(path, directory);
+
+    /// <summary>Write-then-rename so a crash cannot leave a truncated file behind.</summary>
+    internal static void WriteAllTextAtomic(string path, string content)
+    {
+        var tempPath = path + ".tmp";
+        File.WriteAllText(tempPath, content);
+        File.Move(tempPath, path, overwrite: true);
+    }
 }

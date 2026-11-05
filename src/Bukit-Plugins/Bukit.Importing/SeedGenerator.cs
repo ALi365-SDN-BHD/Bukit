@@ -5,7 +5,8 @@ namespace Bukit.Importing;
 internal static class SeedGenerator
 {
     internal static bool Generate(HtmlDemoImportOptions options, ExtractedContent content,
-        List<DiscoveredComponent> components, List<DiscoveredPage> pages)
+        List<DiscoveredComponent> components, List<DiscoveredPage> pages,
+        ImportManifest? manifest = null)
     {
         var siteDir = options.SitePath ?? Path.Combine(options.RootDir, "sites", options.ThemeName);
         var isJson = options.ContentSource.Equals("json", StringComparison.OrdinalIgnoreCase);
@@ -14,32 +15,33 @@ internal static class SeedGenerator
             ? Path.Combine(siteDir, "data")
             : Path.Combine(siteDir, "notion-seed");
         Directory.CreateDirectory(seedDir);
+        manifest?.Produced(seedDir);
 
         if (isYaml)
         {
-            WritePagesYaml(Path.Combine(seedDir, "pages.yaml"), SeedPages(content), options.Overwrite);
-            WriteNavigationYaml(Path.Combine(seedDir, "navigation.yaml"), content.Navigation, options.Overwrite);
-            WriteSectionsYaml(Path.Combine(seedDir, "sections.yaml"), content.Sections, options.Overwrite);
-            WritePostsYaml(Path.Combine(seedDir, "posts.yaml"), content.Posts, options.Overwrite);
-            WriteCompaniesYaml(Path.Combine(seedDir, "companies.yaml"), content.Companies, options.Overwrite);
-            WriteServicesYaml(Path.Combine(seedDir, "services.yaml"), content.Services, options.Overwrite);
-            WriteFaqsYaml(Path.Combine(seedDir, "faqs.yaml"), content.Faqs, options.Overwrite);
-            WriteMediaYaml(Path.Combine(seedDir, "media.yaml"), pages, options.Overwrite);
-            WriteComponentsYaml(Path.Combine(seedDir, "components.yaml"), components, options.Overwrite);
+            WritePagesYaml(Path.Combine(seedDir, "pages.yaml"), SeedPages(content), options.Overwrite, manifest);
+            WriteNavigationYaml(Path.Combine(seedDir, "navigation.yaml"), content.Navigation, options.Overwrite, manifest);
+            WriteSectionsYaml(Path.Combine(seedDir, "sections.yaml"), content.Sections, options.Overwrite, manifest);
+            WritePostsYaml(Path.Combine(seedDir, "posts.yaml"), content.Posts, options.Overwrite, manifest);
+            WriteCompaniesYaml(Path.Combine(seedDir, "companies.yaml"), content.Companies, options.Overwrite, manifest);
+            WriteServicesYaml(Path.Combine(seedDir, "services.yaml"), content.Services, options.Overwrite, manifest);
+            WriteFaqsYaml(Path.Combine(seedDir, "faqs.yaml"), content.Faqs, options.Overwrite, manifest);
+            WriteMediaYaml(Path.Combine(seedDir, "media.yaml"), pages, options.Overwrite, manifest);
+            WriteComponentsYaml(Path.Combine(seedDir, "components.yaml"), components, options.Overwrite, manifest);
         }
         else
         {
-            WritePages(Path.Combine(seedDir, "pages.json"), SeedPages(content), options.Overwrite);
-            WriteNavigation(Path.Combine(seedDir, "navigation.json"), content.Navigation, options.Overwrite);
-            WriteSections(Path.Combine(seedDir, "sections.json"), content.Sections, options.Overwrite);
-            WritePosts(Path.Combine(seedDir, "posts.json"), content.Posts, options.Overwrite);
-            WriteCompanies(Path.Combine(seedDir, "companies.json"), content.Companies, options.Overwrite);
-            WriteServices(Path.Combine(seedDir, "services.json"), content.Services, options.Overwrite);
-            WriteFaqs(Path.Combine(seedDir, "faqs.json"), content.Faqs, options.Overwrite);
-            WriteMedia(Path.Combine(seedDir, "media.json"), pages, options.Overwrite);
-            WriteComponents(Path.Combine(seedDir, "components.json"), components, options.Overwrite);
+            WritePages(Path.Combine(seedDir, "pages.json"), SeedPages(content), options.Overwrite, manifest);
+            WriteNavigation(Path.Combine(seedDir, "navigation.json"), content.Navigation, options.Overwrite, manifest);
+            WriteSections(Path.Combine(seedDir, "sections.json"), content.Sections, options.Overwrite, manifest);
+            WritePosts(Path.Combine(seedDir, "posts.json"), content.Posts, options.Overwrite, manifest);
+            WriteCompanies(Path.Combine(seedDir, "companies.json"), content.Companies, options.Overwrite, manifest);
+            WriteServices(Path.Combine(seedDir, "services.json"), content.Services, options.Overwrite, manifest);
+            WriteFaqs(Path.Combine(seedDir, "faqs.json"), content.Faqs, options.Overwrite, manifest);
+            WriteMedia(Path.Combine(seedDir, "media.json"), pages, options.Overwrite, manifest);
+            WriteComponents(Path.Combine(seedDir, "components.json"), components, options.Overwrite, manifest);
             if (!isJson)
-                WriteDefaultNotionDatabaseMap(Path.Combine(seedDir, "notion-database-map.yaml"), options.Overwrite);
+                WriteDefaultNotionDatabaseMap(Path.Combine(seedDir, "notion-database-map.yaml"), options.Overwrite, manifest);
         }
 
         Console.WriteLine($"  种子数据生成完成: {seedDir}");
@@ -56,9 +58,9 @@ internal static class SeedGenerator
         return true;
     }
 
-    private static void WritePages(string path, List<PageRecord> records, bool overwrite)
+    private static void WritePages(string path, List<PageRecord> records, bool overwrite, ImportManifest? manifest = null)
     {
-        WriteArray(path, records, overwrite, (sb, r, i, last) =>
+        WriteArray(path, records, overwrite, manifest, (sb, r, i, last) =>
         {
             sb.AppendLine($"    \"title\": {JsonStr(r.Title)},");
             sb.AppendLine($"    \"slug\": {JsonStr(r.Slug)},");
@@ -74,9 +76,9 @@ internal static class SeedGenerator
         });
     }
 
-    private static void WriteNavigation(string path, List<NavigationRecord> records, bool overwrite)
+    private static void WriteNavigation(string path, List<NavigationRecord> records, bool overwrite, ImportManifest? manifest = null)
     {
-        WriteArray(path, records, overwrite, (sb, r, i, last) =>
+        WriteArray(path, records, overwrite, manifest, (sb, r, i, last) =>
         {
             sb.AppendLine($"    \"title\": {JsonStr(r.Title)},");
             sb.AppendLine($"    \"slug\": {JsonStr(r.Slug)},");
@@ -88,9 +90,9 @@ internal static class SeedGenerator
         });
     }
 
-    private static void WriteSections(string path, List<SectionRecord> records, bool overwrite)
+    private static void WriteSections(string path, List<SectionRecord> records, bool overwrite, ImportManifest? manifest = null)
     {
-        WriteArray(path, records, overwrite, (sb, r, i, last) =>
+        WriteArray(path, records, overwrite, manifest, (sb, r, i, last) =>
         {
             sb.AppendLine($"    \"page_slug\": {JsonVal(r.PageSlug)},");
             sb.AppendLine($"    \"section_type\": {JsonStr(r.SectionType)},");
@@ -104,9 +106,9 @@ internal static class SeedGenerator
         });
     }
 
-    private static void WritePosts(string path, List<PostRecord> records, bool overwrite)
+    private static void WritePosts(string path, List<PostRecord> records, bool overwrite, ImportManifest? manifest = null)
     {
-        WriteArray(path, records, overwrite, (sb, r, i, last) =>
+        WriteArray(path, records, overwrite, manifest, (sb, r, i, last) =>
         {
             sb.AppendLine($"    \"title\": {JsonStr(r.Title)},");
             sb.AppendLine($"    \"slug\": {JsonStr(r.Slug)},");
@@ -122,9 +124,9 @@ internal static class SeedGenerator
         });
     }
 
-    private static void WriteCompanies(string path, List<CompanyRecord> records, bool overwrite)
+    private static void WriteCompanies(string path, List<CompanyRecord> records, bool overwrite, ImportManifest? manifest = null)
     {
-        WriteArray(path, records, overwrite, (sb, r, i, last) =>
+        WriteArray(path, records, overwrite, manifest, (sb, r, i, last) =>
         {
             sb.AppendLine($"    \"title\": {JsonStr(r.Title)},");
             sb.AppendLine($"    \"slug\": {JsonStr(r.Slug)},");
@@ -140,9 +142,9 @@ internal static class SeedGenerator
         });
     }
 
-    private static void WriteServices(string path, List<ServiceRecord> records, bool overwrite)
+    private static void WriteServices(string path, List<ServiceRecord> records, bool overwrite, ImportManifest? manifest = null)
     {
-        WriteArray(path, records, overwrite, (sb, r, i, last) =>
+        WriteArray(path, records, overwrite, manifest, (sb, r, i, last) =>
         {
             sb.AppendLine($"    \"title\": {JsonStr(r.Title)},");
             sb.AppendLine($"    \"slug\": {JsonStr(r.Slug)},");
@@ -156,9 +158,9 @@ internal static class SeedGenerator
         });
     }
 
-    private static void WriteFaqs(string path, List<FaqRecord> records, bool overwrite)
+    private static void WriteFaqs(string path, List<FaqRecord> records, bool overwrite, ImportManifest? manifest = null)
     {
-        WriteArray(path, records, overwrite, (sb, r, i, last) =>
+        WriteArray(path, records, overwrite, manifest, (sb, r, i, last) =>
         {
             sb.AppendLine($"    \"question\": {JsonStr(r.Question)},");
             sb.AppendLine($"    \"answer\": {JsonStr(r.Answer)},");
@@ -170,7 +172,7 @@ internal static class SeedGenerator
         });
     }
 
-    private static void WriteMedia(string path, List<DiscoveredPage> pages, bool overwrite)
+    private static void WriteMedia(string path, List<DiscoveredPage> pages, bool overwrite, ImportManifest? manifest = null)
     {
         var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         var mediaItems = new List<(string source, string target, List<string> usedBy, string status)>();
@@ -202,7 +204,7 @@ internal static class SeedGenerator
             }
         }
 
-        WriteArray(path, mediaItems, overwrite, (sb, m, i, last) =>
+        WriteArray(path, mediaItems, overwrite, manifest, (sb, m, i, last) =>
         {
             sb.AppendLine($"    \"source\": {JsonStr(m.source)},");
             sb.AppendLine($"    \"target\": {JsonStr(m.target)},");
@@ -212,9 +214,9 @@ internal static class SeedGenerator
         });
     }
 
-    private static void WriteComponents(string path, List<DiscoveredComponent> components, bool overwrite)
+    private static void WriteComponents(string path, List<DiscoveredComponent> components, bool overwrite, ImportManifest? manifest = null)
     {
-        WriteArray(path, components, overwrite, (sb, c, i, last) =>
+        WriteArray(path, components, overwrite, manifest, (sb, c, i, last) =>
         {
             sb.AppendLine($"    \"name\": {JsonStr(c.Name)},");
             sb.AppendLine($"    \"template\": {JsonVal(c.NormalizedTemplate)},");
@@ -225,9 +227,9 @@ internal static class SeedGenerator
         });
     }
 
-    private static void WriteDefaultNotionDatabaseMap(string path, bool overwrite)
+    private static void WriteDefaultNotionDatabaseMap(string path, bool overwrite, ImportManifest? manifest = null)
     {
-        if (File.Exists(path) && !overwrite)
+        if (manifest is not null ? !manifest.CanWrite(path) : File.Exists(path) && !overwrite)
             return;
 
         var sb = new StringBuilder();
@@ -237,7 +239,8 @@ internal static class SeedGenerator
         WriteDatabaseMapEntry(sb, "posts", "Posts", "posts.json", "post");
         WriteDatabaseMapEntry(sb, "companies", "Companies", "companies.json", "company");
         WriteDatabaseMapEntry(sb, "services", "Services", "services.json", "service");
-        File.WriteAllText(path, sb.ToString());
+        ImportWriteGuard.WriteAllTextAtomic(path, sb.ToString());
+        manifest?.Record(path);
     }
 
     private static void WriteDatabaseMapEntry(StringBuilder sb, string key, string title, string seed, string collection)
@@ -250,9 +253,9 @@ internal static class SeedGenerator
         sb.AppendLine("    uniqueField: Slug");
     }
 
-    private static void WritePagesYaml(string path, List<PageRecord> records, bool overwrite)
+    private static void WritePagesYaml(string path, List<PageRecord> records, bool overwrite, ImportManifest? manifest = null)
     {
-        WriteYamlArray(path, records, overwrite, (sb, r) =>
+        WriteYamlArray(path, records, overwrite, manifest, (sb, r) =>
         {
             YamlField(sb, "title", r.Title);
             YamlField(sb, "slug", r.Slug);
@@ -268,9 +271,9 @@ internal static class SeedGenerator
         });
     }
 
-    private static void WriteNavigationYaml(string path, List<NavigationRecord> records, bool overwrite)
+    private static void WriteNavigationYaml(string path, List<NavigationRecord> records, bool overwrite, ImportManifest? manifest = null)
     {
-        WriteYamlArray(path, records, overwrite, (sb, r) =>
+        WriteYamlArray(path, records, overwrite, manifest, (sb, r) =>
         {
             YamlField(sb, "title", r.Title);
             YamlField(sb, "slug", r.Slug);
@@ -282,9 +285,9 @@ internal static class SeedGenerator
         });
     }
 
-    private static void WriteSectionsYaml(string path, List<SectionRecord> records, bool overwrite)
+    private static void WriteSectionsYaml(string path, List<SectionRecord> records, bool overwrite, ImportManifest? manifest = null)
     {
-        WriteYamlArray(path, records, overwrite, (sb, r) =>
+        WriteYamlArray(path, records, overwrite, manifest, (sb, r) =>
         {
             YamlField(sb, "page_slug", r.PageSlug);
             YamlField(sb, "section_type", r.SectionType);
@@ -298,9 +301,9 @@ internal static class SeedGenerator
         });
     }
 
-    private static void WritePostsYaml(string path, List<PostRecord> records, bool overwrite)
+    private static void WritePostsYaml(string path, List<PostRecord> records, bool overwrite, ImportManifest? manifest = null)
     {
-        WriteYamlArray(path, records, overwrite, (sb, r) =>
+        WriteYamlArray(path, records, overwrite, manifest, (sb, r) =>
         {
             YamlField(sb, "title", r.Title);
             YamlField(sb, "slug", r.Slug);
@@ -316,9 +319,9 @@ internal static class SeedGenerator
         });
     }
 
-    private static void WriteCompaniesYaml(string path, List<CompanyRecord> records, bool overwrite)
+    private static void WriteCompaniesYaml(string path, List<CompanyRecord> records, bool overwrite, ImportManifest? manifest = null)
     {
-        WriteYamlArray(path, records, overwrite, (sb, r) =>
+        WriteYamlArray(path, records, overwrite, manifest, (sb, r) =>
         {
             YamlField(sb, "title", r.Title);
             YamlField(sb, "slug", r.Slug);
@@ -334,9 +337,9 @@ internal static class SeedGenerator
         });
     }
 
-    private static void WriteServicesYaml(string path, List<ServiceRecord> records, bool overwrite)
+    private static void WriteServicesYaml(string path, List<ServiceRecord> records, bool overwrite, ImportManifest? manifest = null)
     {
-        WriteYamlArray(path, records, overwrite, (sb, r) =>
+        WriteYamlArray(path, records, overwrite, manifest, (sb, r) =>
         {
             YamlField(sb, "title", r.Title);
             YamlField(sb, "slug", r.Slug);
@@ -350,9 +353,9 @@ internal static class SeedGenerator
         });
     }
 
-    private static void WriteFaqsYaml(string path, List<FaqRecord> records, bool overwrite)
+    private static void WriteFaqsYaml(string path, List<FaqRecord> records, bool overwrite, ImportManifest? manifest = null)
     {
-        WriteYamlArray(path, records, overwrite, (sb, r) =>
+        WriteYamlArray(path, records, overwrite, manifest, (sb, r) =>
         {
             YamlField(sb, "question", r.Question);
             YamlField(sb, "answer", r.Answer);
@@ -364,7 +367,7 @@ internal static class SeedGenerator
         });
     }
 
-    private static void WriteMediaYaml(string path, List<DiscoveredPage> pages, bool overwrite)
+    private static void WriteMediaYaml(string path, List<DiscoveredPage> pages, bool overwrite, ImportManifest? manifest = null)
     {
         var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         var mediaItems = new List<(string source, string target, List<string> usedBy, string status)>();
@@ -394,7 +397,7 @@ internal static class SeedGenerator
             }
         }
 
-        WriteYamlArray(path, mediaItems, overwrite, (sb, m) =>
+        WriteYamlArray(path, mediaItems, overwrite, manifest, (sb, m) =>
         {
             YamlField(sb, "source", m.source);
             YamlField(sb, "target", m.target);
@@ -403,9 +406,9 @@ internal static class SeedGenerator
         });
     }
 
-    private static void WriteComponentsYaml(string path, List<DiscoveredComponent> components, bool overwrite)
+    private static void WriteComponentsYaml(string path, List<DiscoveredComponent> components, bool overwrite, ImportManifest? manifest = null)
     {
-        WriteYamlArray(path, components, overwrite, (sb, c) =>
+        WriteYamlArray(path, components, overwrite, manifest, (sb, c) =>
         {
             YamlField(sb, "name", c.Name);
             YamlField(sb, "template", c.NormalizedTemplate);
@@ -414,9 +417,9 @@ internal static class SeedGenerator
     }
 
     private static void WriteArray<T>(string path, List<T> records, bool overwrite,
-        Action<StringBuilder, T, int, bool> writeItem)
+        ImportManifest? manifest, Action<StringBuilder, T, int, bool> writeItem)
     {
-        if (File.Exists(path) && !overwrite)
+        if (manifest is not null ? !manifest.CanWrite(path) : File.Exists(path) && !overwrite)
             return;
 
         var sb = new StringBuilder();
@@ -430,13 +433,14 @@ internal static class SeedGenerator
             sb.AppendLine();
         }
         sb.AppendLine("]");
-        File.WriteAllText(path, sb.ToString());
+        ImportWriteGuard.WriteAllTextAtomic(path, sb.ToString());
+        manifest?.Record(path);
     }
 
     private static void WriteYamlArray<T>(string path, List<T> records, bool overwrite,
-        Action<StringBuilder, T> writeItem)
+        ImportManifest? manifest, Action<StringBuilder, T> writeItem)
     {
-        if (File.Exists(path) && !overwrite)
+        if (manifest is not null ? !manifest.CanWrite(path) : File.Exists(path) && !overwrite)
             return;
 
         var sb = new StringBuilder();
@@ -452,7 +456,8 @@ internal static class SeedGenerator
                 writeItem(sb, record);
             }
         }
-        File.WriteAllText(path, sb.ToString());
+        ImportWriteGuard.WriteAllTextAtomic(path, sb.ToString());
+        manifest?.Record(path);
     }
 
     private static void YamlField(StringBuilder sb, string key, string? value)

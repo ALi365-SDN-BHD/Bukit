@@ -6,7 +6,7 @@ namespace Bukit.Plugin.Import;
 
 public static class ImportPluginCommandSpecs
 {
-    private static readonly string[] FileSystemWrites =
+    private static readonly string[] WriteDirectories =
     [
         "./themes",
         "./sites",
@@ -16,12 +16,24 @@ public static class ImportPluginCommandSpecs
         ".bukit/reports/plugin-output/import"
     ];
 
+    // --use writes the theme name back into the project config. These are single
+    // files, not write roots, so --report bukit.yaml stays rejected.
+    private static readonly string[] WritableConfigFiles = ["./site.yaml", "./bukkit.yaml"];
+
     /// <summary>Write roots declared in the manifest's permissions.filesystem.write.</summary>
-    public static IReadOnlyList<string> WriteRoots => FileSystemWrites;
+    public static IReadOnlyList<string> WriteRoots => WriteDirectories;
+
+    public static IReadOnlyList<string> RequiredWritePaths =>
+        [.. WriteDirectories, .. WritableConfigFiles];
 
     public static bool IsWritablePath(string rootDir, string path)
-        => FileSystemWrites.Any(root =>
+        => WriteDirectories.Any(root =>
             PathUtils.IsSameOrSubPathOf(path, Path.Combine(rootDir, NormalizeRoot(root))));
+
+    public static bool IsWritableConfigPath(string rootDir, string path)
+        => IsWritablePath(rootDir, path) ||
+           WritableConfigFiles.Any(file =>
+               PathUtils.IsSameOrSubPathOf(path, Path.Combine(rootDir, NormalizeRoot(file))));
 
     private static string NormalizeRoot(string root)
         => root.StartsWith("./", StringComparison.Ordinal) ? root[2..] : root.TrimStart('/');
@@ -125,7 +137,7 @@ public static class ImportPluginCommandSpecs
         => new(
             FileSystem: new PluginFileSystemPermission(
                 Read: ["."],
-                Write: FileSystemWrites),
+                Write: RequiredWritePaths),
             Network: true,
             Environment: new PluginEnvironmentPermission(Read: ["NOTION_TOKEN"]));
 

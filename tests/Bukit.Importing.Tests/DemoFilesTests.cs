@@ -85,12 +85,12 @@ public sealed class DemoFilesTests : IDisposable
 
             Assert.Contains("index.html", files);
             Assert.DoesNotContain("leak.txt", files);
-            Assert.Single(DemoFiles.SymbolicLinks(_dir));
+            Assert.Single(DemoFiles.Walk(_dir, ImportSafetyPatterns.SkipDirectoryNames).Links);
 
             // A link back to the demo folder is reported once, not walked.
             Directory.CreateDirectory(Path.Combine(_dir, "a"));
             Directory.CreateSymbolicLink(Path.Combine(_dir, "a", "loop"), _dir);
-            Assert.Equal(2, DemoFiles.SymbolicLinks(_dir).Count());
+            Assert.Equal(2, DemoFiles.Walk(_dir, ImportSafetyPatterns.SkipDirectoryNames).Links.Count());
         }
         finally
         {

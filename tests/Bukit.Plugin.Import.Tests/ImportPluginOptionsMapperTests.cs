@@ -166,6 +166,44 @@ public sealed class ImportPluginOptionsMapperTests : IDisposable
     }
 
     [Fact]
+    public void Map_HtmlDemo_RejectsUseWhenConfigIsOutsideWriteScope()
+    {
+        var request = Request(
+            path: ["import", "html-demo"],
+            arguments: ["demo"],
+            options: new Dictionary<string, JsonElement>
+            {
+                ["--theme"] = Json("demo-theme"),
+                ["--use"] = Json(true),
+                ["--config"] = Json(Path.Combine(_rootDir, "config", "custom.yaml"))
+            });
+
+        var ex = Assert.Throws<ImportPluginOptionsException>(() => ImportPluginOptionsMapper.Map(request));
+
+        Assert.Equal("plugin.import.pathDenied", ex.Code);
+        Assert.Contains("--use", ex.Message);
+    }
+
+    [Fact]
+    public void Map_HtmlDemo_AllowsUseForTheDeclaredProjectConfig()
+    {
+        var request = Request(
+            path: ["import", "html-demo"],
+            arguments: ["demo"],
+            options: new Dictionary<string, JsonElement>
+            {
+                ["--theme"] = Json("demo-theme"),
+                ["--use"] = Json(true),
+                ["--config"] = Json("site.yaml")
+            });
+
+        var options = ImportPluginOptionsMapper.Map(request);
+
+        Assert.True(options.Use);
+        Assert.Equal(Path.Combine(_rootDir, "site.yaml"), options.ConfigPath);
+    }
+
+    [Fact]
     public void Map_Seed_RejectsOutputOutsideDeclaredWriteScope()
     {
         var request = Request(

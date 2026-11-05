@@ -708,6 +708,44 @@ public sealed class HtmlDemoImporterTests : IDisposable
     }
 
     [Fact]
+    public void Import_StrictFailure_KeepsDraftsTheManifestWouldOtherwiseDelete()
+    {
+        var demo = Path.Combine(_tempDir, "demo");
+        Directory.CreateDirectory(demo);
+        File.WriteAllText(Path.Combine(demo, "index.html"),
+            "<html><head><title>Home</title></head><body><main><h1>Home</h1><p>Intro.</p></main></body></html>");
+        File.WriteAllText(Path.Combine(demo, "about.html"),
+            "<html><head><title>About</title></head><body><main><h1>About</h1><p>Body.</p></main></body></html>");
+
+        var options = new HtmlDemoImportOptions
+        {
+            InputPath = demo,
+            ThemeName = "strict-order",
+            RootDir = _tempDir
+        };
+
+        HtmlDemoImporter.Import(options);
+        var staleDraft = Path.Combine(_tempDir, "sites", "strict-order", "content", "pages", "about.md");
+        Assert.True(File.Exists(staleDraft));
+
+        // The demo no longer has the About page, and the home page now carries residue.
+        File.Delete(Path.Combine(demo, "about.html"));
+        File.WriteAllText(Path.Combine(demo, "index.html"),
+            "<html><head><title>Home</title></head><body><main><p>High Value Business Proposition For Buyers</p></main></body></html>");
+
+        var ex = Assert.Throws<ImportException>(() => HtmlDemoImporter.Import(options with
+        {
+            Force = true,
+            StrictMode = "fail"
+        }));
+
+        Assert.Equal(ImportErrorKind.UserInput, ex.Kind);
+        Assert.Contains("hardcoded content residue", ex.Message);
+        // A failed strict run must not delete files the manifest still owns.
+        Assert.True(File.Exists(staleDraft));
+    }
+
+    [Fact]
     public void Import_Strict_HardcodedResidue_Throws()
     {
         File.WriteAllText(Path.Combine(_tempDir, "index.html"),
@@ -1056,6 +1094,32 @@ pages:
         Assert.DoesNotContain("site.js", File.ReadAllText(Path.Combine(layoutsDir, "layouts", "base.html")), StringComparison.Ordinal);
         Assert.Contains("site.js", File.ReadAllText(Path.Combine(layoutsDir, "pages", "index.html")), StringComparison.Ordinal);
         Assert.Contains("site.js", File.ReadAllText(Path.Combine(layoutsDir, "pages", "about.html")), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Import_HeaderScript_StaysBeforeThePageContent()
+    {
+        File.WriteAllText(Path.Combine(_tempDir, "index.html"),
+            "<html><head><title>Home</title></head><body>" +
+            "<header><nav><a href=\"/\">Home</a></nav><script src=\"menu.js\"></script></header>" +
+            "<main><h1>Home</h1><script>menu.init()</script></main></body></html>");
+        File.WriteAllText(Path.Combine(_tempDir, "menu.js"), "var menu = { init: function () {} };");
+
+        HtmlDemoImporter.Import(new HtmlDemoImportOptions
+        {
+            InputPath = _tempDir,
+            ThemeName = "header-script",
+            RootDir = _tempDir,
+            Force = true
+        });
+
+        var template = File.ReadAllText(Path.Combine(_tempDir, "themes", "header-script", "layouts", "pages", "index.html"));
+        var scriptIndex = template.IndexOf("menu.js", StringComparison.Ordinal);
+        var mainIndex = template.IndexOf("<main", StringComparison.Ordinal);
+        Assert.True(scriptIndex >= 0 && mainIndex > scriptIndex, template);
+
+        var header = File.ReadAllText(Path.Combine(_tempDir, "themes", "header-script", "layouts", "partials", "header.html"));
+        Assert.DoesNotContain("menu.js", header, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -1720,6 +1784,77 @@ pages:
         Assert.DoesNotContain("..", yaml);
         Assert.True(File.Exists(Path.Combine(siteDir, "themes", "absolute-site-test", "layouts", "pages", "index.html")));
         Assert.False(Directory.Exists(Path.Combine(rootDir, "themes", "absolute-site-test")));
+    }
+
+    [Fact]
+    public void Import_BuiltOutputPages_AreNotImportedButTheirAssetsAreCopied()
+    {
+        Directory.CreateDirectory(Path.Combine(_tempDir, "dist", "css"));
+        File.WriteAllText(Path.Combine(_tempDir, "dist", "css", "app.css"), "body{margin:0}");
+        File.WriteAllText(Path.Combine(_tempDir, "dist", "about.html"),
+            "<html><head><title>Built About</title></head><body><main><h1>Built About</h1></main></body></html>");
+        File.WriteAllText(Path.Combine(_tempDir, "index.html"),
+            "<html><head><title>Home</title><link rel=\"stylesheet\" href=\"dist/css/app.css\"></head><body><main><h1>Home</h1></main></body></html>");
+
+        HtmlDemoImporter.Import(new HtmlDemoImportOptions
+        {
+            InputPath = _tempDir,
+            ThemeName = "built-output",
+            RootDir = _tempDir,
+            Force = true
+        });
+
+        Assert.False(File.Exists(Path.Combine(_tempDir, "sites", "built-output", "content", "pages", "dist-about.md")));
+        Assert.DoesNotContain("Built About", File.ReadAllText(Path.Combine(_tempDir, "sites", "built-output", "import-report.md")));
+        Assert.True(File.Exists(Path.Combine(_tempDir, "themes", "built-output", "static", "dist", "css", "app.css")));
+        Assert.False(Directory.Exists(Path.Combine(_tempDir, "sites", "built-output", "original-demo", "dist")));
+    }
+
+    [Fact]
+    public void Import_HtmPage_IsImported()
+    {
+        File.WriteAllText(Path.Combine(_tempDir, "index.html"),
+            "<html><head><title>Home</title></head><body><main><h1>Home</h1></main></body></html>");
+        File.WriteAllText(Path.Combine(_tempDir, "about.htm"),
+            "<html><head><title>About</title></head><body><main><h1>About</h1></main></body></html>");
+
+        HtmlDemoImporter.Import(new HtmlDemoImportOptions
+        {
+            InputPath = _tempDir,
+            ThemeName = "htm-page",
+            RootDir = _tempDir,
+            Force = true
+        });
+
+        Assert.True(File.Exists(Path.Combine(_tempDir, "themes", "htm-page", "layouts", "pages", "about.html")));
+        Assert.True(File.Exists(Path.Combine(_tempDir, "sites", "htm-page", "content", "pages", "about.md")));
+    }
+
+    [Fact]
+    public void Import_Force_KeepsAnEditedNotionSeed()
+    {
+        File.WriteAllText(Path.Combine(_tempDir, "index.html"),
+            "<html><head><title>Home</title></head><body><main><h1>Home</h1></main></body></html>");
+        File.WriteAllText(Path.Combine(_tempDir, "company-detail.html"),
+            "<html><head><title>Company</title></head><body><main><h1>Company</h1><p>Body.</p></main></body></html>");
+
+        var options = new HtmlDemoImportOptions
+        {
+            InputPath = _tempDir,
+            ThemeName = "seed-manifest",
+            RootDir = _tempDir,
+            Force = true
+        };
+
+        HtmlDemoImporter.Import(options);
+        var seedPath = Path.Combine(_tempDir, "sites", "seed-manifest", "notion-seed", "companies.json");
+        Assert.True(File.Exists(seedPath));
+        File.AppendAllText(seedPath, "\n\n");
+        var edited = File.ReadAllText(seedPath);
+
+        HtmlDemoImporter.Import(options);
+
+        Assert.Equal(edited, File.ReadAllText(seedPath));
     }
 
     [Fact]

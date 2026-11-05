@@ -159,7 +159,7 @@ internal static class SiteConfigGenerator
             ["name"] = options.ThemeName
         };
 
-        File.WriteAllText(yamlPath, YamlEmitter.Emit(root));
+        ImportWriteGuard.WriteAllTextAtomic(yamlPath, YamlEmitter.Emit(root));
         manifest?.Record(yamlPath);
         return true;
     }

@@ -129,6 +129,31 @@ public sealed class ImportSeedContentWriterTests : IDisposable
     }
 
     [Fact]
+    public void WriteMarkdown_HomePageIndex_IsSkipped()
+    {
+        var record = new ImportSeedRecord(
+            Collection: "page", Title: "Home", Slug: "index", Summary: null,
+            Content: "Body", Language: null, Published: true, SeoTitle: null, SeoDescription: null);
+
+        var written = ImportSeedContentWriter.WriteMarkdown(_tempDir, [record], overwrite: false);
+
+        Assert.Empty(written);
+        Assert.False(File.Exists(Path.Combine(_tempDir, "index.md")));
+        Assert.False(File.Exists(Path.Combine(_tempDir, "pages", "index.md")));
+    }
+
+    [Fact]
+    public void WriteMarkdown_PostWithIndexSlug_IsStillWritten()
+    {
+        var record = new ImportSeedRecord(
+            Collection: "post", Title: "Index Post", Slug: "index", Summary: null,
+            Content: "Body", Language: null, Published: true, SeoTitle: null, SeoDescription: null);
+
+        Assert.Single(ImportSeedContentWriter.WriteMarkdown(_tempDir, [record], overwrite: false));
+        Assert.True(File.Exists(Path.Combine(_tempDir, "posts", "index.md")));
+    }
+
+    [Fact]
     public void WriteMarkdown_UnsafeKeys_ProduceParseableFrontMatter()
     {
         var record = new ImportSeedRecord(

@@ -8,7 +8,7 @@ namespace Bukit.Importing;
 /// Converts extracted demo HTML into Markdown. Core renders Markdown with raw HTML
 /// disabled, so writing HTML bodies straight into .md files showed tags as text.
 /// </summary>
-internal static class HtmlToMarkdownConverter
+internal static partial class HtmlToMarkdownConverter
 {
     private static readonly HtmlParser Parser = new(new HtmlParserOptions { IsScripting = false });
 
@@ -30,10 +30,7 @@ internal static class HtmlToMarkdownConverter
             .Replace("\r\n", "\n", StringComparison.Ordinal)
             .Trim();
 
-        while (text.Contains("\n\n\n", StringComparison.Ordinal))
-            text = text.Replace("\n\n\n", "\n\n", StringComparison.Ordinal);
-
-        return text;
+        return ExcessNewlines().Replace(text, "\n\n");
     }
 
     private static void WriteBlock(StringBuilder sb, INode node)
@@ -162,6 +159,9 @@ internal static class HtmlToMarkdownConverter
 
         return text;
     }
+
+    [System.Text.RegularExpressions.GeneratedRegex(@"\n{3,}")]
+    private static partial System.Text.RegularExpressions.Regex ExcessNewlines();
 
     private static readonly HashSet<string> BlockTags = new(StringComparer.Ordinal)
     {

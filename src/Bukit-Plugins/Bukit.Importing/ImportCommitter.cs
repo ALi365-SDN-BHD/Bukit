@@ -82,7 +82,7 @@ internal static class ImportCommitter
             if (options.GenerateSeed)
             {
                 var seedOptions = options with { Overwrite = options.Overwrite || options.Force };
-                var seedGenerated = SeedGenerator.Generate(seedOptions, content, components, pages);
+                var seedGenerated = SeedGenerator.Generate(seedOptions, content, components, pages, manifest);
                 result = result with { SeedGenerated = seedGenerated };
             }
         }
@@ -112,18 +112,19 @@ internal static class ImportCommitter
         // Transfer assets to static
         AssetImporter.TransferAssetsToStatic(options);
 
-        // Update or remove what the last import wrote, keeping files people edited.
-        manifest.Save();
-        markSaved();
-        result.Warnings.AddRange(manifest.Warnings);
-        AddMissingTemplateWarnings(HtmlDemoImporter.GetSiteDir(options), themeDir, result.Warnings);
-
-        // Run residue analysis and strict check
+        // Run residue analysis and strict check before the manifest deletes stale files,
+        // so a failing --strict run leaves the previous import's files in place.
         var hardcodedReport = TemplateResidueAnalyzer.Analyze(themeDir, null, routeMap);
         result = result with { HardcodedContentReport = hardcodedReport };
 
         if (options.StrictMode != null && hardcodedReport != null && options.StrictMode != "warn")
             HtmlDemoImporter.ThrowIfStrictResidue(hardcodedReport);
+
+        // Update or remove what the last import wrote, keeping files people edited.
+        manifest.Save();
+        markSaved();
+        result.Warnings.AddRange(manifest.Warnings);
+        AddMissingTemplateWarnings(HtmlDemoImporter.GetSiteDir(options), themeDir, result.Warnings);
 
         // Write report
         ImportReportWriter.Write(options, result, diagnostics);

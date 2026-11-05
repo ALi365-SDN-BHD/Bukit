@@ -6,12 +6,15 @@ internal static partial class ImportSafetyScanner
         HtmlDemoImportOptions options, List<DiscoveredPage> pages)
     {
         var diagnostics = new List<ImportDiagnostic>();
-        var htmlFiles = DemoFiles.Enumerate(options.InputPath, "*.html")
+        var htmlFiles = DemoFiles.Enumerate(options.InputPath)
+            .Where(HtmlDemoScanner.IsPageFile)
+            .Where(path => !ImportSafetyPatterns.IsBuiltOutputPath(options.InputPath, path))
             .Select(path => Path.GetRelativePath(options.InputPath, path).Replace('\\', '/'))
             .ToHashSet(StringComparer.OrdinalIgnoreCase);
 
-        ScanSensitiveFiles(options.InputPath, diagnostics);
-        foreach (var link in DemoFiles.SymbolicLinks(options.InputPath))
+        var tree = DemoFiles.Walk(options.InputPath, ImportSafetyPatterns.SkipDirectoryNames);
+        ScanSensitiveFiles(options.InputPath, tree, diagnostics);
+        foreach (var link in tree.Links)
         {
             diagnostics.Add(new ImportDiagnostic(
                 ImportDiagnosticSeverity.Warning,
@@ -29,55 +32,32 @@ internal static partial class ImportSafetyScanner
         return diagnostics;
     }
 
-    private static void ScanSensitiveFiles(string inputPath, List<ImportDiagnostic> diagnostics)
+    private static void ScanSensitiveFiles(
+        string inputPath,
+        DemoFiles.Tree tree,
+        List<ImportDiagnostic> diagnostics)
     {
-        foreach (var pattern in ImportSafetyPatterns.SensitiveFileNames)
+        foreach (var file in tree.Files)
         {
-            var fileMatches = DemoFiles.Enumerate(inputPath, pattern);
-            foreach (var match in fileMatches)
-            {
-                diagnostics.Add(new ImportDiagnostic(
-                    ImportDiagnosticSeverity.Error,
-                    "SENSITIVE_FILE",
-                    $"发现敏感文件: {Path.GetRelativePath(inputPath, match)}",
-                    match));
-            }
-
-            var dirMatches = DemoFiles.EnumerateDirectories(inputPath, pattern);
-            foreach (var match in dirMatches)
-            {
-                diagnostics.Add(new ImportDiagnostic(
-                    ImportDiagnosticSeverity.Error,
-                    "SENSITIVE_FILE",
-                    $"发现敏感目录: {Path.GetRelativePath(inputPath, match)}",
-                    match));
-            }
-        }
-
-        foreach (var pattern in ImportSafetyPatterns.SensitiveFilePatterns)
-        {
-            var matches = DemoFiles.Enumerate(inputPath, pattern);
-            foreach (var match in matches)
-            {
-                diagnostics.Add(new ImportDiagnostic(
-                    ImportDiagnosticSeverity.Error,
-                    "SENSITIVE_FILE",
-                    $"发现敏感文件: {Path.GetRelativePath(inputPath, match)}",
-                    match));
-            }
-        }
-
-        var allFiles = DemoFiles.Enumerate(inputPath);
-        foreach (var file in allFiles)
-        {
-            var ext = Path.GetExtension(file);
-            if (ImportSafetyPatterns.SensitiveExtensions.Contains(ext, StringComparer.OrdinalIgnoreCase))
+            if (ImportSafetyPatterns.IsSensitiveFileName(Path.GetFileName(file)))
             {
                 diagnostics.Add(new ImportDiagnostic(
                     ImportDiagnosticSeverity.Error,
                     "SENSITIVE_FILE",
                     $"发现敏感文件: {Path.GetRelativePath(inputPath, file)}",
                     file));
+            }
+        }
+
+        foreach (var directory in tree.Directories)
+        {
+            if (ImportSafetyPatterns.IsSensitiveDirectoryName(Path.GetFileName(directory)))
+            {
+                diagnostics.Add(new ImportDiagnostic(
+                    ImportDiagnosticSeverity.Error,
+                    "SENSITIVE_FILE",
+                    $"发现敏感目录: {Path.GetRelativePath(inputPath, directory)}",
+                    directory));
             }
         }
     }

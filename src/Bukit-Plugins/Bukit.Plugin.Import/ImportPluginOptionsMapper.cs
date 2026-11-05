@@ -100,6 +100,17 @@ public static class ImportPluginOptionsMapper
         if (pushNotion)
             EnsureEnvironmentGranted(request, tokenEnv);
 
+        var dryRun = ReadBool(request, "--dry-run");
+        var use = ReadBool(request, "--use");
+        // --use writes the theme name into the config; a read-only config is fine otherwise.
+        if (use && !dryRun && configPath is not null &&
+            !ImportPluginCommandSpecs.IsWritableConfigPath(rootDir, configPath))
+        {
+            throw new ImportPluginOptionsException(
+                "plugin.import.pathDenied",
+                "--use rewrites the theme name in --config; the config must be a writable file inside the plugin's declared write scope.");
+        }
+
         return new ImportCommandOptions
         {
             Subcommand = "html-demo",
@@ -110,7 +121,7 @@ public static class ImportPluginOptionsMapper
             DemoDir = demoDir,
             ThemeName = ReadString(request, "--theme"),
             Force = ReadBool(request, "--force"),
-            Use = ReadBool(request, "--use"),
+            Use = use,
             Verify = ReadBool(request, "--verify"),
             ExtractContent = !ReadBool(request, "--no-extract-content"),
             GenerateSeed = !ReadBool(request, "--no-seed"),
@@ -118,7 +129,7 @@ public static class ImportPluginOptionsMapper
             BuildSource = ReadString(request, "--build-source") ?? "markdown",
             SitePath = sitePath,
             Language = ReadString(request, "--language") ?? "zh",
-            DryRun = ReadBool(request, "--dry-run"),
+            DryRun = dryRun,
             StrictMode = ResolveStrictMode(ReadString(request, "--strict")),
             Overwrite = ReadBool(request, "--overwrite"),
             PreserveHtml = !ReadBool(request, "--no-preserve-html"),

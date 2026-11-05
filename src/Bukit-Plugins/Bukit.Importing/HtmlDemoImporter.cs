@@ -129,7 +129,9 @@ public static class HtmlDemoImporter
     {
         var siteDir = GetSiteDir(options);
         var preserveDir = Path.Combine(siteDir, "original-demo");
-        var sourceFiles = DemoFiles.Enumerate(options.InputPath).ToList();
+        var sourceFiles = DemoFiles.Enumerate(options.InputPath)
+            .Where(file => !ImportSafetyPatterns.IsBuiltOutputPath(options.InputPath, file))
+            .ToList();
         Directory.CreateDirectory(preserveDir);
 
         foreach (var file in sourceFiles)
@@ -181,9 +183,10 @@ public static class HtmlDemoImporter
         if (!Directory.Exists(options.InputPath))
             throw new ImportException(ImportErrorKind.UserInput, $"Input directory does not exist: {options.InputPath}");
 
-        var indexPath = Path.Combine(options.InputPath, "index.html");
-        if (!File.Exists(indexPath))
-            throw new ImportException(ImportErrorKind.UserInput, $"Missing index.html in input directory: {options.InputPath}");
+        var hasIndex = File.Exists(Path.Combine(options.InputPath, "index.html")) ||
+                       File.Exists(Path.Combine(options.InputPath, "index.htm"));
+        if (!hasIndex)
+            throw new ImportException(ImportErrorKind.UserInput, $"Missing index.html or index.htm in input directory: {options.InputPath}");
 
         ValidateThemeName(options.ThemeName);
 
@@ -199,27 +202,23 @@ public static class HtmlDemoImporter
 
     private static void ScanDangerousFiles(string inputPath)
     {
-        foreach (var pattern in ImportSafetyPatterns.DangerousInputPatterns)
+        var tree = DemoFiles.Walk(inputPath, ImportSafetyPatterns.SkipDirectoryNames);
+
+        foreach (var file in tree.Files)
         {
-            if (pattern.Contains('*', StringComparison.Ordinal))
+            if (ImportSafetyPatterns.IsSensitiveFileName(Path.GetFileName(file)))
             {
-                var matches = DemoFiles.Enumerate(inputPath, pattern);
-                if (matches.Length > 0)
-                    throw new ImportException(ImportErrorKind.UserInput, $"Input directory contains sensitive files ({pattern}): {Path.GetRelativePath(inputPath, matches[0])}");
+                throw new ImportException(ImportErrorKind.UserInput,
+                    $"Input directory contains sensitive file: {Path.GetRelativePath(inputPath, file)}");
             }
-            else
+        }
+
+        foreach (var directory in tree.Directories)
+        {
+            if (ImportSafetyPatterns.IsSensitiveDirectoryName(Path.GetFileName(directory)))
             {
-                var fullPath = Path.Combine(inputPath, pattern);
-                if (File.Exists(fullPath) || Directory.Exists(fullPath))
-                    throw new ImportException(ImportErrorKind.UserInput, $"Input directory contains sensitive item: {pattern}");
-
-                var fileMatches = DemoFiles.Enumerate(inputPath, pattern);
-                if (fileMatches.Length > 0)
-                    throw new ImportException(ImportErrorKind.UserInput, $"Input directory contains sensitive files ({pattern}): {Path.GetRelativePath(inputPath, fileMatches[0])}");
-
-                var dirMatches = DemoFiles.EnumerateDirectories(inputPath, pattern);
-                if (dirMatches.Length > 0)
-                    throw new ImportException(ImportErrorKind.UserInput, $"Input directory contains sensitive directory ({pattern}): {Path.GetRelativePath(inputPath, dirMatches[0])}");
+                throw new ImportException(ImportErrorKind.UserInput,
+                    $"Input directory contains sensitive directory: {Path.GetRelativePath(inputPath, directory)}");
             }
         }
     }

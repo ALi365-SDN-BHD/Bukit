@@ -236,6 +236,9 @@ internal static partial class ThemeGenerator
         sb.AppendLine(BaseUrlPrelude);
         AppendCapture(sb, "page_head", assets.Head);
         AppendCapture(sb, "page_scripts", assets.Scripts);
+        // Scripts that sat before <main> keep their place, ahead of the page content.
+        foreach (var script in assets.BodyStart)
+            sb.AppendLine(script);
         sb.AppendLine(InternalLinkRewriter.RewriteTemplate(
             TemplateBodyTransformer.Transform(page, pathMappings), page.RelativePath, plan));
         File.WriteAllText(templatePath, sb.ToString());

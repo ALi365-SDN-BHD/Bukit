@@ -97,7 +97,7 @@ internal static class ContentDraftWriter
         sb.AppendLine("---");
         sb.AppendLine();
         sb.AppendLine(HtmlToMarkdownConverter.Convert(content));
-        File.WriteAllText(path, sb.ToString());
+        ImportWriteGuard.WriteAllTextAtomic(path, sb.ToString());
         manifest?.Record(path);
     }
 }

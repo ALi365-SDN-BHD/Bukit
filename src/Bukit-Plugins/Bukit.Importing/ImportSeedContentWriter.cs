@@ -18,6 +18,15 @@ public static class ImportSeedContentWriter
         {
             var slug = GetEffectiveSlug(record);
             var path = ResolvePath(outputDir, record, slug);
+            if (IsHomeContentPath(outputDir, path))
+            {
+                // Core renders "/" from the theme's home template and never reads a home
+                // content file, so writing content/index.md only orphans a file.
+                Console.Error.WriteLine(
+                    $"Skipped '{record.Title}': the home page is rendered by the theme, not by content/index.md.");
+                continue;
+            }
+
             // Two records normalize to the same file; keep the first and report it.
             if (!ImportWriteGuard.TryClaim(claimed, path, $"record '{record.Title}'"))
                 continue;
@@ -31,6 +40,12 @@ public static class ImportSeedContentWriter
 
         return written;
     }
+
+    private static bool IsHomeContentPath(string outputDir, string path)
+        => string.Equals(
+            Path.GetFullPath(path),
+            Path.GetFullPath(Path.Combine(outputDir, "index.md")),
+            OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal);
 
     private static string ResolvePath(string outputDir, ImportSeedRecord record, string slug)
     {

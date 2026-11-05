@@ -8,11 +8,15 @@ namespace Bukit.Importing;
 /// </summary>
 internal static partial class PageAssetCollector
 {
-    internal sealed record PageAssets(IReadOnlyList<string> Head, IReadOnlyList<string> Scripts);
+    internal sealed record PageAssets(
+        IReadOnlyList<string> Head,
+        IReadOnlyList<string> BodyStart,
+        IReadOnlyList<string> Scripts);
 
     internal static PageAssets Collect(DiscoveredPage page, Dictionary<string, string> pathMappings)
     {
         var head = new List<string>();
+        var bodyStart = new List<string>();
         var scripts = new List<string>();
 
         // Head order is kept as authored: links, styles and scripts interleave on purpose.
@@ -24,10 +28,18 @@ internal static partial class PageAssetCollector
             head.Add(Render(tag, pathMappings));
         }
 
-        // Outside <main> the page may still load styles (kept in <head>) and scripts
-        // (kept before </body>, where the page put them).
-        var outsideMain = StripComments(page.BodyOpening) + "\n" + StripComments(page.BodyClosing);
-        foreach (Match match in AssetTagRegex.Matches(outsideMain))
+        // Before <main> the page may still load styles (kept in <head>) and scripts
+        // (kept where they were, before the content). Scripts after </main> stay at the end.
+        foreach (Match match in AssetTagRegex.Matches(StripComments(page.BodyOpening)))
+        {
+            var tag = match.Value;
+            if (IsScript(tag))
+                bodyStart.Add(Render(tag, pathMappings));
+            else if (!IsLink(tag) || IsStylesheetLink(tag))
+                head.Add(Render(tag, pathMappings));
+        }
+
+        foreach (Match match in AssetTagRegex.Matches(StripComments(page.BodyClosing)))
         {
             var tag = match.Value;
             if (IsScript(tag))
@@ -36,7 +48,7 @@ internal static partial class PageAssetCollector
                 head.Add(Render(tag, pathMappings));
         }
 
-        return new PageAssets(head, scripts);
+        return new PageAssets(head, bodyStart, scripts);
     }
 
     /// <summary>Removes page assets from shared partials; each page template owns them.</summary>
@@ -91,12 +103,17 @@ internal static partial class PageAssetCollector
 
     private static bool IsLink(string tag) => tag.StartsWith("<link", StringComparison.OrdinalIgnoreCase);
 
-    private static bool IsStylesheetLink(string tag) => IsLink(tag) && RelRegex("stylesheet").IsMatch(tag);
+    private static bool IsStylesheetLink(string tag) => IsLink(tag) && StylesheetRel.IsMatch(tag);
 
-    private static bool IsCanonicalLink(string tag) => RelRegex("canonical").IsMatch(tag);
+    private static bool IsCanonicalLink(string tag) => IsLink(tag) && CanonicalRel.IsMatch(tag);
 
-    private static Regex RelRegex(string rel)
-        => new($@"\brel\s*=\s*[""']?[^""'>]*\b{rel}\b", RegexOptions.IgnoreCase);
+    [GeneratedRegex(@"\brel\s*=\s*[""']?[^""'>]*\bstylesheet\b", RegexOptions.IgnoreCase)]
+    private static partial Regex StylesheetRelPattern();
+    private static readonly Regex StylesheetRel = StylesheetRelPattern();
+
+    [GeneratedRegex(@"\brel\s*=\s*[""']?[^""'>]*\bcanonical\b", RegexOptions.IgnoreCase)]
+    private static partial Regex CanonicalRelPattern();
+    private static readonly Regex CanonicalRel = CanonicalRelPattern();
 
     [GeneratedRegex(@"<script\b[^>]*>.*?</script\s*>|<style\b[^>]*>.*?</style\s*>|<link\b[^>]*>",
         RegexOptions.IgnoreCase | RegexOptions.Singleline)]
