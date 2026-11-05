@@ -136,6 +136,52 @@ public sealed class SeoPipelineTests
         Assert.Contains(logger.Warnings, warning => warning.Contains("seo.document_title_mismatch", StringComparison.Ordinal));
     }
 
+    [Theory]
+    [InlineData("2030-01-01T00:00:00Z")]
+    [InlineData("2050-01-01T00:00:00Z")]
+    public void Execute_RepresentationLinksDoNotDependOnTheBuildClock(string buildNow)
+    {
+        var fields = new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["expires_at"] = new("date", "2040-01-01T00:00:00Z")
+        };
+        var item = ContentDocument.Create(
+            id: "hello",
+            title: "Hello World",
+            slug: "hello",
+            publishAt: DateTimeOffset.UnixEpoch,
+            contentHtml: "<p>Hello</p>",
+            fields: fields);
+        var route = new RouteInfo("/hello/", "hello/index.html", "pages/page.html");
+        var config = new AppConfig
+        {
+            Site = new SiteConfig
+            {
+                Name = "test",
+                Title = "Test",
+                Seo = new SeoConfig { Enabled = true, RenderMode = "inject", Geo = new SeoGeoConfig { Enabled = true } }
+            },
+            Content = TestContent.Markdown()
+        };
+        var logger = new RecordingLogger();
+        var result = new SeoPipeline().Execute(
+            config,
+            baseUrl: "/",
+            renderQueue: new[] { (item, route) }.ToRoutedDocuments(),
+            listRoutes: Array.Empty<RouteInfo>(),
+            seoAlternates: new Dictionary<string, IReadOnlyList<SeoAlternateModel>>(),
+            logger,
+            now: DateTimeOffset.Parse(buildNow, System.Globalization.CultureInfo.InvariantCulture));
+        var page = new PageInfo { Title = item.Title, Url = route.Url, Content = string.Empty, Seo = result.SeoBuilder!(item, route) };
+
+        var html = result.HtmlTransform!.Transform(
+            new HtmlTransformContext(route.Url, route.OutputPath, HtmlDocumentKind.Content, BuildExecutionMode.Production, logger, page, item),
+            "<html><head><title>Hello World</title></head><body></body></html>");
+
+        // Page HTML must not change when only the clock crosses expires_at; aggregates handle expiry.
+        Assert.Contains("type=\"text/markdown\"", html, StringComparison.Ordinal);
+    }
+
     [Fact]
     public void Execute_WhenPageDisablesSeoInjection_PreservesHtmlButStillRunsDiagnostics()
     {

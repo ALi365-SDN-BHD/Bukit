@@ -271,12 +271,20 @@ public sealed class ScribanModelBinderTests
                 Entities = [new EntityRecord("company", "Bukit")],
                 Provenance = new ProvenanceRecord("markdown", "https://example.com/original", [], [], "synced"),
                 Trust = new TrustMetadata(0.9, "approved", []),
-                Representations = ["html", "json"]
+                Representations = ["html", "json"],
+                RepresentationUrls = new Dictionary<string, string>
+                {
+                    ["markdown"] = "/content/page-1/index.html.md",
+                    ["json"] = "/content/page-1/index.html.json"
+                }
             }
         };
 
         var obj = ScribanModelBinder.ToScriptObject(model);
         var page = Assert.IsType<ScriptObject>(obj["page"]);
+        var representationUrls = Assert.IsType<ScriptObject>(page["representation_urls"]);
+        Assert.Equal("/content/page-1/index.html.md", representationUrls["markdown"]);
+        Assert.Equal("/content/page-1/index.html.json", representationUrls["json"]);
         var content = Assert.IsType<ScriptObject>(page["content_model"]);
         Assert.Same(content, page["content_record"]);
         var provenance = Assert.IsType<ScriptObject>(page["provenance"]);

@@ -87,6 +87,10 @@ public sealed class RenderDependencyContributorInvalidationTests
         {
             Site = Config().Site with { Seo = new SeoConfig { RenderMode = "write" } }
         }));
+        Assert.NotEqual(baseline, Hash(contributor, Config() with
+        {
+            Site = Config().Site with { Seo = new SeoConfig { Geo = new SeoGeoConfig { Enabled = false } } }
+        }));
         Assert.Equal(
             Hash(contributor, Config() with { Site = Config().Site with { Seo = new SeoConfig { Diagnostics = "warn" } } }),
             Hash(contributor, Config() with { Site = Config().Site with { Seo = new SeoConfig { Diagnostics = "error" } } }));

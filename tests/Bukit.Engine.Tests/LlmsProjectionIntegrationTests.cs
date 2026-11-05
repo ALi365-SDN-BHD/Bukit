@@ -127,6 +127,109 @@ public sealed class LlmsProjectionIntegrationTests
                 Markdown.Parse(File.ReadAllText(Path.Combine(root, "async", "llms-full.txt"))).Descendants<LinkInline>().Select(link => link.Url));
             Assert.DoesNotContain("https://example.com/blog/hidden/", llmsFull, StringComparison.Ordinal);
             Assert.DoesNotContain("https://example.com/blog/expired/", llmsFull, StringComparison.Ordinal);
+
+            // AI agents can find each page's Markdown and JSON versions from the HTML and from llms.txt.
+            var visibleHtml = File.ReadAllText(Path.Combine(root, "dist", "blog/visible/index.html"));
+            foreach (var (type, extension) in new[] { ("text/markdown", ".md"), ("application/json", ".json") })
+            {
+                var href = System.Text.RegularExpressions.Regex.Match(
+                    visibleHtml, $"<link rel=\"alternate\" type=\"{type}\" href=\"([^\"]+)\"").Groups[1].Value;
+                Assert.Equal("/content/blog/visible/index.html" + extension, href);
+                Assert.True(File.Exists(Path.Combine(root, "dist", href.TrimStart('/'))));
+            }
+
+            Assert.DoesNotContain("text/markdown", File.ReadAllText(Path.Combine(root, "dist", "blog/hidden/index.html")), StringComparison.Ordinal);
+            var expiredHtml = Path.Combine(root, "dist", "blog/expired/index.html");
+            // Expired pages keep their links: their .md/.json versions stay published, and page
+            // output must not depend on the build clock.
+            Assert.Contains("text/markdown", File.ReadAllText(expiredHtml), StringComparison.Ordinal);
+            Assert.Contains("- [Agent manifest](https://example.com/agent-manifest.json): ", llms, StringComparison.Ordinal);
+            var manifestBytes = File.ReadAllBytes(Path.Combine(root, "dist", "agent-manifest.json"));
+            // No BOM: JSON parsers may reject one (RFC 8259).
+            Assert.Equal((byte)'{', manifestBytes[0]);
+            Assert.Empty(logger.Errors);
+        }
+        finally
+        {
+            if (Directory.Exists(root))
+            {
+                Directory.Delete(root, recursive: true);
+            }
+        }
+    }
+
+    [Fact]
+    public async Task BuildAsync_ThemeRenderMode_ExposesRepresentationUrlsToTemplates()
+    {
+        var root = Path.Combine(Path.GetTempPath(), "bukit-representation-urls-" + Guid.NewGuid().ToString("N"));
+
+        try
+        {
+            Directory.CreateDirectory(Path.Combine(root, "content"));
+            Directory.CreateDirectory(Path.Combine(root, "layouts", "layouts"));
+            Directory.CreateDirectory(Path.Combine(root, "layouts", "pages"));
+            File.WriteAllText(Path.Combine(root, "site.yaml"), """
+                site:
+                  name: representation-urls
+                  title: Representation Urls
+                  url: https://example.com
+                  baseUrl: /repo/
+                  language: en
+                  collections:
+                    post:
+                      permalink: /blog/{slug}/
+                      template: pages/post.html
+                  seo:
+                    renderMode: theme
+                    geo:
+                      enabled: true
+                content:
+                  sources:
+                    - type: markdown
+                      name: post
+                      collection: post
+                      markdown:
+                        dir: content
+                build:
+                  output: dist
+                theme:
+                  layouts: layouts
+                """);
+            WritePost(root, "visible.md", "Visible", "visible", extraFrontMatter: "");
+            WritePost(root, "hidden.md", "Hidden", "hidden", extraFrontMatter: "robots: noindex,nofollow");
+            // The layout follows the guide: it links the versions only when the page exposes them.
+            File.WriteAllText(Path.Combine(root, "layouts", "layouts", "base.html"), """
+                <!doctype html>
+                <html><head><title>{{ page.title }}</title>{{ if page.representation_urls }}<link rel="alternate" type="text/markdown" href="{{ page.representation_urls.markdown }}"><link rel="alternate" type="application/json" href="{{ page.representation_urls.json }}">{{ end }}</head><body>{{ content }}</body></html>
+                """);
+            foreach (var name in new[] { "post", "page", "index", "list" })
+            {
+                File.WriteAllText(Path.Combine(root, "layouts", "pages", name + ".html"), """
+                    {% layout "layouts/base.html" %}
+                    {{ page.content }}
+                    """);
+            }
+
+            var config = ConfigLoader.Load(Path.Combine(root, "site.yaml"));
+            var logger = new TestLogger();
+            await new SiteEngine(logger).BuildAsync(config, root, new ConfigOverrides(), CancellationToken.None);
+
+            var html = File.ReadAllText(Path.Combine(root, "dist", "blog/visible/index.html"));
+            foreach (var (type, extension) in new[] { ("text/markdown", ".md"), ("application/json", ".json") })
+            {
+                var hrefs = System.Text.RegularExpressions.Regex.Matches(html, $"type=\"{type}\" href=\"([^\"]+)\"")
+                    .Select(match => match.Groups[1].Value)
+                    .ToArray();
+                // Theme mode: only the theme's own link, pointing at the file Bukit wrote.
+                var href = Assert.Single(hrefs);
+                Assert.Equal("/repo/content/blog/visible/index.html" + extension, href);
+                Assert.True(File.Exists(Path.Combine(root, "dist", href["/repo/".Length..])));
+            }
+
+            // A noindex page gets no URLs, so the theme does not link its .md copy (which has no noindex marker).
+            var hiddenHtml = File.ReadAllText(Path.Combine(root, "dist", "blog/hidden/index.html"));
+            Assert.DoesNotContain("text/markdown", hiddenHtml, StringComparison.Ordinal);
+            Assert.DoesNotContain("application/json", hiddenHtml, StringComparison.Ordinal);
             Assert.Empty(logger.Errors);
         }
         finally
