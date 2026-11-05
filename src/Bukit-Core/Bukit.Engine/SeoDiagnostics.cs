@@ -41,7 +41,8 @@ internal static partial class SeoDiagnostics
                      .Distinct(StringComparer.OrdinalIgnoreCase)
                      .Order(StringComparer.Ordinal))
         {
-            Report(config, logger, $"seo.og_locale_region_missing locale={locale} hint=add-a-region-subtag");
+            // A bare locale is a hint, not a strict-mode failure.
+            logger.Warn($"seo.og_locale_region_missing locale={locale} hint=add-a-region-subtag");
         }
 
         foreach (var entry in index.Values)

@@ -84,6 +84,32 @@ public sealed class SeoDiagnosticsTests
     }
 
     [Fact]
+    public void AnalyzeIndex_StrictMode_BareOpenGraphLocale_WarnsWithoutThrowing()
+    {
+        var config = ConfigWithDiagnostics("strict");
+        var logger = new TestLogger();
+        var index = new Dictionary<string, SeoIndexEntry>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["a/index.html"] = Entry("/a/", "a/index.html", "https://example.com/a/")
+        };
+        var models = new Dictionary<string, SeoModel>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["a/index.html"] = new()
+            {
+                Title = "A",
+                Canonical = "https://example.com/a/",
+                Og = new SeoOpenGraphModel { Locale = "en" }
+            }
+        };
+
+        SeoDiagnostics.AnalyzeIndex(config, index, models, logger);
+
+        Assert.Contains(logger.Warnings, warning =>
+            warning.Contains("seo.og_locale_region_missing", StringComparison.Ordinal));
+        Assert.Empty(logger.Errors);
+    }
+
+    [Fact]
     public void AnalyzeIndex_WarnMode_DoesNotReportRegionalOpenGraphLocale()
     {
         var config = ConfigWithDiagnostics("warn");
