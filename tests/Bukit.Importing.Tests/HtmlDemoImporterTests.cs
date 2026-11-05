@@ -1430,7 +1430,8 @@ public sealed class HtmlDemoImporterTests : IDisposable
 
         var themeRoot = Path.Combine(_tempDir, "themes", "card-images");
         var component = File.ReadAllText(Path.Combine(themeRoot, "layouts", "components", "article-card.html"));
-        Assert.Contains("item.fields.image.value", component, StringComparison.Ordinal);
+        Assert.Contains("{{ if item.fields && item.fields.image && item.fields.image.value }}", component, StringComparison.Ordinal);
+        Assert.Contains("<img src=\"{{ base_url }}{{ item.fields.image.value }}\" alt=\"One\">", component, StringComparison.Ordinal);
         var one = File.ReadAllText(Path.Combine(_tempDir, "sites", "card-images", "content", "posts", "first.md"));
         var two = File.ReadAllText(Path.Combine(_tempDir, "sites", "card-images", "content", "posts", "second.md"));
         Assert.Contains("image: /img/one.jpg", one, StringComparison.Ordinal);
@@ -1479,6 +1480,74 @@ public sealed class HtmlDemoImporterTests : IDisposable
         var template = File.ReadAllText(Path.Combine(_tempDir, "themes", "h2-page", "layouts", "pages", "contact.html"));
         Assert.Contains("{{ page.content }}", template, StringComparison.Ordinal);
         Assert.DoesNotContain("Contact marker.", template, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Import_CardImageSurvivesDetailMerge()
+    {
+        Directory.CreateDirectory(Path.Combine(_tempDir, "img"));
+        File.WriteAllText(Path.Combine(_tempDir, "img", "one.jpg"), "one");
+        File.WriteAllText(Path.Combine(_tempDir, "img", "two.jpg"), "two");
+        File.WriteAllText(Path.Combine(_tempDir, "img", "detail.jpg"), "detail");
+        File.WriteAllText(Path.Combine(_tempDir, "index.html"),
+            "<html><head><title>Home</title></head><body><main><h1>Home</h1></main></body></html>");
+        File.WriteAllText(Path.Combine(_tempDir, "news.html"),
+            """
+            <html><head><title>News</title></head><body><main><h1>News</h1>
+            <article class="article-card"><img src="img/one.jpg" alt="One"><h3><a href="a.html">First</a></h3></article>
+            <article class="article-card"><img src="img/two.jpg" alt="Two"><h3><a href="b.html">Second</a></h3></article>
+            </main></body></html>
+            """);
+        File.WriteAllText(Path.Combine(_tempDir, "a.html"),
+            "<html><head><title>A</title></head><body><main><h1>First detail</h1><img src=\"img/detail.jpg\"></main></body></html>");
+        File.WriteAllText(Path.Combine(_tempDir, "b.html"),
+            "<html><head><title>B</title></head><body><main><h1>Second detail</h1></main></body></html>");
+
+        HtmlDemoImporter.Import(new HtmlDemoImportOptions
+        {
+            InputPath = _tempDir,
+            ThemeName = "card-image-merge",
+            RootDir = _tempDir,
+            Force = true,
+            ContentSource = "json"
+        });
+
+        var first = File.ReadAllText(Path.Combine(_tempDir, "sites", "card-image-merge", "content", "posts", "a.md"));
+        var second = File.ReadAllText(Path.Combine(_tempDir, "sites", "card-image-merge", "content", "posts", "b.md"));
+        Assert.Contains("image: /img/one.jpg", first, StringComparison.Ordinal);
+        Assert.Contains("image: /img/two.jpg", second, StringComparison.Ordinal);
+        Assert.Contains("detail.jpg", first, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Import_PageWithTwoSiblingBlocksAndNoH1_KeepsBoth()
+    {
+        File.WriteAllText(Path.Combine(_tempDir, "index.html"),
+            "<html><head><title>Home</title></head><body><main><h1>Home</h1></main></body></html>");
+        File.WriteAllText(Path.Combine(_tempDir, "contact.html"),
+            """
+            <html><head><title>Contact</title></head><body>
+            <div class="left"><h2>Left</h2><p>First block.</p></div>
+            <div class="right"><h2>Right</h2><p>Second block.</p></div>
+            </body></html>
+            """);
+
+        HtmlDemoImporter.Import(new HtmlDemoImportOptions
+        {
+            InputPath = _tempDir,
+            ThemeName = "two-blocks",
+            RootDir = _tempDir,
+            Force = true,
+            ContentSource = "json"
+        });
+
+        var template = File.ReadAllText(Path.Combine(_tempDir, "themes", "two-blocks", "layouts", "pages", "contact.html"));
+        var draft = File.ReadAllText(Path.Combine(_tempDir, "sites", "two-blocks", "content", "pages", "contact.md"));
+        Assert.Contains("{{ page.content }}", template, StringComparison.Ordinal);
+        Assert.DoesNotContain("First block.", template, StringComparison.Ordinal);
+        Assert.DoesNotContain("Second block.", template, StringComparison.Ordinal);
+        Assert.Contains("First block.", draft, StringComparison.Ordinal);
+        Assert.Contains("Second block.", draft, StringComparison.Ordinal);
     }
 
     [Fact]

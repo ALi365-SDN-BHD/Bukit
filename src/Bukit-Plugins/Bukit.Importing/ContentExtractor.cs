@@ -53,6 +53,18 @@ internal static partial class ContentExtractor
 
         // The list page yields a summary-only card; the detail page has the body.
         // Keep the richer record instead of whichever page happened to sort first.
+        // The card image is list-page data, so copy it onto the detail record before
+        // the detail record wins the merge.
+        content.Posts = MergeCardImages(content.Posts,
+            p => p.Slug, p => p.Image, p => p.TemplatePath is not null,
+            (p, image) => p with { Image = image });
+        content.Companies = MergeCardImages(content.Companies,
+            c => c.Slug, c => c.Image, c => c.TemplatePath is not null,
+            (c, image) => c with { Image = image });
+        content.Services = MergeCardImages(content.Services,
+            s => s.Slug, s => s.Image, s => s.TemplatePath is not null,
+            (s, image) => s with { Image = image });
+
         content.Posts = PreferDetail(content.Posts, p => p.Slug, p => p.Content, p => p.TemplatePath is not null).ToList();
         content.Companies = PreferDetail(content.Companies, c => c.Slug, c => c.Content, c => c.TemplatePath is not null).ToList();
         content.Services = PreferDetail(content.Services, s => s.Slug, s => s.Content, s => s.TemplatePath is not null).ToList();
@@ -152,6 +164,27 @@ internal static partial class ContentExtractor
         }
 
         return result;
+    }
+
+    private static List<T> MergeCardImages<T>(
+        List<T> records,
+        Func<T, string> slugOf,
+        Func<T, string?> imageOf,
+        Func<T, bool> ownsPage,
+        Func<T, string, T> withImage)
+    {
+        var images = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var record in records)
+        {
+            if (!ownsPage(record) && imageOf(record) is { Length: > 0 } image)
+                images.TryAdd(slugOf(record), image);
+        }
+
+        return records
+            .Select(record => images.TryGetValue(slugOf(record), out var image)
+                ? withImage(record, image)
+                : record)
+            .ToList();
     }
 
     // A list card and its detail page share a slug; keeping one record per slug

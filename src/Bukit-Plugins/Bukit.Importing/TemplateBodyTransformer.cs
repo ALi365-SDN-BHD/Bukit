@@ -250,17 +250,22 @@ internal static partial class TemplateBodyTransformer
         var h1 = H1Regex().Match(html);
         if (!h1.Success)
         {
-            // A page may use an <h2> title (or no heading at all). Keep the outer
-            // container so page.content still renders inside the original wrapper.
-            var outer = OuterTagRegex().Match(html);
-            if (outer.Success)
+            // A page may use an <h2> title (or no heading at all). Keep a single
+            // outer container; with several sibling blocks, replace the whole body
+            // so the second block is not swallowed.
+            var document = new HtmlParser().ParseDocument($"<body>{html}</body>");
+            var children = document.Body?.Children;
+            if (children is { Length: 1 })
             {
-                var tag = outer.Groups["tag"].Value;
-                var close = html.LastIndexOf($"</{tag}>", StringComparison.OrdinalIgnoreCase);
-                if (close > outer.Index)
-                    return html[..(outer.Index + outer.Length)] +
+                var outer = children[0];
+                var outerHtml = outer.OuterHtml;
+                var index = html.IndexOf(outerHtml, StringComparison.Ordinal);
+                var openEnd = outerHtml.IndexOf('>');
+                var close = outerHtml.LastIndexOf($"</{outer.LocalName}>", StringComparison.OrdinalIgnoreCase);
+                if (index >= 0 && openEnd >= 0 && close >= 0)
+                    return html[..(index + openEnd + 1)] +
                            $"{Environment.NewLine}  {{{{ {variable} }}}}{Environment.NewLine}" +
-                           html[close..];
+                           html[(index + close)..];
             }
 
             return $"{Environment.NewLine}{{{{ {variable} }}}}{Environment.NewLine}";
@@ -337,8 +342,6 @@ internal static partial class TemplateBodyTransformer
     [GeneratedRegex(@"(?<open><h1[^>]*>).*?(?<close></h1>)", RegexOptions.IgnoreCase | RegexOptions.Singleline)]
     private static partial Regex H1Regex();
 
-    [GeneratedRegex(@"^\s*<(?<tag>[a-zA-Z][a-zA-Z0-9]*)\b[^>]*>", RegexOptions.Singleline)]
-    private static partial Regex OuterTagRegex();
 
     [GeneratedRegex(@"<!--.*?-->", RegexOptions.Singleline)]
     private static partial Regex CommentRegex();

@@ -161,13 +161,15 @@ internal static partial class ComponentExtractor
             if (IsExternalImage(tag))
                 return tag;
 
-            tag = ImgSrcRegex.Replace(tag, m =>
-                $"{m.Groups[1].Value}=\"{{{{ base_url }}}}{{{{ item.fields.image.value }}}}\"");
+            tag = ImgSrcRegex.Replace(tag,
+                "src=\"{{ base_url }}{{ item.fields.image.value }}\"");
             tag = ImgLazyRegex.Replace(tag, "");
             tag = ImgSrcsetRegex.Replace(tag, "");
             if (!ImgSrcRegex.IsMatch(tag))
                 tag = tag.Insert(4, " src=\"{{ base_url }}{{ item.fields.image.value }}\"");
-            return tag;
+            return "{{ if item.fields && item.fields.image && item.fields.image.value }}" +
+                   tag +
+                   "{{ end }}";
         });
         content = HeadingRegex.Replace(content, m =>
         {
