@@ -48,6 +48,28 @@ public sealed class RobotsTxtWriterTests : IDisposable
     }
 
     [Fact]
+    public void BlockTrainingMode_DisclosesThatGoogleExtendedAlsoControlsGrounding()
+    {
+        var logger = new RecordingLogger();
+        RobotsTxtWriter.WriteIfRequested(Config(Geo("block-training")), _outputDir, "/", IndexableIndex(), logger: logger);
+
+        Assert.Equal("Disallow: /", RuleFor(File.ReadAllText(Path.Combine(_outputDir, "robots.txt")), "Google-Extended"));
+        var info = Assert.Single(logger.Infos, message => message.Contains("event=robots.ai_grounding_blocked", StringComparison.Ordinal));
+        Assert.Contains("agents=Google-Extended ", info, StringComparison.Ordinal);
+        Assert.DoesNotContain("Google-Extended", AiCrawlerCatalog.VisibilityUserAgents);
+    }
+
+    [Fact]
+    public void AllowListedGoogleExtended_IsNotReportedAsGroundingBlocked()
+    {
+        var logger = new RecordingLogger();
+        RobotsTxtWriter.WriteIfRequested(Config(Geo("block-training", allow: ["Google-Extended"])), _outputDir, "/", IndexableIndex(), logger: logger);
+
+        Assert.Equal("Allow: /", RuleFor(File.ReadAllText(Path.Combine(_outputDir, "robots.txt")), "Google-Extended"));
+        Assert.DoesNotContain(logger.Infos, message => message.Contains("event=robots.ai_grounding_blocked", StringComparison.Ordinal));
+    }
+
+    [Fact]
     public void BlockMode_BlocksEveryKnownCrawlerExceptAllowListExceptions()
     {
         var robots = Write(Geo("block", allow: ["OAI-SearchBot"]));

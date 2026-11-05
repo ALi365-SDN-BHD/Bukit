@@ -109,6 +109,9 @@ internal abstract class AggregatePublishProjectionBase : IPublishProjection
         string relativePath)
     {
         var outputs = new List<PublishRepresentationOutput>();
+        var sitemapLocKeys = Representation.Kind.Equals("sitemap", StringComparison.OrdinalIgnoreCase)
+            ? SitemapCanonicalIdentity.ReadLocKeys(text)
+            : null;
         foreach (var routedDocument in context.RoutedDocuments.Concat(context.DerivedDocuments)
                      .OrderBy(x => x.Route.Url, StringComparer.OrdinalIgnoreCase))
         {
@@ -116,7 +119,8 @@ internal abstract class AggregatePublishProjectionBase : IPublishProjection
             var key = BuildPathUtils.NormalizeRelPath(route.OutputPath);
             context.SeoIndex.TryGetValue(key, out var entry);
             var indexable = entry?.Indexable != false;
-            var routePresent = IsRoutePresent(text, route, entry);
+            var routePresent = IsRoutePresent(text, route, entry) ||
+                               (sitemapLocKeys is not null && SitemapCanonicalIdentity.Contains(sitemapLocKeys, entry?.Canonical));
             var exists = Representation.Kind.Equals("robots", StringComparison.OrdinalIgnoreCase)
                 ? fileExists
                 : fileExists && indexable && routePresent;

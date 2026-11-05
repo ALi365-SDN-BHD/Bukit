@@ -4,7 +4,7 @@ All notable changes to Bukit will be documented in this file.
 
 ## [Unreleased]
 
-- **AI crawler policy**: `robots.txt` groups AI crawlers by purpose (training, AI search, user fetch) and adds `aiBotMode: block-training`. Behavior change: `selective` mode with `aiBotAllowList` now blocks every other known crawler, AI search crawlers included; the build warns with `event=robots.ai_search_blocked`. The build also warns with `event=robots.ai_policy_inactive` when an AI policy is configured but cannot be written.
+- **AI crawler policy**: `robots.txt` groups AI crawlers by purpose (training, AI search, user fetch) and adds `aiBotMode: block-training` (it also blocks `Google-Extended`, which controls Gemini training and grounding; the build logs `event=robots.ai_grounding_blocked`). Behavior change: `selective` mode with `aiBotAllowList` now blocks every other known crawler, AI search crawlers included; the build warns with `event=robots.ai_search_blocked`. The build also warns with `event=robots.ai_policy_inactive` when an AI policy is configured but cannot be written.
 - **Sitemap scope**: sitemaps list only canonicals under `site.url` + `baseUrl` (default ports and host case normalized), once each; the publish audit no longer expects pages whose canonical points elsewhere.
 
 ## [2.0.7] - 2026-11-04

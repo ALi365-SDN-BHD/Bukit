@@ -62,6 +62,7 @@ internal static class RobotsTxtWriter
         {
             var rules = BuildAiBotRules(geo);
             WarnIfSelectiveBlocksAiSearch(geo, rules, logger);
+            LogGroundingTradeoff(rules, logger);
             foreach (var (userAgent, allow) in rules)
             {
                 lines.Add(string.Empty);
@@ -118,7 +119,8 @@ internal static class RobotsTxtWriter
                 var allowed = mode switch
                 {
                     "block" or "selective" => false,
-                    "block-training" => !purposes.TryGetValue(agent, out var purpose) || purpose != AiCrawlerPurpose.Training,
+                    "block-training" => !purposes.TryGetValue(agent, out var purpose) ||
+                                        purpose is not (AiCrawlerPurpose.Training or AiCrawlerPurpose.TrainingAndGrounding),
                     _ => true
                 };
                 return (agent, allowed);
@@ -156,6 +158,25 @@ internal static class RobotsTxtWriter
         }
     }
 
+    // Some tokens control training and grounding at once, so blocking them also limits how the
+    // site is used in that vendor's AI answers. Say so instead of treating the block as neutral.
+    private static void LogGroundingTradeoff(IReadOnlyList<(string UserAgent, bool Allow)> rules, ILogger? logger)
+    {
+        if (logger is null)
+        {
+            return;
+        }
+
+        var groundingTokens = new HashSet<string>(
+            AiCrawlerCatalog.All.Where(crawler => crawler.Purpose == AiCrawlerPurpose.TrainingAndGrounding).Select(crawler => crawler.UserAgent),
+            StringComparer.OrdinalIgnoreCase);
+        var blocked = rules.Where(rule => !rule.Allow && groundingTokens.Contains(rule.UserAgent)).Select(rule => rule.UserAgent).ToArray();
+        if (blocked.Length > 0)
+        {
+            logger.Info($"event=robots.ai_grounding_blocked agents={string.Join(',', blocked)} message=These tokens control both model training and grounding in the vendor's AI answers (for Google-Extended: Gemini Apps and Vertex AI), so blocking them also opts the site out of that grounding. Search indexing by the vendor's main crawler is not affected.");
+        }
+    }
+
     private static string NormalizeMode(string? mode) => (mode ?? "allow").Trim().ToLowerInvariant();
 
     private static IEnumerable<string> Dedupe(IEnumerable<string> agents)
@@ -178,6 +199,13 @@ internal enum AiCrawlerPurpose
     /// <summary>Collects content to train models. Blocking it does not hide the site from AI answers.</summary>
     Training,
 
+    /// <summary>
+    /// A control token that covers both model training and grounding in the vendor's AI answers.
+    /// <c>block-training</c> blocks it, because it is the only way to opt out of that vendor's training,
+    /// and the build logs <c>event=robots.ai_grounding_blocked</c> to disclose the grounding tradeoff.
+    /// </summary>
+    TrainingAndGrounding,
+
     /// <summary>Indexes pages so AI search can find and cite them.</summary>
     Search,
 
@@ -198,7 +226,8 @@ internal static class AiCrawlerCatalog
     [
         new("GPTBot", AiCrawlerPurpose.Training),
         new("ClaudeBot", AiCrawlerPurpose.Training),
-        new("Google-Extended", AiCrawlerPurpose.Training),
+        // Controls Gemini training and grounding in Gemini Apps and Vertex AI; not Google Search.
+        new("Google-Extended", AiCrawlerPurpose.TrainingAndGrounding),
         new("Applebot-Extended", AiCrawlerPurpose.Training),
         new("Meta-ExternalAgent", AiCrawlerPurpose.Training),
         new("CCBot", AiCrawlerPurpose.Training),
@@ -218,9 +247,13 @@ internal static class AiCrawlerCatalog
         new("Perplexity-User", AiCrawlerPurpose.UserFetch)
     ];
 
-    /// <summary>Crawlers that decide whether the site can appear in AI search answers.</summary>
+    /// <summary>
+    /// Crawlers that decide whether the site can be cited in AI search answers. Training-and-grounding
+    /// tokens are left out: blocking them is the documented way to opt out of training, and the
+    /// robots writer discloses their grounding tradeoff with <c>event=robots.ai_grounding_blocked</c>.
+    /// </summary>
     internal static IReadOnlyList<string> VisibilityUserAgents { get; } =
     [
-        .. All.Where(crawler => crawler.Purpose != AiCrawlerPurpose.Training).Select(crawler => crawler.UserAgent)
+        .. All.Where(crawler => crawler.Purpose is AiCrawlerPurpose.Search or AiCrawlerPurpose.UserFetch).Select(crawler => crawler.UserAgent)
     ];
 }

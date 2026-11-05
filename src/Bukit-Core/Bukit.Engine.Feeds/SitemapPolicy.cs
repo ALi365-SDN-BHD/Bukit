@@ -1,3 +1,4 @@
+using System.Net;
 using System.Text.RegularExpressions;
 using Bukit.Content;
 using Bukit.Engine.Abstractions.Content;
@@ -67,8 +68,11 @@ internal sealed class SitemapLocFilter
         return pathStart < 0 ? (url, "/", string.Empty) : (url[..pathStart], url[pathStart..], string.Empty);
     }
 
-    // Two canonicals that differ only by origin spelling (case, default port) are the same URL.
-    private static string DedupeKey(string canonical)
+    /// <summary>
+    /// The identity of a canonical URL: two canonicals that differ only by origin spelling
+    /// (case, default port) are the same URL. Used for dedupe and for sitemap presence checks.
+    /// </summary>
+    internal static string CanonicalKey(string canonical)
     {
         var (origin, path, query) = SplitOrigin(canonical);
         return origin.ToLowerInvariant() + path + query;
@@ -81,7 +85,7 @@ internal sealed class SitemapLocFilter
             return SitemapLocDecision.OutOfScope;
         }
 
-        return _seen.Add(DedupeKey(canonical!)) ? SitemapLocDecision.Accepted : SitemapLocDecision.Duplicate;
+        return _seen.Add(CanonicalKey(canonical!)) ? SitemapLocDecision.Accepted : SitemapLocDecision.Duplicate;
     }
 
     /// <summary>Evaluates the canonical and logs why a route was left out.</summary>
@@ -100,6 +104,35 @@ internal sealed class SitemapLocFilter
 
         return decision == SitemapLocDecision.Accepted;
     }
+}
+
+/// <summary>
+/// Answers "is this canonical in the sitemap?" with the same identity the sitemap writers
+/// dedupe by, so a route whose canonical differs only in origin spelling counts as present.
+/// </summary>
+internal static partial class SitemapCanonicalIdentity
+{
+    internal static HashSet<string> ReadLocKeys(string? sitemapXml)
+    {
+        var keys = new HashSet<string>(StringComparer.Ordinal);
+        if (string.IsNullOrWhiteSpace(sitemapXml))
+        {
+            return keys;
+        }
+
+        foreach (Match match in LocRegex().Matches(sitemapXml))
+        {
+            keys.Add(SitemapLocFilter.CanonicalKey(WebUtility.HtmlDecode(match.Groups["loc"].Value).Trim()));
+        }
+
+        return keys;
+    }
+
+    internal static bool Contains(IReadOnlySet<string> locKeys, string? canonical)
+        => !string.IsNullOrWhiteSpace(canonical) && locKeys.Contains(SitemapLocFilter.CanonicalKey(canonical));
+
+    [GeneratedRegex(@"<loc>\s*(?<loc>[^<]*?)\s*</loc>", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
+    private static partial Regex LocRegex();
 }
 
 internal static partial class SitemapPolicy

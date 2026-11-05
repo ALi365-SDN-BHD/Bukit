@@ -33,14 +33,15 @@ crawlers by what they fetch pages for:
 
 | Purpose | Crawlers | Effect of blocking |
 |---|---|---|
-| Training | `GPTBot`, `ClaudeBot`, `Google-Extended`, `Applebot-Extended`, `Meta-ExternalAgent`, `CCBot`, `Bytespider`, `Amazonbot`, `cohere-ai`, `Diffbot`, plus the legacy tokens `FacebookBot`, `anthropic-ai`, `Claude-Web` | Content is not used to train models. The site can still appear in AI answers. |
+| Training | `GPTBot`, `ClaudeBot`, `Applebot-Extended`, `Meta-ExternalAgent`, `CCBot`, `Bytespider`, `Amazonbot`, `cohere-ai`, `Diffbot`, plus the legacy tokens `FacebookBot`, `anthropic-ai`, `Claude-Web` | Content is not used to train models. The site can still appear in AI answers. |
+| Training and grounding | `Google-Extended` | Content is not used to train Gemini, and it is also not used for grounding in Gemini Apps and Vertex AI. Google Search is not affected. |
 | AI search | `OAI-SearchBot`, `Claude-SearchBot`, `PerplexityBot` | The site drops out of AI search results and cannot be cited. |
 | User fetch | `ChatGPT-User`, `Claude-User`, `Perplexity-User` | Assistants cannot open the page when a user asks about it. |
 
 | Mode | Result |
 |---|---|
 | `allow` (default) | Every known crawler is allowed. |
-| `block-training` | Training crawlers are blocked; AI search and user-fetch crawlers stay allowed. Use this to opt out of training while staying citable. |
+| `block-training` | Training crawlers are blocked; AI search and user-fetch crawlers stay allowed. Use this to opt out of training while staying citable. `Google-Extended` is blocked too, which also opts out of Gemini grounding; the build logs `event=robots.ai_grounding_blocked` to say so. Add it to `aiBotAllowList` to keep Gemini grounding (and Gemini training). |
 | `block` | Every known crawler is blocked, including AI search. The site disappears from AI answers. |
 | `selective` | With `aiBotAllowList`, only listed crawlers are allowed and other known crawlers are blocked. With only `aiBotBlockList`, just those crawlers are blocked. The build warns with `event=robots.ai_search_blocked` when this blocks AI search or user-fetch crawlers you did not list. |
 
