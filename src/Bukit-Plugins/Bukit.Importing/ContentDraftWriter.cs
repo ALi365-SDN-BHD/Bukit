@@ -40,7 +40,7 @@ internal static class ContentDraftWriter
             ? contentDir
             : Path.Combine(contentDir, "pages");
         WriteCollectionDraft(dir, page.Title, slug, "page", page.Summary, page.Content,
-            page.SeoTitle, page.SeoDescription, page.TemplatePath, claimed, overwrite);
+            page.SeoTitle, page.SeoDescription, page.TemplatePath, claimed, overwrite, page.Url);
     }
 
     private static bool IsBuildPageDraft(PageRecord page)
@@ -58,7 +58,8 @@ internal static class ContentDraftWriter
         string? seoDescription,
         string? templatePath,
         HashSet<string> claimed,
-        bool overwrite)
+        bool overwrite,
+        string? url = null)
     {
         Directory.CreateDirectory(dir);
 
@@ -81,6 +82,8 @@ internal static class ContentDraftWriter
             new("collection", collection),
             // The demo page's own template; without one Core falls back to the collection template.
             new("template", templatePath),
+            // Route-map URL; without it Core uses the collection permalink.
+            new("url", url),
             new("summary", summary),
             new("seo_title", seoTitle),
             new("seo_desc", seoDescription),

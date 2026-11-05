@@ -64,6 +64,7 @@ internal static class SeedGenerator
             sb.AppendLine($"    \"slug\": {JsonStr(r.Slug)},");
             sb.AppendLine($"    \"type\": {JsonStr(r.Type)},");
             sb.AppendLine($"    \"template\": {JsonVal(r.TemplatePath)},");
+            sb.AppendLine($"    \"url\": {JsonVal(r.Url)},");
             sb.AppendLine($"    \"summary\": {JsonVal(r.Summary)},");
             sb.AppendLine($"    \"content\": {JsonVal(r.Content)},");
             sb.AppendLine($"    \"language\": {JsonStr(r.Language)},");
@@ -257,6 +258,7 @@ internal static class SeedGenerator
             YamlField(sb, "slug", r.Slug);
             YamlField(sb, "type", r.Type);
             YamlField(sb, "template", r.TemplatePath);
+            YamlField(sb, "url", r.Url);
             YamlField(sb, "summary", r.Summary);
             YamlField(sb, "content", r.Content);
             YamlField(sb, "language", r.Language);

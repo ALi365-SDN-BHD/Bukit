@@ -108,34 +108,8 @@ internal static class SiteConfigGenerator
 
         site["collections"] = collections;
 
-        if (routeMap != null)
-        {
-            var appPages = routeMap.Pages
-                .Where(p => !string.IsNullOrWhiteSpace(p.Route) &&
-                            !string.IsNullOrWhiteSpace(p.Template) &&
-                            !IsDefaultPageRoute(p.Route, p.Template))
-                .ToList();
-            if (appPages.Count > 0)
-            {
-                var pages = new Dictionary<string, object?>(StringComparer.Ordinal);
-                foreach (var page in appPages)
-                {
-                    var slug = !string.IsNullOrWhiteSpace(page.Slug)
-                        ? page.Slug
-                        : SanitizeAppPageSlug(page.Source);
-                    var entry = new Dictionary<string, object?>(StringComparer.Ordinal)
-                    {
-                        ["route"] = page.Route,
-                        ["template"] = AppPageTemplate(page, plan, discoveredPages)
-                    };
-                    if (!string.IsNullOrWhiteSpace(page.Description))
-                        entry["description"] = page.Description;
-                    pages[slug] = entry;
-                }
-
-                site["appPages"] = pages;
-            }
-        }
+        // Route-map routes for pages are written into each page's own front matter (`url:`);
+        // Core has no site-level page list.
 
         var root = new Dictionary<string, object?>(StringComparer.Ordinal) { ["site"] = site };
 
@@ -247,43 +221,6 @@ internal static class SiteConfigGenerator
         return plan is not null && listPage is not null
             ? plan.PathFor(listPage)
             : $"pages/{fallbackName}.html";
-    }
-
-    // App pages render the demo page's own template, the same file ThemeGenerator wrote.
-    private static string AppPageTemplate(
-        RouteMapPage page,
-        PageTemplatePlan? plan,
-        IReadOnlyList<DiscoveredPage>? discoveredPages)
-    {
-        var sourceName = Path.GetFileNameWithoutExtension(page.Source);
-        var demoPage = discoveredPages?.FirstOrDefault(p =>
-            string.Equals(Path.GetFileNameWithoutExtension(p.RelativePath), sourceName, StringComparison.OrdinalIgnoreCase));
-        return plan is not null && demoPage is not null
-            ? plan.PathFor(demoPage)
-            : $"pages/{page.Template}.html";
-    }
-
-    private static bool IsDefaultPageRoute(string route, string template)
-    {
-        route = route.Trim('/');
-        return (route, template.ToLowerInvariant()) switch
-        {
-            ("" or "index", "index") => true,
-            ("insights", "insights") => true,
-            ("companies", "companies") => true,
-            ("services", "services") => true,
-            _ => false
-        };
-    }
-
-    private static string SanitizeAppPageSlug(string source)
-    {
-        var name = Path.GetFileNameWithoutExtension(source);
-        var chars = name.Select(c => char.IsLetterOrDigit(c) || c is '-' or '_' ? c : '-').ToArray();
-        var result = new string(chars);
-        while (result.Contains("--"))
-            result = result.Replace("--", "-");
-        return result.Trim('-').ToLowerInvariant();
     }
 
     private static List<SiteConfigNotionTarget> ReadNotionDatabaseTargets(HtmlDemoImportOptions options)

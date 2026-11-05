@@ -127,6 +127,8 @@ public sealed record PageRecord
     public string? SeoDescription { get; init; }
     /// <summary>Own template ("pages/x.html") of the demo page this record came from.</summary>
     public string? TemplatePath { get; init; }
+    /// <summary>Route-map URL for this page; null keeps the collection's /{slug}/ route.</summary>
+    public string? Url { get; init; }
 }
 
 public sealed record SectionRecord

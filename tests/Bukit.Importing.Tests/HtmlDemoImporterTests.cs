@@ -1417,7 +1417,7 @@ pages:
     template: about
 """);
 
-        HtmlDemoImporter.Import(new HtmlDemoImportOptions
+        var result = HtmlDemoImporter.Import(new HtmlDemoImportOptions
         {
             InputPath = _tempDir,
             ThemeName = "same-name",
@@ -1434,6 +1434,82 @@ pages:
             .Select(name => File.ReadAllText(Path.Combine(pagesDir, name))).ToArray();
         Assert.Single(styles, text => text.Contains(".en{", StringComparison.Ordinal));
         Assert.Single(styles, text => text.Contains(".zh{", StringComparison.Ordinal));
+
+        // Both pages are imported: the entry's owner takes its route, the other gets its own slug.
+        var pagesContent = Path.Combine(_tempDir, "sites", "same-name", "content", "pages");
+        var owner = File.ReadAllText(Path.Combine(pagesContent, "about.md"));
+        Assert.Contains("url: /about/", owner, StringComparison.Ordinal);
+        var other = Assert.Single(Directory.GetFiles(pagesContent, "*.md"),
+            path => Path.GetFileName(path) != "about.md");
+        Assert.DoesNotContain("url:", File.ReadAllText(other), StringComparison.Ordinal);
+        Assert.Contains(result.Warnings, warning => warning.Contains("already has", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void RouteMap_SameListFileInTwoFolders_SharesTheEntryWithoutFailing()
+    {
+        File.WriteAllText(Path.Combine(_tempDir, "index.html"),
+            "<html><head><title>Home</title></head><body><main><h1>Home</h1></main></body></html>");
+        Directory.CreateDirectory(Path.Combine(_tempDir, "en"));
+        Directory.CreateDirectory(Path.Combine(_tempDir, "zh"));
+        File.WriteAllText(Path.Combine(_tempDir, "en", "blog.html"),
+            "<html><head><title>Blog</title></head><body><main><h1>Blog</h1></main></body></html>");
+        File.WriteAllText(Path.Combine(_tempDir, "zh", "blog.html"),
+            "<html><head><title>博客</title></head><body><main><h1>博客</h1></main></body></html>");
+        var routeMapPath = Path.Combine(_tempDir, "blog.routes.yaml");
+        File.WriteAllText(routeMapPath, """
+pages:
+  - source: blog.html
+    route: /insights/
+    type: PostList
+    template: news
+""");
+
+        HtmlDemoImporter.Import(new HtmlDemoImportOptions
+        {
+            InputPath = _tempDir,
+            ThemeName = "same-list",
+            RootDir = _tempDir,
+            Force = true,
+            RouteMapPath = routeMapPath
+        });
+
+        var pagesDir = Path.Combine(_tempDir, "themes", "same-list", "layouts", "pages");
+        Assert.True(File.Exists(Path.Combine(pagesDir, "news.html")));
+        // The second file does not own the entry, so it is named from its slug instead.
+        Assert.True(File.Exists(Path.Combine(pagesDir, "insights.html")));
+    }
+
+    [Fact]
+    public void RouteMap_CustomRoute_GoesIntoFrontMatterNotSiteYaml()
+    {
+        File.WriteAllText(Path.Combine(_tempDir, "index.html"),
+            "<html><head><title>Home</title></head><body><main><h1>Home</h1></main></body></html>");
+        File.WriteAllText(Path.Combine(_tempDir, "about.html"),
+            "<html><head><title>About</title></head><body><main><h1>About</h1></main></body></html>");
+        var routeMapPath = Path.Combine(_tempDir, "custom.routes.yaml");
+        File.WriteAllText(routeMapPath, """
+pages:
+  - source: about.html
+    route: /company/about/
+    type: Page
+    template: about-us
+""");
+
+        HtmlDemoImporter.Import(new HtmlDemoImportOptions
+        {
+            InputPath = _tempDir,
+            ThemeName = "custom-route",
+            RootDir = _tempDir,
+            Force = true,
+            RouteMapPath = routeMapPath
+        });
+
+        var siteDir = Path.Combine(_tempDir, "sites", "custom-route");
+        Assert.DoesNotContain("appPages", File.ReadAllText(Path.Combine(siteDir, "site.yaml")), StringComparison.Ordinal);
+        var draft = File.ReadAllText(Path.Combine(siteDir, "content", "pages", "about.md"));
+        Assert.Contains("url: /company/about/", draft, StringComparison.Ordinal);
+        Assert.Contains("template: pages/about-us.html", draft, StringComparison.Ordinal);
     }
 
     [Fact]

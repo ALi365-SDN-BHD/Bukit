@@ -21,10 +21,12 @@ internal static partial class ContentExtractor
     internal static ExtractedContent Extract(
         List<DiscoveredPage> pages,
         RouteMapConfig? routeMap = null,
-        PageTemplatePlan? plan = null)
+        PageTemplatePlan? plan = null,
+        List<string>? warnings = null)
     {
         var content = new ExtractedContent();
         ExtractNavigation(pages, content, routeMap);
+        var pageSlugs = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
         foreach (var page in pages)
         {
@@ -33,7 +35,10 @@ internal static partial class ContentExtractor
             ExtractPageContent(page, content);
             ExtractCollectionItems(page, content);
             if (plan is not null)
+            {
                 AssignTemplate(content, page, plan.PathFor(page), marks);
+                AssignPageRoute(content, page, plan, marks.Pages, pageSlugs, warnings);
+            }
             ExtractSections(page, content);
             ExtractFaqs(page, content);
         }
@@ -72,6 +77,38 @@ internal static partial class ContentExtractor
         if (page.Type == PageType.ServiceDetail)
             for (var i = marks.Services; i < content.Services.Count; i++)
                 content.Services[i] = content.Services[i] with { TemplatePath = templatePath };
+    }
+
+    // Page drafts share content/pages/, so their slugs must be unique; the route-map
+    // route (when this page owns its entry) goes into the draft's own `url:`.
+    private static void AssignPageRoute(
+        ExtractedContent content,
+        DiscoveredPage page,
+        PageTemplatePlan plan,
+        int firstPage,
+        HashSet<string> pageSlugs,
+        List<string>? warnings)
+    {
+        for (var i = firstPage; i < content.Pages.Count; i++)
+        {
+            var record = content.Pages[i];
+            if (record.Type.Equals("Home", StringComparison.OrdinalIgnoreCase) ||
+                !record.Template.Equals("page", StringComparison.OrdinalIgnoreCase))
+                continue;
+
+            var slug = string.IsNullOrWhiteSpace(record.Slug) ? "index" : record.Slug;
+            if (!pageSlugs.Add(slug))
+            {
+                var baseSlug = plan.NameFor(page);
+                var unique = baseSlug;
+                for (var n = 2; !pageSlugs.Add(unique); n++)
+                    unique = $"{baseSlug}-{n}";
+                warnings?.Add($"Page '{page.RelativePath}' uses slug '{slug}', which another page already has; it was imported as '{unique}'.");
+                slug = unique;
+            }
+
+            content.Pages[i] = record with { Slug = slug, Url = plan.RouteFor(page) };
+        }
     }
 
     private static IEnumerable<T> PreferDetail<T>(IEnumerable<T> records, Func<T, string> title, Func<T, string?> content)

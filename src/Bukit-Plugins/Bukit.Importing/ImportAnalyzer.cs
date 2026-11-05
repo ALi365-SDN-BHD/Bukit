@@ -41,7 +41,7 @@ internal static class ImportAnalyzer
         // Fails early (also on dry runs) when two pages claim the same template.
         var templatePlan = PageTemplatePlan.Build(pages, routeMap);
         var components = options.ExtractContent ? ComponentExtractor.Extract(pages) : [];
-        var content = options.ExtractContent ? ContentExtractor.Extract(pages, routeMap, templatePlan) : new ExtractedContent();
+        var content = options.ExtractContent ? ContentExtractor.Extract(pages, routeMap, templatePlan, warnings) : new ExtractedContent();
 
         if (options.ExtractContent)
         {
