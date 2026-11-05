@@ -144,7 +144,9 @@ public sealed class LlmsProjectionIntegrationTests
             // output must not depend on the build clock.
             Assert.Contains("text/markdown", File.ReadAllText(expiredHtml), StringComparison.Ordinal);
             Assert.Contains("- [Agent manifest](https://example.com/agent-manifest.json): ", llms, StringComparison.Ordinal);
-            Assert.True(File.Exists(Path.Combine(root, "dist", "agent-manifest.json")));
+            var manifestBytes = File.ReadAllBytes(Path.Combine(root, "dist", "agent-manifest.json"));
+            // No BOM: JSON parsers may reject one (RFC 8259).
+            Assert.Equal((byte)'{', manifestBytes[0]);
             Assert.Empty(logger.Errors);
         }
         finally
@@ -194,9 +196,11 @@ public sealed class LlmsProjectionIntegrationTests
                   layouts: layouts
                 """);
             WritePost(root, "visible.md", "Visible", "visible", extraFrontMatter: "");
+            WritePost(root, "hidden.md", "Hidden", "hidden", extraFrontMatter: "robots: noindex,nofollow");
+            // The layout follows the guide: it links the versions only when the page exposes them.
             File.WriteAllText(Path.Combine(root, "layouts", "layouts", "base.html"), """
                 <!doctype html>
-                <html><head><title>{{ page.title }}</title><link rel="alternate" type="text/markdown" href="{{ page.representation_urls.markdown }}"><link rel="alternate" type="application/json" href="{{ page.representation_urls.json }}"></head><body>{{ content }}</body></html>
+                <html><head><title>{{ page.title }}</title>{{ if page.representation_urls }}<link rel="alternate" type="text/markdown" href="{{ page.representation_urls.markdown }}"><link rel="alternate" type="application/json" href="{{ page.representation_urls.json }}">{{ end }}</head><body>{{ content }}</body></html>
                 """);
             foreach (var name in new[] { "post", "page", "index", "list" })
             {
@@ -222,6 +226,10 @@ public sealed class LlmsProjectionIntegrationTests
                 Assert.True(File.Exists(Path.Combine(root, "dist", href["/repo/".Length..])));
             }
 
+            // A noindex page gets no URLs, so the theme does not link its .md copy (which has no noindex marker).
+            var hiddenHtml = File.ReadAllText(Path.Combine(root, "dist", "blog/hidden/index.html"));
+            Assert.DoesNotContain("text/markdown", hiddenHtml, StringComparison.Ordinal);
+            Assert.DoesNotContain("application/json", hiddenHtml, StringComparison.Ordinal);
             Assert.Empty(logger.Errors);
         }
         finally

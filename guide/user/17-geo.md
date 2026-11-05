@@ -207,16 +207,20 @@ aggregate files such as the sitemap and `agent-manifest.json` drop them. If the 
 links the same URL, Bukit does not add that link again.
 
 In `renderMode: theme` or `off`, the theme owns the `<head>`, so Bukit does not
-add these links. Content pages expose the URLs as `page.representation_urls`,
-so a layout can add them itself:
+add these links. Published content pages without `noindex` expose the URLs as
+`page.representation_urls`, so a layout can add them itself:
 
 ```html
+{{ if page.representation_urls }}
 <link rel="alternate" type="text/markdown" href="{{ page.representation_urls.markdown }}" />
 <link rel="alternate" type="application/json" href="{{ page.representation_urls.json }}" />
+{{ end }}
 ```
 
-Wrap them in `{{ if page.representation_urls }}` if the layout also renders list
-pages, which have no Markdown or JSON version.
+Keep the `if`: list pages, `noindex` pages and unpublished pages have no
+`page.representation_urls`. The Markdown and JSON files carry no `noindex`
+marker, so linking them from a `noindex` page would let search engines index
+the copy.
 
 Page links in `llms.txt` stay on the canonical HTML URLs. Agents that want
 Markdown can follow the `agent-manifest.json` link.

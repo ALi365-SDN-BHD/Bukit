@@ -73,6 +73,7 @@ internal static class PageRenderDispatcher
             .Select(e =>
             {
                 var document = e.Document!;
+                var seo = seoBuilder?.Invoke(document, e.Route);
                 var pageInfo = new PageInfo
                 {
                     Title = document.Title,
@@ -87,8 +88,8 @@ internal static class PageRenderDispatcher
                     Provenance = document.Record.Provenance,
                     Trust = document.Record.Trust,
                     Representations = PublishRepresentationRegistry.DocumentKinds(),
-                    RepresentationUrls = ContentProjectionPaths.GetRepresentationUrls(e.Route, siteModel.BaseUrl),
-                    Seo = seoBuilder?.Invoke(document, e.Route)
+                    RepresentationUrls = ResolveRepresentationUrls(document, e.Route, seo, siteModel.BaseUrl),
+                    Seo = seo
                 };
                 return RouteMetadataApplicator.ApplyToPage(pageInfo, e.Route.Url, routeMetadata, document);
             })
@@ -159,6 +160,7 @@ internal static class PageRenderDispatcher
                         bodyLoadSw.Stop();
                         stageMetrics.Increment("bodyLoad");
                         stageMetrics.AddDuration("bodyLoad", bodyLoadSw.ElapsedMilliseconds);
+                        var seo = seoBuilder?.Invoke(document, route);
                         var pageInfo = new PageInfo
                         {
                             Title = document.Title,
@@ -174,8 +176,8 @@ internal static class PageRenderDispatcher
                             Provenance = contentRecord.Provenance,
                             Trust = contentRecord.Trust,
                             Representations = PublishRepresentationRegistry.DocumentKinds(),
-                            RepresentationUrls = ContentProjectionPaths.GetRepresentationUrls(route, siteModel.BaseUrl),
-                            Seo = seoBuilder?.Invoke(document, route)
+                            RepresentationUrls = ResolveRepresentationUrls(document, route, seo, siteModel.BaseUrl),
+                            Seo = seo
                         };
                         if (entry.MetadataListRoute is { } metadataListRoute)
                         {
@@ -370,6 +372,16 @@ internal static class PageRenderDispatcher
 
         return new SpecialListRenderResult(specialLists.Count, 0, stageMetrics.Snapshot());
     }
+
+    // Only pages that may be indexed get their Markdown/JSON URLs, matching the links inject mode adds.
+    // The .md/.json files carry no noindex marker, so linking them from a noindex page would let
+    // search engines index the copy. Expiry is ignored so page HTML does not depend on the build clock.
+    // Without an SEO model (site.seo.enabled: false), the page's own robots field decides.
+    private static IReadOnlyDictionary<string, string>? ResolveRepresentationUrls(
+        ContentDocument document, RouteInfo route, SeoModel? seo, string baseUrl)
+        => SeoIndexBuilder.IsIndexableIgnoringExpiry(document, seo?.Robots ?? SeoModelBuilder.FirstTextField(document.CustomFields, "robots"))
+            ? ContentProjectionPaths.GetRepresentationUrls(route, baseUrl)
+            : null;
 
     internal static async Task WriteUtf8LockedAsync(
         string outputRoot,
