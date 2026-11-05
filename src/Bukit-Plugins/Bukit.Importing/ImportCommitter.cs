@@ -1,3 +1,6 @@
+using System.Security.Cryptography;
+using System.Text;
+
 namespace Bukit.Importing;
 
 /// <summary>
@@ -11,8 +14,11 @@ internal static class ImportCommitter
     internal static ImportResult Commit(ImportAnalysis analysis, HtmlDemoImportOptions options)
     {
         var siteDir = HtmlDemoImporter.GetSiteDir(options);
+        var themeDir = HtmlDemoImporter.GetThemeDir(options);
         Directory.CreateDirectory(siteDir);
-        using var importLock = AcquireImportLock(siteDir);
+        using var siteLock = AcquireImportLock(
+            Path.Combine(siteDir, ".bukit-import.lock"), $"site {siteDir}");
+        using var themeLock = AcquireThemeLock(themeDir);
 
         var manifest = ImportManifest.Load(siteDir, options.Overwrite);
         var saved = false;
@@ -37,9 +43,8 @@ internal static class ImportCommitter
         }
     }
 
-    private static FileStream AcquireImportLock(string siteDir)
+    private static FileStream AcquireImportLock(string path, string subject)
     {
-        var path = Path.Combine(siteDir, ".bukit-import.lock");
         try
         {
             return new FileStream(path, FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.None);
@@ -47,9 +52,20 @@ internal static class ImportCommitter
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
             throw new ImportException(ImportErrorKind.UserInput,
-                $"Another import is already running for {siteDir}. " +
-                $"Wait for it to finish; if the previous run was killed, remove '{path}' and retry. ({ex.Message})");
+                $"Another import is already running for {subject}. Wait for it to finish and retry. ({ex.Message})");
         }
+    }
+
+    // A theme is shared by every site under the project, so it needs its own lock
+    // outside the theme directory (which --force deletes).
+    private static FileStream AcquireThemeLock(string themeDir)
+    {
+        var parent = Path.GetDirectoryName(themeDir) ?? Path.GetTempPath();
+        Directory.CreateDirectory(parent);
+        var key = Convert.ToHexString(
+            SHA256.HashData(Encoding.UTF8.GetBytes(Path.GetFullPath(themeDir))))[..16].ToLowerInvariant();
+        return AcquireImportLock(
+            Path.Combine(parent, $".import-{key}.lock"), $"theme '{Path.GetFileName(themeDir)}'");
     }
 
     private static ImportResult CommitCore(

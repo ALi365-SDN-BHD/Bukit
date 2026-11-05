@@ -137,6 +137,7 @@ public static class HtmlDemoImporter
             // The demo may be the project root; never copy this import's own output.
             .Where(file => !PathUtils.IsSameOrSubPathOf(file, siteDir))
             .Where(file => !PathUtils.IsSameOrSubPathOf(file, themeDir))
+            .Where(file => !IsImportLockFile(file))
             .ToList();
         Directory.CreateDirectory(preserveDir);
 
@@ -154,6 +155,14 @@ public static class HtmlDemoImporter
         }
 
         Console.WriteLine($"  Original HTML preserved: {preserveDir}");
+    }
+
+    private static bool IsImportLockFile(string path)
+    {
+        var name = Path.GetFileName(path);
+        return name.Equals(".bukit-import.lock", StringComparison.OrdinalIgnoreCase) ||
+               (name.StartsWith(".import-", StringComparison.OrdinalIgnoreCase) &&
+                name.EndsWith(".lock", StringComparison.OrdinalIgnoreCase));
     }
 
     internal static void WriteComponentTemplates(HtmlDemoImportOptions options,

@@ -776,6 +776,37 @@ public sealed class HtmlDemoImporterTests : IDisposable
     }
 
     [Fact]
+    public void Import_SecondSiteUsingTheSameTheme_IsRejected()
+    {
+        var demo = Path.Combine(_tempDir, "demo");
+        Directory.CreateDirectory(demo);
+        File.WriteAllText(Path.Combine(demo, "index.html"),
+            "<html><head><title>Home</title></head><body><main><h1>Home</h1></main></body></html>");
+
+        var themeDir = Path.Combine(_tempDir, "themes", "shared-theme");
+        var themesRoot = Path.GetDirectoryName(themeDir)!;
+        Directory.CreateDirectory(themesRoot);
+        var key = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(
+            System.Text.Encoding.UTF8.GetBytes(Path.GetFullPath(themeDir))))[..16].ToLowerInvariant();
+        using var held = new FileStream(
+            Path.Combine(themesRoot, $".import-{key}.lock"),
+            FileMode.OpenOrCreate,
+            FileAccess.ReadWrite,
+            FileShare.None);
+
+        var ex = Assert.Throws<ImportException>(() => HtmlDemoImporter.Import(new HtmlDemoImportOptions
+        {
+            InputPath = demo,
+            ThemeName = "shared-theme",
+            RootDir = _tempDir,
+            SitePath = Path.Combine(_tempDir, "sites", "other-site")
+        }));
+
+        Assert.Equal(ImportErrorKind.UserInput, ex.Kind);
+        Assert.Contains("theme 'shared-theme'", ex.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void Import_Strict_HardcodedResidue_Throws()
     {
         File.WriteAllText(Path.Combine(_tempDir, "index.html"),
@@ -1266,9 +1297,12 @@ pages:
         Directory.CreateDirectory(Path.Combine(_tempDir, "img"));
         Directory.CreateDirectory(Path.Combine(_tempDir, "fonts"));
         File.WriteAllText(Path.Combine(_tempDir, "img", "bg.png"), "fake image");
+        File.WriteAllText(Path.Combine(_tempDir, "img", "root.png"), "fake root image");
         File.WriteAllText(Path.Combine(_tempDir, "fonts", "body.woff2"), "fake font");
+        File.WriteAllText(Path.Combine(_tempDir, "css", "extra.css"),
+            "@font-face{src:url('../fonts/body.woff2')}");
         File.WriteAllText(Path.Combine(_tempDir, "css", "site.css"),
-            "body{background:url(../img/bg.png)}@font-face{src:url('../fonts/body.woff2')}");
+            "@import \"extra.css\";body{background:url(../img/bg.png) no-repeat,url(/img/root.png)}");
         File.WriteAllText(Path.Combine(_tempDir, "index.html"),
             "<html><head><title>Home</title><link rel=\"stylesheet\" href=\"css/site.css\"></head><body><main><h1>Home</h1></main></body></html>");
 
@@ -1277,13 +1311,18 @@ pages:
             InputPath = _tempDir,
             ThemeName = "css-references",
             RootDir = _tempDir,
+            BaseUrl = "/corp/",
             Force = true
         });
 
         var themeRoot = Path.Combine(_tempDir, "themes", "css-references");
         Assert.True(File.Exists(Path.Combine(themeRoot, "static", "css", "site.css")));
+        Assert.True(File.Exists(Path.Combine(themeRoot, "static", "css", "extra.css")));
         Assert.True(File.Exists(Path.Combine(themeRoot, "static", "img", "bg.png")));
+        Assert.True(File.Exists(Path.Combine(themeRoot, "static", "img", "root.png")));
         Assert.True(File.Exists(Path.Combine(themeRoot, "static", "fonts", "body.woff2")));
+        Assert.Contains("/corp/img/root.png",
+            File.ReadAllText(Path.Combine(themeRoot, "static", "css", "site.css")), StringComparison.Ordinal);
     }
 
     [Fact]
@@ -1715,6 +1754,43 @@ pages:
         var posts = Path.Combine(_tempDir, "sites", "shared-detail", "content", "posts");
         var draft = Assert.Single(Directory.GetFiles(posts, "*.md"));
         Assert.Contains("title: First Post", File.ReadAllText(draft), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Import_CardsLinkingToNonDetailPages_KeepEveryCard()
+    {
+        File.WriteAllText(Path.Combine(_tempDir, "index.html"),
+            "<html><head><title>Home</title></head><body><main><h1>Home</h1></main></body></html>");
+        File.WriteAllText(Path.Combine(_tempDir, "contact.html"),
+            "<html><head><title>Contact</title></head><body><main><h1>Contact</h1></main></body></html>");
+        File.WriteAllText(Path.Combine(_tempDir, "services.html"),
+            "<html><head><title>Services</title></head><body><main><h1>Services</h1>" +
+            "<div class=\"service-card\"><h3>Design</h3><a href=\"contact.html\">More</a></div>" +
+            "<div class=\"service-card\"><h3>Build</h3><a href=\"contact.html\">More</a></div>" +
+            "<div class=\"service-card\"><h3>Run</h3><a href=\"contact.html\">More</a></div>" +
+            "</main></body></html>");
+        File.WriteAllText(Path.Combine(_tempDir, "news.html"),
+            "<html><head><title>News</title></head><body><main><h1>News</h1>" +
+            "<article class=\"article-card\"><h3>Partner One</h3><a href=\"https://partner.example.com/\">Visit</a></article>" +
+            "<article class=\"article-card\"><h3>Partner Two</h3><a href=\"https://partner.example.com/\">Visit</a></article>" +
+            "</main></body></html>");
+
+        HtmlDemoImporter.Import(new HtmlDemoImportOptions
+        {
+            InputPath = _tempDir,
+            ThemeName = "non-detail-links",
+            RootDir = _tempDir,
+            Force = true
+        });
+
+        var siteDir = Path.Combine(_tempDir, "sites", "non-detail-links", "content");
+        var services = Directory.GetFiles(Path.Combine(siteDir, "services"), "*.md")
+            .Select(Path.GetFileNameWithoutExtension).OrderBy(name => name, StringComparer.Ordinal).ToList();
+        var posts = Directory.GetFiles(Path.Combine(siteDir, "posts"), "*.md")
+            .Select(Path.GetFileNameWithoutExtension).OrderBy(name => name, StringComparer.Ordinal).ToList();
+
+        Assert.Equal(["build", "design", "run"], services);
+        Assert.Equal(["partner-one", "partner-two"], posts);
     }
 
     [Fact]

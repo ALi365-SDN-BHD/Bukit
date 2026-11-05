@@ -40,6 +40,7 @@ internal static partial class AssetImporter
         var mappings = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
         var pendingCss = new Queue<(string SourcePath, int Depth)>();
         var fullInputPath = Path.GetFullPath(options.InputPath);
+        var basePath = InternalLinkRewriter.BasePath(options.BaseUrl);
 
         void CopyAsset(string sourcePath, string? rawReference, int depth)
         {
@@ -83,7 +84,14 @@ internal static partial class AssetImporter
             if (destDir is not null)
                 Directory.CreateDirectory(destDir);
 
-            File.Copy(sourcePath, destPath, overwrite: true);
+            if (Path.GetExtension(canonicalRel).Equals(".css", StringComparison.OrdinalIgnoreCase))
+            {
+                File.WriteAllText(destPath, RewriteRootCssUrls(File.ReadAllText(sourcePath), basePath));
+            }
+            else
+            {
+                File.Copy(sourcePath, destPath, overwrite: true);
+            }
             count++;
 
             // A linked stylesheet may reference images/fonts outside the assets/ tree.
@@ -135,7 +143,7 @@ internal static partial class AssetImporter
                 continue;
             }
 
-            foreach (Match match in CssUrlPattern().Matches(css))
+            foreach (Match match in CssUrlPattern().Matches(css).Concat(CssImportPattern().Matches(css)))
             {
                 var value = match.Groups["value"].Value.Trim();
                 if (value.Length == 0 ||
@@ -176,7 +184,15 @@ internal static partial class AssetImporter
                     var destDir = Path.GetDirectoryName(dest);
                     if (destDir is not null)
                         Directory.CreateDirectory(destDir);
-                    File.Copy(file, dest);
+
+                    if (Path.GetExtension(file).Equals(".css", StringComparison.OrdinalIgnoreCase))
+                    {
+                        File.WriteAllText(dest, RewriteRootCssUrls(File.ReadAllText(file), basePath));
+                    }
+                    else
+                    {
+                        File.Copy(file, dest);
+                    }
 
                     var origKey = "assets/" + rel.Replace('\\', '/');
                     mappings[origKey] = "/assets/" + rel.Replace('\\', '/');
@@ -190,6 +206,18 @@ internal static partial class AssetImporter
 
     [GeneratedRegex(@"url\(\s*(?<quote>['""]?)(?<value>[^'"")]+)\k<quote>\s*\)", RegexOptions.IgnoreCase)]
     private static partial Regex CssUrlPattern();
+
+    [GeneratedRegex(@"@import\s+(?:url\(\s*)?[""']?(?<value>[^""')\s]+)", RegexOptions.IgnoreCase)]
+    private static partial Regex CssImportPattern();
+
+    private static string RewriteRootCssUrls(string css, string basePath)
+        => string.IsNullOrEmpty(basePath)
+            ? css
+            : CssRootUrlPattern().Replace(css, match =>
+                $"url({match.Groups["quote"].Value}{basePath}{match.Groups["value"].Value}{match.Groups["quote"].Value})");
+
+    [GeneratedRegex(@"url\(\s*(?<quote>['""]?)(?<value>/(?!/)[^'"")]+)\k<quote>\s*\)", RegexOptions.IgnoreCase)]
+    private static partial Regex CssRootUrlPattern();
 
     internal static void TransferAssetsToStatic(HtmlDemoImportOptions options)
     {

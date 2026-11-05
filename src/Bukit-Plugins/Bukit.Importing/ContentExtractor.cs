@@ -26,6 +26,10 @@ internal static partial class ContentExtractor
         var content = new ExtractedContent();
         ExtractNavigation(pages, content, routeMap, plan);
 
+        var pagesByPath = new Dictionary<string, DiscoveredPage>(StringComparer.OrdinalIgnoreCase);
+        foreach (var page in pages)
+            pagesByPath.TryAdd(DemoLinks.Normalize(page.RelativePath), page);
+
         foreach (var page in pages)
         {
             var marks = (Pages: content.Pages.Count, Posts: content.Posts.Count,
@@ -35,7 +39,7 @@ internal static partial class ContentExtractor
                 ? page
                 : page with { UniqueBody = InternalLinkRewriter.RewriteContentLinks(page.UniqueBody, page.RelativePath, plan) };
             ExtractPageContent(source, content);
-            ExtractCollectionItems(source, content);
+            ExtractCollectionItems(source, page, content, pagesByPath);
             if (plan is not null)
             {
                 AssignTemplate(content, page, plan.PathFor(page), marks);
@@ -276,6 +280,26 @@ internal static partial class ContentExtractor
         });
     }
 
+    // Only a link to a real detail page may supply the card's slug. External links,
+    // "#" and links to pages/lists keep the title-derived slug instead of merging.
+    private static string? ResolveDetailSlug(
+        string href,
+        DiscoveredPage sourcePage,
+        IReadOnlyDictionary<string, DiscoveredPage> pagesByPath,
+        PageType detailType)
+    {
+        var target = DemoLinks.ResolvePath(sourcePage.RelativePath, href);
+        if (target is null ||
+            !pagesByPath.TryGetValue(target, out var detail) ||
+            detail.Type != detailType ||
+            string.IsNullOrWhiteSpace(detail.Slug))
+        {
+            return null;
+        }
+
+        return detail.Slug;
+    }
+
     private static string? ExtractSummary(string html)
     {
         var match = FirstParagraphRegex.Match(html);
@@ -287,35 +311,44 @@ internal static partial class ContentExtractor
         return null;
     }
 
-    private static void ExtractCollectionItems(DiscoveredPage page, ExtractedContent content)
+    private static void ExtractCollectionItems(
+        DiscoveredPage source,
+        DiscoveredPage original,
+        ExtractedContent content,
+        IReadOnlyDictionary<string, DiscoveredPage> pagesByPath)
     {
-        if (page.Type is PageType.PostList)
+        // List cards read the original hrefs (demo paths); detail bodies read the
+        // rewritten page whose links already point at the site URLs.
+        if (original.Type is PageType.PostList)
         {
-            ExtractPosts(page, content);
+            ExtractPosts(original, content, pagesByPath);
         }
-        else if (page.Type is PageType.PostDetail)
+        else if (original.Type is PageType.PostDetail)
         {
-            ExtractPostDetail(page, content);
+            ExtractPostDetail(source, content);
         }
-        else if (page.Type is PageType.CompanyList)
+        else if (original.Type is PageType.CompanyList)
         {
-            ExtractCompanies(page, content);
+            ExtractCompanies(original, content, pagesByPath);
         }
-        else if (page.Type is PageType.CompanyDetail)
+        else if (original.Type is PageType.CompanyDetail)
         {
-            ExtractCompanyDetail(page, content);
+            ExtractCompanyDetail(source, content);
         }
-        else if (page.Type is PageType.ServiceList)
+        else if (original.Type is PageType.ServiceList)
         {
-            ExtractServices(page, content);
+            ExtractServices(original, content, pagesByPath);
         }
-        else if (page.Type is PageType.ServiceDetail)
+        else if (original.Type is PageType.ServiceDetail)
         {
-            ExtractServiceDetail(page, content);
+            ExtractServiceDetail(source, content);
         }
     }
 
-    private static void ExtractPosts(DiscoveredPage page, ExtractedContent content)
+    private static void ExtractPosts(
+        DiscoveredPage page,
+        ExtractedContent content,
+        IReadOnlyDictionary<string, DiscoveredPage> pagesByPath)
     {
         var counter = 0;
         foreach (Match match in CardRegex.Matches(page.UniqueBody))
@@ -329,7 +362,7 @@ internal static partial class ContentExtractor
             if (string.IsNullOrWhiteSpace(title)) continue;
 
             var slugFromLink = link.Success
-                ? PageClassifier.PageName(link.Groups[1].Value.Split('#', '?')[0].TrimEnd('/'))
+                ? ResolveDetailSlug(link.Groups[1].Value, page, pagesByPath, PageType.PostDetail)
                 : null;
 
             var slug = !string.IsNullOrWhiteSpace(slugFromLink)
@@ -369,7 +402,10 @@ internal static partial class ContentExtractor
         }
     }
 
-    private static void ExtractCompanies(DiscoveredPage page, ExtractedContent content)
+    private static void ExtractCompanies(
+        DiscoveredPage page,
+        ExtractedContent content,
+        IReadOnlyDictionary<string, DiscoveredPage> pagesByPath)
     {
         var counter = 0;
         foreach (Match match in CardRegex.Matches(page.UniqueBody))
@@ -383,7 +419,7 @@ internal static partial class ContentExtractor
 
             var link = CardLinkRegex.Match(cardHtml);
             var slugFromLink = link.Success
-                ? PageClassifier.PageName(link.Groups[1].Value.Split('#', '?')[0].TrimEnd('/'))
+                ? ResolveDetailSlug(link.Groups[1].Value, page, pagesByPath, PageType.CompanyDetail)
                 : null;
 
             content.Companies.Add(new CompanyRecord
@@ -419,7 +455,10 @@ internal static partial class ContentExtractor
         });
     }
 
-    private static void ExtractServices(DiscoveredPage page, ExtractedContent content)
+    private static void ExtractServices(
+        DiscoveredPage page,
+        ExtractedContent content,
+        IReadOnlyDictionary<string, DiscoveredPage> pagesByPath)
     {
         var counter = 0;
         foreach (Match match in CardRegex.Matches(page.UniqueBody))
@@ -433,7 +472,7 @@ internal static partial class ContentExtractor
 
             var link = CardLinkRegex.Match(cardHtml);
             var slugFromLink = link.Success
-                ? PageClassifier.PageName(link.Groups[1].Value.Split('#', '?')[0].TrimEnd('/'))
+                ? ResolveDetailSlug(link.Groups[1].Value, page, pagesByPath, PageType.ServiceDetail)
                 : null;
 
             content.Services.Add(new ServiceRecord
