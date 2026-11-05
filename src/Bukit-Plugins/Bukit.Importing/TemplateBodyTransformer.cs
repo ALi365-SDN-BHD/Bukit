@@ -1,4 +1,5 @@
 using System.Text.RegularExpressions;
+using AngleSharp.Html.Parser;
 
 namespace Bukit.Importing;
 
@@ -27,7 +28,7 @@ internal static partial class TemplateBodyTransformer
         // Escape demo text before this class adds template tags of its own.
         var body = ScribanText.Escape(AssetImporter.RewritePaths(page.UniqueBody, pathMappings).Trim());
         body = PageAssetCollector.RewriteCssUrls(body, pathMappings);
-        body = PageAssetCollector.RewriteAssetAttributes(body, pathMappings);
+        body = PageAssetCollector.RewriteSrcsets(body, pathMappings, "{{ base_url }}");
         if (string.IsNullOrWhiteSpace(body))
         {
             return ThemeGenerator.GetDefaultTemplateBody(page.Type);
@@ -37,21 +38,21 @@ internal static partial class TemplateBodyTransformer
         {
             PageType.PostList or PageType.CompanyList or PageType.ServiceList =>
                 TransformList(body, page, components),
-            PageType.Home => TransformHome(body),
-            _ => TransformDetail(body)
+            PageType.Home => TransformHome(body, components),
+            _ => TransformDetail(body, components)
         };
     }
 
     // Core renders the home route from pages/index.html with no content record of
     // its own, so the home template keeps the demo's heading and copy as markup.
     // Home cards are demo copy too; there is no collection list to bind them to.
-    private static string TransformHome(string body)
-        => ReplaceSectionComponents(body);
+    private static string TransformHome(string body, IReadOnlyList<DiscoveredComponent>? components)
+        => ReplaceSectionComponents(body, components);
 
-    private static string TransformDetail(string body)
+    private static string TransformDetail(string body, IReadOnlyList<DiscoveredComponent>? components)
     {
         var result = ReplaceFirstHeading(body, "page.title");
-        result = ReplaceSectionComponents(result);
+        result = ReplaceSectionComponents(result, components);
         if (!result.Contains("{{ page.content }}", StringComparison.Ordinal))
         {
             result = ReplaceMainContentAfterHeading(result, "page.content");
@@ -66,8 +67,10 @@ internal static partial class TemplateBodyTransformer
         IReadOnlyList<DiscoveredComponent>? components)
     {
         var result = ReplaceFirstHeading(body, "page.title");
-        result = ReplaceListCards(result, page, components);
-        if (!result.Contains("{{ for item in pages }}", StringComparison.Ordinal) &&
+        var cards = ReplaceListCards(result, page, components);
+        result = cards.Html;
+        if (!cards.FoundCards &&
+            !result.Contains("{{ for item in pages }}", StringComparison.Ordinal) &&
             !result.Contains("{{ for p in pages }}", StringComparison.Ordinal))
         {
             result += Environment.NewLine + """
@@ -83,12 +86,20 @@ internal static partial class TemplateBodyTransformer
         return result;
     }
 
-    private static string ReplaceSectionComponents(string html)
+    private static string ReplaceSectionComponents(
+        string html,
+        IReadOnlyList<DiscoveredComponent>? components)
     {
         var result = html;
         foreach (var className in SectionComponentClasses)
         {
             if (!ContainsClass(result, className)) continue;
+            if (components is { Count: 0 }) continue;
+            if (components is not null &&
+                !components.Any(c =>
+                    string.Equals(c.SourceClass, className, StringComparison.OrdinalIgnoreCase) &&
+                    !string.IsNullOrWhiteSpace(c.NormalizedTemplate)))
+                continue;
 
             // The component file holds the whole element, so the include replaces it;
             // keeping the original tag around it rendered the element twice.
@@ -99,7 +110,7 @@ internal static partial class TemplateBodyTransformer
         return result;
     }
 
-    private static string ReplaceListCards(
+    private static (string Html, bool FoundCards) ReplaceListCards(
         string html,
         DiscoveredPage page,
         IReadOnlyList<DiscoveredComponent>? components)
@@ -109,18 +120,22 @@ internal static partial class TemplateBodyTransformer
             if (!ContainsClass(html, className))
                 continue;
 
+            if (components is { Count: 0 })
+                return (html, true);
+
             var componentName = components?
                 .FirstOrDefault(c =>
                     string.Equals(c.SourceClass, className, StringComparison.OrdinalIgnoreCase) &&
-                    c.UsedBy.Any(u => u.FilePath == page.FilePath))?
+                    c.UsedBy.Any(u => u.FilePath == page.FilePath) &&
+                    !string.IsNullOrWhiteSpace(c.NormalizedTemplate))?
                 .Name ?? defaultName;
 
             // A list page normally has one card group. Replace only the first
             // contiguous group so a second group elsewhere is not swallowed.
-            return ReplaceCardGroupWithLoop(html, className, componentName);
+            return (ReplaceCardGroupWithLoop(html, className, componentName), true);
         }
 
-        return html;
+        return (html, false);
     }
 
     private static string ReplaceCardGroupWithLoop(string html, string className, string componentName)
@@ -130,6 +145,9 @@ internal static partial class TemplateBodyTransformer
             ElementWithClassPattern(className),
             RegexOptions.IgnoreCase | RegexOptions.Singleline);
         if (matches.Count == 0) return html;
+
+        if (TryReplaceWrappedCards(html, className, componentName, matches.Count) is { } wrapped)
+            return wrapped;
 
         var first = matches[0];
         var last = first;
@@ -153,6 +171,69 @@ internal static partial class TemplateBodyTransformer
         return html[..start] + loop + html[end..];
     }
 
+    // A grid often wraps each card in its own column. Replace the range from the
+    // first column to the last with one loop that keeps the column wrapper.
+    private static string? TryReplaceWrappedCards(
+        string html,
+        string className,
+        string componentName,
+        int expectedCards)
+    {
+        if (expectedCards < 2)
+            return null;
+
+        var document = new HtmlParser().ParseDocument($"<body>{html}</body>");
+        var cards = document.QuerySelectorAll($".{className}").ToArray();
+        if (cards.Length != expectedCards)
+            return null;
+
+        var parents = cards.Select(card => card.ParentElement).ToArray();
+        if (parents.Any(parent => parent is null) ||
+            parents.Distinct().Count() != parents.Length ||
+            parents.Any(parent => parent!.QuerySelectorAll($".{className}").Length != 1))
+        {
+            return null;
+        }
+
+        var first = parents[0]!;
+        var last = parents[^1]!;
+        var card = cards[0].OuterHtml;
+        if (!first.OuterHtml.Contains(card, StringComparison.Ordinal))
+            return null;
+
+        var shell = first.OuterHtml.Replace(card, "", StringComparison.Ordinal);
+        if (!string.IsNullOrWhiteSpace(Regex.Replace(shell, "<[^>]+>", "")))
+            return null;
+
+        var firstIndex = html.IndexOf(first.OuterHtml, StringComparison.Ordinal);
+        var lastIndex = html.LastIndexOf(last.OuterHtml, StringComparison.Ordinal);
+        if (firstIndex < 0 || lastIndex < firstIndex)
+            return null;
+
+        // Do not span an unrelated section between two wrapped card groups.
+        var previousEnd = firstIndex + first.OuterHtml.Length;
+        for (var i = 1; i < parents.Length; i++)
+        {
+            var parentHtml = parents[i]!.OuterHtml;
+            var parentIndex = html.IndexOf(parentHtml, previousEnd, StringComparison.Ordinal);
+            if (parentIndex < 0)
+                return null;
+
+            var gap = html[previousEnd..parentIndex];
+            if (!string.IsNullOrWhiteSpace(RemoveComments(gap)))
+                return null;
+
+            previousEnd = parentIndex + parentHtml.Length;
+        }
+
+        var item = first.OuterHtml.Replace(
+            card,
+            "{{ include 'components/" + componentName + ".html' }}",
+            StringComparison.Ordinal);
+        var loop = "{{ for item in pages }}" + Environment.NewLine + item + Environment.NewLine + "{{ end }}";
+        return html[..firstIndex] + loop + html[(lastIndex + last.OuterHtml.Length)..];
+    }
+
     private static string RemoveComments(string html)
         => CommentRegex().Replace(html, "");
 
@@ -169,20 +250,35 @@ internal static partial class TemplateBodyTransformer
         var h1 = H1Regex().Match(html);
         if (!h1.Success)
         {
-            return html;
+            // A page may use an <h2> title (or no heading at all). Keep the outer
+            // container so page.content still renders inside the original wrapper.
+            var outer = OuterTagRegex().Match(html);
+            if (outer.Success)
+            {
+                var tag = outer.Groups["tag"].Value;
+                var close = html.LastIndexOf($"</{tag}>", StringComparison.OrdinalIgnoreCase);
+                if (close > outer.Index)
+                    return html[..(outer.Index + outer.Length)] +
+                           $"{Environment.NewLine}  {{{{ {variable} }}}}{Environment.NewLine}" +
+                           html[close..];
+            }
+
+            return $"{Environment.NewLine}{{{{ {variable} }}}}{Environment.NewLine}";
         }
 
-        var mainClose = html.LastIndexOf("</main>", StringComparison.OrdinalIgnoreCase);
-        if (mainClose <= h1.Index)
+        var contentEnd = html.LastIndexOf("</main>", StringComparison.OrdinalIgnoreCase);
+        if (contentEnd <= h1.Index)
         {
-            return html;
+            // The body may be a single <article> or a <div class="content"> with no
+            // <main>. Use the end of the unique body so the page still binds content.
+            contentEnd = html.Length;
         }
 
         var contentStart = h1.Index + h1.Length;
         // Wrappers opened before the heading (e.g. <article>) close inside the replaced
         // part; keep those closing tags so the template stays well formed.
-        var closers = UnmatchedClosingTags(html[contentStart..mainClose]);
-        return html[..contentStart] + $"{Environment.NewLine}  {{{{ {variable} }}}}{Environment.NewLine}" + closers + html[mainClose..];
+        var closers = UnmatchedClosingTags(html[contentStart..contentEnd]);
+        return html[..contentStart] + $"{Environment.NewLine}  {{{{ {variable} }}}}{Environment.NewLine}" + closers + html[contentEnd..];
     }
 
     private static readonly HashSet<string> VoidElements = new(StringComparer.OrdinalIgnoreCase)
@@ -240,6 +336,9 @@ internal static partial class TemplateBodyTransformer
 
     [GeneratedRegex(@"(?<open><h1[^>]*>).*?(?<close></h1>)", RegexOptions.IgnoreCase | RegexOptions.Singleline)]
     private static partial Regex H1Regex();
+
+    [GeneratedRegex(@"^\s*<(?<tag>[a-zA-Z][a-zA-Z0-9]*)\b[^>]*>", RegexOptions.Singleline)]
+    private static partial Regex OuterTagRegex();
 
     [GeneratedRegex(@"<!--.*?-->", RegexOptions.Singleline)]
     private static partial Regex CommentRegex();

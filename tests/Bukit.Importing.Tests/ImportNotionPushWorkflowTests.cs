@@ -113,7 +113,7 @@ databases:
     }
 
     [Fact]
-    public async Task PushSeedDirectoryAsync_DryRunWithCreateMissingDatabasesWritesGeneratedMapAndReport()
+    public async Task PushSeedDirectoryAsync_DryRunWithCreateMissingDatabasesWritesReportOnly()
     {
         using var token = new ImportingCommandTestSupport.EnvironmentVariableScope(
             "BUKIT_IMPORT_TEST_DRY_RUN_TOKEN",
@@ -147,12 +147,7 @@ databases:
         Assert.Equal(0, result.ExitCode);
         Assert.Contains("notion push dry-run complete: databases=2 records=2", result.StdOut, StringComparison.Ordinal);
         Assert.True(File.Exists(reportPath));
-        Assert.True(File.Exists(mapPath));
-
-        var generatedMap = File.ReadAllText(mapPath);
-        Assert.Contains("posts:", generatedMap, StringComparison.Ordinal);
-        Assert.Contains("navigation:", generatedMap, StringComparison.Ordinal);
-        Assert.Contains("uniqueField: Slug", generatedMap, StringComparison.Ordinal);
+        Assert.False(File.Exists(mapPath));
     }
 
     [Fact]

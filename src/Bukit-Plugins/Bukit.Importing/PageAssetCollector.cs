@@ -97,6 +97,10 @@ internal static partial class PageAssetCollector
         Dictionary<string, string> pathMappings,
         string basePath)
     {
+        // A data URI contains commas; splitting it would corrupt the inline image.
+        if (srcset.Contains("data:", StringComparison.OrdinalIgnoreCase))
+            return srcset;
+
         var candidates = new List<string>();
         foreach (var candidate in srcset.Split(',', StringSplitOptions.RemoveEmptyEntries))
         {

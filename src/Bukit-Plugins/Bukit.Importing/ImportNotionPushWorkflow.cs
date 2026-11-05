@@ -382,7 +382,8 @@ public static class ImportNotionPushWorkflow
         }
         finally
         {
-            PersistDatabaseMap();
+            if (!options.DryRun)
+                PersistDatabaseMap();
         }
 
         WriteMultiDatabaseReport(reportPath, options.DryRun, completedTargets, pushResults);
@@ -478,7 +479,8 @@ public static class ImportNotionPushWorkflow
     private static readonly (string Name, string Purpose)[] OptionalProperties =
     [
         ("Template", "per-page templates"),
-        ("Url", "per-page routes")
+        ("Url", "per-page routes"),
+        ("Image", "card images")
     ];
 
     private static async Task<(List<ImportSeedRecord> Records, IReadOnlyDictionary<string, string> Schema)>

@@ -201,7 +201,7 @@ public static class HtmlDemoImporter
 
             var content = AssetImporter.RewritePaths(component.NormalizedTemplate, pathMappings);
             content = PageAssetCollector.RewriteCssUrls(content, pathMappings);
-            content = PageAssetCollector.RewriteAssetAttributes(content, pathMappings);
+            content = PageAssetCollector.RewriteSrcsets(content, pathMappings, "{{ base_url }}");
             // Components render inside page templates, which set base_url.
             var source = component.UsedBy.FirstOrDefault()?.RelativePath ?? "index.html";
             content = InternalLinkRewriter.RewriteTemplate(content, source, plan);

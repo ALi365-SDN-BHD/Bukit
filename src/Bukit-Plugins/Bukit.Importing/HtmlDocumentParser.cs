@@ -44,7 +44,7 @@ internal static class HtmlDocumentParser
         }
 
         var (bodyOpening, uniqueBody, bodyClosing) = SplitBody(document, pageType);
-        var assetPaths = ExtractAssetPaths(document, html);
+        var assetPaths = ExtractAssetPaths(document);
 
         return new DiscoveredPage
         {
@@ -111,10 +111,10 @@ internal static class HtmlDocumentParser
         var unique = bodyHtml;
         var closing = "";
 
-        var first = body.Children.FirstOrDefault();
-        if (first is { LocalName: "header" })
+        var header = FindHeader(body);
+        if (header is not null)
         {
-            var end = IndexAfter(unique, first.OuterHtml);
+            var end = IndexAfter(unique, header.OuterHtml);
             if (end > 0)
             {
                 opening = unique[..end];
@@ -122,10 +122,10 @@ internal static class HtmlDocumentParser
             }
         }
 
-        var last = body.Children.LastOrDefault();
-        if (last is { LocalName: "footer" })
+        var footer = FindFooter(body);
+        if (footer is not null)
         {
-            var index = unique.LastIndexOf(last.OuterHtml, StringComparison.Ordinal);
+            var index = unique.LastIndexOf(footer.OuterHtml, StringComparison.Ordinal);
             if (index >= 0)
             {
                 closing = unique[index..];
@@ -136,13 +136,32 @@ internal static class HtmlDocumentParser
         return (opening, unique, closing);
     }
 
+    // A page may put its header/footer directly in body or inside one wrapper.
+    private static IElement? FindHeader(IElement body)
+    {
+        var direct = body.Children.FirstOrDefault(child => child.LocalName == "header");
+        if (direct is not null || body.Children.Length != 1)
+            return direct;
+
+        return body.Children[0].Children.FirstOrDefault(child => child.LocalName == "header");
+    }
+
+    private static IElement? FindFooter(IElement body)
+    {
+        var direct = body.Children.LastOrDefault(child => child.LocalName == "footer");
+        if (direct is not null || body.Children.Length != 1)
+            return direct;
+
+        return body.Children[0].Children.LastOrDefault(child => child.LocalName == "footer");
+    }
+
     private static int IndexAfter(string html, string value)
     {
         var index = html.IndexOf(value, StringComparison.Ordinal);
         return index < 0 ? -1 : index + value.Length;
     }
 
-    private static List<string> ExtractAssetPaths(IDocument document, string html)
+    private static List<string> ExtractAssetPaths(IDocument document)
     {
         var paths = new List<string>();
 
@@ -189,9 +208,9 @@ internal static class HtmlDocumentParser
     {
         foreach (var candidate in srcset.Split(',', StringSplitOptions.RemoveEmptyEntries))
         {
-            var url = candidate.Trim().Split(' ', 2, StringSplitOptions.RemoveEmptyEntries)[0];
-            if (!string.IsNullOrWhiteSpace(url))
-                yield return url;
+            var parts = candidate.Trim().Split(' ', 2, StringSplitOptions.RemoveEmptyEntries);
+            if (parts.Length > 0 && !string.IsNullOrWhiteSpace(parts[0]))
+                yield return parts[0];
         }
     }
 

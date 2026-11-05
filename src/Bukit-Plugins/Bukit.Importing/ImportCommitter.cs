@@ -151,7 +151,7 @@ internal static class ImportCommitter
 
         // Run residue analysis and strict check before the manifest deletes stale files,
         // so a failing --strict run leaves the previous import's files in place.
-        var hardcodedReport = TemplateResidueAnalyzer.Analyze(themeDir, null, routeMap);
+        var hardcodedReport = TemplateResidueAnalyzer.Analyze(themeDir);
         result = result with { HardcodedContentReport = hardcodedReport };
 
         if (options.StrictMode != null && hardcodedReport != null && options.StrictMode != "warn")
@@ -229,17 +229,22 @@ internal static class ImportCommitter
                 : PageAssetCollector.RewriteSrcsets(
                     AssetImporter.RewritePaths(value, mappings), mappings, basePath);
 
+        string? RewriteImage(string? value)
+            => string.IsNullOrWhiteSpace(value)
+                ? value
+                : mappings.TryGetValue(value, out var mapped) ? mapped : value;
+
         content.Pages = content.Pages
             .Select(page => page with { Content = Rewrite(page.Content) })
             .ToList();
         content.Posts = content.Posts
-            .Select(post => post with { Content = Rewrite(post.Content) })
+            .Select(post => post with { Content = Rewrite(post.Content), Image = RewriteImage(post.Image) })
             .ToList();
         content.Companies = content.Companies
-            .Select(company => company with { Content = Rewrite(company.Content) })
+            .Select(company => company with { Content = Rewrite(company.Content), Image = RewriteImage(company.Image) })
             .ToList();
         content.Services = content.Services
-            .Select(service => service with { Content = Rewrite(service.Content) })
+            .Select(service => service with { Content = Rewrite(service.Content), Image = RewriteImage(service.Image) })
             .ToList();
 
         return content;

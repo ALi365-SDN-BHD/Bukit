@@ -251,13 +251,11 @@ internal static partial class HtmlToMarkdownConverter
                 var src = element.GetAttribute("src") ?? "";
                 // A lazy image often has a placeholder in src and the real file in
                 // data-src; prefer the real file for the Markdown body.
-                if (src.Length == 0 || src.StartsWith("data:", StringComparison.OrdinalIgnoreCase))
-                {
-                    src = element.GetAttribute("data-src")
-                          ?? element.GetAttribute("data-original")
-                          ?? FirstSrcsetUrl(element.GetAttribute("srcset"))
-                          ?? src;
-                }
+                var lazySrc = element.GetAttribute("data-src") ?? element.GetAttribute("data-original");
+                if (!string.IsNullOrWhiteSpace(lazySrc))
+                    src = lazySrc;
+                else if (src.Length == 0 || src.StartsWith("data:", StringComparison.OrdinalIgnoreCase))
+                    src = FirstSrcsetUrl(element.GetAttribute("srcset")) ?? src;
                 if (src.Length > 0)
                     sb.Append($"![{element.GetAttribute("alt") ?? ""}]({src})");
                 return;

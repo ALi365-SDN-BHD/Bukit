@@ -1,9 +1,14 @@
 using System.Text;
+using System.Text.RegularExpressions;
 
 namespace Bukit.Importing;
 
 internal static class SeedGenerator
 {
+    private static readonly Regex CssUrlRegex = new(
+        @"url\(\s*(?<quote>['""]?)(?<value>[^'"")]+)\k<quote>\s*\)",
+        RegexOptions.IgnoreCase | RegexOptions.Compiled);
+
     internal static bool Generate(HtmlDemoImportOptions options, ExtractedContent content,
         List<DiscoveredComponent> components, List<DiscoveredPage> pages,
         ImportManifest? manifest = null)
@@ -122,6 +127,7 @@ internal static class SeedGenerator
             sb.AppendLine($"    \"slug\": {JsonStr(r.Slug)},");
             sb.AppendLine($"    \"summary\": {JsonVal(r.Summary)},");
             sb.AppendLine($"    \"content\": {JsonVal(r.Content)},");
+            sb.AppendLine($"    \"image\": {JsonVal(r.Image)},");
             sb.AppendLine($"    \"category\": {JsonVal(r.Category)},");
             sb.AppendLine($"    \"tags\": [{string.Join(", ", r.Tags.Select(JsonStr))}],");
             sb.AppendLine($"    \"language\": {JsonStr(r.Language)},");
@@ -140,6 +146,7 @@ internal static class SeedGenerator
             sb.AppendLine($"    \"slug\": {JsonStr(r.Slug)},");
             sb.AppendLine($"    \"summary\": {JsonVal(r.Summary)},");
             sb.AppendLine($"    \"content\": {JsonVal(r.Content)},");
+            sb.AppendLine($"    \"image\": {JsonVal(r.Image)},");
             sb.AppendLine($"    \"country\": {JsonVal(r.Country)},");
             sb.AppendLine($"    \"industry\": {JsonVal(r.Industry)},");
             sb.AppendLine($"    \"language\": {JsonStr(r.Language)},");
@@ -158,6 +165,7 @@ internal static class SeedGenerator
             sb.AppendLine($"    \"slug\": {JsonStr(r.Slug)},");
             sb.AppendLine($"    \"summary\": {JsonVal(r.Summary)},");
             sb.AppendLine($"    \"content\": {JsonVal(r.Content)},");
+            sb.AppendLine($"    \"image\": {JsonVal(r.Image)},");
             sb.AppendLine($"    \"language\": {JsonStr(r.Language)},");
             sb.AppendLine($"    \"published\": {JsonBool(r.Published)},");
             sb.AppendLine($"    \"seo_title\": {JsonVal(r.SeoTitle)},");
@@ -237,8 +245,73 @@ internal static class SeedGenerator
 
                 yield return (source, target, [page.RelativePath], status);
             }
+
+            foreach (var asset in page.AssetPaths)
+            {
+                if (!Path.GetExtension(asset).Equals(".css", StringComparison.OrdinalIgnoreCase))
+                    continue;
+
+                var cssRelative = DemoLinks.ResolvePath(page.RelativePath, asset);
+                if (cssRelative is null)
+                    continue;
+                var cssPath = Path.Combine(inputPath, cssRelative);
+                if (!File.Exists(cssPath))
+                    continue;
+
+                foreach (var source in CssImagePaths(cssPath, inputPath))
+                {
+                    yield return (source, "/" + source, [page.RelativePath], "copied");
+                }
+            }
         }
     }
+
+    private static IEnumerable<string> CssImagePaths(string cssPath, string inputPath)
+    {
+        string css;
+        try
+        {
+            css = DemoFiles.DecodeCss(File.ReadAllBytes(cssPath));
+        }
+        catch (IOException)
+        {
+            yield break;
+        }
+
+        var cssDir = Path.GetDirectoryName(cssPath) ?? inputPath;
+        foreach (Match match in CssUrlRegex.Matches(css))
+        {
+            var value = match.Groups["value"].Value.Trim();
+            var cut = value.IndexOfAny(['?', '#']);
+            if (cut >= 0)
+                value = value[..cut];
+            if (string.IsNullOrWhiteSpace(value) ||
+                value.StartsWith('#') ||
+                value.StartsWith("data:", StringComparison.OrdinalIgnoreCase) ||
+                value.StartsWith("http://", StringComparison.OrdinalIgnoreCase) ||
+                value.StartsWith("https://", StringComparison.OrdinalIgnoreCase) ||
+                value.StartsWith("//", StringComparison.Ordinal))
+            {
+                continue;
+            }
+
+            var imagePath = Path.GetFullPath(value.StartsWith('/')
+                ? Path.Combine(inputPath, value.TrimStart('/'))
+                : Path.Combine(cssDir, value));
+            var relative = Path.GetRelativePath(inputPath, imagePath).Replace('\\', '/');
+            if (relative.StartsWith("../", StringComparison.Ordinal) ||
+                !IsImageExtension(Path.GetExtension(relative)) ||
+                !File.Exists(imagePath))
+            {
+                continue;
+            }
+
+            yield return relative;
+        }
+    }
+
+    private static bool IsImageExtension(string extension)
+        => extension.ToLowerInvariant() is ".png" or ".jpg" or ".jpeg" or ".gif" or ".svg" or ".webp" or ".ico" or ".bmp";
 
     private static void WriteComponents(string path, List<DiscoveredComponent> components, bool overwrite, ImportManifest? manifest = null)
     {
@@ -336,6 +409,7 @@ internal static class SeedGenerator
             YamlField(sb, "slug", r.Slug);
             YamlField(sb, "summary", r.Summary);
             YamlField(sb, "content", r.Content);
+            YamlField(sb, "image", r.Image);
             YamlField(sb, "category", r.Category);
             YamlList(sb, "tags", r.Tags);
             YamlField(sb, "language", r.Language);
@@ -354,6 +428,7 @@ internal static class SeedGenerator
             YamlField(sb, "slug", r.Slug);
             YamlField(sb, "summary", r.Summary);
             YamlField(sb, "content", r.Content);
+            YamlField(sb, "image", r.Image);
             YamlField(sb, "country", r.Country);
             YamlField(sb, "industry", r.Industry);
             YamlField(sb, "language", r.Language);
@@ -372,6 +447,7 @@ internal static class SeedGenerator
             YamlField(sb, "slug", r.Slug);
             YamlField(sb, "summary", r.Summary);
             YamlField(sb, "content", r.Content);
+            YamlField(sb, "image", r.Image);
             YamlField(sb, "language", r.Language);
             YamlBool(sb, "published", r.Published);
             YamlField(sb, "seo_title", r.SeoTitle);

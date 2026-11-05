@@ -187,6 +187,7 @@ public sealed record PostRecord
     public string Slug { get; init; } = "";
     public string? Summary { get; init; }
     public string? Content { get; init; }
+    public string? Image { get; init; }
     public string? Category { get; init; }
     public List<string> Tags { get; init; } = [];
     public string Language { get; init; } = "zh";
@@ -203,6 +204,7 @@ public sealed record CompanyRecord
     public string Slug { get; init; } = "";
     public string? Summary { get; init; }
     public string? Content { get; init; }
+    public string? Image { get; init; }
     public string? Country { get; init; }
     public string? Industry { get; init; }
     public string Language { get; init; } = "zh";
@@ -219,6 +221,7 @@ public sealed record ServiceRecord
     public string Slug { get; init; } = "";
     public string? Summary { get; init; }
     public string? Content { get; init; }
+    public string? Image { get; init; }
     public string Language { get; init; } = "zh";
     public bool Published { get; init; } = true;
     public string? SeoTitle { get; init; }

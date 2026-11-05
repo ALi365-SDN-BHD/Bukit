@@ -26,6 +26,10 @@ internal static partial class ComponentExtractor
     private static readonly Regex LinkRegex = LinkPattern();
     private static readonly Regex ParagraphRegex = ParagraphPattern();
     private static readonly Regex ClassAttrRegex = ClassAttrPattern();
+    private static readonly Regex ImgTagRegex = ImgTagPattern();
+    private static readonly Regex ImgSrcRegex = ImgSrcPattern();
+    private static readonly Regex ImgLazyRegex = ImgLazyPattern();
+    private static readonly Regex ImgSrcsetRegex = ImgSrcsetPattern();
 
     internal static List<DiscoveredComponent> Extract(List<DiscoveredPage> pages)
     {
@@ -89,7 +93,7 @@ internal static partial class ComponentExtractor
     private static string ExtractComponentHtml(DiscoveredPage page, string cssClass)
     {
         var tagEnd = cssClass.StartsWith('.') ? cssClass[1..] : cssClass;
-        var pattern = $@"<([a-zA-Z][a-zA-Z0-9]*)[^>]*?\bclass\s*=\s*""(?:[^""]*\s)?{Regex.Escape(tagEnd)}(?:\s[^""]*)?""[^>]*>";
+        var pattern = $@"<([a-zA-Z][a-zA-Z0-9]*)[^>]*?\bclass\s*=\s*[""'](?:[^""']*\s)?{Regex.Escape(tagEnd)}(?:\s[^""']*)?[""'][^>]*>";
         var regex = new Regex(pattern, RegexOptions.IgnoreCase | RegexOptions.Singleline);
         var match = regex.Match(page.FullHtml);
 
@@ -149,6 +153,22 @@ internal static partial class ComponentExtractor
         var content = ParagraphRegex.Replace(fragment, _ => "<p>{{ item.summary }}</p>");
         content = LinkRegex.Replace(content, _ =>
             "<a href=\"{{ base_url }}{{ item.url }}\">{{ item.title }}</a>");
+        content = ImgTagRegex.Replace(content, match =>
+        {
+            var tag = match.Value;
+            if (!ImgSrcRegex.IsMatch(tag) && !ImgLazyRegex.IsMatch(tag))
+                return tag;
+            if (IsExternalImage(tag))
+                return tag;
+
+            tag = ImgSrcRegex.Replace(tag, m =>
+                $"{m.Groups[1].Value}=\"{{{{ base_url }}}}{{{{ item.fields.image.value }}}}\"");
+            tag = ImgLazyRegex.Replace(tag, "");
+            tag = ImgSrcsetRegex.Replace(tag, "");
+            if (!ImgSrcRegex.IsMatch(tag))
+                tag = tag.Insert(4, " src=\"{{ base_url }}{{ item.fields.image.value }}\"");
+            return tag;
+        });
         content = HeadingRegex.Replace(content, m =>
         {
             var tagName = m.Groups[1].Value;
@@ -159,6 +179,17 @@ internal static partial class ComponentExtractor
         });
 
         return content;
+    }
+
+    private static bool IsExternalImage(string tag)
+    {
+        var source = ImgLazyRegex.Match(tag) is { Success: true } lazy
+            ? lazy.Groups[2].Value
+            : ImgSrcRegex.Match(tag).Groups[2].Value;
+        return source.StartsWith("http://", StringComparison.OrdinalIgnoreCase) ||
+               source.StartsWith("https://", StringComparison.OrdinalIgnoreCase) ||
+               source.StartsWith("//", StringComparison.Ordinal) ||
+               source.StartsWith("data:", StringComparison.OrdinalIgnoreCase);
     }
 
     private static string DedupeKey(string html)
@@ -186,4 +217,16 @@ internal static partial class ComponentExtractor
 
     [GeneratedRegex(@"<p[^>]*>.*?</p>", RegexOptions.IgnoreCase | RegexOptions.Singleline)]
     private static partial Regex ParagraphPattern();
+
+    [GeneratedRegex(@"<img\b[^>]*>", RegexOptions.IgnoreCase | RegexOptions.Singleline)]
+    private static partial Regex ImgTagPattern();
+
+    [GeneratedRegex(@"\bsrc\s*=\s*([""'])([^""']*)\1", RegexOptions.IgnoreCase)]
+    private static partial Regex ImgSrcPattern();
+
+    [GeneratedRegex(@"\s(?:data-src|data-original)\s*=\s*([""'])([^""']*)\1", RegexOptions.IgnoreCase)]
+    private static partial Regex ImgLazyPattern();
+
+    [GeneratedRegex(@"\s(?:srcset|data-srcset)\s*=\s*([""'])[^""']*\1", RegexOptions.IgnoreCase)]
+    private static partial Regex ImgSrcsetPattern();
 }

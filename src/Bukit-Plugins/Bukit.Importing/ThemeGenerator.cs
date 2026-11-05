@@ -140,7 +140,10 @@ internal static partial class ThemeGenerator
         if (string.IsNullOrWhiteSpace(content)) return;
 
         var linked = InternalLinkRewriter.RewriteTemplate(
-            AssetImporter.RewritePaths(ScribanText.Escape(PageAssetCollector.StripAssets(content)), pathMappings),
+            PageAssetCollector.RewriteSrcsets(
+                AssetImporter.RewritePaths(ScribanText.Escape(PageAssetCollector.StripAssets(content)), pathMappings),
+                pathMappings,
+                "{{ base_url }}"),
             sourceRelativePath,
             plan);
         var rewritten = MakeNavigationDataAware(linked);

@@ -22,13 +22,13 @@ internal static class ContentDraftWriter
             WritePageDraft(contentDir, page, claimed, options.Overwrite, manifest);
 
         foreach (var post in content.Posts)
-            WriteCollectionDraft(Path.Combine(contentDir, "posts"), post.Title, post.Slug, "post", post.Summary, post.Content, post.SeoTitle, post.SeoDescription, post.TemplatePath, claimed, options.Overwrite, manifest);
+            WriteCollectionDraft(Path.Combine(contentDir, "posts"), post.Title, post.Slug, "post", post.Summary, post.Content, post.Image, post.SeoTitle, post.SeoDescription, post.TemplatePath, claimed, options.Overwrite, manifest);
 
         foreach (var company in content.Companies)
-            WriteCollectionDraft(Path.Combine(contentDir, "companies"), company.Title, company.Slug, "company", company.Summary, company.Content, company.SeoTitle, company.SeoDescription, company.TemplatePath, claimed, options.Overwrite, manifest);
+            WriteCollectionDraft(Path.Combine(contentDir, "companies"), company.Title, company.Slug, "company", company.Summary, company.Content, company.Image, company.SeoTitle, company.SeoDescription, company.TemplatePath, claimed, options.Overwrite, manifest);
 
         foreach (var service in content.Services)
-            WriteCollectionDraft(Path.Combine(contentDir, "services"), service.Title, service.Slug, "service", service.Summary, service.Content, service.SeoTitle, service.SeoDescription, service.TemplatePath, claimed, options.Overwrite, manifest);
+            WriteCollectionDraft(Path.Combine(contentDir, "services"), service.Title, service.Slug, "service", service.Summary, service.Content, service.Image, service.SeoTitle, service.SeoDescription, service.TemplatePath, claimed, options.Overwrite, manifest);
     }
 
     private static bool IsNotionBuildSource(HtmlDemoImportOptions options)
@@ -38,7 +38,7 @@ internal static class ContentDraftWriter
     {
         var slug = string.IsNullOrWhiteSpace(page.Slug) ? "index" : page.Slug;
         WriteCollectionDraft(Path.Combine(contentDir, "pages"), page.Title, slug, "page", page.Summary, page.Content,
-            page.SeoTitle, page.SeoDescription, page.TemplatePath, claimed, overwrite, manifest, page.Url);
+            null, page.SeoTitle, page.SeoDescription, page.TemplatePath, claimed, overwrite, manifest, page.Url);
     }
 
     // Core renders the home page at "/" from pages/index.html on its own; a home
@@ -54,6 +54,7 @@ internal static class ContentDraftWriter
         string collection,
         string? summary,
         string? content,
+        string? image,
         string? seoTitle,
         string? seoDescription,
         string? templatePath,
@@ -86,6 +87,7 @@ internal static class ContentDraftWriter
             // Route-map URL; without it Core uses the collection permalink.
             new("url", url),
             new("summary", summary),
+            new("image", image),
             new("seo_title", seoTitle),
             new("seo_desc", seoDescription),
             new("draft", false)

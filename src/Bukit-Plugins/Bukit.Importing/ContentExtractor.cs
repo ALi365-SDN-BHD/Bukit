@@ -14,6 +14,8 @@ internal static partial class ContentExtractor
     private static readonly Regex CardHeadingRegex = CardHeadingPattern();
     private static readonly Regex CardParagraphRegex = CardParagraphPattern();
     private static readonly Regex CardLinkRegex = CardLinkPattern();
+    private static readonly Regex ImgTagRegex = ImgTagPattern();
+    private static readonly Regex ImgSourceRegex = ImgSourcePattern();
     private static readonly Regex FaqHeadingRegex = FaqHeadingPattern();
     private static readonly Regex SectionOuterRegex = SectionOuterPattern();
     private static readonly Regex SectionClassRegex = SectionClassPattern();
@@ -308,6 +310,30 @@ internal static partial class ContentExtractor
         return detail.Slug;
     }
 
+    private static string? ExtractCardImage(string html)
+    {
+        var tag = ImgTagRegex.Match(html);
+        if (!tag.Success)
+            return null;
+
+        var value = ReadImageAttribute(tag.Value, "data-src")
+                    ?? ReadImageAttribute(tag.Value, "data-original")
+                    ?? ReadImageAttribute(tag.Value, "src");
+        return string.IsNullOrWhiteSpace(value) ||
+               value.StartsWith("data:", StringComparison.OrdinalIgnoreCase) ||
+               value.StartsWith("http://", StringComparison.OrdinalIgnoreCase) ||
+               value.StartsWith("https://", StringComparison.OrdinalIgnoreCase) ||
+               value.StartsWith("//", StringComparison.Ordinal)
+            ? null
+            : value;
+    }
+
+    private static string? ReadImageAttribute(string tag, string name)
+        => ImgSourceRegex.Matches(tag)
+            .Cast<Match>()
+            .FirstOrDefault(match => match.Groups[1].Value.Equals(name, StringComparison.OrdinalIgnoreCase))?
+            .Groups[2].Value.Trim();
+
     private static string? ExtractSummary(string html)
     {
         var match = FirstParagraphRegex.Match(html);
@@ -382,6 +408,7 @@ internal static partial class ContentExtractor
                 Title = title,
                 Slug = slug,
                 Summary = p.Success ? StripHtml(p.Groups[1].Value).Trim() : null,
+                Image = ExtractCardImage(cardHtml),
                 SeoTitle = title
             });
         }
@@ -404,6 +431,7 @@ internal static partial class ContentExtractor
                 Slug = slug,
                 Summary = ExtractSummary(page.UniqueBody),
                 Content = ExtractContentBody(page.UniqueBody),
+                Image = ExtractCardImage(page.UniqueBody),
                 SeoTitle = title,
                 SeoDescription = page.MetaDescription ?? ExtractSummary(page.UniqueBody)
             });
@@ -437,6 +465,7 @@ internal static partial class ContentExtractor
                     ? slugFromLink
                     : GetSlugWithFallback(title, "company", ref counter),
                 Summary = p.Success ? StripHtml(p.Groups[1].Value).Trim() : null,
+                Image = ExtractCardImage(cardHtml),
                 SeoTitle = title
             });
         }
@@ -490,6 +519,7 @@ internal static partial class ContentExtractor
                     ? slugFromLink
                     : GetSlugWithFallback(title, "service", ref counter),
                 Summary = p.Success ? StripHtml(p.Groups[1].Value).Trim() : null,
+                Image = ExtractCardImage(cardHtml),
                 SeoTitle = title
             });
         }
@@ -648,6 +678,12 @@ internal static partial class ContentExtractor
 
     [GeneratedRegex(@"<p[^>]*>(.*?)</p>", RegexOptions.IgnoreCase | RegexOptions.Singleline)]
     private static partial Regex CardParagraphPattern();
+
+    [GeneratedRegex(@"<img\b[^>]*>", RegexOptions.IgnoreCase | RegexOptions.Singleline)]
+    private static partial Regex ImgTagPattern();
+
+    [GeneratedRegex(@"\b(data-src|data-original|src)\s*=\s*[""']([^""']+)[""']", RegexOptions.IgnoreCase)]
+    private static partial Regex ImgSourcePattern();
 
     [GeneratedRegex(@"<a[^>]*href=[""']([^""']*)[""']", RegexOptions.IgnoreCase)]
     private static partial Regex CardLinkPattern();
