@@ -17,6 +17,16 @@ internal static class SeoCompatibilityAuditRules
         return scope.IsInScope;
     }
 
+    /// <summary>
+    /// Returns whether a canonical is listed in the sitemap, matching the identity the sitemap
+    /// writers dedupe by (origin case and default ports do not matter). Build it once per audit.
+    /// </summary>
+    internal static Func<string?, bool> CreateSitemapPresenceCheck(string? sitemapText)
+    {
+        var locKeys = SitemapCanonicalIdentity.ReadLocKeys(sitemapText);
+        return canonical => SitemapCanonicalIdentity.Contains(locKeys, canonical);
+    }
+
     internal static void Analyze(
         PublishDocument document,
         bool sitemapIncluded,

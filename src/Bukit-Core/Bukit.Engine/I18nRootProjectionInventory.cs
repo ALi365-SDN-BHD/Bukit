@@ -17,12 +17,17 @@ internal static class I18nRootProjectionInventory
         var fileExists = File.Exists(path);
         var urls = publishedUrls ?? (fileExists ? ReadUrls(File.ReadAllText(path), representation.Kind) : []);
         var outputs = new List<PublishRepresentationOutput>();
+        // Sitemap writers dedupe canonicals by normalized origin, so compare by that identity too.
+        var sitemapLocKeys = representation.Kind.Equals("sitemap", StringComparison.OrdinalIgnoreCase)
+            ? urls.Select(SitemapLocFilter.CanonicalKey).ToHashSet(StringComparer.Ordinal)
+            : null;
         foreach (var result in results)
         {
             foreach (var (_, seo) in result.SeoIndex.OrderBy(x => x.Value.Route.Url, StringComparer.OrdinalIgnoreCase))
             {
                 var url = I18nRootProjectionPath.CombineBaseUrl(result.BaseUrl, seo.Route.Url);
-                var routePresent = urls.Contains(url) || urls.Contains(seo.Canonical);
+                var routePresent = urls.Contains(url) || urls.Contains(seo.Canonical) ||
+                                   (sitemapLocKeys is not null && SitemapCanonicalIdentity.Contains(sitemapLocKeys, seo.Canonical));
                 var exists = representation.Kind.Equals("robots", StringComparison.OrdinalIgnoreCase)
                     ? fileExists
                     : fileExists && seo.Indexable && routePresent;

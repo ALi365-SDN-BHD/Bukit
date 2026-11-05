@@ -53,6 +53,7 @@ internal static partial class MachineReadabilityTrustAuditBuilder
                                    !string.IsNullOrWhiteSpace(config.Site.Search.Route);
 
         var isInSitemapScope = SeoCompatibilityAuditRules.CreateSitemapScopeCheck(config.Site.Url, config.Site.BaseUrl);
+        var isInSitemap = SeoCompatibilityAuditRules.CreateSitemapPresenceCheck(sitemapText);
         foreach (var (key, entry) in seoIndex.OrderBy(x => x.Value.Route.Url, StringComparer.OrdinalIgnoreCase))
         {
             seoModels.TryGetValue(key, out var model);
@@ -89,7 +90,7 @@ internal static partial class MachineReadabilityTrustAuditBuilder
             var sitemapExpected = entry.Indexable && isInSitemapScope(entry.Canonical);
             var sitemapIncluded = TryGetProjectionIncluded(projectionLookup, "sitemap", entry, out var projectedSitemap)
                 ? projectedSitemap
-                : entry.Indexable && ContainsInvariant(sitemapText, $"<loc>{entry.Canonical}</loc>");
+                : entry.Indexable && (ContainsInvariant(sitemapText, $"<loc>{entry.Canonical}</loc>") || isInSitemap(entry.Canonical));
             var searchIncluded = TryGetProjectionIncluded(projectionLookup, "search", entry, out var projectedSearch)
                 ? projectedSearch
                 : entry.Indexable && ContainsInvariant(searchText, entry.Route.Url);
