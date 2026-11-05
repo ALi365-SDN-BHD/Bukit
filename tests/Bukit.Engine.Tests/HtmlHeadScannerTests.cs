@@ -131,6 +131,28 @@ public sealed class HtmlHeadScannerTests
         Assert.Equal("</head>", html[close..(end + 1)]);
     }
 
+    // ── HtmlTagAttributeReader ──────────────────────────────────────
+
+    [Fact]
+    public void GetAttribute_ValuelessAttribute_DoesNotSkipFollowingAttribute()
+    {
+        const string tag = "<meta itemprop charset=\"utf-8\">";
+
+        Assert.Equal(string.Empty, HtmlTagAttributeReader.GetAttribute(tag, "itemprop"));
+        Assert.Equal("utf-8", HtmlTagAttributeReader.GetAttribute(tag, "charset"));
+    }
+
+    [Fact]
+    public void FindEncodingDeclarationEnd_FindsCharsetAfterValuelessAttribute()
+    {
+        const string html = "<html><head><meta itemprop charset=\"utf-8\"><title>x</title></head><body></body></html>";
+
+        Assert.True(HtmlHeadScanner.TryFindHead(html, out var head));
+        Assert.Equal(
+            html.IndexOf("<title>", StringComparison.Ordinal),
+            HtmlHeadScanner.FindEncodingDeclarationEnd(html, head));
+    }
+
     // ── FindTagEnd ──────────────────────────────────────────────────
 
     [Fact]

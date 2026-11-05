@@ -25,7 +25,11 @@ internal static class SeoModelBuilder
         var seoTitle = seoTitleOverride ?? FirstTextField(fields, "seo_title") ?? FirstTextField(fields, "seotitle") ?? document.Title;
         var visibleTitle = visibleTitleOverride ?? record.Presentation.Title;
         var description = descriptionOverride ?? FirstTextField(fields, "seo_desc") ?? FirstTextField(fields, "seodesc") ?? record.Presentation.Summary ?? config.Site.Description;
-        var canonical = FirstTextField(fields, "canonical") ?? BuildAbsoluteUrl(config.Site.Url, baseUrl, route.Url);
+        var canonical = ResolveCanonical(
+            config.Site.Url,
+            baseUrl,
+            route.Url,
+            FirstTextField(fields, "canonical"));
         var robots = FirstTextField(fields, "robots");
         var resolvedImage = SeoImageResolver.ResolveForContent(config, baseUrl, document);
         var image = resolvedImage.Url;
@@ -64,7 +68,7 @@ internal static class SeoModelBuilder
                 Image = image,
                 Type = isArticle ? "article" : "website",
                 SiteName = config.Site.Title,
-                Locale = config.Site.Language
+                Locale = NormalizeOpenGraphLocale(config.Site.Language)
             },
             Twitter = new SeoTwitterModel
             {
@@ -156,7 +160,7 @@ internal static class SeoModelBuilder
                 Image = image,
                 Type = "website",
                 SiteName = config.Site.Title,
-                Locale = config.Site.Language
+                Locale = NormalizeOpenGraphLocale(config.Site.Language)
             },
             Twitter = new SeoTwitterModel
             {
@@ -177,13 +181,65 @@ internal static class SeoModelBuilder
         var b = NormalizeBaseUrl(baseUrl);
         var path = b == "/" ? u : $"{b}{u}";
 
-        if (string.IsNullOrWhiteSpace(siteUrl))
+        return BuildSiteAbsoluteUrl(siteUrl, path);
+    }
+
+    internal static string ResolveCanonical(
+        string? siteUrl,
+        string baseUrl,
+        string routeUrl,
+        string? configuredCanonical)
+    {
+        if (string.IsNullOrWhiteSpace(configuredCanonical))
         {
-            return path;
+            return BuildAbsoluteUrl(siteUrl, baseUrl, routeUrl);
         }
 
-        return siteUrl.Trim().TrimEnd('/') + path;
+        var value = configuredCanonical.Trim();
+        if (value.StartsWith("http://", StringComparison.OrdinalIgnoreCase) ||
+            value.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
+        {
+            return value;
+        }
+
+        if (value.StartsWith("//", StringComparison.Ordinal))
+        {
+            return "https:" + value;
+        }
+
+        if (!value.StartsWith('/') &&
+            Uri.TryCreate(value, UriKind.Absolute, out var absolute) &&
+            !absolute.Scheme.Equals(Uri.UriSchemeHttp, StringComparison.OrdinalIgnoreCase) &&
+            !absolute.Scheme.Equals(Uri.UriSchemeHttps, StringComparison.OrdinalIgnoreCase))
+        {
+            return value;
+        }
+
+        if (!value.StartsWith('/'))
+        {
+            return value;
+        }
+
+        var normalizedBase = NormalizeBaseUrl(baseUrl);
+        if (normalizedBase != "/" &&
+            (value.Equals(normalizedBase, StringComparison.Ordinal) ||
+             value.StartsWith(normalizedBase + "/", StringComparison.Ordinal)))
+        {
+            return BuildSiteAbsoluteUrl(siteUrl, value);
+        }
+
+        return BuildAbsoluteUrl(siteUrl, baseUrl, value);
     }
+
+    internal static string NormalizeOpenGraphLocale(string? language)
+        => string.IsNullOrWhiteSpace(language)
+            ? string.Empty
+            : language.Trim().Replace('-', '_');
+
+    private static string BuildSiteAbsoluteUrl(string? siteUrl, string path)
+        => string.IsNullOrWhiteSpace(siteUrl)
+            ? path
+            : siteUrl.Trim().TrimEnd('/') + path;
 
     internal static string BuildAlternateKey(ContentDocument document, RouteInfo route)
     {

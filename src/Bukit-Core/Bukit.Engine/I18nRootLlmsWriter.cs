@@ -40,7 +40,8 @@ internal sealed class I18nRootLlmsWriter : II18nRootProjectionWriter
             state.SeoIndex,
             state.SeoModels,
             context.Config.Site.Seo.Geo,
-            urls);
+            urls,
+            includeAgentManifest: true);
         context.PublishedUrls["llms"] = urls;
     }
 

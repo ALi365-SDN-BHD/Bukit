@@ -7,6 +7,11 @@ internal sealed class GoogleTagManagerProvider : IAnalyticsProvider
     public AnalyticsHtmlFragments Render(
         ResolvedAnalyticsProvider provider,
         AnalyticsRenderContext context)
+        => RenderFragments(provider, includeNoScript: true);
+
+    internal static AnalyticsHtmlFragments RenderFragments(
+        ResolvedAnalyticsProvider provider,
+        bool includeNoScript)
     {
         var containerId = provider.Options["containerId"];
         var javascriptContainerId = AnalyticsValueEncoder.JavaScriptString(containerId);
@@ -16,6 +21,8 @@ internal sealed class GoogleTagManagerProvider : IAnalyticsProvider
         return new AnalyticsHtmlFragments(
             provider.Key,
             HeadStart: $"<script>(function(w,d,s,l,i){{w[l]=w[l]||[];w[l].push({{'gtm.start':new Date().getTime(),event:'gtm.js'}});var f=d.getElementsByTagName(s)[0],j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src='https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);}})(window,document,'script','dataLayer','{javascriptContainerId}');</script>",
-            BodyStart: $"<noscript><iframe src=\"{iframeUrl}\" height=\"0\" width=\"0\" style=\"display:none;visibility:hidden\"></iframe></noscript>");
+            BodyStart: includeNoScript
+                ? $"<noscript><iframe src=\"{iframeUrl}\" height=\"0\" width=\"0\" style=\"display:none;visibility:hidden\"></iframe></noscript>"
+                : null);
     }
 }

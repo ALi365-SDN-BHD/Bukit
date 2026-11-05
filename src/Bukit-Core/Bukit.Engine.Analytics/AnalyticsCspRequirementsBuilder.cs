@@ -8,11 +8,16 @@ internal sealed record AnalyticsCspRequirements(
     IReadOnlyList<string> InlineScriptSha256,
     IReadOnlyList<string> ScriptSrcOrigins,
     IReadOnlyList<string> FrameSrcOrigins,
+    IReadOnlyList<string> ConnectSrc,
+    IReadOnlyList<string> ImgSrc,
     bool DynamicContainerDestinationsUnknown);
 
 internal static class AnalyticsCspRequirementsBuilder
 {
     private const string GoogleTagOrigin = "https://www.googletagmanager.com";
+    private const string GoogleAnalyticsCollectOrigin = "https://*.google-analytics.com";
+    private const string GoogleAnalyticsRegionOrigin = "https://*.analytics.google.com";
+    private const string GoogleTagWildcardOrigin = "https://*.googletagmanager.com";
 
     internal static AnalyticsCspRequirements? Build(
         bool pluginEnabled,
@@ -43,6 +48,8 @@ internal static class AnalyticsCspRequirementsBuilder
             .ToArray();
         var scriptOrigins = new HashSet<string>(StringComparer.Ordinal);
         var frameOrigins = new HashSet<string>(StringComparer.Ordinal);
+        var connectSrc = new HashSet<string>(StringComparer.Ordinal);
+        var imgSrc = new HashSet<string>(StringComparer.Ordinal);
         var dynamicContainerDestinationsUnknown = false;
         foreach (var provider in config.Providers)
         {
@@ -50,28 +57,39 @@ internal static class AnalyticsCspRequirementsBuilder
             {
                 case "google-analytics":
                     scriptOrigins.Add(GoogleTagOrigin);
+                    connectSrc.Add(GoogleAnalyticsCollectOrigin);
+                    connectSrc.Add(GoogleAnalyticsRegionOrigin);
+                    connectSrc.Add(GoogleTagWildcardOrigin);
+                    imgSrc.Add(GoogleAnalyticsCollectOrigin);
+                    imgSrc.Add(GoogleTagWildcardOrigin);
                     break;
                 case "google-tag-manager":
                     scriptOrigins.Add(GoogleTagOrigin);
                     frameOrigins.Add(GoogleTagOrigin);
+                    connectSrc.Add(GoogleTagWildcardOrigin);
+                    imgSrc.Add(GoogleTagWildcardOrigin);
                     dynamicContainerDestinationsUnknown = true;
                     break;
                 case "plausible":
                 case "umami":
-                    scriptOrigins.Add(GetOrigin(provider.Options["scriptUrl"]));
+                    var origin = GetOrigin(provider.Options["scriptUrl"]);
+                    scriptOrigins.Add(origin);
+                    connectSrc.Add(origin);
                     break;
             }
         }
 
         return new AnalyticsCspRequirements(
             inlineHashes,
-            scriptOrigins.Order(StringComparer.Ordinal).ToArray(),
-            frameOrigins.Order(StringComparer.Ordinal).ToArray(),
+            [.. scriptOrigins.Order(StringComparer.Ordinal)],
+            [.. frameOrigins.Order(StringComparer.Ordinal)],
+            [.. connectSrc.Order(StringComparer.Ordinal)],
+            [.. imgSrc.Order(StringComparer.Ordinal)],
             dynamicContainerDestinationsUnknown);
     }
 
     private static AnalyticsCspRequirements Empty()
-        => new([], [], [], DynamicContainerDestinationsUnknown: false);
+        => new([], [], [], [], [], DynamicContainerDestinationsUnknown: false);
 
     private static IEnumerable<string> AllFragments(AnalyticsHtmlFragments fragments)
     {

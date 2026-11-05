@@ -18,7 +18,7 @@ internal sealed class LlmsTxtPlugin : IBukitPlugin, IAfterBuildAsyncPlugin
     }
 
     // llms.txt must start with "# Title"; a BOM would hide the H1 from strict parsers.
-    private static readonly UTF8Encoding Utf8NoBom = new(encoderShouldEmitUTF8Identifier: false);
+    private static readonly Encoding Utf8NoBom = new UTF8Encoding(encoderShouldEmitUTF8Identifier: false);
 
     public string Name => "llms-txt";
     public string Version => "1.0.0";
@@ -166,7 +166,8 @@ internal sealed class LlmsTxtPlugin : IBukitPlugin, IAfterBuildAsyncPlugin
         IReadOnlyDictionary<string, SeoIndexEntry> seoIndex,
         IReadOnlyDictionary<string, SeoModel> seoModels,
         SeoGeoConfig geo,
-        ISet<string>? publishedUrls = null)
+        ISet<string>? publishedUrls = null,
+        bool includeAgentManifest = false)
     {
         var sb = new StringBuilder();
         var title = config.Site.Title;
@@ -293,7 +294,12 @@ internal sealed class LlmsTxtPlugin : IBukitPlugin, IAfterBuildAsyncPlugin
             sb.AppendLine();
         }
 
-        if (optionalPages.Count > 0 || geo.LlmsTxtOptionalLinks is { Count: > 0 })
+        // The agent manifest lists every page with its Markdown and JSON versions. It sits at the
+        // output root, so it uses the site base URL even when routes already carry it (merged i18n).
+        var agentManifestUrl = includeAgentManifest
+            ? ResolveFullUrl("/agent-manifest.json", BuildBase(config, config.Site.BaseUrl))
+            : null;
+        if (optionalPages.Count > 0 || geo.LlmsTxtOptionalLinks is { Count: > 0 } || agentManifestUrl is not null)
         {
             sb.AppendLine("## Optional");
             sb.AppendLine();
@@ -324,6 +330,12 @@ internal sealed class LlmsTxtPlugin : IBukitPlugin, IAfterBuildAsyncPlugin
                     sb.AppendLine();
                     linkCount++;
                 }
+            }
+
+            if (agentManifestUrl is not null)
+            {
+                sb.Append(MarkdownLink("Agent manifest", agentManifestUrl));
+                sb.AppendLine(": Machine-readable index of every page with links to its Markdown and JSON versions");
             }
 
             sb.AppendLine();

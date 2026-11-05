@@ -204,11 +204,20 @@ public sealed class SitemapPluginTests
     [InlineData("https://example.com", "/repo/", "https://example.com/repository/a/", false)]
     [InlineData("https://example.com", "/repo/", "https://example.com/a/", false)]
     [InlineData("https://example.com", "/", "", false)]
+    [InlineData("https://example.com", "/repo/", "https://example.com/REPO/a/", false)]
+    [InlineData("https://example.com", "/repo/", "HTTPS://Example.COM/repo/a/", true)]
+    [InlineData("https://example.com", "/", "https://example.com", true)]
+    [InlineData("https://example.com:8443", "/", "https://example.com/a/", false)]
+    [InlineData("https://example.com", "/", "https://example.com:443/a/", true)]
+    [InlineData("https://example.com:443", "/repo/", "https://example.com/repo/a/", true)]
+    [InlineData("http://example.com", "/", "http://example.com:80/a/", true)]
+    [InlineData("https://example.com", "/", "https://example.com./a/", true)]
+    [InlineData("https://example.com", "/", "http://example.com/a/", false)]
     public void SitemapLocFilter_AcceptsOnlyUrlsUnderSitemapLocation(string siteUrl, string baseUrl, string canonical, bool expected)
     {
         var filter = new SitemapLocFilter(siteUrl, baseUrl);
 
-        Assert.Equal(expected, filter.TryAccept(canonical));
+        Assert.Equal(expected, filter.IsInScope(canonical));
     }
 
     [Fact]
@@ -216,9 +225,12 @@ public sealed class SitemapPluginTests
     {
         var filter = new SitemapLocFilter("https://example.com", "/");
 
-        Assert.True(filter.TryAccept("https://example.com/a/"));
-        Assert.False(filter.TryAccept("https://example.com/a/"));
-        Assert.True(filter.TryAccept("https://example.com/b/"));
+        Assert.Equal(SitemapLocDecision.Accepted, filter.Evaluate("https://example.com/a/"));
+        Assert.Equal(SitemapLocDecision.Duplicate, filter.Evaluate("https://example.com/a/"));
+        Assert.Equal(SitemapLocDecision.Accepted, filter.Evaluate("https://example.com/b/"));
+        Assert.Equal(SitemapLocDecision.Duplicate, filter.Evaluate("HTTPS://Example.COM:443/a/"));
+        Assert.Equal(SitemapLocDecision.Accepted, filter.Evaluate("https://example.com/A/"));
+        Assert.Equal(SitemapLocDecision.Accepted, filter.Evaluate("https://example.com/a/?page=2"));
     }
 
     [Fact]

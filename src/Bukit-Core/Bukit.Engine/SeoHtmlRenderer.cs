@@ -1,10 +1,11 @@
 using System.Net;
 using System.Text;
+using System.Text.RegularExpressions;
 using Bukit.Rendering;
 
 namespace Bukit.Engine;
 
-internal static class SeoHtmlRenderer
+internal static partial class SeoHtmlRenderer
 {
     internal static string InjectIntoHead(string html, SeoModel? seo)
     {
@@ -25,6 +26,59 @@ internal static class SeoHtmlRenderer
         var seoHtml = RenderHead(seo);
         return beforeHeadContent + headContent.TrimEnd() + Environment.NewLine + seoHtml + afterHeadContent;
     }
+
+    /// <summary>
+    /// Adds <c>rel="alternate"</c> links to the page's Markdown and JSON versions so AI agents
+    /// can find them from the HTML. A link the theme already declares, as a root-relative URL or
+    /// as the absolute URL under <paramref name="siteUrl"/>, is not repeated.
+    /// </summary>
+    internal static string InjectRepresentationLinks(string html, string markdownUrl, string jsonUrl, string? siteUrl = null)
+    {
+        if (string.IsNullOrWhiteSpace(html) || !HtmlHeadScanner.TryFindHead(html, out var head))
+        {
+            return html;
+        }
+
+        var headContent = html[head.ContentStart..head.ContentEnd];
+        var declared = LinkHrefRegex().Matches(headContent)
+            .Select(match => NormalizeHref(WebUtility.HtmlDecode(match.Groups["href"].Value)))
+            .ToHashSet(StringComparer.Ordinal);
+        var links = new StringBuilder();
+        if (!IsDeclared(declared, markdownUrl, siteUrl))
+        {
+            links.Append($"  <link rel=\"alternate\" type=\"text/markdown\" href=\"{Attr(markdownUrl)}\" />{Environment.NewLine}");
+        }
+
+        if (!IsDeclared(declared, jsonUrl, siteUrl))
+        {
+            links.Append($"  <link rel=\"alternate\" type=\"application/json\" href=\"{Attr(jsonUrl)}\" />{Environment.NewLine}");
+        }
+
+        return links.Length == 0
+            ? html
+            : html[..head.ContentStart] + headContent.TrimEnd() + Environment.NewLine + links + html[head.ContentEnd..];
+    }
+
+    private static bool IsDeclared(HashSet<string> declared, string url, string? siteUrl)
+        => declared.Contains(NormalizeHref(url)) ||
+           (!string.IsNullOrWhiteSpace(siteUrl) && declared.Contains(NormalizeHref(siteUrl.Trim().TrimEnd('/') + url)));
+
+    // Absolute http(s) URLs compare with a lower-case origin and no default port; paths keep their case.
+    private static string NormalizeHref(string href)
+    {
+        var trimmed = href.Trim();
+        if (Uri.TryCreate(trimmed, UriKind.Absolute, out var uri) &&
+            (uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps))
+        {
+            var origin = uri.IsDefaultPort ? $"{uri.Scheme}://{uri.IdnHost}" : $"{uri.Scheme}://{uri.IdnHost}:{uri.Port}";
+            return origin + uri.PathAndQuery;
+        }
+
+        return trimmed;
+    }
+
+    [GeneratedRegex(@"<link\b[^>]*?\shref\s*=\s*(?:""(?<href>[^""]*)""|'(?<href>[^']*)'|(?<href>[^\s>]+))", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
+    private static partial Regex LinkHrefRegex();
 
     internal static string RenderHead(SeoModel seo)
     {
@@ -186,18 +240,18 @@ internal static class SeoHtmlRenderer
 
         if (HtmlHeadScanner.IsStartTag(tag, "link"))
         {
-            var rel = GetAttribute(tag, "rel");
+            var rel = HtmlTagAttributeReader.GetAttribute(tag, "rel");
             return string.Equals(rel, "canonical", StringComparison.OrdinalIgnoreCase) ||
                    string.Equals(rel, "prev", StringComparison.OrdinalIgnoreCase) ||
                    string.Equals(rel, "next", StringComparison.OrdinalIgnoreCase) ||
                    (string.Equals(rel, "alternate", StringComparison.OrdinalIgnoreCase) &&
-                    !string.IsNullOrWhiteSpace(GetAttribute(tag, "hreflang")));
+                    !string.IsNullOrWhiteSpace(HtmlTagAttributeReader.GetAttribute(tag, "hreflang")));
         }
 
         if (HtmlHeadScanner.IsStartTag(tag, "meta"))
         {
-            var name = GetAttribute(tag, "name");
-            var property = GetAttribute(tag, "property");
+            var name = HtmlTagAttributeReader.GetAttribute(tag, "name");
+            var property = HtmlTagAttributeReader.GetAttribute(tag, "property");
             return string.Equals(name, "description", StringComparison.OrdinalIgnoreCase) ||
                    string.Equals(name, "robots", StringComparison.OrdinalIgnoreCase) ||
                    StartsWithToken(name, "twitter:") ||
@@ -207,101 +261,11 @@ internal static class SeoHtmlRenderer
 
         if (HtmlHeadScanner.IsStartTag(tag, "script"))
         {
-            var type = GetAttribute(tag, "type");
+            var type = HtmlTagAttributeReader.GetAttribute(tag, "type");
             return string.Equals(type, "application/ld+json", StringComparison.OrdinalIgnoreCase);
         }
 
         return false;
-    }
-
-    private static string? GetAttribute(string tag, string name)
-    {
-        var index = 1;
-        while (index < tag.Length)
-        {
-            while (index < tag.Length && !char.IsWhiteSpace(tag[index]) && tag[index] != '>')
-            {
-                index++;
-            }
-
-            while (index < tag.Length && char.IsWhiteSpace(tag[index]))
-            {
-                index++;
-            }
-
-            if (index >= tag.Length || tag[index] is '>' or '/')
-            {
-                return null;
-            }
-
-            var attrStart = index;
-            while (index < tag.Length && (char.IsLetterOrDigit(tag[index]) || tag[index] is '-' or '_' or ':'))
-            {
-                index++;
-            }
-
-            if (attrStart == index)
-            {
-                index++;
-                continue;
-            }
-
-            var attrName = tag[attrStart..index];
-            while (index < tag.Length && char.IsWhiteSpace(tag[index]))
-            {
-                index++;
-            }
-
-            if (index >= tag.Length || tag[index] != '=')
-            {
-                if (string.Equals(attrName, name, StringComparison.OrdinalIgnoreCase))
-                {
-                    return string.Empty;
-                }
-
-                continue;
-            }
-
-            index++;
-            while (index < tag.Length && char.IsWhiteSpace(tag[index]))
-            {
-                index++;
-            }
-
-            string value;
-            if (index < tag.Length && tag[index] is '"' or '\'')
-            {
-                var quote = tag[index++];
-                var valueStart = index;
-                while (index < tag.Length && tag[index] != quote)
-                {
-                    index++;
-                }
-
-                value = tag[valueStart..Math.Min(index, tag.Length)];
-                if (index < tag.Length)
-                {
-                    index++;
-                }
-            }
-            else
-            {
-                var valueStart = index;
-                while (index < tag.Length && !char.IsWhiteSpace(tag[index]) && tag[index] != '>')
-                {
-                    index++;
-                }
-
-                value = tag[valueStart..index];
-            }
-
-            if (string.Equals(attrName, name, StringComparison.OrdinalIgnoreCase))
-            {
-                return WebUtility.HtmlDecode(value);
-            }
-        }
-
-        return null;
     }
 
     private static bool StartsWithToken(string? value, string prefix)

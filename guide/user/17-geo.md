@@ -33,20 +33,23 @@ crawlers by what they fetch pages for:
 
 | Purpose | Crawlers | Effect of blocking |
 |---|---|---|
-| Training | `GPTBot`, `ClaudeBot`, `Google-Extended`, `Applebot-Extended`, `Meta-ExternalAgent`, `CCBot`, `Bytespider`, `Amazonbot`, `cohere-ai`, `Diffbot` | Content is not used to train models. The site can still appear in AI answers. |
+| Training | `GPTBot`, `ClaudeBot`, `Applebot-Extended`, `Meta-ExternalAgent`, `CCBot`, `Bytespider`, `Amazonbot`, `cohere-ai`, `Diffbot`, plus the legacy tokens `FacebookBot`, `anthropic-ai`, `Claude-Web` | Content is not used to train models. The site can still appear in AI answers. |
+| Training and grounding | `Google-Extended` | Content is not used to train Gemini, and it is also not used for grounding in Gemini Apps and Vertex AI. Google Search is not affected. |
 | AI search | `OAI-SearchBot`, `Claude-SearchBot`, `PerplexityBot` | The site drops out of AI search results and cannot be cited. |
 | User fetch | `ChatGPT-User`, `Claude-User`, `Perplexity-User` | Assistants cannot open the page when a user asks about it. |
 
 | Mode | Result |
 |---|---|
 | `allow` (default) | Every known crawler is allowed. |
-| `block-training` | Training crawlers are blocked; AI search and user-fetch crawlers stay allowed. Use this to opt out of training while staying citable. |
+| `block-training` | Training crawlers are blocked; AI search and user-fetch crawlers stay allowed. Use this to opt out of training while staying citable. `Google-Extended` is blocked too, which also opts out of Gemini grounding; the build logs `event=robots.ai_grounding_blocked` to say so. Add it to `aiBotAllowList` to keep Gemini grounding (and Gemini training). |
 | `block` | Every known crawler is blocked, including AI search. The site disappears from AI answers. |
-| `selective` | With `aiBotAllowList`, only listed crawlers are allowed and other known crawlers are blocked. With only `aiBotBlockList`, just those crawlers are blocked. |
+| `selective` | With `aiBotAllowList`, only listed crawlers are allowed and other known crawlers are blocked. With only `aiBotBlockList`, just those crawlers are blocked. The build warns with `event=robots.ai_search_blocked` when this blocks AI search or user-fetch crawlers you did not list. |
 
 In every mode, `aiBotAllowList` names are allowed and `aiBotBlockList` names
 are blocked; a name on both lists is blocked. Names Bukit does not know are
-added as extra groups.
+added as extra groups. Names may only use letters, digits, `-`, `_` and `.`;
+config validation rejects anything else (such as `*` or a line break), because
+each name becomes a `User-agent:` line.
 
 ```yaml
 site:
@@ -58,8 +61,9 @@ site:
       aiBotMode: block-training
 ```
 
-The policy only takes effect when `site.seo.robotsTxt.enabled` is `true` and
-`site.url` is set. Otherwise the build logs
+The policy only takes effect when `site.seo.geo.enabled` and
+`site.seo.robotsTxt.enabled` are `true` and `site.url` is set. Otherwise any
+non-default `aiBotMode` or AI bot list makes the build log
 `event=robots.ai_policy_inactive` as a warning. A static `robots.txt` in your
 project is kept as is, so the policy is not written; the build logs the same
 event at info level.
@@ -179,10 +183,47 @@ Curation changes llms projections only. Sitemap, search, RSS, robots, and
 
 | Output | Purpose |
 |---|---|
-| `llms.txt` | Compact list of important pages and links. |
+| `llms.txt` | Compact list of important pages and links. Its `## Optional` section links `agent-manifest.json`. |
 | `llms-full.txt` | Larger full-content file when enabled. |
+| `content/<page output path>.md` and `.json` | Markdown and JSON version of each content page, for example `content/blog/hello/index.html.md`. |
+| `agent-manifest.json` | Machine-readable index of every indexable page with links to its Markdown and JSON versions. |
 | `.bukit/geo-report.json` | Audit data for `geo audit`. |
 | publish audit fields | Whether AI-readable representations were generated and included. |
+
+### How AI agents find the Markdown and JSON versions
+
+In the default `renderMode: inject`, each indexable content page gets two
+links in its `<head>`:
+
+```html
+<link rel="alternate" type="text/markdown" href="/content/blog/hello/index.html.md" />
+<link rel="alternate" type="application/json" href="/content/blog/hello/index.html.json" />
+```
+
+Bukit leaves them out for `noindex` and unpublished pages, for pages that set
+`seo_inject: false`, and when `site.seo.geo.enabled` is `false`. Expired pages
+keep their links, because their Markdown and JSON versions stay published; only
+aggregate files such as the sitemap and `agent-manifest.json` drop them. If the theme's `<head>` already
+links the same URL, Bukit does not add that link again.
+
+In `renderMode: theme` or `off`, the theme owns the `<head>`, so Bukit does not
+add these links. Published content pages without `noindex` expose the URLs as
+`page.representation_urls`, so a layout can add them itself:
+
+```html
+{{ if page.representation_urls }}
+<link rel="alternate" type="text/markdown" href="{{ page.representation_urls.markdown }}" />
+<link rel="alternate" type="application/json" href="{{ page.representation_urls.json }}" />
+{{ end }}
+```
+
+Keep the `if`: list pages, `noindex` pages and unpublished pages have no
+`page.representation_urls`. The Markdown and JSON files carry no `noindex`
+marker, so linking them from a `noindex` page would let search engines index
+the copy.
+
+Page links in `llms.txt` stay on the canonical HTML URLs. Agents that want
+Markdown can follow the `agent-manifest.json` link.
 
 ## Audit
 

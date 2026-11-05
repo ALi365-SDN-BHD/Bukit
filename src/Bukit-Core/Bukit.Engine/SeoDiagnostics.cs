@@ -35,6 +35,16 @@ internal static partial class SeoDiagnostics
             Report(config, logger, $"seo.canonical_duplicate_index canonical={group.Key} routes={string.Join(",", group.Select(x => x.Route.Url))}");
         }
 
+        foreach (var locale in models.Values
+                     .Select(model => model.Og.Locale)
+                     .Where(locale => !string.IsNullOrWhiteSpace(locale) && !locale.Contains('_'))
+                     .Distinct(StringComparer.OrdinalIgnoreCase)
+                     .Order(StringComparer.Ordinal))
+        {
+            // A bare locale is a hint, not a strict-mode failure.
+            logger.Warn($"seo.og_locale_region_missing locale={locale} hint=add-a-region-subtag");
+        }
+
         foreach (var entry in index.Values)
         {
             if (HasDoubleSlashInPath(entry.Canonical))
@@ -47,6 +57,14 @@ internal static partial class SeoDiagnostics
                 !entry.Canonical.StartsWith(config.Site.Url.Trim().TrimEnd('/'), StringComparison.OrdinalIgnoreCase))
             {
                 Report(config, logger, $"seo.canonical_external route={entry.Route.Url} canonical={entry.Canonical}");
+            }
+
+            if (!string.IsNullOrWhiteSpace(config.Site.Url) &&
+                !string.IsNullOrWhiteSpace(entry.Canonical) &&
+                !entry.Canonical.StartsWith("http://", StringComparison.OrdinalIgnoreCase) &&
+                !entry.Canonical.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
+            {
+                Report(config, logger, $"seo.canonical_relative route={entry.Route.Url} canonical={entry.Canonical}");
             }
 
             if (models.TryGetValue(BuildPathUtils.NormalizeRelPath(entry.Route.OutputPath), out var model) &&

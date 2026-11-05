@@ -43,6 +43,13 @@ public sealed record PageInfo
     public ProvenanceRecord? Provenance { get; init; }
     public TrustMetadata? Trust { get; init; }
     public IReadOnlyList<string>? Representations { get; init; }
+
+    /// <summary>
+    /// Public URLs of the page's machine-readable versions, keyed by kind (<c>markdown</c>, <c>json</c>).
+    /// Templates read them as <c>page.representation_urls</c>; internal because only the template
+    /// contract exposes them, not the CLR surface.
+    /// </summary>
+    internal IReadOnlyDictionary<string, string>? RepresentationUrls { get; init; }
 }
 
 public sealed record SeoModel

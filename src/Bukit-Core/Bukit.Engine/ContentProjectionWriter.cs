@@ -336,9 +336,9 @@ internal sealed class AgentManifestProjection : IPublishProjection
             Documents: orderedEntries);
 
         var json = JsonSerializer.Serialize(manifest, ContentProjectionJsonContext.Default.ContentProjectionAgentManifest);
-        var path = Path.Combine(outputDir, "agent-manifest.json");
-        File.WriteAllText(path, json + Environment.NewLine, Encoding.UTF8);
-        return path;
+        // No BOM: llms.txt points agents here, and JSON parsers may reject a leading BOM (RFC 8259).
+        FileWriter.WriteUtf8(outputDir, "agent-manifest.json", json + Environment.NewLine);
+        return Path.Combine(outputDir, "agent-manifest.json");
     }
 }
 

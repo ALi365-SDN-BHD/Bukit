@@ -173,6 +173,65 @@ public sealed class SitemapPublishProjectionCollectionTests
                 .Select(issue => (issue.Code, issue.Route));
     }
 
+    [Theory]
+    [InlineData("https://example.com:443/posts/local/")]
+    [InlineData("HTTPS://Example.COM/posts/local/")]
+    public void Project_CanonicalSpelledDifferently_IsDedupedAndNotReportedMissing(string copyCanonical)
+    {
+        var outputDir = Path.Combine(Path.GetTempPath(), "bukit-sitemap-canonical-identity", Guid.NewGuid().ToString("N"));
+        try
+        {
+            var config = new AppConfig
+            {
+                Site = new SiteConfig { Name = "test", Title = "Test", Url = "https://example.com" },
+                Content = TestContent.Markdown()
+            };
+            var local = Article("local", canonical: null);
+            var copy = Article("copy", canonical: copyCanonical);
+            var routed = new[]
+            {
+                new RoutedContentDocument(local, new RouteInfo("/posts/local/", "posts/local/index.html", "post.html")),
+                new RoutedContentDocument(copy, new RouteInfo("/posts/copy/", "posts/copy/index.html", "post.html"))
+            };
+            foreach (var routedDocument in routed)
+            {
+                var path = Path.Combine(outputDir, routedDocument.Route.OutputPath);
+                Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+                File.WriteAllText(path, "<html><head></head><body></body></html>");
+            }
+
+            var index = SeoIndexBuilder.Build(
+                config,
+                "/",
+                routed,
+                Array.Empty<RouteInfo>(),
+                new Dictionary<string, IReadOnlyList<SeoAlternateModel>>(StringComparer.Ordinal));
+            var graph = CanonicalContentGraphBuilder.BuildFromDocuments([local, copy]);
+            var context = new PublishProjectionContext(config, outputDir, graph, index.Entries, index.Models, routed, Logger: new RecordingLogger());
+
+            var result = PublishProjectionAdapters.Aggregate()
+                .Single(adapter => adapter.Representation.Kind == "sitemap")
+                .Project(context);
+
+            var sitemap = File.ReadAllText(Path.Combine(outputDir, "sitemap.xml"));
+            Assert.Single(System.Text.RegularExpressions.Regex.Matches(sitemap, "<loc>"));
+            Assert.All(result.Outputs, output => Assert.True(output.Exists, output.Url));
+
+            foreach (var projectionResults in new IReadOnlyList<PublishProjectionResult>?[] { [result], null })
+            {
+                var audit = MachineReadabilityTrustAuditBuilder.Build(
+                    config, outputDir, index.Entries, index.Models, graph,
+                    requireHreflangTargets: false, projectionResults: projectionResults);
+                Assert.DoesNotContain(audit.SeoReport.Issues, issue => issue.Code == "seo.sitemap_missing_url");
+                Assert.DoesNotContain(audit.PublishReport.Issues, issue => issue.Code == "publish.sitemap_missing_route");
+            }
+        }
+        finally
+        {
+            TestCleanup.DeleteDirectory(outputDir, recursive: true);
+        }
+    }
+
     private static ContentDocument Article(string id, string? canonical)
     {
         var fields = new Dictionary<string, object> { ["type"] = "article" };

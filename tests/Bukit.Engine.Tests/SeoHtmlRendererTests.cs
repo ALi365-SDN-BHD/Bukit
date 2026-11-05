@@ -185,4 +185,70 @@ public sealed class SeoHtmlRendererTests
 
         return count;
     }
+
+    [Fact]
+    public void InjectRepresentationLinks_AddsMarkdownAndJsonAlternatesBeforeHeadClose()
+    {
+        var html = "<html><head><title>T</title></head><body></body></html>";
+
+        var result = SeoHtmlRenderer.InjectRepresentationLinks(html, "/content/a/index.html.md", "/content/a/index.html.json");
+
+        Assert.Contains("<link rel=\"alternate\" type=\"text/markdown\" href=\"/content/a/index.html.md\" />", result, StringComparison.Ordinal);
+        Assert.Contains("<link rel=\"alternate\" type=\"application/json\" href=\"/content/a/index.html.json\" />", result, StringComparison.Ordinal);
+        Assert.True(result.IndexOf("text/markdown", StringComparison.Ordinal) < result.IndexOf("</head>", StringComparison.Ordinal));
+        Assert.EndsWith("</head><body></body></html>", result, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void InjectRepresentationLinks_SkipsOnlyLinksTheThemeAlreadyDeclares()
+    {
+        var html = "<html><head><link rel='alternate' type='text/markdown' href='/content/a.md'></head><body></body></html>";
+
+        var result = SeoHtmlRenderer.InjectRepresentationLinks(html, "/content/a.md", "/content/a.json");
+
+        Assert.Single(System.Text.RegularExpressions.Regex.Matches(result, "/content/a\\.md"));
+        Assert.Contains("<link rel=\"alternate\" type=\"application/json\" href=\"/content/a.json\" />", result, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void InjectRepresentationLinks_RecognizesAbsoluteUrlsUnderSiteUrl()
+    {
+        var html = "<html><head><link rel=\"alternate\" href=\"HTTPS://Example.com:443/repo/content/a.md\">" +
+                   "<link rel=\"alternate\" href=\"https://other.test/repo/content/a.json\"></head></html>";
+
+        var result = SeoHtmlRenderer.InjectRepresentationLinks(html, "/repo/content/a.md", "/repo/content/a.json", "https://example.com/");
+
+        Assert.DoesNotContain("href=\"/repo/content/a.md\"", result, StringComparison.Ordinal);
+        Assert.Contains("href=\"/repo/content/a.json\" />", result, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void InjectRepresentationLinks_LeavesHeadUnchangedWhenBothLinksAreDeclared()
+    {
+        var html = "<html><head><link rel=\"alternate\" href=\"/content/a.md\"><link href=\"/content/a.json\" rel=\"alternate\"></head></html>";
+
+        Assert.Equal(html, SeoHtmlRenderer.InjectRepresentationLinks(html, "/content/a.md", "/content/a.json"));
+    }
+
+    [Fact]
+    public void InjectRepresentationLinks_IgnoresUnrelatedMarkdownMentionsAndOtherHrefs()
+    {
+        var html = "<html><head><script type=\"text/markdown\" id=\"tpl\"># x</script>" +
+                   "<link rel=\"alternate\" type=\"text/markdown\" href=\"/custom.md\">" +
+                   "<link rel=\"preload\" data-href=\"/content/a.json\"></head></html>";
+
+        var result = SeoHtmlRenderer.InjectRepresentationLinks(html, "/content/a.md", "/content/a.json");
+
+        Assert.Contains("href=\"/content/a.md\" />", result, StringComparison.Ordinal);
+        Assert.Contains("href=\"/content/a.json\" />", result, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void InjectRepresentationLinks_EscapesUrlsAndIgnoresDocumentsWithoutHead()
+    {
+        var result = SeoHtmlRenderer.InjectRepresentationLinks("<html><head></head></html>", "/content/a\"b.md", "/content/a.json");
+        Assert.Contains("href=\"/content/a&quot;b.md\"", result, StringComparison.Ordinal);
+
+        Assert.Equal("<p>no head</p>", SeoHtmlRenderer.InjectRepresentationLinks("<p>no head</p>", "/a.md", "/a.json"));
+    }
 }

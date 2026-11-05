@@ -69,7 +69,7 @@ public sealed class SeoModelBuilderTests
         Assert.Equal("Hello World", model.Og.Title);
         Assert.Equal("article", model.Og.Type);
         Assert.Equal("My Site", model.Og.SiteName);
-        Assert.Equal("zh-CN", model.Og.Locale);
+        Assert.Equal("zh_CN", model.Og.Locale);
         Assert.Equal("https://example.com/zh/blog/hello-world/", model.Og.Url);
         Assert.NotNull(model.Twitter);
         Assert.Equal("Hello World", model.Twitter.Title);
@@ -1016,5 +1016,96 @@ public sealed class SeoModelBuilderTests
         var model = SeoModelBuilder.BuildForContent(config, "/", item, route);
 
         Assert.Equal("https://other.com/custom", model.Canonical);
+    }
+
+    [Theory]
+    [InlineData("/blog/post/", "https://example.com/repo/blog/post/")]
+    [InlineData("/repo/blog/post/", "https://example.com/repo/blog/post/")]
+    [InlineData("//cdn.example.com/post/", "https://cdn.example.com/post/")]
+    public void BuildForContent_ResolvesRootRelativeCanonicalWithBaseUrl(
+        string canonical,
+        string expected)
+    {
+        var config = CreateConfig();
+        var item = ContentDocument.Create(
+            id: "p1",
+            title: "Test",
+            slug: "test",
+            publishAt: DateTimeOffset.UtcNow,
+            contentHtml: null,
+            fields: ContentFieldReader.ToFieldMap(new Dictionary<string, object>
+            {
+                ["type"] = "page",
+                ["canonical"] = canonical
+            }));
+        var route = new RouteInfo("/blog/post/", "blog/post/index.html", "pages/post.html");
+
+        var model = SeoModelBuilder.BuildForContent(config, "/repo/", item, route);
+
+        Assert.Equal(expected, model.Canonical);
+        Assert.Equal(expected, model.Og.Url);
+    }
+
+    [Fact]
+    public void BuildForContent_PreservesNonRootRelativeCanonical()
+    {
+        var config = CreateConfig();
+        var item = ContentDocument.Create(
+            id: "p1",
+            title: "Test",
+            slug: "test",
+            publishAt: DateTimeOffset.UtcNow,
+            contentHtml: null,
+            fields: ContentFieldReader.ToFieldMap(new Dictionary<string, object>
+            {
+                ["type"] = "page",
+                ["canonical"] = "blog/post/"
+            }));
+        var route = new RouteInfo("/blog/post/", "blog/post/index.html", "pages/post.html");
+
+        var model = SeoModelBuilder.BuildForContent(config, "/repo/", item, route);
+
+        Assert.Equal("blog/post/", model.Canonical);
+    }
+
+    [Fact]
+    public void BuildForContent_LeavesUnsupportedCanonicalSchemeUnchanged()
+    {
+        var config = CreateConfig();
+        var item = ContentDocument.Create(
+            id: "p1",
+            title: "Test",
+            slug: "test",
+            publishAt: DateTimeOffset.UtcNow,
+            contentHtml: null,
+            fields: ContentFieldReader.ToFieldMap(new Dictionary<string, object>
+            {
+                ["type"] = "page",
+                ["canonical"] = "mailto:editor@example.com"
+            }));
+        var route = new RouteInfo("/pages/test/", "pages/test/index.html", "pages/page.html");
+
+        var model = SeoModelBuilder.BuildForContent(config, "/", item, route);
+
+        Assert.Equal("mailto:editor@example.com", model.Canonical);
+    }
+
+    [Fact]
+    public void BuildForContent_KeepsBareLanguageAsOpenGraphLocale()
+    {
+        var config = CreateConfig();
+        config = config with { Site = config.Site with { Language = "en" } };
+        var item = ContentDocument.Create(
+            id: "p1",
+            title: "Test",
+            slug: "test",
+            publishAt: DateTimeOffset.UtcNow,
+            contentHtml: null,
+            fields: ContentFieldReader.ToFieldMap(new Dictionary<string, object> { ["type"] = "page" }));
+        var route = new RouteInfo("/pages/test/", "pages/test/index.html", "pages/page.html");
+
+        var model = SeoModelBuilder.BuildForContent(config, "/", item, route);
+
+        Assert.Equal("en", model.Og.Locale);
     }
 }

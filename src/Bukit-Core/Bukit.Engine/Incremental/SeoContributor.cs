@@ -14,5 +14,7 @@ internal sealed class SeoContributor : IRenderDependencyContributor
         writer.AppendLabeledCanonicalValue("seo.titleSeparator", seo.TitleSeparator);
         writer.AppendLabeledCanonicalValue("seo.defaultImage", seo.DefaultImage);
         writer.AppendLabeledCanonicalValue("seo.twitterSite", seo.TwitterSite);
+        // Inject mode adds Markdown/JSON alternate links to content pages only while GEO is enabled.
+        writer.AppendLabeledCanonicalValue("seo.geo.enabled", seo.Geo.Enabled);
     }
 }
