@@ -47,7 +47,9 @@ crawlers by what they fetch pages for:
 
 In every mode, `aiBotAllowList` names are allowed and `aiBotBlockList` names
 are blocked; a name on both lists is blocked. Names Bukit does not know are
-added as extra groups.
+added as extra groups. Names may only use letters, digits, `-`, `_` and `.`;
+config validation rejects anything else (such as `*` or a line break), because
+each name becomes a `User-agent:` line.
 
 ```yaml
 site:
