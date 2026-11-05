@@ -136,8 +136,7 @@ internal static partial class AssetImporter
             string css;
             try
             {
-                // Latin-1 keeps every byte; only ASCII url()/@import tokens are read.
-                css = Encoding.Latin1.GetString(File.ReadAllBytes(cssPath));
+                css = DemoFiles.DecodeCss(File.ReadAllBytes(cssPath));
             }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
             {

@@ -1327,6 +1327,28 @@ pages:
     }
 
     [Fact]
+    public void Import_Utf8CssWithChineseAssetName_CopiesTheAsset()
+    {
+        Directory.CreateDirectory(Path.Combine(_tempDir, "css"));
+        Directory.CreateDirectory(Path.Combine(_tempDir, "img"));
+        File.WriteAllText(Path.Combine(_tempDir, "img", "背景.png"), "fake image");
+        File.WriteAllText(Path.Combine(_tempDir, "css", "site.css"),
+            "body{background:url(../img/背景.png)}", new System.Text.UTF8Encoding(encoderShouldEmitUTF8Identifier: false));
+        File.WriteAllText(Path.Combine(_tempDir, "index.html"),
+            "<html><head><title>Home</title><link rel=\"stylesheet\" href=\"css/site.css\"></head><body><main><h1>Home</h1></main></body></html>");
+
+        HtmlDemoImporter.Import(new HtmlDemoImportOptions
+        {
+            InputPath = _tempDir,
+            ThemeName = "utf8-css-name",
+            RootDir = _tempDir,
+            Force = true
+        });
+
+        Assert.True(File.Exists(Path.Combine(_tempDir, "themes", "utf8-css-name", "static", "img", "背景.png")));
+    }
+
+    [Fact]
     public void Import_GbkCss_WithoutBaseUrl_IsCopiedByteForByte()
     {
         System.Text.Encoding.RegisterProvider(System.Text.CodePagesEncodingProvider.Instance);

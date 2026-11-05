@@ -129,6 +129,54 @@ internal static partial class DemoFiles
         }
     }
 
+    /// <summary>
+    /// Decodes a stylesheet for scanning asset references. Tries strict UTF-8, then a
+    /// declared @charset, then GB18030, then Latin-1. Used only for reading; rewriting
+    /// goes through Latin-1 so the original bytes survive.
+    /// </summary>
+    internal static string DecodeCss(byte[] bytes)
+    {
+        if (bytes.AsSpan().StartsWith(new byte[] { 0xEF, 0xBB, 0xBF }))
+            return Encoding.UTF8.GetString(bytes, 3, bytes.Length - 3);
+        if (bytes.AsSpan().StartsWith(new byte[] { 0xFF, 0xFE }))
+            return Encoding.Unicode.GetString(bytes, 2, bytes.Length - 2);
+        if (bytes.AsSpan().StartsWith(new byte[] { 0xFE, 0xFF }))
+            return Encoding.BigEndianUnicode.GetString(bytes, 2, bytes.Length - 2);
+
+        if (TryDecodeUtf8(bytes) is { } utf8)
+            return utf8;
+
+        var declared = DeclaredCssEncoding(bytes);
+        if (declared is not null)
+            return declared.GetString(bytes);
+
+        return TryDecodeChinese(bytes) ?? Encoding.Latin1.GetString(bytes);
+    }
+
+    private static Encoding? DeclaredCssEncoding(byte[] bytes)
+    {
+        var head = Encoding.Latin1.GetString(bytes, 0, Math.Min(bytes.Length, 1024));
+        var match = CssCharsetPattern().Match(head);
+        if (!match.Success)
+            return null;
+
+        var name = match.Groups["name"].Value.Trim();
+        if (name.Equals("gb2312", StringComparison.OrdinalIgnoreCase) ||
+            name.Equals("gbk", StringComparison.OrdinalIgnoreCase))
+        {
+            name = "GB18030";
+        }
+
+        try
+        {
+            return Encoding.GetEncoding(name);
+        }
+        catch (ArgumentException)
+        {
+            return null;
+        }
+    }
+
     private static string? TryDecodeUtf8(byte[] bytes)
     {
         try
@@ -189,4 +237,7 @@ internal static partial class DemoFiles
 
     [GeneratedRegex(@"<meta\b[^>]*?charset\s*=\s*[""']?(?<name>[A-Za-z0-9_\-:.]+)", RegexOptions.IgnoreCase)]
     private static partial Regex CharsetPattern();
+
+    [GeneratedRegex(@"@charset\s+[""'](?<name>[A-Za-z0-9_\-:.]+)[""']", RegexOptions.IgnoreCase)]
+    private static partial Regex CssCharsetPattern();
 }
