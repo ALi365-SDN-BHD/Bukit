@@ -35,6 +35,15 @@ internal static partial class SeoDiagnostics
             Report(config, logger, $"seo.canonical_duplicate_index canonical={group.Key} routes={string.Join(",", group.Select(x => x.Route.Url))}");
         }
 
+        foreach (var locale in models.Values
+                     .Select(model => model.Og.Locale)
+                     .Where(locale => !string.IsNullOrWhiteSpace(locale) && !locale.Contains('_'))
+                     .Distinct(StringComparer.OrdinalIgnoreCase)
+                     .Order(StringComparer.Ordinal))
+        {
+            Report(config, logger, $"seo.og_locale_region_missing locale={locale} hint=add-a-region-subtag");
+        }
+
         foreach (var entry in index.Values)
         {
             if (HasDoubleSlashInPath(entry.Canonical))
