@@ -93,7 +93,10 @@ internal static partial class InternalLinkRewriter
             return null;
         }
 
-        if (plan.PageAt(target) is not { } page || plan.UrlFor(page) is not { } url)
+        var page = plan.PageAt(target);
+        if (page is null && DemoLinks.AlternatePageExtension(target) is { } alternate)
+            page = plan.PageAt(alternate);
+        if (page is null || plan.UrlFor(page) is not { } url)
             return null;
 
         var fragment = href.IndexOf('#');

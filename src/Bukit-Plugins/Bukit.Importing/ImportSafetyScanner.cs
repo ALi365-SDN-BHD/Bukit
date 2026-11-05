@@ -180,7 +180,8 @@ internal static partial class ImportSafetyScanner
                 : Path.GetRelativePath(inputPath, Path.GetFullPath(Path.Combine(
                     inputPath, baseDir, cleanHref))).Replace('\\', '/');
 
-            if (!htmlFiles.Contains(candidate))
+            var alternate = DemoLinks.AlternatePageExtension(candidate);
+            if (!htmlFiles.Contains(candidate) && (alternate is null || !htmlFiles.Contains(alternate)))
             {
                 diagnostics.Add(new ImportDiagnostic(
                     ImportDiagnosticSeverity.Warning,

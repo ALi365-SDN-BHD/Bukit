@@ -59,4 +59,14 @@ internal static class DemoLinks
     }
 
     internal static string Normalize(string relativePath) => relativePath.Replace('\\', '/');
+
+    /// <summary>The same page under the other HTML extension, if it has one.</summary>
+    internal static string? AlternatePageExtension(string path)
+    {
+        if (path.EndsWith(".html", StringComparison.OrdinalIgnoreCase))
+            return path[..^1];
+        if (path.EndsWith(".htm", StringComparison.OrdinalIgnoreCase))
+            return path + "l";
+        return null;
+    }
 }

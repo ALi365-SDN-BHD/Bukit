@@ -1432,6 +1432,8 @@ Notion 推送支持两种模式：
 
 `import html-demo --content-source notion` 会默认生成可编辑的 `notion-seed/notion-database-map.yaml`，其中 `databaseId` 为空。填写已有 database ID 后，`bukit notion push --input sites/silkroadbiz/notion-seed` 会自动读取该默认 map；如果 map 放在其他路径，再显式传 `--database-map`。如果希望自动创建，则使用 `--create-missing-databases --parent-page-id <id>`。
 
+该默认 map 只在首次导入时创建，之后不会被覆盖（`bukit notion push` 写回的 `databaseId` 会一直保留）。如果新版本的默认模板增加了集合，删除 `notion-seed/notion-database-map.yaml` 后重新导入即可生成新版；记得先备份其中已有的 database ID。
+
 当同时使用 `--build-source notion` 且存在多 database map 时，生成的 `site.yaml` 会使用 Bukit 现有的 `content.sources[]` 多源 Notion 配置，把 `pages/posts/companies/services` 映射为 `mode: content`，把 `navigation` 映射为 `mode: data` 并注入到 `site.modules.navigation`。没有填写 `databaseId` 的默认 map 会生成 `${NOTION_PAGES_DATABASE_ID}`、`${NOTION_NAVIGATION_DATABASE_ID}`、`${NOTION_POSTS_DATABASE_ID}` 等占位符，需要发布前替换或通过配置覆盖。
 
 多 database map 示例：

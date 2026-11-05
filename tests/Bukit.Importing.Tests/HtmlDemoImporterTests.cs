@@ -1123,6 +1123,31 @@ pages:
     }
 
     [Fact]
+    public void Import_LinkToDroppedHtmIndex_PointsAtTheHomePage()
+    {
+        const string header = "<header><nav><a href=\"index.htm\">Home</a><a href=\"about.html\">About</a></nav></header>";
+        File.WriteAllText(Path.Combine(_tempDir, "index.html"),
+            $"<html><head><title>Home</title></head><body>{header}<main><h1>Home</h1></main></body></html>");
+        File.WriteAllText(Path.Combine(_tempDir, "index.htm"),
+            $"<html><head><title>Html Home</title></head><body>{header}<main><h1>Html Home</h1></main></body></html>");
+        File.WriteAllText(Path.Combine(_tempDir, "about.html"),
+            $"<html><head><title>About</title></head><body>{header}<main><h1>About</h1></main></body></html>");
+
+        var result = HtmlDemoImporter.Import(new HtmlDemoImportOptions
+        {
+            InputPath = _tempDir,
+            ThemeName = "alternate-index",
+            RootDir = _tempDir,
+            Force = true
+        });
+
+        var partial = File.ReadAllText(Path.Combine(_tempDir, "themes", "alternate-index", "layouts", "partials", "header.html"));
+        Assert.Contains("href=\"{{ base_url }}/\"", partial, StringComparison.Ordinal);
+        Assert.DoesNotContain(result.Diagnostics,
+            diagnostic => diagnostic.Code == "INVALID_INTERNAL_LINK" && diagnostic.Message.Contains("index.htm", StringComparison.Ordinal));
+    }
+
+    [Fact]
     public void Import_InlineStyle_RewritesUrlsAndEscapesScribanDelimiters()
     {
         Directory.CreateDirectory(Path.Combine(_tempDir, "sub", "img"));

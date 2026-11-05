@@ -42,6 +42,33 @@ public sealed class ImportManifestTests : IDisposable
     }
 
     [Fact]
+    public void Save_DropsTheLegacyDatabaseMapRecordWithoutDeletingTheFile()
+    {
+        var notionDir = Path.Combine(_site, "notion-seed");
+        Directory.CreateDirectory(notionDir);
+        var mapPath = Path.Combine(notionDir, "notion-database-map.yaml");
+        File.WriteAllText(mapPath, "databases: {}\n");
+        var hash = Convert.ToHexString(
+            System.Security.Cryptography.SHA256.HashData(File.ReadAllBytes(mapPath))).ToLowerInvariant();
+        File.WriteAllText(
+            Path.Combine(_site, ImportManifest.FileName),
+            "{\"version\":1,\"files\":{\"notion-seed/notion-database-map.yaml\":\"" + hash + "\"}}");
+
+        // A 017c3d35-era manifest lists the map; the new importer no longer produces it.
+        var manifest = ImportManifest.Load(_site, overwrite: false);
+        manifest.Produced(notionDir);
+        manifest.Save();
+
+        Assert.True(File.Exists(mapPath));
+        Assert.DoesNotContain(manifest.Warnings,
+            warning => warning.Contains("no longer produces", StringComparison.Ordinal));
+        using var document = System.Text.Json.JsonDocument.Parse(
+            File.ReadAllText(Path.Combine(_site, ImportManifest.FileName)));
+        Assert.False(document.RootElement.GetProperty("files")
+            .TryGetProperty("notion-seed/notion-database-map.yaml", out _));
+    }
+
+    [Fact]
     public void Save_WithoutCleanUp_RecordsWrittenFilesAndRemovesNothing()
     {
         var first = ImportManifest.Load(_site, overwrite: false);

@@ -111,6 +111,11 @@ internal sealed class ImportManifest
             if (_current.ContainsKey(relative))
                 continue;
 
+            // The default map used to be tracked; it is now created once and owned by
+            // the user / the Notion push. Drop the old record, keep the file.
+            if (IsUntrackedLegacyFile(relative))
+                continue;
+
             if (!cleanUp || !InProducedArea(relative))
             {
                 _current[relative] = hash;
@@ -147,6 +152,12 @@ internal sealed class ImportManifest
         File.WriteAllText(path, JsonSerializer.Serialize(new { version = 1, files = ordered },
             new JsonSerializerOptions { WriteIndented = true }));
     }
+
+    private static bool IsUntrackedLegacyFile(string relative)
+        => string.Equals(
+            relative.Replace('\\', '/'),
+            "notion-seed/notion-database-map.yaml",
+            StringComparison.OrdinalIgnoreCase);
 
     private bool InProducedArea(string relative)
         => _producedAreas.Any(area => relative == area || relative.StartsWith(area + "/", StringComparison.Ordinal));
