@@ -1302,7 +1302,7 @@ pages:
         File.WriteAllText(Path.Combine(_tempDir, "css", "extra.css"),
             "@font-face{src:url('../fonts/body.woff2')}");
         File.WriteAllText(Path.Combine(_tempDir, "css", "site.css"),
-            "@import \"extra.css\";body{background:url(../img/bg.png) no-repeat,url(/img/root.png)}");
+            "@import \"/css/extra.css\";body{background:url(../img/bg.png) no-repeat,url(/img/root.png)}");
         File.WriteAllText(Path.Combine(_tempDir, "index.html"),
             "<html><head><title>Home</title><link rel=\"stylesheet\" href=\"css/site.css\"></head><body><main><h1>Home</h1></main></body></html>");
 
@@ -1321,8 +1321,86 @@ pages:
         Assert.True(File.Exists(Path.Combine(themeRoot, "static", "img", "bg.png")));
         Assert.True(File.Exists(Path.Combine(themeRoot, "static", "img", "root.png")));
         Assert.True(File.Exists(Path.Combine(themeRoot, "static", "fonts", "body.woff2")));
-        Assert.Contains("/corp/img/root.png",
-            File.ReadAllText(Path.Combine(themeRoot, "static", "css", "site.css")), StringComparison.Ordinal);
+        var siteCss = File.ReadAllText(Path.Combine(themeRoot, "static", "css", "site.css"));
+        Assert.Contains("/corp/img/root.png", siteCss, StringComparison.Ordinal);
+        Assert.Contains("@import \"/corp/css/extra.css\"", siteCss, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Import_GbkCss_WithoutBaseUrl_IsCopiedByteForByte()
+    {
+        System.Text.Encoding.RegisterProvider(System.Text.CodePagesEncodingProvider.Instance);
+        var gbk = System.Text.Encoding.GetEncoding("GB18030");
+        Directory.CreateDirectory(Path.Combine(_tempDir, "css"));
+        var original = gbk.GetBytes("body{font-family:\"微软雅黑\";}");
+        File.WriteAllBytes(Path.Combine(_tempDir, "css", "site.css"), original);
+        File.WriteAllText(Path.Combine(_tempDir, "index.html"),
+            "<html><head><title>Home</title><link rel=\"stylesheet\" href=\"css/site.css\"></head><body><main><h1>Home</h1></main></body></html>");
+
+        HtmlDemoImporter.Import(new HtmlDemoImportOptions
+        {
+            InputPath = _tempDir,
+            ThemeName = "gbk-css",
+            RootDir = _tempDir,
+            Force = true
+        });
+
+        var copied = File.ReadAllBytes(Path.Combine(_tempDir, "themes", "gbk-css", "static", "css", "site.css"));
+        Assert.Equal(original, copied);
+    }
+
+    [Fact]
+    public void Import_GbkCss_WithBaseUrl_KeepsTextAndRewritesRootUrls()
+    {
+        System.Text.Encoding.RegisterProvider(System.Text.CodePagesEncodingProvider.Instance);
+        var gbk = System.Text.Encoding.GetEncoding("GB18030");
+        Directory.CreateDirectory(Path.Combine(_tempDir, "css"));
+        Directory.CreateDirectory(Path.Combine(_tempDir, "img"));
+        File.WriteAllText(Path.Combine(_tempDir, "img", "bg.png"), "fake image");
+        File.WriteAllBytes(Path.Combine(_tempDir, "css", "site.css"),
+            gbk.GetBytes("body{font-family:\"微软雅黑\";background:url(/img/bg.png)}"));
+        File.WriteAllText(Path.Combine(_tempDir, "index.html"),
+            "<html><head><title>Home</title><link rel=\"stylesheet\" href=\"css/site.css\"></head><body><main><h1>Home</h1></main></body></html>");
+
+        HtmlDemoImporter.Import(new HtmlDemoImportOptions
+        {
+            InputPath = _tempDir,
+            ThemeName = "gbk-css-base",
+            RootDir = _tempDir,
+            BaseUrl = "/corp/",
+            Force = true
+        });
+
+        var themeRoot = Path.Combine(_tempDir, "themes", "gbk-css-base");
+        var text = gbk.GetString(File.ReadAllBytes(Path.Combine(themeRoot, "static", "css", "site.css")));
+        Assert.Contains("微软雅黑", text, StringComparison.Ordinal);
+        Assert.Contains("/corp/img/bg.png", text, StringComparison.Ordinal);
+        Assert.True(File.Exists(Path.Combine(themeRoot, "static", "img", "bg.png")));
+    }
+
+    [Fact]
+    public void Import_CardLinkWithTheOtherHtmlExtension_MergesWithTheDetailPage()
+    {
+        File.WriteAllText(Path.Combine(_tempDir, "index.html"),
+            "<html><head><title>Home</title></head><body><main><h1>Home</h1></main></body></html>");
+        File.WriteAllText(Path.Combine(_tempDir, "article.html"),
+            "<html><head><title>Article</title></head><body><main><h1>First Post</h1><p>Body.</p></main></body></html>");
+        File.WriteAllText(Path.Combine(_tempDir, "news.html"),
+            "<html><head><title>News</title></head><body><main><h1>News</h1>" +
+            "<article class=\"article-card\"><h3><a href=\"article.htm\">Other title</a></h3></article>" +
+            "</main></body></html>");
+
+        HtmlDemoImporter.Import(new HtmlDemoImportOptions
+        {
+            InputPath = _tempDir,
+            ThemeName = "alternate-card",
+            RootDir = _tempDir,
+            Force = true
+        });
+
+        var posts = Path.Combine(_tempDir, "sites", "alternate-card", "content", "posts");
+        var draft = Assert.Single(Directory.GetFiles(posts, "*.md"));
+        Assert.Contains("title: First Post", File.ReadAllText(draft), StringComparison.Ordinal);
     }
 
     [Fact]

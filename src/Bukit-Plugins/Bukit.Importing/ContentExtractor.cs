@@ -289,8 +289,16 @@ internal static partial class ContentExtractor
         PageType detailType)
     {
         var target = DemoLinks.ResolvePath(sourcePage.RelativePath, href);
-        if (target is null ||
-            !pagesByPath.TryGetValue(target, out var detail) ||
+        if (target is null)
+            return null;
+
+        if (!pagesByPath.TryGetValue(target, out var detail) &&
+            DemoLinks.AlternatePageExtension(target) is { } alternate)
+        {
+            pagesByPath.TryGetValue(alternate, out detail);
+        }
+
+        if (detail is null ||
             detail.Type != detailType ||
             string.IsNullOrWhiteSpace(detail.Slug))
         {

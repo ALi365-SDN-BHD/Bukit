@@ -117,6 +117,10 @@ from scratch. For `site.yaml` and the content drafts, the import manifest decide
 - files the importer did not write (including output of imports made before the
   manifest existed) are kept unless you pass `--overwrite`.
 
+An import holds two lock files while it runs: `sites/<theme>/.bukit-import.lock`
+and `themes/.import-<hash>.lock`. The OS releases the lock when the process ends;
+the files stay behind, so add both to `.gitignore` if you track those directories.
+
 Drafts are only removed when this import wrote drafts: with `--no-extract-content`
 or `--build-source notion`, existing drafts are left alone. If an import fails part
 way, nothing is removed and the files it wrote are still recorded.

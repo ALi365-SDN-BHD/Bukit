@@ -1,3 +1,4 @@
+using System.Text;
 using System.Text.RegularExpressions;
 using Bukit.Shared;
 
@@ -86,7 +87,7 @@ internal static partial class AssetImporter
 
             if (Path.GetExtension(canonicalRel).Equals(".css", StringComparison.OrdinalIgnoreCase))
             {
-                File.WriteAllText(destPath, RewriteRootCssUrls(File.ReadAllText(sourcePath), basePath));
+                CopyCss(sourcePath, destPath, basePath);
             }
             else
             {
@@ -135,7 +136,8 @@ internal static partial class AssetImporter
             string css;
             try
             {
-                css = File.ReadAllText(cssPath);
+                // Latin-1 keeps every byte; only ASCII url()/@import tokens are read.
+                css = Encoding.Latin1.GetString(File.ReadAllBytes(cssPath));
             }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
             {
@@ -187,7 +189,7 @@ internal static partial class AssetImporter
 
                     if (Path.GetExtension(file).Equals(".css", StringComparison.OrdinalIgnoreCase))
                     {
-                        File.WriteAllText(dest, RewriteRootCssUrls(File.ReadAllText(file), basePath));
+                        CopyCss(file, dest, basePath);
                     }
                     else
                     {
@@ -210,14 +212,45 @@ internal static partial class AssetImporter
     [GeneratedRegex(@"@import\s+(?:url\(\s*)?[""']?(?<value>[^""')\s]+)", RegexOptions.IgnoreCase)]
     private static partial Regex CssImportPattern();
 
+    /// <summary>
+    /// Byte-preserving copy. Rewrites root-absolute url()/@import targets for a
+    /// sub-path deploy; without a change the original bytes are copied verbatim, so
+    /// GBK/GB2312 stylesheets keep their encoding.
+    /// </summary>
+    private static void CopyCss(string sourcePath, string destPath, string basePath)
+    {
+        if (string.IsNullOrEmpty(basePath))
+        {
+            File.Copy(sourcePath, destPath, overwrite: true);
+            return;
+        }
+
+        var bytes = File.ReadAllBytes(sourcePath);
+        var text = Encoding.Latin1.GetString(bytes);
+        var rewritten = RewriteRootCssUrls(text, basePath);
+        if (string.Equals(rewritten, text, StringComparison.Ordinal))
+        {
+            File.Copy(sourcePath, destPath, overwrite: true);
+            return;
+        }
+
+        File.WriteAllBytes(destPath, Encoding.Latin1.GetBytes(rewritten));
+    }
+
     private static string RewriteRootCssUrls(string css, string basePath)
         => string.IsNullOrEmpty(basePath)
             ? css
-            : CssRootUrlPattern().Replace(css, match =>
-                $"url({match.Groups["quote"].Value}{basePath}{match.Groups["value"].Value}{match.Groups["quote"].Value})");
+            : CssRootImportPattern().Replace(
+                CssRootUrlPattern().Replace(css, match =>
+                    $"url({match.Groups["quote"].Value}{basePath}{match.Groups["value"].Value}{match.Groups["quote"].Value})"),
+                match =>
+                    $"@import {match.Groups["quote"].Value}{basePath}{match.Groups["value"].Value}{match.Groups["quote"].Value}");
 
     [GeneratedRegex(@"url\(\s*(?<quote>['""]?)(?<value>/(?!/)[^'"")]+)\k<quote>\s*\)", RegexOptions.IgnoreCase)]
     private static partial Regex CssRootUrlPattern();
+
+    [GeneratedRegex(@"@import\s+(?<quote>[""'])(?<value>/(?!/)[^""']+)\k<quote>", RegexOptions.IgnoreCase)]
+    private static partial Regex CssRootImportPattern();
 
     internal static void TransferAssetsToStatic(HtmlDemoImportOptions options)
     {
