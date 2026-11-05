@@ -75,6 +75,14 @@
           "type": "array",
           "items": { "type": "string", "format": "uri" }
         },
+        "connectSrc": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "imgSrc": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
         "dynamicContainerDestinationsUnknown": { "type": "boolean" }
       },
       "additionalProperties": false
