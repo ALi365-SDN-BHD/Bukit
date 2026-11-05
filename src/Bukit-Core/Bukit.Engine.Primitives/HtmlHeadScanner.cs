@@ -50,6 +50,88 @@ internal static class HtmlHeadScanner
         return true;
     }
 
+    /// <summary>
+    /// Returns the end offset of the first encoding declaration inside the head, so
+    /// callers can keep it within the first 1024 bytes. Returns -1 when none exists.
+    /// </summary>
+    internal static int FindEncodingDeclarationEnd(string html, HtmlHeadRange head)
+    {
+        var index = head.ContentStart;
+        while (index < head.ContentEnd)
+        {
+            var tagStart = html.IndexOf('<', index, head.ContentEnd - index);
+            if (tagStart < 0)
+            {
+                return -1;
+            }
+
+            if (IsCommentStart(html, tagStart))
+            {
+                var commentEnd = FindCommentEnd(html, tagStart, head.ContentEnd);
+                if (commentEnd < 0)
+                {
+                    return -1;
+                }
+
+                index = commentEnd;
+                continue;
+            }
+
+            var tagEnd = FindTagEnd(html, tagStart);
+            if (tagEnd < 0 || tagEnd >= head.ContentEnd)
+            {
+                return -1;
+            }
+
+            var tag = html.Substring(tagStart, tagEnd - tagStart + 1);
+            if (IsStartTag(tag, "meta") && IsEncodingDeclaration(tag))
+            {
+                return tagEnd + 1;
+            }
+
+            var rawTextElement = GetRawTextElementName(tag);
+            if (rawTextElement is not null)
+            {
+                var closeStart = FindClosingTagStartRaw(
+                    html,
+                    rawTextElement,
+                    tagEnd + 1,
+                    head.ContentEnd);
+                if (closeStart < 0)
+                {
+                    return -1;
+                }
+
+                var closeEnd = FindTagEnd(html, closeStart);
+                if (closeEnd < 0 || closeEnd >= head.ContentEnd)
+                {
+                    return -1;
+                }
+
+                index = closeEnd + 1;
+                continue;
+            }
+
+            index = tagEnd + 1;
+        }
+
+        return -1;
+    }
+
+    private static bool IsEncodingDeclaration(string tag)
+    {
+        if (HtmlTagAttributeReader.GetAttribute(tag, "charset") is not null)
+        {
+            return true;
+        }
+
+        var httpEquiv = HtmlTagAttributeReader.GetAttribute(tag, "http-equiv");
+        var content = HtmlTagAttributeReader.GetAttribute(tag, "content");
+        return string.Equals(httpEquiv?.Trim(), "content-type", StringComparison.OrdinalIgnoreCase) &&
+               content is not null &&
+               content.Contains("charset", StringComparison.OrdinalIgnoreCase);
+    }
+
     internal static int FindStartTag(string html, string name, int searchStart, int searchEnd)
     {
         var index = Math.Max(0, searchStart);

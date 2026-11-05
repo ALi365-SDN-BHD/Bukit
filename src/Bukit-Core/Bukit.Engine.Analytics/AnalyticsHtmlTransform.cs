@@ -120,7 +120,10 @@ internal sealed class AnalyticsHtmlTransform : IHtmlTransform
 
         if (headStartBlocks.Length > 0)
         {
-            result = result.Insert(head.ContentStart, string.Concat(headStartBlocks));
+            var insertionIndex = HtmlHeadScanner.FindEncodingDeclarationEnd(html, head);
+            result = result.Insert(
+                insertionIndex >= 0 ? insertionIndex : head.ContentStart,
+                string.Concat(headStartBlocks));
         }
 
         return result;

@@ -427,6 +427,99 @@ public sealed class AnalyticsHtmlTransformTests
     }
 
     [Fact]
+    public void Transform_InsertsHeadStartFragmentsAfterUtf8EncodingDeclaration()
+    {
+        var transform = CreateTransform(Provider("google-analytics", measurementId: "G-CHARSET"));
+        const string html = "<html><head><meta charset=\"utf-8\"><title>x</title></head><body></body></html>";
+
+        var result = transform.Transform(Context(), html);
+
+        var charset = result.IndexOf("<meta charset=\"utf-8\">", StringComparison.Ordinal);
+        var marker = result.IndexOf("google-analytics:G-CHARSET:head:start", StringComparison.Ordinal);
+        var title = result.IndexOf("<title>", StringComparison.Ordinal);
+        Assert.True(charset >= 0 && marker > charset && marker < title);
+    }
+
+    [Fact]
+    public void Transform_InsertsHeadStartFragmentsAfterLegacyEncodingDeclaration()
+    {
+        var transform = CreateTransform(Provider("google-tag-manager", containerId: "GTM-CHARSET"));
+        const string html = "<html><head><meta http-equiv=\"Content-Type\" content=\"text/html; charset=utf-8\"><title>x</title></head><body></body></html>";
+
+        var result = transform.Transform(Context(), html);
+
+        var charset = result.IndexOf("charset=utf-8", StringComparison.Ordinal);
+        var marker = result.IndexOf("google-tag-manager:GTM-CHARSET:head:start", StringComparison.Ordinal);
+        var title = result.IndexOf("<title>", StringComparison.Ordinal);
+        Assert.True(charset >= 0 && marker > charset && marker < title);
+    }
+
+    [Fact]
+    public void Transform_IgnoresEncodingLookalikesInsideCommentsAndRawText()
+    {
+        var transform = CreateTransform(Provider("google-analytics", measurementId: "G-FAKE-CHARSET"));
+        const string html = """
+            <html><head><script>const meta = '<meta charset="utf-8">';</script><!-- <meta charset="utf-8"> --><title>x</title></head><body></body></html>
+            """;
+
+        var result = transform.Transform(Context(), html);
+
+        Assert.True(HtmlHeadScanner.TryFindHead(result, out var head));
+        Assert.Equal(
+            head.ContentStart,
+            result.IndexOf("<!-- bukit:analytics:google-analytics:G-FAKE-CHARSET:head:start", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void Transform_OmitsGtmNoScriptIframeWhenAnyConsentDefaultIsDenied()
+    {
+        var transform = CreateTransform(
+            [Provider("google-tag-manager", containerId: "GTM-NO-NOSCRIPT")],
+            googleConsent: new AnalyticsGoogleConsentConfig
+            {
+                Mode = "advanced",
+                Defaults = new AnalyticsGoogleConsentDefaultsConfig
+                {
+                    AdStorage = "denied",
+                    AnalyticsStorage = "granted",
+                    AdUserData = "granted",
+                    AdPersonalization = "granted"
+                }
+            });
+        const string html = "<html><head></head><body></body></html>";
+
+        var result = transform.Transform(Context(), html);
+
+        Assert.Contains("google-tag-manager:GTM-NO-NOSCRIPT:head:start", result, StringComparison.Ordinal);
+        Assert.DoesNotContain("google-tag-manager:GTM-NO-NOSCRIPT:body:start", result, StringComparison.Ordinal);
+        Assert.DoesNotContain("googletagmanager.com/ns.html", result, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Transform_KeepsGtmNoScriptIframeWhenAllConsentDefaultsAreGranted()
+    {
+        var transform = CreateTransform(
+            [Provider("google-tag-manager", containerId: "GTM-NOSCRIPT")],
+            googleConsent: new AnalyticsGoogleConsentConfig
+            {
+                Mode = "advanced",
+                Defaults = new AnalyticsGoogleConsentDefaultsConfig
+                {
+                    AdStorage = "granted",
+                    AnalyticsStorage = "granted",
+                    AdUserData = "granted",
+                    AdPersonalization = "granted"
+                }
+            });
+        const string html = "<html><head></head><body></body></html>";
+
+        var result = transform.Transform(Context(), html);
+
+        Assert.Contains("google-tag-manager:GTM-NOSCRIPT:body:start", result, StringComparison.Ordinal);
+        Assert.Contains("googletagmanager.com/ns.html?id=GTM-NOSCRIPT", result, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void ManagedBlockFilter_NoMarkerFastPath_DoesNotAllocate()
     {
         string html = $"<html><head><title>plain</title></head><body>{new string('x', 8 * 1024)}</body></html>";
