@@ -38,8 +38,61 @@ internal static partial class AssetImporter
         var warnings = new List<string>();
         var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         var mappings = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-
+        var pendingCss = new Queue<(string SourcePath, int Depth)>();
         var fullInputPath = Path.GetFullPath(options.InputPath);
+
+        void CopyAsset(string sourcePath, string? rawReference, int depth)
+        {
+            if (!PathUtils.IsSameOrSubPathOf(sourcePath, fullInputPath))
+            {
+                warnings.Add($"Path traversal rejected: {rawReference ?? sourcePath}");
+                return;
+            }
+
+            if (!File.Exists(sourcePath))
+                return;
+
+            var canonicalRel = Path.GetRelativePath(fullInputPath, sourcePath).Replace('\\', '/');
+            if (canonicalRel.StartsWith("../", StringComparison.Ordinal))
+                return;
+
+            var fileName = Path.GetFileName(canonicalRel);
+            if (SensitiveExtensions.Contains(Path.GetExtension(fileName)) ||
+                SensitiveNames.Contains(fileName))
+            {
+                warnings.Add($"Skipped sensitive file: {canonicalRel}");
+                return;
+            }
+
+            var destUrl = "/" + canonicalRel;
+            if (rawReference is not null &&
+                !mappings.TryAdd(rawReference, destUrl) &&
+                mappings[rawReference] != destUrl)
+            {
+                warnings.Add(
+                    $"Asset reference '{rawReference}' resolves to multiple files; kept '{mappings[rawReference]}'.");
+            }
+
+            if (!seen.Add(canonicalRel))
+                return;
+
+            var isImage = ImageExtensions.Contains(
+                Path.GetExtension(canonicalRel).ToLowerInvariant());
+            var destPath = Path.Combine(themeDir, isImage ? "assets" : "static", canonicalRel);
+            var destDir = Path.GetDirectoryName(destPath);
+            if (destDir is not null)
+                Directory.CreateDirectory(destDir);
+
+            File.Copy(sourcePath, destPath, overwrite: true);
+            count++;
+
+            // A linked stylesheet may reference images/fonts outside the assets/ tree.
+            if (depth < 5 &&
+                Path.GetExtension(canonicalRel).Equals(".css", StringComparison.OrdinalIgnoreCase))
+            {
+                pendingCss.Enqueue((sourcePath, depth));
+            }
+        }
 
         foreach (var page in pages)
         {
@@ -64,37 +117,45 @@ internal static partial class AssetImporter
                     ? Path.Combine(options.InputPath, assetPath.TrimStart('/'))
                     : Path.Combine(options.InputPath, pageDir, assetPath));
 
-                if (!PathUtils.IsSameOrSubPathOf(sourcePath, fullInputPath))
+                CopyAsset(sourcePath, assetPath, 0);
+            }
+        }
+
+        while (pendingCss.Count > 0)
+        {
+            var (cssPath, depth) = pendingCss.Dequeue();
+            string css;
+            try
+            {
+                css = File.ReadAllText(cssPath);
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                warnings.Add($"Could not read stylesheet '{Path.GetRelativePath(fullInputPath, cssPath)}': {ex.Message}");
+                continue;
+            }
+
+            foreach (Match match in CssUrlPattern().Matches(css))
+            {
+                var value = match.Groups["value"].Value.Trim();
+                if (value.Length == 0 ||
+                    value.StartsWith('#') ||
+                    value.StartsWith("//", StringComparison.Ordinal) ||
+                    value.StartsWith("data:", StringComparison.OrdinalIgnoreCase) ||
+                    value.StartsWith("http://", StringComparison.OrdinalIgnoreCase) ||
+                    value.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
                 {
-                    warnings.Add($"Path traversal rejected: {assetPath}");
                     continue;
                 }
 
-                if (!File.Exists(sourcePath)) continue;
+                var reference = StripQueryAndFragment(value);
+                if (string.IsNullOrWhiteSpace(reference) || !IsSafeAsset(reference))
+                    continue;
 
-                var canonicalRel = Path.GetRelativePath(fullInputPath, sourcePath).Replace('\\', '/');
-                if (canonicalRel.StartsWith("../", StringComparison.Ordinal)) continue;
-
-                var destUrl = "/" + canonicalRel;
-                if (!mappings.TryAdd(assetPath, destUrl) && mappings[assetPath] != destUrl)
-                {
-                    warnings.Add(
-                        $"Asset reference '{assetPath}' resolves to multiple files; kept '{mappings[assetPath]}'.");
-                }
-
-                if (!seen.Add(canonicalRel)) continue;
-
-                var isImage = ImageExtensions.Contains(
-                    Path.GetExtension(canonicalRel).ToLowerInvariant());
-                var destSubDir = isImage ? "assets" : "static";
-                var destPath = Path.Combine(themeDir, destSubDir, canonicalRel);
-
-                var destDir = Path.GetDirectoryName(destPath);
-                if (destDir is not null)
-                    Directory.CreateDirectory(destDir);
-
-                File.Copy(sourcePath, destPath, overwrite: true);
-                count++;
+                var target = reference.StartsWith('/')
+                    ? Path.Combine(fullInputPath, reference.TrimStart('/'))
+                    : Path.Combine(Path.GetDirectoryName(cssPath)!, reference);
+                CopyAsset(Path.GetFullPath(target), null, depth + 1);
             }
         }
 
@@ -126,6 +187,9 @@ internal static partial class AssetImporter
 
         return new AssetImportResult(count, warnings, mappings);
     }
+
+    [GeneratedRegex(@"url\(\s*(?<quote>['""]?)(?<value>[^'"")]+)\k<quote>\s*\)", RegexOptions.IgnoreCase)]
+    private static partial Regex CssUrlPattern();
 
     internal static void TransferAssetsToStatic(HtmlDemoImportOptions options)
     {

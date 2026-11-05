@@ -147,6 +147,42 @@ theme:
     }
 
     [Fact]
+    public async Task SetThemeAsync_ParamsBeforeName_InsertsParamsInTheParamsBlock()
+    {
+        Directory.CreateDirectory(Path.Combine(_rootDir, "themes", "demo"));
+        var configPath = Path.Combine(_rootDir, "site.yaml");
+        File.WriteAllText(configPath, """
+theme:
+  params:
+    brand: Old
+  name: old
+""");
+
+        var result = await ImportingCommandTestSupport.CaptureAsync(() =>
+            ImportThemeSelectionService.SetThemeAsync(
+                "demo", configPath, _rootDir, brand: "New", primaryColor: "#123456", accentColor: null));
+
+        Assert.Equal(0, result.ExitCode);
+
+        var stream = new YamlDotNet.RepresentationModel.YamlStream();
+        stream.Load(new StringReader(File.ReadAllText(configPath)));
+        var root = Assert.IsType<YamlDotNet.RepresentationModel.YamlMappingNode>(stream.Documents[0].RootNode);
+        var theme = Assert.IsType<YamlDotNet.RepresentationModel.YamlMappingNode>(
+            root.Children[new YamlDotNet.RepresentationModel.YamlScalarNode("theme")]);
+        var parameters = Assert.IsType<YamlDotNet.RepresentationModel.YamlMappingNode>(
+            theme.Children[new YamlDotNet.RepresentationModel.YamlScalarNode("params")]);
+
+        Assert.Equal("demo", ((YamlDotNet.RepresentationModel.YamlScalarNode)
+            theme.Children[new YamlDotNet.RepresentationModel.YamlScalarNode("name")]).Value);
+        Assert.Equal("New", ((YamlDotNet.RepresentationModel.YamlScalarNode)
+            parameters.Children[new YamlDotNet.RepresentationModel.YamlScalarNode("brand")]).Value);
+        Assert.Equal("New", ((YamlDotNet.RepresentationModel.YamlScalarNode)
+            parameters.Children[new YamlDotNet.RepresentationModel.YamlScalarNode("footer_text")]).Value);
+        Assert.Equal("#123456", ((YamlDotNet.RepresentationModel.YamlScalarNode)
+            parameters.Children[new YamlDotNet.RepresentationModel.YamlScalarNode("primary_color")]).Value);
+    }
+
+    [Fact]
     public async Task SetThemeAsync_SameThemeTwice_DoesNotRewriteTheFile()
     {
         Directory.CreateDirectory(Path.Combine(_rootDir, "themes", "demo"));

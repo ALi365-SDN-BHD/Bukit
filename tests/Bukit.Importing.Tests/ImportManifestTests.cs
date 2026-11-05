@@ -42,6 +42,18 @@ public sealed class ImportManifestTests : IDisposable
     }
 
     [Fact]
+    public void Load_UnreadableManifest_WarnsAndTreatsFilesAsHandEdited()
+    {
+        var existing = Write("content/old.md", "old");
+        File.WriteAllText(Path.Combine(_site, ImportManifest.FileName), "{ not json");
+
+        var manifest = ImportManifest.Load(_site, overwrite: false);
+
+        Assert.Contains(manifest.Warnings, warning => warning.Contains("unreadable", StringComparison.OrdinalIgnoreCase));
+        Assert.False(manifest.CanWrite(existing));
+    }
+
+    [Fact]
     public void Save_DropsTheLegacyDatabaseMapRecordWithoutDeletingTheFile()
     {
         var notionDir = Path.Combine(_site, "notion-seed");

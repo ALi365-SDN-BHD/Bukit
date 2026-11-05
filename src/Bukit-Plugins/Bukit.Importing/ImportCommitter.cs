@@ -10,7 +10,11 @@ internal static class ImportCommitter
 {
     internal static ImportResult Commit(ImportAnalysis analysis, HtmlDemoImportOptions options)
     {
-        var manifest = ImportManifest.Load(HtmlDemoImporter.GetSiteDir(options), options.Overwrite);
+        var siteDir = HtmlDemoImporter.GetSiteDir(options);
+        Directory.CreateDirectory(siteDir);
+        using var importLock = AcquireImportLock(siteDir);
+
+        var manifest = ImportManifest.Load(siteDir, options.Overwrite);
         var saved = false;
         try
         {
@@ -30,6 +34,21 @@ internal static class ImportCommitter
             }
 
             throw;
+        }
+    }
+
+    private static FileStream AcquireImportLock(string siteDir)
+    {
+        var path = Path.Combine(siteDir, ".bukit-import.lock");
+        try
+        {
+            return new FileStream(path, FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.None);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            throw new ImportException(ImportErrorKind.UserInput,
+                $"Another import is already running for {siteDir}. " +
+                $"Wait for it to finish; if the previous run was killed, remove '{path}' and retry. ({ex.Message})");
         }
     }
 

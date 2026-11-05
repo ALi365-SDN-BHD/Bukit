@@ -1579,6 +1579,84 @@ databases:
     }
 
     [Fact]
+    public async Task NotionSeedPusher_MissingNextCursor_StopsReplacing()
+    {
+        using var handler = new StubHttpMessageHandler(request =>
+        {
+            var path = request.RequestUri?.AbsolutePath ?? "";
+            if (request.Method == HttpMethod.Post && path.EndsWith("/databases/db/query", StringComparison.Ordinal))
+                return Json("""{ "results": [{ "id": "page-1" }] }""");
+            if (request.Method == HttpMethod.Patch && path.EndsWith("/pages/page-1", StringComparison.Ordinal))
+                return Json("{}");
+            if (request.Method == HttpMethod.Get && path.EndsWith("/blocks/page-1/children", StringComparison.Ordinal))
+                return Json("""{ "results": [{ "id": "old-1" }], "has_more": true }""");
+            if (request.Method == HttpMethod.Delete)
+                return Json("{}");
+            return new HttpResponseMessage(HttpStatusCode.NotFound);
+        });
+
+        using var transport = CreateTrustedClient(new NotionClientOptions { Token = "token", MaxRetries = 0 }, handler);
+        var record = new ImportSeedRecord("post", "Body", "body", null, "<p>New body</p>", null, true, null, null);
+        using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+
+        var result = await NotionSeedPusher.PushAsync(
+            new NotionWriteClient(transport),
+            [record],
+            new NotionPushOptions("db", Path.Combine(_rootDir, "cursor.json"), DryRun: false,
+                Mode: "upsert", UpdateContent: "replace", WriteReport: false),
+            timeout.Token);
+
+        Assert.Equal(1, result.Failed);
+        Assert.Equal("replace-failed", result.Items.Single().Action);
+    }
+
+    [Fact]
+    public async Task PushSeedDirectoryAsync_SchemaInspectionFailure_WarnsAndContinues()
+    {
+        var inputDir = Path.Combine(_rootDir, "inspect-failure-seed");
+        Directory.CreateDirectory(inputDir);
+        File.WriteAllText(Path.Combine(inputDir, "pages.json"), """
+[{ "title": "Page", "slug": "page", "template": "pages/page.html" }]
+""");
+        File.WriteAllText(Path.Combine(inputDir, "map.yaml"), """
+databases:
+  pages:
+    title: Pages
+    seed: pages.json
+    collection: page
+    databaseId: db
+    uniqueField: Slug
+""");
+        using var token = new ImportingCommandTestSupport.EnvironmentVariableScope("BUKIT_IMPORT_TEST_NOTION_TOKEN", "secret");
+
+        using var handler = new StubHttpMessageHandler(request =>
+        {
+            var path = request.RequestUri?.AbsolutePath ?? "";
+            if (request.Method == HttpMethod.Get && path.EndsWith("/databases/db", StringComparison.Ordinal))
+                return new HttpResponseMessage(HttpStatusCode.InternalServerError) { Content = new StringContent("{}") };
+            if (request.Method == HttpMethod.Post && path.EndsWith("/databases/db/query", StringComparison.Ordinal))
+                return Json("""{ "results": [] }""");
+            if (request.Method == HttpMethod.Post && path.EndsWith("/pages", StringComparison.Ordinal))
+                return Json("""{ "id": "page-new" }""");
+            return new HttpResponseMessage(HttpStatusCode.NotFound);
+        });
+        TestHttpMessageHandlerFactory = () => handler;
+
+        var result = await ImportingCommandTestSupport.CaptureAsync(() =>
+            ImportNotionPushWorkflow.PushSeedDirectoryAsync(new ImportNotionSeedPushOptions
+            {
+                InputDir = inputDir,
+                DatabaseMapPath = Path.Combine(inputDir, "map.yaml"),
+                TokenEnv = "BUKIT_IMPORT_TEST_NOTION_TOKEN",
+                ValidateSchema = false,
+                ReportPath = Path.Combine(inputDir, "report.json")
+            }));
+
+        Assert.Equal(0, result.ExitCode);
+        Assert.Contains("could not inspect the schema", result.StdErr, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public async Task PushSeedDirectoryAsync_SecondConcurrentPushIsRejected()
     {
         var inputDir = Path.Combine(_rootDir, "locked-seed");

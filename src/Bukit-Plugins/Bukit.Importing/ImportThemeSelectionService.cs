@@ -203,6 +203,7 @@ public static class ImportThemeSelectionService
     /// <summary>Start is the key line; End is the first line that is not part of the block.</summary>
     private static (int Start, int End) BlockRange(List<string> lines, int keyIndex)
     {
+        var keyIndent = IndentOf(lines[keyIndex]);
         var end = keyIndex + 1;
         while (end < lines.Count)
         {
@@ -213,7 +214,8 @@ public static class ImportThemeSelectionService
                 continue;
             }
 
-            if (!char.IsWhiteSpace(line[0]))
+            // A dedented line is a sibling of the key, not part of its block.
+            if (IndentOf(line) <= keyIndent)
                 break;
 
             end++;
@@ -221,6 +223,8 @@ public static class ImportThemeSelectionService
 
         return (keyIndex + 1, end);
     }
+
+    private static int IndentOf(string line) => line.Length - line.TrimStart().Length;
 
     /// <summary>Index just past the last non-empty line of the block.</summary>
     private static int EndOfBlock(List<string> lines, int start, int end)

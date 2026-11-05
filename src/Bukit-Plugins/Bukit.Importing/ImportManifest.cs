@@ -32,6 +32,7 @@ internal sealed class ImportManifest
     {
         var previous = new Dictionary<string, string>(StringComparer.Ordinal);
         var path = Path.Combine(siteDir, FileName);
+        string? loadWarning = null;
         if (File.Exists(path))
         {
             try
@@ -48,11 +49,18 @@ internal sealed class ImportManifest
             }
             catch (JsonException)
             {
-                // An unreadable manifest only means every existing file counts as hand-edited.
+                loadWarning = $"Ignored unreadable import manifest '{path}': every existing file is treated as hand-edited.";
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                loadWarning = $"Could not read import manifest '{path}': {ex.Message}. Every existing file is treated as hand-edited.";
             }
         }
 
-        return new ImportManifest(siteDir, overwrite, previous);
+        var manifest = new ImportManifest(siteDir, overwrite, previous);
+        if (loadWarning is not null)
+            manifest.Warnings.Add(loadWarning);
+        return manifest;
     }
 
     /// <summary>
@@ -149,7 +157,7 @@ internal sealed class ImportManifest
         Directory.CreateDirectory(_siteDir);
         var ordered = _current.OrderBy(entry => entry.Key, StringComparer.Ordinal)
             .ToDictionary(entry => entry.Key, entry => entry.Value);
-        File.WriteAllText(path, JsonSerializer.Serialize(new { version = 1, files = ordered },
+        ImportWriteGuard.WriteAllTextAtomic(path, JsonSerializer.Serialize(new { version = 1, files = ordered },
             new JsonSerializerOptions { WriteIndented = true }));
     }
 

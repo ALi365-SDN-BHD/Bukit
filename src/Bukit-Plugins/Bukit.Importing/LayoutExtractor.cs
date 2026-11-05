@@ -8,7 +8,6 @@ internal static partial class LayoutExtractor
         string Header,
         string Nav,
         string Footer,
-        string HeadExtras,
         bool HeaderContainsNav);
 
     private static readonly Regex HeaderRegex = HeaderTagPattern();
@@ -33,7 +32,6 @@ internal static partial class LayoutExtractor
                 Header: string.IsNullOrWhiteSpace(extractedHeader) ? "" : extractedHeader,
                 Nav: extractedNav,
                 Footer: string.IsNullOrWhiteSpace(extractedFooter) ? "" : extractedFooter,
-                HeadExtras: single.HeadContent ?? "",
                 HeaderContainsNav: !string.IsNullOrWhiteSpace(extractedNav));
         }
 
@@ -61,7 +59,6 @@ internal static partial class LayoutExtractor
                 Header: fallbackHeader,
                 Nav: fallbackNav,
                 Footer: fallbackFooter,
-                HeadExtras: first.HeadContent ?? "",
                 HeaderContainsNav: !string.IsNullOrWhiteSpace(fallbackNav));
         }
 
@@ -79,13 +76,10 @@ internal static partial class LayoutExtractor
 
         var navContent = ExtractNavBlock(headerContent);
 
-        var firstHead = pages[0].HeadContent ?? "";
-
         return new LayoutInfo(
             Header: headerContent,
             Nav: navContent,
             Footer: footerContent,
-            HeadExtras: firstHead,
             HeaderContainsNav: !string.IsNullOrWhiteSpace(ExtractNavBlock(headerContent)));
     }
 

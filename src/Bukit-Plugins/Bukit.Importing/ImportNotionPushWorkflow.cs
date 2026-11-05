@@ -496,6 +496,9 @@ public static class ImportNotionPushWorkflow
         if (!response.IsSuccess || response.Payload is not { } payload ||
             !payload.TryGetProperty("properties", out var properties))
         {
+            Console.Error.WriteLine(
+                $"  Notion database {databaseId}: could not inspect the schema, so Template/Url are pushed as configured. " +
+                $"({response.ErrorMessage ?? response.ReasonPhrase ?? "request failed"})");
             return (records, schema);
         }
 

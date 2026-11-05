@@ -47,9 +47,9 @@ internal static partial class ContentExtractor
 
         // The list page yields a summary-only card; the detail page has the body.
         // Keep the richer record instead of whichever page happened to sort first.
-        content.Posts = PreferDetail(content.Posts, p => p.Title, p => p.Content).ToList();
-        content.Companies = PreferDetail(content.Companies, c => c.Title, c => c.Content).ToList();
-        content.Services = PreferDetail(content.Services, s => s.Title, s => s.Content).ToList();
+        content.Posts = PreferDetail(content.Posts, p => p.Slug, p => p.Content, p => p.TemplatePath is not null).ToList();
+        content.Companies = PreferDetail(content.Companies, c => c.Slug, c => c.Content, c => c.TemplatePath is not null).ToList();
+        content.Services = PreferDetail(content.Services, s => s.Slug, s => s.Content, s => s.TemplatePath is not null).ToList();
 
         content.Faqs = content.Faqs
             .GroupBy(f => f.Question)
@@ -148,11 +148,18 @@ internal static partial class ContentExtractor
         return result;
     }
 
-    private static IEnumerable<T> PreferDetail<T>(IEnumerable<T> records, Func<T, string> title, Func<T, string?> content)
+    // A list card and its detail page share a slug; keeping one record per slug
+    // merges them without dropping two different pages that happen to share a title.
+    private static IEnumerable<T> PreferDetail<T>(
+        IEnumerable<T> records,
+        Func<T, string> slug,
+        Func<T, string?> content,
+        Func<T, bool> ownsPage)
         => records
-            .GroupBy(title, StringComparer.Ordinal)
+            .GroupBy(slug, StringComparer.OrdinalIgnoreCase)
             .Select(group => group
-                .OrderByDescending(record => !string.IsNullOrWhiteSpace(content(record)))
+                .OrderByDescending(ownsPage)
+                .ThenByDescending(record => !string.IsNullOrWhiteSpace(content(record)))
                 .First());
 
     private static void ExtractNavigation(
@@ -374,10 +381,17 @@ internal static partial class ContentExtractor
             var title = h3.Success ? StripHtml(h3.Groups[1].Value).Trim() : "";
             if (string.IsNullOrWhiteSpace(title)) continue;
 
+            var link = CardLinkRegex.Match(cardHtml);
+            var slugFromLink = link.Success
+                ? PageClassifier.PageName(link.Groups[1].Value.Split('#', '?')[0].TrimEnd('/'))
+                : null;
+
             content.Companies.Add(new CompanyRecord
             {
                 Title = title,
-                Slug = GetSlugWithFallback(title, "company", ref counter),
+                Slug = !string.IsNullOrWhiteSpace(slugFromLink)
+                    ? slugFromLink
+                    : GetSlugWithFallback(title, "company", ref counter),
                 Summary = p.Success ? StripHtml(p.Groups[1].Value).Trim() : null,
                 SeoTitle = title
             });
@@ -417,10 +431,17 @@ internal static partial class ContentExtractor
             var title = h3.Success ? StripHtml(h3.Groups[1].Value).Trim() : "";
             if (string.IsNullOrWhiteSpace(title)) continue;
 
+            var link = CardLinkRegex.Match(cardHtml);
+            var slugFromLink = link.Success
+                ? PageClassifier.PageName(link.Groups[1].Value.Split('#', '?')[0].TrimEnd('/'))
+                : null;
+
             content.Services.Add(new ServiceRecord
             {
                 Title = title,
-                Slug = GetSlugWithFallback(title, "service", ref counter),
+                Slug = !string.IsNullOrWhiteSpace(slugFromLink)
+                    ? slugFromLink
+                    : GetSlugWithFallback(title, "service", ref counter),
                 Summary = p.Success ? StripHtml(p.Groups[1].Value).Trim() : null,
                 SeoTitle = title
             });

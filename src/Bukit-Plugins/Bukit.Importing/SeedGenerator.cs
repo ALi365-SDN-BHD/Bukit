@@ -26,7 +26,7 @@ internal static class SeedGenerator
             WriteCompaniesYaml(Path.Combine(seedDir, "companies.yaml"), content.Companies, options.Overwrite, manifest);
             WriteServicesYaml(Path.Combine(seedDir, "services.yaml"), content.Services, options.Overwrite, manifest);
             WriteFaqsYaml(Path.Combine(seedDir, "faqs.yaml"), content.Faqs, options.Overwrite, manifest);
-            WriteMediaYaml(Path.Combine(seedDir, "media.yaml"), pages, options.Overwrite, manifest);
+            WriteMediaYaml(Path.Combine(seedDir, "media.yaml"), pages, options.InputPath, options.Overwrite, manifest);
             WriteComponentsYaml(Path.Combine(seedDir, "components.yaml"), components, options.Overwrite, manifest);
         }
         else
@@ -38,7 +38,7 @@ internal static class SeedGenerator
             WriteCompanies(Path.Combine(seedDir, "companies.json"), content.Companies, options.Overwrite, manifest);
             WriteServices(Path.Combine(seedDir, "services.json"), content.Services, options.Overwrite, manifest);
             WriteFaqs(Path.Combine(seedDir, "faqs.json"), content.Faqs, options.Overwrite, manifest);
-            WriteMedia(Path.Combine(seedDir, "media.json"), pages, options.Overwrite, manifest);
+            WriteMedia(Path.Combine(seedDir, "media.json"), pages, options.InputPath, options.Overwrite, manifest);
             WriteComponents(Path.Combine(seedDir, "components.json"), components, options.Overwrite, manifest);
             if (!isJson)
                 WriteDefaultNotionDatabaseMap(Path.Combine(seedDir, "notion-database-map.yaml"));
@@ -172,36 +172,31 @@ internal static class SeedGenerator
         });
     }
 
-    private static void WriteMedia(string path, List<DiscoveredPage> pages, bool overwrite, ImportManifest? manifest = null)
+    private static void WriteMedia(
+        string path, List<DiscoveredPage> pages, string inputPath, bool overwrite, ImportManifest? manifest = null)
     {
         var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         var mediaItems = new List<(string source, string target, List<string> usedBy, string status)>();
 
-        foreach (var page in pages)
+        foreach (var (source, target, usedBy, status) in CollectMedia(pages, inputPath))
         {
-            foreach (var asset in page.AssetPaths)
+            if (!seen.Add(source))
             {
-                var ext = Path.GetExtension(asset).ToLowerInvariant();
-                var isImage = ext is ".png" or ".jpg" or ".jpeg" or ".gif" or ".svg" or ".webp" or ".ico" or ".bmp";
-                if (!isImage) continue;
-
-                if (!seen.Add(asset))
+                var existing = mediaItems.FindIndex(m => m.source == source);
+                if (existing >= 0)
                 {
-                    var existing = mediaItems.FindIndex(m => m.source == asset);
-                    if (existing >= 0)
+                    var item = mediaItems[existing];
+                    foreach (var page in usedBy)
                     {
-                        var item = mediaItems[existing];
-                        if (!item.usedBy.Contains(page.RelativePath))
-                            item.usedBy.Add(page.RelativePath);
-                        mediaItems[existing] = item;
+                        if (!item.usedBy.Contains(page))
+                            item.usedBy.Add(page);
                     }
-                    continue;
+                    mediaItems[existing] = item;
                 }
-
-                var target = "/" + asset.TrimStart('/').Replace('\\', '/');
-
-                mediaItems.Add((asset, target, [page.RelativePath], "copied"));
+                continue;
             }
+
+            mediaItems.Add((source, target, usedBy, status));
         }
 
         WriteArray(path, mediaItems, overwrite, manifest, (sb, m, i, last) =>
@@ -212,6 +207,29 @@ internal static class SeedGenerator
             sb.AppendLine();
             sb.Append($"    \"status\": {JsonStr(m.status)}");
         });
+    }
+
+    private static IEnumerable<(string source, string target, List<string> usedBy, string status)> CollectMedia(
+        List<DiscoveredPage> pages, string inputPath)
+    {
+        foreach (var page in pages)
+        {
+            foreach (var asset in page.AssetPaths)
+            {
+                var extension = Path.GetExtension(asset).ToLowerInvariant();
+                var isImage = extension is ".png" or ".jpg" or ".jpeg" or ".gif" or ".svg" or ".webp" or ".ico" or ".bmp";
+                if (!isImage) continue;
+
+                var resolved = DemoLinks.ResolvePath(page.RelativePath, asset);
+                var source = resolved ?? asset;
+                var target = resolved is null ? "" : "/" + resolved;
+                var status = resolved is not null && File.Exists(Path.Combine(inputPath, resolved))
+                    ? "copied"
+                    : "missing";
+
+                yield return (source, target, [page.RelativePath], status);
+            }
+        }
     }
 
     private static void WriteComponents(string path, List<DiscoveredComponent> components, bool overwrite, ImportManifest? manifest = null)
@@ -368,34 +386,31 @@ internal static class SeedGenerator
         });
     }
 
-    private static void WriteMediaYaml(string path, List<DiscoveredPage> pages, bool overwrite, ImportManifest? manifest = null)
+    private static void WriteMediaYaml(
+        string path, List<DiscoveredPage> pages, string inputPath, bool overwrite, ImportManifest? manifest = null)
     {
         var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         var mediaItems = new List<(string source, string target, List<string> usedBy, string status)>();
 
-        foreach (var page in pages)
+        foreach (var (source, target, usedBy, status) in CollectMedia(pages, inputPath))
         {
-            foreach (var asset in page.AssetPaths)
+            if (!seen.Add(source))
             {
-                var ext = Path.GetExtension(asset).ToLowerInvariant();
-                var isImage = ext is ".png" or ".jpg" or ".jpeg" or ".gif" or ".svg" or ".webp" or ".ico" or ".bmp";
-                if (!isImage) continue;
-
-                if (!seen.Add(asset))
+                var existing = mediaItems.FindIndex(m => m.source == source);
+                if (existing >= 0)
                 {
-                    var existing = mediaItems.FindIndex(m => m.source == asset);
-                    if (existing >= 0)
+                    var item = mediaItems[existing];
+                    foreach (var page in usedBy)
                     {
-                        var item = mediaItems[existing];
-                        if (!item.usedBy.Contains(page.RelativePath))
-                            item.usedBy.Add(page.RelativePath);
-                        mediaItems[existing] = item;
+                        if (!item.usedBy.Contains(page))
+                            item.usedBy.Add(page);
                     }
-                    continue;
+                    mediaItems[existing] = item;
                 }
-
-                mediaItems.Add((asset, "/" + asset.TrimStart('/').Replace('\\', '/'), [page.RelativePath], "copied"));
+                continue;
             }
+
+            mediaItems.Add((source, target, usedBy, status));
         }
 
         WriteYamlArray(path, mediaItems, overwrite, manifest, (sb, m) =>

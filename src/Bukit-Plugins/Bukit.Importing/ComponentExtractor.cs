@@ -4,21 +4,15 @@ namespace Bukit.Importing;
 
 internal static partial class ComponentExtractor
 {
+    // Only data-bound components are extracted. Section components (hero, cta, faq,
+    // stats, testimonial) are the demo's own copy; they stay in the page template.
     private static readonly Dictionary<string, string> ClassToComponent = new(StringComparer.OrdinalIgnoreCase)
     {
-        [".hero"] = "hero",
         [".article-card"] = "article-card",
         [".post-card"] = "article-card",
         [".company-card"] = "company-card",
         [".service-card"] = "service-card",
-        [".faq-item"] = "faq",
-        [".faq"] = "faq",
-        [".cta"] = "cta",
         [".pagination"] = "pagination",
-        [".breadcrumb"] = "breadcrumb",
-        [".stats"] = "stats",
-        [".testimonial"] = "testimonial",
-        [".contact-form"] = "contact-form",
         [".card"] = "card",
     };
 

@@ -247,9 +247,7 @@ themes/
 | 文章详情 | `pages/article.html` | 渲染单篇内容 |
 | 企业列表 | `pages/companies.html` | 数据驱动企业目录 |
 | 企业详情 | `pages/company.html` | 渲染单个企业资料 |
-| Hero 区块 | `components/hero.html` | 可配置标题、副标题、按钮 |
-| FAQ 区块 | `components/faq.html` | 从数据源循环渲染 |
-| CTA 区块 | `components/cta.html` | 多页面复用 |
+| Hero / FAQ / CTA 区块 | `pages/*.html` | 文案原样保留在各自页面模板，不抽成共享组件 |
 | CSS | `assets/css/style.css` | 保持独立资源 |
 | JS | `assets/js/app.js` | 只保留必要交互 |
 | 页面文案 | Notion / JSON | 不长期写死在模板中 |
@@ -975,30 +973,26 @@ components/footer.html
 
 | HTML 特征 | 组件类型 |
 |---|---|
-| `.hero` / `<section id="hero">` | hero |
-| `.card` 重复出现 | card |
-| `.article-card` | article-card |
+| `.article-card` / `.post-card` | article-card |
 | `.company-card` | company-card |
 | `.service-card` | service-card |
-| `.faq` / `.faq-item` | faq |
-| `.cta` | cta |
+| `.card` 重复出现 | card |
 | `.pagination` | pagination |
-| `.breadcrumb` | breadcrumb |
-| `.stats` | stats |
 
 生成组件：
 
 ```text
-components/hero.html
 components/article-card.html
 components/company-card.html
-components/faq.html
-components/cta.html
+components/service-card.html
+components/card.html
+components/pagination.html
 ```
 
 原则：
 
-- 重复结构必须组件化
+- 只有绑定数据的列表项和分页抽成组件
+- 区块文案（hero / faq / cta / stats / testimonial）原样留在页面模板
 - 列表项必须变成循环渲染
 - 详情页模板不得硬编码某一条 Demo 数据
 - 组件文件只保留结构，不保留具体业务文案

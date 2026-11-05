@@ -192,6 +192,39 @@ public sealed class SeedGeneratorTests : IDisposable
     }
 
     [Fact]
+    public void Generate_Media_UsesResolvedPathsAndFlagsMissingFiles()
+    {
+        Directory.CreateDirectory(Path.Combine(_tempDir, "posts", "images"));
+        File.WriteAllText(Path.Combine(_tempDir, "posts", "images", "photo.png"), "fake");
+
+        var options = new HtmlDemoImportOptions
+        {
+            InputPath = _tempDir,
+            ThemeName = "test-media-paths",
+            RootDir = _tempDir,
+            ContentSource = "notion"
+        };
+
+        var page = new DiscoveredPage
+        {
+            FilePath = "/test/posts/article.html",
+            RelativePath = "posts/article.html",
+            Slug = "article",
+            Type = PageType.PostDetail,
+            Title = "Article",
+            AssetPaths = ["images/photo.png", "../img/missing.png"]
+        };
+
+        Assert.True(SeedGenerator.Generate(options, new ExtractedContent(), [], [page]));
+        var json = File.ReadAllText(Path.Combine(_tempDir, "sites", "test-media-paths", "notion-seed", "media.json"));
+
+        Assert.Contains("\"target\": \"/posts/images/photo.png\"", json, StringComparison.Ordinal);
+        Assert.Contains("\"status\": \"copied\"", json, StringComparison.Ordinal);
+        Assert.Contains("\"target\": \"/img/missing.png\"", json, StringComparison.Ordinal);
+        Assert.Contains("\"status\": \"missing\"", json, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void Generate_PagesJson_ContainsRecords()
     {
         var options = new HtmlDemoImportOptions

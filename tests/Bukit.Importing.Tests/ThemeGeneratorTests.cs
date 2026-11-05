@@ -65,7 +65,6 @@ public sealed class ThemeGeneratorTests : IDisposable
             Header: "<header><a href=\"/\">Home</a></header>",
             Nav: "<nav><ul><li><a href=\"/about/\">About</a></li></ul></nav>",
             Footer: "<footer>Footer</footer>",
-            HeadExtras: "<link rel=\"stylesheet\" href=\"/css/site.css\" />",
             HeaderContainsNav: false);
 
         // The home page always renders pages/index.html; "landing" therefore belongs to about only.

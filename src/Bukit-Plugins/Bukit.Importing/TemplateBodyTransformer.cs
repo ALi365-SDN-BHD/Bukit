@@ -4,9 +4,10 @@ namespace Bukit.Importing;
 
 internal static partial class TemplateBodyTransformer
 {
+    // Only data-bound components are included. Section copy stays in the page.
     private static readonly string[] SectionComponentClasses =
     [
-        "hero", "faq", "cta", "stats", "testimonial", "pagination"
+        "pagination"
     ];
 
     private static readonly string[] ListComponentClasses =
@@ -80,14 +81,8 @@ internal static partial class TemplateBodyTransformer
 
             // The component file holds the whole element, so the include replaces it;
             // keeping the original tag around it rendered the element twice.
-            var componentName = className == "faq-item" ? "faq" : className;
             result = ReplaceElementsByClass(result, className, _ =>
-                "{{ include 'components/" + componentName + ".html' }}");
-        }
-
-        if (ContainsClass(result, "faq-item") && !result.Contains("components/faq.html", StringComparison.Ordinal))
-        {
-            result = ReplaceElementsByClass(result, "faq-item", _ => "{{ include 'components/faq.html' }}");
+                "{{ include 'components/" + className + ".html' }}");
         }
 
         return result;
@@ -127,13 +122,6 @@ internal static partial class TemplateBodyTransformer
         var end = last.Index + last.Length;
         return html[..start] + loop + html[end..];
     }
-
-    private static bool HasRecognizedSectionComponent(string html)
-        => SectionComponentClasses.Any(className => ContainsClass(html, className)) ||
-           ContainsClass(html, "faq-item");
-
-    private static bool HasRecognizedListComponent(string html)
-        => ListComponentClasses.Any(className => ContainsClass(html, className));
 
     private static string ReplaceFirstHeading(string html, string variable)
     {

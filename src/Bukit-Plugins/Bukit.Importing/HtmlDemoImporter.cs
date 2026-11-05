@@ -1,5 +1,7 @@
 using System.Text;
 
+using Bukit.Shared;
+
 namespace Bukit.Importing;
 
 public static class HtmlDemoImporter
@@ -128,9 +130,13 @@ public static class HtmlDemoImporter
     internal static void PreserveOriginalHtml(HtmlDemoImportOptions options, List<DiscoveredPage> pages)
     {
         var siteDir = GetSiteDir(options);
+        var themeDir = GetThemeDir(options);
         var preserveDir = Path.Combine(siteDir, "original-demo");
         var sourceFiles = DemoFiles.Enumerate(options.InputPath)
             .Where(file => !ImportSafetyPatterns.IsBuiltOutputPath(options.InputPath, file))
+            // The demo may be the project root; never copy this import's own output.
+            .Where(file => !PathUtils.IsSameOrSubPathOf(file, siteDir))
+            .Where(file => !PathUtils.IsSameOrSubPathOf(file, themeDir))
             .ToList();
         Directory.CreateDirectory(preserveDir);
 

@@ -449,8 +449,16 @@ internal static partial class NotionSeedPusher
             }
 
             hasMore = payload.TryGetProperty("has_more", out var hm) && hm.GetBoolean();
-            startCursor = hasMore && payload.TryGetProperty("next_cursor", out var nc)
+            var nextCursor = hasMore && payload.TryGetProperty("next_cursor", out var nc)
                 ? nc.GetString() : null;
+            if (hasMore && string.IsNullOrWhiteSpace(nextCursor))
+            {
+                // A repeated page would otherwise loop forever.
+                allSucceeded = false;
+                break;
+            }
+
+            startCursor = nextCursor;
         }
         return (allSucceeded, ids);
     }
