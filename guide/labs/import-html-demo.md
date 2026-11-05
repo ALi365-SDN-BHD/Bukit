@@ -151,6 +151,9 @@ the file and import again to regenerate it; back up the existing ids first.
 - List and detail URLs are fixed (`/insights/`, `/companies/`, `/services/`);
   use the route map or edit `site.yaml` to change them.
 - No redirects are generated from the demo's old `.html` URLs.
+- The built-output skip matches a `dist` or `build` folder at any depth, not only
+  the demo root: `build/index.html` or `docs/build/x.html` are skipped as well.
+  Rename such a folder if it holds real pages.
 - Slugs come from file names; Chinese file names give Chinese slugs.
 - Shared header and footer extraction can fail when pages' markup differs too
   much; the import then says so, and you can write the partials by hand.
