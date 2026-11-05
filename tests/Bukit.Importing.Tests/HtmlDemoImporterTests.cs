@@ -1551,6 +1551,65 @@ public sealed class HtmlDemoImporterTests : IDisposable
     }
 
     [Fact]
+    public void Import_DetailWithoutMain_KeepsFormAndIframeInTemplate()
+    {
+        File.WriteAllText(Path.Combine(_tempDir, "index.html"),
+            "<html><head><title>Home</title></head><body><main><h1>Home</h1></main></body></html>");
+        File.WriteAllText(Path.Combine(_tempDir, "contact.html"),
+            """
+            <html><head><title>Contact</title></head><body>
+            <div class="content"><h2>Contact</h2><p>Intro.</p>
+              <form action="/contact" method="post"><input name="email"><button>Send</button></form>
+              <iframe src="https://maps.example.com/embed"></iframe>
+            </div>
+            </body></html>
+            """);
+
+        HtmlDemoImporter.Import(new HtmlDemoImportOptions
+        {
+            InputPath = _tempDir,
+            ThemeName = "contact-form",
+            RootDir = _tempDir,
+            Force = true,
+            ContentSource = "json"
+        });
+
+        var template = File.ReadAllText(Path.Combine(_tempDir, "themes", "contact-form", "layouts", "pages", "contact.html"));
+        Assert.Contains("<form action=\"/contact\" method=\"post\">", template, StringComparison.Ordinal);
+        Assert.Contains("<iframe src=\"https://maps.example.com/embed\"></iframe>", template, StringComparison.Ordinal);
+        Assert.Contains("{{ page.content }}", template, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Import_MainDetail_KeepsFormAndIframeInTemplate()
+    {
+        File.WriteAllText(Path.Combine(_tempDir, "index.html"),
+            "<html><head><title>Home</title></head><body><main><h1>Home</h1></main></body></html>");
+        File.WriteAllText(Path.Combine(_tempDir, "contact.html"),
+            """
+            <html><head><title>Contact</title></head><body><main>
+            <h1>Contact</h1><p>Intro.</p>
+            <form action="/contact" method="post"><input name="email"></form>
+            <iframe src="https://maps.example.com/embed"></iframe>
+            </main></body></html>
+            """);
+
+        HtmlDemoImporter.Import(new HtmlDemoImportOptions
+        {
+            InputPath = _tempDir,
+            ThemeName = "contact-form-main",
+            RootDir = _tempDir,
+            Force = true,
+            ContentSource = "json"
+        });
+
+        var template = File.ReadAllText(Path.Combine(_tempDir, "themes", "contact-form-main", "layouts", "pages", "contact.html"));
+        Assert.Contains("<form action=\"/contact\" method=\"post\">", template, StringComparison.Ordinal);
+        Assert.Contains("<iframe src=\"https://maps.example.com/embed\"></iframe>", template, StringComparison.Ordinal);
+        Assert.Contains("{{ page.content }}", template, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void Import_Strict_HardcodedResidue_Throws()
     {
         File.WriteAllText(Path.Combine(_tempDir, "index.html"),

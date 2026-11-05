@@ -11,6 +11,12 @@ internal static partial class TemplateBodyTransformer
         "pagination"
     ];
 
+    private static readonly Regex RawFormRegex = RawFormPattern();
+    private static readonly Regex RawIframeRegex = RawIframePattern();
+    private static readonly Regex RawVideoRegex = RawVideoPattern();
+    private static readonly Regex RawAudioRegex = RawAudioPattern();
+    private static readonly Regex RawEmbedRegex = RawEmbedPattern();
+
     private static readonly (string ClassName, string ComponentName)[] ListComponents =
     [
         ("article-card", "article-card"),
@@ -245,6 +251,34 @@ internal static partial class TemplateBodyTransformer
             count: 1);
     }
 
+    // Forms and embedded media cannot become Markdown in this pipeline; keep their
+    // original HTML in the page template so the contact form and map still render.
+    private static string PreserveRawBlocks(string html)
+    {
+        var ranges = new List<(int Start, int End, string Html)>();
+        foreach (var regex in new[] { RawFormRegex, RawIframeRegex, RawVideoRegex, RawAudioRegex, RawEmbedRegex })
+        {
+            foreach (Match match in regex.Matches(html))
+                ranges.Add((match.Index, match.Index + match.Length, match.Value));
+        }
+
+        ranges.Sort((left, right) => left.Start.CompareTo(right.Start));
+        var blocks = new List<string>();
+        var coveredUntil = -1;
+        foreach (var range in ranges)
+        {
+            if (range.Start < coveredUntil)
+                continue;
+
+            blocks.Add(range.Html);
+            coveredUntil = range.End;
+        }
+
+        return blocks.Count == 0
+            ? ""
+            : Environment.NewLine + string.Join(Environment.NewLine, blocks) + Environment.NewLine;
+    }
+
     private static string ReplaceMainContentAfterHeading(string html, string variable)
     {
         var h1 = H1Regex().Match(html);
@@ -265,10 +299,12 @@ internal static partial class TemplateBodyTransformer
                 if (index >= 0 && openEnd >= 0 && close >= 0)
                     return html[..(index + openEnd + 1)] +
                            $"{Environment.NewLine}  {{{{ {variable} }}}}{Environment.NewLine}" +
+                           PreserveRawBlocks(html[(index + openEnd + 1)..(index + close)]) +
                            html[(index + close)..];
             }
 
-            return $"{Environment.NewLine}{{{{ {variable} }}}}{Environment.NewLine}";
+            return $"{Environment.NewLine}{{{{ {variable} }}}}{Environment.NewLine}" +
+                   PreserveRawBlocks(html);
         }
 
         var contentEnd = html.LastIndexOf("</main>", StringComparison.OrdinalIgnoreCase);
@@ -282,8 +318,10 @@ internal static partial class TemplateBodyTransformer
         var contentStart = h1.Index + h1.Length;
         // Wrappers opened before the heading (e.g. <article>) close inside the replaced
         // part; keep those closing tags so the template stays well formed.
-        var closers = UnmatchedClosingTags(html[contentStart..contentEnd]);
-        return html[..contentStart] + $"{Environment.NewLine}  {{{{ {variable} }}}}{Environment.NewLine}" + closers + html[contentEnd..];
+        var removed = html[contentStart..contentEnd];
+        var closers = UnmatchedClosingTags(removed);
+        var raw = PreserveRawBlocks(removed);
+        return html[..contentStart] + $"{Environment.NewLine}  {{{{ {variable} }}}}{Environment.NewLine}" + raw + closers + html[contentEnd..];
     }
 
     private static readonly HashSet<string> VoidElements = new(StringComparer.OrdinalIgnoreCase)
@@ -345,4 +383,19 @@ internal static partial class TemplateBodyTransformer
 
     [GeneratedRegex(@"<!--.*?-->", RegexOptions.Singleline)]
     private static partial Regex CommentRegex();
+
+    [GeneratedRegex(@"<form\b[^>]*>.*?</form\s*>", RegexOptions.IgnoreCase | RegexOptions.Singleline)]
+    private static partial Regex RawFormPattern();
+
+    [GeneratedRegex(@"<iframe\b[^>]*>.*?</iframe\s*>|<iframe\b[^>]*/>", RegexOptions.IgnoreCase | RegexOptions.Singleline)]
+    private static partial Regex RawIframePattern();
+
+    [GeneratedRegex(@"<video\b[^>]*>.*?</video\s*>|<video\b[^>]*/>", RegexOptions.IgnoreCase | RegexOptions.Singleline)]
+    private static partial Regex RawVideoPattern();
+
+    [GeneratedRegex(@"<audio\b[^>]*>.*?</audio\s*>|<audio\b[^>]*/>", RegexOptions.IgnoreCase | RegexOptions.Singleline)]
+    private static partial Regex RawAudioPattern();
+
+    [GeneratedRegex(@"<embed\b[^>]*/?>|<object\b[^>]*>.*?</object\s*>", RegexOptions.IgnoreCase | RegexOptions.Singleline)]
+    private static partial Regex RawEmbedPattern();
 }

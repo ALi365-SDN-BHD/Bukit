@@ -67,7 +67,9 @@ stay static. List pages turn their card group into a loop over the collection, s
 edit the component under `themes/<theme>/layouts/components/` to change a list card.
 The first image in each card becomes the record's `image` field and is bound per item.
 Other pages put their main text in a Markdown draft and keep the surrounding markup
-in the template; this also works when the demo has no `<main>`.
+in the template; this also works when the demo has no `<main>`. Forms, iframes and
+video/audio embeds cannot become Markdown, so they stay in the page template instead
+of the draft; Core Markdown escapes raw HTML by default.
 
 Lazy image attributes (`data-src`, `srcset`, `data-srcset`, `poster`) are copied and
 rewritten like `src`, so lazy-loading demos keep their images.
