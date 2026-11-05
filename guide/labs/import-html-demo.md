@@ -26,9 +26,11 @@ compare the built pages with `original-demo/`.
 
 ## What the demo must look like
 
-- A root `index.html` (the home page). Every other `*.html` file becomes a page.
+- A root `index.html` (the home page), or `index.htm` when there is no `index.html`.
+  Every other `*.html`/`*.htm` file becomes a page.
 - Flat files (`about.html`) and folder pages (`about/index.html`) both work; both
-  become the `about` page at `/about/`. Only the root `index.html` is the home page.
+  become the `about` page at `/about/`. Only the root `index.html`/`index.htm` is
+  the home page; when both exist, `index.html` wins and the import says so.
 - Files may be UTF-8, or declare another encoding with `<meta charset>` (GBK and
   GB2312 are read as GB18030). Undeclared files that are not valid UTF-8 are read
   as GB18030 when that yields Chinese text, else as Windows-1252, and the import
@@ -37,7 +39,9 @@ compare the built pages with `original-demo/`.
   encoding such as `gb2312`, with the same warning.
 - The import refuses demos that contain secrets or tooling: `.env*`, `.npmrc`,
   `.git`, `node_modules`, `.vscode`, SSH keys, and `.key/.pem/.pfx/.p12/.crt/.cert`
-  files. `dist/` and `build/` folders are allowed.
+  files. `dist/` and `build/` folders are allowed and their assets are imported,
+  but HTML pages inside them are skipped as build output (the import reports how
+  many).
 - Symbolic links are skipped and reported (`SYMLINK_SKIPPED`); their targets are
   never copied.
 
@@ -58,6 +62,11 @@ Every demo page renders with its own template, and keeps its own `<link>`,
 The home template keeps the demo's markup as written; edit
 `themes/<theme>/layouts/pages/index.html` to change it. Other pages put their main
 text in a Markdown draft and keep the surrounding markup in the template.
+
+Links may name either `.html` or `.htm`; when a link uses the other extension than
+the imported page, it is resolved to that page. A demo typo such as linking to
+`about.htm` when only `about.html` exists is therefore corrected silently in the
+output (the original demo is still in `original-demo/`).
 
 Template syntax in the demo (Vue or Angular `{{ }}`, `{% %}`) is escaped and prints
 exactly as written. Core Markdown does not render raw HTML, so class names inside a
@@ -131,6 +140,11 @@ A navigation database whose `Link` property has the url type fails schema
 validation on such values: change `Link` to rich text, or let the push create the
 database. The token comes from `NOTION_TOKEN`, or the
 variable named by `--notion-token-env`.
+
+`notion-seed/notion-database-map.yaml` is created on the first import and never
+overwritten: database ids written back by the push stay, and re-imports do not
+reset them. If a newer importer adds a collection to the default template, delete
+the file and import again to regenerate it; back up the existing ids first.
 
 ## Known limits
 
