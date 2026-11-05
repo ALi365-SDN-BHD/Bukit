@@ -207,8 +207,16 @@ aggregate files such as the sitemap and `agent-manifest.json` drop them. If the 
 links the same URL, Bukit does not add that link again.
 
 In `renderMode: theme` or `off`, the theme owns the `<head>`, so Bukit does not
-add these links. Add them in your layout if you want them; the URL is the base
-URL plus `content/`, the page's output path, and `.md` or `.json`.
+add these links. Content pages expose the URLs as `page.representation_urls`,
+so a layout can add them itself:
+
+```html
+<link rel="alternate" type="text/markdown" href="{{ page.representation_urls.markdown }}" />
+<link rel="alternate" type="application/json" href="{{ page.representation_urls.json }}" />
+```
+
+Wrap them in `{{ if page.representation_urls }}` if the layout also renders list
+pages, which have no Markdown or JSON version.
 
 Page links in `llms.txt` stay on the canonical HTML URLs. Agents that want
 Markdown can follow the `agent-manifest.json` link.

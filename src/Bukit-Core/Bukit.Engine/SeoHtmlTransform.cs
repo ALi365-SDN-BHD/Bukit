@@ -33,11 +33,8 @@ internal sealed class SeoHtmlTransform(
         var route = new RouteInfo(context.RouteUrl, context.OutputPath, string.Empty);
         if (!skipSeo && ShouldLinkRepresentations(context, page.Seo))
         {
-            html = SeoHtmlRenderer.InjectRepresentationLinks(
-                html,
-                ContentProjectionPaths.GetContentProjectionUrl(route, ".md", config.Site.BaseUrl),
-                ContentProjectionPaths.GetContentProjectionUrl(route, ".json", config.Site.BaseUrl),
-                config.Site.Url);
+            var urls = ContentProjectionPaths.GetRepresentationUrls(route, config.Site.BaseUrl);
+            html = SeoHtmlRenderer.InjectRepresentationLinks(html, urls["markdown"], urls["json"], config.Site.Url);
         }
 
         return SeoDiagnostics.AnalyzeHtml(config, route, page.Seo, html, logger);

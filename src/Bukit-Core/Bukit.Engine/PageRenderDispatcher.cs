@@ -87,6 +87,7 @@ internal static class PageRenderDispatcher
                     Provenance = document.Record.Provenance,
                     Trust = document.Record.Trust,
                     Representations = PublishRepresentationRegistry.DocumentKinds(),
+                    RepresentationUrls = ContentProjectionPaths.GetRepresentationUrls(e.Route, siteModel.BaseUrl),
                     Seo = seoBuilder?.Invoke(document, e.Route)
                 };
                 return RouteMetadataApplicator.ApplyToPage(pageInfo, e.Route.Url, routeMetadata, document);
@@ -173,6 +174,7 @@ internal static class PageRenderDispatcher
                             Provenance = contentRecord.Provenance,
                             Trust = contentRecord.Trust,
                             Representations = PublishRepresentationRegistry.DocumentKinds(),
+                            RepresentationUrls = ContentProjectionPaths.GetRepresentationUrls(route, siteModel.BaseUrl),
                             Seo = seoBuilder?.Invoke(document, route)
                         };
                         if (entry.MetadataListRoute is { } metadataListRoute)

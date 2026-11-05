@@ -156,6 +156,83 @@ public sealed class LlmsProjectionIntegrationTests
         }
     }
 
+    [Fact]
+    public async Task BuildAsync_ThemeRenderMode_ExposesRepresentationUrlsToTemplates()
+    {
+        var root = Path.Combine(Path.GetTempPath(), "bukit-representation-urls-" + Guid.NewGuid().ToString("N"));
+
+        try
+        {
+            Directory.CreateDirectory(Path.Combine(root, "content"));
+            Directory.CreateDirectory(Path.Combine(root, "layouts", "layouts"));
+            Directory.CreateDirectory(Path.Combine(root, "layouts", "pages"));
+            File.WriteAllText(Path.Combine(root, "site.yaml"), """
+                site:
+                  name: representation-urls
+                  title: Representation Urls
+                  url: https://example.com
+                  baseUrl: /repo/
+                  language: en
+                  collections:
+                    post:
+                      permalink: /blog/{slug}/
+                      template: pages/post.html
+                  seo:
+                    renderMode: theme
+                    geo:
+                      enabled: true
+                content:
+                  sources:
+                    - type: markdown
+                      name: post
+                      collection: post
+                      markdown:
+                        dir: content
+                build:
+                  output: dist
+                theme:
+                  layouts: layouts
+                """);
+            WritePost(root, "visible.md", "Visible", "visible", extraFrontMatter: "");
+            File.WriteAllText(Path.Combine(root, "layouts", "layouts", "base.html"), """
+                <!doctype html>
+                <html><head><title>{{ page.title }}</title><link rel="alternate" type="text/markdown" href="{{ page.representation_urls.markdown }}"><link rel="alternate" type="application/json" href="{{ page.representation_urls.json }}"></head><body>{{ content }}</body></html>
+                """);
+            foreach (var name in new[] { "post", "page", "index", "list" })
+            {
+                File.WriteAllText(Path.Combine(root, "layouts", "pages", name + ".html"), """
+                    {% layout "layouts/base.html" %}
+                    {{ page.content }}
+                    """);
+            }
+
+            var config = ConfigLoader.Load(Path.Combine(root, "site.yaml"));
+            var logger = new TestLogger();
+            await new SiteEngine(logger).BuildAsync(config, root, new ConfigOverrides(), CancellationToken.None);
+
+            var html = File.ReadAllText(Path.Combine(root, "dist", "blog/visible/index.html"));
+            foreach (var (type, extension) in new[] { ("text/markdown", ".md"), ("application/json", ".json") })
+            {
+                var hrefs = System.Text.RegularExpressions.Regex.Matches(html, $"type=\"{type}\" href=\"([^\"]+)\"")
+                    .Select(match => match.Groups[1].Value)
+                    .ToArray();
+                // Theme mode: only the theme's own link, pointing at the file Bukit wrote.
+                var href = Assert.Single(hrefs);
+                Assert.Equal("/repo/content/blog/visible/index.html" + extension, href);
+                Assert.True(File.Exists(Path.Combine(root, "dist", href["/repo/".Length..])));
+            }
+
+            Assert.Empty(logger.Errors);
+        }
+        finally
+        {
+            if (Directory.Exists(root))
+            {
+                Directory.Delete(root, recursive: true);
+            }
+        }
+    }
+
     private static void WritePost(string root, string fileName, string title, string slug, string extraFrontMatter)
     {
         var extra = string.IsNullOrWhiteSpace(extraFrontMatter) ? string.Empty : extraFrontMatter + Environment.NewLine;
