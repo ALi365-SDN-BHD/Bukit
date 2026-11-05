@@ -228,6 +228,9 @@ public sealed class SitemapPluginTests
         Assert.Equal(SitemapLocDecision.Accepted, filter.Evaluate("https://example.com/a/"));
         Assert.Equal(SitemapLocDecision.Duplicate, filter.Evaluate("https://example.com/a/"));
         Assert.Equal(SitemapLocDecision.Accepted, filter.Evaluate("https://example.com/b/"));
+        Assert.Equal(SitemapLocDecision.Duplicate, filter.Evaluate("HTTPS://Example.COM:443/a/"));
+        Assert.Equal(SitemapLocDecision.Accepted, filter.Evaluate("https://example.com/A/"));
+        Assert.Equal(SitemapLocDecision.Accepted, filter.Evaluate("https://example.com/a/?page=2"));
     }
 
     [Fact]
