@@ -5,7 +5,7 @@ Bukit 所有重要变更都将记录在此文件中。
 ## [Unreleased]
 
 - **Analytics 审计修复**：head 开头的统计片段会排在页面编码声明之后；CSP 需求报告新增 `connectSrc` 和 `imgSrc`；任一 Google consent 默认值为 denied 时，不再输出 GTM 的 `<noscript>` iframe。
-- **SEO 审计修复**：内容页的相对 canonical 会按 `site.url` + `baseUrl` 补全，且不会重复添加已有的 base 路径；`og:locale` 使用下划线格式，例如 `zh_CN`。
+- **SEO 审计修复**：内容页以 `/` 开头的 canonical 会按 `site.url` + `baseUrl` 补全，且不会重复添加已有的 base 路径；其他相对写法保留并输出 `seo.canonical_relative`；`og:locale` 使用下划线格式，例如 `zh_CN`，裸语言会输出 `seo.og_locale_region_missing` 诊断。
 - **AI 爬虫策略**：`robots.txt` 按用途（训练、AI 搜索、用户抓取）区分 AI 爬虫，新增 `aiBotMode: block-training`（它也会禁止 `Google-Extended`，该标识同时控制 Gemini 的训练和 grounding，构建会输出 `event=robots.ai_grounding_blocked`）。行为变化：`selective` 模式配合 `aiBotAllowList` 时，其他已知爬虫（含 AI 搜索爬虫）都会被禁止，构建会输出 `event=robots.ai_search_blocked` 警告。配置了 AI 策略但无法写入时，构建会输出 `event=robots.ai_policy_inactive` 警告。
 - **Sitemap 范围**：sitemap 只列出位于 `site.url` + `baseUrl` 下的 canonical（默认端口和主机大小写已规范化），每个只列一次；发布审计不再要求 canonical 指向站外的页面出现在 sitemap 中。
 - **AI agent 发现**：GEO 开启且为 `inject` 模式时，可索引的内容页会用 `<link rel="alternate">` 链接自己的 Markdown 和 JSON 版本，`llms.txt` 的 `## Optional` 一节会链接 `agent-manifest.json`。增量构建中切换 `site.seo.geo.enabled` 现在会重新渲染页面。`theme` 和 `off` 模式下，布局可以从 `page.representation_urls` 读取同样的网址，只有已发布且不是 `noindex` 的页面才有这个变量。`agent-manifest.json` 现在不再带 UTF-8 BOM。

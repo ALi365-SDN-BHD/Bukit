@@ -217,7 +217,7 @@ internal static class SeoModelBuilder
 
         if (!value.StartsWith('/'))
         {
-            value = "/" + value;
+            return value;
         }
 
         var normalizedBase = NormalizeBaseUrl(baseUrl);

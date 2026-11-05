@@ -1020,10 +1020,9 @@ public sealed class SeoModelBuilderTests
 
     [Theory]
     [InlineData("/blog/post/", "https://example.com/repo/blog/post/")]
-    [InlineData("blog/post/", "https://example.com/repo/blog/post/")]
     [InlineData("/repo/blog/post/", "https://example.com/repo/blog/post/")]
     [InlineData("//cdn.example.com/post/", "https://cdn.example.com/post/")]
-    public void BuildForContent_ResolvesRelativeCanonicalWithBaseUrl(
+    public void BuildForContent_ResolvesRootRelativeCanonicalWithBaseUrl(
         string canonical,
         string expected)
     {
@@ -1045,6 +1044,28 @@ public sealed class SeoModelBuilderTests
 
         Assert.Equal(expected, model.Canonical);
         Assert.Equal(expected, model.Og.Url);
+    }
+
+    [Fact]
+    public void BuildForContent_PreservesNonRootRelativeCanonical()
+    {
+        var config = CreateConfig();
+        var item = ContentDocument.Create(
+            id: "p1",
+            title: "Test",
+            slug: "test",
+            publishAt: DateTimeOffset.UtcNow,
+            contentHtml: null,
+            fields: ContentFieldReader.ToFieldMap(new Dictionary<string, object>
+            {
+                ["type"] = "page",
+                ["canonical"] = "blog/post/"
+            }));
+        var route = new RouteInfo("/blog/post/", "blog/post/index.html", "pages/post.html");
+
+        var model = SeoModelBuilder.BuildForContent(config, "/repo/", item, route);
+
+        Assert.Equal("blog/post/", model.Canonical);
     }
 
     [Fact]
