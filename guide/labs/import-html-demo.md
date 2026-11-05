@@ -37,6 +37,9 @@ compare the built pages with `original-demo/`.
   warns (`ENCODING_GUESSED`); add a `<meta charset>` if the guess is wrong. A file
   that is valid UTF-8 is read as UTF-8 even when it still declares an older
   encoding such as `gb2312`, with the same warning.
+- Stylesheets in another encoding are converted to UTF-8 during import, because the
+  generated pages are UTF-8; a stale `@charset` declaration is removed. Valid UTF-8
+  stylesheets are copied unchanged.
 - The import refuses demos that contain secrets or tooling: `.env*`, `.npmrc`,
   `.git`, `node_modules`, `.vscode`, SSH keys, and `.key/.pem/.pfx/.p12/.crt/.cert`
   files. `dist/` and `build/` folders are allowed and their assets are imported,

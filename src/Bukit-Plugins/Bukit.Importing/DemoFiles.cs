@@ -153,6 +153,14 @@ internal static partial class DemoFiles
         return TryDecodeChinese(bytes) ?? Encoding.Latin1.GetString(bytes);
     }
 
+    internal static bool IsValidUtf8(byte[] bytes) => TryDecodeUtf8(bytes) is not null;
+
+    internal static bool HasNonUtf8CssCharset(byte[] bytes)
+    {
+        var declared = DeclaredCssEncoding(bytes);
+        return declared is not null && declared.CodePage != Encoding.UTF8.CodePage;
+    }
+
     private static Encoding? DeclaredCssEncoding(byte[] bytes)
     {
         var head = Encoding.Latin1.GetString(bytes, 0, Math.Min(bytes.Length, 1024));

@@ -212,29 +212,29 @@ internal static partial class AssetImporter
     private static partial Regex CssImportPattern();
 
     /// <summary>
-    /// Byte-preserving copy. Rewrites root-absolute url()/@import targets for a
-    /// sub-path deploy; without a change the original bytes are copied verbatim, so
-    /// GBK/GB2312 stylesheets keep their encoding.
+    /// UTF-8 stylesheets are copied as they are (and only rewritten in place for a
+    /// sub-path deploy). Other encodings are converted to UTF-8, because the built
+    /// pages are UTF-8 and a browser would otherwise misread a GBK stylesheet.
     /// </summary>
     private static void CopyCss(string sourcePath, string destPath, string basePath)
     {
-        if (string.IsNullOrEmpty(basePath))
-        {
-            File.Copy(sourcePath, destPath, overwrite: true);
-            return;
-        }
-
         var bytes = File.ReadAllBytes(sourcePath);
-        var text = Encoding.Latin1.GetString(bytes);
-        var rewritten = RewriteRootCssUrls(text, basePath);
-        if (string.Equals(rewritten, text, StringComparison.Ordinal))
+        var needsConversion =
+            !DemoFiles.IsValidUtf8(bytes) || DemoFiles.HasNonUtf8CssCharset(bytes);
+
+        if (!needsConversion && string.IsNullOrEmpty(basePath))
         {
             File.Copy(sourcePath, destPath, overwrite: true);
             return;
         }
 
-        File.WriteAllBytes(destPath, Encoding.Latin1.GetBytes(rewritten));
+        var text = RemoveCssCharset(DemoFiles.DecodeCss(bytes));
+        text = RewriteRootCssUrls(text, basePath);
+        File.WriteAllBytes(destPath, new UTF8Encoding(encoderShouldEmitUTF8Identifier: false).GetBytes(text));
     }
+
+    private static string RemoveCssCharset(string css)
+        => CssCharsetPattern().Replace(css, "", 1);
 
     private static string RewriteRootCssUrls(string css, string basePath)
         => string.IsNullOrEmpty(basePath)
@@ -250,6 +250,9 @@ internal static partial class AssetImporter
 
     [GeneratedRegex(@"@import\s+(?<quote>[""'])(?<value>/(?!/)[^""']+)\k<quote>", RegexOptions.IgnoreCase)]
     private static partial Regex CssRootImportPattern();
+
+    [GeneratedRegex(@"^\s*@charset\s+[""'][^""']+[""']\s*;", RegexOptions.IgnoreCase)]
+    private static partial Regex CssCharsetPattern();
 
     internal static void TransferAssetsToStatic(HtmlDemoImportOptions options)
     {

@@ -1334,6 +1334,7 @@ pages:
         File.WriteAllText(Path.Combine(_tempDir, "img", "背景.png"), "fake image");
         File.WriteAllText(Path.Combine(_tempDir, "css", "site.css"),
             "body{background:url(../img/背景.png)}", new System.Text.UTF8Encoding(encoderShouldEmitUTF8Identifier: false));
+        var originalBytes = File.ReadAllBytes(Path.Combine(_tempDir, "css", "site.css"));
         File.WriteAllText(Path.Combine(_tempDir, "index.html"),
             "<html><head><title>Home</title><link rel=\"stylesheet\" href=\"css/site.css\"></head><body><main><h1>Home</h1></main></body></html>");
 
@@ -1345,17 +1346,19 @@ pages:
             Force = true
         });
 
-        Assert.True(File.Exists(Path.Combine(_tempDir, "themes", "utf8-css-name", "static", "img", "背景.png")));
+        var themeRoot = Path.Combine(_tempDir, "themes", "utf8-css-name");
+        Assert.True(File.Exists(Path.Combine(themeRoot, "static", "img", "背景.png")));
+        Assert.Equal(originalBytes, File.ReadAllBytes(Path.Combine(themeRoot, "static", "css", "site.css")));
     }
 
     [Fact]
-    public void Import_GbkCss_WithoutBaseUrl_IsCopiedByteForByte()
+    public void Import_GbkCss_WithoutBaseUrl_IsConvertedToUtf8()
     {
         System.Text.Encoding.RegisterProvider(System.Text.CodePagesEncodingProvider.Instance);
         var gbk = System.Text.Encoding.GetEncoding("GB18030");
         Directory.CreateDirectory(Path.Combine(_tempDir, "css"));
-        var original = gbk.GetBytes("body{font-family:\"微软雅黑\";}");
-        File.WriteAllBytes(Path.Combine(_tempDir, "css", "site.css"), original);
+        File.WriteAllBytes(Path.Combine(_tempDir, "css", "site.css"),
+            gbk.GetBytes("@charset \"gbk\";body{font-family:\"微软雅黑\";}"));
         File.WriteAllText(Path.Combine(_tempDir, "index.html"),
             "<html><head><title>Home</title><link rel=\"stylesheet\" href=\"css/site.css\"></head><body><main><h1>Home</h1></main></body></html>");
 
@@ -1368,7 +1371,9 @@ pages:
         });
 
         var copied = File.ReadAllBytes(Path.Combine(_tempDir, "themes", "gbk-css", "static", "css", "site.css"));
-        Assert.Equal(original, copied);
+        var text = new System.Text.UTF8Encoding(false, throwOnInvalidBytes: true).GetString(copied);
+        Assert.Contains("微软雅黑", text, StringComparison.Ordinal);
+        Assert.DoesNotContain("@charset", text, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]
@@ -1380,7 +1385,7 @@ pages:
         Directory.CreateDirectory(Path.Combine(_tempDir, "img"));
         File.WriteAllText(Path.Combine(_tempDir, "img", "bg.png"), "fake image");
         File.WriteAllBytes(Path.Combine(_tempDir, "css", "site.css"),
-            gbk.GetBytes("body{font-family:\"微软雅黑\";background:url(/img/bg.png)}"));
+            gbk.GetBytes("@charset \"gbk\";body{font-family:\"微软雅黑\";background:url(/img/bg.png)}"));
         File.WriteAllText(Path.Combine(_tempDir, "index.html"),
             "<html><head><title>Home</title><link rel=\"stylesheet\" href=\"css/site.css\"></head><body><main><h1>Home</h1></main></body></html>");
 
@@ -1394,9 +1399,11 @@ pages:
         });
 
         var themeRoot = Path.Combine(_tempDir, "themes", "gbk-css-base");
-        var text = gbk.GetString(File.ReadAllBytes(Path.Combine(themeRoot, "static", "css", "site.css")));
+        var copied = File.ReadAllBytes(Path.Combine(themeRoot, "static", "css", "site.css"));
+        var text = new System.Text.UTF8Encoding(false, throwOnInvalidBytes: true).GetString(copied);
         Assert.Contains("微软雅黑", text, StringComparison.Ordinal);
         Assert.Contains("/corp/img/bg.png", text, StringComparison.Ordinal);
+        Assert.DoesNotContain("@charset", text, StringComparison.OrdinalIgnoreCase);
         Assert.True(File.Exists(Path.Combine(themeRoot, "static", "img", "bg.png")));
     }
 
