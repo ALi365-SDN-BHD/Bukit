@@ -183,6 +183,14 @@ internal sealed class WorktreeBuildRun
         await WorktreeBuildRepository.AddWorktreeAsync(
             _repository, contentWorktree, _registryPath, _ownedWorktrees, _logger, cancellationToken).ConfigureAwait(false);
         var contentSiteRoot = WorktreeBuildPaths.MapIntoWorktree(_repository, _rootDir, contentWorktree);
+        var mediaRelative = WorktreeMediaOverlay.ResolveRelativeMediaDir(_effectiveConfig, _rootDir, _repository);
+        var contentMediaDir = mediaRelative is null ? null : Path.Combine(contentWorktree, mediaRelative);
+        if (mediaRelative is not null)
+        {
+            var copied = WorktreeMediaOverlay.CopyMissing(
+                Path.Combine(_repository.Root, mediaRelative), contentMediaDir!, contentWorktree);
+            _logger.Debug($"event=build.i18n.worktree.media_overlay target=content copied={copied}");
+        }
         _metrics = WorktreeBuildPaths.ResolveMetricsPaths(
             _overrides.MetricsPath, _rootDir, _finalOutputDir, _stagingOutputDir, _runRoot);
         var stagingOverrides = _overrides with
@@ -220,6 +228,12 @@ internal sealed class WorktreeBuildRun
             await WorktreeBuildRepository.AddWorktreeAsync(
                 _repository, workerWorktree, _registryPath, _ownedWorktrees, _logger, cancellationToken).ConfigureAwait(false);
             var workerSiteRoot = WorktreeBuildPaths.MapIntoWorktree(_repository, _rootDir, workerWorktree);
+            if (mediaRelative is not null)
+            {
+                var copied = WorktreeMediaOverlay.CopyMissing(
+                    contentMediaDir!, Path.Combine(workerWorktree, mediaRelative), workerWorktree);
+                _logger.Debug($"event=build.i18n.worktree.media_overlay target={segment} copied={copied}");
+            }
             var workerConfigPath = WorktreeBuildPaths.MapIntoWorktree(_repository, _fullConfigPath, workerWorktree);
             var outputDir = Path.Combine(_stagingOutputDir, language);
             var workerCache = Path.Combine(_runRoot, "worker-cache", segment);
