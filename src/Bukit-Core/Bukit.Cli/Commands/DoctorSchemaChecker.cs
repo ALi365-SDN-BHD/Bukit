@@ -111,13 +111,6 @@ internal static class DoctorSchemaChecker
             return;
         }
 
-        var reservedKeys = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
-        {
-            "title", "slug", "type", "collection", "publishat", "published", "language", "tags", "categories",
-            "summary", "route", "url", "outputpath", "template", "source", "sourcepath",
-            "bodyfingerprint", "draft"
-        };
-
         var extraFields = new List<string>();
         var totalExtras = 0;
         var filesWithExtras = 0;
@@ -137,7 +130,7 @@ internal static class DoctorSchemaChecker
                 var fileExtras = new List<string>();
                 foreach (var kv in document.CustomFields ?? new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase))
                 {
-                    if (reservedKeys.Contains(kv.Key) || ContentFieldReservations.IsEngineManaged(kv.Key))
+                    if (ContentFieldReservations.IsEngineManaged(kv.Key))
                     {
                         continue;
                     }

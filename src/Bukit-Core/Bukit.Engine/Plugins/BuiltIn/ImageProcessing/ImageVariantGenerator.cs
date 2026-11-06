@@ -23,20 +23,30 @@ internal sealed class ImageVariantGenerator
 
     internal static bool TryGetImageWidth(string path, ILogger logger, out int width)
     {
-        width = 0;
         try
         {
-            using var codec = SKCodec.Create(path);
-            if (codec is null) return false;
-            var origin = ImageOptimizer.GetEncodedOrigin(path, codec);
-            width = origin >= SKEncodedOrigin.LeftTop ? codec.Info.Height : codec.Info.Width;
-            return width > 0;
+            return TryReadImageWidth(path, out width);
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidDataException or NotSupportedException)
         {
+            width = 0;
             logger.Warn($"event=image_processing.skip file={Path.GetFileName(path)} reason=invalid_source");
             return false;
         }
+    }
+
+    /// <summary>
+    /// Reads the display width (after EXIF orientation) from the image header only.
+    /// Shared by variant planning and the incremental fingerprint so both agree.
+    /// </summary>
+    internal static bool TryReadImageWidth(string path, out int width)
+    {
+        width = 0;
+        using var codec = SKCodec.Create(path);
+        if (codec is null) return false;
+        var origin = ImageOptimizer.GetEncodedOrigin(path, codec);
+        width = origin >= SKEncodedOrigin.LeftTop ? codec.Info.Height : codec.Info.Width;
+        return width > 0;
     }
 
     internal async Task GenerateResizedVariantAsync(

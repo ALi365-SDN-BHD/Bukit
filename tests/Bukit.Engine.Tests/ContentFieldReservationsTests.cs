@@ -1,3 +1,4 @@
+using System.Text.RegularExpressions;
 using Bukit.Engine.Abstractions.Content;
 using Bukit.Shared;
 using Xunit;
@@ -47,6 +48,62 @@ public sealed class ContentFieldReservationsTests
         var exception = Assert.Throws<ConfigException>(() => ContentDocumentNormalizer.ToDocument(raw, schema));
 
         Assert.Contains("articleOnly", exception.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void EngineInjectedAndCanonicalFieldGroupsDoNotOverlap()
+    {
+        Assert.Empty(ContentFieldReservations.EngineInjected.Intersect(
+            ContentFieldReservations.CanonicalFields,
+            StringComparer.OrdinalIgnoreCase));
+    }
+
+    [Fact]
+    public void EveryLiteralFieldKeyTheEngineReadsIsReserved()
+    {
+        // Drift guard: a new front matter key read by Core must be added to
+        // ContentFieldReservations, or strict schema would reject valid content.
+        var srcRoot = Path.Combine(FindRepoRoot(), "src", "Bukit-Core");
+        var reads = new Regex(
+            @"(?:ContentFieldReader\.(?:Get(?!ContentType)\w*|TryGet\w*|Has\w*)|FirstTextField)\(\s*[\w.?]+\s*,\s*""(?<key>[A-Za-z0-9_]+)""",
+            RegexOptions.CultureInvariant);
+        var missing = new SortedSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var file in Directory.EnumerateFiles(srcRoot, "*.cs", SearchOption.AllDirectories))
+        {
+            if (file.Contains($"{Path.DirectorySeparatorChar}obj{Path.DirectorySeparatorChar}", StringComparison.Ordinal) ||
+                file.Contains($"{Path.DirectorySeparatorChar}bin{Path.DirectorySeparatorChar}", StringComparison.Ordinal))
+            {
+                continue;
+            }
+
+            foreach (Match match in reads.Matches(File.ReadAllText(file)))
+            {
+                var key = match.Groups["key"].Value;
+                if (!ContentFieldReservations.IsEngineManaged(key))
+                {
+                    missing.Add($"{key} ({Path.GetRelativePath(srcRoot, file)})");
+                }
+            }
+        }
+
+        Assert.True(missing.Count == 0, "Add these keys to ContentFieldReservations: " + string.Join(", ", missing));
+    }
+
+    private static string FindRepoRoot()
+    {
+        var current = new DirectoryInfo(AppContext.BaseDirectory);
+        while (current is not null)
+        {
+            if (File.Exists(Path.Combine(current.FullName, "Directory.Build.props")) &&
+                File.Exists(Path.Combine(current.FullName, "bukit-core.slnx")))
+            {
+                return current.FullName;
+            }
+
+            current = current.Parent;
+        }
+
+        throw new DirectoryNotFoundException("Could not locate repository root.");
     }
 
     private static RawContentDocument RawDocument(IReadOnlyDictionary<string, RawContentValue> properties)
