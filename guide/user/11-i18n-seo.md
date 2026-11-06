@@ -34,10 +34,12 @@ Worktree mode fails closed. The site must be inside a Git repository, and the
 configuration, Markdown content, theme/layout/static inputs, and local plugins
 used by the build must be tracked and clean. The site directory must also have
 no staged, unstaged, or untracked changes, including files outside the configured
-inputs. A custom `content.media.downloadDir` must be inside the repository; tracked
-changes in that directory also block the build, but ignored media caches are allowed.
-Unrelated changes elsewhere in the repository do not block the build. Other ignored
-or external required inputs are rejected. `bukit dev`, the build
+inputs. A custom `content.media.downloadDir` must be a relative path without `..`.
+Its resolved path must be inside the repository, and tracked changes there block the
+build. Git-ignored files in a custom media directory are not included in worker
+worktrees and may cause missing-media errors; the default media cache is passed
+separately. Unrelated changes elsewhere in the repository do not block the
+build. Other ignored or external required inputs are rejected. `bukit dev`, the build
 performed by `bukit deploy`, and direct `SiteEngine` callers retain the
 in-process behavior and do not impose these Git requirements.
 

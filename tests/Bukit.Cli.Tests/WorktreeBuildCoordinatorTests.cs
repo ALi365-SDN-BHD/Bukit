@@ -111,59 +111,43 @@ public sealed class WorktreeBuildCoordinatorTests : IDisposable
     }
 
     [Fact]
-    public async Task RepositoryValidation_RejectsChangedSharedMedia()
+    public async Task ExplicitMultilingualBuild_RejectsChangedSymlinkedMediaInsideRepository()
     {
+        if (OperatingSystem.IsWindows()) return;
         var root = Path.Combine(_root, "shared-media");
         var siteRoot = Path.Combine(root, "site");
         var site = CreateSite(siteRoot);
         var yaml = await File.ReadAllTextAsync(site);
-        await File.WriteAllTextAsync(site, yaml.Replace("content:\n  sources:", "content:\n  media:\n    downloadDir: ../shared/media\n  sources:", StringComparison.Ordinal));
+        await File.WriteAllTextAsync(site, yaml.Replace("content:\n  sources:", "content:\n  media:\n    downloadDir: media\n  sources:", StringComparison.Ordinal));
         var media = Path.Combine(root, "shared", "media");
         Directory.CreateDirectory(media);
+        Directory.CreateSymbolicLink(Path.Combine(siteRoot, "media"), "../shared/media");
         var image = Path.Combine(media, "photo.png");
         await File.WriteAllTextAsync(image, "old");
+        ConfigValidator.Validate(ConfigLoader.Load(site));
         await InitializeRepositoryAsync(root);
         await File.WriteAllTextAsync(image, "new");
 
-        var error = await Assert.ThrowsAsync<WorktreeBuildException>(() => WorktreeBuildRepository.ValidateRepositoryAsync(
-            ConfigLoader.Load(site), new ResolvedConfigPath(site, siteRoot), new ConfigOverrides(), new ConsoleLogger(LogLevel.Error), CancellationToken.None));
+        var error = await Assert.ThrowsAsync<WorktreeBuildException>(() => BuildCommand.RunAsync(Command(site)));
 
         Assert.Equal("i18n-worktree-dirty", error.Code);
     }
 
     [Fact]
-    public async Task RepositoryValidation_AllowsIgnoredSharedMediaCache()
+    public async Task ExplicitMultilingualBuild_RejectsSymlinkedMediaOutsideRepository()
     {
-        var root = Path.Combine(_root, "ignored-shared-media");
-        var siteRoot = Path.Combine(root, "site");
-        var site = CreateSite(siteRoot);
-        var yaml = await File.ReadAllTextAsync(site);
-        await File.WriteAllTextAsync(site, yaml.Replace("content:\n  sources:", "content:\n  media:\n    downloadDir: ../shared/media\n  sources:", StringComparison.Ordinal));
-        await File.WriteAllTextAsync(Path.Combine(root, ".gitignore"), "/shared/media/\n");
-        await InitializeRepositoryAsync(root);
-        var media = Path.Combine(root, "shared", "media");
-        Directory.CreateDirectory(media);
-        await File.WriteAllTextAsync(Path.Combine(media, "photo.png"), "cache");
-
-        var repository = await WorktreeBuildRepository.ValidateRepositoryAsync(
-            ConfigLoader.Load(site), new ResolvedConfigPath(site, siteRoot), new ConfigOverrides(), new ConsoleLogger(LogLevel.Error), CancellationToken.None);
-
-        Assert.Equal(PathUtils.GetCanonicalFullPath(root), PathUtils.GetCanonicalFullPath(repository.Root));
-    }
-
-    [Fact]
-    public async Task RepositoryValidation_RejectsMediaOutsideRepository()
-    {
+        if (OperatingSystem.IsWindows()) return;
         var root = Path.Combine(_root, "external-media-site");
         var site = CreateSite(root);
         var media = Path.Combine(_root, "external-media");
         Directory.CreateDirectory(media);
+        Directory.CreateSymbolicLink(Path.Combine(root, "media"), media);
         var yaml = await File.ReadAllTextAsync(site);
-        await File.WriteAllTextAsync(site, yaml.Replace("content:\n  sources:", $"content:\n  media:\n    downloadDir: '{media}'\n  sources:", StringComparison.Ordinal));
+        await File.WriteAllTextAsync(site, yaml.Replace("content:\n  sources:", "content:\n  media:\n    downloadDir: media\n  sources:", StringComparison.Ordinal));
+        ConfigValidator.Validate(ConfigLoader.Load(site));
         await InitializeRepositoryAsync(root);
 
-        var error = await Assert.ThrowsAsync<WorktreeBuildException>(() => WorktreeBuildRepository.ValidateRepositoryAsync(
-            ConfigLoader.Load(site), new ResolvedConfigPath(site, root), new ConfigOverrides(), new ConsoleLogger(LogLevel.Error), CancellationToken.None));
+        var error = await Assert.ThrowsAsync<WorktreeBuildException>(() => BuildCommand.RunAsync(Command(site)));
 
         Assert.Equal("i18n-worktree-input-untracked", error.Code);
     }
