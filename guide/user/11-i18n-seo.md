@@ -39,8 +39,11 @@ inputs. A custom
 Its resolved path must be inside the repository, and tracked changes there block the
 build. Git-ignored files in a custom media directory are included in one staged
 snapshot shared by all workers. Downloads are committed with the output only after
-every language succeeds. Detected changes to the original media directory abort the
-commit; do not edit it during the build. Symbolic links inside the media directory are rejected. The default
+every language succeeds. Changes to the original media directory are detected by relative
+path, file size, and modification time and abort the commit; do not edit it during the build.
+A same-size change that preserves the modification time may not be detected. Symbolic links
+inside the media directory are rejected, so a media directory containing any symbolic link
+now fails a multilingual build. The default
 media cache is passed separately. Unrelated changes elsewhere in the repository do not block the
 build. Other ignored or external required inputs are rejected. `bukit dev`, the build
 performed by `bukit deploy`, and direct `SiteEngine` callers retain the
