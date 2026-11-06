@@ -50,7 +50,7 @@ internal sealed class ImageVariantGenerator
         return width > 0;
     }
 
-    internal async Task GenerateResizedVariantAsync(
+    internal async Task<bool> GenerateResizedVariantAsync(
         BuildContext context,
         string imageFile,
         FileInfo sourceInfo,
@@ -91,7 +91,7 @@ internal sealed class ImageVariantGenerator
         {
             AddTrackedOutput(context, generatedOutputs, sizedFile);
             AddTrackedOutput(context, generatedOutputs, freshnessFile);
-            return;
+            return false;
         }
 
         // A filename only excludes recursive input discovery. Existing bytes or
@@ -99,7 +99,7 @@ internal sealed class ImageVariantGenerator
         if ((variantExists || sidecarExists) && !hasOwnedFreshness)
         {
             context.Logger.Warn($"event=image_resize.skip file={Path.GetFileName(sizedFile)} reason=unowned_existing_output");
-            return;
+            return false;
         }
 
         // Once freshness no longer matches, the prior managed output is
@@ -111,11 +111,13 @@ internal sealed class ImageVariantGenerator
             TryDelete(freshnessFile);
         }
 
+        var timedOut = false;
         try
         {
             var temporarySizedFile = Path.Combine(
                 Path.GetDirectoryName(sizedFile)!,
                 $".{Path.GetFileNameWithoutExtension(sizedFile)}.bukit-{Guid.NewGuid():N}{ext}");
+            var externalTemporaryFile = temporarySizedFile;
             var temporaryFreshnessFile = freshnessFile + $".bukit-{Guid.NewGuid():N}.tmp";
             try
             {
@@ -147,12 +149,26 @@ internal sealed class ImageVariantGenerator
                     startInfo.ArgumentList.Add("-quality");
                     startInfo.ArgumentList.Add(quality.ToString());
                     startInfo.ArgumentList.Add(temporarySizedFile);
-                    var externalResult = await ExternalToolProcessRunner.RunAsync(
-                        startInfo,
-                        TimeSpan.FromSeconds(10),
-                        context.Logger,
-                        cancellationToken);
-                    result = (externalResult.ExitCode, externalResult.StandardError);
+                    try
+                    {
+                        var externalResult = await ExternalToolProcessRunner.RunAsync(
+                            startInfo,
+                            TimeSpan.FromSeconds(10),
+                            context.Logger,
+                            cancellationToken);
+                        result = (externalResult.ExitCode, externalResult.StandardError);
+                    }
+                    catch (TimeoutException ex)
+                    {
+                        timedOut = true;
+                        context.Logger.Warn($"event=image_processing.fallback tool=skiasharp reason={ex.Message}");
+                        temporarySizedFile = Path.Combine(
+                            Path.GetDirectoryName(sizedFile)!,
+                            $".{Path.GetFileNameWithoutExtension(sizedFile)}.bukit-{Guid.NewGuid():N}{ext}");
+                        toolIdentity = "skiasharp-orientation-v2";
+                        await ResizeWithSkiaSharpAsync(imageFile, temporarySizedFile, size, quality, cancellationToken);
+                        result = (0, string.Empty);
+                    }
                 }
                 if (result.ExitCode == 0 && File.Exists(temporarySizedFile) &&
                     await _imageValidator.ValidateAsync(
@@ -200,6 +216,7 @@ internal sealed class ImageVariantGenerator
             finally
             {
                 TryDelete(temporarySizedFile);
+                TryDelete(externalTemporaryFile);
                 TryDelete(temporaryFreshnessFile);
             }
         }
@@ -212,6 +229,7 @@ internal sealed class ImageVariantGenerator
             context.Logger.Warn($"event=image_resize.error file={Path.GetFileName(imageFile)} reason={ex.Message}");
             failures.Add(GetRelativeIdentity(context.OutputDir, sizedFile));
         }
+        return timedOut;
     }
 
     internal static Task ResizeWithSkiaSharpAsync(

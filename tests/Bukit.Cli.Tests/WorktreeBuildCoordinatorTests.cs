@@ -111,6 +111,64 @@ public sealed class WorktreeBuildCoordinatorTests : IDisposable
     }
 
     [Fact]
+    public async Task RepositoryValidation_RejectsChangedSharedMedia()
+    {
+        var root = Path.Combine(_root, "shared-media");
+        var siteRoot = Path.Combine(root, "site");
+        var site = CreateSite(siteRoot);
+        var yaml = await File.ReadAllTextAsync(site);
+        await File.WriteAllTextAsync(site, yaml.Replace("content:\n  sources:", "content:\n  media:\n    downloadDir: ../shared/media\n  sources:", StringComparison.Ordinal));
+        var media = Path.Combine(root, "shared", "media");
+        Directory.CreateDirectory(media);
+        var image = Path.Combine(media, "photo.png");
+        await File.WriteAllTextAsync(image, "old");
+        await InitializeRepositoryAsync(root);
+        await File.WriteAllTextAsync(image, "new");
+
+        var error = await Assert.ThrowsAsync<WorktreeBuildException>(() => WorktreeBuildRepository.ValidateRepositoryAsync(
+            ConfigLoader.Load(site), new ResolvedConfigPath(site, siteRoot), new ConfigOverrides(), new ConsoleLogger(LogLevel.Error), CancellationToken.None));
+
+        Assert.Equal("i18n-worktree-dirty", error.Code);
+    }
+
+    [Fact]
+    public async Task RepositoryValidation_AllowsIgnoredSharedMediaCache()
+    {
+        var root = Path.Combine(_root, "ignored-shared-media");
+        var siteRoot = Path.Combine(root, "site");
+        var site = CreateSite(siteRoot);
+        var yaml = await File.ReadAllTextAsync(site);
+        await File.WriteAllTextAsync(site, yaml.Replace("content:\n  sources:", "content:\n  media:\n    downloadDir: ../shared/media\n  sources:", StringComparison.Ordinal));
+        await File.WriteAllTextAsync(Path.Combine(root, ".gitignore"), "/shared/media/\n");
+        await InitializeRepositoryAsync(root);
+        var media = Path.Combine(root, "shared", "media");
+        Directory.CreateDirectory(media);
+        await File.WriteAllTextAsync(Path.Combine(media, "photo.png"), "cache");
+
+        var repository = await WorktreeBuildRepository.ValidateRepositoryAsync(
+            ConfigLoader.Load(site), new ResolvedConfigPath(site, siteRoot), new ConfigOverrides(), new ConsoleLogger(LogLevel.Error), CancellationToken.None);
+
+        Assert.Equal(PathUtils.GetCanonicalFullPath(root), PathUtils.GetCanonicalFullPath(repository.Root));
+    }
+
+    [Fact]
+    public async Task RepositoryValidation_RejectsMediaOutsideRepository()
+    {
+        var root = Path.Combine(_root, "external-media-site");
+        var site = CreateSite(root);
+        var media = Path.Combine(_root, "external-media");
+        Directory.CreateDirectory(media);
+        var yaml = await File.ReadAllTextAsync(site);
+        await File.WriteAllTextAsync(site, yaml.Replace("content:\n  sources:", $"content:\n  media:\n    downloadDir: '{media}'\n  sources:", StringComparison.Ordinal));
+        await InitializeRepositoryAsync(root);
+
+        var error = await Assert.ThrowsAsync<WorktreeBuildException>(() => WorktreeBuildRepository.ValidateRepositoryAsync(
+            ConfigLoader.Load(site), new ResolvedConfigPath(site, root), new ConfigOverrides(), new ConsoleLogger(LogLevel.Error), CancellationToken.None));
+
+        Assert.Equal("i18n-worktree-input-untracked", error.Code);
+    }
+
+    [Fact]
     public async Task ExplicitMultilingualBuild_RejectsChangedMediaInsideSite()
     {
         var root = Path.Combine(_root, "changed-media");

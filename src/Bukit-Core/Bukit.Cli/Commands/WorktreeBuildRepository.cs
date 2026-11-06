@@ -45,9 +45,17 @@ internal static class WorktreeBuildRepository
 
         // The site may contain inputs not represented in inputPaths, such as media.
         var siteRelative = WorktreeBuildPaths.RelativeInside(repositoryRoot, resolved.RootDir, "Site root");
+        var mediaDir = (effective.Content.Media.DownloadDir ?? string.Empty).Trim();
+        var statusPaths = new List<string> { siteRelative };
+        statusPaths.AddRange(inputPaths);
+        if (mediaDir.Length > 0 && !string.Equals(mediaDir, "assets/uploads", StringComparison.OrdinalIgnoreCase))
+        {
+            statusPaths.Add(WorktreeBuildPaths.RelativeInside(repositoryRoot,
+                BuildPathUtils.MakeAbsolute(resolved.RootDir, mediaDir), "Media directory"));
+        }
         var status = await RunGitAsync(
             repositoryRoot,
-            ["status", "--porcelain=v1", "--untracked-files=all", "--", siteRelative, .. inputPaths],
+            ["status", "--porcelain=v1", "--untracked-files=all", "--", .. statusPaths],
             logger,
             cancellationToken).ConfigureAwait(false);
         if (status.ExitCode != 0)

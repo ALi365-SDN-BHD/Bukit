@@ -809,8 +809,10 @@ public sealed class ImageProcessingPluginTests
         }
     }
 
-    [Fact]
-    public async Task AfterBuildAsync_ResizeTimeoutRemovesPartialOutputWithoutPublishing()
+    [Theory]
+    [InlineData("strict")]
+    [InlineData("warn")]
+    public async Task AfterBuildAsync_ResizeTimeoutFallsBackForAllRemainingImages(string mode)
     {
         RequireUnix();
         var outDir = GetTempDir();
@@ -823,13 +825,14 @@ public sealed class ImageProcessingPluginTests
             Directory.CreateDirectory(toolDir);
             var source = Path.Combine(assetsDir, "photo.jpg");
             WriteValidImage(source, "timeout");
+            WriteValidImage(Path.Combine(assetsDir, "second.jpg"), "second");
             var originalBytes = File.ReadAllBytes(source);
             var marker = Path.Combine(outDir, "resize-started");
             WriteTool(toolDir, "magick", $"""
                 if [ "$1" = "--version" ]; then exit 0; fi
                 for last in "$@"; do :; done
                 printf partial > "$last"
-                printf started > '{EscapeSingleQuoted(marker)}'
+                printf x >> '{EscapeSingleQuoted(marker)}'
                 /bin/sleep 30
                 """);
             Environment.SetEnvironmentVariable("PATH", toolDir);
@@ -840,18 +843,22 @@ public sealed class ImageProcessingPluginTests
                 RoutedDocuments = [], Logger = logger
             };
 
-            await Assert.ThrowsAsync<InvalidOperationException>(() => new ImageProcessingPlugin(CreateConfig(new ImageOptimizationConfig
-                { Enabled = true, Formats = [], Sizes = [480] })).AfterBuildAsync(context));
+            var config = CreateConfig(new ImageOptimizationConfig { Enabled = true, Formats = [], Sizes = [480] });
+            config = config with { Site = config.Site with { PluginFailMode = mode } };
+            await new ImageProcessingPlugin(config).AfterBuildAsync(context);
 
-            Assert.True(File.Exists(marker));
+            Assert.Equal("x", File.ReadAllText(marker));
             var warning = Assert.Single(logger.Warnings);
-            Assert.StartsWith("event=image_resize.error file=photo.jpg reason=External tool '", warning, StringComparison.Ordinal);
             Assert.Contains("timed out after 10000ms.", warning, StringComparison.Ordinal);
             Assert.Equal(originalBytes, File.ReadAllBytes(source));
-            Assert.False(File.Exists(Path.Combine(assetsDir, "photo-480w.jpg")));
-            Assert.False(File.Exists(Path.Combine(assetsDir, "photo-480w.jpg.bukit-freshness.json")));
-            Assert.False(context.TryGet(BuildDataKeys.PluginOutputs, out _));
-            Assert.False(context.TryGet(BuildDataKeys.ImageSrcsets, out _));
+            foreach (var name in new[] { "photo", "second" })
+            {
+                var variant = Path.Combine(assetsDir, $"{name}-480w.jpg");
+                Assert.True(File.Exists(variant));
+                Assert.Equal("skiasharp-orientation-v2", JsonNode.Parse(File.ReadAllText(variant + ".bukit-freshness.json"))!["tool"]!.GetValue<string>());
+            }
+            Assert.True(context.TryGet(BuildDataKeys.PluginOutputs, out _));
+            Assert.True(context.TryGet(BuildDataKeys.ImageSrcsets, out _));
             Assert.Empty(Directory.GetFiles(assetsDir, ".photo-480w.bukit-*.jpg"));
             Assert.Empty(Directory.GetFiles(assetsDir, "photo-480w.jpg.bukit-freshness.json.bukit-*.tmp"));
         }

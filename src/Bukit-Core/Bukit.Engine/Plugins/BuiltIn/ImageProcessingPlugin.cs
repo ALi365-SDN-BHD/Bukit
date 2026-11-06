@@ -90,7 +90,7 @@ internal sealed class ImageProcessingPlugin : IBukitPlugin, IAfterBuildAsyncPlug
         // referenced by pages. Collect failures and fail the plugin after the run
         // instead of publishing pages that point at missing files.
         var failures = new List<string>();
-        var failureLimit = string.Equals(_config.Site.PluginFailMode, "warn", StringComparison.OrdinalIgnoreCase)
+        var failureLimit = PluginExecutionPolicy.From(_config.Site).WarnOnPluginFailure
             ? int.MaxValue : MaxVariantFailures;
         var sourceHashes = new Dictionary<string, string>(StringComparer.Ordinal);
         await GenerateResizedVariantsAsync(
@@ -229,7 +229,7 @@ internal sealed class ImageProcessingPlugin : IBukitPlugin, IAfterBuildAsyncPlug
                     break;
                 }
 
-                await _generator.GenerateResizedVariantAsync(
+                var timedOut = await _generator.GenerateResizedVariantAsync(
                     context,
                     imageFile,
                     sourceInfo,
@@ -242,6 +242,11 @@ internal sealed class ImageProcessingPlugin : IBukitPlugin, IAfterBuildAsyncPlug
                     generatedOutputs,
                     failures,
                     cancellationToken);
+                if (timedOut)
+                {
+                    tool = null;
+                    toolIdentity = "skiasharp-orientation-v2";
+                }
             }
         }
     }
