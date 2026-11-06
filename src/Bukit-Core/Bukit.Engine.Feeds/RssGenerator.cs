@@ -40,7 +40,7 @@ public static class RssGenerator
         var rssCollections = ResolveRssCollections(collections);
         var posts = BuildPostsFromSeoIndex(seoIndex, routed, rssCollections, bodyStore)
             ?? routed
-                .Where(x => rssCollections.Contains(GetCollection(x.Document)))
+                .Where(x => !x.Document.Publish.ExcludeFromFeed && rssCollections.Contains(GetCollection(x.Document)))
                 .OrderBy(x => x.Route.Url, StringComparer.OrdinalIgnoreCase)
                 .Select(x => ToPost(x.Document, BuildAbsoluteUrl(normalizedSiteUrl, normalizedBaseUrl, x.Route.Url), bodyStore))
                 .ToList();
@@ -73,7 +73,7 @@ public static class RssGenerator
 
         var posts = BuildPostsFromSeoIndex(seoIndex, routed, rssCollections, bodyStore)
             ?? routed
-                .Where(x => rssCollections.Contains(GetCollection(x.Document)))
+                .Where(x => !x.Document.Publish.ExcludeFromFeed && rssCollections.Contains(GetCollection(x.Document)))
                 .OrderBy(x => x.Route.Url, StringComparer.OrdinalIgnoreCase)
                 .Select(x => ToPost(x.Document, BuildAbsoluteUrl(normalizedSiteUrl, normalizedBaseUrl, x.Route.Url), bodyStore))
                 .ToList();
@@ -232,6 +232,7 @@ public static class RssGenerator
                      .OrderBy(x => x.Value.Route.Url, StringComparer.OrdinalIgnoreCase))
         {
             if (!documentsByPath.TryGetValue(key, out var document) ||
+                document.Publish.ExcludeFromFeed ||
                 !rssCollections.Contains(GetCollection(document)))
             {
                 continue;

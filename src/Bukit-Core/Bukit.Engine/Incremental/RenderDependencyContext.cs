@@ -7,4 +7,5 @@ internal sealed record RenderDependencyContext(
     AppConfig Config,
     SiteModel SiteModel,
     BuildExecutionMode ExecutionMode,
-    string AnalyticsRendererContractVersion);
+    string AnalyticsRendererContractVersion,
+    string? ImageSourceFingerprint = null);

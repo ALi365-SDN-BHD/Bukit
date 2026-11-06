@@ -135,6 +135,66 @@ public sealed partial class SiteEngineIntegrationTests
         finally { CleanupDir(root); }
     }
 
+    [Fact]
+    public async Task MediaLifecycle_SourceImageDimensionChangeRefreshesIncrementalHtml()
+    {
+        var (root, config) = CreateMediaSite(baseUrl: "/");
+        try
+        {
+            var mediaDir = Path.Combine(root, "media");
+            Directory.CreateDirectory(mediaDir);
+            WritePng(Path.Combine(mediaDir, "photo.png"), 1200, 2);
+            config = config with
+            {
+                Content = config.Content with
+                {
+                    Media = config.Content.Media with
+                    {
+                        DownloadToLocal = false,
+                        DownloadDir = "media",
+                        UrlBase = "/assets/uploads"
+                    }
+                },
+                Theme = config.Theme with
+                {
+                    Images = new ImageOptimizationConfig
+                    {
+                        Enabled = true,
+                        Formats = Array.Empty<string>(),
+                        Sizes = new[] { 480, 768 }
+                    }
+                }
+            };
+            var html = "<img src=\"/assets/uploads/photo.png\" alt=\"Photo\">";
+            var output = Path.Combine(root, "dist");
+            var pageFile = Path.Combine(output, "blog", "one", "index.html");
+
+            await BuildMediaAsync(root, config, [MediaDocument("one")], html);
+            var page = File.ReadAllText(pageFile);
+            Assert.Contains("/assets/uploads/photo-480w.png 480w", page, StringComparison.Ordinal);
+            Assert.Contains("/assets/uploads/photo-768w.png 768w", page, StringComparison.Ordinal);
+
+            WritePng(Path.Combine(mediaDir, "photo.png"), 180, 2);
+            await BuildMediaAsync(root, config, [MediaDocument("one")], html);
+
+            page = File.ReadAllText(pageFile);
+            Assert.DoesNotContain("photo-480w", page, StringComparison.Ordinal);
+            Assert.DoesNotContain("photo-768w", page, StringComparison.Ordinal);
+            Assert.False(File.Exists(Path.Combine(output, "assets", "uploads", "photo-480w.png")));
+            Assert.False(File.Exists(Path.Combine(output, "assets", "uploads", "photo-768w.png")));
+            Assert.True(File.Exists(Path.Combine(output, "assets", "uploads", "photo.png")));
+        }
+        finally { CleanupDir(root); }
+    }
+
+    private static void WritePng(string path, int width, int height)
+    {
+        using var bitmap = new SKBitmap(width, height);
+        using var encoded = bitmap.Encode(SKEncodedImageFormat.Png, 100);
+        using var stream = File.Create(path);
+        encoded.SaveTo(stream);
+    }
+
     [Theory]
     [InlineData("/assets/uploads", false)]
     [InlineData("/media", false)]

@@ -85,7 +85,7 @@ public static class BuildCommand
             Jobs = TryParsePositiveInt(command.GetString("--jobs"))
         };
 
-        if (useWorktreeIsolation && I18nOutputMerger.GetLanguages(ConfigApplier.Apply(config, overrides).Site).Count > 0)
+        if (useWorktreeIsolation && I18nOutputMerger.GetLanguages(ConfigApplier.Apply(config, overrides).Site).Count > 1)
         {
             return await WorktreeBuildCoordinator.RunAsync(
                 config,

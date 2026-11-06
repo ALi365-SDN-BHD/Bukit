@@ -30,7 +30,7 @@ internal static class SeoModelBuilder
             baseUrl,
             route.Url,
             FirstTextField(fields, "canonical"));
-        var robots = FirstTextField(fields, "robots");
+        var robots = BuildRobots(fields, document.Publish);
         var resolvedImage = SeoImageResolver.ResolveForContent(config, baseUrl, document);
         var image = resolvedImage.Url;
 
@@ -247,6 +247,44 @@ internal static class SeoModelBuilder
     }
 
     internal static string BuildListAlternateKey(RouteInfo route) => $"route:{route.Url}";
+
+    private static string? BuildRobots(
+        IReadOnlyDictionary<string, ContentField>? fields,
+        ContentPublishPolicy publish)
+    {
+        var configured = FirstTextField(fields, "robots");
+        if (string.IsNullOrWhiteSpace(configured))
+        {
+            if (!publish.NoIndex && !publish.NoFollow)
+            {
+                return null;
+            }
+
+            return publish.NoIndex && publish.NoFollow ? "noindex,nofollow"
+                : publish.NoIndex ? "noindex"
+                : "nofollow";
+        }
+
+        var tokens = configured
+            .Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries)
+            .ToList();
+        if (tokens.Any(token => string.Equals(token, "none", StringComparison.OrdinalIgnoreCase)))
+        {
+            return configured;
+        }
+
+        if (publish.NoIndex && !tokens.Any(token => string.Equals(token, "noindex", StringComparison.OrdinalIgnoreCase)))
+        {
+            tokens.Add("noindex");
+        }
+
+        if (publish.NoFollow && !tokens.Any(token => string.Equals(token, "nofollow", StringComparison.OrdinalIgnoreCase)))
+        {
+            tokens.Add("nofollow");
+        }
+
+        return string.Join(',', tokens);
+    }
 
     internal static bool IsIndexable(string? robots)
     {

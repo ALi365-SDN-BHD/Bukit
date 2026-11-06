@@ -238,7 +238,7 @@ public sealed partial class SiteEngine
         manifest.Save(rootManifestPath);
         WriteOutputMarker(prepared.Plan.OutputDir);
         BuildRecoveryTracker.MarkCompleted(prepared.Plan.OutputDir);
-        prepared.Logger.Info($"Build completed: {Path.GetFullPath(prepared.Plan.OutputDir)}");
+        prepared.Logger.Info($"Build completed: {Path.GetFullPath(prepared.FinalOutputDir)}");
         prepared.Logger.Info("event=build.done");
         return result;
     }

@@ -26,7 +26,7 @@ Common causes:
 
 ### Multilingual Worktree Diagnostics
 
-These stable codes apply when an explicit `bukit build` has `site.languages`:
+These stable codes apply when an explicit `bukit build` has two or more `site.languages`:
 
 | Code | Meaning |
 |---|---|

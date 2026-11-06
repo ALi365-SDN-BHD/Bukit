@@ -388,6 +388,30 @@ public sealed class SeoModelBuilderTests
     }
 
     [Fact]
+    public void BuildForContent_NoIndexAndNoFollowBooleansBecomeRobots()
+    {
+        var config = CreateConfig();
+        var item = ContentDocument.Create(
+            id: "p1",
+            title: "Hidden",
+            slug: "hidden",
+            publishAt: DateTimeOffset.UtcNow,
+            contentHtml: null,
+            fields: ContentFieldReader.ToFieldMap(new Dictionary<string, object>
+            {
+                ["type"] = "page",
+                ["noindex"] = true,
+                ["nofollow"] = true
+            }));
+        var route = new RouteInfo("/pages/hidden/", "pages/hidden/index.html", "pages/page.html");
+
+        var model = SeoModelBuilder.BuildForContent(config, "/", item, route);
+
+        Assert.Equal("noindex,nofollow", model.Robots);
+        Assert.False(SeoModelBuilder.IsIndexable(model.Robots));
+    }
+
+    [Fact]
     public void BuildForContent_WithAlternates()
     {
         var config = CreateConfig();

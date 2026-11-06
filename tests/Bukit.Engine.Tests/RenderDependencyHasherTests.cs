@@ -272,6 +272,7 @@ public sealed class RenderDependencyHasherTests
                 "analytics",
                 "seo",
                 "theme-and-template-model",
+                "image-processing",
                 "collections-and-field-scopes",
                 "taxonomy",
                 "route-metadata-configuration",
@@ -306,7 +307,7 @@ public sealed class RenderDependencyHasherTests
     public void Compute_BaseConfiguration_MatchesGoldenHash()
     {
         Assert.Equal(
-            "d3e2fe3b74b4df06757538c635daca0ee864236aa554841381ab9d6d5dd1ef7b",
+            "7e4d81917294b6be7cb15aa342521b1738e023423c185eac224fe0c494b5fcd0",
             RenderDependencyHasher.Compute(CreateBaseConfig(), s_emptySiteModel));
     }
 
@@ -315,7 +316,7 @@ public sealed class RenderDependencyHasherTests
     {
         // Golden hash for the canonical framed/type-tagged render dependency encoding.
         Assert.Equal(
-            "5553a9a02de83633807faea8cc3ec7e2de31105c47e845939521a3192db69075",
+            "9ffd28e24198d2b737344ea6d72f0f83f75f1ba946292bb669df3911f27ed517",
             RenderDependencyHasher.Compute(
                 CreateRepresentativeGoldenConfig(),
                 CreateRepresentativeGoldenSiteModel(),

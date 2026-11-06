@@ -291,7 +291,7 @@ internal sealed class DefaultContentNormalizer : IContentNormalizer
         ContentModelSchema schema,
         IReadOnlyDictionary<string, ContentField>? fields)
     {
-        var allowed = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var allowed = new HashSet<string>(ContentFieldReservations.EngineManaged, StringComparer.OrdinalIgnoreCase);
 
         foreach (var mapping in schema.CanonicalMappings?.Values ?? Array.Empty<CanonicalFieldMapping>())
         {

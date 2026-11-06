@@ -97,6 +97,52 @@ public sealed class RenderDependencyContributorInvalidationTests
     }
 
     [Fact]
+    public void Seo_ChangesOrganizationSchemaAndSearchRoute()
+    {
+        var contributor = new SeoContributor();
+        var baseline = Config();
+        var organization = new SeoOrganizationConfig { Name = "Old Org", Url = "https://example.com" };
+        var withOrganization = baseline with
+        {
+            Site = baseline.Site with
+            {
+                Seo = new SeoConfig { Organization = organization }
+            }
+        };
+        Assert.NotEqual(Hash(contributor, baseline), Hash(contributor, withOrganization));
+
+        var renamed = withOrganization with
+        {
+            Site = withOrganization.Site with
+            {
+                Seo = withOrganization.Site.Seo with
+                {
+                    Organization = organization with { Name = "New Org" }
+                }
+            }
+        };
+        Assert.NotEqual(Hash(contributor, withOrganization), Hash(contributor, renamed));
+
+        var noSchema = baseline with
+        {
+            Site = baseline.Site with
+            {
+                Seo = new SeoConfig { Schema = new SeoSchemaConfig { WebPage = false } }
+            }
+        };
+        Assert.NotEqual(Hash(contributor, baseline), Hash(contributor, noSchema));
+
+        var withSearchRoute = baseline with
+        {
+            Site = baseline.Site with
+            {
+                Search = new SearchDetailConfig { Route = "/search/" }
+            }
+        };
+        Assert.NotEqual(Hash(contributor, baseline), Hash(contributor, withSearchRoute));
+    }
+
+    [Fact]
     public void ThemeAndTemplateModel_ChangesParamsButIgnoresShortcodeOrder()
     {
         var contributor = new ThemeAndTemplateModelContributor();
@@ -152,6 +198,49 @@ public sealed class RenderDependencyContributorInvalidationTests
             }
         };
         Assert.Equal(Hash(contributor, baseline), Hash(contributor, empty));
+    }
+
+    [Fact]
+    public void CollectionsAndFieldScopes_ChangesIndexPolicy()
+    {
+        var contributor = new CollectionsAndFieldScopesContributor();
+        var baseline = Config() with
+        {
+            Site = Config().Site with
+            {
+                Collections = new Dictionary<string, CollectionConfig>
+                {
+                    ["blog"] = new CollectionConfig { Permalink = "/blog/{slug}/" }
+                }
+            }
+        };
+        var noindexWhenEmpty = baseline with
+        {
+            Site = baseline.Site with
+            {
+                Collections = new Dictionary<string, CollectionConfig>
+                {
+                    ["blog"] = new CollectionConfig { Permalink = "/blog/{slug}/", NoindexWhenEmpty = true }
+                }
+            }
+        };
+        Assert.NotEqual(Hash(contributor, baseline), Hash(contributor, noindexWhenEmpty));
+
+        var minimumPolicy = baseline with
+        {
+            Site = baseline.Site with
+            {
+                Collections = new Dictionary<string, CollectionConfig>
+                {
+                    ["blog"] = new CollectionConfig
+                    {
+                        Permalink = "/blog/{slug}/",
+                        IndexPolicy = new CollectionIndexPolicyConfig { MinimumItems = 3, BelowMinimum = "noindex-follow" }
+                    }
+                }
+            }
+        };
+        Assert.NotEqual(Hash(contributor, baseline), Hash(contributor, minimumPolicy));
     }
 
     [Fact]

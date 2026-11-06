@@ -21,6 +21,9 @@ internal sealed class CollectionsAndFieldScopesContributor : IRenderDependencyCo
                 writer.AppendLabeledCanonicalValue("collection.listDescription", collection.Value.ListDescription);
                 writer.AppendLabeledCanonicalValue("collection.listTemplate", collection.Value.ListTemplate);
                 writer.AppendLabeledCanonicalValue("collection.schemaFailMode", collection.Value.SchemaFailMode);
+                writer.AppendLabeledCanonicalValue("collection.noindexWhenEmpty", collection.Value.NoindexWhenEmpty);
+                writer.AppendLabeledCanonicalValue("collection.indexPolicy.minimumItems", collection.Value.IndexPolicy.MinimumItems);
+                writer.AppendLabeledCanonicalValue("collection.indexPolicy.belowMinimum", collection.Value.IndexPolicy.BelowMinimum);
 
                 var pagination = collection.Value.Pagination;
                 writer.AppendLabeledCanonicalValue("collection.pagination.enabled", pagination.Enabled);
