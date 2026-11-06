@@ -343,14 +343,14 @@ public sealed class MarkdownFolderProvider : IContentProvider
             : null;
     }
 
-    private static IReadOnlyList<string> BuildLanguageDirectories(IReadOnlyList<string>? languages)
+    private static string[] BuildLanguageDirectories(IReadOnlyList<string>? languages)
         => languages?
             .Where(language => !string.IsNullOrWhiteSpace(language))
             .Select(language => language.Trim())
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToArray() ?? [];
 
-    private static string ResolveVariantDirectory(string relativePath, IReadOnlyList<string> languages)
+    private static string ResolveVariantDirectory(string relativePath, string[] languages)
     {
         var normalized = relativePath.Replace('\\', '/');
         var separator = normalized.IndexOf('/');
