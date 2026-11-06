@@ -43,6 +43,12 @@ internal sealed class WorktreeBuildRun
     private int _errorCount;
     private bool _worktreesCleaned;
     private bool _committed;
+    private string? _mediaSource;
+    private string? _mediaFingerprint;
+    private string? _mediaStageRoot;
+    private string? _mediaFinalRoot;
+    private string? _mediaBackupRoot;
+    private string? _stagedMediaDir;
 
     private WorktreeBuildRun(
         AppConfig effectiveConfig,
@@ -117,20 +123,17 @@ internal sealed class WorktreeBuildRun
         var configHash = I18nWorktreeProtocol.ComputeConfigHash(effectiveConfig, overrides);
         var languages = I18nOutputMerger.GetLanguages(effectiveConfig.Site);
         var finalOutputDir = BuildPathUtils.MakeAbsolute(resolved.RootDir, effectiveConfig.Build.Output);
-        var finalCacheDir = string.IsNullOrWhiteSpace(overrides.CacheDir)
+        var finalCacheDir = PathUtils.GetCanonicalFullPath(string.IsNullOrWhiteSpace(overrides.CacheDir)
             ? Path.Combine(resolved.RootDir, ".cache")
-            : Path.GetFullPath(overrides.CacheDir);
+            : Path.GetFullPath(overrides.CacheDir));
         WorktreeBuildPaths.EnsureDisjoint(finalOutputDir, finalCacheDir);
         // Preflight the original project's real sources against the formal targets before
         // the run lock, run directory, staging, or workers exist. Mapped worktree copies are
         // not a substitute for the original project sources.
+        var writeTargets = BuildTransaction.ConfiguredWriteTargets(
+            effectiveConfig, resolved.RootDir, overrides with { CacheDir = finalCacheDir }, finalOutputDir);
         OutputDirectoryCleaner.EnsureNoSourceOverlap(
-            OutputDirectoryCleaner.GetConfiguredContentSources(effectiveConfig, resolved.RootDir),
-            BuildTransaction.ConfiguredWriteTargets(
-                effectiveConfig,
-                resolved.RootDir,
-                overrides with { CacheDir = finalCacheDir },
-                finalOutputDir));
+            OutputDirectoryCleaner.GetConfiguredContentSources(effectiveConfig, resolved.RootDir), writeTargets);
         OutputDirectoryCleaner.EnsureCanClean(resolved.RootDir, finalOutputDir, effectiveConfig.Build.Clean);
 
         var runId = Guid.NewGuid().ToString("N");
@@ -175,6 +178,12 @@ internal sealed class WorktreeBuildRun
 
     internal async Task PrepareAsync(CancellationToken cancellationToken)
     {
+        var mediaRelative = WorktreeMediaOverlay.ResolveRelativeMediaDir(_effectiveConfig, _rootDir, _repository);
+        if (mediaRelative is not null)
+        {
+            _mediaSource = Path.Combine(_repository.Root, mediaRelative);
+            _mediaFingerprint = WorktreeMediaOverlay.Fingerprint(_mediaSource);
+        }
         WorktreeBuildPaths.PrepareStaging(_finalOutputDir, _stagingOutputDir, copyExisting: !_effectiveConfig.Build.Clean);
         WorktreeBuildPaths.PrepareStaging(_finalCacheDir, _stagingCacheDir, copyExisting: true);
         WorktreeBuildPaths.RewriteManifestRoots(_stagingCacheDir, _finalOutputDir, _stagingOutputDir, _languages);
@@ -183,13 +192,31 @@ internal sealed class WorktreeBuildRun
         await WorktreeBuildRepository.AddWorktreeAsync(
             _repository, contentWorktree, _registryPath, _ownedWorktrees, _logger, cancellationToken).ConfigureAwait(false);
         var contentSiteRoot = WorktreeBuildPaths.MapIntoWorktree(_repository, _rootDir, contentWorktree);
-        var mediaRelative = WorktreeMediaOverlay.ResolveRelativeMediaDir(_effectiveConfig, _rootDir, _repository);
-        var contentMediaDir = mediaRelative is null ? null : Path.Combine(contentWorktree, mediaRelative);
-        if (mediaRelative is not null)
+        if (_mediaSource is not null)
         {
-            var copied = WorktreeMediaOverlay.CopyMissing(
-                Path.Combine(_repository.Root, mediaRelative), contentMediaDir!, contentWorktree);
-            _logger.Debug($"event=build.i18n.worktree.media_overlay target=content copied={copied}");
+            if (WorktreeBuildPaths.IsSameOrChild(_finalCacheDir, _mediaSource))
+            {
+                _stagedMediaDir = Path.Combine(_stagingCacheDir, Path.GetRelativePath(_finalCacheDir, _mediaSource));
+            }
+            else if (_effectiveConfig.Content.Media.DownloadToLocal)
+            {
+                WorktreeBuildPaths.EnsureDisjoint(_mediaSource, _finalOutputDir);
+                WorktreeBuildPaths.EnsureDisjoint(_mediaSource, _finalCacheDir);
+                _mediaFinalRoot = _mediaSource;
+                while (!Directory.Exists(Path.GetDirectoryName(_mediaFinalRoot)!))
+                    _mediaFinalRoot = Path.GetDirectoryName(_mediaFinalRoot)!;
+                _mediaStageRoot = WorktreeBuildPaths.Sibling(_mediaFinalRoot, "bukit-staging-" + Guid.NewGuid().ToString("N"));
+                _mediaBackupRoot = WorktreeBuildPaths.Sibling(_mediaFinalRoot, "bukit-backup-" + Guid.NewGuid().ToString("N"));
+                WorktreeBuildPaths.PrepareStaging(_mediaFinalRoot, _mediaStageRoot, copyExisting: true);
+                _stagedMediaDir = Path.Combine(_mediaStageRoot, Path.GetRelativePath(_mediaFinalRoot, _mediaSource));
+            }
+            else
+            {
+                _stagedMediaDir = Path.Combine(_runRoot, "media-snapshot");
+                WorktreeBuildPaths.PrepareStaging(_mediaSource, _stagedMediaDir, copyExisting: true);
+            }
+            if (WorktreeMediaOverlay.Fingerprint(_mediaSource) != _mediaFingerprint)
+                throw new IOException($"Media directory changed while staging: {_mediaSource}");
         }
         _metrics = WorktreeBuildPaths.ResolveMetricsPaths(
             _overrides.MetricsPath, _rootDir, _finalOutputDir, _stagingOutputDir, _runRoot);
@@ -206,7 +233,8 @@ internal sealed class WorktreeBuildRun
             _rootDir,
             _finalOutputDir,
             stagingOverrides,
-            cancellationToken).ConfigureAwait(false);
+            cancellationToken,
+            _stagedMediaDir).ConfigureAwait(false);
 
         var contentSnapshot = await I18nWorktreeProtocol.CaptureContentAsync(
             _repository.Head,
@@ -228,12 +256,6 @@ internal sealed class WorktreeBuildRun
             await WorktreeBuildRepository.AddWorktreeAsync(
                 _repository, workerWorktree, _registryPath, _ownedWorktrees, _logger, cancellationToken).ConfigureAwait(false);
             var workerSiteRoot = WorktreeBuildPaths.MapIntoWorktree(_repository, _rootDir, workerWorktree);
-            if (mediaRelative is not null)
-            {
-                var copied = WorktreeMediaOverlay.CopyMissing(
-                    contentMediaDir!, Path.Combine(workerWorktree, mediaRelative), workerWorktree);
-                _logger.Debug($"event=build.i18n.worktree.media_overlay target={segment} copied={copied}");
-            }
             var workerConfigPath = WorktreeBuildPaths.MapIntoWorktree(_repository, _fullConfigPath, workerWorktree);
             var outputDir = Path.Combine(_stagingOutputDir, language);
             var workerCache = Path.Combine(_runRoot, "worker-cache", segment);
@@ -258,7 +280,7 @@ internal sealed class WorktreeBuildRun
                 workerCache,
                 _prepared.AssetsDir,
                 _prepared.ScssOutputDir,
-                _prepared.Plan.MediaCacheDir,
+                _stagedMediaDir ?? _prepared.Plan.MediaCacheDir,
                 snapshotPath,
                 resultPath);
             await I18nWorktreeProtocolStore.WriteRequestAsync(requestPath, request, cancellationToken).ConfigureAwait(false);
@@ -369,10 +391,27 @@ internal sealed class WorktreeBuildRun
                 ex);
         }
         _worktreesCleaned = true;
+        if (_mediaSource is not null && WorktreeMediaOverlay.Fingerprint(_mediaSource) != _mediaFingerprint)
+            throw new IOException($"Media directory changed during build: {_mediaSource}");
         var metrics = _metrics ?? throw new InvalidOperationException("Worktree build metrics paths are unavailable.");
+        var directories = new List<(string Staging, string Final, string Backup)>
+        {
+            (_stagingOutputDir, _finalOutputDir, _backupOutputDir),
+            (_stagingCacheDir, _finalCacheDir, _backupCacheDir)
+        };
+        if (_mediaStageRoot is not null)
+            directories.Add((_mediaStageRoot, _mediaFinalRoot!, _mediaBackupRoot!));
         WorktreeBuildTransaction.CommitDirectories(
-            [(_stagingOutputDir, _finalOutputDir, _backupOutputDir), (_stagingCacheDir, _finalCacheDir, _backupCacheDir)],
-            metrics.ExternalCommit);
+            directories,
+            metrics.ExternalCommit,
+            (final, backup, hadOriginal) =>
+            {
+                if (_mediaSource is null || !WorktreeBuildPaths.IsSameOrChild(final, _mediaSource)) return;
+                var backupMedia = Path.Combine(backup, Path.GetRelativePath(final, _mediaSource));
+                var actual = hadOriginal ? WorktreeMediaOverlay.Fingerprint(backupMedia) : "missing";
+                if (actual != _mediaFingerprint)
+                    throw new IOException($"Media directory changed during commit: {_mediaSource}");
+            });
         _committed = true;
         WorktreeBuildPaths.TryDeleteDirectory(_runRoot);
         _logger.Info($"event=build.i18n.worktree.done head={_repository.Head} languages={_languages.Count}");
@@ -403,6 +442,7 @@ internal sealed class WorktreeBuildRun
             {
                 WorktreeBuildPaths.TryDeleteDirectory(_stagingOutputDir);
                 WorktreeBuildPaths.TryDeleteDirectory(_stagingCacheDir);
+                if (_mediaStageRoot is not null) WorktreeBuildPaths.TryDeleteDirectory(_mediaStageRoot);
             }
             if (_worktreesCleaned)
             {

@@ -141,6 +141,261 @@ public sealed class WorktreeBuildCoordinatorTests : IDisposable
     }
 
     [Fact]
+    public async Task Prepare_AbsoluteMediaSymlink_UsesIsolatedSharedSnapshot()
+    {
+        if (OperatingSystem.IsWindows()) return;
+        var root = Path.Combine(_root, "absolute-media-snapshot");
+        var site = CreateSite(root, extraIgnore: "/shared/media/\n");
+        var yaml = await File.ReadAllTextAsync(site);
+        await File.WriteAllTextAsync(site, yaml.Replace("content:\n  sources:",
+            "content:\n  media:\n    downloadToLocal: true\n    downloadDir: media\n  sources:", StringComparison.Ordinal));
+        var media = Path.Combine(root, "shared", "media");
+        Directory.CreateDirectory(media);
+        await File.WriteAllTextAsync(Path.Combine(media, "photo.png"), "original");
+        Directory.CreateSymbolicLink(Path.Combine(root, "media"), media);
+        await InitializeRepositoryAsync(root);
+        var run = await WorktreeBuildRun.StartAsync(ConfigLoader.Load(site), new ResolvedConfigPath(site, root),
+            new ConfigOverrides(), "text", new ConsoleLogger(LogLevel.Error), CancellationToken.None);
+        try
+        {
+            await run.PrepareAsync(CancellationToken.None);
+            var repository = (await RunProcessAsync("git", ["rev-parse", "--show-toplevel"], root)).Output.Trim();
+            var runsRoot = WorktreeBuildPaths.RunsRoot(repository);
+            var requests = Directory.GetFiles(runsRoot, "request.v1.json", SearchOption.AllDirectories);
+            Assert.Equal(2, requests.Length);
+            using var first = System.Text.Json.JsonDocument.Parse(await File.ReadAllTextAsync(requests[0]));
+            using var second = System.Text.Json.JsonDocument.Parse(await File.ReadAllTextAsync(requests[1]));
+            var mediaPath = first.RootElement.GetProperty("mediaDownloadDir").GetString()!;
+            Assert.Equal(mediaPath, second.RootElement.GetProperty("mediaDownloadDir").GetString());
+            Assert.NotEqual(PathUtils.GetCanonicalFullPath(media), PathUtils.GetCanonicalFullPath(mediaPath));
+            await File.WriteAllTextAsync(Path.Combine(media, "photo.png"), "changed");
+            Assert.Equal("original", await File.ReadAllTextAsync(Path.Combine(mediaPath, "photo.png")));
+            await File.WriteAllTextAsync(Path.Combine(mediaPath, "download.png"), "download");
+        }
+        finally
+        {
+            await run.CleanupAsync();
+        }
+        Assert.Equal("changed", await File.ReadAllTextAsync(Path.Combine(media, "photo.png")));
+        Assert.False(File.Exists(Path.Combine(media, "download.png")));
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task ExplicitMultilingualBuild_CommitsNewStagedMedia(bool changeOriginal)
+    {
+        var root = Path.Combine(_root, "staged-media-commit");
+        var site = CreateSite(root, extraIgnore: "/media/\n");
+        var yaml = await File.ReadAllTextAsync(site);
+        await File.WriteAllTextAsync(site, yaml.Replace("content:\n  sources:",
+            "content:\n  media:\n    downloadToLocal: true\n    downloadDir: media\n  sources:", StringComparison.Ordinal));
+        Directory.CreateDirectory(Path.Combine(root, "media"));
+        await InitializeRepositoryAsync(root);
+        using var process = new Process
+        {
+            StartInfo = new ProcessStartInfo("dotnet")
+            {
+                WorkingDirectory = root,
+                RedirectStandardOutput = true,
+                RedirectStandardError = true,
+                UseShellExecute = false
+            }
+        };
+        foreach (var arg in new[] { typeof(BuildCommand).Assembly.Location, "build", "--config", site })
+            process.StartInfo.ArgumentList.Add(arg);
+        Assert.True(process.Start());
+        var standardOutput = process.StandardOutput.ReadToEndAsync();
+        var output = new StringBuilder();
+        var added = false;
+        while (await process.StandardError.ReadLineAsync() is { } line)
+        {
+            output.AppendLine(line);
+            if (!line.Contains("event=build.i18n.worktree.start", StringComparison.Ordinal)) continue;
+            var staged = Assert.Single(Directory.GetDirectories(root, ".media.bukit-staging-*"));
+            await File.WriteAllTextAsync(Path.Combine(staged, "download.png"), "downloaded");
+            if (changeOriginal)
+                await File.WriteAllTextAsync(Path.Combine(root, "media", "user.png"), "user change");
+            added = true;
+        }
+        await process.WaitForExitAsync();
+        Assert.True(added, output.ToString());
+        var details = output + await standardOutput;
+        if (changeOriginal)
+        {
+            Assert.NotEqual(0, process.ExitCode);
+            Assert.Contains("Media directory changed", details, StringComparison.Ordinal);
+            Assert.Equal("user change", await File.ReadAllTextAsync(Path.Combine(root, "media", "user.png")));
+            Assert.False(File.Exists(Path.Combine(root, "media", "download.png")));
+        }
+        else
+        {
+            Assert.True(process.ExitCode == 0, details);
+            Assert.Equal("downloaded", await File.ReadAllTextAsync(Path.Combine(root, "media", "download.png")));
+        }
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task ExplicitMultilingualBuild_PersistsActualDownloadedMedia(bool failWorker)
+    {
+        var root = Path.Combine(_root, "real-media-download");
+        var site = CreateSite(root, extraIgnore: "/media/\n");
+        var yaml = await File.ReadAllTextAsync(site);
+        await File.WriteAllTextAsync(site, yaml.Replace("content:\n  sources:",
+            "content:\n  media:\n    downloadToLocal: true\n    downloadDir: media\n    blockPrivateNetworks: false\n    maxRetries: 0\n  sources:", StringComparison.Ordinal));
+        using var listener = new System.Net.Sockets.TcpListener(System.Net.IPAddress.Loopback, 0);
+        listener.Start();
+        var port = ((System.Net.IPEndPoint)listener.LocalEndpoint).Port;
+        using var bitmap = new SkiaSharp.SKBitmap(2, 2);
+        using var encoded = bitmap.Encode(SkiaSharp.SKEncodedImageFormat.Png, 100);
+        var image = encoded.ToArray();
+        var mediaDir = Path.Combine(root, "media");
+        Directory.CreateDirectory(mediaDir);
+        await File.WriteAllTextAsync(Path.Combine(mediaDir, "sentinel.txt"), "user data");
+        if (failWorker) await File.WriteAllTextAsync(Path.Combine(root, "layouts", "pages", "page.html"), "{{ invalid(");
+        await File.WriteAllTextAsync(Path.Combine(root, "content", "en", "index.md"),
+            $"---\ntitle: English\nlanguage: en\ni18nKey: home\n---\n![Photo](http://127.0.0.1:{port}/photo.png)");
+        await InitializeRepositoryAsync(root);
+        using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+        var serve = Task.Run(async () =>
+        {
+            using var client = await listener.AcceptTcpClientAsync(timeout.Token);
+            await using var stream = client.GetStream();
+            using var reader = new StreamReader(stream, Encoding.ASCII, leaveOpen: true);
+            while (!string.IsNullOrEmpty(await reader.ReadLineAsync(timeout.Token))) { }
+            await stream.WriteAsync(Encoding.ASCII.GetBytes($"HTTP/1.1 200 OK\r\nContent-Type: image/png\r\nContent-Length: {image.Length}\r\nConnection: close\r\n\r\n"), timeout.Token);
+            await stream.WriteAsync(image, timeout.Token);
+        });
+
+        var result = await RunProcessAsync("dotnet", [typeof(BuildCommand).Assembly.Location, "build", "--config", site], root);
+        await serve;
+
+        Assert.Equal("user data", await File.ReadAllTextAsync(Path.Combine(mediaDir, "sentinel.txt")));
+        if (failWorker)
+        {
+            Assert.NotEqual(0, result.ExitCode);
+            Assert.Empty(Directory.GetFiles(mediaDir, "*.png"));
+            Assert.False(File.Exists(Path.Combine(mediaDir, ".media-index.json")));
+            return;
+        }
+        Assert.True(result.ExitCode == 0, result.Output);
+        var stored = Assert.Single(Directory.GetFiles(mediaDir, "*.png"));
+        Assert.Equal(image, await File.ReadAllBytesAsync(stored));
+        Assert.True(File.Exists(Path.Combine(mediaDir, ".media-index.json")));
+        Assert.Contains(Directory.EnumerateFiles(Path.Combine(root, "dist", "en"), "*.png", SearchOption.AllDirectories),
+            path => File.ReadAllBytes(path).SequenceEqual(image));
+        listener.Stop();
+        var offline = await RunProcessAsync("dotnet", [typeof(BuildCommand).Assembly.Location, "build", "--config", site], root);
+        Assert.True(offline.ExitCode == 0, offline.Output);
+        Assert.Equal(image, await File.ReadAllBytesAsync(stored));
+    }
+
+    [Fact]
+    public async Task Prepare_RejectsMediaChangedAfterCacheWasCopied()
+    {
+        var root = Path.Combine(_root, "media-cache-copy-race");
+        var site = CreateSite(root);
+        var yaml = await File.ReadAllTextAsync(site);
+        await File.WriteAllTextAsync(site, yaml.Replace("content:\n  sources:",
+            "content:\n  media:\n    downloadToLocal: true\n    downloadDir: .cache/media\n  sources:", StringComparison.Ordinal));
+        var media = Path.Combine(root, ".cache", "media");
+        Directory.CreateDirectory(media);
+        var image = Path.Combine(media, "photo.png");
+        await File.WriteAllTextAsync(image, "original");
+        await InitializeRepositoryAsync(root);
+        var run = await WorktreeBuildRun.StartAsync(ConfigLoader.Load(site), new ResolvedConfigPath(site, root),
+            new ConfigOverrides(), "text", new ConsoleLogger(LogLevel.Error), CancellationToken.None);
+        var repository = (await RunProcessAsync("git", ["rev-parse", "--show-toplevel"], root)).Output.Trim();
+        using var watcher = new FileSystemWatcher(WorktreeBuildPaths.RunsRoot(repository), "owned-worktrees.txt")
+        {
+            IncludeSubdirectories = true,
+            EnableRaisingEvents = true
+        };
+        var changed = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        watcher.Created += (_, _) =>
+        {
+            try { File.WriteAllText(image, "user change"); changed.TrySetResult(); }
+            catch (Exception ex) { changed.TrySetException(ex); }
+        };
+        try
+        {
+            var failure = await Record.ExceptionAsync(() => run.PrepareAsync(CancellationToken.None));
+            await changed.Task.WaitAsync(TimeSpan.FromSeconds(10));
+            Assert.IsType<IOException>(failure);
+            Assert.Contains("Media directory changed", failure.Message, StringComparison.Ordinal);
+            Assert.Equal("user change", await File.ReadAllTextAsync(image));
+        }
+        finally
+        {
+            await run.CleanupAsync();
+        }
+    }
+
+    [Fact]
+    public async Task Prepare_CustomMediaInsideSymlinkedCache_UsesStagedCopy()
+    {
+        if (OperatingSystem.IsWindows()) return;
+        var root = Path.Combine(_root, "media-cache-alias");
+        var site = CreateSite(root, extraIgnore: "/real-cache/\n/cache-link\n");
+        var yaml = await File.ReadAllTextAsync(site);
+        await File.WriteAllTextAsync(site, yaml.Replace("content:\n  sources:",
+            "content:\n  media:\n    downloadToLocal: true\n    downloadDir: real-cache/media\n  sources:", StringComparison.Ordinal));
+        var media = Path.Combine(root, "real-cache", "media");
+        Directory.CreateDirectory(media);
+        await File.WriteAllTextAsync(Path.Combine(media, "photo.png"), "original");
+        var cacheLink = Path.Combine(root, "cache-link");
+        Directory.CreateSymbolicLink(cacheLink, Path.Combine(root, "real-cache"));
+        await InitializeRepositoryAsync(root);
+        var run = await WorktreeBuildRun.StartAsync(ConfigLoader.Load(site), new ResolvedConfigPath(site, root),
+            new ConfigOverrides { CacheDir = cacheLink }, "text", new ConsoleLogger(LogLevel.Error), CancellationToken.None);
+        try
+        {
+            await run.PrepareAsync(CancellationToken.None);
+            var repository = (await RunProcessAsync("git", ["rev-parse", "--show-toplevel"], root)).Output.Trim();
+            var request = Assert.Single(Directory.GetFiles(WorktreeBuildPaths.RunsRoot(repository), "request.v1.json", SearchOption.AllDirectories),
+                path => path.Contains(Path.DirectorySeparatorChar + "en" + Path.DirectorySeparatorChar, StringComparison.Ordinal));
+            using var json = System.Text.Json.JsonDocument.Parse(await File.ReadAllTextAsync(request));
+            var staged = json.RootElement.GetProperty("mediaDownloadDir").GetString()!;
+            Assert.NotEqual(PathUtils.GetCanonicalFullPath(media), PathUtils.GetCanonicalFullPath(staged));
+            await File.WriteAllTextAsync(Path.Combine(media, "photo.png"), "changed");
+            Assert.Equal("original", await File.ReadAllTextAsync(Path.Combine(staged, "photo.png")));
+        }
+        finally
+        {
+            await run.CleanupAsync();
+        }
+        var result = await RunProcessAsync("dotnet",
+            [typeof(BuildCommand).Assembly.Location, "build", "--config", site, "--cache-dir", cacheLink], root);
+        Assert.True(result.ExitCode == 0, result.Output);
+        Assert.NotNull(new DirectoryInfo(cacheLink).LinkTarget);
+        Assert.Equal("changed", await File.ReadAllTextAsync(Path.Combine(media, "photo.png")));
+    }
+
+    [Fact]
+    public void OutputCommit_ValidationAfterBackup_RestoresOriginalOnConflict()
+    {
+        var final = Path.Combine(_root, "media-final");
+        var staging = Path.Combine(_root, "media-staging");
+        var backup = Path.Combine(_root, "media-backup");
+        Directory.CreateDirectory(final);
+        Directory.CreateDirectory(staging);
+        File.WriteAllText(Path.Combine(final, "photo"), "user change");
+        File.WriteAllText(Path.Combine(staging, "photo"), "snapshot");
+
+        Assert.Throws<IOException>(() => WorktreeBuildTransaction.CommitDirectories(
+            [(staging, final, backup)], [],
+            (_, movedBackup, _) =>
+            {
+                Assert.Equal("user change", File.ReadAllText(Path.Combine(movedBackup, "photo")));
+                throw new IOException("media changed");
+            }));
+        Assert.Equal("user change", File.ReadAllText(Path.Combine(final, "photo")));
+        Assert.Equal("snapshot", File.ReadAllText(Path.Combine(staging, "photo")));
+    }
+
+    [Fact]
     public async Task ExplicitMultilingualBuild_RejectsChangedSymlinkedMediaInsideRepository()
     {
         if (OperatingSystem.IsWindows()) return;

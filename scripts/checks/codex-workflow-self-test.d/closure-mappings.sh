@@ -109,7 +109,11 @@ done
 for i18n_worktree_contract_path in \
   docs/worktree.md \
   guide/user/11-i18n-seo.md \
-  guide/user/14-troubleshooting.md \
+  guide/user/14-troubleshooting.md; do
+  assert_closure_mapping "$closure_fixture" "$i18n_worktree_contract_path" '["bash scripts/checks/cli-docs-sync.sh", "openspec validate i18n-worktree-build --type spec --strict --no-interactive"]' true
+done
+
+for i18n_worktree_contract_path in \
   openspec/changes/add-i18n-worktree-isolation/.openspec.yaml \
   openspec/changes/add-i18n-worktree-isolation/README.md \
   openspec/changes/add-i18n-worktree-isolation/design.md \

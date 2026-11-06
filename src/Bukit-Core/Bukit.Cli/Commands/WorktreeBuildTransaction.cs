@@ -4,7 +4,8 @@ internal static class WorktreeBuildTransaction
 {
     internal static void CommitDirectories(
         IReadOnlyList<(string Staging, string Final, string Backup)> directories,
-        IReadOnlyList<(string Staging, string Final, string Backup)> files)
+        IReadOnlyList<(string Staging, string Final, string Backup)> files,
+        Action<string, string, bool>? validateBackup = null)
     {
         foreach (var (_, final, _) in directories)
             if (File.Exists(final)) throw new IOException($"Directory transaction target is a file: {final}");
@@ -23,6 +24,7 @@ internal static class WorktreeBuildTransaction
                     Directory.Move(final, backup);
                 }
                 completedDirectories.Add((staging, final, backup, hadOriginal, false));
+                validateBackup?.Invoke(final, backup, hadOriginal);
                 Directory.Move(staging, final);
                 completedDirectories[^1] = (staging, final, backup, hadOriginal, true);
             }
@@ -35,6 +37,7 @@ internal static class WorktreeBuildTransaction
                     File.Move(final, backup);
                 }
                 completedFiles.Add((staging, final, backup, hadOriginal, false));
+                validateBackup?.Invoke(final, backup, hadOriginal);
                 File.Move(staging, final);
                 completedFiles[^1] = (staging, final, backup, hadOriginal, true);
             }

@@ -60,6 +60,24 @@ internal sealed partial class ContentMediaOutput(BuildVariantContext context) : 
         }
     }
 
+    internal void NormalizeIndexedPages(Dictionary<string, object> pages)
+    {
+        foreach (var page in pages.Values.OfType<IDictionary<string, object>>())
+        {
+            if (!page.TryGetValue("fields", out var fieldsValue) || fieldsValue is not IDictionary<string, object> fields)
+                continue;
+            foreach (var field in fields.Values.OfType<IDictionary<string, object>>())
+            {
+                if (!field.TryGetValue("value", out var value)) continue;
+                if (value is string text) field["value"] = RewriteUrl(text, collect: true);
+                else if (value is IReadOnlyList<string> strings)
+                    field["value"] = strings.Select(text => RewriteUrl(text, collect: true)).ToArray();
+                else if (value is IReadOnlyList<object> values)
+                    field["value"] = values.Select(item => item is string text ? RewriteUrl(text, collect: true) : item).ToArray();
+            }
+        }
+    }
+
     internal IReadOnlyList<AssetOutputItem> Plan(ILogger logger, CancellationToken cancellationToken)
     {
         var effective = ContentProviderFactory.BuildEffectiveMediaConfig(context.Config.Content.Media, context.RootDir, context.MediaDownloadDir);

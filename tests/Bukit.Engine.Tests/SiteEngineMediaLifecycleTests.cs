@@ -505,6 +505,67 @@ public sealed partial class SiteEngineIntegrationTests
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
+    public async Task MediaLifecycle_CachedNotionRelationImagesPublishInLanguage(bool multiLanguage)
+    {
+        var (root, config) = CreateMediaSite(multiLanguage, "/site/");
+        var oldToken = Environment.GetEnvironmentVariable(EnvironmentHelper.NotionTokenKey);
+        try
+        {
+            Environment.SetEnvironmentVariable(EnvironmentHelper.NotionTokenKey, "test-token");
+            var media = Path.Combine(root, ".cache", "media");
+            Directory.CreateDirectory(media);
+            using var bitmap = new SKBitmap(2, 2);
+            using var encoded = bitmap.Encode(SKEncodedImageFormat.Png, 100);
+            var bytes = encoded.ToArray();
+            await File.WriteAllBytesAsync(Path.Combine(media, "photo.png"), bytes);
+            var cache = Path.Combine(root, ".cache", "notion", "pages-index.json");
+            Directory.CreateDirectory(Path.GetDirectoryName(cache)!);
+            await File.WriteAllTextAsync(cache, """
+                {"missing-1":{"id":"missing-1","title":"Related","url":"","external_url":"https://example.test/page","fields":{"cover":{"type":"file","value":"/assets/uploads/photo.png"}}}}
+                """);
+            var document = MediaDocument("one");
+            var fields = new Dictionary<string, ContentField>(document.CustomFields!, StringComparer.OrdinalIgnoreCase)
+            {
+                ["related_posts"] = new("list", new List<string> { "missing-1" })
+            };
+            document = document with { CustomFields = fields };
+            config = config with
+            {
+                Content = config.Content with { Sources = [new() { Type = "notion", Collection = "post", Notion = new() { DatabaseId = "db" } }] },
+                Theme = config.Theme with
+                {
+                    Params = new Dictionary<string, object>
+                    {
+                        ["pages_index"] = new Dictionary<string, object>
+                        {
+                            ["resolve_notion"] = new Dictionary<string, object>
+                            {
+                                ["enabled"] = true, ["field_keys"] = new[] { "related_posts" }, ["cache_mode"] = "readonly"
+                            }
+                        }
+                    }
+                }
+            };
+            await File.WriteAllTextAsync(Path.Combine(root, "layouts", "pages", "post.html"),
+                "<html><head><title>{{ page.title }}</title></head><body><img src=\"{{ site.data.pages_by_id['missing-1'].fields.cover.value }}\"></body></html>");
+
+            await BuildMediaAsync(root, config, [document], "<p>Content</p>");
+
+            var output = Path.Combine(root, "dist", multiLanguage ? "en" : "");
+            Assert.Equal(bytes, await File.ReadAllBytesAsync(Path.Combine(output, "assets", "uploads", "photo.png")));
+            Assert.Contains(multiLanguage ? "/site/en/assets/uploads/photo.png" : "/site/assets/uploads/photo.png",
+                await File.ReadAllTextAsync(Path.Combine(output, "blog", "one", "index.html")), StringComparison.Ordinal);
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable(EnvironmentHelper.NotionTokenKey, oldToken);
+            CleanupDir(root);
+        }
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
     public async Task MediaLifecycle_CustomDownloadsCommitOnlyAfterOutputValidation(bool fail)
     {
         var (root, config) = CreateMediaSite();

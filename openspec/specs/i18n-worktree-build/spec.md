@@ -107,11 +107,11 @@
 
 ### Requirement: Verified scope covers final exchange
 
-通过预检后 MUST 保持最终目录交换和备份清除处于已验证的正式目标范围内；交换 MUST 只使用本次运行为这些正式目标创建的暂存和备份路径。预检失败 MUST NOT 进入 `WorktreeBuildTransaction` 的交换或恢复路径。
+通过预检后 MUST 保持最终目录交换和备份清除处于已验证的正式目标范围内；交换 MUST 只使用本次运行为正式输出、缓存、可写自定义媒体及外部 metrics 创建的暂存和备份路径。预检失败 MUST NOT 进入 `WorktreeBuildTransaction` 的交换或恢复路径。
 
 #### Scenario: Exchange still targets the verified paths
 - **WHEN** 预检通过且构建成功
-- **THEN** 最终交换只使用预检覆盖的正式输出和缓存路径及本次运行备份
+- **THEN** 最终交换只使用预检覆盖的正式目标及本次运行备份
 
 #### Scenario: Preflight failure skips exchange
 - **WHEN** 原项目来源预检失败
