@@ -411,6 +411,51 @@ public sealed class SeoModelBuilderTests
         Assert.False(SeoModelBuilder.IsIndexable(model.Robots));
     }
 
+    [Theory]
+    [InlineData("index,follow", true, false, "noindex,follow")]
+    [InlineData("index,follow", true, true, "noindex,nofollow")]
+    [InlineData("index,follow", false, true, "index,nofollow")]
+    [InlineData("all", true, false, "noindex,follow")]
+    [InlineData("INDEX, max-snippet:-1, noarchive", true, false, "noindex,max-snippet:-1,noarchive")]
+    [InlineData("index,noindex,follow", false, false, "noindex,follow")]
+    [InlineData("none", true, true, "none")]
+    [InlineData("index,follow,max-image-preview:large", false, false, "index,follow,max-image-preview:large")]
+    public void BuildForContent_PublishFlagsNormalizeConflictingRobotsDirectives(
+        string robots,
+        bool noIndex,
+        bool noFollow,
+        string expected)
+    {
+        var config = CreateConfig();
+        var values = new Dictionary<string, object>
+        {
+            ["type"] = "page",
+            ["robots"] = robots
+        };
+        if (noIndex)
+        {
+            values["noindex"] = true;
+        }
+
+        if (noFollow)
+        {
+            values["nofollow"] = true;
+        }
+
+        var item = ContentDocument.Create(
+            id: "p1",
+            title: "Robots",
+            slug: "robots",
+            publishAt: DateTimeOffset.UtcNow,
+            contentHtml: null,
+            fields: ContentFieldReader.ToFieldMap(values));
+        var route = new RouteInfo("/pages/robots/", "pages/robots/index.html", "pages/page.html");
+
+        var model = SeoModelBuilder.BuildForContent(config, "/", item, route);
+
+        Assert.Equal(expected, model.Robots);
+    }
+
     [Fact]
     public void BuildForContent_WithAlternates()
     {
