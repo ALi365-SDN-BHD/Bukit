@@ -90,6 +90,9 @@ internal sealed class ImageProcessingPlugin : IBukitPlugin, IAfterBuildAsyncPlug
         // referenced by pages. Collect failures and fail the plugin after the run
         // instead of publishing pages that point at missing files.
         var failures = new List<string>();
+        var failureLimit = string.Equals(_config.Site.PluginFailMode, "warn", StringComparison.OrdinalIgnoreCase)
+            ? int.MaxValue : MaxVariantFailures;
+        var sourceHashes = new Dictionary<string, string>(StringComparer.Ordinal);
         await GenerateResizedVariantsAsync(
             context,
             resizePlans,
@@ -98,6 +101,8 @@ internal sealed class ImageProcessingPlugin : IBukitPlugin, IAfterBuildAsyncPlug
             toolIdentity,
             priorPluginOutputs,
             generatedOutputs,
+            sourceHashes,
+            failureLimit,
             failures,
             cancellationToken);
 
@@ -111,6 +116,8 @@ internal sealed class ImageProcessingPlugin : IBukitPlugin, IAfterBuildAsyncPlug
                 quality,
                 priorPluginOutputs,
                 generatedOutputs,
+                sourceHashes,
+                failureLimit,
                 failures,
                 cancellationToken);
             RewriteCurrentHtmlWithWebp(context, webpSrcsets, cancellationToken);
@@ -140,8 +147,11 @@ internal sealed class ImageProcessingPlugin : IBukitPlugin, IAfterBuildAsyncPlug
         const int shown = 5;
         var sample = string.Join(", ", failures.Take(shown));
         var more = failures.Count > shown ? $" (+{failures.Count - shown} more)" : string.Empty;
+        var count = failures.Count >= MaxVariantFailures
+            ? $"at least {failures.Count}"
+            : failures.Count.ToString(System.Globalization.CultureInfo.InvariantCulture);
         throw new InvalidOperationException(
-            $"Image variant generation failed for {failures.Count} file(s): {sample}{more}. " +
+            $"Image variant generation failed for {count} file(s): {sample}{more}. " +
             "Pages reference these variants, so publishing would serve broken images. " +
             "Fix the image tool or source files, or set site.pluginFailMode: warn to publish anyway.");
     }
@@ -196,18 +206,29 @@ internal sealed class ImageProcessingPlugin : IBukitPlugin, IAfterBuildAsyncPlug
         string toolIdentity,
         HashSet<PluginOutputTrackingInfo> priorPluginOutputs,
         HashSet<PluginOutputTrackingInfo> generatedOutputs,
+        Dictionary<string, string> sourceHashes,
+        int failureLimit,
         List<string> failures,
         CancellationToken cancellationToken)
     {
         foreach (var (imageFile, applicableSizes) in resizePlans)
         {
             cancellationToken.ThrowIfCancellationRequested();
+            if (failures.Count >= failureLimit)
+            {
+                break;
+            }
 
             var sourceInfo = new FileInfo(imageFile);
-            var sourceSha256 = await ComputeSha256Async(imageFile, cancellationToken);
+            var sourceSha256 = await GetOrComputeSourceSha256Async(imageFile, sourceHashes, cancellationToken);
 
             foreach (var size in applicableSizes)
             {
+                if (failures.Count >= failureLimit)
+                {
+                    break;
+                }
+
                 await _generator.GenerateResizedVariantAsync(
                     context,
                     imageFile,

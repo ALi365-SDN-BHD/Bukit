@@ -182,6 +182,21 @@ internal static class ImageVariantFreshness
             FileOptions.Asynchronous | FileOptions.SequentialScan);
         return Convert.ToHexString(await SHA256.HashDataAsync(stream, cancellationToken));
     }
+
+    internal static async Task<string> GetOrComputeSourceSha256Async(
+        string path,
+        Dictionary<string, string> cache,
+        CancellationToken cancellationToken)
+    {
+        if (cache.TryGetValue(path, out var hash))
+        {
+            return hash;
+        }
+
+        hash = await ComputeSha256Async(path, cancellationToken).ConfigureAwait(false);
+        cache[path] = hash;
+        return hash;
+    }
 }
 
 internal sealed record VariantFreshness(

@@ -62,8 +62,10 @@ Files in different directories may share a filename, such as
 `content/blog/index.md` and `content/docs/index.md`. Bukit keeps the filename as
 the slug when it is unique; for same-name files in the same language variant it
 uses the relative path (`blog/index`, `docs/index`) so the pages do not collide.
-Language directories are kept separate, so `content/en/index.md` and
-`content/zh-CN/index.md` keep the `index` slug in their own variants.
+Language comes from front matter, not the directory name. Files in different
+languages can keep the same slug. If a root file and a language-directory file
+have the same effective language and filename, Bukit includes the directory in
+the fallback slug; set explicit slugs to choose stable URLs.
 
 Top-level `outputPath` and the `outputPath` field inside the `route` object are
 rejected in Bukit 1.0. Use the `route` object's `url` field instead.

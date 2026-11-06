@@ -120,49 +120,6 @@ internal static class BuildManifestTracker
         manifest.Media = currentMedia;
     }
 
-    internal static void SyncMediaOutputs(
-        string mediaDownloadDir,
-        string outputDir,
-        BuildManifest manifest,
-        bool incrementalEnabled,
-        ILogger logger,
-        string? fingerprintMode = null,
-        IOutputPathPolicy? pathPolicy = null,
-        Bukit.Shared.IO.ISafeSourceFileOpener? opener = null,
-        CancellationToken cancellationToken = default)
-    {
-        var mediaOutputDir = Path.Combine(outputDir, "assets", "uploads");
-        var copyOptions = new DirectoryCopyOptions
-        {
-            HashMode = fingerprintMode ?? "size-time",
-            IgnoreDotPrefixedFiles = true,
-            FollowSymlinks = false
-        };
-        var currentMedia = new Dictionary<string, string>(StringComparer.Ordinal);
-        foreach (var item in DirectoryCopy.EnumerateFilesForSync(mediaDownloadDir, copyOptions, logger, cancellationToken))
-        {
-            cancellationToken.ThrowIfCancellationRequested();
-            var relativePath = BuildPathUtils.NormalizeRelPath(item.RelativePath);
-            var outputPath = BuildPathUtils.NormalizeRelPath(Path.Combine("assets", "uploads", relativePath));
-            var destinationFile = Path.Combine(
-                mediaOutputDir,
-                item.RelativePath);
-            DirectoryCopy.SyncPlannedFile(
-                item.SourcePath,
-                destinationFile,
-                copyOptions.HashMode,
-                outputDir,
-                item.PhysicalSourceRoot,
-                copyOptions,
-                pathPolicy,
-                opener);
-            currentMedia[outputPath] = ComputeFileFingerprint(destinationFile, fingerprintMode, cancellationToken);
-        }
-
-        DeleteStaleTrackedFiles(outputDir, manifest.Media, currentMedia, incrementalEnabled, logger, "media", pathPolicy);
-        manifest.Media = currentMedia;
-    }
-
     internal static void TrackPluginOutputs(BuildContext pluginContext, string outputDir, BuildManifest manifest, bool incrementalEnabled, ILogger logger, string? fingerprintMode = null, IOutputPathPolicy? pathPolicy = null, CancellationToken cancellationToken = default)
     {
         var currentOutputs = new Dictionary<string, PluginOutputManifestEntry>(StringComparer.Ordinal);
@@ -186,70 +143,6 @@ internal static class BuildManifestTracker
 
         DeleteStaleTrackedFiles(outputDir, manifest.PluginOutputs.ToDictionary(x => x.Key, x => x.Value.Hash, StringComparer.Ordinal), currentOutputs.ToDictionary(x => x.Key, x => x.Value.Hash, StringComparer.Ordinal), incrementalEnabled, logger, "plugin", pathPolicy);
         manifest.PluginOutputs = currentOutputs;
-    }
-
-    internal static void TrackStaticOutputs(string? parentStaticDir, string? staticDir, string outputDir, BuildManifest manifest, bool incrementalEnabled, ILogger logger, bool renderHtmlStaticFiles, string? fingerprintMode = null, IOutputPathPolicy? pathPolicy = null, CancellationToken cancellationToken = default)
-    {
-        var currentStatic = new Dictionary<string, string>(StringComparer.Ordinal);
-        AddStaticSourceOutputs(parentStaticDir, currentStatic, renderHtmlStaticFiles: false, fingerprintMode, cancellationToken);
-        AddStaticSourceOutputs(staticDir, currentStatic, renderHtmlStaticFiles, fingerprintMode, cancellationToken);
-
-        DeleteStaleTrackedFiles(outputDir, manifest.Static, currentStatic, incrementalEnabled, logger, "static", pathPolicy);
-        manifest.Static = currentStatic;
-    }
-
-    internal static void TrackAssetOutputs(string? parentAssetsDir, string? assetsDir, string outputDir, BuildManifest manifest, bool incrementalEnabled, ILogger logger, string? fingerprintMode = null, IOutputPathPolicy? pathPolicy = null, CancellationToken cancellationToken = default)
-    {
-        var currentAssets = new Dictionary<string, string>(StringComparer.Ordinal);
-        AddAssetSourceOutputs(parentAssetsDir, currentAssets, fingerprintMode, cancellationToken);
-        AddAssetSourceOutputs(assetsDir, currentAssets, fingerprintMode, cancellationToken);
-
-        DeleteStaleTrackedFiles(outputDir, manifest.Assets, currentAssets, incrementalEnabled, logger, "asset", pathPolicy);
-        manifest.Assets = currentAssets;
-    }
-
-    private static void AddStaticSourceOutputs(string? sourceDir, Dictionary<string, string> outputs, bool renderHtmlStaticFiles, string? fingerprintMode = null, CancellationToken cancellationToken = default)
-    {
-        if (string.IsNullOrWhiteSpace(sourceDir) || !Directory.Exists(sourceDir))
-        {
-            return;
-        }
-
-        foreach (var file in SafeFileEnumerator.EnumerateFiles(sourceDir))
-        {
-            if (renderHtmlStaticFiles && string.Equals(Path.GetExtension(file), ".html", StringComparison.OrdinalIgnoreCase))
-            {
-                continue;
-            }
-
-            if (IsSymlink(file))
-            {
-                continue;
-            }
-
-            var relativePath = BuildPathUtils.NormalizeRelPath(Path.GetRelativePath(sourceDir, file));
-            outputs[relativePath] = ComputeFileFingerprint(file, fingerprintMode, cancellationToken);
-        }
-    }
-
-    private static void AddAssetSourceOutputs(string? sourceDir, Dictionary<string, string> outputs, string? fingerprintMode = null, CancellationToken cancellationToken = default)
-    {
-        if (string.IsNullOrWhiteSpace(sourceDir) || !Directory.Exists(sourceDir))
-        {
-            return;
-        }
-
-        foreach (var file in SafeFileEnumerator.EnumerateFiles(sourceDir))
-        {
-            if (IsSymlink(file))
-            {
-                continue;
-            }
-
-            var relativePath = BuildPathUtils.NormalizeRelPath(Path.GetRelativePath(sourceDir, file));
-            var outputPath = BuildPathUtils.NormalizeRelPath(Path.Combine("assets", relativePath));
-            outputs[outputPath] = ComputeFileFingerprint(file, fingerprintMode, cancellationToken);
-        }
     }
 
     private static Dictionary<string, string> CreateTrackedOutputs(
@@ -343,19 +236,6 @@ internal static class BuildManifestTracker
         finally
         {
             ArrayPool<byte>.Shared.Return(buffer, clearArray: true);
-        }
-    }
-
-    private static bool IsSymlink(string path)
-    {
-        try
-        {
-            var attr = File.GetAttributes(path);
-            return (attr & FileAttributes.ReparsePoint) != 0;
-        }
-        catch
-        {
-            return false;
         }
     }
 

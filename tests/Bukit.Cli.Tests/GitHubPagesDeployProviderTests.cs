@@ -302,7 +302,7 @@ public sealed class GitHubPagesDeployProviderTests
     }
 
     [Fact]
-    public async Task DeployAsync_PushForbidden_SanitizesTokenAndAddsRepoScopeHint()
+    public async Task DeployAsync_PushForbidden_SanitizesTokenAndAddsLeastPrivilegeHint()
     {
         using var scope = new GitHubPagesDeployTestScope();
         scope.FakeGit.RemoteUrl = "https://github.com/ali/docs.git";
@@ -317,7 +317,7 @@ public sealed class GitHubPagesDeployProviderTests
         Assert.NotNull(result.Error);
         Assert.DoesNotContain("top-secret-token", result.Error, StringComparison.Ordinal);
         Assert.Contains("***", result.Error, StringComparison.Ordinal);
-        Assert.Contains("Ensure your GITHUB_TOKEN has 'repo' scope", result.Error, StringComparison.Ordinal);
+        Assert.Contains("Ensure your GITHUB_TOKEN can write repository contents", result.Error, StringComparison.Ordinal);
         Assert.Contains(scope.Logger.Errors, message => message.Contains("***", StringComparison.Ordinal));
     }
 
@@ -858,9 +858,9 @@ public sealed class GitHubPagesDeployProviderTests
     }
 
     [Theory]
-    [InlineData("403 Forbidden", "Ensure your GITHUB_TOKEN has 'repo' scope")]
+    [InlineData("403 Forbidden", "Ensure your GITHUB_TOKEN can write repository contents")]
     [InlineData("fatal: unable to access remote: Could not resolve host: github.com", "Check your network connection and ensure GitHub is reachable.")]
-    [InlineData("Permission denied", "Verify your GITHUB_TOKEN is valid and has 'repo' scope.")]
+    [InlineData("Permission denied", "Verify your GITHUB_TOKEN is valid and can write repository contents")]
     public void AugmentErrorHint_KnownFailureModes_AppendsHelpfulHint(string message, string expectedHint)
     {
         var result = InvokePrivateStatic<string>(

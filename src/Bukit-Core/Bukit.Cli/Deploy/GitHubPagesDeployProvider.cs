@@ -40,7 +40,7 @@ public sealed partial class GitHubPagesDeployProvider : IDeployProvider
         var token = Environment.GetEnvironmentVariable("GITHUB_TOKEN");
         if (string.IsNullOrWhiteSpace(token))
         {
-            return new DeployResult { Success = false, Error = "GITHUB_TOKEN environment variable is required for GitHub Pages deployment. Create a token at https://github.com/settings/tokens with 'repo' scope." };
+            return new DeployResult { Success = false, Error = "GITHUB_TOKEN environment variable is required for GitHub Pages deployment. Create a fine-grained token with 'Contents: Read and write' access to the target repository, or use the workflow GITHUB_TOKEN in GitHub Actions." };
         }
 
         var branch = NormalizeBranchName(context.Branch);

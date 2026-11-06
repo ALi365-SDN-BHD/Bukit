@@ -17,6 +17,7 @@ public sealed record MarkdownFolderProviderOptions(
 )
 {
     internal IReadOnlyList<string>? Languages { get; init; }
+    internal string? DefaultLanguage { get; init; }
 }
 
 public sealed class MarkdownFolderProvider : IContentProvider
@@ -119,30 +120,41 @@ public sealed class MarkdownFolderProvider : IContentProvider
             .Where(group => group.Count() > 1)
             .Select(group => group.Key)
             .ToHashSet(StringComparer.OrdinalIgnoreCase);
-        var explicitSlugFiles = new HashSet<string>(StringComparer.Ordinal);
+        var identities = new Dictionary<string, MarkdownFileIdentity>(StringComparer.Ordinal);
         foreach (var file in files.Where(file => duplicateFileNames.Contains(Path.GetFileNameWithoutExtension(file))))
         {
-            if (TryReadExplicitSlug(file, sourceRoot) is not null)
-            {
-                explicitSlugFiles.Add(file);
-            }
+            cancellationToken.ThrowIfCancellationRequested();
+            identities[file] = ReadFileIdentity(file, sourceRoot);
         }
 
-        var duplicateKeys = files
-            .Where(file => !explicitSlugFiles.Contains(file))
+        var explicitSlugFiles = identities
+            .Where(entry => entry.Value.Slug is not null)
+            .Select(entry => entry.Key)
+            .ToHashSet(StringComparer.Ordinal);
+
+        var defaultLanguage = _options.DefaultLanguage ?? string.Empty;
+        var collisions = files
+            .Where(file => !explicitSlugFiles.Contains(file) && identities.ContainsKey(file))
             .Select(file =>
             {
-                var relativePath = Path.GetRelativePath(sourceRoot, file);
+                var relativePath = Path.GetRelativePath(sourceRoot, file).Replace('\\', '/');
                 return new
                 {
+                    File = file,
                     Variant = ResolveVariantDirectory(relativePath, languageDirectories),
-                    Name = Path.GetFileNameWithoutExtension(file)
+                    Name = Path.GetFileNameWithoutExtension(file),
+                    Language = string.Equals(identities[file].Language, "und", StringComparison.OrdinalIgnoreCase)
+                        ? defaultLanguage : identities[file].Language ?? defaultLanguage
                 };
             })
-            .GroupBy(entry => $"{entry.Variant}\0{entry.Name}", StringComparer.OrdinalIgnoreCase)
-            .Where(group => group.Count() > 1)
-            .Select(group => group.Key)
-            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+            .GroupBy(entry => $"{entry.Language}\0{entry.Name}", StringComparer.OrdinalIgnoreCase)
+            .Where(group => group.Count() > 1);
+        var collisionFiles = new Dictionary<string, bool>(StringComparer.Ordinal);
+        foreach (var group in collisions)
+        {
+            var mixedDirectories = group.Select(entry => entry.Variant).Distinct(StringComparer.OrdinalIgnoreCase).Skip(1).Any();
+            foreach (var entry in group) collisionFiles[entry.File] = mixedDirectories;
+        }
 
         var items = new List<RawContentDocument>(capacity: files.Length);
         foreach (var file in files)
@@ -177,7 +189,11 @@ public sealed class MarkdownFolderProvider : IContentProvider
                 IReadOnlyDictionary<string, object> fm;
                 try
                 {
-                    fm = MarkdownFrontMatterParser.ParseFrontMatter(frontMatterYaml, _logger);
+                    fm = identities.TryGetValue(file, out var identity) &&
+                         identity.FrontMatter is not null &&
+                         string.Equals(identity.FrontMatterYaml, frontMatterYaml, StringComparison.Ordinal)
+                        ? identity.FrontMatter
+                        : MarkdownFrontMatterParser.ParseFrontMatter(frontMatterYaml, _logger);
                 }
                 catch (ContentException ex)
                 {
@@ -198,10 +214,14 @@ public sealed class MarkdownFolderProvider : IContentProvider
             // sites keep their URLs and language directories keep their own identity.
             var relativePath = Path.GetRelativePath(sourceRoot, file).Replace('\\', '/');
             var variantDirectory = ResolveVariantDirectory(relativePath, languageDirectories);
-            if (!frontMatterValues.ContainsKey("slug") &&
-                duplicateKeys.Contains($"{variantDirectory}\0{slug}"))
+            var explicitSlug = frontMatterValues.TryGetValue("slug", out var slugObj) &&
+                               slugObj is string slugText &&
+                               !string.IsNullOrWhiteSpace(slugText)
+                ? slugText.Trim()
+                : null;
+            if (explicitSlug is null && collisionFiles.TryGetValue(file, out var mixedDirectories))
             {
-                var fallbackPath = variantDirectory.Length > 0 &&
+                var fallbackPath = !mixedDirectories && variantDirectory.Length > 0 &&
                                    relativePath.StartsWith(variantDirectory + "/", StringComparison.OrdinalIgnoreCase)
                     ? relativePath[(variantDirectory.Length + 1)..]
                     : relativePath;
@@ -216,9 +236,9 @@ public sealed class MarkdownFolderProvider : IContentProvider
                 frontMatterValues["type"] = _options.DefaultType;
             }
 
-            if (frontMatterValues.TryGetValue("slug", out var slugObj) && slugObj is string slugText && !string.IsNullOrWhiteSpace(slugText))
+            if (explicitSlug is not null)
             {
-                slug = slugText.Trim();
+                slug = explicitSlug;
             }
 
             var title = frontMatterValues.TryGetValue("title", out var titleObj) && titleObj is string titleText && !string.IsNullOrWhiteSpace(titleText)
@@ -320,7 +340,7 @@ public sealed class MarkdownFolderProvider : IContentProvider
         }
     }
 
-    private string? TryReadExplicitSlug(string file, string sourceRoot)
+    private MarkdownFileIdentity ReadFileIdentity(string file, string sourceRoot)
     {
         using var verified = _opener.Open(file, sourceRoot);
         using var reader = new StreamReader(
@@ -329,19 +349,55 @@ public sealed class MarkdownFolderProvider : IContentProvider
             detectEncodingFromByteOrderMarks: true,
             bufferSize: 4096,
             leaveOpen: true);
-        var markdown = reader.ReadToEnd();
-        if (!MarkdownFrontMatterParser.TryExtractFrontMatter(markdown, out var frontMatterYaml, out _))
+        var firstLine = reader.ReadLine();
+        if (!string.Equals(firstLine, "---", StringComparison.Ordinal))
         {
-            return null;
+            return default;
         }
 
-        var frontMatter = MarkdownFrontMatterParser.ParseFrontMatter(frontMatterYaml, _logger);
-        return frontMatter.TryGetValue("slug", out var value) &&
-               value is string slug &&
-               !string.IsNullOrWhiteSpace(slug)
-            ? slug.Trim()
+        // Read only the front matter header; the body is loaded once by the main loop.
+        var header = new StringBuilder("---\n");
+        var closed = false;
+        while (reader.ReadLine() is { } line)
+        {
+            header.Append(line).Append('\n');
+            if (string.Equals(line.Trim(), "---", StringComparison.Ordinal))
+            {
+                closed = true;
+                break;
+            }
+        }
+
+        if (!closed || !MarkdownFrontMatterParser.TryExtractFrontMatter(header.ToString(), out var frontMatterYaml, out _))
+        {
+            return default;
+        }
+
+        IReadOnlyDictionary<string, object> frontMatter;
+        try
+        {
+            frontMatter = MarkdownFrontMatterParser.ParseFrontMatter(frontMatterYaml, _logger);
+        }
+        catch (ContentException ex)
+        {
+            throw new ContentException($"Invalid front matter in '{file}': {ex.Message}", ex);
+        }
+
+        var slug = frontMatter.TryGetValue("slug", out var slugValue) &&
+                   slugValue is string slugText &&
+                   !string.IsNullOrWhiteSpace(slugText)
+            ? slugText.Trim()
             : null;
+        var language = frontMatter.TryGetValue("language", out var languageValue) &&
+                       languageValue is string languageText &&
+                       !string.IsNullOrWhiteSpace(languageText)
+            ? languageText.Trim()
+            : null;
+        return new MarkdownFileIdentity(slug, language, frontMatterYaml, frontMatter);
     }
+
+    private readonly record struct MarkdownFileIdentity(
+        string? Slug, string? Language, string? FrontMatterYaml, IReadOnlyDictionary<string, object>? FrontMatter);
 
     private static string[] BuildLanguageDirectories(IReadOnlyList<string>? languages)
         => languages?

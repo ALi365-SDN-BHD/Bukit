@@ -20,6 +20,27 @@ namespace Bukit.Engine.Tests;
 public sealed class ImageProcessingPluginTests
 {
     [Fact]
+    public async Task SourceHashCache_IsReusedOnlyWithinOneBuild()
+    {
+        var file = Path.GetTempFileName();
+        try
+        {
+            await File.WriteAllTextAsync(file, "first");
+            var cache = new Dictionary<string, string>(StringComparer.Ordinal);
+            var first = await Bukit.Engine.Plugins.BuiltIn.ImageProcessing.ImageVariantFreshness.GetOrComputeSourceSha256Async(file, cache, CancellationToken.None);
+            await File.WriteAllTextAsync(file, "second");
+            var reused = await Bukit.Engine.Plugins.BuiltIn.ImageProcessing.ImageVariantFreshness.GetOrComputeSourceSha256Async(file, cache, CancellationToken.None);
+            var nextBuild = await Bukit.Engine.Plugins.BuiltIn.ImageProcessing.ImageVariantFreshness.GetOrComputeSourceSha256Async(file, new Dictionary<string, string>(StringComparer.Ordinal), CancellationToken.None);
+            Assert.Equal(first, reused);
+            Assert.NotEqual(first, nextBuild);
+        }
+        finally
+        {
+            File.Delete(file);
+        }
+    }
+
+    [Fact]
     public async Task AfterBuild_ExternalCopyPreservesExactFreshnessBytesSrcsetAndTracking()
     {
         RequireUnix();
@@ -833,6 +854,80 @@ public sealed class ImageProcessingPluginTests
             Assert.False(context.TryGet(BuildDataKeys.ImageSrcsets, out _));
             Assert.Empty(Directory.GetFiles(assetsDir, ".photo-480w.bukit-*.jpg"));
             Assert.Empty(Directory.GetFiles(assetsDir, "photo-480w.jpg.bukit-freshness.json.bukit-*.tmp"));
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable("PATH", originalPath);
+            if (Directory.Exists(outDir)) Directory.Delete(outDir, true);
+        }
+    }
+
+    [Fact]
+    public async Task AfterBuildAsync_WarnModeAttemptsAllVariantsAfterFailures()
+    {
+        RequireUnix();
+        var outDir = GetTempDir();
+        var originalPath = Environment.GetEnvironmentVariable("PATH");
+        try
+        {
+            var assets = Path.Combine(outDir, "assets");
+            var tools = Path.Combine(outDir, "tools");
+            var counter = Path.Combine(outDir, "calls.txt");
+            Directory.CreateDirectory(assets);
+            Directory.CreateDirectory(tools);
+            for (var i = 0; i < 8; i++) WriteValidImage(Path.Combine(assets, $"photo{i}.jpg"), $"failure-{i}");
+            WriteTool(tools, "magick", $"""
+                if [ "$1" = "--version" ]; then exit 0; fi
+                printf x >> '{EscapeSingleQuoted(counter)}'
+                exit 7
+                """);
+            Environment.SetEnvironmentVariable("PATH", tools);
+            var config = CreateConfig(new ImageOptimizationConfig { Enabled = true, Formats = [], Sizes = [480] });
+            config = config with { Site = config.Site with { PluginFailMode = "warn" } };
+
+            await Assert.ThrowsAsync<InvalidOperationException>(() => new ImageProcessingPlugin(config).AfterBuildAsync(CreateContext(outDir)));
+            Assert.Equal(8, File.ReadAllText(counter).Length);
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable("PATH", originalPath);
+            if (Directory.Exists(outDir)) Directory.Delete(outDir, true);
+        }
+    }
+
+    [Fact]
+    public async Task AfterBuildAsync_StopsAfterVariantFailureBudget()
+    {
+        RequireUnix();
+        var outDir = GetTempDir();
+        var originalPath = Environment.GetEnvironmentVariable("PATH");
+        try
+        {
+            var assetsDir = Path.Combine(outDir, "assets");
+            var toolDir = Path.Combine(outDir, "tools");
+            var counter = Path.Combine(outDir, "calls.txt");
+            Directory.CreateDirectory(assetsDir);
+            Directory.CreateDirectory(toolDir);
+            for (var i = 0; i < 8; i++)
+            {
+                WriteValidImage(Path.Combine(assetsDir, $"photo{i}.jpg"), $"failure-{i}");
+            }
+
+            WriteTool(toolDir, "magick", $"""
+                if [ "$1" = "--version" ]; then exit 0; fi
+                printf x >> '{EscapeSingleQuoted(counter)}'
+                exit 7
+                """);
+            Environment.SetEnvironmentVariable("PATH", toolDir);
+            var context = CreateContext(outDir);
+
+            var error = await Assert.ThrowsAsync<InvalidOperationException>(() => new ImageProcessingPlugin(CreateConfig(
+                    new ImageOptimizationConfig { Enabled = true, Formats = [], Sizes = [480] }))
+                .AfterBuildAsync(context));
+
+            var calls = File.Exists(counter) ? File.ReadAllText(counter).Length : 0;
+            Assert.InRange(calls, 1, 5);
+            Assert.Contains("at least 5", error.Message, StringComparison.Ordinal);
         }
         finally
         {

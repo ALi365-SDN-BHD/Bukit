@@ -16,6 +16,7 @@ internal sealed class ImageVariantGenerator
 {
     private readonly ImageContentValidator _imageValidator = new();
 
+    internal const int MaxVariantFailures = 5;
     internal static readonly int[] DefaultSizes = [480, 768, 1200];
 
     internal static IReadOnlyList<int> NormalizeSizes(IReadOnlyList<int>? sizes) =>
@@ -233,6 +234,8 @@ internal sealed class ImageVariantGenerator
         int quality,
         HashSet<PluginOutputTrackingInfo> priorOutputs,
         HashSet<PluginOutputTrackingInfo> generatedOutputs,
+        Dictionary<string, string> sourceHashes,
+        int failureLimit,
         ICollection<string> failures,
         CancellationToken cancellationToken)
     {
@@ -242,17 +245,27 @@ internal sealed class ImageVariantGenerator
         foreach (var imageFile in imageFiles)
         {
             cancellationToken.ThrowIfCancellationRequested();
+            if (failures.Count >= failureLimit)
+            {
+                break;
+            }
+
             if (!sourceWidths.TryGetValue(imageFile, out var sourceWidth))
             {
                 continue;
             }
 
             var sourceInfo = new FileInfo(imageFile);
-            var sourceSha256 = await ComputeSha256Async(imageFile, cancellationToken);
+            var sourceSha256 = await GetOrComputeSourceSha256Async(imageFile, sourceHashes, cancellationToken);
             var baseName = Path.GetFileNameWithoutExtension(imageFile);
             var candidates = new List<string>();
             foreach (var width in sizes.Where(size => size < sourceWidth).Append(sourceWidth).Distinct().Order())
             {
+                if (failures.Count >= failureLimit)
+                {
+                    break;
+                }
+
                 var webpFile = Path.Combine(Path.GetDirectoryName(imageFile)!, $"{baseName}-{width}w.webp");
                 if (!await GenerateOwnedWebpVariantAsync(
                     context,

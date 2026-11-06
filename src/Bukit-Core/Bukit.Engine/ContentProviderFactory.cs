@@ -54,7 +54,9 @@ internal static class ContentProviderFactory
                 {
                     var md = s.Markdown ?? new MarkdownConfig();
                     var contentDir = BuildPathUtils.MakeAbsolute(rootDir, md.Dir);
-                    providers.Add((key, mode, s.Collection, s.AddToCollections, new MarkdownFolderProvider(new MarkdownFolderProviderOptions(contentDir, md.DefaultType, md.MaxItems, md.IncludePaths, md.IncludeGlobs, config.Site.AutoSummary, config.Site.AutoSummaryMaxLength) { Languages = config.Site.Languages }, logger)));
+                    var languages = I18nOutputMerger.GetLanguages(config.Site);
+                    var defaultLanguage = I18nOutputMerger.GetDefaultLanguage(config.Site, languages);
+                    providers.Add((key, mode, s.Collection, s.AddToCollections, new MarkdownFolderProvider(new MarkdownFolderProviderOptions(contentDir, md.DefaultType, md.MaxItems, md.IncludePaths, md.IncludeGlobs, config.Site.AutoSummary, config.Site.AutoSummaryMaxLength) { Languages = config.Site.Languages, DefaultLanguage = defaultLanguage }, logger)));
                     continue;
                 }
 
