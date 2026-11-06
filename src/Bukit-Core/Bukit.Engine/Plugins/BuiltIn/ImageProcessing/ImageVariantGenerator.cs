@@ -99,6 +99,14 @@ internal sealed class ImageVariantGenerator
         if ((variantExists || sidecarExists) && !hasOwnedFreshness)
         {
             context.Logger.Warn($"event=image_resize.skip file={Path.GetFileName(sizedFile)} reason=unowned_existing_output");
+            if (!variantExists)
+            {
+                // Pages already list this variant in srcset. A user-owned sidecar
+                // blocks generation, so the URL would 404; report it instead of
+                // passing silently. The sidecar itself is left untouched.
+                failures.Add($"{GetRelativeIdentity(context.OutputDir, sizedFile)} (blocked by unowned {Path.GetFileName(freshnessFile)}; remove it)");
+            }
+
             return false;
         }
 

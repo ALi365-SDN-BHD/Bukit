@@ -449,7 +449,9 @@ With `warn`, the build continues and those `srcset` candidates may return 404 un
 successful build. If an external resize tool times out, Bukit retries the current image
 and processes the remaining variants with built-in SkiaSharp. Each language worker
 detects timeouts independently. Other failures stop after 5 variants in strict mode;
-warn mode attempts every variant.
+warn mode attempts every variant. A variant blocked by a leftover
+`*.bukit-freshness.json` file that Bukit does not own counts as a failure; delete that
+file so the variant can be generated. Existing variant files Bukit does not own are kept.
 
 Incremental builds re-render pages when a source image's path or display width changes,
 because that is all the built-in responsive markup depends on. A custom template or plugin
