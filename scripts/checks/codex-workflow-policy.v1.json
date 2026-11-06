@@ -924,6 +924,20 @@
     },
     {
       "contractConsumerGlobs": [],
+      "id": "core-safety-reliability-doc",
+      "matches": [
+        "guide/user/20-core-safety-reliability.md"
+      ],
+      "publicContract": true,
+      "resource": "static-parallel",
+      "specialtyTests": [
+        "bash scripts/checks/cli-docs-sync.sh",
+        "openspec validate i18n-worktree-build --type spec --strict --no-interactive",
+        "openspec validate in-process-build-transactions --type spec --strict --no-interactive"
+      ]
+    },
+    {
+      "contractConsumerGlobs": [],
       "id": "bukit-cli-tests",
       "matches": [
         "tests/Bukit.Cli.Tests/*.cs",

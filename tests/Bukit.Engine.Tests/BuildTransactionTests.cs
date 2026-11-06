@@ -19,6 +19,145 @@ public sealed class BuildTransactionTests : IDisposable
         Environment.SetEnvironmentVariable(EnvironmentHelper.NotionTokenKey, "transaction-test-token");
     }
 
+    [Theory]
+    [InlineData("output")]
+    [InlineData("stage")]
+    [InlineData("cache")]
+    [InlineData("modified")]
+    [InlineData("missing")]
+    public async Task NextBuildRestoresOutputAfterProcessDiesBetweenDirectoryMoves(string phase)
+    {
+        var cache = Path.Combine(_root, ".cache");
+        Directory.CreateDirectory(cache);
+        await File.WriteAllTextAsync(Path.Combine(cache, "old.txt"), "cache-old");
+        var start = new System.Diagnostics.ProcessStartInfo("dotnet") { RedirectStandardOutput = true, RedirectStandardError = true, UseShellExecute = false };
+        start.ArgumentList.Add("vstest");
+        start.ArgumentList.Add(typeof(BuildTransactionTests).Assembly.Location);
+        start.ArgumentList.Add("--TestCaseFilter:FullyQualifiedName~CrashDuringOutputMoveChildProbe");
+        start.Environment["BUKIT_TEST_TRANSACTION_CRASH_ROOT"] = _root;
+        start.Environment["BUKIT_TEST_TRANSACTION_CRASH_PHASE"] = phase;
+        using var child = System.Diagnostics.Process.Start(start)!;
+        var stdout = child.StandardOutput.ReadToEndAsync();
+        var stderr = child.StandardError.ReadToEndAsync();
+        using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+        try { await child.WaitForExitAsync(timeout.Token); }
+        catch { child.Kill(true); throw; }
+        Assert.True(child.ExitCode != 0, await stdout + await stderr);
+        if (phase == "output") Assert.False(Directory.Exists(Path.Combine(_root, "public")));
+
+        if (phase == "missing")
+        {
+            var oldBackup = Assert.Single(Directory.EnumerateDirectories(_root, ".bukit-txn-*-backup"), path =>
+                File.Exists(Path.Combine(path, "old.txt")) && File.ReadAllText(Path.Combine(path, "old.txt")) == "old");
+            Directory.Delete(oldBackup, recursive: true);
+            Assert.Throws<IOException>(() => { using var transaction = BuildTransaction.Begin(Config, _root, new(), _logger); });
+            Assert.Equal("new", File.ReadAllText(Path.Combine(_root, "public", "old.txt")));
+            return;
+        }
+
+        if (phase == "modified")
+        {
+            File.WriteAllText(Path.Combine(_root, "public", "old.txt"), "user change");
+            Assert.Throws<IOException>(() => { using var transaction = BuildTransaction.Begin(Config, _root, new(), _logger); });
+            Assert.Equal("user change", File.ReadAllText(Path.Combine(_root, "public", "old.txt")));
+            Assert.Contains(Directory.EnumerateDirectories(_root, ".bukit-txn-*-backup"), path =>
+                File.Exists(Path.Combine(path, "old.txt")) && File.ReadAllText(Path.Combine(path, "old.txt")) == "old");
+            return;
+        }
+
+        using (BuildTransaction.Begin(Config, _root, new(), _logger))
+        {
+            Assert.Equal("old", File.ReadAllText(Path.Combine(_root, "public", "old.txt")));
+            Assert.Equal("cache-old", File.ReadAllText(Path.Combine(cache, "old.txt")));
+        }
+        Assert.Empty(Directory.EnumerateFileSystemEntries(_root, ".bukit-txn-*"));
+    }
+
+    [Fact]
+    public void CrashDuringOutputMoveChildProbe()
+    {
+        var root = Environment.GetEnvironmentVariable("BUKIT_TEST_TRANSACTION_CRASH_ROOT");
+        if (root is null) return;
+        var output = BuildResourceLease.Canonical(Path.Combine(root, "public"));
+        var cache = BuildResourceLease.Canonical(Path.Combine(root, ".cache"));
+        void Move(string from, string to, bool directory)
+        {
+            if (directory) Directory.Move(from, to); else File.Move(from, to);
+            var phase = Environment.GetEnvironmentVariable("BUKIT_TEST_TRANSACTION_CRASH_PHASE");
+            if (phase == "output" && BuildResourceLease.Same(from, output) || phase is "cache" or "modified" or "missing" && BuildResourceLease.Same(from, cache))
+                Environment.FailFast("test interruption after backup move");
+        }
+        using var transaction = BuildTransaction.Begin(Config, root, new(), _logger, move: Move);
+        File.WriteAllText(Path.Combine(transaction.OutputDir, "old.txt"), "new");
+        File.WriteAllText(Path.Combine(transaction.CacheDir, "old.txt"), "cache-new");
+        if (Environment.GetEnvironmentVariable("BUKIT_TEST_TRANSACTION_CRASH_PHASE") == "stage")
+            Environment.FailFast("test interruption after staging");
+        transaction.Commit(default);
+    }
+
+    [Fact]
+    public void JournalCreationDoesNotReplaceExistingFile()
+    {
+        var output = Path.Combine(_root, "public");
+        var journalPath = BuildTransactionJournal.PathFor(_root, output);
+        File.WriteAllText(journalPath, "user data");
+
+        Assert.Throws<IOException>(() => BuildTransactionJournal.Create(_root, output, []));
+        Assert.Equal("user data", File.ReadAllText(journalPath));
+    }
+
+    [Fact]
+    public void RecoveryHandlesInstalledNewOutputParent()
+    {
+        var parent = BuildResourceLease.Canonical(Path.Combine(_root, "new-parent"));
+        var output = Path.Combine(parent, "public");
+        var stage = Path.Combine(Path.GetDirectoryName(parent)!, ".bukit-txn-" + Guid.NewGuid().ToString("N") + "-stage");
+        var backup = Path.Combine(Path.GetDirectoryName(parent)!, ".bukit-txn-" + Guid.NewGuid().ToString("N") + "-backup");
+        Directory.CreateDirectory(Path.Combine(stage, "public"));
+        File.WriteAllText(Path.Combine(stage, "public", "new.txt"), "new");
+        var journal = BuildTransactionJournal.Create(_root, output, [new(parent, stage, backup, true)]);
+        journal.BeforeMove(0, hadOriginal: false);
+        Directory.Move(stage, parent);
+        var config = Config with { Build = Config.Build with { Output = "new-parent/public" } };
+
+        using (BuildTransaction.Begin(config, _root, new() { CacheDir = Path.Combine(parent, "cache") }, _logger))
+            Assert.False(Directory.Exists(parent));
+        Assert.False(Directory.Exists(parent));
+    }
+
+    [Fact]
+    public void NextBuildRecoversWhilePreservingUnknownJournalTemporaryFile()
+    {
+        var output = BuildResourceLease.Canonical(Path.Combine(_root, "public"));
+        var parent = Path.GetDirectoryName(output)!;
+        var stage = Path.Combine(parent, ".bukit-txn-" + Guid.NewGuid().ToString("N") + "-stage");
+        var backup = Path.Combine(parent, ".bukit-txn-" + Guid.NewGuid().ToString("N") + "-backup");
+        _ = BuildTransactionJournal.Create(_root, output, [new(output, stage, backup, true)]);
+        var temporary = BuildTransactionJournal.PathFor(_root, output) + ".tmp";
+        File.WriteAllText(temporary, "partial journal");
+
+        using (BuildTransaction.Begin(Config, _root, new(), _logger))
+            Assert.Equal("old", File.ReadAllText(Path.Combine(output, "old.txt")));
+        Assert.Equal("partial journal", File.ReadAllText(temporary));
+        Assert.False(File.Exists(BuildTransactionJournal.PathFor(_root, output)));
+        Assert.Equal("old", File.ReadAllText(Path.Combine(output, "old.txt")));
+    }
+
+    [Fact]
+    public void JournalTemporarySymlinkNeverOverwritesUserFile()
+    {
+        if (OperatingSystem.IsWindows()) return;
+        var userFile = Path.Combine(_root, "user.txt");
+        File.WriteAllText(userFile, "keep");
+        var journal = BuildTransactionJournal.PathFor(_root, Path.Combine(_root, "public"));
+        File.CreateSymbolicLink(journal + ".tmp", userFile);
+
+        using (BuildTransaction.Begin(Config, _root, new(), _logger)) { }
+
+        Assert.Equal("keep", File.ReadAllText(userFile));
+        Assert.Equal(userFile, new FileInfo(journal + ".tmp").LinkTarget);
+    }
+
     [Fact]
     public void FailureAndCancellationLeaveTargetsUnchanged()
     {

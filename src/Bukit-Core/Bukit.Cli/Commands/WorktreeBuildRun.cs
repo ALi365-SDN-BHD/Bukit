@@ -22,6 +22,7 @@ internal sealed class WorktreeBuildRun
     private readonly string _rootDir;
     private readonly string _fullConfigPath;
     private readonly FileStream _runLock;
+    private readonly BuildResourceLease _resourceLease;
     private readonly string _runRoot;
     private readonly string _registryPath;
     private readonly string _stagingOutputDir;
@@ -43,6 +44,7 @@ internal sealed class WorktreeBuildRun
     private int _errorCount;
     private bool _worktreesCleaned;
     private bool _committed;
+    private BuildTransactionJournal? _journal;
     private string? _mediaSource;
     private string? _mediaFingerprint;
     private string? _mediaStageRoot;
@@ -59,6 +61,7 @@ internal sealed class WorktreeBuildRun
         string rootDir,
         string fullConfigPath,
         FileStream runLock,
+        BuildResourceLease resourceLease,
         string runRoot,
         string registryPath,
         string finalOutputDir,
@@ -79,6 +82,7 @@ internal sealed class WorktreeBuildRun
         _rootDir = rootDir;
         _fullConfigPath = fullConfigPath;
         _runLock = runLock;
+        _resourceLease = resourceLease;
         _runRoot = runRoot;
         _registryPath = registryPath;
         _finalOutputDir = finalOutputDir;
@@ -100,6 +104,26 @@ internal sealed class WorktreeBuildRun
         ILogger logger,
         CancellationToken cancellationToken)
     {
+        var recoveryConfig = ConfigApplier.Apply(config, overrides);
+        var recoveryOutput = PathUtils.GetCanonicalFullPath(BuildPathUtils.MakeAbsolute(resolved.RootDir, recoveryConfig.Build.Output));
+        OutputDirectoryCleaner.EnsureNoSourceOverlap(
+            OutputDirectoryCleaner.GetConfiguredContentSources(recoveryConfig, resolved.RootDir),
+            BuildTransaction.ConfiguredWriteTargets(recoveryConfig, resolved.RootDir, overrides, recoveryOutput));
+        if (BuildTransactionJournal.HasPending(resolved.RootDir, recoveryOutput))
+        {
+            var rootResult = await WorktreeBuildRepository.RunGitAsync(resolved.RootDir,
+                ["rev-parse", "--show-toplevel"], logger, cancellationToken).ConfigureAwait(false);
+            if (rootResult.ExitCode != 0 || string.IsNullOrWhiteSpace(rootResult.StandardOutput))
+                throw new WorktreeBuildException("i18n-worktree-git-required", "Multilingual build requires the site to be inside a Git repository.");
+            var repositoryRoot = Path.GetFullPath(rootResult.StandardOutput.Trim());
+            await using var recoveryLock = WorktreeBuildPaths.AcquireRunLock(repositoryRoot);
+            var targets = BuildTransaction.ConfiguredWriteTargets(recoveryConfig, resolved.RootDir, overrides, recoveryOutput);
+            using var lease = BuildResourceLease.Acquire([.. targets.Select(path => new BuildResourceLease.Resource(path, true, true)),
+                new BuildResourceLease.Resource(PathUtils.GetCanonicalFullPath(resolved.RootDir), true, true)]);
+            BuildTransactionJournal.Recover(resolved.RootDir, recoveryOutput,
+                [.. targets.SelectMany(path => new[] { (path, true), (path, false) })],
+                WorktreeBuildPaths.RunsRoot(repositoryRoot));
+        }
         GitRepository repository;
         try
         {
@@ -139,22 +163,27 @@ internal sealed class WorktreeBuildRun
         var runId = Guid.NewGuid().ToString("N");
         var runsRoot = WorktreeBuildPaths.RunsRoot(repository.Root);
         var runLock = WorktreeBuildPaths.AcquireRunLock(repository.Root);
+        BuildResourceLease? resourceLease = null;
         try
         {
+            resourceLease = BuildResourceLease.Acquire([.. writeTargets.Select(path => new BuildResourceLease.Resource(path, true, true))]);
             await WorktreeBuildRepository.RecoverOwnedWorktreesAsync(repository.Root, runsRoot, logger, cancellationToken)
                 .ConfigureAwait(false);
         }
         catch
         {
+            resourceLease?.Dispose();
             await runLock.DisposeAsync().ConfigureAwait(false);
             throw;
         }
 
-        var runRoot = Path.Combine(runsRoot, runId);
-        Directory.CreateDirectory(runRoot);
-        WorktreeBuildPaths.RestrictDirectory(runRoot);
+        try
+        {
+            var runRoot = Path.Combine(runsRoot, runId);
+            Directory.CreateDirectory(runRoot);
+            WorktreeBuildPaths.RestrictDirectory(runRoot);
 
-        return new WorktreeBuildRun(
+            return new WorktreeBuildRun(
             effectiveConfig,
             overrides,
             logFormat,
@@ -163,6 +192,7 @@ internal sealed class WorktreeBuildRun
             resolved.RootDir,
             resolved.FullConfigPath,
             runLock,
+            resourceLease,
             runRoot,
             Path.Combine(runRoot, "owned-worktrees.txt"),
             finalOutputDir,
@@ -174,6 +204,13 @@ internal sealed class WorktreeBuildRun
             languages,
             configHash,
             new SiteEngine(logger));
+        }
+        catch
+        {
+            resourceLease.Dispose();
+            await runLock.DisposeAsync().ConfigureAwait(false);
+            throw;
+        }
     }
 
     internal async Task PrepareAsync(CancellationToken cancellationToken)
@@ -184,6 +221,11 @@ internal sealed class WorktreeBuildRun
             _mediaSource = Path.Combine(_repository.Root, mediaRelative);
             _mediaFingerprint = WorktreeMediaOverlay.Fingerprint(_mediaSource);
         }
+        _journal = BuildTransactionJournal.Create(_rootDir, _finalOutputDir,
+        [
+            new(PathUtils.GetCanonicalFullPath(_finalOutputDir), PathUtils.GetCanonicalFullPath(_stagingOutputDir), PathUtils.GetCanonicalFullPath(_backupOutputDir), true),
+            new(PathUtils.GetCanonicalFullPath(_finalCacheDir), PathUtils.GetCanonicalFullPath(_stagingCacheDir), PathUtils.GetCanonicalFullPath(_backupCacheDir), true)
+        ]);
         WorktreeBuildPaths.PrepareStaging(_finalOutputDir, _stagingOutputDir, copyExisting: !_effectiveConfig.Build.Clean);
         WorktreeBuildPaths.PrepareStaging(_finalCacheDir, _stagingCacheDir, copyExisting: true);
         WorktreeBuildPaths.RewriteManifestRoots(_stagingCacheDir, _finalOutputDir, _stagingOutputDir, _languages);
@@ -207,6 +249,7 @@ internal sealed class WorktreeBuildRun
                     _mediaFinalRoot = Path.GetDirectoryName(_mediaFinalRoot)!;
                 _mediaStageRoot = WorktreeBuildPaths.Sibling(_mediaFinalRoot, "bukit-staging-" + Guid.NewGuid().ToString("N"));
                 _mediaBackupRoot = WorktreeBuildPaths.Sibling(_mediaFinalRoot, "bukit-backup-" + Guid.NewGuid().ToString("N"));
+                _journal.Add(new(PathUtils.GetCanonicalFullPath(_mediaFinalRoot), PathUtils.GetCanonicalFullPath(_mediaStageRoot), PathUtils.GetCanonicalFullPath(_mediaBackupRoot), true));
                 WorktreeBuildPaths.PrepareStaging(_mediaFinalRoot, _mediaStageRoot, copyExisting: true);
                 _stagedMediaDir = Path.Combine(_mediaStageRoot, Path.GetRelativePath(_mediaFinalRoot, _mediaSource));
             }
@@ -411,7 +454,9 @@ internal sealed class WorktreeBuildRun
                 var actual = hadOriginal ? WorktreeMediaOverlay.Fingerprint(backupMedia) : "missing";
                 if (actual != _mediaFingerprint)
                     throw new IOException($"Media directory changed during commit: {_mediaSource}");
-            });
+            },
+            _rootDir,
+            _journal);
         _committed = true;
         WorktreeBuildPaths.TryDeleteDirectory(_runRoot);
         _logger.Info($"event=build.i18n.worktree.done head={_repository.Head} languages={_languages.Count}");
@@ -443,6 +488,9 @@ internal sealed class WorktreeBuildRun
                 WorktreeBuildPaths.TryDeleteDirectory(_stagingOutputDir);
                 WorktreeBuildPaths.TryDeleteDirectory(_stagingCacheDir);
                 if (_mediaStageRoot is not null) WorktreeBuildPaths.TryDeleteDirectory(_mediaStageRoot);
+                if (_journal is { IsUnstarted: true } && !Directory.Exists(_stagingOutputDir) &&
+                    !Directory.Exists(_stagingCacheDir) && (_mediaStageRoot is null || !Directory.Exists(_mediaStageRoot)))
+                    _journal.Remove();
             }
             if (_worktreesCleaned)
             {
@@ -451,7 +499,8 @@ internal sealed class WorktreeBuildRun
         }
         finally
         {
-            await _runLock.DisposeAsync().ConfigureAwait(false);
+            try { _resourceLease.Dispose(); }
+            finally { await _runLock.DisposeAsync().ConfigureAwait(false); }
         }
     }
 }

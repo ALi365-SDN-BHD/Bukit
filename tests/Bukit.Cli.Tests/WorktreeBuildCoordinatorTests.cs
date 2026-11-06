@@ -293,6 +293,243 @@ public sealed class WorktreeBuildCoordinatorTests : IDisposable
     }
 
     [Fact]
+    public async Task GitWorktree_RecoversInterruptedJournalWriteWithoutDeletingPendingFile()
+    {
+        var repository = Path.Combine(_root, "journal-source");
+        CreateSite(repository);
+        await InitializeRepositoryAsync(repository);
+        var root = Path.Combine(_root, "linked-worktree");
+        var add = await RunProcessAsync("git", ["worktree", "add", "--detach", root, "HEAD"], repository);
+        Assert.True(add.ExitCode == 0, add.Output);
+        Assert.True(File.Exists(Path.Combine(root, ".git")));
+        var site = Path.Combine(root, "site.yaml");
+        Directory.CreateDirectory(Path.Combine(root, "dist"));
+        await File.WriteAllTextAsync(Path.Combine(root, "dist", "old.txt"), "old");
+        var start = new ProcessStartInfo("dotnet") { RedirectStandardOutput = true, RedirectStandardError = true, UseShellExecute = false };
+        start.ArgumentList.Add("vstest");
+        start.ArgumentList.Add(typeof(WorktreeBuildCoordinatorTests).Assembly.Location);
+        start.ArgumentList.Add("--TestCaseFilter:FullyQualifiedName~WorktreeCommitCrashChildProbe");
+        start.Environment["BUKIT_TEST_WORKTREE_CRASH_ROOT"] = root;
+        start.Environment["BUKIT_TEST_WORKTREE_CRASH_PHASE"] = "journal";
+        using var child = Process.Start(start)!;
+        var stdout = child.StandardOutput.ReadToEndAsync();
+        var stderr = child.StandardError.ReadToEndAsync();
+        using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+        try { await child.WaitForExitAsync(timeout.Token); }
+        catch { child.Kill(true); throw; }
+        Assert.True(child.ExitCode != 0, await stdout + await stderr);
+        var gitDir = (await RunProcessAsync("git", ["rev-parse", "--absolute-git-dir"], root)).Output.Trim();
+        var pending = Assert.Single(Directory.EnumerateFiles(gitDir, ".bukit-transaction-*.json.pending-*.tmp", SearchOption.AllDirectories));
+
+        var run = await WorktreeBuildRun.StartAsync(ConfigLoader.Load(site), new ResolvedConfigPath(site, root),
+            new ConfigOverrides(), "text", new ConsoleLogger(LogLevel.Error), CancellationToken.None);
+        try
+        {
+            Assert.Equal("old", await File.ReadAllTextAsync(Path.Combine(root, "dist", "old.txt")));
+            Assert.Equal("partial", await File.ReadAllTextAsync(pending));
+        }
+        finally { await run.CleanupAsync(); }
+    }
+
+    [Fact]
+    public async Task GitRepository_IgnoresInterruptedInitialJournalWriteWithoutDeletingIt()
+    {
+        var root = Path.Combine(_root, "initial-journal-interrupted");
+        var site = CreateSite(root);
+        await InitializeRepositoryAsync(root);
+        var output = PathUtils.GetCanonicalFullPath(Path.Combine(root, "dist"));
+        var identity = Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes(output)));
+        var gitDir = (await RunProcessAsync("git", ["rev-parse", "--absolute-git-dir"], root)).Output.Trim();
+        var journalDir = Path.Combine(gitDir, "bukit-build-transactions-v1");
+        Directory.CreateDirectory(journalDir);
+        var pending = Path.Combine(journalDir, ".bukit-transaction-" + identity + ".json.pending-12345678901234567890123456789012.tmp");
+        await File.WriteAllTextAsync(pending, "partial");
+
+        var run = await WorktreeBuildRun.StartAsync(ConfigLoader.Load(site), new ResolvedConfigPath(site, root),
+            new ConfigOverrides(), "text", new ConsoleLogger(LogLevel.Error), CancellationToken.None);
+        try
+        {
+            await run.PrepareAsync(CancellationToken.None);
+            Assert.Equal("partial", await File.ReadAllTextAsync(pending));
+        }
+        finally { await run.CleanupAsync(); }
+    }
+
+    [Fact]
+    public async Task ActiveWorktreeBuild_BlocksInProcessBuildUsingSameOutput()
+    {
+        var root = Path.Combine(_root, "worktree-resource-conflict");
+        var site = CreateSite(root);
+        await InitializeRepositoryAsync(root);
+        var config = ConfigLoader.Load(site);
+        var logger = new ConsoleLogger(LogLevel.Error);
+        var run = await WorktreeBuildRun.StartAsync(config, new ResolvedConfigPath(site, root),
+            new ConfigOverrides(), "text", logger, CancellationToken.None);
+        try
+        {
+            var engine = new SiteEngine(logger);
+            var single = config with { Site = config.Site with { Languages = [] } };
+            var error = await Assert.ThrowsAsync<IOException>(() => engine.BuildAsync(single, root, new ConfigOverrides()));
+            Assert.Contains("Build resource is busy", error.Message, StringComparison.Ordinal);
+        }
+        finally
+        {
+            await run.CleanupAsync();
+        }
+    }
+
+    [Theory]
+    [InlineData("commit")]
+    [InlineData("conflict")]
+    [InlineData("prepare")]
+    [InlineData("journal")]
+    [InlineData("cache")]
+    [InlineData("cross")]
+    [InlineData("metrics")]
+    [InlineData("metrics-cross")]
+    public async Task NextBuild_RecoversOutputAfterCommitProcessDies(string phase)
+    {
+        var root = Path.Combine(_root, "crashed-worktree-commit");
+        var site = CreateSite(root, extraIgnore: "/reports/\n");
+        await InitializeRepositoryAsync(root);
+        Directory.CreateDirectory(Path.Combine(root, "dist"));
+        await File.WriteAllTextAsync(Path.Combine(root, "dist", "old.txt"), "old");
+        var staging = Path.Combine(root, ".dist.bukit-staging-12345678901234567890123456789012");
+        if (phase is "commit" or "conflict" or "cache" or "cross" or "metrics" or "metrics-cross")
+        {
+            Directory.CreateDirectory(staging);
+            await File.WriteAllTextAsync(Path.Combine(staging, "old.txt"), "new");
+        }
+        if (phase is "cache" or "metrics" or "metrics-cross")
+        {
+            Directory.CreateDirectory(Path.Combine(root, ".cache"));
+            await File.WriteAllTextAsync(Path.Combine(root, ".cache", "old.txt"), "cache-old");
+            var cacheStage = Path.Combine(root, "..cache.bukit-staging-12345678901234567890123456789012");
+            Directory.CreateDirectory(cacheStage);
+            await File.WriteAllTextAsync(Path.Combine(cacheStage, "old.txt"), "cache-new");
+        }
+        var metrics = Path.Combine(root, "reports", "stats.json");
+        if (phase is "metrics" or "metrics-cross")
+        {
+            Directory.CreateDirectory(Path.GetDirectoryName(metrics)!);
+            await File.WriteAllTextAsync(metrics, "metrics-old");
+            var repository = (await RunProcessAsync("git", ["rev-parse", "--show-toplevel"], root)).Output.Trim();
+            var metricsStage = Path.Combine(WorktreeBuildPaths.RunsRoot(repository), "12345678901234567890123456789012", "metrics", "stats.json");
+            Directory.CreateDirectory(Path.GetDirectoryName(metricsStage)!);
+            await File.WriteAllTextAsync(metricsStage, "metrics-new");
+        }
+        var start = new ProcessStartInfo("dotnet") { RedirectStandardOutput = true, RedirectStandardError = true, UseShellExecute = false };
+        start.ArgumentList.Add("vstest");
+        start.ArgumentList.Add(typeof(WorktreeBuildCoordinatorTests).Assembly.Location);
+        start.ArgumentList.Add("--TestCaseFilter:FullyQualifiedName~WorktreeCommitCrashChildProbe");
+        start.Environment["BUKIT_TEST_WORKTREE_CRASH_ROOT"] = root;
+        start.Environment["BUKIT_TEST_WORKTREE_CRASH_PHASE"] = phase;
+        using var child = Process.Start(start)!;
+        var stdout = child.StandardOutput.ReadToEndAsync();
+        var stderr = child.StandardError.ReadToEndAsync();
+        using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+        try { await child.WaitForExitAsync(timeout.Token); }
+        catch { child.Kill(true); throw; }
+        Assert.True(child.ExitCode != 0, await stdout + await stderr);
+        if (phase is "commit" or "conflict" or "cross") Assert.False(Directory.Exists(Path.Combine(root, "dist")));
+
+        if (phase == "conflict")
+        {
+            var config = ConfigLoader.Load(site);
+            var source = Assert.Single(config.Content.Sources!);
+            config = config with
+            {
+                Content = config.Content with { Sources = [source with { Markdown = source.Markdown! with { Dir = "dist" } }] }
+            };
+            var failure = await Record.ExceptionAsync(() => WorktreeBuildRun.StartAsync(config,
+                new ResolvedConfigPath(site, root), new ConfigOverrides(), "text", new ConsoleLogger(LogLevel.Error), CancellationToken.None));
+            Assert.NotNull(failure);
+            Assert.False(Directory.Exists(Path.Combine(root, "dist")));
+            Assert.Contains("content source", failure.ToString(), StringComparison.OrdinalIgnoreCase);
+            Assert.Equal("old", await File.ReadAllTextAsync(Path.Combine(root,
+                ".dist.bukit-backup-12345678901234567890123456789012", "old.txt")));
+            return;
+        }
+        var pendingJournal = phase == "journal"
+            ? Assert.Single(Directory.EnumerateFiles(root, ".bukit-transaction-*.json.pending-*.tmp", SearchOption.AllDirectories))
+            : null;
+
+        if (phase is "cross" or "metrics-cross")
+        {
+            var config = ConfigLoader.Load(site);
+            var single = config with { Site = config.Site with { Languages = [] } };
+            await new SiteEngine(new ConsoleLogger(LogLevel.Error)).BuildAsync(single, root,
+                new ConfigOverrides { MetricsPath = phase == "metrics-cross" ? metrics : null });
+            Assert.Equal("old", await File.ReadAllTextAsync(Path.Combine(root, "dist", "old.txt")));
+            if (pendingJournal is not null) Assert.Equal("partial", await File.ReadAllTextAsync(pendingJournal));
+            return;
+        }
+
+        WorktreeBuildRun? run = null;
+        try
+        {
+            var failure = await Record.ExceptionAsync(async () => run = await WorktreeBuildRun.StartAsync(
+                ConfigLoader.Load(site), new ResolvedConfigPath(site, root),
+                new ConfigOverrides { MetricsPath = phase == "metrics" ? metrics : null }, "text",
+                new ConsoleLogger(LogLevel.Error), CancellationToken.None));
+            Assert.True(failure is null, failure?.ToString());
+            Assert.Equal("old", await File.ReadAllTextAsync(Path.Combine(root, "dist", "old.txt")));
+            if (phase is "cache" or "metrics") Assert.Equal("cache-old", await File.ReadAllTextAsync(Path.Combine(root, ".cache", "old.txt")));
+            if (phase == "metrics") Assert.Equal("metrics-old", await File.ReadAllTextAsync(metrics));
+        }
+        finally
+        {
+            if (run is not null) await run.CleanupAsync();
+        }
+    }
+
+    [Fact]
+    public async Task WorktreeCommitCrashChildProbe()
+    {
+        var root = Environment.GetEnvironmentVariable("BUKIT_TEST_WORKTREE_CRASH_ROOT");
+        if (root is null) return;
+        var crashPhase = Environment.GetEnvironmentVariable("BUKIT_TEST_WORKTREE_CRASH_PHASE");
+        if (crashPhase is "prepare" or "journal")
+        {
+            var site = Path.Combine(root, "site.yaml");
+            var run = await WorktreeBuildRun.StartAsync(ConfigLoader.Load(site), new ResolvedConfigPath(site, root),
+                new ConfigOverrides(), "text", crashPhase == "prepare" ? new FailFastOnContentLoadLogger() : new ConsoleLogger(LogLevel.Error), CancellationToken.None);
+            await run.PrepareAsync(CancellationToken.None);
+            if (crashPhase == "journal")
+            {
+                var gitDirResult = await RunProcessAsync("git", ["rev-parse", "--absolute-git-dir"], root);
+                Assert.Equal(0, gitDirResult.ExitCode);
+                var journal = Assert.Single(Directory.EnumerateFiles(gitDirResult.Output.Trim(), ".bukit-transaction-*.json", SearchOption.AllDirectories));
+                File.WriteAllText(journal + ".pending-12345678901234567890123456789012.tmp", "partial");
+                Environment.FailFast("test interruption during journal update");
+            }
+            throw new InvalidOperationException("Expected the child process to terminate during preparation.");
+        }
+        var final = Path.Combine(root, "dist");
+        var staging = Path.Combine(root, ".dist.bukit-staging-12345678901234567890123456789012");
+        var backup = Path.Combine(root, ".dist.bukit-backup-12345678901234567890123456789012");
+        var phase = Environment.GetEnvironmentVariable("BUKIT_TEST_WORKTREE_CRASH_PHASE");
+        var directories = new List<(string Staging, string Final, string Backup)> { (staging, final, backup) };
+        if (phase is "cache" or "metrics" or "metrics-cross")
+            directories.Add((Path.Combine(root, "..cache.bukit-staging-12345678901234567890123456789012"),
+                Path.Combine(root, ".cache"), Path.Combine(root, "..cache.bukit-backup-12345678901234567890123456789012")));
+        var files = new List<(string Staging, string Final, string Backup)>();
+        if (phase is "metrics" or "metrics-cross")
+        {
+            var repository = PathUtils.GetCanonicalFullPath(root);
+            var metricsStage = Path.Combine(WorktreeBuildPaths.RunsRoot(repository), "12345678901234567890123456789012", "metrics", "stats.json");
+            files.Add((metricsStage, Path.Combine(root, "reports", "stats.json"), Path.Combine(root, "reports", ".stats.json.bukit-backup")));
+        }
+        WorktreeBuildTransaction.CommitDirectories(directories, files,
+            (target, _, _) =>
+            {
+                if (phase is "commit" or "conflict" or "cross" || phase == "cache" && target.EndsWith(Path.DirectorySeparatorChar + ".cache", StringComparison.Ordinal) ||
+                    phase is "metrics" or "metrics-cross" && target.EndsWith(Path.DirectorySeparatorChar + "stats.json", StringComparison.Ordinal))
+                    Environment.FailFast("test interruption after worktree backup move");
+            });
+    }
+
+    [Fact]
     public async Task Prepare_RejectsMediaChangedAfterCacheWasCopied()
     {
         var root = Path.Combine(_root, "media-cache-copy-race");
@@ -514,6 +751,64 @@ public sealed class WorktreeBuildCoordinatorTests : IDisposable
             () => BuildCommand.RunAsync(Command(site)));
 
         Assert.Equal("i18n-worktree-input-untracked", error.Code);
+    }
+
+    [Theory]
+    [InlineData("direct")]
+    [InlineData("chain")]
+    [InlineData("ancestor")]
+    public async Task ExplicitMultilingualBuild_RejectsAbsoluteInputSymlink(string kind)
+    {
+        if (OperatingSystem.IsWindows()) return;
+        var root = Path.Combine(_root, "absolute-input-link");
+        var site = CreateSite(root);
+        var content = Path.Combine(root, "content");
+        var real = Path.Combine(root, "real-content");
+        Directory.Move(content, real);
+        if (kind == "ancestor")
+        {
+            var nested = Path.Combine(real, "nested");
+            Directory.CreateDirectory(nested);
+            Directory.Move(Path.Combine(real, "en"), Path.Combine(nested, "en"));
+            Directory.Move(Path.Combine(real, "zh"), Path.Combine(nested, "zh"));
+            var yaml = await File.ReadAllTextAsync(site);
+            await File.WriteAllTextAsync(site, yaml.Replace("dir: content", "dir: content/nested", StringComparison.Ordinal));
+        }
+        if (kind == "chain")
+        {
+            Directory.CreateSymbolicLink(Path.Combine(root, "content-alias"), real);
+            Directory.CreateSymbolicLink(content, "content-alias");
+        }
+        else Directory.CreateSymbolicLink(content, real);
+        await InitializeRepositoryAsync(root);
+        WorktreeBuildRun? run = null;
+        try
+        {
+            var failure = await Record.ExceptionAsync(async () => run = await WorktreeBuildRun.StartAsync(
+                ConfigLoader.Load(site), new ResolvedConfigPath(site, root), new ConfigOverrides(), "text",
+                new ConsoleLogger(LogLevel.Error), CancellationToken.None));
+            var error = Assert.IsType<WorktreeBuildException>(failure);
+            Assert.Equal("i18n-worktree-input-untracked", error.Code);
+        }
+        finally
+        {
+            if (run is not null) await run.CleanupAsync();
+        }
+    }
+
+    [Fact]
+    public async Task WorktreePreflight_AllowsRelativeInputSymlink()
+    {
+        if (OperatingSystem.IsWindows()) return;
+        var root = Path.Combine(_root, "relative-input-link");
+        var site = CreateSite(root);
+        Directory.Move(Path.Combine(root, "content"), Path.Combine(root, "real-content"));
+        Directory.CreateSymbolicLink(Path.Combine(root, "content"), "real-content");
+        await InitializeRepositoryAsync(root);
+
+        var run = await WorktreeBuildRun.StartAsync(ConfigLoader.Load(site), new ResolvedConfigPath(site, root),
+            new ConfigOverrides(), "text", new ConsoleLogger(LogLevel.Error), CancellationToken.None);
+        await run.CleanupAsync();
     }
 
     [Fact]
@@ -1034,6 +1329,18 @@ public sealed class WorktreeBuildCoordinatorTests : IDisposable
                 Triggered = true;
                 cancellation.Cancel();
             }
+        }
+    }
+
+    private sealed class FailFastOnContentLoadLogger : ILogger
+    {
+        public void Debug(string message) { }
+        public void Warn(string message) { }
+        public void Error(string message) { }
+        public void Info(string message)
+        {
+            if (message.StartsWith("event=content.stage stage=ContentLoad ", StringComparison.Ordinal))
+                Environment.FailFast("test interruption during worktree preparation");
         }
     }
 
