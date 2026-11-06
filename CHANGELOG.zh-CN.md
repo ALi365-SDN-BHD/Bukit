@@ -4,6 +4,8 @@ Bukit 所有重要变更都将记录在此文件中。
 
 ## [Unreleased]
 
+- **多语言媒体暂存**：自定义 `content.media.downloadDir` 现在只暂存一份，由所有语言工作进程共享。新下载和 `.media-index.json` 只有在所有语言都成功后，才与输出、缓存一起提交。媒体变化按路径、大小和修改时间判断；媒体目录内的符号链接会被拒绝。这是行为变化：媒体目录只要包含符号链接，多语言构建就会失败。
+- **构建中断恢复**：下一次构建会恢复该输出最后一份完整事务记录，包括输出、缓存、暂存媒体和外部指标。未知临时文件会被保留；目标被修改或备份缺失时会停止恢复并保留现场，供人工检查。显式多语言构建现在与进程内构建共享构建资源租约。必需输入的符号链接必须是相对路径且位于仓库内；绝对路径符号链接会被拒绝。
 - **Analytics 审计修复**：head 开头的统计片段会排在页面编码声明之后；CSP 需求报告新增 `connectSrc` 和 `imgSrc`；任一 Google consent 默认值为 denied 时，不再输出 GTM 的 `<noscript>` iframe。
 - **SEO 审计修复**：内容页以 `/` 开头的 canonical 会按 `site.url` + `baseUrl` 补全，且不会重复添加已有的 base 路径；其他相对写法保留并输出 `seo.canonical_relative`；`og:locale` 使用下划线格式，例如 `zh_CN`，裸语言会输出 `seo.og_locale_region_missing` 诊断，即使开启 strict 诊断也只会警告而不会导致构建失败。
 - **AI 爬虫策略**：`robots.txt` 按用途（训练、AI 搜索、用户抓取）区分 AI 爬虫，新增 `aiBotMode: block-training`（它也会禁止 `Google-Extended`，该标识同时控制 Gemini 的训练和 grounding，构建会输出 `event=robots.ai_grounding_blocked`）。行为变化：`selective` 模式配合 `aiBotAllowList` 时，其他已知爬虫（含 AI 搜索爬虫）都会被禁止，构建会输出 `event=robots.ai_search_blocked` 警告。配置了 AI 策略但无法写入时，构建会输出 `event=robots.ai_policy_inactive` 警告。

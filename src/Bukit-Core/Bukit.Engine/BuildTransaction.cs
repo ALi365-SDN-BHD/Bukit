@@ -94,9 +94,11 @@ internal sealed class BuildTransaction : IDisposable
             targets = CreateTargets(resources);
             // Validate the formal target, never a conveniently empty staging directory.
             BuildPlanner.ValidateOutputDirectory(config, logicalRoot, logicalOutput, overrides, logger);
-            transaction = new(targets, lease, logger, output, cache, ResourcePath(media), logicalOutput, move, delete);
-            transaction._journal = BuildTransactionJournal.Create(rootDir, output,
-                targets.Select(t => new BuildTransactionJournal.Entry(t.Path, t.Stage, t.Backup, t.Directory)));
+            transaction = new(targets, lease, logger, output, cache, ResourcePath(media), logicalOutput, move, delete)
+            {
+                _journal = BuildTransactionJournal.Create(rootDir, output,
+                    targets.Select(t => new BuildTransactionJournal.Entry(t.Path, t.Stage, t.Backup, t.Directory)))
+            };
             StageTargets(targets, output, config, cancellationToken);
             foreach (var resource in resources.Where(r => !r.Write))
                 transaction._readOnly.Add((resource.Path, Fingerprint(transaction.Map(resource.Path))));

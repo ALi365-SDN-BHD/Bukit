@@ -11,7 +11,6 @@ internal sealed class BuildTransactionJournal
         internal int State { get; set; }
         internal bool HadOriginal { get; set; }
         internal string? Fingerprint { get; set; }
-        internal string? OriginalFingerprint { get; set; }
     }
 
     private readonly string _path;
@@ -69,7 +68,6 @@ internal sealed class BuildTransactionJournal
     {
         _entries[index].HadOriginal = hadOriginal;
         _entries[index].Fingerprint = Fingerprint(_entries[index].Stage, _entries[index].Directory);
-        _entries[index].OriginalFingerprint = hadOriginal ? Fingerprint(_entries[index].Path, _entries[index].Directory) : null;
         _entries[index].State = 1;
         Save();
     }
@@ -107,7 +105,6 @@ internal sealed class BuildTransactionJournal
                         writer.WriteNumber("state", entry.State);
                         writer.WriteBoolean("hadOriginal", entry.HadOriginal);
                         writer.WriteString("fingerprint", entry.Fingerprint);
-                        writer.WriteString("originalFingerprint", entry.OriginalFingerprint);
                         writer.WriteEndObject();
                     }
                     writer.WriteEndArray();
@@ -135,75 +132,106 @@ internal sealed class BuildTransactionJournal
             throw new IOException($"Build transaction journal requires manual inspection: {journalPath}");
         if (!File.Exists(journalPath)) return;
         worktreeRunsRoot ??= FindWorktreeRunsRoot(root);
-        using var json = JsonDocument.Parse(File.ReadAllBytes(journalPath));
-        var document = json.RootElement;
-        if (document.GetProperty("version").GetInt32() != 1) throw new IOException($"Unsupported build transaction journal: {journalPath}");
-        var committed = document.GetProperty("committed").GetBoolean();
-        var entries = new List<Entry>();
-        foreach (var item in document.GetProperty("entries").EnumerateArray())
+        var (committed, entries) = ReadEntries(journalPath, root, allowed, worktreeRunsRoot);
+        ValidateRecoveryState(entries, committed);
+        foreach (var entry in entries.AsEnumerable().Reverse())
+            RestoreEntry(entry, committed);
+        File.Delete(journalPath);
+    }
+
+    private static (bool Committed, List<Entry> Entries) ReadEntries(
+        string journalPath,
+        string root,
+        IReadOnlyList<(string Path, bool Directory)> allowed,
+        string? worktreeRunsRoot)
+    {
+        try
         {
-            var path = item.GetProperty("path").GetString()!;
-            var stage = item.GetProperty("stage").GetString()!;
-            var backup = item.GetProperty("backup").GetString()!;
-            var directory = item.GetProperty("directory").GetBoolean();
-            var state = item.GetProperty("state").GetInt32();
-            var hadOriginal = item.GetProperty("hadOriginal").GetBoolean();
-            var enginePaths = SafeSibling(path, stage, "-stage") && SafeSibling(path, backup, "-backup");
-            var worktreePaths = directory
-                ? SafeWorktreeSibling(path, stage, "staging") && SafeWorktreeSibling(path, backup, "backup")
-                : worktreeRunsRoot is not null && SafeMetricsStage(stage, worktreeRunsRoot) && SafeMetricsBackup(path, backup);
-            var allowedTarget = allowed.Any(x => x.Directory == directory && BuildResourceLease.Same(x.Path, path));
-            var safeNewAncestor = directory && !hadOriginal &&
-                BuildResourceLease.Same(path, BuildResourceLease.Canonical(path)) &&
-                BuildResourceLease.Contains(BuildResourceLease.Canonical(root), path) &&
-                allowed.Any(x => BuildResourceLease.Contains(path, x.Path));
-            if (!(allowedTarget || safeNewAncestor) ||
-                !(enginePaths || worktreePaths) || state is < 0 or > 1)
-                throw new IOException($"Unsafe build transaction journal: {journalPath}");
-            entries.Add(new Entry(path, stage, backup, directory)
-            {
-                State = state,
-                HadOriginal = hadOriginal,
-                Fingerprint = item.TryGetProperty("fingerprint", out var fingerprint) ? fingerprint.GetString() : null,
-                OriginalFingerprint = item.TryGetProperty("originalFingerprint", out var originalFingerprint) ? originalFingerprint.GetString() : null
-            });
+            using var json = JsonDocument.Parse(File.ReadAllBytes(journalPath));
+            var document = json.RootElement;
+            if (document.GetProperty("version").GetInt32() != 1)
+                throw new IOException($"Unsupported build transaction journal: {journalPath}");
+            var committed = document.GetProperty("committed").GetBoolean();
+            var entries = new List<Entry>();
+            foreach (var item in document.GetProperty("entries").EnumerateArray())
+                entries.Add(ReadEntry(item, journalPath, root, allowed, worktreeRunsRoot));
+            return (committed, entries);
         }
-        foreach (var entry in entries.Where(entry => !committed && entry.State == 1 &&
+        catch (Exception ex) when (ex is JsonException or KeyNotFoundException or InvalidOperationException or FormatException)
+        {
+            throw new IOException($"Build transaction journal is invalid; preserve it for inspection: {journalPath}", ex);
+        }
+    }
+
+    private static Entry ReadEntry(
+        JsonElement item,
+        string journalPath,
+        string root,
+        IReadOnlyList<(string Path, bool Directory)> allowed,
+        string? worktreeRunsRoot)
+    {
+        var path = item.GetProperty("path").GetString()!;
+        var stage = item.GetProperty("stage").GetString()!;
+        var backup = item.GetProperty("backup").GetString()!;
+        var directory = item.GetProperty("directory").GetBoolean();
+        var state = item.GetProperty("state").GetInt32();
+        var hadOriginal = item.GetProperty("hadOriginal").GetBoolean();
+        var enginePaths = SafeSibling(path, stage, "-stage") && SafeSibling(path, backup, "-backup");
+        var worktreePaths = directory
+            ? SafeWorktreeSibling(path, stage, "staging") && SafeWorktreeSibling(path, backup, "backup")
+            : worktreeRunsRoot is not null && SafeMetricsStage(stage, worktreeRunsRoot) && SafeMetricsBackup(path, backup);
+        var allowedTarget = allowed.Any(x => x.Directory == directory && BuildResourceLease.Same(x.Path, path));
+        var safeNewAncestor = directory && !hadOriginal &&
+            BuildResourceLease.Same(path, BuildResourceLease.Canonical(path)) &&
+            BuildResourceLease.Contains(BuildResourceLease.Canonical(root), path) &&
+            allowed.Any(x => BuildResourceLease.Contains(path, x.Path));
+        if (!(allowedTarget || safeNewAncestor) ||
+            !(enginePaths || worktreePaths) || state is < 0 or > 1)
+            throw new IOException($"Unsafe build transaction journal: {journalPath}");
+        return new Entry(path, stage, backup, directory)
+        {
+            State = state,
+            HadOriginal = hadOriginal,
+            Fingerprint = item.TryGetProperty("fingerprint", out var fingerprint) ? fingerprint.GetString() : null
+        };
+    }
+
+    private static void ValidateRecoveryState(IReadOnlyList<Entry> entries, bool committed)
+    {
+        if (committed) return;
+        foreach (var entry in entries.Where(entry => entry.State == 1 &&
                      Exists(entry.Path, entry.Directory) && !Exists(entry.Stage, entry.Directory) &&
                      (Exists(entry.Backup, entry.Directory) || !entry.HadOriginal)))
         {
             if (entry.Fingerprint is null || Fingerprint(entry.Path, entry.Directory) != entry.Fingerprint)
                 throw new IOException($"Interrupted build target changed; preserve existing files and backup: {entry.Path}");
         }
-        foreach (var entry in entries.Where(entry => !committed && entry.State == 1 && entry.HadOriginal &&
-                     !Exists(entry.Backup, entry.Directory) && !Exists(entry.Stage, entry.Directory)))
+        if (entries.FirstOrDefault(entry => entry.State == 1 && entry.HadOriginal &&
+                !Exists(entry.Backup, entry.Directory) && !Exists(entry.Stage, entry.Directory)) is { } missingBackup)
+            throw new IOException($"Interrupted build backup is missing: {missingBackup.Backup}");
+    }
+
+    private static void RestoreEntry(Entry entry, bool committed)
+    {
+        if (!committed && entry.State == 1)
         {
-            if (!Exists(entry.Path, entry.Directory) || entry.OriginalFingerprint is null ||
-                Fingerprint(entry.Path, entry.Directory) != entry.OriginalFingerprint)
-                throw new IOException($"Interrupted build backup is missing: {entry.Backup}");
-        }
-        foreach (var entry in entries.AsEnumerable().Reverse())
-        {
-            if (!committed && entry.State == 1)
+            if (Exists(entry.Backup, entry.Directory))
             {
-                if (Exists(entry.Backup, entry.Directory))
+                if (Exists(entry.Path, entry.Directory))
                 {
-                    if (Exists(entry.Path, entry.Directory))
-                    {
-                        if (Exists(entry.Stage, entry.Directory)) throw new IOException($"Ambiguous interrupted build; preserve backup: {entry.Backup}");
-                        Delete(entry.Path, entry.Directory);
-                    }
-                    Move(entry.Backup, entry.Path, entry.Directory);
-                }
-                else if (entry.HadOriginal && !Exists(entry.Path, entry.Directory))
-                    throw new IOException($"Interrupted build backup is missing: {entry.Backup}");
-                else if (!entry.HadOriginal && !Exists(entry.Stage, entry.Directory) && Exists(entry.Path, entry.Directory))
+                    if (Exists(entry.Stage, entry.Directory))
+                        throw new IOException($"Ambiguous interrupted build; preserve backup: {entry.Backup}");
                     Delete(entry.Path, entry.Directory);
+                }
+                Move(entry.Backup, entry.Path, entry.Directory);
             }
-            if (Exists(entry.Stage, entry.Directory)) Delete(entry.Stage, entry.Directory);
-            if (committed && Exists(entry.Backup, entry.Directory)) Delete(entry.Backup, entry.Directory);
+            else if (entry.HadOriginal && !Exists(entry.Path, entry.Directory))
+                throw new IOException($"Interrupted build backup is missing: {entry.Backup}");
+            else if (!entry.HadOriginal && !Exists(entry.Stage, entry.Directory) && Exists(entry.Path, entry.Directory))
+                Delete(entry.Path, entry.Directory);
         }
-        File.Delete(journalPath);
+        if (Exists(entry.Stage, entry.Directory)) Delete(entry.Stage, entry.Directory);
+        if (committed && Exists(entry.Backup, entry.Directory)) Delete(entry.Backup, entry.Directory);
     }
 
     private static bool SafeSibling(string path, string sibling, string suffix)

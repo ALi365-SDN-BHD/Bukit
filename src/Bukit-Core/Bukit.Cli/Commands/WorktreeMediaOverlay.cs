@@ -22,13 +22,18 @@ internal static class WorktreeMediaOverlay
                 if ((entry.Attributes & FileAttributes.ReparsePoint) != 0)
                     throw new IOException($"Cannot safely stage media symbolic link: {entry.FullName}");
                 var name = Path.Combine(relative, entry.Name);
-                var label = Encoding.UTF8.GetBytes((entry is DirectoryInfo ? "d:" : "f:") + name + "\0");
-                hash.AppendData(label);
-                if (entry is DirectoryInfo) Visit(entry.FullName, name);
+                if (entry is DirectoryInfo)
+                {
+                    hash.AppendData(Encoding.UTF8.GetBytes("d:" + name + "\0"));
+                    Visit(entry.FullName, name);
+                }
                 else
                 {
-                    using var stream = File.OpenRead(entry.FullName);
-                    hash.AppendData(SHA256.HashData(stream));
+                    // shortcut: metadata change detection misses a same-size, same-mtime rewrite;
+                    // use content hashes when strict byte-level proof is required.
+                    var file = (FileInfo)entry;
+                    hash.AppendData(Encoding.UTF8.GetBytes(
+                        $"f:{name}\0{file.Length}\0{file.LastWriteTimeUtc.Ticks}\0"));
                 }
             }
         }

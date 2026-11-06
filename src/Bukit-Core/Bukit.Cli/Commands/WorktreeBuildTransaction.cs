@@ -62,34 +62,7 @@ internal static class WorktreeBuildTransaction
         }
         catch (Exception commitError)
         {
-            var rollbackErrors = new List<Exception>();
-            foreach (var (_, final, backup, hadOriginal, installed) in completedFiles.AsEnumerable().Reverse())
-            {
-                try
-                {
-                    if (installed) File.Delete(final);
-                    if (hadOriginal) File.Move(backup, final);
-                }
-                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
-                {
-                    rollbackErrors.Add(new IOException($"Unable to restore '{final}'; backup: '{backup}'.", ex));
-                }
-            }
-            foreach (var (_, final, backup, hadOriginal, installed) in completedDirectories.AsEnumerable().Reverse())
-            {
-                try
-                {
-                    if (installed) Directory.Delete(final, recursive: true);
-                    if (hadOriginal) Directory.Move(backup, final);
-                }
-                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
-                {
-                    rollbackErrors.Add(new IOException($"Unable to restore '{final}'; backup: '{backup}'.", ex));
-                }
-            }
-            if (rollbackErrors.Count > 0)
-                throw new AggregateException("Output transaction failed and rollback is incomplete.", new[] { commitError }.Concat(rollbackErrors));
-            journal.Remove();
+            Rollback(completedDirectories, completedFiles, commitError, journal);
             throw;
         }
         foreach (var (_, _, backup, _, _) in completedFiles.Where(item => item.HadOriginal))
@@ -103,6 +76,42 @@ internal static class WorktreeBuildTransaction
         if (completedFiles.All(item => !item.HadOriginal || !File.Exists(item.Backup)) &&
             completedDirectories.All(item => !item.HadOriginal || !Directory.Exists(item.Backup)))
             journal.Remove();
+    }
+
+    private static void Rollback(
+        IReadOnlyList<(string Staging, string Final, string Backup, bool HadOriginal, bool Installed)> completedDirectories,
+        IReadOnlyList<(string Staging, string Final, string Backup, bool HadOriginal, bool Installed)> completedFiles,
+        Exception commitError,
+        BuildTransactionJournal journal)
+    {
+        var rollbackErrors = new List<Exception>();
+        foreach (var (_, final, backup, hadOriginal, installed) in completedFiles.Reverse())
+        {
+            try
+            {
+                if (installed) File.Delete(final);
+                if (hadOriginal) File.Move(backup, final);
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                rollbackErrors.Add(new IOException($"Unable to restore '{final}'; backup: '{backup}'.", ex));
+            }
+        }
+        foreach (var (_, final, backup, hadOriginal, installed) in completedDirectories.Reverse())
+        {
+            try
+            {
+                if (installed) Directory.Delete(final, recursive: true);
+                if (hadOriginal) Directory.Move(backup, final);
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                rollbackErrors.Add(new IOException($"Unable to restore '{final}'; backup: '{backup}'.", ex));
+            }
+        }
+        if (rollbackErrors.Count > 0)
+            throw new AggregateException("Output transaction failed and rollback is incomplete.", new[] { commitError }.Concat(rollbackErrors));
+        journal.Remove();
     }
 
     internal static void CleanupBackup(string path, bool isDirectory)
