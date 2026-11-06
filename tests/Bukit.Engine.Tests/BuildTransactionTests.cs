@@ -96,6 +96,18 @@ public sealed class BuildTransactionTests : IDisposable
     }
 
     [Fact]
+    public void DisposeKeepsGoingWhenJournalCannotBeRemoved()
+    {
+        var output = Path.Combine(_root, "public");
+        var transaction = BuildTransaction.Begin(Config, _root, new(), _logger);
+        var journalPath = BuildTransactionJournal.PathFor(_root, output);
+        File.Delete(journalPath);
+        Directory.CreateDirectory(journalPath);
+        transaction.Dispose();
+        Assert.True(Directory.Exists(journalPath));
+    }
+
+    [Fact]
     public void JournalCreationDoesNotReplaceExistingFile()
     {
         var output = Path.Combine(_root, "public");
