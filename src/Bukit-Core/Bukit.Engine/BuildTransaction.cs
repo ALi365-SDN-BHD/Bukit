@@ -21,6 +21,7 @@ internal sealed class BuildTransaction : IDisposable
     private readonly Action<string, string, bool> _move;
     private readonly Action<string, bool> _delete;
     private bool _committed;
+    private BuildTransactionJournal? _journal;
     private sealed class Target(string path, bool directory)
     {
         internal readonly string Path = path;
@@ -73,14 +74,31 @@ internal sealed class BuildTransaction : IDisposable
         var sources = contentSourceRoots ?? OutputDirectoryCleaner.GetConfiguredContentSources(config, rootDir);
         ValidateResources(config, rootDir, output, resources, sources, extraWriteTargets ?? [], logger);
         var targets = CreateTargets(resources);
-        var lease = BuildResourceLease.Acquire(resources);
+        var recoveryPending = BuildTransactionJournal.HasPending(rootDir, output);
+        var leaseResources = recoveryPending
+            ? resources.Concat([new BuildResourceLease.Resource(rootDir, true, true)]).ToArray()
+            : resources.ToArray();
+        var lease = BuildResourceLease.Acquire(leaseResources);
+        if (!recoveryPending && BuildTransactionJournal.HasPending(rootDir, output))
+        {
+            lease.Dispose();
+            lease = BuildResourceLease.Acquire([.. resources, new BuildResourceLease.Resource(rootDir, true, true)]);
+        }
         BuildTransaction? transaction = null;
         try
         {
             cancellationToken.ThrowIfCancellationRequested();
+            BuildTransactionJournal.Recover(rootDir, output, [.. targets.Select(t => (t.Path, t.Directory))]);
+            resources = GetResources(config, rootDir, overrides, output, cache, media);
+            ValidateResources(config, rootDir, output, resources, sources, extraWriteTargets ?? [], logger);
+            targets = CreateTargets(resources);
             // Validate the formal target, never a conveniently empty staging directory.
             BuildPlanner.ValidateOutputDirectory(config, logicalRoot, logicalOutput, overrides, logger);
-            transaction = new(targets, lease, logger, output, cache, ResourcePath(media), logicalOutput, move, delete);
+            transaction = new(targets, lease, logger, output, cache, ResourcePath(media), logicalOutput, move, delete)
+            {
+                _journal = BuildTransactionJournal.Create(rootDir, output,
+                    targets.Select(t => new BuildTransactionJournal.Entry(t.Path, t.Stage, t.Backup, t.Directory)))
+            };
             StageTargets(targets, output, config, cancellationToken);
             foreach (var resource in resources.Where(r => !r.Write))
                 transaction._readOnly.Add((resource.Path, Fingerprint(transaction.Map(resource.Path))));
@@ -290,15 +308,20 @@ internal sealed class BuildTransaction : IDisposable
         cancellationToken.ThrowIfCancellationRequested();
         foreach (var resource in _readOnly)
             if (Fingerprint(Map(resource.Path)) != resource.Fingerprint) throw new IOException($"Read-only cache was modified: {resource.Path}");
+        var journal = _journal ?? throw new InvalidOperationException("Build transaction journal is unavailable.");
         try
         {
-            foreach (var target in _targets)
+            for (var index = 0; index < _targets.Count; index++)
             {
+                var target = _targets[index];
                 if (!Exists(target.Stage, target.Directory)) continue;
-                if (Exists(target.Path, target.Directory)) { _move(target.Path, target.Backup, target.Directory); target.BackedUp = true; }
+                var hadOriginal = Exists(target.Path, target.Directory);
+                journal.BeforeMove(index, hadOriginal);
+                if (hadOriginal) { _move(target.Path, target.Backup, target.Directory); target.BackedUp = true; }
                 _move(target.Stage, target.Path, target.Directory);
                 target.Installed = true;
             }
+            journal.Complete();
         }
         catch (Exception original)
         {
@@ -307,17 +330,19 @@ internal sealed class BuildTransaction : IDisposable
             {
                 try
                 {
-                    if (target.Installed) _delete(target.Path, target.Directory);
+                    if (target.Installed) { _delete(target.Path, target.Directory); target.Installed = false; }
                     if (target.BackedUp) { _move(target.Backup, target.Path, target.Directory); target.BackedUp = false; }
                 }
                 catch (Exception recovery) { failures.Add(new IOException($"Rollback failed; preserve backup '{target.Backup}' for target '{target.Path}'.", recovery)); }
             }
+            if (failures.Count == 1) { journal.Remove(); _journal = null; }
             throw new AggregateException("Build transaction commit failed; rollback attempted.", failures);
         }
         _committed = true;
         foreach (var target in _targets.Where(t => t.BackedUp))
             try { _delete(target.Backup, target.Directory); target.BackedUp = false; }
             catch (Exception ex) { _logger.Warn($"Build committed; backup cleanup failed: {target.Backup}: {ex.Message}"); }
+        if (_targets.All(t => !t.BackedUp)) { journal.Remove(); _journal = null; }
     }
 
     private static void RejectGeneratedOutputLinks(string output, AppConfig config)
@@ -384,6 +409,9 @@ internal sealed class BuildTransaction : IDisposable
         foreach (var target in _targets)
             try { if (Exists(target.Stage, target.Directory)) _delete(target.Stage, target.Directory); }
             catch (Exception ex) { _logger.Warn($"Build staging cleanup failed (committed={_committed}): {target.Stage}: {ex.Message}"); }
+        if (!_committed && _journal is not null && _targets.All(t => !t.BackedUp && !t.Installed && !Exists(t.Stage, t.Directory)))
+            try { _journal.Remove(); }
+            catch (Exception ex) { _logger.Warn($"Build journal cleanup failed: {ex.Message}"); }
         _lease.Dispose();
     }
 }

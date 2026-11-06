@@ -34,7 +34,10 @@ Worktree mode fails closed. The site must be inside a Git repository, and the
 configuration, Markdown content, theme/layout/static inputs, and local plugins
 used by the build must be tracked and clean. The site directory must also have
 no staged, unstaged, or untracked changes, including files outside the configured
-inputs. A custom
+inputs. Required input symlinks must be relative and resolve within the repository;
+absolute input symlinks are rejected because they bypass the snapshot. Passing this
+check does not override a source reader's own no-follow rules: for example, a
+Markdown source directory symlink is not supported. A custom
 `content.media.downloadDir` must be a relative path without `..`.
 Its resolved path must be inside the repository, and tracked changes there block the
 build. Git-ignored files in a custom media directory are included in one staged
@@ -51,9 +54,18 @@ in-process behavior and do not impose these Git requirements.
 
 `build.languageJobs` limits simultaneously running language Worker processes.
 `bukit build --jobs N` continues to limit page rendering inside each Worker.
+For memory-constrained builders, start with `languageJobs: 1` and `--jobs 1`, then
+measure before increasing concurrency.
 Worktree isolation fixes the Git snapshot, process failure boundary, and output
 commit boundary; it is not a plugin security sandbox and does not guarantee a
 faster build.
+
+If a process stops during a build, the next build attempts to recover its recorded
+transaction. Interrupted record updates leave uniquely named pending files; Git
+builds store them in Git's administrative directory, and Bukit does not delete
+files whose ownership is unknown. If a backup is missing or output changed, Bukit
+stops rather than deleting files. Preserve reported files and inspect them before
+retrying. This is not a power-loss guarantee.
 
 ## SEO Config
 

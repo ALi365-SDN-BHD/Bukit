@@ -38,8 +38,10 @@ the review step; move the output to a dedicated directory instead.
 
 ## Build Failure And Recovery
 
-Single-language and multilingual builds use the same in-process transaction.
-Rendering, aggregation, report, validation or cancellation failure before
+Single-language builds and the builds used by `dev`, `deploy`, and direct Engine
+callers use the in-process transaction. Explicit CLI builds with two or more
+languages use isolated Worktrees and a coordinated output, cache, media, and metrics
+commit. Rendering, aggregation, report, validation or cancellation failure before
 commit leaves formal output and managed caches unchanged. `dev` reloads only
 after commit, and a failed deploy build does not start deployment.
 
@@ -47,8 +49,10 @@ Commit exchanges targets separately and attempts rollback on exchange failure;
 it is not a multi-directory atomic operation. A reader can briefly observe a
 missing directory. If restoration fails, retain the reported backups for
 manual recovery. Backup cleanup failure after commit is a warning and leaves
-the new output in place. Crash/power-loss recovery and external side effects
-of custom providers/plugins are not covered. See
+the new output in place. After process interruption, the next build attempts to
+recover the recorded transaction. Unknown pending files are preserved; a missing
+backup or changed target stops recovery for manual inspection. Power-loss recovery
+and external side effects of custom providers/plugins are not covered. See
 [Build transactions](../dev/cli.md#build-transactions) for the full boundary.
 
 ## Deterministic Output Ownership

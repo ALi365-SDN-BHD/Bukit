@@ -230,16 +230,34 @@ internal static class WorktreeBuildRepository
     private static void ValidateSymlinkTargets(string path, string repositoryRoot)
     {
         var pending = new Stack<string>();
+        var comparer = PlatformPathHelper.PathComparison == StringComparison.OrdinalIgnoreCase
+            ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal;
+        var visited = new HashSet<string>(comparer);
+        var checkedComponents = new HashSet<string>(comparer);
         pending.Push(path);
         while (pending.TryPop(out var entry))
         {
-            FileSystemInfo info = Directory.Exists(entry) ? new DirectoryInfo(entry) : new FileInfo(entry);
-            if (info.LinkTarget is { } &&
-                (info.ResolveLinkTarget(returnFinalTarget: true)?.FullName is not { } target ||
-                 !WorktreeBuildPaths.IsSameOrChild(repositoryRoot, target)))
+            if (!visited.Add(Path.GetFullPath(entry))) continue;
+            for (var component = Path.GetFullPath(entry); component is not null; component = Path.GetDirectoryName(component))
             {
-                throw new WorktreeBuildException("i18n-worktree-input-untracked", $"Required build input symlink leaves the Git repository: {entry}");
+                if (checkedComponents.Add(component))
+                {
+                    FileSystemInfo part = Directory.Exists(component) ? new DirectoryInfo(component) : new FileInfo(component);
+                    if (part.LinkTarget is { } link)
+                    {
+                        if (Path.IsPathRooted(link))
+                            throw new WorktreeBuildException("i18n-worktree-input-untracked", $"Required build input uses an absolute symlink: {component}");
+                        var resolved = part.ResolveLinkTarget(returnFinalTarget: true);
+                        if (resolved is null || !WorktreeBuildPaths.IsSameOrChild(repositoryRoot, resolved.FullName))
+                            throw new WorktreeBuildException("i18n-worktree-input-untracked", $"Required build input symlink leaves the Git repository: {component}");
+                        var next = part.ResolveLinkTarget(returnFinalTarget: false);
+                        if (next is not null) pending.Push(next.FullName);
+                    }
+                }
+                if (string.Equals(PathUtils.GetCanonicalFullPath(component), PathUtils.GetCanonicalFullPath(repositoryRoot), PlatformPathHelper.PathComparison))
+                    break;
             }
+            FileSystemInfo info = Directory.Exists(entry) ? new DirectoryInfo(entry) : new FileInfo(entry);
             if (info is DirectoryInfo && info.LinkTarget is null)
             {
                 foreach (var child in Directory.EnumerateFileSystemEntries(entry))

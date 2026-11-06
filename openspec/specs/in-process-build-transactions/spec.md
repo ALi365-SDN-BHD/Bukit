@@ -76,6 +76,17 @@
 - **WHEN** 所有目标已成功提交但旧 backup 清理失败
 - **THEN** 系统保留新产物，明确提交已完成及清理残留，不误报为未提交或执行破坏性回滚
 
+### Requirement: Recover a recorded process interruption
+系统 MUST 在创建受管暂存及交换目标之前持久化事务记录，并在下一次针对相同正式输出的构建中，在资源互斥和来源预检下恢复最后完整记录。未知临时文件 MUST NOT 被覆盖或删除；目标在中断后被修改、备份缺失或记录不安全时 MUST 停止并保留现场。此要求不保证断电后文件系统的持久性。
+
+#### Scenario: Interrupted journal update
+- **WHEN** 事务记录更新时进程中止，留下不完整的独立临时文件，而最后完整记录仍在
+- **THEN** 下一次构建使用完整记录恢复受管目标，保留未知临时文件，不要求用户删除它才能继续
+
+#### Scenario: User changes target after interruption
+- **WHEN** 部分目标已安装且进程中止后用户修改该目标
+- **THEN** 恢复拒绝覆盖或删除该修改，并保留旧备份供检查
+
 ### Requirement: Cover public engine consumers
 公共 Engine 构建入口 MUST 对单语言、多语言、CLI build、deploy 内部构建及 dev 构建应用同一保护流程，并 SHALL 保留成功输出的路由、SEO/GEO、插件产物和内容语义。
 
