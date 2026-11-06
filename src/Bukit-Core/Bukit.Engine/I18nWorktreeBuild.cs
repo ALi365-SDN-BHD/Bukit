@@ -56,7 +56,8 @@ public sealed partial class SiteEngine
         string projectRootDir,
         string finalOutputDir,
         ConfigOverrides overrides,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        string? stagedMediaDir = null)
     {
         var buildLogger = new BuildDiagnosticLogger(_logger);
         var plan = BuildPlanner.Plan(
@@ -69,12 +70,16 @@ public sealed partial class SiteEngine
         {
             EffectiveConfig = config
         };
+        var contentConfig = stagedMediaDir is null ? config : config with
+        {
+            Content = config.Content with { Media = config.Content.Media with { DownloadDir = "assets/uploads" } }
+        };
         var contentPipeline = new ContentPipeline(_contentProviderFactory, buildLogger);
         var content = await contentPipeline.ExecuteAsync(
-            plan.EffectiveConfig,
+            contentConfig,
             rootDir,
             overrides,
-            plan.MediaCacheDir,
+            stagedMediaDir ?? plan.MediaCacheDir,
             cancellationToken).ConfigureAwait(false);
 
         try
@@ -156,7 +161,8 @@ public sealed partial class SiteEngine
             {
                 Language = request.Language,
                 BaseUrl = baseUrl
-            }
+            },
+            Content = request.Config.Content with { Media = request.Config.Content.Media with { DownloadDir = "assets/uploads" } }
         };
         var bodyStore = new DictionaryContentBodyStore(snapshot.Bodies);
         var contentGraph = CanonicalContentGraphBuilder.BuildFromDocuments(snapshot.Documents);

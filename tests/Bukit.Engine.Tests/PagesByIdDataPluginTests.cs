@@ -20,6 +20,37 @@ public sealed class PagesByIdDataPluginTests : IDisposable
     public void Dispose() => TestCleanup.DeleteDirectory(_root);
 
     [Fact]
+    public async Task ResolveNotionMedia_UsesBuildContextMediaDirectory()
+    {
+        var stagedMedia = Path.Combine(_root, "staged-media");
+        var context = new BuildContext
+        {
+            RootDir = _root,
+            OutputDir = Path.Combine(_root, "output"),
+            BaseUrl = "/",
+            LayoutsDir = _root,
+            RoutedDocuments = [],
+            Logger = new ConsoleLogger(LogLevel.Error)
+        };
+        context.Set(BuildDataKeys.MediaDownloadDir, stagedMedia);
+        NotionFetchedPage?[] pages =
+        [
+            new("page", "Page", "page", "https://example.test", new Dictionary<string, ContentField>
+            {
+                ["image"] = new("file", "http://127.0.0.1:1/image.png")
+            })
+        ];
+        var method = typeof(PagesIndexPlugin).GetMethod("LocalizeResolvedPageFieldsAsync",
+            System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.NonPublic)!;
+        var media = new MediaConfig { DownloadToLocal = true, DownloadDir = "assets/uploads", BlockPrivateNetworks = false };
+
+        await (Task)method.Invoke(null, [pages, context, media, CancellationToken.None])!;
+
+        Assert.True(Directory.Exists(stagedMedia));
+        Assert.False(Directory.Exists(Path.Combine(_root, ".cache", "media")));
+    }
+
+    [Fact]
     public async Task DerivePages_PopulatesSiteDataPagesById()
     {
         var item = ContentDocument.Create(

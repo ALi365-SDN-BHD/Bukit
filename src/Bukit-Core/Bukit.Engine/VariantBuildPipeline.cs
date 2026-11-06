@@ -62,6 +62,8 @@ internal sealed partial class VariantBuildPipeline
         ValidatePostDeriveRoutes(routePipelineResult);
         if (media is not null)
         {
+            if (routePipelineResult.PluginContext.TryGet(BuildDataKeys.PagesById, out var indexedPages))
+                media.NormalizeIndexedPages(indexedPages);
             for (var i = 0; i < routePipelineResult.PluginContext.DerivedDocuments.Count; i++)
             {
                 var derived = routePipelineResult.PluginContext.DerivedDocuments[i];

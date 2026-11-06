@@ -1,26 +1,43 @@
 using Bukit.Config;
 using Bukit.Engine;
 using Bukit.Shared;
+using System.Security.Cryptography;
+using System.Text;
 
 namespace Bukit.Cli.Commands;
 
-/// <summary>
-/// Worktrees only contain committed files, but a custom <c>content.media.downloadDir</c>
-/// is often git-ignored. The clean check guarantees every non-ignored media file is
-/// committed, so copying the files a worktree is missing gives it the same media as the
-/// project: first from the project into the content worktree, then from the content
-/// worktree (which may also hold freshly downloaded media) into each worker.
-/// Existing files are never overwritten. The default media cache is shared with workers
-/// through the build request and needs no overlay.
-/// </summary>
 internal static class WorktreeMediaOverlay
 {
-    private static readonly EnumerationOptions SkipLinks = new()
+    internal static string Fingerprint(string path)
     {
-        RecurseSubdirectories = true,
-        AttributesToSkip = FileAttributes.ReparsePoint,
-        IgnoreInaccessible = false
-    };
+        if (!Directory.Exists(path)) return "missing";
+        using var hash = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
+        Visit(path, "");
+        return Convert.ToHexString(hash.GetHashAndReset());
+
+        void Visit(string directory, string relative)
+        {
+            foreach (var entry in new DirectoryInfo(directory).EnumerateFileSystemInfos().OrderBy(x => x.Name, StringComparer.Ordinal))
+            {
+                if ((entry.Attributes & FileAttributes.ReparsePoint) != 0)
+                    throw new IOException($"Cannot safely stage media symbolic link: {entry.FullName}");
+                var name = Path.Combine(relative, entry.Name);
+                if (entry is DirectoryInfo)
+                {
+                    hash.AppendData(Encoding.UTF8.GetBytes("d:" + name + "\0"));
+                    Visit(entry.FullName, name);
+                }
+                else
+                {
+                    // shortcut: metadata change detection misses a same-size, same-mtime rewrite;
+                    // use content hashes when strict byte-level proof is required.
+                    var file = (FileInfo)entry;
+                    hash.AppendData(Encoding.UTF8.GetBytes(
+                        $"f:{name}\0{file.Length}\0{file.LastWriteTimeUtc.Ticks}\0"));
+                }
+            }
+        }
+    }
 
     /// <summary>
     /// Returns the custom media directory relative to the repository root, or null when
@@ -40,38 +57,4 @@ internal static class WorktreeMediaOverlay
             "Media directory");
     }
 
-    /// <summary>Copies files missing under <paramref name="targetDir"/>; returns how many were copied.</summary>
-    internal static int CopyMissing(string sourceDir, string targetDir, string worktreeRoot)
-    {
-        if (!Directory.Exists(sourceDir))
-        {
-            return 0;
-        }
-
-        var source = PathUtils.GetCanonicalFullPath(sourceDir);
-        var target = PathUtils.GetCanonicalFullPath(targetDir);
-        // A committed absolute symlink can make the worktree path resolve back to the
-        // project directory; never write through it.
-        if (string.Equals(source, target, PlatformPathHelper.PathComparison) ||
-            !WorktreeBuildPaths.IsSameOrChild(worktreeRoot, target))
-        {
-            return 0;
-        }
-
-        var copied = 0;
-        foreach (var file in Directory.EnumerateFiles(source, "*", SkipLinks))
-        {
-            var destination = Path.Combine(target, Path.GetRelativePath(source, file));
-            if (File.Exists(destination))
-            {
-                continue;
-            }
-
-            Directory.CreateDirectory(Path.GetDirectoryName(destination)!);
-            File.Copy(file, destination);
-            copied++;
-        }
-
-        return copied;
-    }
 }

@@ -368,6 +368,8 @@ internal sealed class PagesIndexPlugin : IBukitPlugin, IDerivePagesAsyncPlugin
 
         var mediaCacheDir = BuildTransaction.DefaultMediaCache(Path.Combine(context.RootDir, ".cache", "media"));
         var effective = BuildResolveMediaConfig(media, context.RootDir, mediaCacheDir);
+        if (context.TryGet(BuildDataKeys.MediaDownloadDir, out var stagedMediaDir))
+            effective = effective with { DownloadDir = stagedMediaDir };
         var fieldKeys = new HashSet<string>(media.FieldKeys ?? Array.Empty<string>(), StringComparer.OrdinalIgnoreCase);
 
         using var localizer = new ImageAssetLocalizer(effective, context.Logger);
