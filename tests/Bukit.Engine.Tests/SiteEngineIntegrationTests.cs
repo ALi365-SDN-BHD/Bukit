@@ -865,6 +865,88 @@ public sealed partial class SiteEngineIntegrationTests
         }
     }
 
+    [Fact]
+    public async Task BuildAsync_NoIndexFlagReplacesPermissiveRobotsDirectiveInHtml()
+    {
+        var root = Path.Combine(Path.GetTempPath(), "bukit-integration-test", Guid.NewGuid().ToString("N"));
+
+        try
+        {
+            Directory.CreateDirectory(Path.Combine(root, "content"));
+            Directory.CreateDirectory(Path.Combine(root, "layouts", "layouts"));
+            Directory.CreateDirectory(Path.Combine(root, "layouts", "pages"));
+
+            File.WriteAllText(Path.Combine(root, "site.yaml"), """
+                site:
+                  name: test-site
+                  title: Test Site
+                  url: https://example.com/
+                  language: en
+                  collections:
+                    post:
+                      permalink: /blog/{slug}/
+                      template: pages/post.html
+                content:
+                  sources:
+                    - type: markdown
+                      name: post
+                      collection: post
+                      markdown:
+                        dir: content
+                  media:
+                    downloadToLocal: false
+                build:
+                  output: dist
+                theme:
+                  layouts: layouts
+                """);
+
+            File.WriteAllText(Path.Combine(root, "content", "hidden.md"), """
+                ---
+                type: post
+                collection: post
+                title: Hidden
+                slug: hidden
+                publishAt: 2024-06-01T00:00:00Z
+                robots: index,follow,max-snippet:-1
+                noindex: true
+                ---
+                # Hidden
+                """);
+
+            File.WriteAllText(Path.Combine(root, "layouts", "layouts", "base.html"), """
+                <!DOCTYPE html>
+                <html>
+                <head><meta name="robots" content="{{ page.seo.robots }}" /></head>
+                <body>{{ content }}</body>
+                </html>
+                """);
+            File.WriteAllText(Path.Combine(root, "layouts", "pages", "post.html"), """
+                {% layout "layouts/base.html" %}
+                {{ page.content }}
+                """);
+            File.WriteAllText(Path.Combine(root, "layouts", "pages", "page.html"), """
+                {% layout "layouts/base.html" %}
+                {{ page.content }}
+                """);
+            File.WriteAllText(Path.Combine(root, "layouts", "pages", "index.html"), "{{ page.seo.canonical }}");
+            File.WriteAllText(Path.Combine(root, "layouts", "pages", "list.html"), "{{ page.seo.canonical }}");
+
+            var config = ConfigLoader.Load(Path.Combine(root, "site.yaml"));
+            WriteTestThemeTemplates(root);
+            await new SiteEngine(new TestLogger()).BuildAsync(config, root, new ConfigOverrides(), CancellationToken.None);
+
+            var html = File.ReadAllText(Path.Combine(root, "dist", "blog", "hidden", "index.html"));
+
+            Assert.Contains("<meta name=\"robots\" content=\"noindex,follow,max-snippet:-1\" />", html, StringComparison.Ordinal);
+            Assert.DoesNotContain("index,follow,max-snippet:-1,noindex", html, StringComparison.Ordinal);
+        }
+        finally
+        {
+            CleanupDir(root);
+        }
+    }
+
     [Fact, Trait("Category", "Integration")]
     public async Task BuildAsync_SeoInjectMode_InjectsHeadAndExcludesNoindexFromOutputs()
     {

@@ -268,23 +268,52 @@ internal static class SeoModelBuilder
         var tokens = configured
             .Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries)
             .ToList();
-        if (tokens.Any(token => string.Equals(token, "none", StringComparison.OrdinalIgnoreCase)))
+        if (!publish.NoIndex && !publish.NoFollow ||
+            tokens.Any(token => IsDirective(token, "none")))
         {
             return configured;
         }
 
-        if (publish.NoIndex && !tokens.Any(token => string.Equals(token, "noindex", StringComparison.OrdinalIgnoreCase)))
+        // Publish flags win over permissive directives, so the meta never says
+        // both "index" and "noindex". Other directives (max-snippet, noarchive...)
+        // keep their position.
+        var normalized = new List<string>(tokens.Count + 2);
+        foreach (var token in tokens)
         {
-            tokens.Add("noindex");
+            if (IsDirective(token, "all"))
+            {
+                normalized.Add(publish.NoIndex ? "noindex" : "index");
+                normalized.Add(publish.NoFollow ? "nofollow" : "follow");
+            }
+            else if (publish.NoIndex && IsDirective(token, "index"))
+            {
+                normalized.Add("noindex");
+            }
+            else if (publish.NoFollow && IsDirective(token, "follow"))
+            {
+                normalized.Add("nofollow");
+            }
+            else
+            {
+                normalized.Add(token);
+            }
         }
 
-        if (publish.NoFollow && !tokens.Any(token => string.Equals(token, "nofollow", StringComparison.OrdinalIgnoreCase)))
+        if (publish.NoIndex && !normalized.Any(token => IsDirective(token, "noindex")))
         {
-            tokens.Add("nofollow");
+            normalized.Add("noindex");
         }
 
-        return string.Join(',', tokens);
+        if (publish.NoFollow && !normalized.Any(token => IsDirective(token, "nofollow")))
+        {
+            normalized.Add("nofollow");
+        }
+
+        return string.Join(',', normalized.Distinct(StringComparer.OrdinalIgnoreCase));
     }
+
+    private static bool IsDirective(string token, string directive)
+        => string.Equals(token, directive, StringComparison.OrdinalIgnoreCase);
 
     internal static bool IsIndexable(string? robots)
     {
