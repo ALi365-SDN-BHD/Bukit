@@ -1,13 +1,15 @@
-using System.Security.Cryptography;
 using Bukit.Config;
+using Bukit.Engine.Plugins.BuiltIn.ImageProcessing;
 using Bukit.Shared;
 
 namespace Bukit.Engine.Incremental;
 
 /// <summary>
-/// Fingerprints the images that the responsive-image plugin reads. The generated
-/// variant set depends on these source dimensions, so incremental page reuse must
-/// observe source changes even when the page body and template did not change.
+/// Fingerprints what the responsive-image plugin writes into HTML. Page markup only
+/// depends on each source image's path and display width (which decides the variant
+/// set and srcset). Variant files are regenerated from fresh content by the plugin on
+/// every build, so a content change that keeps the width does not need page re-renders.
+/// Widths come from the image header, so this stays cheap for large media libraries.
 /// </summary>
 internal static class ImageSourceFingerprint
 {
@@ -35,14 +37,24 @@ internal static class ImageSourceFingerprint
             config.Content.Media,
             rootDir,
             mediaCacheDir);
-        var roots = new (string Name, string? Path)[]
+
+        // The plugin reads images from output assets/ and the media URL base. Static
+        // files land at the output root, so only these two static subtrees matter.
+        var mediaUrlBase = ResponsiveImageHtmlTransform.NormalizeMediaUrlBase(config.Content.Media.UrlBase).TrimStart('/');
+        var roots = new List<(string Name, string? Path)>
         {
             ("media", media.DownloadDir),
             ("assets", assetsDir),
             ("parent-assets", parentAssetsDir),
-            ("static", staticDir),
-            ("parent-static", parentStaticDir)
+            ("static-assets", SubDirectory(staticDir, "assets")),
+            ("parent-static-assets", SubDirectory(parentStaticDir, "assets")),
         };
+        if (!IsUnderAssets(mediaUrlBase))
+        {
+            roots.Add(("static-media", SubDirectory(staticDir, mediaUrlBase)));
+            roots.Add(("parent-static-media", SubDirectory(parentStaticDir, mediaUrlBase)));
+        }
+
         var seen = new HashSet<string>(StringComparer.Ordinal);
         var entries = new List<string>();
         foreach (var (name, path) in roots)
@@ -66,25 +78,45 @@ internal static class ImageSourceFingerprint
 
             entries.AddRange(SafeFileEnumerator.EnumerateFiles(fullPath)
                 .Where(candidate => Extensions.Contains(Path.GetExtension(candidate)))
-                .Select(candidate => new
-                {
-                    FullPath = candidate,
-                    Relative = Path.GetRelativePath(fullPath, candidate).Replace('\\', '/')
-                })
+                .Select(candidate => (
+                    FullPath: candidate,
+                    Relative: Path.GetRelativePath(fullPath, candidate).Replace('\\', '/')))
                 .OrderBy(entry => entry.Relative, StringComparer.Ordinal)
-                .Select(entry =>
-                {
-                    using var stream = new FileStream(
-                        entry.FullPath,
-                        FileMode.Open,
-                        FileAccess.Read,
-                        FileShare.Read,
-                        bufferSize: 64 * 1024,
-                        FileOptions.SequentialScan);
-                    return $"{name}:{entry.Relative}:{stream.Length}:{Convert.ToHexStringLower(SHA256.HashData(stream))}";
-                }));
+                .Select(entry => $"{name}:{entry.Relative}:{ReadWidth(entry.FullPath, logger)}"));
         }
 
         return HashUtil.Sha256Hex(string.Join('\n', entries));
     }
+
+    private static string ReadWidth(string path, ILogger logger)
+    {
+        try
+        {
+            return ImageVariantGenerator.TryReadImageWidth(path, out var width)
+                ? width.ToString(System.Globalization.CultureInfo.InvariantCulture)
+                : "invalid";
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidDataException or NotSupportedException)
+        {
+            logger.Debug($"event=image_fingerprint.unreadable file={Path.GetFileName(path)}");
+            return "invalid";
+        }
+    }
+
+    private static string? SubDirectory(string? root, string relative)
+    {
+        if (string.IsNullOrWhiteSpace(root) || string.IsNullOrWhiteSpace(relative))
+        {
+            return null;
+        }
+
+        var rootFull = Path.GetFullPath(root);
+        var candidate = Path.GetFullPath(Path.Combine(rootFull, relative));
+        var prefix = rootFull.EndsWith(Path.DirectorySeparatorChar) ? rootFull : rootFull + Path.DirectorySeparatorChar;
+        return candidate.StartsWith(prefix, StringComparison.Ordinal) ? candidate : null;
+    }
+
+    private static bool IsUnderAssets(string mediaUrlBase)
+        => mediaUrlBase.Equals("assets", StringComparison.OrdinalIgnoreCase) ||
+           mediaUrlBase.StartsWith("assets/", StringComparison.OrdinalIgnoreCase);
 }
