@@ -25,15 +25,6 @@ internal static class WorktreeBuildRepository
         }
         var repositoryRoot = Path.GetFullPath(rootResult.StandardOutput.Trim());
         var head = await RequireGitOutputAsync(repositoryRoot, ["rev-parse", "--verify", "HEAD"], logger, "i18n-worktree-git-required", cancellationToken).ConfigureAwait(false);
-        var status = await RunGitAsync(repositoryRoot, ["status", "--porcelain=v1", "--untracked-files=all"], logger, cancellationToken).ConfigureAwait(false);
-        if (status.ExitCode != 0)
-        {
-            throw new WorktreeBuildException("i18n-worktree-git-required", status.StandardError.Trim());
-        }
-        if (!string.IsNullOrEmpty(status.StandardOutput))
-        {
-            throw new WorktreeBuildException("i18n-worktree-dirty", "Multilingual build requires a clean Git worktree with no staged, unstaged, or untracked changes.");
-        }
 
         var effective = ConfigApplier.Apply(config, overrides);
         IReadOnlyList<string> inputPaths;
@@ -50,6 +41,30 @@ internal static class WorktreeBuildRepository
         if (trackedConfig.ExitCode != 0)
         {
             throw new WorktreeBuildException("i18n-worktree-input-untracked", $"Required build input is not tracked by Git: {configRelative}");
+        }
+
+        // The site may contain inputs not represented in inputPaths, such as media.
+        var siteRelative = WorktreeBuildPaths.RelativeInside(repositoryRoot, resolved.RootDir, "Site root");
+        var mediaDir = (effective.Content.Media.DownloadDir ?? string.Empty).Trim();
+        var statusPaths = new List<string> { siteRelative };
+        statusPaths.AddRange(inputPaths);
+        if (mediaDir.Length > 0 && !string.Equals(mediaDir, "assets/uploads", StringComparison.OrdinalIgnoreCase))
+        {
+            statusPaths.Add(WorktreeBuildPaths.RelativeInside(repositoryRoot,
+                BuildPathUtils.MakeAbsolute(resolved.RootDir, mediaDir), "Media directory"));
+        }
+        var status = await RunGitAsync(
+            repositoryRoot,
+            ["status", "--porcelain=v1", "--untracked-files=all", "--", .. statusPaths],
+            logger,
+            cancellationToken).ConfigureAwait(false);
+        if (status.ExitCode != 0)
+        {
+            throw new WorktreeBuildException("i18n-worktree-git-required", status.StandardError.Trim());
+        }
+        if (!string.IsNullOrEmpty(status.StandardOutput))
+        {
+            throw new WorktreeBuildException("i18n-worktree-dirty", "Multilingual build requires a clean site directory and clean build inputs; staged, unstaged, or untracked changes were found.");
         }
         if (inputPaths.Count > 0)
         {
@@ -172,7 +187,7 @@ internal static class WorktreeBuildRepository
         var siteRepositoryRelative = WorktreeBuildPaths.RelativeInside(repositoryRoot, resolved.RootDir, "Site root");
         void Add(string? path)
         {
-            if (string.IsNullOrWhiteSpace(path) || !File.Exists(path) && !Directory.Exists(path))
+            if (string.IsNullOrWhiteSpace(path))
             {
                 return;
             }
@@ -184,7 +199,10 @@ internal static class WorktreeBuildRepository
             {
                 paths.Add(Path.Combine(siteRepositoryRelative, lexicalRelative));
             }
-            ValidateSymlinkTargets(path, repositoryRoot);
+            if (File.Exists(path) || Directory.Exists(path))
+            {
+                ValidateSymlinkTargets(path, repositoryRoot);
+            }
         }
 
         Add(resolved.FullConfigPath);

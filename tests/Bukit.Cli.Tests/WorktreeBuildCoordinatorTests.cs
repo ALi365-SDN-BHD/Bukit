@@ -58,7 +58,7 @@ public sealed class WorktreeBuildCoordinatorTests : IDisposable
         await File.WriteAllTextAsync(sentinel, "unchanged");
         if (changeKind == "untracked")
         {
-            await File.WriteAllTextAsync(Path.Combine(root, "untracked.txt"), "untracked");
+            await File.WriteAllTextAsync(Path.Combine(root, "content", "untracked.md"), "untracked");
         }
         else
         {
@@ -74,6 +74,103 @@ public sealed class WorktreeBuildCoordinatorTests : IDisposable
 
         Assert.Equal("i18n-worktree-dirty", error.Code);
         Assert.Equal("unchanged", await File.ReadAllTextAsync(sentinel));
+    }
+
+    [Fact]
+    public async Task ExplicitMultilingualBuild_RejectsDeletedInputDirectory()
+    {
+        var root = Path.Combine(_root, "deleted-input");
+        var site = CreateSite(root);
+        Directory.CreateDirectory(Path.Combine(root, "data"));
+        await File.WriteAllTextAsync(Path.Combine(root, "data", "example.json"), "{}");
+        await InitializeRepositoryAsync(root);
+        File.Delete(Path.Combine(root, "data", "example.json"));
+        Directory.Delete(Path.Combine(root, "data"));
+
+        var error = await Assert.ThrowsAsync<WorktreeBuildException>(() => BuildCommand.RunAsync(Command(site)));
+
+        Assert.Equal("i18n-worktree-dirty", error.Code);
+    }
+
+    [Fact]
+    public async Task ExplicitMultilingualBuild_AllowsUntrackedFileOutsideSite()
+    {
+        var root = Path.Combine(_root, "unrelated-untracked");
+        var siteRoot = Path.Combine(root, "site");
+        var site = CreateSite(siteRoot);
+        await InitializeRepositoryAsync(root);
+        await File.WriteAllTextAsync(Path.Combine(root, "scratch.txt"), "not a build input");
+
+        var result = await RunProcessAsync(
+            "dotnet",
+            [typeof(BuildCommand).Assembly.Location, "build", "--config", site],
+            root);
+
+        Assert.True(result.ExitCode == 0, result.Output);
+        Assert.True(File.Exists(Path.Combine(siteRoot, "dist", "en", "index.html")));
+    }
+
+    [Fact]
+    public async Task ExplicitMultilingualBuild_RejectsChangedSymlinkedMediaInsideRepository()
+    {
+        if (OperatingSystem.IsWindows()) return;
+        var root = Path.Combine(_root, "shared-media");
+        var siteRoot = Path.Combine(root, "site");
+        var site = CreateSite(siteRoot);
+        var yaml = await File.ReadAllTextAsync(site);
+        await File.WriteAllTextAsync(site, yaml.Replace("content:\n  sources:", "content:\n  media:\n    downloadDir: media\n  sources:", StringComparison.Ordinal));
+        var media = Path.Combine(root, "shared", "media");
+        Directory.CreateDirectory(media);
+        Directory.CreateSymbolicLink(Path.Combine(siteRoot, "media"), "../shared/media");
+        var image = Path.Combine(media, "photo.png");
+        await File.WriteAllTextAsync(image, "old");
+        ConfigValidator.Validate(ConfigLoader.Load(site));
+        await InitializeRepositoryAsync(root);
+        await File.WriteAllTextAsync(image, "new");
+
+        var error = await Assert.ThrowsAsync<WorktreeBuildException>(() => BuildCommand.RunAsync(Command(site)));
+
+        Assert.Equal("i18n-worktree-dirty", error.Code);
+    }
+
+    [Fact]
+    public async Task ExplicitMultilingualBuild_RejectsSymlinkedMediaOutsideRepository()
+    {
+        if (OperatingSystem.IsWindows()) return;
+        var root = Path.Combine(_root, "external-media-site");
+        var site = CreateSite(root);
+        var media = Path.Combine(_root, "external-media");
+        Directory.CreateDirectory(media);
+        Directory.CreateSymbolicLink(Path.Combine(root, "media"), media);
+        var yaml = await File.ReadAllTextAsync(site);
+        await File.WriteAllTextAsync(site, yaml.Replace("content:\n  sources:", "content:\n  media:\n    downloadDir: media\n  sources:", StringComparison.Ordinal));
+        ConfigValidator.Validate(ConfigLoader.Load(site));
+        await InitializeRepositoryAsync(root);
+
+        var error = await Assert.ThrowsAsync<WorktreeBuildException>(() => BuildCommand.RunAsync(Command(site)));
+
+        Assert.Equal("i18n-worktree-input-untracked", error.Code);
+    }
+
+    [Fact]
+    public async Task ExplicitMultilingualBuild_RejectsChangedMediaInsideSite()
+    {
+        var root = Path.Combine(_root, "changed-media");
+        var siteRoot = Path.Combine(root, "site");
+        var site = CreateSite(siteRoot);
+        var config = await File.ReadAllTextAsync(site);
+        await File.WriteAllTextAsync(site, config.Replace("content:\n  sources:",
+            "content:\n  media:\n    downloadDir: media\n  sources:", StringComparison.Ordinal));
+        var mediaDir = Path.Combine(siteRoot, "media");
+        Directory.CreateDirectory(mediaDir);
+        var image = Path.Combine(mediaDir, "photo.png");
+        await File.WriteAllTextAsync(image, "old image");
+        await InitializeRepositoryAsync(root);
+        await File.WriteAllTextAsync(image, "changed image");
+
+        var error = await Assert.ThrowsAsync<WorktreeBuildException>(() => BuildCommand.RunAsync(Command(site)));
+
+        Assert.Equal("i18n-worktree-dirty", error.Code);
     }
 
     [Fact]
@@ -154,6 +251,20 @@ public sealed class WorktreeBuildCoordinatorTests : IDisposable
             () => BuildCommand.RunAsync(Command(site)));
 
         Assert.Equal("i18n-worktree-input-untracked", error.Code);
+    }
+
+    [Fact]
+    public async Task InProcessBuild_RootAndLanguageDirectoryCollision_BuildsBothPages()
+    {
+        var root = Path.Combine(_root, "same-language-slugs");
+        var site = CreateSite(root);
+        await File.WriteAllTextAsync(Path.Combine(root, "content", "index.md"), "---\ntitle: Root\nlanguage: en\n---\nRoot body");
+
+        var exitCode = await BuildCommand.RunInProcessAsync(Command(site));
+
+        Assert.Equal(0, exitCode);
+        Assert.True(File.Exists(Path.Combine(root, "dist", "en", "index", "index.html")));
+        Assert.True(File.Exists(Path.Combine(root, "dist", "en", "en", "index", "index.html")));
     }
 
     [Fact]

@@ -32,7 +32,7 @@ public sealed partial class GitHubPagesDeployProvider
 
         if (message.Contains("403", StringComparison.Ordinal) || message.Contains("Forbidden", StringComparison.OrdinalIgnoreCase))
         {
-            return message + " Ensure your GITHUB_TOKEN has 'repo' scope: https://github.com/settings/tokens";
+            return message + " Ensure your GITHUB_TOKEN can write repository contents (fine-grained: 'Contents: Read and write'): https://github.com/settings/tokens";
         }
 
         if (message.Contains("Could not resolve host", StringComparison.OrdinalIgnoreCase) ||
@@ -45,7 +45,7 @@ public sealed partial class GitHubPagesDeployProvider
         if (message.Contains("Permission denied", StringComparison.Ordinal) ||
             message.Contains("not authorized", StringComparison.OrdinalIgnoreCase))
         {
-            return message + " Verify your GITHUB_TOKEN is valid and has 'repo' scope.";
+            return message + " Verify your GITHUB_TOKEN is valid and can write repository contents (fine-grained: 'Contents: Read and write').";
         }
 
         return message;

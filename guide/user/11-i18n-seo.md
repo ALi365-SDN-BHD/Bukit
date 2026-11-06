@@ -30,13 +30,18 @@ parent-produced content snapshot; root sitemap, feed, search, agent-manifest,
 llms, reports, and manifests are still produced by the existing aggregate
 pipeline after every language succeeds.
 
-Worktree mode fails closed. The site must be inside a Git repository, the
-worktree must have no staged, unstaged, or untracked changes, and the
+Worktree mode fails closed. The site must be inside a Git repository, and the
 configuration, Markdown content, theme/layout/static inputs, and local plugins
-used by the build must be tracked inside that repository. Ignored or external required
-inputs are rejected. `bukit dev`, the build performed by `bukit deploy`, and
-direct `SiteEngine` callers retain the in-process behavior and do not impose
-these Git requirements.
+used by the build must be tracked and clean. The site directory must also have
+no staged, unstaged, or untracked changes, including files outside the configured
+inputs. A custom `content.media.downloadDir` must be a relative path without `..`.
+Its resolved path must be inside the repository, and tracked changes there block the
+build. Git-ignored files in a custom media directory are not included in worker
+worktrees and may cause missing-media errors; the default media cache is passed
+separately. Unrelated changes elsewhere in the repository do not block the
+build. Other ignored or external required inputs are rejected. `bukit dev`, the build
+performed by `bukit deploy`, and direct `SiteEngine` callers retain the
+in-process behavior and do not impose these Git requirements.
 
 `build.languageJobs` limits simultaneously running language Worker processes.
 `bukit build --jobs N` continues to limit page rendering inside each Worker.

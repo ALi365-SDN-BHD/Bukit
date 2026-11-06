@@ -10,6 +10,8 @@ namespace Bukit.Engine.Incremental;
 /// set and srcset). Variant files are regenerated from fresh content by the plugin on
 /// every build, so a content change that keeps the width does not need page re-renders.
 /// Widths come from the image header, so this stays cheap for large media libraries.
+/// shortcut: custom templates that depend on height, format or bytes must rebuild with
+/// --clean after replacing an image; revisit if Core starts exposing those properties.
 /// </summary>
 internal static class ImageSourceFingerprint
 {

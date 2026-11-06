@@ -1146,6 +1146,99 @@ public sealed class MarkdownFolderProviderTests
     }
 
     [Fact]
+    public async Task LoadRawAsync_DuplicateWithNonDelimiterFirstLine_UsesFilenameFallback()
+    {
+        var root = Path.Combine(Path.GetTempPath(), $"bukit-md-header-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(Path.Combine(root, "blog"));
+        Directory.CreateDirectory(Path.Combine(root, "docs"));
+        try
+        {
+            File.WriteAllText(Path.Combine(root, "blog", "index.md"), "--- \nslug: custom\n---\nbody");
+            File.WriteAllText(Path.Combine(root, "docs", "index.md"), "body");
+            var result = await new MarkdownFolderProvider(new MarkdownFolderProviderOptions(root)).LoadRawAsync();
+            Assert.Equal(["blog/index", "docs/index"], result.Documents.Select(document => document.Slug).Order(StringComparer.Ordinal));
+        }
+        finally
+        {
+            if (Directory.Exists(root)) Directory.Delete(root, true);
+        }
+    }
+
+    [Fact]
+    public async Task LoadRawAsync_RootAndLanguageDirectorySameName_UsesDistinctSlugs()
+    {
+        var root = Path.Combine(Path.GetTempPath(), $"bukit-md-language-collision-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(Path.Combine(root, "en"));
+        try
+        {
+            File.WriteAllText(Path.Combine(root, "index.md"), "---\ntitle: Root\n---\nroot");
+            File.WriteAllText(Path.Combine(root, "en", "index.md"), "---\ntitle: English\n---\nenglish");
+            var options = new MarkdownFolderProviderOptions(root)
+            {
+                Languages = ["en"],
+                DefaultLanguage = "en"
+            };
+
+            var result = await new MarkdownFolderProvider(options).LoadRawAsync(CancellationToken.None);
+
+            Assert.Equal(["en/index", "index"], result.Documents.Select(document => document.Slug).Order(StringComparer.Ordinal));
+        }
+        finally
+        {
+            if (Directory.Exists(root)) Directory.Delete(root, true);
+        }
+    }
+
+    [Fact]
+    public async Task LoadRawAsync_DifferentLanguagesInSameDirectory_KeepOriginalSlugs()
+    {
+        var root = Path.Combine(Path.GetTempPath(), $"bukit-md-language-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(Path.Combine(root, "blog"));
+        Directory.CreateDirectory(Path.Combine(root, "docs"));
+        try
+        {
+            File.WriteAllText(Path.Combine(root, "blog", "index.md"), "---\nlanguage: en\n---\nen");
+            File.WriteAllText(Path.Combine(root, "docs", "index.md"), "---\nlanguage: zh-CN\n---\nzh");
+            var options = new MarkdownFolderProviderOptions(root) { Languages = ["en", "zh-CN"], DefaultLanguage = "en" };
+
+            var result = await new MarkdownFolderProvider(options).LoadRawAsync(CancellationToken.None);
+
+            Assert.All(result.Documents, document => Assert.Equal("index", document.Slug));
+        }
+        finally
+        {
+            if (Directory.Exists(root)) Directory.Delete(root, true);
+        }
+    }
+
+    [Fact]
+    public async Task LoadRawAsync_RootExplicitSlug_AvoidsLanguageDirectoryConflict()
+    {
+        var root = Path.Combine(Path.GetTempPath(), $"bukit-md-language-explicit-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(Path.Combine(root, "en"));
+        try
+        {
+            File.WriteAllText(Path.Combine(root, "index.md"), "---\ntitle: Root\nslug: home\n---\nroot");
+            File.WriteAllText(Path.Combine(root, "en", "index.md"), "---\ntitle: English\n---\nenglish");
+            var options = new MarkdownFolderProviderOptions(root)
+            {
+                Languages = ["en"],
+                DefaultLanguage = "en"
+            };
+
+            var result = await new MarkdownFolderProvider(options).LoadRawAsync(CancellationToken.None);
+
+            Assert.Equal(
+                ["home", "index"],
+                result.Documents.Select(document => document.Slug).Order(StringComparer.Ordinal));
+        }
+        finally
+        {
+            if (Directory.Exists(root)) Directory.Delete(root, true);
+        }
+    }
+
+    [Fact]
     public async Task LoadRawAsync_NestedSameFileName_UsesRelativePathOnlyForCollisions()
     {
         var root = Path.Combine(Path.GetTempPath(), $"bukit-md-nested-{Guid.NewGuid():N}");
