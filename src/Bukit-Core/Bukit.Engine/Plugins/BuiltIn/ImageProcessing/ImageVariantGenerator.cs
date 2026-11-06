@@ -60,6 +60,7 @@ internal sealed class ImageVariantGenerator
         string toolIdentity,
         HashSet<PluginOutputTrackingInfo> priorPluginOutputs,
         HashSet<PluginOutputTrackingInfo> generatedOutputs,
+        ICollection<string> failures,
         CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
@@ -192,6 +193,7 @@ internal sealed class ImageVariantGenerator
                 else
                 {
                     context.Logger.Warn($"event=image_resize.error file={Path.GetFileName(imageFile)} reason={result.StandardError}");
+                    failures.Add(GetRelativeIdentity(context.OutputDir, sizedFile));
                 }
             }
             finally
@@ -207,6 +209,7 @@ internal sealed class ImageVariantGenerator
         catch (Exception ex)
         {
             context.Logger.Warn($"event=image_resize.error file={Path.GetFileName(imageFile)} reason={ex.Message}");
+            failures.Add(GetRelativeIdentity(context.OutputDir, sizedFile));
         }
     }
 
@@ -230,6 +233,7 @@ internal sealed class ImageVariantGenerator
         int quality,
         HashSet<PluginOutputTrackingInfo> priorOutputs,
         HashSet<PluginOutputTrackingInfo> generatedOutputs,
+        ICollection<string> failures,
         CancellationToken cancellationToken)
     {
         var srcsets = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
@@ -260,6 +264,7 @@ internal sealed class ImageVariantGenerator
                     quality,
                     priorOutputs,
                     generatedOutputs,
+                    failures,
                     cancellationToken))
                 {
                     continue;
@@ -289,6 +294,7 @@ internal sealed class ImageVariantGenerator
         int quality,
         HashSet<PluginOutputTrackingInfo> priorOutputs,
         HashSet<PluginOutputTrackingInfo> generatedOutputs,
+        ICollection<string> failures,
         CancellationToken cancellationToken)
     {
         var freshnessFile = webpFile + FreshnessSuffix;
@@ -375,6 +381,7 @@ internal sealed class ImageVariantGenerator
         catch (Exception ex)
         {
             context.Logger.Warn($"event=image_webp.error file={Path.GetFileName(webpFile)} reason={ex.GetType().Name}");
+            failures.Add(GetRelativeIdentity(context.OutputDir, webpFile));
             return false;
         }
         finally

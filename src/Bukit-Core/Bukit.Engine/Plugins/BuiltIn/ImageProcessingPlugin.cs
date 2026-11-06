@@ -86,6 +86,10 @@ internal sealed class ImageProcessingPlugin : IBukitPlugin, IAfterBuildAsyncPlug
         }
         var toolIdentity = tool is null ? "skiasharp-orientation-v2" : $"{tool}-auto-orient-v1";
 
+        // HTML srcset is planned from source widths, so every planned variant is
+        // referenced by pages. Collect failures and fail the plugin after the run
+        // instead of publishing pages that point at missing files.
+        var failures = new List<string>();
         await GenerateResizedVariantsAsync(
             context,
             resizePlans,
@@ -94,6 +98,7 @@ internal sealed class ImageProcessingPlugin : IBukitPlugin, IAfterBuildAsyncPlug
             toolIdentity,
             priorPluginOutputs,
             generatedOutputs,
+            failures,
             cancellationToken);
 
         if (webpEnabled)
@@ -106,6 +111,7 @@ internal sealed class ImageProcessingPlugin : IBukitPlugin, IAfterBuildAsyncPlug
                 quality,
                 priorPluginOutputs,
                 generatedOutputs,
+                failures,
                 cancellationToken);
             RewriteCurrentHtmlWithWebp(context, webpSrcsets, cancellationToken);
         }
@@ -121,6 +127,23 @@ internal sealed class ImageProcessingPlugin : IBukitPlugin, IAfterBuildAsyncPlug
         }
 
         SetTrackedOutputs(context, generatedOutputs);
+        ThrowIfVariantsFailed(failures);
+    }
+
+    private static void ThrowIfVariantsFailed(List<string> failures)
+    {
+        if (failures.Count == 0)
+        {
+            return;
+        }
+
+        const int shown = 5;
+        var sample = string.Join(", ", failures.Take(shown));
+        var more = failures.Count > shown ? $" (+{failures.Count - shown} more)" : string.Empty;
+        throw new InvalidOperationException(
+            $"Image variant generation failed for {failures.Count} file(s): {sample}{more}. " +
+            "Pages reference these variants, so publishing would serve broken images. " +
+            "Fix the image tool or source files, or set site.pluginFailMode: warn to publish anyway.");
     }
 
     private static (Dictionary<string, IReadOnlyList<int>> ResizePlans, Dictionary<string, int> SourceWidths) PlanResizes(
@@ -173,6 +196,7 @@ internal sealed class ImageProcessingPlugin : IBukitPlugin, IAfterBuildAsyncPlug
         string toolIdentity,
         HashSet<PluginOutputTrackingInfo> priorPluginOutputs,
         HashSet<PluginOutputTrackingInfo> generatedOutputs,
+        List<string> failures,
         CancellationToken cancellationToken)
     {
         foreach (var (imageFile, applicableSizes) in resizePlans)
@@ -195,6 +219,7 @@ internal sealed class ImageProcessingPlugin : IBukitPlugin, IAfterBuildAsyncPlug
                     toolIdentity,
                     priorPluginOutputs,
                     generatedOutputs,
+                    failures,
                     cancellationToken);
             }
         }

@@ -115,8 +115,10 @@ public sealed class ImageProcessingPluginTests
                 RoutedDocuments = [], Logger = logger
             };
 
-            await new ImageProcessingPlugin(CreateConfig(new ImageOptimizationConfig
-                { Enabled = true, Formats = [], Sizes = [480] })).AfterBuildAsync(context);
+            var failure = await Assert.ThrowsAsync<InvalidOperationException>(() => new ImageProcessingPlugin(CreateConfig(new ImageOptimizationConfig
+                { Enabled = true, Formats = [], Sizes = [480] })).AfterBuildAsync(context));
+            Assert.Contains("assets/photo-480w.jpg", failure.Message, StringComparison.Ordinal);
+            Assert.Contains("pluginFailMode", failure.Message, StringComparison.Ordinal);
 
             const string expected = "event=image_resize.error file=photo.jpg reason=resize rejected";
             Assert.Equal(expected, Assert.Single(sink.Warnings));
@@ -817,8 +819,8 @@ public sealed class ImageProcessingPluginTests
                 RoutedDocuments = [], Logger = logger
             };
 
-            await new ImageProcessingPlugin(CreateConfig(new ImageOptimizationConfig
-                { Enabled = true, Formats = [], Sizes = [480] })).AfterBuildAsync(context);
+            await Assert.ThrowsAsync<InvalidOperationException>(() => new ImageProcessingPlugin(CreateConfig(new ImageOptimizationConfig
+                { Enabled = true, Formats = [], Sizes = [480] })).AfterBuildAsync(context));
 
             Assert.True(File.Exists(marker));
             var warning = Assert.Single(logger.Warnings);
@@ -897,9 +899,9 @@ public sealed class ImageProcessingPluginTests
             Environment.SetEnvironmentVariable("PATH", PrependPath(toolDir, originalPath));
             var context = CreateContext(outDir);
 
-            await new ImageProcessingPlugin(CreateConfig(
+            await Assert.ThrowsAsync<InvalidOperationException>(() => new ImageProcessingPlugin(CreateConfig(
                     new ImageOptimizationConfig { Enabled = true, Sizes = new[] { 480, 768 } }))
-                .AfterBuildAsync(context);
+                .AfterBuildAsync(context));
 
             var images = Assert.IsType<Dictionary<string, object>>(context.Get(BuildDataKeys.ImageSrcsets));
             var photo = Assert.IsType<Dictionary<string, object>>(images["photo.jpg"]);
@@ -935,9 +937,9 @@ public sealed class ImageProcessingPluginTests
             Environment.SetEnvironmentVariable("PATH", PrependPath(toolDir, originalPath));
             var context = CreateContext(outDir);
 
-            await new ImageProcessingPlugin(CreateConfig(
+            await Assert.ThrowsAsync<InvalidOperationException>(() => new ImageProcessingPlugin(CreateConfig(
                     new ImageOptimizationConfig { Enabled = true, Sizes = new[] { 480 } }))
-                .AfterBuildAsync(context);
+                .AfterBuildAsync(context));
 
             Assert.False(context.TryGet(BuildDataKeys.ImageSrcsets, out _));
         }
@@ -1031,7 +1033,7 @@ public sealed class ImageProcessingPluginTests
                 """);
             var secondContext = CreateContextWithPriorImageOwnership(outDir, variantFile);
 
-            await new ImageProcessingPlugin(config).AfterBuildAsync(secondContext);
+            await Assert.ThrowsAsync<InvalidOperationException>(() => new ImageProcessingPlugin(config).AfterBuildAsync(secondContext));
 
             Assert.False(File.Exists(variantFile));
             Assert.False(File.Exists(freshnessFile));
@@ -1716,9 +1718,9 @@ public sealed class ImageProcessingPluginTests
             Environment.SetEnvironmentVariable("PATH", PrependPath(toolDir, originalPath));
             var context = CreateContext(outDir);
 
-            await new ImageProcessingPlugin(CreateConfig(
+            await Assert.ThrowsAsync<InvalidOperationException>(() => new ImageProcessingPlugin(CreateConfig(
                     new ImageOptimizationConfig { Enabled = true, Sizes = new[] { 480 } }))
-                .AfterBuildAsync(context);
+                .AfterBuildAsync(context));
 
             Assert.False(File.Exists(Path.Combine(assetsDir, "hero-480w.jpg")));
             Assert.False(File.Exists(Path.Combine(assetsDir, "hero-480w.jpg.bukit-freshness.json")));
