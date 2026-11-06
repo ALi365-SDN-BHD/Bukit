@@ -36,9 +36,9 @@ used by the build must be tracked and clean. The site directory must also have
 no staged, unstaged, or untracked changes, including files outside the configured
 inputs. A custom `content.media.downloadDir` must be a relative path without `..`.
 Its resolved path must be inside the repository, and tracked changes there block the
-build. Git-ignored files in a custom media directory are not included in worker
-worktrees and may cause missing-media errors; the default media cache is passed
-separately. Unrelated changes elsewhere in the repository do not block the
+build. Git-ignored files in a custom media directory are copied into the build
+worktrees, so ignored local or downloaded media still publishes; existing files are
+never overwritten. The default media cache is passed separately. Unrelated changes elsewhere in the repository do not block the
 build. Other ignored or external required inputs are rejected. `bukit dev`, the build
 performed by `bukit deploy`, and direct `SiteEngine` callers retain the
 in-process behavior and do not impose these Git requirements.

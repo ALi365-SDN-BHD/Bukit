@@ -644,6 +644,56 @@ public sealed class ImageProcessingPluginTests
     }
 
     [Fact]
+    public async Task AfterBuild_OrphanUnownedSidecarWithoutVariantIsAFailure()
+    {
+        var outDir = GetTempDir();
+        try
+        {
+            var assetsDir = Path.Combine(outDir, "assets");
+            Directory.CreateDirectory(assetsDir);
+            WriteValidImage(Path.Combine(assetsDir, "photo.jpg"), "source", width: 700);
+            var sidecar = Path.Combine(assetsDir, "photo-480w.jpg.bukit-freshness.json");
+            File.WriteAllText(sidecar, "user");
+
+            var failure = await Assert.ThrowsAsync<InvalidOperationException>(() => new ImageProcessingPlugin(CreateConfig(
+                new ImageOptimizationConfig { Enabled = true, Formats = [], Sizes = [480] })).AfterBuildAsync(CreateContext(outDir)));
+
+            Assert.Contains("assets/photo-480w.jpg", failure.Message, StringComparison.Ordinal);
+            Assert.Contains("photo-480w.jpg.bukit-freshness.json", failure.Message, StringComparison.Ordinal);
+            Assert.Equal("user", File.ReadAllText(sidecar));
+            Assert.False(File.Exists(Path.Combine(assetsDir, "photo-480w.jpg")));
+        }
+        finally
+        {
+            if (Directory.Exists(outDir)) Directory.Delete(outDir, true);
+        }
+    }
+
+    [Fact]
+    public async Task AfterBuild_UnownedExistingVariantIsKeptWithoutFailure()
+    {
+        var outDir = GetTempDir();
+        try
+        {
+            var assetsDir = Path.Combine(outDir, "assets");
+            Directory.CreateDirectory(assetsDir);
+            WriteValidImage(Path.Combine(assetsDir, "photo.jpg"), "source", width: 700);
+            var variant = Path.Combine(assetsDir, "photo-480w.jpg");
+            WriteValidImage(variant, "user-variant", width: 480);
+            var before = File.ReadAllBytes(variant);
+
+            await new ImageProcessingPlugin(CreateConfig(
+                new ImageOptimizationConfig { Enabled = true, Formats = [], Sizes = [480] })).AfterBuildAsync(CreateContext(outDir));
+
+            Assert.Equal(before, File.ReadAllBytes(variant));
+        }
+        finally
+        {
+            if (Directory.Exists(outDir)) Directory.Delete(outDir, true);
+        }
+    }
+
+    [Fact]
     public async Task AfterBuild_WebpKeepsUnownedCandidateAndDoesNotProjectIt()
     {
         var outDir = GetTempDir();

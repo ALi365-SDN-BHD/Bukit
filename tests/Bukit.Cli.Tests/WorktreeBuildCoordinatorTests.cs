@@ -111,6 +111,36 @@ public sealed class WorktreeBuildCoordinatorTests : IDisposable
     }
 
     [Fact]
+    public async Task ExplicitMultilingualBuild_PublishesGitIgnoredMediaFromCustomDownloadDir()
+    {
+        var root = Path.Combine(_root, "ignored-media");
+        var site = CreateSite(root, extraIgnore: "/media/\n");
+        var yaml = await File.ReadAllTextAsync(site);
+        await File.WriteAllTextAsync(site, yaml.Replace(
+            "content:\n  sources:",
+            "content:\n  media:\n    downloadToLocal: true\n    downloadDir: media\n  sources:",
+            StringComparison.Ordinal));
+        Directory.CreateDirectory(Path.Combine(root, "media"));
+        var photo = Path.Combine(root, "media", "photo.png");
+        await File.WriteAllBytesAsync(photo, [1, 2, 3, 4]);
+        await File.WriteAllTextAsync(
+            Path.Combine(root, "content", "en", "index.md"),
+            "---\ntitle: English\nlanguage: en\ni18nKey: home\n---\n![Photo](/assets/uploads/photo.png)");
+        await InitializeRepositoryAsync(root);
+
+        var result = await RunProcessAsync(
+            "dotnet",
+            [typeof(BuildCommand).Assembly.Location, "build", "--config", site],
+            root);
+
+        Assert.True(result.ExitCode == 0, result.Output);
+        var published = Directory.EnumerateFiles(Path.Combine(root, "dist"), "photo.png", SearchOption.AllDirectories).ToList();
+        Assert.NotEmpty(published);
+        Assert.All(published, path => Assert.Equal([1, 2, 3, 4], File.ReadAllBytes(path)));
+        Assert.Equal([1, 2, 3, 4], File.ReadAllBytes(photo));
+    }
+
+    [Fact]
     public async Task ExplicitMultilingualBuild_RejectsChangedSymlinkedMediaInsideRepository()
     {
         if (OperatingSystem.IsWindows()) return;

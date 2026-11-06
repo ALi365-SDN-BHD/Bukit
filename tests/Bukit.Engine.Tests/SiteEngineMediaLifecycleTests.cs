@@ -187,6 +187,51 @@ public sealed partial class SiteEngineIntegrationTests
         finally { CleanupDir(root); }
     }
 
+    [Fact]
+    public async Task MediaLifecycle_OrphanUserSidecarFailsStrictBuildInsteadOfPublishingMissingVariant()
+    {
+        var (root, config) = CreateMediaSite(baseUrl: "/");
+        try
+        {
+            var mediaDir = Path.Combine(root, "media");
+            Directory.CreateDirectory(mediaDir);
+            WritePng(Path.Combine(mediaDir, "photo.png"), 1200, 2);
+            // A user-owned sidecar with no variant blocks generation of photo-480w.png.
+            var sidecar = Path.Combine(mediaDir, "photo-480w.png.bukit-freshness.json");
+            File.WriteAllText(sidecar, "{\"owner\":\"someone-else\"}");
+            config = config with
+            {
+                Content = config.Content with
+                {
+                    Media = config.Content.Media with
+                    {
+                        DownloadToLocal = false,
+                        DownloadDir = "media",
+                        UrlBase = "/assets/uploads"
+                    }
+                },
+                Theme = config.Theme with
+                {
+                    Images = new ImageOptimizationConfig
+                    {
+                        Enabled = true,
+                        Formats = Array.Empty<string>(),
+                        Sizes = new[] { 480 }
+                    }
+                }
+            };
+
+            var error = await Assert.ThrowsAnyAsync<Exception>(() =>
+                BuildMediaAsync(root, config, [MediaDocument("one")], "<img src=\"/assets/uploads/photo.png\" alt=\"Photo\">"));
+
+            Assert.Contains("photo-480w.png", error.ToString(), StringComparison.Ordinal);
+            Assert.Contains("unowned", error.ToString(), StringComparison.Ordinal);
+            Assert.Equal("{\"owner\":\"someone-else\"}", File.ReadAllText(sidecar));
+            Assert.False(File.Exists(Path.Combine(root, "dist", "blog", "one", "index.html")));
+        }
+        finally { CleanupDir(root); }
+    }
+
     private static void WritePng(string path, int width, int height)
     {
         using var bitmap = new SKBitmap(width, height);
