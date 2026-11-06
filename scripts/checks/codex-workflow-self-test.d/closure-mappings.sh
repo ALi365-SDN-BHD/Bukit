@@ -112,7 +112,6 @@ for i18n_worktree_contract_path in \
   guide/user/14-troubleshooting.md; do
   assert_closure_mapping "$closure_fixture" "$i18n_worktree_contract_path" '["bash scripts/checks/cli-docs-sync.sh", "openspec validate i18n-worktree-build --type spec --strict --no-interactive"]' true
 done
-
 for i18n_worktree_contract_path in \
   openspec/changes/add-i18n-worktree-isolation/.openspec.yaml \
   openspec/changes/add-i18n-worktree-isolation/README.md \
@@ -124,7 +123,6 @@ for i18n_worktree_contract_path in \
 done
 
 assert_closure_mapping "$closure_fixture" guide/user/20-core-safety-reliability.md '["bash scripts/checks/cli-docs-sync.sh", "openspec validate i18n-worktree-build --type spec --strict --no-interactive", "openspec validate in-process-build-transactions --type spec --strict --no-interactive"]' true
-
 # Approved quality-remediation paths stay exact; adjacent docs/workflows remain unmapped.
 assert_closure_mapping "$closure_fixture" .github/workflows/ci.yaml '["bash scripts/checks/active-workflow-boundary-self-test.sh", "bash scripts/checks/active-workflow-boundary.sh", "dotnet test tests/Bukit.Architecture.Tests/Bukit.Architecture.Tests.csproj"]' false
 assert_closure_mapping "$closure_fixture" scripts/checks/coverage/run-one.sh '["bash scripts/checks/coverage-run-one-self-test.sh", "dotnet test tests/Bukit.Architecture.Tests/Bukit.Architecture.Tests.csproj"]' false
