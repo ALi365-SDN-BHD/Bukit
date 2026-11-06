@@ -22,16 +22,18 @@ build:
 Each language builds into `dist/<language>/`. Content without a language value
 belongs to `defaultLanguage`.
 
-An explicit `bukit build` automatically isolates each configured language in a
-detached Git Worktree and a separate Bukit process. Every Worker uses the same
-committed `HEAD` and the same parent-produced content snapshot; root sitemap,
-feed, search, agent-manifest, llms, reports, and manifests are still produced by
-the existing aggregate pipeline after every language succeeds.
+An explicit `bukit build` with two or more configured languages automatically
+isolates each language in a detached Git Worktree and a separate Bukit process.
+A single configured language stays in the normal in-process build and does not
+require Git. Every Worktree Worker uses the same committed `HEAD` and the same
+parent-produced content snapshot; root sitemap, feed, search, agent-manifest,
+llms, reports, and manifests are still produced by the existing aggregate
+pipeline after every language succeeds.
 
-This mode fails closed. The site must be inside a Git repository, the worktree
-must have no staged, unstaged, or untracked changes, and the configuration,
-Markdown content, theme/layout/static inputs, and local plugins used by the
-build must be tracked inside that repository. Ignored or external required
+Worktree mode fails closed. The site must be inside a Git repository, the
+worktree must have no staged, unstaged, or untracked changes, and the
+configuration, Markdown content, theme/layout/static inputs, and local plugins
+used by the build must be tracked inside that repository. Ignored or external required
 inputs are rejected. `bukit dev`, the build performed by `bukit deploy`, and
 direct `SiteEngine` callers retain the in-process behavior and do not impose
 these Git requirements.

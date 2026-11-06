@@ -14,7 +14,10 @@ public sealed record MarkdownFolderProviderOptions(
     IReadOnlyList<string>? IncludeGlobs = null,
     bool AutoSummary = false,
     int AutoSummaryMaxLength = 200
-);
+)
+{
+    internal IReadOnlyList<string>? Languages { get; init; }
+}
 
 public sealed class MarkdownFolderProvider : IContentProvider
 {
@@ -110,6 +113,37 @@ public sealed class MarkdownFolderProvider : IContentProvider
             files = files.Take(_options.MaxItems.Value).ToArray();
         }
 
+        var languageDirectories = BuildLanguageDirectories(_options.Languages);
+        var duplicateFileNames = files
+            .GroupBy(file => Path.GetFileNameWithoutExtension(file), StringComparer.OrdinalIgnoreCase)
+            .Where(group => group.Count() > 1)
+            .Select(group => group.Key)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var explicitSlugFiles = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var file in files.Where(file => duplicateFileNames.Contains(Path.GetFileNameWithoutExtension(file))))
+        {
+            if (TryReadExplicitSlug(file, sourceRoot) is not null)
+            {
+                explicitSlugFiles.Add(file);
+            }
+        }
+
+        var duplicateKeys = files
+            .Where(file => !explicitSlugFiles.Contains(file))
+            .Select(file =>
+            {
+                var relativePath = Path.GetRelativePath(sourceRoot, file);
+                return new
+                {
+                    Variant = ResolveVariantDirectory(relativePath, languageDirectories),
+                    Name = Path.GetFileNameWithoutExtension(file)
+                };
+            })
+            .GroupBy(entry => $"{entry.Variant}\0{entry.Name}", StringComparer.OrdinalIgnoreCase)
+            .Where(group => group.Count() > 1)
+            .Select(group => group.Key)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
         var items = new List<RawContentDocument>(capacity: files.Length);
         foreach (var file in files)
         {
@@ -157,6 +191,24 @@ public sealed class MarkdownFolderProvider : IContentProvider
             }
 
             MarkdownFrontMatterParser.ThrowIfUnterminated(markdown, hasFrontMatter, file);
+
+            // A filename is not a stable identity across nested content directories.
+            // Keep the existing filename slug when it is unique, but use the relative
+            // path only for colliding names in the same language variant so existing
+            // sites keep their URLs and language directories keep their own identity.
+            var relativePath = Path.GetRelativePath(sourceRoot, file).Replace('\\', '/');
+            var variantDirectory = ResolveVariantDirectory(relativePath, languageDirectories);
+            if (!frontMatterValues.ContainsKey("slug") &&
+                duplicateKeys.Contains($"{variantDirectory}\0{slug}"))
+            {
+                var fallbackPath = variantDirectory.Length > 0 &&
+                                   relativePath.StartsWith(variantDirectory + "/", StringComparison.OrdinalIgnoreCase)
+                    ? relativePath[(variantDirectory.Length + 1)..]
+                    : relativePath;
+                slug = Path.ChangeExtension(fallbackPath, null)!
+                    .TrimStart('.', '/');
+                _logger.Info($"event=markdown.slug.collision_fallback file={file} slug={slug}");
+            }
 
             if (!frontMatterValues.ContainsKey("type") &&
                 !string.IsNullOrWhiteSpace(_options.DefaultType))
@@ -266,6 +318,53 @@ public sealed class MarkdownFolderProvider : IContentProvider
         {
             target[key] = value;
         }
+    }
+
+    private string? TryReadExplicitSlug(string file, string sourceRoot)
+    {
+        using var verified = _opener.Open(file, sourceRoot);
+        using var reader = new StreamReader(
+            verified.Stream,
+            Encoding.UTF8,
+            detectEncodingFromByteOrderMarks: true,
+            bufferSize: 4096,
+            leaveOpen: true);
+        var markdown = reader.ReadToEnd();
+        if (!MarkdownFrontMatterParser.TryExtractFrontMatter(markdown, out var frontMatterYaml, out _))
+        {
+            return null;
+        }
+
+        var frontMatter = MarkdownFrontMatterParser.ParseFrontMatter(frontMatterYaml, _logger);
+        return frontMatter.TryGetValue("slug", out var value) &&
+               value is string slug &&
+               !string.IsNullOrWhiteSpace(slug)
+            ? slug.Trim()
+            : null;
+    }
+
+    private static string[] BuildLanguageDirectories(IReadOnlyList<string>? languages)
+        => languages?
+            .Where(language => !string.IsNullOrWhiteSpace(language))
+            .Select(language => language.Trim())
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToArray() ?? [];
+
+    private static string ResolveVariantDirectory(string relativePath, string[] languages)
+    {
+        var normalized = relativePath.Replace('\\', '/');
+        var separator = normalized.IndexOf('/');
+        if (separator <= 0)
+        {
+            return string.Empty;
+        }
+
+        var firstSegment = normalized[..separator];
+        return languages.Any(language =>
+            string.Equals(firstSegment, language, StringComparison.OrdinalIgnoreCase) ||
+            language.StartsWith(firstSegment + "-", StringComparison.OrdinalIgnoreCase))
+            ? firstSegment
+            : string.Empty;
     }
 
     private static Regex BuildGlobRegex(string glob)

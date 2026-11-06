@@ -1120,4 +1120,56 @@ public sealed class MarkdownFolderProviderTests
             if (Directory.Exists(root)) Directory.Delete(root, true);
         }
     }
+
+    [Fact]
+    public async Task LoadRawAsync_ExplicitSlugDoesNotForceRelativePathForOtherSameNameFile()
+    {
+        var root = Path.Combine(Path.GetTempPath(), $"bukit-md-explicit-slug-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(Path.Combine(root, "blog"));
+        Directory.CreateDirectory(Path.Combine(root, "docs"));
+        try
+        {
+            File.WriteAllText(Path.Combine(root, "blog", "index.md"), "---\ntitle: Blog\nslug: blog\n---\nblog");
+            File.WriteAllText(Path.Combine(root, "docs", "index.md"), "---\ntitle: Docs\n---\ndocs");
+
+            var provider = new MarkdownFolderProvider(new MarkdownFolderProviderOptions(root));
+            var result = await provider.LoadRawAsync(CancellationToken.None);
+
+            Assert.Equal(
+                ["blog", "index"],
+                result.Documents.Select(document => document.Slug).Order(StringComparer.Ordinal));
+        }
+        finally
+        {
+            if (Directory.Exists(root)) Directory.Delete(root, true);
+        }
+    }
+
+    [Fact]
+    public async Task LoadRawAsync_NestedSameFileName_UsesRelativePathOnlyForCollisions()
+    {
+        var root = Path.Combine(Path.GetTempPath(), $"bukit-md-nested-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(Path.Combine(root, "blog"));
+        Directory.CreateDirectory(Path.Combine(root, "docs"));
+        try
+        {
+            File.WriteAllText(Path.Combine(root, "blog", "index.md"), "---\ntitle: Blog\n---\nblog");
+            File.WriteAllText(Path.Combine(root, "docs", "index.md"), "---\ntitle: Docs\n---\ndocs");
+            File.WriteAllText(Path.Combine(root, "unique.md"), "---\ntitle: Unique\n---\nunique");
+
+            var provider = new MarkdownFolderProvider(new MarkdownFolderProviderOptions(root));
+            var result = await provider.LoadRawAsync(CancellationToken.None);
+
+            Assert.Equal(
+                ["blog/index", "docs/index", "unique"],
+                result.Documents.Select(document => document.Slug).Order(StringComparer.Ordinal));
+            Assert.Equal(
+                result.Documents.Count,
+                result.Documents.Select(document => document.SourceId).Distinct(StringComparer.OrdinalIgnoreCase).Count());
+        }
+        finally
+        {
+            if (Directory.Exists(root)) Directory.Delete(root, true);
+        }
+    }
 }

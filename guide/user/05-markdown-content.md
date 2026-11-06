@@ -41,6 +41,8 @@ Common fields:
 | `language` | Variant selection for i18n. |
 | `summary` | Feed, list, and SEO summary. |
 | `draft` | Excluded unless `--draft` is passed. |
+| `noindex`, `nofollow` | Indexing policy; also accepts `robots: noindex,nofollow`. |
+| `feedExclude`, `searchExclude`, `sitemapExclude` | Exclude this document from the named aggregate output. |
 | `tags`, `categories` | Taxonomy and related content inputs. |
 | `route` object with `url` | Optional route override; output path is derived from URL (see below). |
 
@@ -55,6 +57,13 @@ A route URL ending in a static file extension (`.css`, `.js`, `.pdf`, images,
 fonts, archives, audio/video, Office files) without a trailing slash fails the
 build; place such files in the theme's `static/` or `assets/` directory instead.
 See [Troubleshooting](14-troubleshooting.md#route-ends-in-a-static-file-extension).
+
+Files in different directories may share a filename, such as
+`content/blog/index.md` and `content/docs/index.md`. Bukit keeps the filename as
+the slug when it is unique; for same-name files in the same language variant it
+uses the relative path (`blog/index`, `docs/index`) so the pages do not collide.
+Language directories are kept separate, so `content/en/index.md` and
+`content/zh-CN/index.md` keep the `index` slug in their own variants.
 
 Top-level `outputPath` and the `outputPath` field inside the `route` object are
 rejected in Bukit 1.0. Use the `route` object's `url` field instead.

@@ -250,7 +250,7 @@ public sealed record ContentPublishPolicy(
         => new(
             ContentFieldReader.GetBool(fields, "draft") is true,
             IsNoIndex(fields),
-            string.Equals(ContentFieldReader.GetText(fields, "robots"), "nofollow", StringComparison.OrdinalIgnoreCase),
+            IsNoFollow(fields),
             ContentFieldReader.GetBool(fields, "feedExclude") is true || ContentFieldReader.GetBool(fields, "excludeFromFeed") is true,
             ContentFieldReader.GetBool(fields, "searchExclude") is true || ContentFieldReader.GetBool(fields, "excludeFromSearch") is true,
             ContentFieldReader.GetBool(fields, "sitemapExclude") is true || ContentFieldReader.GetBool(fields, "excludeFromSitemap") is true,
@@ -266,6 +266,19 @@ public sealed record ContentPublishPolicy(
         var robots = ContentFieldReader.GetText(fields, "robots");
         return robots is not null &&
                (robots.Contains("noindex", StringComparison.OrdinalIgnoreCase) ||
+                robots.Equals("none", StringComparison.OrdinalIgnoreCase));
+    }
+
+    private static bool IsNoFollow(IReadOnlyDictionary<string, ContentField>? fields)
+    {
+        if (ContentFieldReader.GetBool(fields, "nofollow") is true)
+        {
+            return true;
+        }
+
+        var robots = ContentFieldReader.GetText(fields, "robots");
+        return robots is not null &&
+               (robots.Contains("nofollow", StringComparison.OrdinalIgnoreCase) ||
                 robots.Equals("none", StringComparison.OrdinalIgnoreCase));
     }
 }

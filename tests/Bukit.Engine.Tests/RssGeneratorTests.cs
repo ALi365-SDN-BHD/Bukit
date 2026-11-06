@@ -83,6 +83,38 @@ public sealed class RssGeneratorTests
     }
 
     [Fact]
+    public void Generate_ExcludesFeedExcludedDocuments()
+    {
+        var root = Path.Combine(Path.GetTempPath(), "bukit-tests", Guid.NewGuid().ToString("N"));
+        var outDir = Path.Combine(root, "dist");
+        Directory.CreateDirectory(outDir);
+        var excluded = ContentDocument.Create(
+            "excluded",
+            "Excluded",
+            "excluded",
+            new DateTimeOffset(2024, 6, 1, 0, 0, 0, TimeSpan.Zero),
+            null,
+            ContentFieldReader.ToFieldMap(new Dictionary<string, object>
+            {
+                ["type"] = "post",
+                ["collection"] = "post",
+                ["feedExclude"] = true
+            }));
+        var documents = new List<RoutedContentDocument>
+        {
+            new(excluded, new RouteInfo("/blog/excluded/", "blog/excluded/index.html", "pages/post.html")),
+            new(Document("included"), new RouteInfo("/blog/included/", "blog/included/index.html", "pages/post.html"))
+        };
+
+        RssGenerator.Generate(outDir, "https://example.com", "/", "My Site", RssCollections, documents, new InMemoryBodyStore());
+
+        var rss = File.ReadAllText(Path.Combine(outDir, "rss.xml"));
+        Assert.Contains("Title included", rss, StringComparison.Ordinal);
+        Assert.DoesNotContain("Title excluded", rss, StringComparison.Ordinal);
+        Assert.DoesNotContain("/blog/excluded/", rss, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void Generate_UsesSiteDescriptionForChannelDescription()
     {
         var root = Path.Combine(Path.GetTempPath(), "bukit-tests", Guid.NewGuid().ToString("N"));

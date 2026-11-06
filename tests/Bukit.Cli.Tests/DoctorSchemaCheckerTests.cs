@@ -106,6 +106,32 @@ public sealed class DoctorSchemaCheckerTests
         Assert.DoesNotContain("postOnly", output);
     }
 
+    [Fact]
+    public void CheckExtraContentFields_IgnoresEngineManagedFields()
+    {
+        var ctx = CreateContext(ConfigWithCollectionSchemas());
+        var routed = new[]
+        {
+            RoutedDocument("post-1", new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["collection"] = "post",
+                ["type"] = "post",
+                ["sourceKey"] = "pages",
+                ["sourceMode"] = "content",
+                ["sourceId"] = "post-1",
+                ["tableOfContents"] = Array.Empty<object>()
+            })
+        };
+
+        var output = CaptureConsoleOutput(() =>
+            DoctorSchemaChecker.CheckExtraContentFields(ctx, routed));
+
+        Assert.DoesNotContain("sourceKey", output, StringComparison.Ordinal);
+        Assert.DoesNotContain("sourceMode", output, StringComparison.Ordinal);
+        Assert.DoesNotContain("sourceId", output, StringComparison.Ordinal);
+        Assert.DoesNotContain("tableOfContents", output, StringComparison.Ordinal);
+    }
+
     private static DoctorCommand.DoctorContext CreateContext(AppConfig config)
         => new(
             Path.Combine(Path.GetTempPath(), "bukit-doctor-schema-tests"),

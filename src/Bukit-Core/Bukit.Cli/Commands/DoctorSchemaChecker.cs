@@ -137,7 +137,7 @@ internal static class DoctorSchemaChecker
                 var fileExtras = new List<string>();
                 foreach (var kv in document.CustomFields ?? new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase))
                 {
-                    if (reservedKeys.Contains(kv.Key))
+                    if (reservedKeys.Contains(kv.Key) || ContentFieldReservations.IsEngineManaged(kv.Key))
                     {
                         continue;
                     }

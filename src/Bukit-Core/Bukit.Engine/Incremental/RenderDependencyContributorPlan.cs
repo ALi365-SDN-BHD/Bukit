@@ -15,6 +15,7 @@ internal static class RenderDependencyContributorPlan
         new AnalyticsContributor(),
         new SeoContributor(),
         new ThemeAndTemplateModelContributor(),
+        new ImageProcessingContributor(),
         new CollectionsAndFieldScopesContributor(),
         new TaxonomyContributor(),
         new RouteMetadataConfigurationContributor(),

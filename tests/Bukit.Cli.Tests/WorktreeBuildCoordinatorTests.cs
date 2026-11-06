@@ -31,6 +31,19 @@ public sealed class WorktreeBuildCoordinatorTests : IDisposable
         Assert.Equal("i18n-worktree-git-required", error.Code);
     }
 
+    [Fact]
+    public async Task ExplicitSingleLanguageBuild_DoesNotRequireGit()
+    {
+        var root = Path.Combine(_root, "single-language");
+        var site = CreateSite(root);
+        File.WriteAllText(site, File.ReadAllText(site).Replace("languages: [en, zh-CN]", "languages: [en]", StringComparison.Ordinal));
+
+        var result = await BuildCommand.RunAsync(Command(site));
+
+        Assert.Equal(0, result);
+        Assert.True(File.Exists(Path.Combine(root, "dist", "en", "index.html")));
+    }
+
     [Theory]
     [InlineData("unstaged")]
     [InlineData("staged")]

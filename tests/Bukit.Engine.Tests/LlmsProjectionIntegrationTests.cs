@@ -8,6 +8,7 @@ using Bukit.Engine.Abstractions.Content;
 using Bukit.Engine.Abstractions.Plugins;
 using Bukit.Engine.Abstractions.Routing;
 using Bukit.Engine.Plugins.BuiltIn;
+using Bukit.Rendering;
 using Xunit;
 
 namespace Bukit.Engine.Tests;
@@ -22,6 +23,59 @@ public sealed class LlmsProjectionIntegrationTests
         public void Info(string message) { }
         public void Warn(string message) { }
         public void Error(string message) => Errors.Add(message);
+    }
+
+    [Fact]
+    public void WriteLlmsTxt_EscapesMarkdownLinkSyntaxInTitles()
+    {
+        var output = Path.Combine(Path.GetTempPath(), "bukit-llms-escape-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(output);
+        try
+        {
+            var config = new AppConfig
+            {
+                Site = new SiteConfig { Name = "llms", Title = "Llms", Url = "https://example.com" },
+                Content = new ContentConfig(),
+                Build = new BuildConfig { Output = "dist" },
+                Theme = new ThemeConfig()
+            };
+            var document = ContentDocument.Create(
+                "page",
+                "A](https://evil.example) [B",
+                "page",
+                DateTimeOffset.UnixEpoch,
+                null,
+                ContentFieldReader.ToFieldMap(new Dictionary<string, object>
+                {
+                    ["type"] = "page",
+                    ["collection"] = "page"
+                }));
+            var route = new RouteInfo("/page/", "page/index.html", "pages/page.html");
+            var routed = new RoutedContentDocument(document, route);
+            var seoIndex = new Dictionary<string, SeoIndexEntry>
+            {
+                [route.OutputPath] = new(route, "https://example.com/page/", null, true, DateTimeOffset.UnixEpoch, document.Id, "page")
+            };
+
+            LlmsTxtPlugin.WriteLlmsTxt(
+                config,
+                output,
+                "/",
+                [routed],
+                [],
+                seoIndex,
+                new Dictionary<string, SeoModel>(),
+                config.Site.Seo.Geo);
+
+            var llms = File.ReadAllText(Path.Combine(output, "llms.txt"));
+            Assert.Contains("A\\](", llms, StringComparison.Ordinal);
+            Assert.Contains("\\[B", llms, StringComparison.Ordinal);
+            Assert.DoesNotContain("[A](https://evil.example)", llms, StringComparison.Ordinal);
+        }
+        finally
+        {
+            if (Directory.Exists(output)) Directory.Delete(output, recursive: true);
+        }
     }
 
     [Fact]

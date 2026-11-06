@@ -2520,6 +2520,144 @@ public sealed partial class SiteEngineIntegrationTests
     }
 
     [Fact]
+    public async Task BuildAsync_IncrementalSeoConfigChangesRerenderHtml()
+    {
+        var (root, config) = CreateBuildReportHealthSite();
+        try
+        {
+            Directory.CreateDirectory(Path.Combine(root, "content"));
+            File.WriteAllText(Path.Combine(root, "content", "home.md"), """
+                ---
+                title: Home
+                slug: home
+                type: page
+                collection: page
+                ---
+                # Home
+                """);
+            var firstConfig = config with
+            {
+                Site = config.Site with
+                {
+                    Seo = new SeoConfig
+                    {
+                        Enabled = true,
+                        Organization = new SeoOrganizationConfig
+                        {
+                            Name = "Old Org",
+                            Url = "https://example.com"
+                        },
+                        Schema = new SeoSchemaConfig
+                        {
+                            WebPage = true,
+                            CollectionPage = true,
+                            SearchAction = true
+                        }
+                    }
+                }
+            };
+            var first = await new SiteEngine(new TestLogger()).BuildAsync(
+                firstConfig,
+                root,
+                new ConfigOverrides { Clean = false, Incremental = true },
+                CancellationToken.None);
+            var pageFile = Path.Combine(root, "dist", "pages", "home", "index.html");
+            var firstHtml = File.ReadAllText(pageFile);
+            Assert.Contains("Old Org", firstHtml, StringComparison.Ordinal);
+            Assert.Contains("\"@type\":\"WebPage\"", firstHtml, StringComparison.Ordinal);
+            Assert.DoesNotContain("SearchAction", firstHtml, StringComparison.Ordinal);
+
+            var changedConfig = firstConfig with
+            {
+                Site = firstConfig.Site with
+                {
+                    Search = new SearchDetailConfig { Route = "/" },
+                    Seo = firstConfig.Site.Seo with
+                    {
+                        Organization = new SeoOrganizationConfig
+                        {
+                            Name = "New Org",
+                            Url = "https://example.com"
+                        },
+                        Schema = new SeoSchemaConfig
+                        {
+                            WebPage = false,
+                            CollectionPage = true,
+                            SearchAction = true
+                        }
+                    }
+                }
+            };
+            var second = await new SiteEngine(new TestLogger()).BuildAsync(
+                changedConfig,
+                root,
+                new ConfigOverrides { Clean = false, Incremental = true },
+                CancellationToken.None);
+
+            var secondHtml = File.ReadAllText(pageFile);
+            Assert.True(second.Incremental.CacheMissCount > 0);
+            Assert.NotEqual(firstHtml, secondHtml);
+            Assert.Contains("New Org", secondHtml, StringComparison.Ordinal);
+            Assert.DoesNotContain("Old Org", secondHtml, StringComparison.Ordinal);
+            Assert.Contains("\"@type\":\"SearchAction\"", secondHtml, StringComparison.Ordinal);
+            Assert.DoesNotContain("\"@type\":\"WebPage\"", secondHtml, StringComparison.Ordinal);
+        }
+        finally
+        {
+            CleanupDir(root);
+        }
+    }
+
+    [Fact]
+    public async Task BuildAsync_IncrementalCollectionIndexPolicyChangesRerenderHtml()
+    {
+        var (root, config) = CreateBuildReportHealthSite();
+        try
+        {
+            Directory.CreateDirectory(Path.Combine(root, "content"));
+            var firstConfig = config with
+            {
+                Site = config.Site with
+                {
+                    Seo = new SeoConfig { Enabled = true }
+                }
+            };
+            var first = await new SiteEngine(new TestLogger()).BuildAsync(
+                firstConfig,
+                root,
+                new ConfigOverrides { Clean = false, Incremental = true },
+                CancellationToken.None);
+            var listFile = Path.Combine(root, "dist", "blog", "index.html");
+            var firstHtml = File.ReadAllText(listFile);
+            Assert.DoesNotContain("<meta name=\"robots\"", firstHtml, StringComparison.Ordinal);
+
+            var collections = firstConfig.Site.Collections!;
+            var changedCollections = new Dictionary<string, CollectionConfig>(collections, StringComparer.OrdinalIgnoreCase)
+            {
+                ["post"] = collections["post"] with { NoindexWhenEmpty = true }
+            };
+            var changedConfig = firstConfig with
+            {
+                Site = firstConfig.Site with { Collections = changedCollections }
+            };
+            var second = await new SiteEngine(new TestLogger()).BuildAsync(
+                changedConfig,
+                root,
+                new ConfigOverrides { Clean = false, Incremental = true },
+                CancellationToken.None);
+
+            var secondHtml = File.ReadAllText(listFile);
+            Assert.True(second.Incremental.CacheMissCount > 0);
+            Assert.NotEqual(firstHtml, secondHtml);
+            Assert.Contains("<meta name=\"robots\" content=\"noindex,follow\"", secondHtml, StringComparison.Ordinal);
+        }
+        finally
+        {
+            CleanupDir(root);
+        }
+    }
+
+    [Fact]
     public async Task BuildAsync_AnalyticsPluginDisabled_IgnoresProviderChangesUntilReenabled()
     {
         var (root, baseConfig) = CreateBuildReportHealthSite();

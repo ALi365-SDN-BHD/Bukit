@@ -29,12 +29,24 @@ internal static class VariantRenderStage
     {
         var routeResult = routePipelineResult.RouteResult;
         var renderDependencyHashStopwatch = Stopwatch.StartNew();
+        var imageSourceFingerprint = manifestSetup.IncrementalEnabled
+            ? ImageSourceFingerprint.Compute(
+                context.Config,
+                context.RootDir,
+                context.MediaDownloadDir,
+                context.AssetsDir,
+                context.ParentAssetsDir,
+                context.StaticDir,
+                context.ParentStaticDir,
+                logger)
+            : null;
         var renderDependencyHash = manifestSetup.IncrementalEnabled
             ? RenderDependencyHasher.Compute(
                 context.Config,
                 siteModel,
                 context.Overrides.ExecutionMode,
-                seoAlternates: seoStage.SeoAlternates)
+                seoAlternates: seoStage.SeoAlternates,
+                imageSourceFingerprint: imageSourceFingerprint)
             : string.Empty;
         renderDependencyHashStopwatch.Stop();
         metrics.AddDuration(
