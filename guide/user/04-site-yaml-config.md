@@ -443,6 +443,16 @@ External image tools apply orientation before resizing; older owned candidates a
 Native Skia assets are included for macOS, Windows, and Linux; no image tool installation
 is needed for built-in WebP generation.
 
+Pages reference every planned variant, so a variant that fails to generate fails the build
+under the default `site.pluginFailMode: strict`; the previous published output stays in place.
+With `warn`, the build continues and those `srcset` candidates may return 404 until the next
+successful build.
+
+Incremental builds re-render pages when a source image's path or display width changes,
+because that is all the built-in responsive markup depends on. A custom template or plugin
+whose page HTML depends on other image properties (height, format, bytes) should be built
+with `--clean` after replacing images.
+
 ## Taxonomy Fields
 
 | Field | Default | Notes |
