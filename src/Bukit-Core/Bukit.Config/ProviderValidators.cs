@@ -260,6 +260,11 @@ internal static class ProviderValidators
             throw new ConfigException("deploy.message must be <= 4096 characters.", DiagnosticCode.ConfigRequiredFieldMissing);
         }
 
+        if (!string.IsNullOrWhiteSpace(deploy.Repo) && !IsValidDeployRepo(deploy.Repo))
+        {
+            throw new ConfigException("deploy.repo must be 'owner/name' (for example 'ALi365-SDN-BHD/site'), without a URL, '.git' suffix, or whitespace.", DiagnosticCode.ConfigInvalidValue);
+        }
+
         if (!string.IsNullOrWhiteSpace(deploy.Cname))
         {
             var cname = deploy.Cname.Trim();
@@ -269,6 +274,49 @@ internal static class ProviderValidators
             }
         }
     }
+
+    // GitHub owner: alphanumerics and hyphens, 1-39 characters, no leading hyphen.
+    // Repository name: alphanumerics, '.', '_' and '-', 1-100 characters; '.' and '..' are rejected.
+    internal static bool IsValidDeployRepo(string value)
+    {
+        var parts = value.Split('/');
+        if (parts.Length != 2)
+        {
+            return false;
+        }
+
+        var owner = parts[0];
+        var name = parts[1];
+        if (owner.Length is < 1 or > 39 || !IsDeployRepoAlphanumeric(owner[0]))
+        {
+            return false;
+        }
+
+        foreach (var c in owner)
+        {
+            if (!(IsDeployRepoAlphanumeric(c) || c == '-'))
+            {
+                return false;
+            }
+        }
+
+        if (name is "." or ".." || name.EndsWith(".git", StringComparison.OrdinalIgnoreCase) || name.Length is < 1 or > 100)
+        {
+            return false;
+        }
+
+        foreach (var c in name)
+        {
+            if (!(IsDeployRepoAlphanumeric(c) || c == '.' || c == '_' || c == '-'))
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    private static bool IsDeployRepoAlphanumeric(char c) => c is (>= 'a' and <= 'z') or (>= 'A' and <= 'Z') or (>= '0' and <= '9');
 
     internal static bool IsValidDomain(string domain)
     {

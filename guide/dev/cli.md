@@ -30,7 +30,7 @@ loads dynamic plugin descriptors only when the command is not a Core command.
 | `publish` | `--dir`, `--report`, `--strict`, `--external` |
 | `publish audit` | `--dir`, `--report`, `--strict`, `--external` |
 | `publish diff` | `--baseline`, `--current`, `--max-new-errors`, `--max-new-warnings`, `--max-new-issues`, `--fail-on-new-code`, `--fail-on-route-removed`, `--fail-on-indexable-drop` |
-| `deploy` | `--config`, `--site`, `--dry-run`, `--skip-build`, `--base-url`, `--site-url`, `--output`, `--branch`, `--message`, `--ci`, `--force` |
+| `deploy` | `--config`, `--site`, `--dry-run`, `--skip-build`, `--base-url`, `--site-url`, `--output`, `--branch`, `--repo`, `--token-env`, `--message`, `--ci`, `--force` |
 
 ## Error Handling
 

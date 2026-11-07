@@ -496,6 +496,7 @@ taxonomy localization field is required.
 | `logging.level` | `info` | `debug`, `info`, `warn`, or `error`. |
 | `deploy.provider` | required when `deploy` exists | Only `github-pages` is supported. |
 | `deploy.branch` | `gh-pages` | Must be a valid Git branch name. |
+| `deploy.repo` | project origin | GitHub repository as `owner/name` (for example `ALi365-SDN-BHD/site`). Overrides origin; `--repo` overrides it. Not a URL, and no `.git` suffix. |
 | `deploy.message` | `bukit deploy` | Commit message, at most 4096 characters. |
 | `deploy.cname` | none | Optional valid domain name. |
 | `deploy.keepHistory` | `false` | Keeps target branch history when supported. |

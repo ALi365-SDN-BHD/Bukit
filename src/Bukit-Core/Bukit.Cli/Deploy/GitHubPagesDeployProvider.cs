@@ -37,10 +37,15 @@ public sealed partial class GitHubPagesDeployProvider : IDeployProvider
             return new DeployResult { Success = false, Error = readinessError };
         }
 
-        var token = Environment.GetEnvironmentVariable("GITHUB_TOKEN");
+        if (!TryNormalizeTokenEnvName(context.TokenEnv, out var tokenEnv, out var tokenEnvError))
+        {
+            return new DeployResult { Success = false, Error = tokenEnvError! };
+        }
+
+        var token = Environment.GetEnvironmentVariable(tokenEnv!);
         if (string.IsNullOrWhiteSpace(token))
         {
-            return new DeployResult { Success = false, Error = "GITHUB_TOKEN environment variable is required for GitHub Pages deployment. Create a fine-grained token with 'Contents: Read and write' access to the target repository, or use the workflow GITHUB_TOKEN in GitHub Actions." };
+            return new DeployResult { Success = false, Error = $"{tokenEnv} environment variable is required for GitHub Pages deployment. Create a fine-grained token with 'Contents: Read and write' access to the target repository, or use the workflow GITHUB_TOKEN in GitHub Actions." };
         }
 
         var branch = NormalizeBranchName(context.Branch);
@@ -59,15 +64,21 @@ public sealed partial class GitHubPagesDeployProvider : IDeployProvider
 
         var gitCommandTimeout = ResolveGitCommandTimeout();
         RepoInfo? repoInfo;
+        string? targetRepoError;
         try
         {
-            repoInfo = await GetRepoInfoAsync(gitPath, projectRoot, gitCommandTimeout, ct);
+            (repoInfo, targetRepoError) = await ResolveRepoInfoAsync(context, gitPath, projectRoot, gitCommandTimeout, ct);
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
             var sanitized = SanitizeError(ex.Message, token);
             logger.Error($"Deployment failed: {sanitized}");
             return new DeployResult { Success = false, Error = sanitized };
+        }
+
+        if (targetRepoError is not null)
+        {
+            return new DeployResult { Success = false, Error = targetRepoError };
         }
 
         if (repoInfo is null)
@@ -207,7 +218,7 @@ public sealed partial class GitHubPagesDeployProvider : IDeployProvider
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
             var sanitized = SanitizeError(ex.Message, token, askpassScript, tempDir);
-            var friendly = AugmentErrorHint(sanitized);
+            var friendly = AugmentErrorHint(sanitized, tokenEnv!);
             logger.Error($"Deployment failed: {friendly}");
             return new DeployResult { Success = false, Error = friendly };
         }

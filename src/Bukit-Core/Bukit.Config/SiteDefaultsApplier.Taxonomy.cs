@@ -17,6 +17,7 @@ internal static partial class SiteDefaultsApplier
             Provider = ConfigYamlHelpers.GetOptionalString(deployNode, "provider"),
             Branch = ConfigYamlHelpers.GetOptionalString(deployNode, "branch") ?? "gh-pages",
             Message = ConfigYamlHelpers.GetOptionalString(deployNode, "message") ?? "bukit deploy",
+            Repo = ConfigYamlHelpers.GetOptionalString(deployNode, "repo"),
             Cname = ConfigYamlHelpers.GetOptionalString(deployNode, "cname"),
             KeepHistory = ConfigYamlHelpers.GetOptionalBool(deployNode, "keepHistory") ?? false
         };

@@ -45,6 +45,13 @@ public static class DeployCommand
         var cliBranch = command.GetString("--branch");
         var cliMessage = command.GetString("--message");
 
+        var targetError = ResolveDeployTarget(command, deployConfig, out var tokenEnv, out var targetRepo, out var repoSource);
+        if (targetError is not null)
+        {
+            Console.Error.WriteLine(targetError);
+            return 1;
+        }
+
         if (!string.IsNullOrWhiteSpace(cliBaseUrl))
         {
             config = config with { Site = config.Site with { BaseUrl = cliBaseUrl } };
@@ -95,14 +102,8 @@ public static class DeployCommand
             ? Path.GetFullPath(effectiveOutput)
             : Path.GetFullPath(Path.Combine(resolved.RootDir, effectiveOutput));
 
-        if ((skipBuild || dryRun) && !ValidateExistingOutput(outputDir, logger))
+        if (!ValidateDeployOutput(outputDir, skipBuild || dryRun, logger))
         {
-            return 1;
-        }
-
-        if (DeploymentReadinessValidator.Validate(outputDir) is { } readinessError)
-        {
-            logger.Error(readinessError);
             return 1;
         }
 
@@ -120,6 +121,8 @@ public static class DeployCommand
             logger.Info($"Would deploy {outputDir} to GitHub Pages");
             logger.Info($"  branch: {cliBranch ?? deployConfig.Branch}");
             logger.Info($"  message: {cliMessage ?? deployConfig.Message}");
+            logger.Info($"  token env: {tokenEnv}");
+            logger.Info($"  repo: {DescribeRepoTarget(targetRepo, repoSource)}");
             logger.Info($"  baseUrl: {baseUrl}");
             logger.Info($"  siteUrl: {siteUrl}");
             return 0;
@@ -133,6 +136,9 @@ public static class DeployCommand
             Branch = cliBranch ?? deployConfig.Branch,
             Message = cliMessage ?? deployConfig.Message,
             Cname = deployConfig.Cname,
+            TokenEnv = tokenEnv,
+            Repo = targetRepo,
+            RepoSource = repoSource,
             KeepHistory = deployConfig.KeepHistory,
             Force = force,
             Logger = logger
@@ -149,6 +155,65 @@ public static class DeployCommand
 
         logger.Error($"Deployment failed: {result.Error}");
         return 1;
+    }
+
+    // Validates --token-env and --repo and resolves the target. Returns the first validation error, or null.
+    private static string? ResolveDeployTarget(
+        CliBoundCommand command,
+        DeployConfig deployConfig,
+        out string? tokenEnv,
+        out string? targetRepo,
+        out string? repoSource)
+    {
+        targetRepo = null;
+        repoSource = null;
+        if (!GitHubPagesDeployProvider.TryNormalizeTokenEnvName(command.GetString("--token-env"), out tokenEnv, out var tokenEnvError))
+        {
+            return tokenEnvError;
+        }
+
+        if (!GitHubPagesDeployProvider.TryNormalizeRepo(command.GetString("--repo"), out var cliRepo, out var repoError))
+        {
+            return repoError;
+        }
+
+        (targetRepo, repoSource) = ResolveDeployRepo(cliRepo, deployConfig.Repo);
+        return null;
+    }
+
+    private static string DescribeRepoTarget(string? repo, string? source)
+        => source is null ? "origin" : $"{repo} (from {source})";
+
+    // --repo (CLI) wins over deploy.repo (site.yaml); when neither is set the project origin decides.
+    internal static (string? Repo, string? Source) ResolveDeployRepo(string? cliRepo, string? configRepo)
+    {
+        if (!string.IsNullOrWhiteSpace(cliRepo))
+        {
+            return (cliRepo.Trim(), "--repo");
+        }
+
+        if (!string.IsNullOrWhiteSpace(configRepo))
+        {
+            return (configRepo.Trim(), "deploy.repo");
+        }
+
+        return (null, null);
+    }
+
+    private static bool ValidateDeployOutput(string outputDir, bool requireExistingOutput, ILogger logger)
+    {
+        if (requireExistingOutput && !ValidateExistingOutput(outputDir, logger))
+        {
+            return false;
+        }
+
+        if (DeploymentReadinessValidator.Validate(outputDir) is { } readinessError)
+        {
+            logger.Error(readinessError);
+            return false;
+        }
+
+        return true;
     }
 
     private static bool ValidateExistingOutput(string outputDir, ILogger logger)

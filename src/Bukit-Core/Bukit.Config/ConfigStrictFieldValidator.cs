@@ -25,7 +25,7 @@ internal static class ConfigStrictFieldValidator
         "kinds", "outputMode", "itemFields", "pageSize", "indexEnabled", "pinField", "pinOrderField",
         "pinFieldBySource", "pinOrderFieldBySource");
     private static readonly HashSet<string> LoggingKeys = Set("level");
-    private static readonly HashSet<string> DeployKeys = Set("provider", "branch", "message", "cname", "keepHistory");
+    private static readonly HashSet<string> DeployKeys = Set("provider", "branch", "message", "repo", "cname", "keepHistory");
 
     internal static void Validate(YamlMappingNode root)
     {

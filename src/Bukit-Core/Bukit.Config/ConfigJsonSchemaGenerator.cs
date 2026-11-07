@@ -163,6 +163,7 @@ public static class ConfigJsonSchemaGenerator
             ("provider", EnumSchema("github-pages")),
             ("branch", StringSchema()),
             ("message", StringSchema()),
+            ("repo", Obj(("type", "string"), ("pattern", "^[A-Za-z0-9](?:[A-Za-z0-9-]{0,38})/[A-Za-z0-9._-]{1,100}$"))),
             ("cname", StringSchema()),
             ("keepHistory", BoolSchema()))));
 

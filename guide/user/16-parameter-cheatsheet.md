@@ -10,7 +10,7 @@
 | Build mode | `--clean`, `--no-clean`, `--draft`, `--ci`, `--incremental`, `--no-incremental`, `--cache-dir`, `--metrics`, `--jobs`, `--log-format` |
 | Servers | `--host`, `--port`, `--strict-port`, `--no-watch`, `--allow-lan`, `--public` |
 | Audits | `--report`, `--strict`, `--external`, `--baseline`, `--current`, `--max-new-errors`, `--max-new-warnings`, `--max-new-issues`, `--fail-on-new-code`, `--fail-on-route-removed`, `--fail-on-indexable-drop` |
-| Deploy | `--dry-run`, `--skip-build`, `--branch`, `--message`, `--force` |
+| Deploy | `--dry-run`, `--skip-build`, `--branch`, `--repo`, `--token-env`, `--message`, `--force` |
 
 ## Config Defaults
 

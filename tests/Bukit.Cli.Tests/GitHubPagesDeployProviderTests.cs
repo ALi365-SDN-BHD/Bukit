@@ -321,6 +321,64 @@ public sealed class GitHubPagesDeployProviderTests
         Assert.Contains(scope.Logger.Errors, message => message.Contains("***", StringComparison.Ordinal));
     }
 
+    [Theory]
+    [InlineData("DOCS_DEPLOY_TOKEN")]
+    [InlineData("GITHUB_TOKEN")]
+    [InlineData("  MY_TOKEN_2  ")]
+    public void TryNormalizeTokenEnvName_AcceptsUpperCaseNames(string value)
+    {
+        Assert.True(GitHubPagesDeployProvider.TryNormalizeTokenEnvName(value, out var normalized, out var error));
+        Assert.Null(error);
+        Assert.Equal(value.Trim(), normalized);
+    }
+
+    [Fact]
+    public void TryNormalizeTokenEnvName_DefaultsToGitHubToken_WhenMissing()
+    {
+        Assert.True(GitHubPagesDeployProvider.TryNormalizeTokenEnvName(null, out var normalized, out _));
+        Assert.Equal("GITHUB_TOKEN", normalized);
+    }
+
+    [Theory]
+    [InlineData("github_token")]
+    [InlineData("ghp_abcdefghijklmnopqrstuvwxyz0123456789")]
+    [InlineData("1BAD")]
+    [InlineData("BAD-NAME")]
+    [InlineData("BAD NAME")]
+    [InlineData("A=B")]
+    public void TryNormalizeTokenEnvName_RejectsInvalidNames_WithoutEchoingValue(string value)
+    {
+        Assert.False(GitHubPagesDeployProvider.TryNormalizeTokenEnvName(value, out var normalized, out var error));
+        Assert.Null(normalized);
+        Assert.NotNull(error);
+        Assert.DoesNotContain(value, error, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task DeployAsync_CustomTokenEnv_MissingVariable_ReportsNameAndIgnoresDefaultToken()
+    {
+        using var scope = new GitHubPagesDeployTestScope();
+        scope.FakeGit.RemoteUrl = "https://github.com/ali/docs.git";
+        scope.SetGithubToken("github-default-token");
+        scope.WriteOutputFile("index.html", "<h1>Hello</h1>");
+        using var cwd = new CurrentDirectoryScope(scope.WorktreeDir);
+        const string name = "BUKIT_TEST_DEPLOY_TOKEN_MISSING";
+        var previous = Environment.GetEnvironmentVariable(name);
+        Environment.SetEnvironmentVariable(name, null);
+        try
+        {
+            var result = await new GitHubPagesDeployProvider().DeployAsync(scope.CreateContext(tokenEnv: name), CancellationToken.None);
+
+            Assert.False(result.Success);
+            Assert.Contains($"{name} environment variable is required", result.Error, StringComparison.Ordinal);
+            Assert.DoesNotContain("github-default-token", result.Error, StringComparison.Ordinal);
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable(name, previous);
+        }
+    }
+
     [Fact]
     public async Task Deploy_ErrorMessage_DoesNotContainGitHubToken()
     {
@@ -866,9 +924,66 @@ public sealed class GitHubPagesDeployProviderTests
         var result = InvokePrivateStatic<string>(
             nameof(GitHubPagesDeployProvider),
             "AugmentErrorHint",
-            [message]);
+            [message, "GITHUB_TOKEN"]);
 
         Assert.Contains(expectedHint, result, StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData("403 Forbidden")]
+    [InlineData("Permission denied")]
+    public void AugmentErrorHint_CustomTokenEnv_NamesTheConfiguredVariable(string message)
+    {
+        var result = InvokePrivateStatic<string>(
+            nameof(GitHubPagesDeployProvider),
+            "AugmentErrorHint",
+            [message, "DOCS_DEPLOY_TOKEN"]);
+
+        Assert.Contains("DOCS_DEPLOY_TOKEN", result, StringComparison.Ordinal);
+        Assert.DoesNotContain("GITHUB_TOKEN", result, StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData("   ")]
+    public void TryNormalizeTokenEnvName_RejectsExplicitEmptyValue_InsteadOfFallingBack(string value)
+    {
+        Assert.False(GitHubPagesDeployProvider.TryNormalizeTokenEnvName(value, out var normalized, out var error));
+        Assert.Null(normalized);
+        Assert.NotNull(error);
+        Assert.Contains("must not be empty", error, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task DeployAsync_CustomTokenEnv_PresentVariable_IsUsedForPushAndHintNamesIt()
+    {
+        using var scope = new GitHubPagesDeployTestScope();
+        scope.FakeGit.RemoteUrl = "https://github.com/ali/docs.git";
+        scope.FakeGit.PushMode = "forbidden";
+        scope.WriteOutputFile("index.html", "<h1>Hello</h1>");
+        using var cwd = new CurrentDirectoryScope(scope.WorktreeDir);
+        const string name = "BUKIT_TEST_DEPLOY_TOKEN_PRESENT";
+        const string secret = "custom-scoped-secret";
+        var previousCustom = Environment.GetEnvironmentVariable(name);
+        Environment.SetEnvironmentVariable(name, secret);
+        scope.SetGithubToken(null);
+        try
+        {
+            var result = await new GitHubPagesDeployProvider().DeployAsync(scope.CreateContext(tokenEnv: name), CancellationToken.None);
+
+            // Reaching the push (and its 403) proves the custom variable was read; a missing
+            // variable would have failed earlier with "... environment variable is required".
+            Assert.False(result.Success);
+            Assert.NotNull(result.Error);
+            Assert.DoesNotContain("environment variable is required", result.Error, StringComparison.Ordinal);
+            Assert.Contains($"Ensure your {name} can write repository contents", result.Error, StringComparison.Ordinal);
+            Assert.DoesNotContain("GITHUB_TOKEN can write", result.Error, StringComparison.Ordinal);
+            Assert.DoesNotContain(secret, result.Error, StringComparison.Ordinal);
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable(name, previousCustom);
+        }
     }
 
     [Fact]
@@ -1489,6 +1604,60 @@ public sealed class GitHubPagesDeployProviderTests
         Assert.False(Directory.Exists(Path.GetDirectoryName(askpassPath)!));
     }
 
+    [Fact]
+    public async Task DeployAsync_TargetRepo_WithoutOrigin_DeploysToTargetPages()
+    {
+        using var scope = new GitHubPagesDeployTestScope();
+        scope.FakeGit.RemoteUrl = null;
+        scope.SetGithubToken("secret-token");
+        scope.WriteOutputFile("index.html", "<h1>Hello</h1>");
+        using var cwd = new CurrentDirectoryScope(scope.WorktreeDir);
+
+        var result = await new GitHubPagesDeployProvider().DeployAsync(
+            scope.CreateContext(repo: "ali/other", repoSource: "--repo"),
+            CancellationToken.None);
+
+        Assert.True(result.Success, result.Error);
+        Assert.Equal("https://ali.github.io/other", result.DeployedUrl);
+        Assert.Empty(scope.Logger.Warnings);
+    }
+
+    [Fact]
+    public async Task DeployAsync_TargetRepo_DifferentFromOrigin_WarnsAndUsesTarget()
+    {
+        using var scope = new GitHubPagesDeployTestScope();
+        scope.FakeGit.RemoteUrl = "https://github.com/ali/docs.git";
+        scope.SetGithubToken("secret-token");
+        scope.WriteOutputFile("index.html", "<h1>Hello</h1>");
+        using var cwd = new CurrentDirectoryScope(scope.WorktreeDir);
+
+        var result = await new GitHubPagesDeployProvider().DeployAsync(
+            scope.CreateContext(repo: "ali/other", repoSource: "deploy.repo"),
+            CancellationToken.None);
+
+        Assert.True(result.Success, result.Error);
+        Assert.Equal("https://ali.github.io/other", result.DeployedUrl);
+        Assert.Contains(scope.Logger.Warnings, message => message.Contains("differs from the project origin ali/docs", StringComparison.Ordinal));
+        Assert.Contains(scope.Logger.Infos, message => message.Contains("from deploy.repo", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task DeployAsync_TargetRepo_MatchingOrigin_DoesNotWarn()
+    {
+        using var scope = new GitHubPagesDeployTestScope();
+        scope.FakeGit.RemoteUrl = "https://github.com/ali/docs.git";
+        scope.SetGithubToken("secret-token");
+        scope.WriteOutputFile("index.html", "<h1>Hello</h1>");
+        using var cwd = new CurrentDirectoryScope(scope.WorktreeDir);
+
+        var result = await new GitHubPagesDeployProvider().DeployAsync(
+            scope.CreateContext(repo: "Ali/Docs", repoSource: "--repo"),
+            CancellationToken.None);
+
+        Assert.True(result.Success, result.Error);
+        Assert.Empty(scope.Logger.Warnings);
+    }
+
     private sealed class GitHubPagesDeployTestScope : IDisposable
     {
         private readonly string _root;
@@ -1523,7 +1692,7 @@ public sealed class GitHubPagesDeployProviderTests
         public RecordingLogger Logger { get; }
         public FakeGitHarness FakeGit { get; }
 
-        public DeployContext CreateContext(bool keepHistory = false, bool force = false, string? branch = null, string? message = null, string? cname = null, string? outputDir = null)
+        public DeployContext CreateContext(bool keepHistory = false, bool force = false, string? branch = null, string? message = null, string? cname = null, string? outputDir = null, string? tokenEnv = null, string? repo = null, string? repoSource = null)
             => new()
             {
                 OutputDir = outputDir ?? OutputDir,
@@ -1532,6 +1701,9 @@ public sealed class GitHubPagesDeployProviderTests
                 Branch = branch,
                 Message = message,
                 Cname = cname,
+                TokenEnv = tokenEnv,
+                Repo = repo,
+                RepoSource = repoSource,
                 KeepHistory = keepHistory,
                 Force = force,
                 Logger = Logger

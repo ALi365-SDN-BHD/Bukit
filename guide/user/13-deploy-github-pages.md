@@ -34,15 +34,17 @@ Dry run validates config and prints the plan without writing to the remote.
 bukit deploy --ci --branch gh-pages --message "publish site"
 ```
 
-The deployment repository always comes from the project selected by `--config`
-(or `--site`), not from the current working directory. Bukit reads
+By default the deployment repository is the project's `origin`. The project is
+selected by `--config` (or `--site`), not by the current working directory. Use
+`--repo owner/name` or `deploy.repo` to deploy to another GitHub repository; see
+[Target repository](#target-repository). Bukit reads
 `remote.origin.url` from the project's worktree scope first and falls back to
 its local scope only when that key is absent. The first raw origin value wins: an
 empty, invalid, or non-direct GitHub origin fails instead of using a later
 value, another repository, or a global/system origin. `--output` changes only
 where artifacts are read; it does not change repository identity.
 
-Origin must point directly at GitHub, for example
+When the target comes from origin, origin must point directly at GitHub, for example
 `https://github.com/owner/repo.git` or `git@github.com:owner/repo.git`. Aliases
 that become GitHub URLs only through global Git URL rewriting are not accepted.
 
@@ -64,14 +66,54 @@ environment. Normal repository subdirectories and linked worktrees still work
 through their own Git metadata. Parent process environment and global/system
 credential configuration are not modified.
 
+### Target repository
+
+Precedence: `--repo owner/name`, then `deploy.repo` in `site.yaml`, then the
+project's `origin`. `deploy.repo` is committed with the site, so anyone who can
+merge configuration changes can change the deployment target. The token's
+repository scope is the real limit: use a fine-grained token that covers only
+the target repository. When the target differs from `origin`, Bukit logs a
+warning and deploys to the target. `--repo` is an explicit option; it is not read
+from the environment.
+
 Useful options:
 
 | Option | Use |
 |---|---|
+| `--repo <owner/name>` | Deploy to this GitHub repository instead of the project origin. |
 | `--skip-build` | Deploy the existing output directory. |
 | `--output` | Override `build.output` for this invocation. |
 | `--base-url`, `--site-url` | Override generated URLs for deployment. |
+| `--token-env <NAME>` | Read the GitHub token from environment variable `NAME` instead of `GITHUB_TOKEN`. |
 | `--force` | Allow forced branch update when explicitly intended. |
+
+## Token
+
+Bukit reads the GitHub token only from an environment variable, never from
+`site.yaml` or a command-line value. By default the variable is `GITHUB_TOKEN`.
+Use `--token-env NAME` when a run needs a different variable, for example when
+one job deploys with a token scoped to another repository.
+
+- The name starts with an upper-case letter or `_`, then uses only upper-case
+  letters, digits, and underscores, up to 128 characters, such as
+  `DOCS_DEPLOY_TOKEN`. Lower-case names are rejected on purpose, so a token
+  pasted by mistake is refused and its value is not printed.
+- Pass only the variable name. Never paste a token into the command: shell
+  history and CI logs such as `set -x` output can keep it. If a token was pasted,
+  revoke it and create a new one.
+- The variable must hold a token with `Contents: Read and write` on the
+  deployment repository. A missing variable fails before any remote Git operation,
+  and the error names the variable without printing its value.
+- In GitHub Actions, `GITHUB_TOKEN` is not set as an environment variable
+  automatically. For `bukit deploy` in a workflow, add `permissions: contents: write`
+  and `env: GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}`. This applies only to
+  `bukit deploy`; `actions/deploy-pages` does not need a token push.
+- The Actions `GITHUB_TOKEN` only works for the workflow's own repository. To
+  deploy to another repository, store a fine-grained personal access token as a
+  secret and pass its variable name with `--token-env`. A GitHub App
+  installation token expires after about one hour, so do not store one as a
+  secret: store the App ID and private key, create the token in the workflow,
+  and pass it with `--token-env`.
 
 ## Publish Privacy Boundary
 

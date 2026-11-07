@@ -28,7 +28,7 @@ This table is derived from `BukitCliSpecs.cs`.
 | `publish` | Parent command for publish audit reports. | `--dir`, `--report`, `--strict`, `--external` |
 | `publish audit` | Validate `.bukit/publish-audit-report.json`. | `--dir`, `--report`, `--strict`, `--external` |
 | `publish diff` | Compare publish audit reports. | `--baseline`, `--current`, `--max-new-errors`, `--max-new-warnings`, `--max-new-issues`, `--fail-on-new-code`, `--fail-on-route-removed`, `--fail-on-indexable-drop` |
-| `deploy` | Build if needed and deploy to GitHub Pages. | `--config`, `--site`, `--dry-run`, `--skip-build`, `--base-url`, `--site-url`, `--output`, `--branch`, `--message`, `--ci`, `--force` |
+| `deploy` | Build if needed and deploy to GitHub Pages. | `--config`, `--site`, `--dry-run`, `--skip-build`, `--base-url`, `--site-url`, `--output`, `--branch`, `--repo`, `--token-env`, `--message`, `--ci`, `--force` |
 
 `bukit deploy --dry-run` validates an existing build without rebuilding or
 requiring provider secrets. If the output directory is missing, it exits 1 and
