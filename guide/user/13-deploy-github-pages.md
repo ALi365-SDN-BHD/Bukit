@@ -76,6 +76,10 @@ the target repository. When the target differs from `origin`, Bukit logs a
 warning and deploys to the target. `--repo` is an explicit option; it is not read
 from the environment.
 
+An empty value is an error, never a silent fallback to `origin`: this covers
+`--repo ""`, `repo: ""` in `site.yaml`, and an empty `BUKIT_DEPLOY__REPO`
+(for example an undefined Actions variable). Remove the key to deploy to `origin`.
+
 Useful options:
 
 | Option | Use |

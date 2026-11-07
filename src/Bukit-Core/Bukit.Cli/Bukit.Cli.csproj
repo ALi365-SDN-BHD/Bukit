@@ -29,6 +29,8 @@
 
   <ItemGroup>
     <Compile Include="$(IntermediateOutputPath)CliBuildInfo.g.cs" />
+    <!-- Linked so the deploy repo option and deploy.repo share one internal validator. -->
+    <Compile Include="..\Bukit.Config\GitHubRepoSlug.cs" Link="Deploy\GitHubRepoSlug.cs" />
   </ItemGroup>
 
   <ItemGroup>

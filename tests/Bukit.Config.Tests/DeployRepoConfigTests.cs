@@ -85,4 +85,24 @@ public sealed class DeployRepoConfigTests
             File.Delete(path);
         }
     }
+
+    [Theory]
+    [InlineData("  repo: \"\"")]
+    [InlineData("  repo: \"   \"")]
+    [InlineData("  repo:")]
+    public void Validate_EmptyDeployRepo_FailsInsteadOfFallingBackToOrigin(string repoLine)
+    {
+        var path = WriteTemp(Yaml(repoLine));
+        try
+        {
+            var config = ConfigLoader.Load(path);
+
+            var ex = Assert.Throws<ConfigException>(() => ConfigValidator.Validate(config));
+            Assert.Contains("deploy.repo must not be empty", ex.Message, StringComparison.Ordinal);
+        }
+        finally
+        {
+            File.Delete(path);
+        }
+    }
 }

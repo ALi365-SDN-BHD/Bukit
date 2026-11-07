@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.Text.RegularExpressions;
+using Bukit.Config;
 using Bukit.Shared;
 
 namespace Bukit.Cli.Deploy;
@@ -111,7 +112,7 @@ public sealed partial class GitHubPagesDeployProvider
         return true;
     }
 
-    // Same owner/name rules as deploy.repo in Bukit.Config. Unset (null) is valid and means "use origin".
+    // Shares GitHubRepoSlug with deploy.repo in Bukit.Config. Unset (null) is valid and means "use origin".
     internal static bool TryNormalizeRepo(string? value, out string? normalized, out string? error)
     {
         normalized = null;
@@ -128,7 +129,7 @@ public sealed partial class GitHubPagesDeployProvider
             return false;
         }
 
-        if (!IsValidRepoSlug(trimmed))
+        if (!GitHubRepoSlug.IsValid(trimmed))
         {
             error = "deploy --repo must be 'owner/name' (for example 'ALi365-SDN-BHD/site'), without a URL, '.git' suffix, or whitespace. The value is not echoed.";
             return false;
@@ -137,49 +138,6 @@ public sealed partial class GitHubPagesDeployProvider
         normalized = trimmed;
         return true;
     }
-
-    // Same rules as Bukit.Config's deploy.repo validator: owner 1-39 of [A-Za-z0-9-] (alphanumeric first),
-    // name 1-100 of [A-Za-z0-9._-], not '.', '..' or ending in '.git'.
-    private static bool IsValidRepoSlug(string value)
-    {
-        var parts = value.Split('/');
-        if (parts.Length != 2)
-        {
-            return false;
-        }
-
-        var owner = parts[0];
-        var name = parts[1];
-        if (owner.Length is < 1 or > 39 || !IsAsciiAlphanumeric(owner[0]))
-        {
-            return false;
-        }
-
-        foreach (var c in owner)
-        {
-            if (!(IsAsciiAlphanumeric(c) || c == '-'))
-            {
-                return false;
-            }
-        }
-
-        if (name is "." or ".." || name.EndsWith(".git", StringComparison.OrdinalIgnoreCase) || name.Length is < 1 or > 100)
-        {
-            return false;
-        }
-
-        foreach (var c in name)
-        {
-            if (!(IsAsciiAlphanumeric(c) || c == '.' || c == '_' || c == '-'))
-            {
-                return false;
-            }
-        }
-
-        return true;
-    }
-
-    private static bool IsAsciiAlphanumeric(char c) => c is (>= 'a' and <= 'z') or (>= 'A' and <= 'Z') or (>= '0' and <= '9');
 
     // Returns the target repository (explicit --repo / deploy.repo) or the project origin.
     // An explicit target never reads origin for identity, so it works without an origin remote.
