@@ -356,6 +356,29 @@ public sealed class WorktreeBuildCoordinatorTests : IDisposable
     }
 
     [Fact]
+    public async Task WorktreeBuild_RejectsJournalForDifferentOutput()
+    {
+        var root = Path.Combine(_root, "orphan-journal");
+        var site = CreateSite(root);
+        await InitializeRepositoryAsync(root);
+        var otherOutput = PathUtils.GetCanonicalFullPath(Path.Combine(root, "other-output"));
+        var identity = Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes(otherOutput)));
+        var gitDir = (await RunProcessAsync("git", ["rev-parse", "--absolute-git-dir"], root)).Output.Trim();
+        var journalDir = Path.Combine(gitDir, "bukit-build-transactions-v1");
+        Directory.CreateDirectory(journalDir);
+        var journal = Path.Combine(journalDir, ".bukit-transaction-" + identity + ".json");
+        await File.WriteAllTextAsync(journal, """{"version":1,"pid":999999,"committed":false,"entries":[]}""");
+
+        var failure = await Record.ExceptionAsync(() => WorktreeBuildRun.StartAsync(
+            ConfigLoader.Load(site), new ResolvedConfigPath(site, root), new ConfigOverrides(), "text",
+            new ConsoleLogger(LogLevel.Error), CancellationToken.None));
+
+        Assert.IsType<IOException>(failure);
+        Assert.Contains("different output", failure.Message, StringComparison.Ordinal);
+        Assert.True(File.Exists(journal));
+    }
+
+    [Fact]
     public async Task ActiveWorktreeBuild_BlocksInProcessBuildUsingSameOutput()
     {
         var root = Path.Combine(_root, "worktree-resource-conflict");

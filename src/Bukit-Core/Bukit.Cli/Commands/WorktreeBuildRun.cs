@@ -109,6 +109,7 @@ internal sealed class WorktreeBuildRun
         OutputDirectoryCleaner.EnsureNoSourceOverlap(
             OutputDirectoryCleaner.GetConfiguredContentSources(recoveryConfig, resolved.RootDir),
             BuildTransaction.ConfiguredWriteTargets(recoveryConfig, resolved.RootDir, overrides, recoveryOutput));
+        BuildTransactionJournal.RejectOtherJournals(resolved.RootDir, recoveryOutput);
         if (BuildTransactionJournal.HasPending(resolved.RootDir, recoveryOutput))
         {
             var rootResult = await WorktreeBuildRepository.RunGitAsync(resolved.RootDir,
@@ -122,7 +123,8 @@ internal sealed class WorktreeBuildRun
                 new BuildResourceLease.Resource(PathUtils.GetCanonicalFullPath(resolved.RootDir), true, true)]);
             BuildTransactionJournal.Recover(resolved.RootDir, recoveryOutput,
                 [.. targets.SelectMany(path => new[] { (path, true), (path, false) })],
-                WorktreeBuildPaths.RunsRoot(repositoryRoot));
+                WorktreeBuildPaths.RunsRoot(repositoryRoot),
+                logger);
         }
         GitRepository repository;
         try
