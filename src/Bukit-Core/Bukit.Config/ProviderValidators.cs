@@ -260,7 +260,15 @@ internal static class ProviderValidators
             throw new ConfigException("deploy.message must be <= 4096 characters.", DiagnosticCode.ConfigRequiredFieldMissing);
         }
 
-        if (!string.IsNullOrWhiteSpace(deploy.Repo) && !IsValidDeployRepo(deploy.Repo))
+        // A present but empty deploy.repo (for example an unset CI variable behind BUKIT_DEPLOY__REPO)
+        // must fail instead of silently deploying to origin.
+        if (deploy.Repo is not null && string.IsNullOrWhiteSpace(deploy.Repo))
+        {
+            throw new ConfigException("deploy.repo must not be empty. Set it to 'owner/name', or remove the key to deploy to origin.", DiagnosticCode.ConfigInvalidValue);
+        }
+
+        // Trimmed like deploy.branch and deploy.cname, and like deploy --repo; the deploy command trims it too.
+        if (deploy.Repo is not null && !GitHubRepoSlug.IsValid(deploy.Repo.Trim()))
         {
             throw new ConfigException("deploy.repo must be 'owner/name' (for example 'ALi365-SDN-BHD/site'), without a URL, '.git' suffix, or whitespace.", DiagnosticCode.ConfigInvalidValue);
         }
@@ -274,49 +282,6 @@ internal static class ProviderValidators
             }
         }
     }
-
-    // GitHub owner: alphanumerics and hyphens, 1-39 characters, no leading hyphen.
-    // Repository name: alphanumerics, '.', '_' and '-', 1-100 characters; '.' and '..' are rejected.
-    internal static bool IsValidDeployRepo(string value)
-    {
-        var parts = value.Split('/');
-        if (parts.Length != 2)
-        {
-            return false;
-        }
-
-        var owner = parts[0];
-        var name = parts[1];
-        if (owner.Length is < 1 or > 39 || !IsDeployRepoAlphanumeric(owner[0]))
-        {
-            return false;
-        }
-
-        foreach (var c in owner)
-        {
-            if (!(IsDeployRepoAlphanumeric(c) || c == '-'))
-            {
-                return false;
-            }
-        }
-
-        if (name is "." or ".." || name.EndsWith(".git", StringComparison.OrdinalIgnoreCase) || name.Length is < 1 or > 100)
-        {
-            return false;
-        }
-
-        foreach (var c in name)
-        {
-            if (!(IsDeployRepoAlphanumeric(c) || c == '.' || c == '_' || c == '-'))
-            {
-                return false;
-            }
-        }
-
-        return true;
-    }
-
-    private static bool IsDeployRepoAlphanumeric(char c) => c is (>= 'a' and <= 'z') or (>= 'A' and <= 'Z') or (>= '0' and <= '9');
 
     internal static bool IsValidDomain(string domain)
     {

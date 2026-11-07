@@ -111,7 +111,7 @@ public sealed partial class GitHubPagesDeployProvider
         return true;
     }
 
-    // Same owner/name rules as deploy.repo in Bukit.Config. Unset (null) is valid and means "use origin".
+    // Same owner/name rules as deploy.repo (Bukit.Config GitHubRepoSlug). Unset (null) is valid and means "use origin".
     internal static bool TryNormalizeRepo(string? value, out string? normalized, out string? error)
     {
         normalized = null;
@@ -138,8 +138,9 @@ public sealed partial class GitHubPagesDeployProvider
         return true;
     }
 
-    // Same rules as Bukit.Config's deploy.repo validator: owner 1-39 of [A-Za-z0-9-] (alphanumeric first),
-    // name 1-100 of [A-Za-z0-9._-], not '.', '..' or ending in '.git'.
+    // Mirrors Bukit.Config's GitHubRepoSlug.IsValid. Bukit.Cli may not link Config sources or see its
+    // internals, so DeployRepoSlugParityTests checks this copy against the generated config schema pattern.
+    // owner: 1-39 of [A-Za-z0-9-] (alphanumeric first); name: 1-100 of [A-Za-z0-9._-], not '.', '..' or '*.git'.
     private static bool IsValidRepoSlug(string value)
     {
         var parts = value.Split('/');
