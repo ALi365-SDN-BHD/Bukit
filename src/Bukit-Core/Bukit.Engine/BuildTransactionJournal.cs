@@ -18,10 +18,11 @@ internal sealed class BuildTransactionJournal
     private readonly string _path;
     private readonly List<Entry> _entries;
     private readonly int _processId;
+    private readonly string _siteRoot;
     private bool _committed;
 
-    private BuildTransactionJournal(string path, List<Entry> entries, int processId)
-        => (_path, _entries, _processId) = (path, entries, processId);
+    private BuildTransactionJournal(string path, List<Entry> entries, int processId, string siteRoot)
+        => (_path, _entries, _processId, _siteRoot) = (path, entries, processId, siteRoot);
 
     internal bool IsUnstarted => !_committed && _entries.All(entry => entry.State == 0);
 
@@ -59,7 +60,8 @@ internal sealed class BuildTransactionJournal
     {
         if (HasPending(root, output))
             throw new IOException("A build transaction journal already exists; recover it before starting another build.");
-        var journal = new BuildTransactionJournal(PathFor(root, output), entries.ToList(), processId ?? Environment.ProcessId);
+        var journal = new BuildTransactionJournal(
+            PathFor(root, output), entries.ToList(), processId ?? Environment.ProcessId, BuildResourceLease.Canonical(root));
         var directory = System.IO.Path.GetDirectoryName(journal._path)!;
         System.IO.Directory.CreateDirectory(directory);
         if ((File.GetAttributes(directory) & FileAttributes.ReparsePoint) != 0)
@@ -98,6 +100,7 @@ internal sealed class BuildTransactionJournal
                     writer.WriteStartObject();
                     writer.WriteNumber("version", 1);
                     writer.WriteNumber("pid", _processId);
+                    writer.WriteString("siteRoot", _siteRoot);
                     writer.WriteBoolean("committed", _committed);
                     writer.WriteStartArray("entries");
                     foreach (var entry in _entries)
@@ -257,6 +260,7 @@ internal sealed class BuildTransactionJournal
 
     internal static IReadOnlyList<string> FindOtherJournals(string root, string output)
     {
+        var siteRoot = BuildResourceLease.Canonical(root);
         var current = Path.GetFileName(PathFor(root, output));
         var directory = Path.GetDirectoryName(PathFor(root, output))!;
         var result = new List<string>();
@@ -269,7 +273,7 @@ internal sealed class BuildTransactionJournal
         {
             if (!Directory.Exists(folder)) return;
             result.AddRange(Directory.EnumerateFiles(folder, ".bukit-transaction-*.json")
-                .Where(path => Path.GetFileName(path) != current && !IsLiveOwner(path)));
+                .Where(path => Path.GetFileName(path) != current && !IsLiveOwner(path) && BelongsToSite(path, siteRoot)));
         }
     }
 
@@ -280,6 +284,22 @@ internal sealed class BuildTransactionJournal
         throw new IOException(
             "Interrupted build transactions exist for a different output. Build with the original output to recover, or inspect and remove these journals after checking their backups: " +
             string.Join("; ", others));
+    }
+
+    private static bool BelongsToSite(string journalPath, string siteRoot)
+    {
+        try
+        {
+            using var document = JsonDocument.Parse(File.ReadAllBytes(journalPath));
+            if (!document.RootElement.TryGetProperty("siteRoot", out var siteElement) ||
+                siteElement.GetString() is not { Length: > 0 } recorded)
+                return true; // legacy journals cannot be attributed; keep them blocking.
+            return BuildResourceLease.Same(BuildResourceLease.Canonical(recorded), siteRoot);
+        }
+        catch (Exception ex) when (ex is IOException or JsonException or InvalidOperationException)
+        {
+            return true;
+        }
     }
 
     private static bool IsLiveOwner(string journalPath)
