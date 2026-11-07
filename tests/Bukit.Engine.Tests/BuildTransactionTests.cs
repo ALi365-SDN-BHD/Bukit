@@ -114,6 +114,30 @@ public sealed class BuildTransactionTests : IDisposable
     }
 
     [Fact]
+    public void FindOtherJournalsIgnoresOtherSitesInSameRepository()
+    {
+        var repository = Path.Combine(_root, "repo");
+        var siteA = Path.Combine(repository, "site-a");
+        var siteB = Path.Combine(repository, "site-b");
+        Directory.CreateDirectory(Path.Combine(repository, ".git"));
+        Directory.CreateDirectory(siteA);
+        Directory.CreateDirectory(siteB);
+        var outputA = Path.Combine(siteA, "dist");
+        var outputB = Path.Combine(siteB, "dist");
+        _ = BuildTransactionJournal.Create(siteA, outputA, [], processId: 999999);
+        var journal = BuildTransactionJournal.PathFor(siteA, outputA);
+        try
+        {
+            Assert.Empty(BuildTransactionJournal.FindOtherJournals(siteB, outputB));
+            Assert.Single(BuildTransactionJournal.FindOtherJournals(siteA, Path.Combine(siteA, "other")));
+        }
+        finally
+        {
+            File.Delete(journal);
+        }
+    }
+
+    [Fact]
     public void BeginAllowsJournalOwnedByLiveProcess()
     {
         var otherOutput = Path.Combine(_root, "live-output");
