@@ -75,7 +75,7 @@ internal static class WorktreeBuildTransaction
         }
         if (completedFiles.All(item => !item.HadOriginal || !File.Exists(item.Backup)) &&
             completedDirectories.All(item => !item.HadOriginal || !Directory.Exists(item.Backup)))
-            journal.Remove();
+            RemoveJournalBestEffort(journal);
     }
 
     private static void Rollback(
@@ -111,7 +111,14 @@ internal static class WorktreeBuildTransaction
         }
         if (rollbackErrors.Count > 0)
             throw new AggregateException("Output transaction failed and rollback is incomplete.", new[] { commitError }.Concat(rollbackErrors));
-        journal.Remove();
+        RemoveJournalBestEffort(journal);
+    }
+
+    private static void RemoveJournalBestEffort(BuildTransactionJournal journal)
+    {
+        try { journal.Remove(); }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        { Console.Error.WriteLine($"[i18n-worktree-cleanup-failed] Transaction journal retained: {ex.Message}"); }
     }
 
     internal static void CleanupBackup(string path, bool isDirectory)

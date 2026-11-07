@@ -96,6 +96,55 @@ public sealed class BuildTransactionTests : IDisposable
     }
 
     [Fact]
+    public void BeginRejectsJournalForDifferentOutput()
+    {
+        var otherOutput = Path.Combine(_root, "other-output");
+        _ = BuildTransactionJournal.Create(_root, otherOutput, [], processId: 999999);
+        var journalPath = BuildTransactionJournal.PathFor(_root, otherOutput);
+        try
+        {
+            var error = Assert.Throws<IOException>(() => BuildTransaction.Begin(Config, _root, new(), _logger));
+            Assert.Contains("different output", error.Message, StringComparison.Ordinal);
+            Assert.True(File.Exists(journalPath));
+        }
+        finally
+        {
+            File.Delete(journalPath);
+        }
+    }
+
+    [Fact]
+    public void BeginAllowsJournalOwnedByLiveProcess()
+    {
+        var otherOutput = Path.Combine(_root, "live-output");
+        _ = BuildTransactionJournal.Create(_root, otherOutput, []);
+        var journalPath = BuildTransactionJournal.PathFor(_root, otherOutput);
+        try
+        {
+            using (BuildTransaction.Begin(Config, _root, new(), _logger))
+            {
+            }
+        }
+        finally
+        {
+            File.Delete(journalPath);
+        }
+    }
+
+    [Fact]
+    public void JournalRemoveBestEffortKeepsGoingWhenJournalCannotBeRemoved()
+    {
+        var output = Path.Combine(_root, "public");
+        var journal = BuildTransactionJournal.Create(_root, output, []);
+        var journalPath = BuildTransactionJournal.PathFor(_root, output);
+        File.Delete(journalPath);
+        Directory.CreateDirectory(journalPath);
+
+        Assert.False(journal.RemoveBestEffort(_logger));
+        Assert.True(Directory.Exists(journalPath));
+    }
+
+    [Fact]
     public void DisposeKeepsGoingWhenJournalCannotBeRemoved()
     {
         var output = Path.Combine(_root, "public");
