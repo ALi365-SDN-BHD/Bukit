@@ -1,6 +1,8 @@
+using System.Diagnostics;
 using System.Text.Json;
 using System.Security.Cryptography;
 using System.Text;
+using Bukit.Shared;
 
 namespace Bukit.Engine;
 
@@ -15,9 +17,11 @@ internal sealed class BuildTransactionJournal
 
     private readonly string _path;
     private readonly List<Entry> _entries;
+    private readonly int _processId;
     private bool _committed;
 
-    private BuildTransactionJournal(string path, List<Entry> entries) => (_path, _entries) = (path, entries);
+    private BuildTransactionJournal(string path, List<Entry> entries, int processId)
+        => (_path, _entries, _processId) = (path, entries, processId);
 
     internal bool IsUnstarted => !_committed && _entries.All(entry => entry.State == 0);
 
@@ -51,11 +55,11 @@ internal sealed class BuildTransactionJournal
         return ExistsOrLink(path) || ExistsOrLink(LegacyPath(root, output));
     }
 
-    internal static BuildTransactionJournal Create(string root, string output, IEnumerable<Entry> entries)
+    internal static BuildTransactionJournal Create(string root, string output, IEnumerable<Entry> entries, int? processId = null)
     {
         if (HasPending(root, output))
             throw new IOException("A build transaction journal already exists; recover it before starting another build.");
-        var journal = new BuildTransactionJournal(PathFor(root, output), entries.ToList());
+        var journal = new BuildTransactionJournal(PathFor(root, output), entries.ToList(), processId ?? Environment.ProcessId);
         var directory = System.IO.Path.GetDirectoryName(journal._path)!;
         System.IO.Directory.CreateDirectory(directory);
         if ((File.GetAttributes(directory) & FileAttributes.ReparsePoint) != 0)
@@ -93,6 +97,7 @@ internal sealed class BuildTransactionJournal
                 {
                     writer.WriteStartObject();
                     writer.WriteNumber("version", 1);
+                    writer.WriteNumber("pid", _processId);
                     writer.WriteBoolean("committed", _committed);
                     writer.WriteStartArray("entries");
                     foreach (var entry in _entries)
@@ -118,7 +123,7 @@ internal sealed class BuildTransactionJournal
         finally { if (owned) File.Delete(temp); }
     }
 
-    internal static void Recover(string root, string output, IReadOnlyList<(string Path, bool Directory)> allowed, string? worktreeRunsRoot = null)
+    internal static void Recover(string root, string output, IReadOnlyList<(string Path, bool Directory)> allowed, string? worktreeRunsRoot = null, ILogger? logger = null)
     {
         var journalPath = PathFor(root, output);
         var legacyPath = LegacyPath(root, output);
@@ -135,8 +140,10 @@ internal sealed class BuildTransactionJournal
         var (committed, entries) = ReadEntries(journalPath, root, allowed, worktreeRunsRoot);
         ValidateRecoveryState(entries, committed);
         foreach (var entry in entries.AsEnumerable().Reverse())
-            RestoreEntry(entry, committed);
-        File.Delete(journalPath);
+            RestoreEntry(entry, committed, logger);
+        try { File.Delete(journalPath); }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        { throw new IOException($"Build transaction journal could not be removed: {journalPath}", ex); }
     }
 
     private static (bool Committed, List<Entry> Entries) ReadEntries(
@@ -211,7 +218,7 @@ internal sealed class BuildTransactionJournal
             throw new IOException($"Interrupted build backup is missing: {missingBackup.Backup}");
     }
 
-    private static void RestoreEntry(Entry entry, bool committed)
+    private static void RestoreEntry(Entry entry, bool committed, ILogger? logger)
     {
         if (!committed && entry.State == 1)
         {
@@ -230,8 +237,80 @@ internal sealed class BuildTransactionJournal
             else if (!entry.HadOriginal && !Exists(entry.Stage, entry.Directory) && Exists(entry.Path, entry.Directory))
                 Delete(entry.Path, entry.Directory);
         }
-        if (Exists(entry.Stage, entry.Directory)) Delete(entry.Stage, entry.Directory);
-        if (committed && Exists(entry.Backup, entry.Directory)) Delete(entry.Backup, entry.Directory);
+        TryDelete(entry.Stage, entry.Directory, logger, "staging");
+        if (committed) TryDelete(entry.Backup, entry.Directory, logger, "backup");
+    }
+
+    internal bool RemoveBestEffort(ILogger? logger)
+    {
+        try
+        {
+            Remove();
+            return true;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            logger?.Warn($"Build transaction journal cleanup failed; retained: {_path}: {ex.Message}");
+            return false;
+        }
+    }
+
+    internal static IReadOnlyList<string> FindOtherJournals(string root, string output)
+    {
+        var current = Path.GetFileName(PathFor(root, output));
+        var directory = Path.GetDirectoryName(PathFor(root, output))!;
+        var result = new List<string>();
+        AddFrom(directory);
+        if (!BuildResourceLease.Same(directory, BuildResourceLease.Canonical(root)))
+            AddFrom(BuildResourceLease.Canonical(root));
+        return result;
+
+        void AddFrom(string folder)
+        {
+            if (!Directory.Exists(folder)) return;
+            result.AddRange(Directory.EnumerateFiles(folder, ".bukit-transaction-*.json")
+                .Where(path => Path.GetFileName(path) != current && !IsLiveOwner(path)));
+        }
+    }
+
+    internal static void RejectOtherJournals(string root, string output)
+    {
+        var others = FindOtherJournals(root, output);
+        if (others.Count == 0) return;
+        throw new IOException(
+            "Interrupted build transactions exist for a different output. Build with the original output to recover, or inspect and remove these journals after checking their backups: " +
+            string.Join("; ", others));
+    }
+
+    private static bool IsLiveOwner(string journalPath)
+    {
+        try
+        {
+            using var document = JsonDocument.Parse(File.ReadAllBytes(journalPath));
+            if (!document.RootElement.TryGetProperty("pid", out var pidElement) ||
+                !pidElement.TryGetInt32(out var pid) || pid <= 0)
+                return false;
+            if (pid == Environment.ProcessId) return true;
+            try
+            {
+                using var process = Process.GetProcessById(pid);
+                return !process.HasExited;
+            }
+            catch (ArgumentException) { return false; }
+            catch (InvalidOperationException) { return false; }
+        }
+        catch (Exception ex) when (ex is IOException or JsonException or InvalidOperationException)
+        {
+            return false;
+        }
+    }
+
+    private static void TryDelete(string path, bool directory, ILogger? logger, string kind)
+    {
+        if (!Exists(path, directory)) return;
+        try { Delete(path, directory); }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        { logger?.Warn($"Build transaction {kind} cleanup failed; retained: {path}: {ex.Message}"); }
     }
 
     private static bool SafeSibling(string path, string sibling, string suffix)

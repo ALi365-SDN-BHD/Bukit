@@ -67,6 +67,7 @@ internal sealed class BuildTransaction : IDisposable
         var cache = ResourcePath(string.IsNullOrWhiteSpace(overrides.CacheDir) ? Path.Combine(rootDir, ".cache") : overrides.CacheDir);
         if (!BuildResourceLease.Contains(rootDir, output) || output.Split(Path.DirectorySeparatorChar).Contains(".git") || BuildResourceLease.Same(output, cache) || BuildResourceLease.Contains(output, cache) || BuildResourceLease.Contains(cache, output))
             throw new ConfigException("Unsafe or overlapping build output/cache directories. How to fix: use a dedicated output subdirectory and separate cache directory.", DiagnosticCode.BuildOutputUnsafe);
+        if (Active.Value is null) BuildTransactionJournal.RejectOtherJournals(rootDir, output);
         var media = ContentProviderFactory.BuildEffectiveMediaConfig(config.Content.Media, rootDir, Path.Combine(cache, "media")).DownloadDir;
         var resources = GetResources(config, rootDir, overrides, output, cache, media);
         // null means "resolve from the effective config"; an explicit empty list means the injected
@@ -88,7 +89,7 @@ internal sealed class BuildTransaction : IDisposable
         try
         {
             cancellationToken.ThrowIfCancellationRequested();
-            BuildTransactionJournal.Recover(rootDir, output, [.. targets.Select(t => (t.Path, t.Directory))]);
+            BuildTransactionJournal.Recover(rootDir, output, [.. targets.Select(t => (t.Path, t.Directory))], logger: logger);
             resources = GetResources(config, rootDir, overrides, output, cache, media);
             ValidateResources(config, rootDir, output, resources, sources, extraWriteTargets ?? [], logger);
             targets = CreateTargets(resources);
@@ -335,14 +336,14 @@ internal sealed class BuildTransaction : IDisposable
                 }
                 catch (Exception recovery) { failures.Add(new IOException($"Rollback failed; preserve backup '{target.Backup}' for target '{target.Path}'.", recovery)); }
             }
-            if (failures.Count == 1) { journal.Remove(); _journal = null; }
+            if (failures.Count == 1) { journal.RemoveBestEffort(_logger); _journal = null; }
             throw new AggregateException("Build transaction commit failed; rollback attempted.", failures);
         }
         _committed = true;
         foreach (var target in _targets.Where(t => t.BackedUp))
             try { _delete(target.Backup, target.Directory); target.BackedUp = false; }
             catch (Exception ex) { _logger.Warn($"Build committed; backup cleanup failed: {target.Backup}: {ex.Message}"); }
-        if (_targets.All(t => !t.BackedUp)) { journal.Remove(); _journal = null; }
+        if (_targets.All(t => !t.BackedUp)) { journal.RemoveBestEffort(_logger); _journal = null; }
     }
 
     private static void RejectGeneratedOutputLinks(string output, AppConfig config)
@@ -410,8 +411,7 @@ internal sealed class BuildTransaction : IDisposable
             try { if (Exists(target.Stage, target.Directory)) _delete(target.Stage, target.Directory); }
             catch (Exception ex) { _logger.Warn($"Build staging cleanup failed (committed={_committed}): {target.Stage}: {ex.Message}"); }
         if (!_committed && _journal is not null && _targets.All(t => !t.BackedUp && !t.Installed && !Exists(t.Stage, t.Directory)))
-            try { _journal.Remove(); }
-            catch (Exception ex) { _logger.Warn($"Build journal cleanup failed: {ex.Message}"); }
+            _journal.RemoveBestEffort(_logger);
         _lease.Dispose();
     }
 }
