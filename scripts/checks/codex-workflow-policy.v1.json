@@ -1943,6 +1943,18 @@
       "contractConsumerGlobs": [],
       "publicContract": true,
       "resource": "static-parallel"
+    },
+    {
+      "id": "config-source-linked-into-cli",
+      "matches": [
+        "src/Bukit-Core/Bukit.Config/GitHubRepoSlug.cs"
+      ],
+      "specialtyTests": [
+        "dotnet test tests/Bukit.Cli.Tests/Bukit.Cli.Tests.csproj"
+      ],
+      "contractConsumerGlobs": [],
+      "publicContract": false,
+      "resource": "dotnet-serial"
     }
   ],
   "resourceRules": [
