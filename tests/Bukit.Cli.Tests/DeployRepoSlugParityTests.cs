@@ -45,6 +45,9 @@ public sealed class DeployRepoSlugParityTests
         new string('a', 40) + "/site",
         "ali/" + new string('n', 100),
         "ali/" + new string('n', 101),
+        "ali/site\n",
+        "  ali/site  ",
+        "ali/si te",
     };
 
     [Theory]
@@ -53,6 +56,10 @@ public sealed class DeployRepoSlugParityTests
     {
         var cliAccepts = GitHubPagesDeployProvider.TryNormalizeRepo(value, out _, out _);
 
-        Assert.Equal(Regex.IsMatch(value, SchemaPattern.Value), cliAccepts);
+        // deploy --repo and deploy.repo both trim before validating. Full-length match because in .NET
+        // (unlike ECMA-262) '$' also matches before a trailing '\n'.
+        var trimmed = value.Trim();
+        var match = Regex.Match(trimmed, SchemaPattern.Value);
+        Assert.Equal(match.Success && match.Length == trimmed.Length, cliAccepts);
     }
 }

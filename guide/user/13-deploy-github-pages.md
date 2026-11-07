@@ -80,6 +80,10 @@ An empty value is an error, never a silent fallback to `origin`: this covers
 `--repo ""`, `repo: ""` in `site.yaml`, and an empty `BUKIT_DEPLOY__REPO`
 (for example an undefined Actions variable). Remove the key to deploy to `origin`.
 
+Every command reads `BUKIT_DEPLOY__*` variables, so an empty `BUKIT_DEPLOY__REPO`
+also fails `bukit build`, `bukit lint` and `bukit doctor`. In CI, set it only on
+the deploy step. Surrounding whitespace in `deploy.repo` is trimmed, as for `--repo`.
+
 Useful options:
 
 | Option | Use |

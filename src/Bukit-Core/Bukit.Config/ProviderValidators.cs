@@ -267,7 +267,8 @@ internal static class ProviderValidators
             throw new ConfigException("deploy.repo must not be empty. Set it to 'owner/name', or remove the key to deploy to origin.", DiagnosticCode.ConfigInvalidValue);
         }
 
-        if (deploy.Repo is not null && !GitHubRepoSlug.IsValid(deploy.Repo))
+        // Trimmed like deploy.branch and deploy.cname, and like deploy --repo; the deploy command trims it too.
+        if (deploy.Repo is not null && !GitHubRepoSlug.IsValid(deploy.Repo.Trim()))
         {
             throw new ConfigException("deploy.repo must be 'owner/name' (for example 'ALi365-SDN-BHD/site'), without a URL, '.git' suffix, or whitespace.", DiagnosticCode.ConfigInvalidValue);
         }

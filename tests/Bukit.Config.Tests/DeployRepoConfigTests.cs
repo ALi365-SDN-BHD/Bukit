@@ -105,4 +105,20 @@ public sealed class DeployRepoConfigTests
             File.Delete(path);
         }
     }
+
+    [Fact]
+    public void Validate_DeployRepoWithSurroundingWhitespace_IsTrimmedLikeCliRepo()
+    {
+        var path = WriteTemp(Yaml("  repo: \"  ALi365-SDN-BHD/site  \""));
+        try
+        {
+            var config = ConfigLoader.Load(path);
+
+            ConfigValidator.Validate(config);
+        }
+        finally
+        {
+            File.Delete(path);
+        }
+    }
 }

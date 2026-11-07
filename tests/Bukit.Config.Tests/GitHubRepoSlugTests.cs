@@ -33,13 +33,17 @@ public sealed class GitHubRepoSlugTests
         new string('a', 40) + "/site",
         "ali/" + new string('n', 100),
         "ali/" + new string('n', 101),
+        "ali/site\n",
+        "ali/site\r\n",
     };
 
     [Theory]
     [MemberData(nameof(Samples))]
     public void SchemaPattern_MatchesRuntimeValidator(string value)
     {
-        var schemaMatch = Regex.IsMatch(value, GitHubRepoSlug.Pattern);
+        // Full-length match: in .NET (unlike ECMA-262) '$' also matches before a trailing '\n'.
+        var match = Regex.Match(value, GitHubRepoSlug.Pattern);
+        var schemaMatch = match.Success && match.Length == value.Length;
 
         Assert.Equal(GitHubRepoSlug.IsValid(value), schemaMatch);
     }
