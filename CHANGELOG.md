@@ -4,6 +4,8 @@ All notable changes to Bukit will be documented in this file.
 
 ## [Unreleased]
 
+## [2.0.8] - 2026-11-07
+
 - **Multilingual media staging**: A custom `content.media.downloadDir` is now staged once and shared by all language workers. New downloads and `.media-index.json` commit with the output and cache only after every language succeeds. Media changes are detected by path, size, and modification time; symbolic links inside the media directory are rejected. This is a behavior change: a media directory that contains any symbolic link now fails a multilingual build.
 - **Build interruption recovery**: The next build recovers the last complete transaction record for its output, including output, cache, staged media, and external metrics. Unknown pending files are preserved; a changed target or missing backup stops recovery and keeps the scene for inspection. Explicit multilingual builds now share the build-resource lease with in-process builds. Required input symlinks must be relative and remain inside the repository; absolute input symlinks are rejected.
 - **Analytics audit fixes**: head-start fragments follow the page's encoding declaration, the CSP requirements report adds `connectSrc` and `imgSrc`, and GTM's `<noscript>` iframe is omitted when any Google consent default is denied.
