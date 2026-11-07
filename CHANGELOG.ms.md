@@ -4,6 +4,8 @@ Semua perubahan penting kepada Bukit akan didokumenkan dalam fail ini.
 
 ## [Belum Dikeluarkan]
 
+## [2.0.8] - 2026-11-07
+
 - **Pentas media berbilang bahasa**: `content.media.downloadDir` tersuai kini dipentaskan sekali dan dikongsi oleh semua pekerja bahasa. Muat turun baharu dan `.media-index.json` hanya diserahkan bersama output dan cache selepas semua bahasa berjaya. Perubahan media dikesan melalui laluan, saiz, dan masa ubah suai; pautan simbolik di dalam direktori media ditolak. Ini perubahan tingkah laku: direktori media yang mengandungi sebarang pautan simbolik kini menggagalkan pembinaan berbilang bahasa.
 - **Pemulihan gangguan pembinaan**: Pembinaan seterusnya memulihkan rekod transaksi lengkap terakhir untuk output tersebut, termasuk output, cache, media yang dipentaskan, dan metrik luaran. Fail sementara yang tidak diketahui dikekalkan; sasaran yang berubah atau sandaran yang hilang menghentikan pemulihan dan mengekalkan keadaan untuk pemeriksaan. Pembinaan berbilang bahasa eksplisit kini berkongsi pajakan sumber binaan dengan pembinaan dalam proses. Pautan simbolik input yang diperlukan mesti relatif dan kekal di dalam repositori; pautan simbolik input mutlak ditolak.
 - **Pembaikan audit Analytics**: serpihan permulaan head mengikut pengisytiharan pengekodan halaman, laporan keperluan CSP menambah `connectSrc` dan `imgSrc`, dan iframe `<noscript>` GTM tidak dijana apabila mana-mana nilai lalai persetujuan Google ialah `denied`.
