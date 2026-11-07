@@ -1,8 +1,8 @@
 namespace Bukit.Config;
 
-// Single source of truth for GitHub "owner/name" slugs (deploy.repo and deploy --repo).
-// Compiled into Bukit.Config and linked into Bukit.Cli as source, so both stay internal
-// without widening InternalsVisibleTo.
+// GitHub "owner/name" rules for deploy.repo and the config schema pattern.
+// Bukit.Cli keeps its own copy for deploy --repo (it may not link Config sources);
+// Bukit.Cli.Tests DeployRepoSlugParityTests checks that copy against Pattern.
 internal static class GitHubRepoSlug
 {
     // JSON Schema (ECMA-262) form of IsValid. Keep the two in sync; GitHubRepoSlugTests checks parity.

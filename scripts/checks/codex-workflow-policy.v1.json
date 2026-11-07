@@ -1945,7 +1945,7 @@
       "resource": "static-parallel"
     },
     {
-      "id": "config-source-linked-into-cli",
+      "id": "repo-slug-cli-parity",
       "matches": [
         "src/Bukit-Core/Bukit.Config/GitHubRepoSlug.cs"
       ],
