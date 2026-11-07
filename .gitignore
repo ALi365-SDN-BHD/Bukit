@@ -74,3 +74,6 @@ coverage-results-filtered/
 
 # graft's local graph cache — regenerable, not committed (run `graft build`).
 /graft/
+
+# Local agent/brainstorm session state — not part of the repository.
+/.superpowers/
