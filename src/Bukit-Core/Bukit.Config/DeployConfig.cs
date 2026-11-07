@@ -5,6 +5,7 @@ public sealed record DeployConfig
     public string? Provider { get; init; }
     public string Branch { get; init; } = "gh-pages";
     public string Message { get; init; } = "bukit deploy";
+    public string? Repo { get; init; }
     public string? Cname { get; init; }
     public bool KeepHistory { get; init; }
 }

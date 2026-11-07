@@ -1919,6 +1919,30 @@
         "bash scripts/checks/docs/active-links.sh",
         "bash scripts/checks/docs/size-policy.sh"
       ]
+    },
+    {
+      "id": "deploy-skill-token-repo",
+      "matches": [
+        "guide/skills/bukit-deploy/SKILL.md"
+      ],
+      "specialtyTests": [
+        "bash guide/skills/scripts/validate-skills-strict.sh"
+      ],
+      "contractConsumerGlobs": [],
+      "publicContract": false,
+      "resource": "static-parallel"
+    },
+    {
+      "id": "parameter-cheatsheet-guide",
+      "matches": [
+        "guide/user/16-parameter-cheatsheet.md"
+      ],
+      "specialtyTests": [
+        "bash scripts/checks/cli-docs-sync.sh"
+      ],
+      "contractConsumerGlobs": [],
+      "publicContract": true,
+      "resource": "static-parallel"
     }
   ],
   "resourceRules": [

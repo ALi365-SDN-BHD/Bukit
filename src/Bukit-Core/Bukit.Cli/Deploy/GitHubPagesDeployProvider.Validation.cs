@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.Text.RegularExpressions;
+using Bukit.Shared;
 
 namespace Bukit.Cli.Deploy;
 
@@ -22,7 +23,7 @@ public sealed partial class GitHubPagesDeployProvider
         return sanitized;
     }
 
-    private static string AugmentErrorHint(string message)
+    private static string AugmentErrorHint(string message, string tokenEnv)
     {
         if (message.Contains("Git command timed out during GitHub Pages deployment", StringComparison.Ordinal) ||
             message.Contains("timed out during GitHub Pages deployment", StringComparison.Ordinal))
@@ -32,7 +33,7 @@ public sealed partial class GitHubPagesDeployProvider
 
         if (message.Contains("403", StringComparison.Ordinal) || message.Contains("Forbidden", StringComparison.OrdinalIgnoreCase))
         {
-            return message + " Ensure your GITHUB_TOKEN can write repository contents (fine-grained: 'Contents: Read and write'): https://github.com/settings/tokens";
+            return message + $" Ensure your {tokenEnv} can write repository contents (fine-grained: 'Contents: Read and write'): https://github.com/settings/tokens";
         }
 
         if (message.Contains("Could not resolve host", StringComparison.OrdinalIgnoreCase) ||
@@ -45,7 +46,7 @@ public sealed partial class GitHubPagesDeployProvider
         if (message.Contains("Permission denied", StringComparison.Ordinal) ||
             message.Contains("not authorized", StringComparison.OrdinalIgnoreCase))
         {
-            return message + " Verify your GITHUB_TOKEN is valid and can write repository contents (fine-grained: 'Contents: Read and write').";
+            return message + $" Verify your {tokenEnv} is valid and can write repository contents (fine-grained: 'Contents: Read and write').";
         }
 
         return message;
@@ -58,6 +59,189 @@ public sealed partial class GitHubPagesDeployProvider
 
     private static string NormalizeBranchName(string? branch)
         => string.IsNullOrWhiteSpace(branch) ? "gh-pages" : branch.Trim();
+
+    internal const string DefaultTokenEnvName = "GITHUB_TOKEN";
+
+    // Upper-case only on purpose: GitHub token prefixes (ghp_, github_pat_) are lower-case, so a
+    // token pasted into --token-env by mistake is rejected without its value being echoed.
+    private static bool IsValidTokenEnvName(string value)
+    {
+        if (value.Length is < 1 or > 128 || !(value[0] is (>= 'A' and <= 'Z') or '_'))
+        {
+            return false;
+        }
+
+        foreach (var c in value)
+        {
+            if (!(c is (>= 'A' and <= 'Z') or (>= '0' and <= '9') or '_'))
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    internal static bool TryNormalizeTokenEnvName(string? value, out string? normalized, out string? error)
+    {
+        normalized = null;
+        error = null;
+        if (value is null)
+        {
+            normalized = DefaultTokenEnvName;
+            return true;
+        }
+
+        // An explicit but empty value (for example an unset shell variable passed as "$DOCS_TOKEN")
+        // must fail instead of silently falling back to GITHUB_TOKEN, which may belong to another account.
+        var trimmed = value.Trim();
+        if (trimmed.Length == 0)
+        {
+            error = "deploy --token-env must not be empty. Pass the name of an environment variable such as 'DOCS_DEPLOY_TOKEN', or omit the option to use GITHUB_TOKEN.";
+            return false;
+        }
+
+        if (!IsValidTokenEnvName(trimmed))
+        {
+            error = "deploy --token-env must be an environment variable name made of upper-case letters, digits and underscores (for example 'DOCS_DEPLOY_TOKEN'). The value is not echoed.";
+            return false;
+        }
+
+        normalized = trimmed;
+        return true;
+    }
+
+    // Same owner/name rules as deploy.repo in Bukit.Config. Unset (null) is valid and means "use origin".
+    internal static bool TryNormalizeRepo(string? value, out string? normalized, out string? error)
+    {
+        normalized = null;
+        error = null;
+        if (value is null)
+        {
+            return true;
+        }
+
+        var trimmed = value.Trim();
+        if (trimmed.Length == 0)
+        {
+            error = "deploy --repo must not be empty. Pass 'owner/name', for example 'ALi365-SDN-BHD/site', or omit the option to use origin.";
+            return false;
+        }
+
+        if (!IsValidRepoSlug(trimmed))
+        {
+            error = "deploy --repo must be 'owner/name' (for example 'ALi365-SDN-BHD/site'), without a URL, '.git' suffix, or whitespace. The value is not echoed.";
+            return false;
+        }
+
+        normalized = trimmed;
+        return true;
+    }
+
+    // Same rules as Bukit.Config's deploy.repo validator: owner 1-39 of [A-Za-z0-9-] (alphanumeric first),
+    // name 1-100 of [A-Za-z0-9._-], not '.', '..' or ending in '.git'.
+    private static bool IsValidRepoSlug(string value)
+    {
+        var parts = value.Split('/');
+        if (parts.Length != 2)
+        {
+            return false;
+        }
+
+        var owner = parts[0];
+        var name = parts[1];
+        if (owner.Length is < 1 or > 39 || !IsAsciiAlphanumeric(owner[0]))
+        {
+            return false;
+        }
+
+        foreach (var c in owner)
+        {
+            if (!(IsAsciiAlphanumeric(c) || c == '-'))
+            {
+                return false;
+            }
+        }
+
+        if (name is "." or ".." || name.EndsWith(".git", StringComparison.OrdinalIgnoreCase) || name.Length is < 1 or > 100)
+        {
+            return false;
+        }
+
+        foreach (var c in name)
+        {
+            if (!(IsAsciiAlphanumeric(c) || c == '.' || c == '_' || c == '-'))
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    private static bool IsAsciiAlphanumeric(char c) => c is (>= 'a' and <= 'z') or (>= 'A' and <= 'Z') or (>= '0' and <= '9');
+
+    // Returns the target repository (explicit --repo / deploy.repo) or the project origin.
+    // An explicit target never reads origin for identity, so it works without an origin remote.
+    private static async Task<(RepoInfo? Info, string? Error)> ResolveRepoInfoAsync(
+        DeployContext context,
+        string gitPath,
+        string projectRoot,
+        TimeSpan gitCommandTimeout,
+        CancellationToken ct)
+    {
+        if (context.Repo is null)
+        {
+            return (await GetRepoInfoAsync(gitPath, projectRoot, gitCommandTimeout, ct), null);
+        }
+
+        if (!TryNormalizeRepo(context.Repo, out var targetRepo, out var targetRepoError))
+        {
+            return (null, targetRepoError);
+        }
+
+        context.Logger.Info($"Deploy target repository: {targetRepo} (from {context.RepoSource})");
+        await WarnIfTargetDiffersFromOriginAsync(gitPath, projectRoot, gitCommandTimeout, targetRepo!, context.Logger, ct);
+        return (ParseRepoInfo(targetRepo!), null);
+    }
+
+    private static RepoInfo ParseRepoInfo(string ownerSlashName)
+    {
+        var parts = ownerSlashName.Split('/');
+        return new RepoInfo(parts[0], parts[1]);
+    }
+
+    private static async Task WarnIfTargetDiffersFromOriginAsync(
+        string gitPath,
+        string projectRoot,
+        TimeSpan gitCommandTimeout,
+        string targetRepo,
+        ILogger logger,
+        CancellationToken ct)
+    {
+        RepoInfo? origin;
+        try
+        {
+            origin = await GetRepoInfoAsync(gitPath, projectRoot, gitCommandTimeout, ct);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            // No usable origin is expected when the target is given explicitly; the target still applies.
+            logger.Debug($"origin could not be read for comparison: {ex.GetType().Name}");
+            return;
+        }
+
+        if (origin is null)
+        {
+            return;
+        }
+
+        var originSlug = $"{origin.Owner}/{origin.RepoName}";
+        if (!string.Equals(originSlug, targetRepo, StringComparison.OrdinalIgnoreCase))
+        {
+            logger.Warn($"Deploy target {targetRepo} differs from the project origin {originSlug}; deploying to {targetRepo}.");
+        }
+    }
 
     private static bool TryValidateBranchName(string branch, out string? error)
     {

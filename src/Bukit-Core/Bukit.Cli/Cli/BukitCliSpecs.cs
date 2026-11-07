@@ -220,6 +220,8 @@ public static partial class BukitCliSpecs
                 new CliOptionSpec("--site-url", "覆盖 site.url"),
                 new CliOptionSpec("--output", "覆盖构建输出目录"),
                 new CliOptionSpec("--branch", "GitHub Pages 目标分支"),
+                new CliOptionSpec("--repo", "部署目标仓库 owner/name（默认使用项目 origin 或 deploy.repo）", ValueName: "owner/name"),
+                new CliOptionSpec("--token-env", "读取 GitHub token 的环境变量名（默认 GITHUB_TOKEN）", ValueName: "name"),
                 new CliOptionSpec("--message", "部署提交消息"),
                 new CliOptionSpec("--ci", "CI 模式", CliOptionType.Flag),
                 new CliOptionSpec("--force", "允许 non-fast-forward 时强制覆盖远端分支", CliOptionType.Flag)

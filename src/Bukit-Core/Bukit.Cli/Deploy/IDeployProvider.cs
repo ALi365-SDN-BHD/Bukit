@@ -16,6 +16,11 @@ public sealed record DeployContext
     public required string? Branch { get; init; }
     public required string? Message { get; init; }
     public required string? Cname { get; init; }
+    // Internal on purpose: keeps the public API baseline unchanged for a CLI-only option.
+    internal string? TokenEnv { get; init; }
+    // Internal on purpose: deploy.repo / --repo is a CLI-resolved target, not a new public provider contract.
+    internal string? Repo { get; init; }
+    internal string? RepoSource { get; init; }
     public bool KeepHistory { get; init; }
     public bool Force { get; init; }
     public required ILogger Logger { get; init; }

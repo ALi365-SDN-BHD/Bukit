@@ -222,6 +222,14 @@ See the
 for exact signatures, evidence, exclusions, rollback boundaries, and migration
 examples.
 
+## Deploy Repository Target (`deploy.repo`)
+
+This reviewed additive change adds `DeployConfig.Repo` (`public System.String? Repo { get; init; }`)
+to the existing `serialized-contract / 1.x-shape-stable / retain-1.x` `Bukit.Config.DeployConfig`
+type, owned by Configuration. It carries the `deploy.repo` `owner/name` target. No type,
+member, or assembly is removed; the type count stays at 425. The CLI `--repo` option and the
+internal `DeployContext.Repo` / `RepoSource` members are not part of the governed baseline.
+
 ## Typed Build Data Keys (2.0.x)
 
 This reviewed additive change adds `BuildDataKey<T>`

@@ -105,7 +105,7 @@ public sealed class ConfigSchemaNestedContractTests
         new("theme/components/*", "template", "props"),
         new("taxonomy/kinds[]", "key", "kind", "title", "description", "singularTitlePrefix", "template", "indexTemplate", "termTemplate", "indexEnabled", "hierarchical", "routePrefix"),
         new("logging", "level"),
-        new("deploy", "provider", "branch", "message", "cname", "keepHistory")
+        new("deploy", "provider", "branch", "message", "repo", "cname", "keepHistory")
     ];
 
     private static readonly string[] DynamicMapPaths =

@@ -1149,6 +1149,7 @@
         "public System.String! Message { get; init; }",
         "public System.String? Cname { get; init; }",
         "public System.String? Provider { get; init; }",
+        "public System.String? Repo { get; init; }",
         "public static System.Boolean op_Equality(Bukit.Config.DeployConfig? left, Bukit.Config.DeployConfig? right)",
         "public static System.Boolean op_Inequality(Bukit.Config.DeployConfig? left, Bukit.Config.DeployConfig? right)",
         "public virtual System.Boolean Equals(System.Object? obj)",
