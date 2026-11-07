@@ -193,12 +193,12 @@ internal static class LlmsAggregateProjectionWriter
 
 internal static class RobotsAggregateProjectionWriter
 {
+    // i18n builds log the robots policy once from the root writer, not per language.
     internal static void WriteRobotsTxt(PublishProjectionContext context)
         => RobotsTxtWriter.WriteIfRequested(
             context.Config,
             context.OutputDir,
             context.BaseUrl,
             context.SeoIndex,
-            // i18n builds log the robots policy once from the root writer, not per language.
             logger: I18nOutputMerger.GetLanguages(context.Config.Site).Count > 0 ? null : context.Logger);
 }
