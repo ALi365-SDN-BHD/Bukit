@@ -38,9 +38,16 @@ The historical 88.03% collection used `scripts/checks/coverage/summarize.py` wit
 - `stage9-plugin-secret-masker-20261029/` — I-01 RED/focused/full GREEN TRX, coverage, cache records, OpenSpec validation log, review reports, review scope, and completion record.
 - `stage9-audit-patch-20261029/` — post-verdict validator-assertion rerun: focused `PluginCommandManifestValidatorTests` 12/12 and full PluginHost 277/277 TRX/logs.
 
-Verify the archive:
+## Archive location
+
+The archive is no longer stored in git. It is attached to GitHub Release `evidence-stage9-20261029`:
+
+<https://github.com/ALi365-SDN-BHD/Bukit/releases/download/evidence-stage9-20261029/stage9-evidence-20261029.tar.gz>
+
+Download it into this directory, then verify it against the checksum file kept in the repository:
 
 ```sh
+gh release download evidence-stage9-20261029 -p stage9-evidence-20261029.tar.gz
 shasum -a 256 -c stage9-evidence-20261029.tar.gz.sha256
 tar -tzf stage9-evidence-20261029.tar.gz | head
 ```

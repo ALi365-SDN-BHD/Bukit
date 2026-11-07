@@ -5,6 +5,7 @@
   "baseCommit": "7a8b71350501ded16a5268b6bb7cef23afd6aa67",
   "archive": {
     "file": "stage9-evidence-20261029.tar.gz",
+    "location": "GitHub Release evidence-stage9-20261029",
     "bytes": 1758749,
     "sha256": "7fcb0751726f1a7b9a7de097ae47902505d946156fada0439962311ad30dc28b"
   },
