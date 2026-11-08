@@ -48,6 +48,8 @@ public sealed class ImageAssetLocalizer : IImageAssetLocalizer, IDisposable
     private readonly ConcurrentBag<MediaFailure> _failures = new();
     private readonly MediaIndexManager _indexManager;
     private readonly ImageContentValidator _imageValidator = new();
+    private readonly bool _keepOriginalOnFailure;
+    private readonly MediaHostFilter _hostFilter;
     private int _disposeState;
 
     public IReadOnlyList<MediaFailure> Failures => _failures.ToArray();
@@ -60,6 +62,8 @@ public sealed class ImageAssetLocalizer : IImageAssetLocalizer, IDisposable
         _lifetimeToken = _lifetimeCancellation.Token;
         _indexManager = new MediaIndexManager(
             config.DownloadDir ?? string.Empty, config.UrlBase ?? string.Empty, logger);
+        _keepOriginalOnFailure = IsKeepOnFailure(config);
+        _hostFilter = new MediaHostFilter(config.DownloadHosts, config.SkipHosts);
 
         var handler = CreateDefaultHandler(config);
         _httpClient = new HttpClient(handler);
@@ -94,6 +98,8 @@ public sealed class ImageAssetLocalizer : IImageAssetLocalizer, IDisposable
         _lifetimeToken = _lifetimeCancellation.Token;
         _indexManager = new MediaIndexManager(
             config.DownloadDir ?? string.Empty, config.UrlBase ?? string.Empty, logger);
+        _keepOriginalOnFailure = IsKeepOnFailure(config);
+        _hostFilter = new MediaHostFilter(config.DownloadHosts, config.SkipHosts);
     }
 
     internal ImageAssetLocalizer(MediaConfig config, HttpClient httpClient, ILogger? logger = null)
@@ -134,6 +140,12 @@ public sealed class ImageAssetLocalizer : IImageAssetLocalizer, IDisposable
         if (!_config.DownloadToLocal)
         {
             _logger?.Warn($"event=media.skip_download_disabled source={UrlRedactor.Redact(source)}");
+            return source;
+        }
+
+        if (!_hostFilter.ShouldDownload(uri))
+        {
+            _logger?.Debug($"event=media.skip_host source={UrlRedactor.Redact(source)}");
             return source;
         }
 
@@ -271,18 +283,18 @@ public sealed class ImageAssetLocalizer : IImageAssetLocalizer, IDisposable
                     continue;
                 }
 
-                var contentType = response.Content.Headers.ContentType?.MediaType;
-                if (!IsAllowedContentType(contentType))
+                var headerContentType = response.Content.Headers.ContentType?.MediaType;
+                // Generic binary types (e.g. Notion file storage) are identified from the file signature below.
+                var identifyBySignature = IsGenericBinaryContentType(headerContentType);
+                if (!identifyBySignature && !IsAllowedContentType(headerContentType))
                 {
                     _logger?.Warn(
-                        $"event=media.content_type_rejected type={contentType ?? "(null)"} source={UrlRedactor.Redact(source)}");
-                    return RecordFailure(source, $"Content-Type rejected: {contentType ?? "(null)"}");
+                        $"event=media.content_type_rejected type={headerContentType ?? "(null)"} source={UrlRedactor.Redact(source)}");
+                    return RecordFailure(source, $"Content-Type rejected: {headerContentType ?? "(null)"}");
                 }
 
-                var ext = ResolveExtension(sendResult.FinalUri, contentType);
-                var fileName = BuildStableFileName(normalizedKey, ext);
-                var localPath = Path.Combine(root, fileName);
-                var tempPath = BuildTempFilePath(root, fileName);
+                var contentType = identifyBySignature ? null : headerContentType!.Trim();
+                var tempPath = BuildTempFilePath(root, BuildFileIdentity(normalizedKey));
                 var bytesWritten = await WriteWithLimitAsync(response.Content, tempPath, maxFileSize, cts.Token);
                 if (bytesWritten is null)
                 {
@@ -302,6 +314,33 @@ public sealed class ImageAssetLocalizer : IImageAssetLocalizer, IDisposable
                     await DelayBeforeRetryAsync(attempt, retryBaseDelay, cancellationToken);
                     continue;
                 }
+
+                if (contentType is null)
+                {
+                    try
+                    {
+                        contentType = await ImageContentSignature.DetectFileAsync(tempPath, cts.Token);
+                    }
+                    catch
+                    {
+                        DeleteFileBestEffort(tempPath);
+                        throw;
+                    }
+
+                    if (contentType is null)
+                    {
+                        DeleteFileBestEffort(tempPath);
+                        _logger?.Warn(
+                            $"event=media.content_type_rejected type={headerContentType ?? "(null)"} signature=unrecognized source={UrlRedactor.Redact(source)}");
+                        return RecordFailure(
+                            source,
+                            $"Content-Type rejected: {headerContentType ?? "(null)"} (image signature not recognized)");
+                    }
+                }
+
+                var ext = ResolveExtension(sendResult.FinalUri, contentType);
+                var fileName = BuildStableFileName(normalizedKey, ext);
+                var localPath = Path.Combine(root, fileName);
 
                 bool signatureMatches;
                 try
@@ -548,7 +587,22 @@ public sealed class ImageAssetLocalizer : IImageAssetLocalizer, IDisposable
     private string RecordFailure(string sourceUrl, string reason)
     {
         _failures.Add(new MediaFailure(UrlRedactor.Redact(sourceUrl), reason));
-        return _config.DefaultImageUrl;
+        return _keepOriginalOnFailure ? sourceUrl : _config.DefaultImageUrl;
+    }
+
+    private static bool IsKeepOnFailure(MediaConfig config)
+        => string.Equals(config.OnFailure?.Trim(), "keep", StringComparison.OrdinalIgnoreCase);
+
+    private static bool IsGenericBinaryContentType(string? contentType)
+    {
+        if (string.IsNullOrWhiteSpace(contentType))
+        {
+            return true;
+        }
+
+        var normalized = contentType.Trim();
+        return normalized.Equals("application/octet-stream", StringComparison.OrdinalIgnoreCase) ||
+               normalized.Equals("binary/octet-stream", StringComparison.OrdinalIgnoreCase);
     }
 
     private static async Task<long?> WriteWithLimitAsync(

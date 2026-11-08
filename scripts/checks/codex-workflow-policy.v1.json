@@ -1955,6 +1955,28 @@
       "contractConsumerGlobs": [],
       "publicContract": false,
       "resource": "dotnet-serial"
+    },
+    {
+      "id": "media-localization-controls-contract",
+      "matches": [
+        "openspec/changes/add-media-localization-controls/proposal.md",
+        "openspec/changes/add-media-localization-controls/tasks.md",
+        "openspec/changes/add-media-localization-controls/specs/media-localization/spec.md",
+        "openspec/changes/archive/*-add-media-localization-controls/*.md",
+        "openspec/changes/archive/*-add-media-localization-controls/specs/media-localization/spec.md",
+        "openspec/specs/media-localization/spec.md"
+      ],
+      "specialtyTests": [
+        "dotnet test tests/Bukit.Config.Tests/Bukit.Config.Tests.csproj",
+        "dotnet test tests/Bukit.Content.Tests/Bukit.Content.Tests.csproj"
+      ],
+      "contractConsumerGlobs": [
+        "src/Bukit-Core/Bukit.Config/AppConfig.cs",
+        "src/Bukit-Core/Bukit.Content/Media/ImageAssetLocalizer.cs",
+        "src/Bukit-Core/Bukit.Content/Media/ImageContentSignature.cs"
+      ],
+      "publicContract": false,
+      "resource": "dotnet-serial"
     }
   ],
   "resourceRules": [

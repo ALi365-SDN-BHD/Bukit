@@ -161,6 +161,72 @@ internal static class ProviderValidators
         {
             throw new ConfigException("content.media.retryBaseDelayMs must be a non-negative integer when set.", DiagnosticCode.ConfigRequiredFieldMissing);
         }
+
+        var onFailure = (media.OnFailure ?? "placeholder").Trim();
+        if (!onFailure.Equals("placeholder", StringComparison.OrdinalIgnoreCase) &&
+            !onFailure.Equals("keep", StringComparison.OrdinalIgnoreCase))
+        {
+            throw new ConfigException("content.media.onFailure must be one of: placeholder, keep.", DiagnosticCode.ConfigRequiredFieldMissing);
+        }
+
+        ValidateMediaHostPatterns("content.media.downloadHosts", media.DownloadHosts);
+        ValidateMediaHostPatterns("content.media.skipHosts", media.SkipHosts);
+    }
+
+    private static void ValidateMediaHostPatterns(string fieldName, IReadOnlyList<string>? patterns)
+    {
+        if (patterns is null)
+        {
+            return;
+        }
+
+        for (var i = 0; i < patterns.Count; i++)
+        {
+            if (!IsValidMediaHostPattern(patterns[i]))
+            {
+                throw new ConfigException(
+                    $"{fieldName}[{i}] must be a host name or '*.' followed by a host name.",
+                    DiagnosticCode.ConfigRequiredFieldMissing);
+            }
+        }
+    }
+
+    // A pattern is an exact host or "*." plus a host; no other wildcard, scheme, port or path.
+    internal static bool IsValidMediaHostPattern(string? pattern)
+    {
+        var value = pattern?.Trim() ?? string.Empty;
+        if (value.StartsWith("*.", StringComparison.Ordinal))
+        {
+            value = value[2..];
+        }
+
+        if (value.Length == 0 || value.StartsWith('.') || value.EndsWith('.'))
+        {
+            return false;
+        }
+
+        foreach (var ch in value)
+        {
+            if (ch is '*' or '/' or ':' or '@' or '?' or '#' or '[' or ']' || char.IsWhiteSpace(ch))
+            {
+                return false;
+            }
+        }
+
+        if (!value.All(char.IsAscii))
+        {
+            // Validate internationalized names in their ASCII (punycode) form.
+            try
+            {
+                value = new System.Globalization.IdnMapping().GetAscii(value.ToLowerInvariant());
+            }
+            catch (ArgumentException)
+            {
+                return false;
+            }
+        }
+
+        return Uri.CheckHostName(value) == UriHostNameType.Dns;
     }
 
     internal static void RejectPathTraversal(string fieldName, string value)

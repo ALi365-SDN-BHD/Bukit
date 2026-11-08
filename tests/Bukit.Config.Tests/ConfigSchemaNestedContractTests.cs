@@ -86,7 +86,7 @@ public sealed class ConfigSchemaNestedContractTests
         new("content/sources[]/notion/fieldPolicy", "mode", "allowed"),
         new("content/sources[]/notion/propertyMap", "Title", "Slug", "Type", "PublishAt", "Language", "I18nKey", "Summary", "Collection", "SeoTitle", "SeoDescription", "SeoImage", "Canonical", "OriginalUrl", "References", "EntitiesJson", "Cover", "CoverAlt", "CoverCaption"),
         new("content/sources[]/dataIndex", "scopeField", "keyField", "valueField", "valueTypeField", "requiredKeys"),
-        new("content/media", "downloadToLocal", "downloadDir", "urlBase", "defaultImageUrl", "fieldKeys", "maxConcurrency", "maxRetries", "timeoutMs", "maxFileSizeBytes", "blockPrivateNetworks", "retryBaseDelayMs"),
+        new("content/media", "downloadToLocal", "downloadDir", "urlBase", "defaultImageUrl", "fieldKeys", "maxConcurrency", "maxRetries", "timeoutMs", "maxFileSizeBytes", "blockPrivateNetworks", "retryBaseDelayMs", "onFailure", "downloadHosts", "skipHosts"),
         new("content/modelSchema", "contentTypes", "statuses", "reviewStatuses", "syncStatuses", "canonicalMappings", "customFields", "fieldScopes", "entityMappings", "relationMappings", "media", "rejectUnknownRawKeys", "requireSummary", "requireAuthor", "requireOrganization", "requireUpdatedAt", "requireProvenance", "requireReviewedAt", "requireMediaAlt", "requireMediaDescription", "requireMediaLicense", "requireEntityIds", "requireRelationTargets"),
         new("content/modelSchema/canonicalMappings[]", "canonicalField", "rawKey", "semanticType", "required"),
         new("content/modelSchema/customFields[]", "name", "fieldType", "required", "semanticType", "label", "format", "enum", "min", "max", "default", "sourcePolicy", "reference"),

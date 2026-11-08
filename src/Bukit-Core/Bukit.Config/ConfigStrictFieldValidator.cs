@@ -342,7 +342,8 @@ internal static class ConfigStrictFieldValidator
         {
             RequireOnly(media, Set(
                 "downloadToLocal", "downloadDir", "urlBase", "defaultImageUrl", "fieldKeys", "maxConcurrency",
-                "maxRetries", "timeoutMs", "maxFileSizeBytes", "blockPrivateNetworks", "retryBaseDelayMs"), "content.media");
+                "maxRetries", "timeoutMs", "maxFileSizeBytes", "blockPrivateNetworks", "retryBaseDelayMs",
+                "onFailure", "downloadHosts", "skipHosts"), "content.media");
         }
 
         if (Map(content, "modelSchema") is { } modelSchema) ValidateModelSchema(modelSchema);

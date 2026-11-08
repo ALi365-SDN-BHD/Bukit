@@ -400,6 +400,12 @@ public sealed record MediaConfig
     public long? MaxFileSizeBytes { get; init; } = 50 * 1024 * 1024;
     public bool BlockPrivateNetworks { get; init; } = true;
     public int? RetryBaseDelayMs { get; init; } = 500;
+    /// <summary>Result of a failed download: "placeholder" (defaultImageUrl) or "keep" (original URL).</summary>
+    public string OnFailure { get; init; } = "placeholder";
+    /// <summary>When non-empty, only these hosts are downloaded. Supports "*." prefix wildcards.</summary>
+    public IReadOnlyList<string> DownloadHosts { get; init; } = Array.Empty<string>();
+    /// <summary>Hosts that are never downloaded; their URLs stay unchanged. Supports "*." prefix wildcards.</summary>
+    public IReadOnlyList<string> SkipHosts { get; init; } = Array.Empty<string>();
 }
 
 public sealed record NotionFieldPolicyConfig

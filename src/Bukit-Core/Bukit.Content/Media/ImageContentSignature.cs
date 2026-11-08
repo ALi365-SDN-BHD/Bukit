@@ -6,10 +6,43 @@ internal static class ImageContentSignature
 {
     private const int MaxSignatureBytes = 4096;
 
+    // Raster types a generic binary response may be identified as; SVG is never identified.
+    private static readonly string[] DetectableContentTypes =
+    [
+        "image/jpeg", "image/png", "image/gif", "image/webp",
+        "image/avif", "image/bmp", "image/x-icon", "image/tiff"
+    ];
+
     internal static async Task<bool> MatchesFileAsync(
         string path,
         string contentType,
         CancellationToken cancellationToken)
+    {
+        var header = await ReadHeaderAsync(path, cancellationToken);
+        return Matches(contentType, header);
+    }
+
+    /// <summary>Returns the image content type whose signature the file starts with, or null.</summary>
+    internal static async Task<string?> DetectFileAsync(string path, CancellationToken cancellationToken)
+    {
+        var header = await ReadHeaderAsync(path, cancellationToken);
+        return Detect(header);
+    }
+
+    internal static string? Detect(ReadOnlySpan<byte> content)
+    {
+        foreach (var contentType in DetectableContentTypes)
+        {
+            if (Matches(contentType, content))
+            {
+                return contentType;
+            }
+        }
+
+        return null;
+    }
+
+    private static async Task<byte[]> ReadHeaderAsync(string path, CancellationToken cancellationToken)
     {
         var buffer = new byte[MaxSignatureBytes];
         await using var stream = new FileStream(
@@ -31,7 +64,7 @@ internal static class ImageContentSignature
             totalRead += read;
         }
 
-        return Matches(contentType, buffer.AsSpan(0, totalRead));
+        return buffer.AsSpan(0, totalRead).ToArray();
     }
 
     internal static bool Matches(string contentType, ReadOnlySpan<byte> content)

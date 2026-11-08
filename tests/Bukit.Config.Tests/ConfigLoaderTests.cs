@@ -1383,6 +1383,108 @@ public sealed class ConfigLoaderTests : IDisposable
     }
 
     [Fact]
+    public void Load_MediaLocalizationControls_ParsesValues()
+    {
+        var yaml = """
+            site:
+              name: myblog
+              title: My Blog
+            content:
+              sources:
+                - type: markdown
+                  markdown:
+                    dir: content
+              media:
+                onFailure: keep
+                downloadHosts:
+                  - "*.amazonaws.com"
+                  - file.notion.so
+                skipHosts:
+                  - silkroute.cc
+            """;
+        var config = ConfigLoader.Load(WriteTempYaml(yaml));
+
+        var media = config.Content.Media;
+        Assert.Equal("keep", media.OnFailure);
+        Assert.Equal(new[] { "*.amazonaws.com", "file.notion.so" }, media.DownloadHosts);
+        Assert.Equal(new[] { "silkroute.cc" }, media.SkipHosts);
+    }
+
+    [Fact]
+    public void Load_MediaLocalizationControls_DefaultsKeepCurrentBehavior()
+    {
+        var yaml = """
+            site:
+              name: myblog
+              title: My Blog
+            content:
+              sources:
+                - type: markdown
+                  markdown:
+                    dir: content
+              media:
+                downloadToLocal: true
+            """;
+        var media = ConfigLoader.Load(WriteTempYaml(yaml)).Content.Media;
+
+        Assert.Equal("placeholder", media.OnFailure);
+        Assert.Empty(media.DownloadHosts);
+        Assert.Empty(media.SkipHosts);
+    }
+
+    [Fact]
+    public void Load_MediaLocalizationControls_AcceptsInternationalizedHosts()
+    {
+        var yaml = """
+            site:
+              name: myblog
+              title: My Blog
+            content:
+              sources:
+                - type: markdown
+                  markdown:
+                    dir: content
+              media:
+                downloadHosts:
+                  - "BÜCHER.de"
+                  - "*.例子.com"
+            """;
+        var config = ConfigLoader.Load(WriteTempYaml(yaml));
+
+        ConfigValidator.Validate(config);
+    }
+
+    [Theory]
+    [InlineData("onFailure: drop", "content.media.onFailure")]
+    [InlineData("downloadHosts: [\"a*b.com\"]", "content.media.downloadHosts[0]")]
+    [InlineData("skipHosts: [\"*\"]", "content.media.skipHosts[0]")]
+    [InlineData("skipHosts: [\"https://silkroute.cc\"]", "content.media.skipHosts[0]")]
+    [InlineData("skipHosts: [\"silkroute.cc:443\"]", "content.media.skipHosts[0]")]
+    [InlineData("downloadHosts: [\"*.\"]", "content.media.downloadHosts[0]")]
+    [InlineData("downloadHosts: [\"bü..com\"]", "content.media.downloadHosts[0]")]
+    [InlineData("skipHosts: [\"ü" + "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" + ".com\"]", "content.media.skipHosts[0]")]
+    public void Load_MediaLocalizationControls_RejectsInvalidValues(string line, string expectedPath)
+    {
+        var yaml = $"""
+            site:
+              name: myblog
+              title: My Blog
+            content:
+              sources:
+                - type: markdown
+                  markdown:
+                    dir: content
+              media:
+                {line}
+            """;
+
+        var config = ConfigLoader.Load(WriteTempYaml(yaml));
+
+        var ex = Assert.Throws<ConfigException>(() => ConfigValidator.Validate(config));
+        Assert.Contains(expectedPath, ex.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void Load_MediaConfigWithoutFieldKeys_UsesSeoImageDefault()
     {
         var yaml = """

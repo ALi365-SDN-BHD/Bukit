@@ -98,6 +98,9 @@
 | `content.media.maxFileSizeBytes` | `52428800` |
 | `content.media.blockPrivateNetworks` | `true` |
 | `content.media.retryBaseDelayMs` | `500` |
+| `content.media.onFailure` | `placeholder` |
+| `content.media.downloadHosts` | empty (all hosts) |
+| `content.media.skipHosts` | empty |
 | `content.modelSchema.requireMediaAlt` | `true` |
 | `content.modelSchema.requireRelationTargets` | `true` |
 | `build.output` | `dist` |

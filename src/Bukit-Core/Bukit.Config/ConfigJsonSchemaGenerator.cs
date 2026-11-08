@@ -448,7 +448,10 @@ public static class ConfigJsonSchemaGenerator
             ("timeoutMs", IntSchema(1)),
             ("maxFileSizeBytes", IntSchema(1)),
             ("blockPrivateNetworks", BoolSchema()),
-            ("retryBaseDelayMs", IntSchema(0)))));
+            ("retryBaseDelayMs", IntSchema(0)),
+            ("onFailure", EnumSchema("placeholder", "keep")),
+            ("downloadHosts", StringArraySchema()),
+            ("skipHosts", StringArraySchema()))));
 
     private static JsonObject ContentSourceItemSchema()
         => Obj(("type", "object"), ("required", Arr("type")), ("properties", Obj(

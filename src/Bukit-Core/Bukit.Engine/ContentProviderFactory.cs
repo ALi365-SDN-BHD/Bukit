@@ -230,7 +230,19 @@ internal static class ContentProviderFactory
             MaxRetries = media.MaxRetries is >= 0 ? media.MaxRetries : 3,
             TimeoutMs = media.TimeoutMs is > 0 ? media.TimeoutMs : 10000,
             MaxFileSizeBytes = media.MaxFileSizeBytes is > 0 ? media.MaxFileSizeBytes : 50 * 1024 * 1024,
-            RetryBaseDelayMs = media.RetryBaseDelayMs is >= 0 ? media.RetryBaseDelayMs : 500
+            RetryBaseDelayMs = media.RetryBaseDelayMs is >= 0 ? media.RetryBaseDelayMs : 500,
+            OnFailure = string.IsNullOrWhiteSpace(media.OnFailure) ? "placeholder" : media.OnFailure.Trim().ToLowerInvariant(),
+            DownloadHosts = NormalizeHostPatterns(media.DownloadHosts),
+            SkipHosts = NormalizeHostPatterns(media.SkipHosts)
         };
     }
+
+    private static IReadOnlyList<string> NormalizeHostPatterns(IReadOnlyList<string>? patterns)
+        => patterns is null
+            ? Array.Empty<string>()
+            : patterns
+                .Where(pattern => !string.IsNullOrWhiteSpace(pattern))
+                .Select(pattern => pattern.Trim().ToLowerInvariant())
+                .Distinct(StringComparer.Ordinal)
+                .ToArray();
 }

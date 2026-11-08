@@ -327,6 +327,30 @@ other than HTTP(S) or root-relative paths fail the build.
 | `content.media.maxFileSizeBytes` | `52428800` | Positive maximum file size. |
 | `content.media.blockPrivateNetworks` | `true` | SSRF guard for private networks. |
 | `content.media.retryBaseDelayMs` | `500` | Non-negative retry delay. |
+| `content.media.onFailure` | `placeholder` | Result of a failed download: `placeholder` uses `defaultImageUrl`; `keep` keeps the original URL. Failures are still listed in the build log. An empty image field always uses `defaultImageUrl`. |
+| `content.media.downloadHosts` | empty (all hosts) | When set, only images on these hosts are downloaded; others keep their original URL. |
+| `content.media.skipHosts` | empty | Images on these hosts are never downloaded and keep their original URL. Takes precedence over `downloadHosts`. |
+
+Host patterns are an exact host, such as file.notion.so, or `*.` plus a host,
+such as *.amazonaws.com, which matches subdomains but not amazonaws.com itself.
+Matching is case-insensitive and uses the original URL, not a redirect target.
+Skipped URLs make no request and are not counted as failures.
+
+A response with `Content-Type: application/octet-stream`, `binary/octet-stream`,
+or no content type (common for Notion file storage) is identified from the
+file's signature. It is stored only if it is a supported raster image that
+passes decoding; SVG is never accepted.
+
+Example: download only Notion-hosted images and keep other links on failure.
+
+```yaml
+content:
+  media:
+    onFailure: keep
+    downloadHosts:
+      - "*.amazonaws.com"
+      - "*.notion.so"
+```
 
 ## Content Model Schema
 
