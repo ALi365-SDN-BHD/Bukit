@@ -4,6 +4,14 @@ All notable changes to Bukit will be documented in this file.
 
 ## [Unreleased]
 
+## [2.0.10] - 2026-11-09
+
+- **Media localization controls**: `content.media.onFailure: placeholder | keep` (default `placeholder`) keeps the original URL when a download fails; `content.media.downloadHosts` and `skipHosts` limit downloads by host (`*.` wildcards). Responses typed `application/octet-stream` or without a type are identified from their file signature and must pass the existing image checks.
+- **Large-site builds**: the render dependency hash allows up to 10,000,000 nodes; Notion summary prefetch logs `event=notion.progress`; a failed or cancelled build keeps the staged Notion cache (`event=build.cache_preserved`); Ctrl+C cancels the build cleanly, and a second Ctrl+C exits immediately; template runtime errors include the root cause.
+- **Warning summary**: repeated warnings of one kind print five lines, then one `event=diagnostics.summary` line with the total.
+- **Privacy scan**: the publish privacy check now runs in linear time instead of tokens × text.
+- **Taxonomy**: `taxonomy.emptyTerms` controls empty term pages; percent-encoded terms are decoded; the tags index no longer includes category terms.
+- **SEO diagnostics**: a stray quote in a head tag no longer hides `<title>`; pages that render no JSON-LD get one `seo.json_ld_not_rendered` instead of per-field schema issues; outside strict mode, title issues are reported once by the publish audit; title and description lengths use display width (CJK counts 2); derived descriptions are cut to width 160 with "…" (explicit `seo_desc` is kept); `bukit doctor` warns when theme-mode templates never output `seo.document_title` or `seo.json_ld`.
 - **Analytics consent is optional**: GA and GTM providers no longer require `site.analytics.consent.google`. Without it, Bukit emits no consent default command and Google applies its own defaults (effectively all storage granted); configuring consent without a Google provider is still rejected. Existing configurations render unchanged.
 
 ## [2.0.8] - 2026-11-07

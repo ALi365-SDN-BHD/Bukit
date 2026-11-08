@@ -4,6 +4,14 @@ Semua perubahan penting kepada Bukit akan didokumenkan dalam fail ini.
 
 ## [Belum Dikeluarkan]
 
+## [2.0.10] - 2026-11-09
+
+- **Kawalan penyetempatan media**: `content.media.onFailure: placeholder | keep` (lalai `placeholder`) mengekalkan URL asal apabila muat turun gagal; `content.media.downloadHosts` dan `skipHosts` mengehadkan muat turun mengikut hos (kad liar `*.`). Respons berjenis `application/octet-stream` atau tanpa jenis dikenal pasti melalui tandatangan fail dan mesti lulus semakan imej sedia ada.
+- **Pembinaan tapak besar**: cincang kebergantungan render membenarkan sehingga 10,000,000 nod; praambil ringkasan Notion melog `event=notion.progress`; pembinaan yang gagal atau dibatalkan mengekalkan cache Notion yang dipentaskan (`event=build.cache_preserved`); Ctrl+C membatalkan pembinaan dengan bersih, dan Ctrl+C kedua keluar serta-merta; ralat masa jalan templat menyertakan punca asal.
+- **Ringkasan amaran**: amaran berulang daripada jenis yang sama mencetak lima baris, kemudian satu baris `event=diagnostics.summary` dengan jumlahnya.
+- **Imbasan privasi**: semakan privasi penerbitan kini berjalan dalam masa linear.
+- **Taksonomi**: `taxonomy.emptyTerms` mengawal halaman istilah kosong; istilah berkod peratus dinyahkod; indeks tag tidak lagi mengandungi istilah kategori.
+- **Diagnostik SEO**: tanda petik sesat dalam tag head tidak lagi menyembunyikan `<title>`; halaman tanpa JSON-LD mendapat satu `seo.json_ld_not_rendered` dan bukan isu skema bagi setiap medan; di luar mod strict, isu tajuk dilaporkan sekali oleh audit penerbitan; panjang tajuk dan deskripsi menggunakan lebar paparan (CJK dikira 2); deskripsi terbitan dipotong kepada lebar 160 dengan "…" (`seo_desc` eksplisit dikekalkan); `bukit doctor` memberi amaran apabila templat mod tema tidak mengeluarkan `seo.document_title` atau `seo.json_ld`.
 - **Persetujuan Analytics kini pilihan**: penyedia GA dan GTM tidak lagi memerlukan `site.analytics.consent.google`. Tanpanya, Bukit tidak menjana arahan lalai persetujuan dan Google menggunakan nilai lalainya sendiri (secara efektif semua storan `granted`); konfigurasi persetujuan tanpa penyedia Google masih ditolak. Konfigurasi sedia ada menghasilkan output yang sama.
 
 ## [2.0.8] - 2026-11-07

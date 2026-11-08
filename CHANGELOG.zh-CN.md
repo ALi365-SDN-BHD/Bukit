@@ -4,6 +4,14 @@ Bukit 所有重要变更都将记录在此文件中。
 
 ## [Unreleased]
 
+## [2.0.10] - 2026-11-09
+
+- **图片本地化控制**：新增 `content.media.onFailure: placeholder | keep`（默认 `placeholder`），`keep` 在下载失败时保留原地址；新增 `content.media.downloadHosts` 和 `skipHosts`，按域名限定下载（支持 `*.` 通配）。类型为 `application/octet-stream` 或缺失的响应，按文件签名识别类型，并须通过现有图片校验。
+- **大站构建**：渲染依赖哈希的节点上限提高到 10,000,000；Notion 摘要预取输出 `event=notion.progress` 进度；构建失败或取消时保留已暂存的 Notion 缓存（`event=build.cache_preserved`）；Ctrl+C 会干净地取消构建，再按一次立即退出；模板运行时错误会附上根本原因。
+- **告警汇总**：同类告警只显示 5 条，之后输出一条 `event=diagnostics.summary` 给出总数。
+- **隐私检查**：发布前的隐私扫描改为线性时间，不再随"标识数 × 文本量"增长。
+- **分类**：新增 `taxonomy.emptyTerms` 控制空分类页；百分号编码的分类名会被解码；标签索引不再混入分类项。
+- **SEO 诊断**：head 标签里多出的引号不再遮住 `<title>`；页面没有输出 JSON-LD 时只报一条 `seo.json_ld_not_rendered`，不再逐字段报 schema 问题；非 strict 模式下标题问题只由发布审计报告一次；标题和描述长度按显示宽度计算（中日韩字符计 2）；自动生成的描述截断到宽度 160 并加"…"（显式 `seo_desc` 不截断）；主题模式下模板没有输出 `seo.document_title` 或 `seo.json_ld` 时，`bukit doctor` 会提示。
 - **Analytics 的 consent 改为可选**：配置 GA、GTM 时不再必须写 `site.analytics.consent.google`。不写时，Bukit 不输出 consent 默认命令，由 Google 按其默认行为加载（相当于全部 granted）；写了 consent 却没有 Google provider 仍会报错。已有配置的输出不变。
 
 ## [2.0.8] - 2026-11-07
