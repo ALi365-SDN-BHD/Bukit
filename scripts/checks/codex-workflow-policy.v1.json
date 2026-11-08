@@ -1972,8 +1972,12 @@
       ],
       "contractConsumerGlobs": [
         "src/Bukit-Core/Bukit.Config/AppConfig.cs",
+        "src/Bukit-Core/Bukit.Config/ProviderValidators.cs",
+        "src/Bukit-Core/Bukit.Config/SiteDefaultsApplier.Content.cs",
         "src/Bukit-Core/Bukit.Content/Media/ImageAssetLocalizer.cs",
-        "src/Bukit-Core/Bukit.Content/Media/ImageContentSignature.cs"
+        "src/Bukit-Core/Bukit.Content/Media/ImageContentSignature.cs",
+        "src/Bukit-Core/Bukit.Content/Media/MediaHostFilter.cs",
+        "src/Bukit-Core/Bukit.Engine/ContentProviderFactory.cs"
       ],
       "publicContract": false,
       "resource": "dotnet-serial"

@@ -1456,13 +1456,13 @@ public sealed class ConfigLoaderTests : IDisposable
 
     [Theory]
     [InlineData("onFailure: drop", "content.media.onFailure")]
-    [InlineData("downloadHosts: [\"a*b.com\"]", "content.media.downloadHosts[0]")]
-    [InlineData("skipHosts: [\"*\"]", "content.media.skipHosts[0]")]
-    [InlineData("skipHosts: [\"https://silkroute.cc\"]", "content.media.skipHosts[0]")]
-    [InlineData("skipHosts: [\"silkroute.cc:443\"]", "content.media.skipHosts[0]")]
-    [InlineData("downloadHosts: [\"*.\"]", "content.media.downloadHosts[0]")]
-    [InlineData("downloadHosts: [\"bü..com\"]", "content.media.downloadHosts[0]")]
-    [InlineData("skipHosts: [\"ü" + "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" + ".com\"]", "content.media.skipHosts[0]")]
+    [InlineData("downloadHosts: [\"a*b.com\"]", "content.media.downloadHosts")]
+    [InlineData("skipHosts: [\"*\"]", "content.media.skipHosts")]
+    [InlineData("skipHosts: [\"https://silkroute.cc\"]", "content.media.skipHosts")]
+    [InlineData("skipHosts: [\"silkroute.cc:443\"]", "content.media.skipHosts")]
+    [InlineData("downloadHosts: [\"*.\"]", "content.media.downloadHosts")]
+    [InlineData("downloadHosts: [\"bü..com\"]", "content.media.downloadHosts")]
+    [InlineData("skipHosts: [\"ü" + "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" + ".com\"]", "content.media.skipHosts")]
     public void Load_MediaLocalizationControls_RejectsInvalidValues(string line, string expectedPath)
     {
         var yaml = $"""
@@ -1482,6 +1482,30 @@ public sealed class ConfigLoaderTests : IDisposable
 
         var ex = Assert.Throws<ConfigException>(() => ConfigValidator.Validate(config));
         Assert.Contains(expectedPath, ex.Message, StringComparison.Ordinal);
+        Assert.Equal(DiagnosticCode.ConfigInvalidValue, ex.Code);
+    }
+
+    [Fact]
+    public void Load_MediaLocalizationControls_InvalidHostAfterBlankEntry_NamesTheValue()
+    {
+        var yaml = """
+            site:
+              name: myblog
+              title: My Blog
+            content:
+              sources:
+                - type: markdown
+                  markdown:
+                    dir: content
+              media:
+                downloadHosts:
+                  - ""
+                  - "a*b.com"
+            """;
+        var config = ConfigLoader.Load(WriteTempYaml(yaml));
+
+        var ex = Assert.Throws<ConfigException>(() => ConfigValidator.Validate(config));
+        Assert.Contains("content.media.downloadHosts entry 'a*b.com'", ex.Message, StringComparison.Ordinal);
     }
 
     [Fact]

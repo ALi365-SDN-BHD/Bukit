@@ -125,6 +125,59 @@ public sealed class ContentImageRewritePipelineTests
         Assert.DoesNotContain(pdf, localizer.ReceivedUrls);
     }
 
+    [Theory]
+    [InlineData("keep", "https://img.example/cover.jpg")]
+    [InlineData("placeholder", "/assets/images/noneimg-news.jpg")]
+    public async Task RewriteAsync_FailedFieldImage_FollowsOnFailure(string onFailure, string expected)
+    {
+        var dir = Path.Combine(Path.GetTempPath(), $"bukit-media-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(dir);
+        try
+        {
+            var cfg = new MediaConfig
+            {
+                DownloadToLocal = true,
+                DownloadDir = dir,
+                UrlBase = "/assets/uploads",
+                DefaultImageUrl = "/assets/images/noneimg-news.jpg",
+                FieldKeys = new[] { "cover" },
+                MaxRetries = 0,
+                RetryBaseDelayMs = 0,
+                OnFailure = onFailure
+            };
+            var item = ContentDocument.Create(
+                id: "1",
+                title: "t",
+                slug: "s",
+                publishAt: DateTimeOffset.UtcNow,
+                contentHtml: null,
+                fields: new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase)
+                {
+                    ["cover"] = new ContentField("text", "https://img.example/cover.jpg")
+                });
+            using var localizer = new ImageAssetLocalizer(
+                cfg,
+                new NotFoundHandler(),
+                (_, _) => Task.FromResult(new[] { System.Net.IPAddress.Parse("93.184.216.34") }));
+            var pipeline = new ContentImageRewritePipeline(cfg, localizer);
+
+            var rewritten = Assert.Single(await pipeline.RewriteAsync(new[] { item }, CancellationToken.None));
+
+            Assert.Equal(expected, rewritten.CustomFields!["cover"].Value);
+            Assert.Single(localizer.Failures);
+        }
+        finally
+        {
+            Directory.Delete(dir, recursive: true);
+        }
+    }
+
+    private sealed class NotFoundHandler : HttpMessageHandler
+    {
+        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+            => Task.FromResult(new HttpResponseMessage(System.Net.HttpStatusCode.NotFound));
+    }
+
     [Fact]
     public async Task RewriteAsync_RewritesHtmlAndFieldUrls()
     {

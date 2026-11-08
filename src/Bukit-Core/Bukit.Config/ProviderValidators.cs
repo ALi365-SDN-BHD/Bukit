@@ -166,7 +166,7 @@ internal static class ProviderValidators
         if (!onFailure.Equals("placeholder", StringComparison.OrdinalIgnoreCase) &&
             !onFailure.Equals("keep", StringComparison.OrdinalIgnoreCase))
         {
-            throw new ConfigException("content.media.onFailure must be one of: placeholder, keep.", DiagnosticCode.ConfigRequiredFieldMissing);
+            throw new ConfigException("content.media.onFailure must be one of: placeholder, keep.", DiagnosticCode.ConfigInvalidValue);
         }
 
         ValidateMediaHostPatterns("content.media.downloadHosts", media.DownloadHosts);
@@ -180,13 +180,14 @@ internal static class ProviderValidators
             return;
         }
 
-        for (var i = 0; i < patterns.Count; i++)
+        // Name the value, not its index: blank entries are dropped while loading, so indexes can shift.
+        foreach (var pattern in patterns)
         {
-            if (!IsValidMediaHostPattern(patterns[i]))
+            if (!IsValidMediaHostPattern(pattern))
             {
                 throw new ConfigException(
-                    $"{fieldName}[{i}] must be a host name or '*.' followed by a host name.",
-                    DiagnosticCode.ConfigRequiredFieldMissing);
+                    $"{fieldName} entry '{pattern}' must be a host name or '*.' followed by a host name.",
+                    DiagnosticCode.ConfigInvalidValue);
             }
         }
     }

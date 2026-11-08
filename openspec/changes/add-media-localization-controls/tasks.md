@@ -29,10 +29,10 @@
 - [x] 专项审查无 Critical/Important：独立审查代理只读复核（2026-11-08），确认所有失败路径遵循 onFailure、SSRF 与解码校验未削弱、临时文件均清理、增量构建经本地化 HTML 哈希正确失效。记录的 Minor（不阻塞）：
   - m1（已修复）非 ASCII 域名模式绕过 `CheckHostName`；现先转 punycode 再校验，非法 IDN 配置校验失败。
   - m2（已修复）`MediaHostFilter.NormalizeHost` 改为先小写再 `GetAscii`。修复后 Config 505/505、Content 618/618 通过。
-  - m3 `keep` 下共享的进行中下载把首个调用方的原地址返回给其他等价地址（仅拼写差异）。
-  - m4 octet-stream／缺失 Content-Type 时先写完整响应体再识别签名，可提前用前 4 KB 拒绝。
-  - m5 JSON Schema 的 onFailure 枚举区分大小写，运行时不区分。
-  - m6 非法取值沿用 `ConfigRequiredFieldMissing` 诊断码；空白项被丢弃后报告的下标可能偏移。
-  - m7 policy 规则的 `contractConsumerGlobs` 未列出部分实现文件。
-  - m8 未逐一测试 SSRF、大小限制、解码失败、不安全缓存、超时、封面字段下的 keep，以及尾点／大写主机。
+  - m3（不修）`keep` 下共享的进行中下载把首个调用方的原地址返回给其他等价地址（仅拼写差异，同一资源）。
+  - m4（暂缓）octet-stream／缺失 Content-Type 时先写完整响应体（受 maxFileSizeBytes 限制）再识别签名，可提前用前 4 KB 拒绝。
+  - m5（不修）JSON Schema 的 onFailure 枚举区分大小写，运行时不区分；与 pluginFailMode 等现有枚举惯例一致。
+  - m6（已修复）新增校验改用 `ConfigInvalidValue`；域名错误改为报出具体取值，不再依赖会因空白项偏移的下标。
+  - m7（已修复）`contractConsumerGlobs` 补齐 ProviderValidators、SiteDefaultsApplier.Content、MediaHostFilter、ContentProviderFactory；`codex-workflow-self-test.sh` exit 0，closure `unmappedFiles=[]`。`publicContract` 保持 false：`AppConfig.cs` 已由 `bukit-config` 规则标为公共契约。
+  - m8（已修复主要项）新增 keep 下 SSRF 拦截、超过大小上限、octet-stream 签名正确但解码失败、封面字段（keep/placeholder）测试，以及大写／尾点主机匹配测试；不安全缓存与超时仍走同一 `RecordFailure`，未单独测试。修复后 Config 506/506、Content 625/625 通过。
 - [x] 端到端：silkroute 测试站以 `onFailure: keep` + `downloadHosts` 构建，不可达的允许域名图片保留原地址，非允许域名图片不请求、保持原样。

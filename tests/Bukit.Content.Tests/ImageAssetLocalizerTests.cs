@@ -1978,6 +1978,68 @@ public sealed class ImageAssetLocalizerTests
         });
 
     [Fact]
+    public async Task LocalizeAsync_OnFailureKeep_KeepsOriginalForSsrfBlock()
+        => await WithTempDirAsync(async dir =>
+        {
+            var handler = new CountingHandler(HttpStatusCode.OK, "image/png", "img");
+            using var localizer = CreateLocalizer(ControlConfig(dir, "keep") with { BlockPrivateNetworks = true }, handler);
+
+            var result = await localizer.LocalizeAsync("http://127.0.0.1:8080/a.png", CancellationToken.None);
+
+            Assert.Equal("http://127.0.0.1:8080/a.png", result);
+            var failure = Assert.Single(localizer.Failures);
+            Assert.Contains("SSRF", failure.Reason, StringComparison.Ordinal);
+            Assert.Equal(0, handler.RequestCount);
+        });
+
+    [Fact]
+    public async Task LocalizeAsync_OnFailureKeep_KeepsOriginalForTooLargeFile()
+        => await WithTempDirAsync(async dir =>
+        {
+            var handler = new ByteArrayHandler("image/png", CreateImagePayload("image/png", "large"));
+            using var localizer = CreateLocalizer(ControlConfig(dir, "keep") with { MaxFileSizeBytes = 10 }, handler);
+
+            var result = await localizer.LocalizeAsync("https://img.example/a.png", CancellationToken.None);
+
+            Assert.Equal("https://img.example/a.png", result);
+            var failure = Assert.Single(localizer.Failures);
+            Assert.Contains("File too large", failure.Reason, StringComparison.Ordinal);
+            Assert.Empty(Directory.GetFiles(dir));
+        });
+
+    [Fact]
+    public async Task LocalizeAsync_OnFailureKeep_KeepsOriginalForOctetStreamWithUndecodableBody()
+        => await WithTempDirAsync(async dir =>
+        {
+            // A valid PNG signature followed by garbage: detected as PNG, then rejected by decoding.
+            byte[] payload = [0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 1, 2, 3, 4, 5, 6, 7, 8];
+            var handler = new ByteArrayHandler("application/octet-stream", payload);
+            using var localizer = CreateLocalizer(ControlConfig(dir, "keep"), handler);
+
+            var result = await localizer.LocalizeAsync("https://img.example/a", CancellationToken.None);
+
+            Assert.Equal("https://img.example/a", result);
+            var failure = Assert.Single(localizer.Failures);
+            Assert.Contains("not decodable", failure.Reason, StringComparison.Ordinal);
+            Assert.Empty(Directory.GetFiles(dir));
+        });
+
+    [Theory]
+    [InlineData("https://IMG.Example/a.png")]
+    [InlineData("https://img.example./a.png")]
+    public async Task LocalizeAsync_DownloadHosts_MatchesUppercaseAndTrailingDotHosts(string source)
+        => await WithTempDirAsync(async dir =>
+        {
+            var handler = new CountingHandler(HttpStatusCode.OK, "image/png", "img");
+            using var localizer = CreateLocalizer(ControlConfig(dir, downloadHosts: ["img.example"]), handler);
+
+            var result = await localizer.LocalizeAsync(source, CancellationToken.None);
+
+            Assert.StartsWith("/assets/uploads/", result, StringComparison.Ordinal);
+            Assert.Equal(1, handler.RequestCount);
+        });
+
+    [Fact]
     public async Task LocalizeAsync_OnFailureKeep_EmptySourceStillReturnsDefaultImage()
         => await WithTempDirAsync(async dir =>
         {
