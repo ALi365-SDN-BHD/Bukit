@@ -110,6 +110,20 @@ public sealed class RenderDependencyContributorInvalidationTests
     }
 
     [Fact]
+    public void Seo_ChangesBreadcrumbHomeAndParent()
+    {
+        var contributor = new SeoContributor();
+        var baseline = Config();
+        AppConfig With(bool home, string? parent)
+            => baseline with { Site = baseline.Site with { Seo = new SeoConfig { Schema = new SeoSchemaConfig { BreadcrumbHome = home, BreadcrumbParent = parent } } } };
+
+        Assert.Equal(Hash(contributor, baseline), Hash(contributor, With(false, null)));
+        Assert.NotEqual(Hash(contributor, baseline), Hash(contributor, With(true, null)));
+        Assert.NotEqual(Hash(contributor, With(true, null)), Hash(contributor, With(true, "categories")));
+        Assert.NotEqual(Hash(contributor, With(false, "categories")), Hash(contributor, With(false, "tags")));
+    }
+
+    [Fact]
     public void Seo_ChangesOrganizationSchemaAndSearchRoute()
     {
         var contributor = new SeoContributor();

@@ -1829,9 +1829,11 @@
       "publicMembers": [
         "public .ctor()",
         "public Bukit.Config.SeoSchemaConfig! \u003CClone\u003E$()",
+        "public System.Boolean BreadcrumbHome { get; init; }",
         "public System.Boolean CollectionPage { get; init; }",
         "public System.Boolean SearchAction { get; init; }",
         "public System.Boolean WebPage { get; init; }",
+        "public System.String? BreadcrumbParent { get; init; }",
         "public static System.Boolean op_Equality(Bukit.Config.SeoSchemaConfig? left, Bukit.Config.SeoSchemaConfig? right)",
         "public static System.Boolean op_Inequality(Bukit.Config.SeoSchemaConfig? left, Bukit.Config.SeoSchemaConfig? right)",
         "public virtual System.Boolean Equals(System.Object? obj)",

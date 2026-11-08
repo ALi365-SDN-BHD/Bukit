@@ -1268,6 +1268,36 @@ public sealed class ConfigLoaderTests : IDisposable
     }
 
     [Fact]
+    public void Load_SeoSchemaBreadcrumb_ParsesDefaultsAndRejectsBlankParent()
+    {
+        static string Yaml(string schemaLines) => $$"""
+            site:
+              name: myblog
+              title: My Blog
+              seo:
+                schema:
+                  {{schemaLines}}
+            content:
+              sources:
+                - type: markdown
+                  markdown:
+                    dir: content
+            """;
+
+        var defaults = ConfigLoader.Load(WriteTempYaml(Yaml("webPage: true")));
+        Assert.False(defaults.Site.Seo.Schema.BreadcrumbHome);
+        Assert.Null(defaults.Site.Seo.Schema.BreadcrumbParent);
+
+        var config = ConfigLoader.Load(WriteTempYaml(Yaml("breadcrumbHome: true\n      breadcrumbParent: categories")));
+        ConfigValidator.Validate(config);
+        Assert.True(config.Site.Seo.Schema.BreadcrumbHome);
+        Assert.Equal("categories", config.Site.Seo.Schema.BreadcrumbParent);
+
+        var ex = Assert.ThrowsAny<ConfigException>(() => ConfigValidator.Validate(ConfigLoader.Load(WriteTempYaml(Yaml("breadcrumbParent: \"  \"")))));
+        Assert.Equal("site.seo.schema.breadcrumbParent must be a non-empty taxonomy kind.", ex.Message);
+    }
+
+    [Fact]
     public void Load_SeoConfig_PreservesExplicitlyEmptyTitleSeparator()
     {
         var yaml = """

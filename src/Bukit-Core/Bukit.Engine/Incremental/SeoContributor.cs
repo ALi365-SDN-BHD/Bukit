@@ -28,6 +28,12 @@ internal sealed class SeoContributor : IRenderDependencyContributor
         writer.AppendLabeledCanonicalValue("seo.schema.webPage", seo.Schema.WebPage);
         writer.AppendLabeledCanonicalValue("seo.schema.collectionPage", seo.Schema.CollectionPage);
         writer.AppendLabeledCanonicalValue("seo.schema.searchAction", seo.Schema.SearchAction);
+        // Appended only when set, so sites without breadcrumb options keep their existing hash.
+        if (seo.Schema.BreadcrumbHome || seo.Schema.BreadcrumbParent is not null)
+        {
+            writer.AppendLabeledCanonicalValue("seo.schema.breadcrumbHome", seo.Schema.BreadcrumbHome);
+            writer.AppendLabeledCanonicalValue("seo.schema.breadcrumbParent", seo.Schema.BreadcrumbParent);
+        }
         writer.AppendLabeledCanonicalValue("site.search.route", context.Config.Site.Search.Route);
 
         var organization = seo.Organization;

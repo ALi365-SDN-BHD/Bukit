@@ -126,6 +126,10 @@ public sealed record SeoSchemaConfig
     public bool WebPage { get; init; } = true;
     public bool CollectionPage { get; init; } = true;
     public bool SearchAction { get; init; } = true;
+    /// <summary>Starts every BreadcrumbList with the home page.</summary>
+    public bool BreadcrumbHome { get; init; }
+    /// <summary>Taxonomy kind whose first term page becomes the breadcrumb parent of content pages.</summary>
+    public string? BreadcrumbParent { get; init; }
 }
 
 public sealed record SeoGeoConfig

@@ -124,6 +124,13 @@ internal static class I18nValidator
         }
 
         ValidateDefaultAuthor(site.Seo);
+        if (site.Seo.Schema.BreadcrumbParent is not null && string.IsNullOrWhiteSpace(site.Seo.Schema.BreadcrumbParent))
+        {
+            throw new ConfigException(
+                "site.seo.schema.breadcrumbParent must be a non-empty taxonomy kind.",
+                DiagnosticCode.ConfigInvalidValue);
+        }
+
         SeoTitleTemplateValidator.Validate(site.Seo);
 
         if (site.Seo.Geo.LlmsTxtMaxArticles < 0)

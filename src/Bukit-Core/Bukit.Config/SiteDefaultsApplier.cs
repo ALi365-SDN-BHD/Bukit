@@ -66,7 +66,9 @@ internal static partial class SiteDefaultsApplier
         {
             WebPage = schemaNode is null || (ConfigYamlHelpers.GetOptionalBool(schemaNode, "webPage") ?? true),
             CollectionPage = schemaNode is null || (ConfigYamlHelpers.GetOptionalBool(schemaNode, "collectionPage") ?? true),
-            SearchAction = schemaNode is null || (ConfigYamlHelpers.GetOptionalBool(schemaNode, "searchAction") ?? true)
+            SearchAction = schemaNode is null || (ConfigYamlHelpers.GetOptionalBool(schemaNode, "searchAction") ?? true),
+            BreadcrumbHome = schemaNode is not null && (ConfigYamlHelpers.GetOptionalBool(schemaNode, "breadcrumbHome") ?? false),
+            BreadcrumbParent = schemaNode is null ? null : ConfigYamlHelpers.GetOptionalString(schemaNode, "breadcrumbParent")
         };
 
     private static SeoGeoConfig ReadSeoGeo(YamlMappingNode? geoNode)

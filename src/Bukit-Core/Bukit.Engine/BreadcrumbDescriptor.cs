@@ -80,6 +80,9 @@ internal static class BreadcrumbDescriptorResolver
             }
         }
 
+        var schema = config.Site.Seo.Schema;
+        var parents = BreadcrumbTaxonomyParentResolver.Resolve(config, routed, listRouteGraph);
+        var home = schema.BreadcrumbHome ? ResolveHome(config, entries) : null;
         var descriptors = new Dictionary<string, BreadcrumbDescriptor>(StringComparer.OrdinalIgnoreCase);
         foreach (var (key, current) in entries)
         {
@@ -89,12 +92,23 @@ internal static class BreadcrumbDescriptorResolver
             }
 
             var items = new List<BreadcrumbItemDescriptor>();
+            if (home is not null)
+            {
+                items.Add(ToItem(config, baseUrl, home));
+            }
+
+            if (parents.TryGetValue(key, out var parentKey) && entries.TryGetValue(parentKey, out var taxonomyParent))
+            {
+                items.Add(ToItem(config, baseUrl, taxonomyParent));
+            }
+
             var segments = key.Trim('/').Split('/', StringSplitOptions.RemoveEmptyEntries);
             var ancestor = string.Empty;
             for (var index = 0; index < segments.Length - 1; index++)
             {
                 ancestor += "/" + segments[index];
-                if (entries.TryGetValue(ancestor, out var parent))
+                if (!string.Equals(ancestor, parentKey, StringComparison.OrdinalIgnoreCase) &&
+                    entries.TryGetValue(ancestor, out var parent))
                 {
                     items.Add(ToItem(config, baseUrl, parent));
                 }
@@ -106,6 +120,11 @@ internal static class BreadcrumbDescriptorResolver
 
         return new BreadcrumbDescriptorCatalog(descriptors);
     }
+
+    private static CatalogEntry ResolveHome(AppConfig config, IReadOnlyDictionary<string, CatalogEntry> entries)
+        => entries.TryGetValue("/", out var home)
+            ? home
+            : new CatalogEntry("/", string.IsNullOrWhiteSpace(config.Site.Title) ? "Home" : config.Site.Title.Trim(), 0);
 
     internal static string NormalizeForComparison(string routeUrl)
     {

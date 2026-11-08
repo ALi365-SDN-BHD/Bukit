@@ -105,6 +105,8 @@ content:
 | `site.seo.robotsTxt.enabled` | `false` | Controls generated `robots.txt`. |
 | `site.seo.schema.webPage` | `true` | Emits WebPage JSON-LD. |
 | `site.seo.schema.collectionPage` | `true` | Emits CollectionPage JSON-LD. |
+| `site.seo.schema.breadcrumbHome` | `false` | Starts every BreadcrumbList JSON-LD with the home page. |
+| `site.seo.schema.breadcrumbParent` | none | Taxonomy kind (for example `categories`) whose first term page becomes the breadcrumb parent of content listed under it. |
 | `site.seo.schema.searchAction` | `true` | Allows SearchAction JSON-LD only when `site.search.route` is also declared and exists in the final HTML route inventory. |
 | `site.seo.geo.enabled` | `true` | Enables GEO report data. |
 | `site.seo.geo.llmsTxt` | `true` | Writes `llms.txt` when build output is indexable. |

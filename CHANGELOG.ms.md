@@ -4,6 +4,7 @@ Semua perubahan penting kepada Bukit akan didokumenkan dalam fail ini.
 
 ## [Belum Dikeluarkan]
 
+- **Laman utama dan induk taksonomi dalam breadcrumb**: `site.seo.schema.breadcrumbHome` memulakan JSON-LD BreadcrumbList dengan laman utama, dan `site.seo.schema.breadcrumbParent` (jenis taksonomi seperti `categories`) meletakkan halaman istilah pertama sebelum halaman kandungan, jadi URL rata seperti `/2596/` mendapat Laman utama › kategori › artikel. Kedua-duanya dimatikan secara lalai; jika tidak ditetapkan, output dan cache tokokan tidak berubah.
 - **Pengarang SEO lalai**: `site.seo.defaultAuthor` dan `site.seo.defaultAuthorType` (lalai `Person`, atau `Organization`) menetapkan pengarang JSON-LD artikel apabila halaman tiada hubungan pengarang, medan `author` atau pengarang GEO. Jika tidak ditetapkan, output dan cache tokokan tidak berubah.
 
 ## [2.0.10] - 2026-11-09

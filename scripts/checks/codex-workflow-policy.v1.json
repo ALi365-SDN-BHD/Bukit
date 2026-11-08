@@ -2031,6 +2031,29 @@
       ],
       "publicContract": false,
       "resource": "dotnet-serial"
+    },
+    {
+      "id": "breadcrumb-taxonomy-parent-contract",
+      "matches": [
+        "openspec/changes/add-breadcrumb-taxonomy-parent/proposal.md",
+        "openspec/changes/add-breadcrumb-taxonomy-parent/tasks.md",
+        "openspec/changes/add-breadcrumb-taxonomy-parent/specs/breadcrumb-taxonomy-parent/spec.md",
+        "openspec/changes/archive/*-add-breadcrumb-taxonomy-parent/*.md",
+        "openspec/changes/archive/*-add-breadcrumb-taxonomy-parent/specs/breadcrumb-taxonomy-parent/spec.md",
+        "openspec/specs/breadcrumb-taxonomy-parent/spec.md"
+      ],
+      "specialtyTests": [
+        "dotnet test tests/Bukit.Config.Tests/Bukit.Config.Tests.csproj",
+        "dotnet test tests/Bukit.Engine.Tests/Bukit.Engine.Tests.csproj"
+      ],
+      "contractConsumerGlobs": [
+        "src/Bukit-Core/Bukit.Config/AppConfig.cs",
+        "src/Bukit-Core/Bukit.Engine/BreadcrumbDescriptor.cs",
+        "src/Bukit-Core/Bukit.Engine/BreadcrumbTaxonomyParentResolver.cs",
+        "src/Bukit-Core/Bukit.Engine/Incremental/SeoContributor.cs"
+      ],
+      "publicContract": false,
+      "resource": "dotnet-serial"
     }
   ],
   "resourceRules": [

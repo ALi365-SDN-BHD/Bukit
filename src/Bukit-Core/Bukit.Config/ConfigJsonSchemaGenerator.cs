@@ -193,7 +193,9 @@ public static class ConfigJsonSchemaGenerator
         => Obj(("type", "object"), ("properties", Obj(
             ("webPage", BoolSchema()),
             ("collectionPage", BoolSchema()),
-            ("searchAction", BoolSchema()))));
+            ("searchAction", BoolSchema()),
+            ("breadcrumbHome", BoolSchema()),
+            ("breadcrumbParent", Obj(("type", "string"), ("minLength", 1))))));
 
     private static JsonObject SeoOrganizationSchema()
         => Obj(("type", "object"), ("properties", Obj(

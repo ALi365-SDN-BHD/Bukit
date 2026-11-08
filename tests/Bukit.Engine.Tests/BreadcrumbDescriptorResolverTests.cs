@@ -168,6 +168,116 @@ public sealed class BreadcrumbDescriptorResolverTests
         Assert.Equal("/docs/deep/orphan/", Assert.Single(descriptor.Items).Item);
     }
 
+    [Fact]
+    public void Resolve_BreadcrumbHome_PrependsHomeUsingHomeTitleOrSiteTitle()
+    {
+        var config = Config(schema => schema with { BreadcrumbHome = true });
+        var withHome = BreadcrumbDescriptorResolver.Resolve(
+            config,
+            "/",
+            [Routed("home", "首页", "/"), Routed("a", "文章", "/a/")],
+            listRouteGraph: null,
+            staticEntries: null,
+            routeMetadata: null);
+        var withoutHomeRoute = BreadcrumbDescriptorResolver.Resolve(
+            config,
+            "/",
+            [Routed("a", "文章", "/a/")],
+            listRouteGraph: null,
+            staticEntries: null,
+            routeMetadata: null);
+
+        Assert.Null(withHome.Find("/"));
+        Assert.Equal(["首页", "文章"], withHome.Find("/a/")!.Items.Select(item => item.Name));
+        Assert.Equal("https://example.com/", withHome.Find("/a/")!.Items[0].Item);
+        Assert.Equal(["站点", "文章"], withoutHomeRoute.Find("/a/")!.Items.Select(item => item.Name));
+    }
+
+    [Fact]
+    public void Resolve_BreadcrumbParent_UsesDocumentsFirstDeclaredTermPage()
+    {
+        var config = Config(schema => schema with { BreadcrumbHome = true, BreadcrumbParent = "categories" });
+        var catalog = BreadcrumbDescriptorResolver.Resolve(
+            config,
+            "/",
+            [
+                Routed("p1", "文章一", "/2596/", ["社团", "新闻"]),
+                Routed("p2", "文章二", "/2597/"),
+                Routed("p3", "文章三", "/2598/")
+            ],
+            TaxonomyGraph(),
+            staticEntries: null,
+            routeMetadata: null);
+
+        Assert.Equal(["站点", "社团动态", "文章一"], catalog.Find("/2596/")!.Items.Select(item => item.Name));
+        Assert.Equal("https://example.com/categories/club/", catalog.Find("/2596/")!.Items[1].Item);
+        // No declared terms: first term route that lists the item (page 2 items still count).
+        Assert.Equal(["站点", "最新動態", "文章二"], catalog.Find("/2597/")!.Items.Select(item => item.Name));
+        Assert.Equal(["站点", "文章三"], catalog.Find("/2598/")!.Items.Select(item => item.Name));
+        Assert.Equal(
+            ["站点", "最新動態", "最新動態 - 第 2 页"],
+            catalog.Find("/categories/news/page/2/")!.Items.Select(item => item.Name));
+    }
+
+    [Fact]
+    public void Resolve_BreadcrumbParentForOtherKind_LeavesContentUnchanged()
+    {
+        var config = Config(schema => schema with { BreadcrumbParent = "tags" });
+        var catalog = BreadcrumbDescriptorResolver.Resolve(
+            config,
+            "/",
+            [Routed("p1", "文章一", "/2596/", ["新闻"])],
+            TaxonomyGraph(),
+            staticEntries: null,
+            routeMetadata: null);
+
+        Assert.Equal(["文章一"], catalog.Find("/2596/")!.Items.Select(item => item.Name));
+    }
+
+    private static ListRouteGraph TaxonomyGraph()
+        => ListRouteGraph.Create(
+        [
+            TermRoute("新闻", "news", "最新動態", "/categories/news/", 1, ["/2596/", "/2597/"]),
+            TermRoute("新闻", "news", "最新動態 - 第 2 页", "/categories/news/page/2/", 2, ["/2598-not-routed/"]),
+            TermRoute("社团", "club", "社团动态", "/categories/club/", 1, ["/2596/"]),
+            TermRoute("标签", "tag", "标签", "/tags/tag/", 1, ["/2598/"], kind: "tags")
+        ]);
+
+    private static ListRoutePlan TermRoute(
+        string term,
+        string slug,
+        string title,
+        string url,
+        int page,
+        IReadOnlyList<string> itemUrls,
+        string kind = "categories")
+        => new()
+        {
+            RouteId = $"taxonomy:{kind}:{slug}:{page}",
+            Kind = ListRouteKind.TaxonomyTermPage,
+            Url = url,
+            OutputPath = RoutePathBuilder.BuildOutputPathFromUrl(url),
+            Template = "pages/category.html",
+            Title = title,
+            PageNumber = page,
+            TotalItems = itemUrls.Count,
+            Items = itemUrls.Select(itemUrl => new ListRouteItem { Id = itemUrl, Title = itemUrl, Url = itemUrl }).ToArray(),
+            CanonicalUrl = url,
+            TaxonomyContext = new ListRouteTaxonomyContext { Kind = kind, Term = term, Slug = slug }
+        };
+
+    private static AppConfig Config(Func<SeoSchemaConfig, SeoSchemaConfig> schema)
+    {
+        var config = Config();
+        return config with
+        {
+            Site = config.Site with
+            {
+                Seo = config.Site.Seo with { Schema = schema(config.Site.Seo.Schema) }
+            }
+        };
+    }
+
     private static AppConfig Config()
         => new()
         {
@@ -181,19 +291,25 @@ public sealed class BreadcrumbDescriptorResolverTests
             Content = TestContent.Markdown()
         };
 
-    private static RoutedContentDocument Routed(string id, string title, string url)
+    private static RoutedContentDocument Routed(string id, string title, string url, IReadOnlyList<string>? categories = null)
     {
+        var fields = new Dictionary<string, object>
+        {
+            ["type"] = "page",
+            ["collection"] = "page"
+        };
+        if (categories is not null)
+        {
+            fields["categories"] = categories.ToList();
+        }
+
         var document = ContentDocument.Create(
             id,
             title,
             id,
             new DateTimeOffset(2026, 7, 14, 0, 0, 0, TimeSpan.Zero),
             null,
-            ContentFieldReader.ToFieldMap(new Dictionary<string, object>
-            {
-                ["type"] = "page",
-                ["collection"] = "page"
-            }));
+            ContentFieldReader.ToFieldMap(fields));
         return new RoutedContentDocument(
             document,
             new RouteInfo(url, RoutePathBuilder.BuildOutputPathFromUrl(url), "pages/page.html"),

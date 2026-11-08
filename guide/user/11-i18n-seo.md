@@ -94,7 +94,17 @@ site:
       webPage: true
       collectionPage: true
       searchAction: true
+      breadcrumbHome: true
+      breadcrumbParent: categories
 ```
+
+BreadcrumbList JSON-LD lists real parent routes by URL path, then the current
+page. `site.seo.schema.breadcrumbHome: true` starts every list with the home page
+(its title, or `site.title` when there is no home route). `breadcrumbParent` names
+a taxonomy kind: content listed on one of its term pages gets that term's first
+page as parent, so `/2596/` in category "news" becomes Home › news › post. The
+document's own term order wins; otherwise the first term page listing it. Term
+names follow `content.routeMetadata` titles. Both are off by default.
 
 `site.seo.schema.searchAction` permits output; `site.search.route` explicitly
 declares that a complete search page exists. When both switches and SEO are
