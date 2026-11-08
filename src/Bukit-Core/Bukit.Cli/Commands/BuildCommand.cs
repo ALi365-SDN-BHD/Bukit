@@ -11,8 +11,31 @@ public static class BuildCommand
     public static Task<int> RunAsync(CliBoundCommand command, CancellationToken cancellationToken = default)
         => RunAsync(command, command.GetString("--log-format") ?? "text", useWorktreeIsolation: true, cancellationToken);
 
-    internal static Task<int> RunAsync(CliBoundCommand command, string logFormat, CancellationToken cancellationToken = default)
-        => RunAsync(command, logFormat, useWorktreeIsolation: true, cancellationToken);
+    internal static async Task<int> RunAsync(CliBoundCommand command, string logFormat, CancellationToken cancellationToken = default)
+    {
+        // Ctrl+C cancels the build instead of killing the process, so the build
+        // transaction can roll back cleanly and keep content-source caches.
+        using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        ConsoleCancelEventHandler onCancel = (_, e) =>
+        {
+            if (cts.IsCancellationRequested)
+            {
+                return; // A second Ctrl+C falls through to the default hard exit.
+            }
+
+            e.Cancel = true;
+            cts.Cancel();
+        };
+        Console.CancelKeyPress += onCancel;
+        try
+        {
+            return await RunAsync(command, logFormat, useWorktreeIsolation: true, cts.Token).ConfigureAwait(false);
+        }
+        finally
+        {
+            Console.CancelKeyPress -= onCancel;
+        }
+    }
 
     internal static Task<int> RunInProcessAsync(CliBoundCommand command, CancellationToken cancellationToken = default)
         => RunAsync(command, command.GetString("--log-format") ?? "text", useWorktreeIsolation: false, cancellationToken);

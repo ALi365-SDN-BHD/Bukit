@@ -59,6 +59,8 @@ internal static partial class PublicOutputPrivacyCheck
             return new PublicOutputPrivacyCheckResult("passed", []);
         }
 
+        var matcher = NotionIdentifierMatcher.From(sensitiveTokens);
+
         var errors = new List<string>();
         var options = new EnumerationOptions
         {
@@ -75,11 +77,11 @@ internal static partial class PublicOutputPrivacyCheck
                 continue;
             }
 
-            var pathLeak = ContainsSensitiveToken(relativePath, sensitiveTokens);
+            var pathLeak = matcher.ContainsAny(relativePath);
             var contentScan = FilePrivacyScan.Clean;
             if (s_textExtensions.Contains(Path.GetExtension(path)))
             {
-                contentScan = ScanFileForLeaks(path, sensitiveTokens);
+                contentScan = ScanFileForLeaks(path, matcher);
             }
 
             if (pathLeak || contentScan == FilePrivacyScan.Leak)
@@ -140,13 +142,13 @@ internal static partial class PublicOutputPrivacyCheck
     /// (early exit), avoiding full-file reads on large outputs.
     /// Falls back to full JSON parse for .json/.jsonld to catch Unicode escapes.
     /// </summary>
-    private static FilePrivacyScan ScanFileForLeaks(string path, IReadOnlySet<string> sensitiveTokens)
+    private static FilePrivacyScan ScanFileForLeaks(string path, NotionIdentifierMatcher matcher)
     {
         var extension = Path.GetExtension(path);
         using var reader = new StreamReader(path);
         while (reader.ReadLine() is { } line)
         {
-            if (ContainsSensitiveToken(line, sensitiveTokens))
+            if (matcher.ContainsAny(line))
             {
                 return FilePrivacyScan.Leak;
             }
@@ -162,7 +164,7 @@ internal static partial class PublicOutputPrivacyCheck
         if (extension.Equals(".json", StringComparison.OrdinalIgnoreCase) ||
             extension.Equals(".jsonld", StringComparison.OrdinalIgnoreCase))
         {
-            return ScanJson(File.ReadAllText(path), sensitiveTokens) switch
+            return ScanJson(File.ReadAllText(path), matcher) switch
             {
                 JsonPrivacyScan.Leak => FilePrivacyScan.Leak,
                 JsonPrivacyScan.Incomplete => FilePrivacyScan.Incomplete,
@@ -180,6 +182,9 @@ internal static partial class PublicOutputPrivacyCheck
     /// instead of silently passing.
     /// </summary>
     internal static JsonPrivacyScan ScanJson(string json, IReadOnlySet<string> sensitiveTokens)
+        => ScanJson(json, NotionIdentifierMatcher.From(sensitiveTokens));
+
+    private static JsonPrivacyScan ScanJson(string json, NotionIdentifierMatcher sensitiveTokens)
     {
         System.Text.Json.JsonDocument document;
         try
@@ -209,7 +214,7 @@ internal static partial class PublicOutputPrivacyCheck
         }
     }
 
-    private static bool ContainsJsonLeak(System.Text.Json.JsonElement element, IReadOnlySet<string> sensitiveTokens)
+    private static bool ContainsJsonLeak(System.Text.Json.JsonElement element, NotionIdentifierMatcher sensitiveTokens)
     {
         if (element.ValueKind == System.Text.Json.JsonValueKind.Object)
         {
@@ -225,7 +230,7 @@ internal static partial class PublicOutputPrivacyCheck
                     throw new JsonStringDecodeException();
                 }
 
-                if (ContainsSensitiveToken(propertyName, sensitiveTokens))
+                if (sensitiveTokens.ContainsAny(propertyName))
                 {
                     return true;
                 }
@@ -256,7 +261,7 @@ internal static partial class PublicOutputPrivacyCheck
         }
         else if (element.ValueKind == System.Text.Json.JsonValueKind.String)
         {
-            return ContainsSensitiveToken(ReadJsonString(element) ?? string.Empty, sensitiveTokens);
+            return sensitiveTokens.ContainsAny(ReadJsonString(element) ?? string.Empty);
         }
 
         return false;
@@ -278,8 +283,113 @@ internal static partial class PublicOutputPrivacyCheck
     {
     }
 
-    private static bool ContainsSensitiveToken(string value, IReadOnlySet<string> sensitiveTokens)
-        => sensitiveTokens.Any(token => value.Contains(token, StringComparison.OrdinalIgnoreCase));
+    /// <summary>
+    /// Finds Notion identifiers in one pass. Every sensitive token is (or contains) a Notion
+    /// id in dashed or compact form, so scanning hex/dash runs and checking each 32-char
+    /// compact window covers both forms. Cost is linear in the text, not text x tokens.
+    /// </summary>
+    internal sealed class NotionIdentifierMatcher
+    {
+        private const int IdLength = 32;
+        private readonly HashSet<string> _compactIds;
+        private readonly string[] _otherTokens;
+
+        private NotionIdentifierMatcher(HashSet<string> compactIds, string[] otherTokens)
+        {
+            _compactIds = compactIds;
+            _otherTokens = otherTokens;
+        }
+
+        internal static NotionIdentifierMatcher From(IReadOnlySet<string> tokens)
+        {
+            var ids = new HashSet<string>(StringComparer.Ordinal);
+            var others = new List<string>();
+            foreach (var token in tokens)
+            {
+                var found = false;
+                foreach (Match match in NotionIdentifierRegex().Matches(token))
+                {
+                    ids.Add(match.Value.Replace("-", string.Empty, StringComparison.Ordinal).ToLowerInvariant());
+                    found = true;
+                }
+
+                // Callers only pass id-bearing tokens; keep any other token on the slow path.
+                if (!found && token.Length > 0)
+                {
+                    others.Add(token);
+                }
+            }
+
+            return new NotionIdentifierMatcher(ids, [.. others]);
+        }
+
+        internal bool ContainsAny(string value)
+        {
+            if (string.IsNullOrEmpty(value))
+            {
+                return false;
+            }
+
+            if (_compactIds.Count > 0 && ContainsId(value))
+            {
+                return true;
+            }
+
+            foreach (var token in _otherTokens)
+            {
+                if (value.Contains(token, StringComparison.OrdinalIgnoreCase))
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        private bool ContainsId(string value)
+        {
+            Span<char> window = stackalloc char[IdLength];
+            var buffer = new System.Text.StringBuilder();
+            for (var i = 0; i <= value.Length; i++)
+            {
+                var c = i < value.Length ? value[i] : '\0';
+                if (char.IsAsciiHexDigit(c))
+                {
+                    buffer.Append(char.ToLowerInvariant(c));
+                    continue;
+                }
+
+                if (c == '-' && buffer.Length > 0)
+                {
+                    continue;
+                }
+
+                if (buffer.Length >= IdLength && HasKnownWindow(buffer, window))
+                {
+                    return true;
+                }
+
+                buffer.Clear();
+            }
+
+            return false;
+        }
+
+        private bool HasKnownWindow(System.Text.StringBuilder run, Span<char> window)
+        {
+            var lookup = _compactIds.GetAlternateLookup<ReadOnlySpan<char>>();
+            for (var start = 0; start + IdLength <= run.Length; start++)
+            {
+                run.CopyTo(start, window, IdLength);
+                if (lookup.Contains(window))
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+    }
 
     private static string RedactPath(string relativePath, IReadOnlySet<string> sensitiveTokens)
     {
