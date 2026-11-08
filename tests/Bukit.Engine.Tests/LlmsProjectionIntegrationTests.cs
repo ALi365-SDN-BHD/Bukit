@@ -79,6 +79,74 @@ public sealed class LlmsProjectionIntegrationTests
     }
 
     [Fact]
+    public void WriteLlmsTxt_DerivedPageUsesSeoModelTitle_AuthoredPageKeepsOwnTitle()
+    {
+        var output = Path.Combine(Path.GetTempPath(), "bukit-llms-derived-title-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(output);
+        try
+        {
+            var config = new AppConfig
+            {
+                Site = new SiteConfig { Name = "llms", Title = "Llms", Url = "https://example.com" },
+                Content = new ContentConfig(),
+                Build = new BuildConfig { Output = "dist" },
+                Theme = new ThemeConfig()
+            };
+
+            // Derived taxonomy page: generated title "分类：news"; route metadata renamed it in the SEO model.
+            var derived = ContentDocument.Create(
+                "tax-news",
+                "分类：news",
+                "derived",
+                DateTimeOffset.UnixEpoch,
+                null,
+                ContentFieldReader.ToFieldMap(new Dictionary<string, object> { ["type"] = "derived" }));
+            var derivedRoute = new RouteInfo("/categories/news/", "categories/news/index.html", "pages/category.html");
+
+            // Authored page whose SEO title differs from its visible title.
+            var authored = ContentDocument.Create(
+                "about",
+                "About us",
+                "page",
+                DateTimeOffset.UnixEpoch,
+                null,
+                ContentFieldReader.ToFieldMap(new Dictionary<string, object> { ["type"] = "page" }));
+            var authoredRoute = new RouteInfo("/about/", "about/index.html", "pages/page.html");
+
+            var seoIndex = new Dictionary<string, SeoIndexEntry>
+            {
+                [derivedRoute.OutputPath] = new(derivedRoute, "https://example.com/categories/news/", null, true, DateTimeOffset.UnixEpoch, derived.Id, "derived", IsDerived: true),
+                [authoredRoute.OutputPath] = new(authoredRoute, "https://example.com/about/", null, true, DateTimeOffset.UnixEpoch, authored.Id, "page")
+            };
+            var models = new Dictionary<string, SeoModel>
+            {
+                [derivedRoute.OutputPath] = new() { Title = "最新動態", Description = "協會最新動態。", Canonical = "https://example.com/categories/news/" },
+                [authoredRoute.OutputPath] = new() { Title = "About | SEO only", Description = "SEO only.", Canonical = "https://example.com/about/" }
+            };
+
+            LlmsTxtPlugin.WriteLlmsTxt(
+                config,
+                output,
+                "/",
+                [new RoutedContentDocument(authored, authoredRoute)],
+                [new RoutedContentDocument(derived, derivedRoute)],
+                seoIndex,
+                models,
+                config.Site.Seo.Geo);
+
+            var llms = File.ReadAllText(Path.Combine(output, "llms.txt"));
+            Assert.Contains("[最新動態](https://example.com/categories/news/): 協會最新動態。", llms, StringComparison.Ordinal);
+            Assert.DoesNotContain("分类：news", llms, StringComparison.Ordinal);
+            Assert.Contains("[About us](https://example.com/about/)", llms, StringComparison.Ordinal);
+            Assert.DoesNotContain("About | SEO only", llms, StringComparison.Ordinal);
+        }
+        finally
+        {
+            if (Directory.Exists(output)) Directory.Delete(output, recursive: true);
+        }
+    }
+
+    [Fact]
     public async Task BuildAsync_LlmsTxt_ExcludesNoindexAndExpiredRoutes()
     {
         var root = Path.Combine(Path.GetTempPath(), "bukit-llms-projection-" + Guid.NewGuid().ToString("N"));

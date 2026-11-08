@@ -213,8 +213,8 @@ internal sealed class LlmsTxtPlugin : IBukitPlugin, IAfterBuildAsyncPlugin
         foreach (var candidate in selection.Primary)
         {
             var url = ResolveFullUrl(candidate.Entry.Route.Url, canonicalBase);
-            var pageTitle = candidate.Record.Presentation.Title ?? candidate.Model?.Title ?? candidate.Document.Title;
-            var desc = candidate.Record.Presentation.Summary ?? candidate.Model?.Description ?? description;
+            var pageTitle = ResolveLinkTitle(candidate);
+            var desc = ResolveLinkDescription(candidate, description);
             var collection = candidate.Record.Classification.Collection ?? ContentFieldReader.GetCollection(candidate.Document);
 
             if (!string.IsNullOrWhiteSpace(collection))
@@ -237,8 +237,8 @@ internal sealed class LlmsTxtPlugin : IBukitPlugin, IAfterBuildAsyncPlugin
         foreach (var candidate in OrderDeterministically(selection.Optional))
         {
             var url = ResolveFullUrl(candidate.Entry.Route.Url, canonicalBase);
-            var pageTitle = candidate.Record.Presentation.Title ?? candidate.Model?.Title ?? candidate.Document.Title;
-            var desc = candidate.Record.Presentation.Summary ?? candidate.Model?.Description ?? description;
+            var pageTitle = ResolveLinkTitle(candidate);
+            var desc = ResolveLinkDescription(candidate, description);
             optionalPages.Add((url, pageTitle, desc));
         }
 
@@ -278,8 +278,8 @@ internal sealed class LlmsTxtPlugin : IBukitPlugin, IAfterBuildAsyncPlugin
             foreach (var candidate in selected)
             {
                 var url = ResolveFullUrl(candidate.Entry.Route.Url, canonicalBase);
-                var pageTitle = candidate.Record.Presentation.Title ?? candidate.Model?.Title ?? candidate.Document.Title;
-                var desc = candidate.Record.Presentation.Summary ?? candidate.Model?.Description ?? description;
+                var pageTitle = ResolveLinkTitle(candidate);
+                var desc = ResolveLinkDescription(candidate, description);
                 publishedUrls?.Add(url);
                 sb.Append(MarkdownLink(pageTitle, url));
                 if (!string.IsNullOrWhiteSpace(desc))
@@ -553,6 +553,31 @@ internal sealed class LlmsTxtPlugin : IBukitPlugin, IAfterBuildAsyncPlugin
         var path = Path.Combine(outputDir, "llms-full.txt");
         Directory.CreateDirectory(outputDir);
         File.WriteAllText(path, sb.ToString(), Utf8NoBom);
+    }
+
+    /// <summary>
+    /// Derived pages (taxonomy, lists) have generated titles, so the SEO model, which applies
+    /// <c>content.routeMetadata</c> overrides, is the final word for them. Authored content keeps
+    /// its own title so an SEO-only title never replaces it.
+    /// </summary>
+    internal static string ResolveLinkTitle(LlmsCandidate candidate)
+    {
+        if (candidate.Entry.IsDerived && !string.IsNullOrWhiteSpace(candidate.Model?.Title))
+        {
+            return candidate.Model.Title;
+        }
+
+        return candidate.Record.Presentation.Title ?? candidate.Model?.Title ?? candidate.Document.Title;
+    }
+
+    internal static string? ResolveLinkDescription(LlmsCandidate candidate, string? siteDescription)
+    {
+        if (candidate.Entry.IsDerived && !string.IsNullOrWhiteSpace(candidate.Model?.Description))
+        {
+            return candidate.Model.Description;
+        }
+
+        return candidate.Record.Presentation.Summary ?? candidate.Model?.Description ?? siteDescription;
     }
 
     private static string MarkdownLink(string text, string url)
