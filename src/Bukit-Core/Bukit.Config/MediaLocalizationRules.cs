@@ -4,14 +4,16 @@ using System.Net.Sockets;
 
 namespace Bukit.Config;
 
-// Shared rules for content.media.onFailure and host patterns, used by configuration
-// validation and by the media localizer so both always agree.
-public sealed partial record MediaConfig
+/// <summary>
+/// Shared rules for <c>content.media.onFailure</c> and host patterns, used by configuration
+/// validation and by the media localizer (Bukit.Content) so both always agree.
+/// </summary>
+internal static class MediaLocalizationRules
 {
     /// <summary>
     /// Parses <c>onFailure</c>: "placeholder" (also when blank) or "keep", in any case.
     /// </summary>
-    public static bool TryParseOnFailure(string? value, out bool keepOriginal)
+    internal static bool TryParseOnFailure(string? value, out bool keepOriginal)
     {
         var trimmed = value?.Trim();
         keepOriginal = string.Equals(trimmed, "keep", StringComparison.OrdinalIgnoreCase);
@@ -24,7 +26,7 @@ public sealed partial record MediaConfig
     /// Validates and normalizes a host pattern: an exact host name, a canonical IPv4 address,
     /// or "*." plus a host name. The result is lowercase ASCII (punycode for IDN names).
     /// </summary>
-    public static bool TryNormalizeHostPattern(string? pattern, out string normalized)
+    internal static bool TryNormalizeHostPattern(string? pattern, out string normalized)
     {
         normalized = string.Empty;
         var value = pattern?.Trim() ?? string.Empty;
@@ -76,6 +78,48 @@ public sealed partial record MediaConfig
         normalized = wildcard ? "*." + value : value;
         return true;
     }
+
+    /// <summary>
+    /// Normalizes a pattern list, skipping blank entries. On failure <paramref name="invalid"/>
+    /// is the first invalid entry.
+    /// </summary>
+    internal static bool TryNormalizeHostPatterns(
+        IReadOnlyList<string>? patterns,
+        out string[] normalized,
+        out string? invalid)
+    {
+        normalized = [];
+        invalid = null;
+        if (patterns is null || patterns.Count == 0)
+        {
+            return true;
+        }
+
+        var result = new List<string>(patterns.Count);
+        foreach (var raw in patterns)
+        {
+            if (string.IsNullOrWhiteSpace(raw))
+            {
+                continue;
+            }
+
+            if (!TryNormalizeHostPattern(raw, out var pattern))
+            {
+                invalid = raw;
+                return false;
+            }
+
+            result.Add(pattern);
+        }
+
+        normalized = result.Distinct(StringComparer.Ordinal).ToArray();
+        return true;
+    }
+
+    internal static string InvalidHostPatternMessage(string fieldName, string? pattern)
+        => $"{fieldName} entry '{pattern}' must be a host name, a canonical IPv4 address, or '*.' followed by a host name.";
+
+    internal const string InvalidOnFailureMessage = "content.media.onFailure must be one of: placeholder, keep.";
 
     private static bool IsCanonicalIPv4(string value)
         => IPAddress.TryParse(value, out var address) &&

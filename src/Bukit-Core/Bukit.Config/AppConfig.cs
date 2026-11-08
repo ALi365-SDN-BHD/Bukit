@@ -387,7 +387,7 @@ public sealed record NotionPropertyMapConfig
     public string? CoverCaption { get; init; }
 }
 
-public sealed partial record MediaConfig
+public sealed record MediaConfig
 {
     public bool DownloadToLocal { get; init; } = true;
     public string DownloadDir { get; init; } = "assets/uploads";

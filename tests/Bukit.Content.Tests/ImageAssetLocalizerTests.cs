@@ -2045,7 +2045,7 @@ public sealed class ImageAssetLocalizerTests
         => await WithTempDirAsync(async dir =>
         {
             using var handler = new GatedNotFoundHandler();
-            var logger = new EventWaitLogger("event=media.download_shared");
+            var logger = new EventWaitLogger(ImageAssetLocalizer.SharedDownloadEvent);
             using var localizer = CreateLocalizer(ControlConfig(dir, "keep"), handler, logger);
 
             var first = localizer.LocalizeAsync("https://img.example/a.png", CancellationToken.None);
@@ -2078,11 +2078,34 @@ public sealed class ImageAssetLocalizerTests
         });
 
     [Fact]
+    public async Task LogFailureSummary_ReportsEachFailureOnce_AndRepeatedReferencesWarn()
+        => await WithTempDirAsync(async dir =>
+        {
+            var handler = new CountingHandler(HttpStatusCode.NotFound, "text/plain", "missing");
+            var logger = new RecordingLogger();
+            var localizer = CreateLocalizer(ControlConfig(dir, "keep"), handler, logger);
+
+            await localizer.LocalizeAsync("https://img.example/a.png", CancellationToken.None);
+            localizer.LogFailureSummary(logger, "documents");
+            // Later failures (e.g. lazily localized bodies) are reported on dispose.
+            await localizer.LocalizeAsync("https://img.example/b.png", CancellationToken.None);
+            await localizer.LocalizeAsync("https://img.example/a.png", CancellationToken.None);
+            localizer.Dispose();
+
+            Assert.Contains("event=media.localize_summary phase=documents failed=1", logger.Warnings);
+            Assert.Contains("event=media.localize_summary phase=deferred failed=1", logger.Warnings);
+            Assert.Contains(logger.Warnings, w => w.StartsWith("event=media.failed_reference", StringComparison.Ordinal));
+            Assert.Equal(2, logger.Warnings.Count(w => w.StartsWith("  - ", StringComparison.Ordinal)));
+        });
+
+    [Fact]
     public void Constructor_InvalidMediaControls_Throw()
     {
         using var handler = new CountingHandler(HttpStatusCode.OK, "image/png", "img");
-        Assert.Throws<ArgumentException>(() => CreateLocalizer(new MediaConfig { OnFailure = "keeep" }, handler));
-        Assert.Throws<ArgumentException>(() => CreateLocalizer(new MediaConfig { DownloadHosts = ["bü..com"] }, handler));
+        var onFailure = Assert.Throws<ConfigException>(() => CreateLocalizer(new MediaConfig { OnFailure = "keeep" }, handler));
+        var hosts = Assert.Throws<ConfigException>(() => CreateLocalizer(new MediaConfig { DownloadHosts = ["bü..com"] }, handler));
+        Assert.Equal(DiagnosticCode.ConfigInvalidValue, onFailure.Code);
+        Assert.Contains("content.media.downloadHosts entry 'bü..com'", hosts.Message, StringComparison.Ordinal);
     }
 
     [Fact]

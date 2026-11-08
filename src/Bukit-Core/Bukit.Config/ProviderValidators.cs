@@ -162,9 +162,9 @@ internal static class ProviderValidators
             throw new ConfigException("content.media.retryBaseDelayMs must be a non-negative integer when set.", DiagnosticCode.ConfigRequiredFieldMissing);
         }
 
-        if (!MediaConfig.TryParseOnFailure(media.OnFailure, out _))
+        if (!MediaLocalizationRules.TryParseOnFailure(media.OnFailure, out _))
         {
-            throw new ConfigException("content.media.onFailure must be one of: placeholder, keep.", DiagnosticCode.ConfigInvalidValue);
+            throw new ConfigException(MediaLocalizationRules.InvalidOnFailureMessage, DiagnosticCode.ConfigInvalidValue);
         }
 
         ValidateMediaHostPatterns("content.media.downloadHosts", media.DownloadHosts);
@@ -173,20 +173,12 @@ internal static class ProviderValidators
 
     private static void ValidateMediaHostPatterns(string fieldName, IReadOnlyList<string>? patterns)
     {
-        if (patterns is null)
-        {
-            return;
-        }
-
         // Name the value, not its index: blank entries are dropped while loading, so indexes can shift.
-        foreach (var pattern in patterns)
+        if (!MediaLocalizationRules.TryNormalizeHostPatterns(patterns, out _, out var invalid))
         {
-            if (!MediaConfig.TryNormalizeHostPattern(pattern, out _))
-            {
-                throw new ConfigException(
-                    $"{fieldName} entry '{pattern}' must be a host name, a canonical IPv4 address, or '*.' followed by a host name.",
-                    DiagnosticCode.ConfigInvalidValue);
-            }
+            throw new ConfigException(
+                MediaLocalizationRules.InvalidHostPatternMessage(fieldName, invalid),
+                DiagnosticCode.ConfigInvalidValue);
         }
     }
 

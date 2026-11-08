@@ -212,6 +212,8 @@ public class DependencyMatrixTests
         var allowedAssemblyPairs = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
         {
             "Bukit.Shared->Bukit.Content",
+            // Shared media localization rules (validation and runtime must agree).
+            "Bukit.Config->Bukit.Content",
             "Bukit.Shared->Bukit.Engine.Assets",
             "Bukit.Content->Bukit.Engine.Assets",
             "Bukit.Rendering->Bukit.Engine.Audit",

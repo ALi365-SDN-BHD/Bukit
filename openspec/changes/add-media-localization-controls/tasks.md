@@ -46,3 +46,8 @@
 
 - [x] `/code-review high` 的 9 项全部处理：配置校验与本地化共用 `MediaConfig.TryParseOnFailure`／`TryNormalizeHostPattern`（不新增公共类型，架构测试锁定的类型数不变）；IPv4 只接受规范点分十进制，`010.0.0.1` 等写法校验失败；`keep` 返回调用方原文（不做 HTML 解码）；同一次构建内失败的地址不再重复下载或重复报告；构造函数对非法 `onFailure`／域名规则抛出 `ArgumentException`；`WriteResult` 直接给出非空类型；两种失败记录合并为 `AddFailure`；测试专用计数改为 `event=media.download_shared` 调试日志；写入缓冲改用 `ArrayPool`。spec、proposal、指南、公共 API 基线、policy 同步。
 - [x] 专项测试：Architecture 422/422、Config 511/511、Content 632/632；`public-api-drift.sh check`、`public-api-drift-self-test.sh`、`codex-workflow-self-test.sh` exit 0；closure `unmappedFiles=[]`。
+
+## 6. 第三轮审查修复（2026-11-08）
+
+- [x] `/code-review high` 的 7 项全部处理：正文延迟本地化产生的失败在本地化器释放时以 `media.localize_summary phase=deferred` 补报，摘要改由 `ImageAssetLocalizer.LogFailureSummary` 统一输出且每条只报一次；确认本地化器由 ImageLocalizeStage 每次构建新建、随构建结束释放，失败记忆不跨构建（代码注释已写明）；重复引用失败地址改为 Warn `media.failed_reference`；构造函数改抛 `ConfigException`（`ConfigInvalidValue`）；共用规则移回 Bukit.Config 内部类 `MediaLocalizationRules`（含共用列表函数与报错文本），新增 `Bukit.Config->Bukit.Content` InternalsVisibleTo 并登记到架构测试允许清单，`MediaConfig` 恢复为纯数据；共享下载日志事件改为常量 `SharedDownloadEvent`。
+- [x] 专项测试：Architecture 422/422、Config 511/511、Content 633/633、Engine 3125/3125；`public-api-drift.sh check`、`public-api-drift-self-test.sh`、`codex-workflow-self-test.sh` exit 0；closure `unmappedFiles=[]`。

@@ -46,9 +46,13 @@ public sealed class ImageAssetLocalizer : IImageAssetLocalizer, IDisposable
     private readonly CancellationToken _lifetimeToken;
     private readonly ConcurrentDictionary<string, string> _cache = new(StringComparer.Ordinal);
     private readonly ConcurrentDictionary<string, Lazy<Task<DownloadOutcome>>> _inflight = new(StringComparer.Ordinal);
-    // Keys whose download already failed in this localizer's lifetime (one build); not retried.
+    // Keys whose download already failed in this localizer's lifetime; not retried. A localizer
+    // lives for one build: ImageLocalizeStage creates it and the build disposes its body store.
     private readonly ConcurrentDictionary<string, byte> _failedKeys = new(StringComparer.Ordinal);
-    private readonly ConcurrentBag<MediaFailure> _failures = new();
+    // A queue keeps failures in the order they happened, for the build summary.
+    private readonly ConcurrentQueue<MediaFailure> _failures = new();
+    private readonly object _failureReportLock = new();
+    private int _reportedFailureCount;
     private readonly MediaIndexManager _indexManager;
     private readonly ImageContentValidator _imageValidator = new();
     private readonly bool _keepOriginalOnFailure;
@@ -162,8 +166,9 @@ public sealed class ImageAssetLocalizer : IImageAssetLocalizer, IDisposable
 
         if (_failedKeys.ContainsKey(normalizedKey))
         {
-            // Already failed (and reported) in this build: skip the retries and timeouts.
-            _logger?.Debug($"event=media.skip_failed source={UrlRedactor.Redact(source)}");
+            // Already failed (and reported) in this build: skip the retries and timeouts, but warn so
+            // every page that still references the broken URL is visible.
+            _logger?.Warn($"event=media.failed_reference source={UrlRedactor.Redact(source)}");
             return FailureResult(original);
         }
 
@@ -232,7 +237,7 @@ public sealed class ImageAssetLocalizer : IImageAssetLocalizer, IDisposable
         }
         else
         {
-            _logger?.Debug($"event=media.download_shared source={UrlRedactor.Redact(source)}");
+            _logger?.Debug($"{SharedDownloadEvent} source={UrlRedactor.Redact(source)}");
         }
 
         try
@@ -600,7 +605,37 @@ public sealed class ImageAssetLocalizer : IImageAssetLocalizer, IDisposable
     }
 
     private void AddFailure(string sourceUrl, string reason)
-        => _failures.Add(new MediaFailure(UrlRedactor.Redact(sourceUrl), reason));
+        => _failures.Enqueue(new MediaFailure(UrlRedactor.Redact(sourceUrl), reason));
+
+    /// <summary>Debug event logged when a caller joins a download that is already running.</summary>
+    internal const string SharedDownloadEvent = "event=media.download_shared";
+
+    /// <summary>
+    /// Logs a warning summary of failures not yet reported. Called after the front-matter and HTML
+    /// pass, and again on dispose for later failures (lazily localized bodies).
+    /// </summary>
+    internal void LogFailureSummary(ILogger logger, string phase)
+    {
+        ArgumentNullException.ThrowIfNull(logger);
+        MediaFailure[] pending;
+        lock (_failureReportLock)
+        {
+            var all = _failures.ToArray();
+            pending = all[_reportedFailureCount..];
+            _reportedFailureCount = all.Length;
+        }
+
+        if (pending.Length == 0)
+        {
+            return;
+        }
+
+        logger.Warn($"event=media.localize_summary phase={phase} failed={pending.Length}");
+        foreach (var failure in pending)
+        {
+            logger.Warn($"  - {failure.SourceUrl} => {failure.Reason}");
+        }
+    }
 
     // Inside the shared download: record once, remember the key, and let each waiting caller
     // map the failure to its own result.
@@ -640,10 +675,9 @@ public sealed class ImageAssetLocalizer : IImageAssetLocalizer, IDisposable
     private static bool ParseKeepOnFailure(MediaConfig config)
     {
         ArgumentNullException.ThrowIfNull(config);
-        return MediaConfig.TryParseOnFailure(config.OnFailure, out var keep)
+        return MediaLocalizationRules.TryParseOnFailure(config.OnFailure, out var keep)
             ? keep
-            : throw new ArgumentException(
-                $"Invalid media onFailure '{config.OnFailure}'; expected placeholder or keep.", nameof(config));
+            : throw new ConfigException(MediaLocalizationRules.InvalidOnFailureMessage, DiagnosticCode.ConfigInvalidValue);
     }
 
     private static bool IsGenericBinaryContentType(string? contentType)
@@ -929,6 +963,11 @@ public sealed class ImageAssetLocalizer : IImageAssetLocalizer, IDisposable
         }
 
         _lifetimeCancellation.Cancel();
+        if (_logger is not null)
+        {
+            LogFailureSummary(_logger, "deferred");
+        }
+
         _indexManager.PersistIndex();
         _httpClient.Dispose();
 

@@ -1,21 +1,22 @@
 using Bukit.Config;
+using Bukit.Shared;
 
 namespace Bukit.Content.Media;
 
 /// <summary>
 /// Decides from the original URL's host whether an image is downloaded.
-/// Patterns follow <see cref="MediaConfig.TryNormalizeHostPattern"/>; skip rules win.
+/// Patterns follow <see cref="MediaLocalizationRules.TryNormalizeHostPattern"/>; skip rules win.
 /// </summary>
 internal sealed class MediaHostFilter
 {
     private readonly string[] _downloadHosts;
     private readonly string[] _skipHosts;
 
-    /// <exception cref="ArgumentException">A pattern is not a valid host pattern.</exception>
+    /// <exception cref="ConfigException">A pattern is not a valid host pattern.</exception>
     internal MediaHostFilter(IReadOnlyList<string>? downloadHosts, IReadOnlyList<string>? skipHosts)
     {
-        _downloadHosts = Normalize(downloadHosts, nameof(downloadHosts));
-        _skipHosts = Normalize(skipHosts, nameof(skipHosts));
+        _downloadHosts = Normalize(downloadHosts, "content.media.downloadHosts");
+        _skipHosts = Normalize(skipHosts, "content.media.skipHosts");
     }
 
     internal bool ShouldDownload(Uri uri)
@@ -57,29 +58,10 @@ internal sealed class MediaHostFilter
         return false;
     }
 
-    private static string[] Normalize(IReadOnlyList<string>? patterns, string paramName)
-    {
-        if (patterns is null || patterns.Count == 0)
-        {
-            return [];
-        }
-
-        var result = new List<string>(patterns.Count);
-        foreach (var raw in patterns)
-        {
-            if (string.IsNullOrWhiteSpace(raw))
-            {
-                continue;
-            }
-
-            if (!MediaConfig.TryNormalizeHostPattern(raw, out var normalized))
-            {
-                throw new ArgumentException($"Invalid media host pattern '{raw}'.", paramName);
-            }
-
-            result.Add(normalized);
-        }
-
-        return result.Distinct(StringComparer.Ordinal).ToArray();
-    }
+    private static string[] Normalize(IReadOnlyList<string>? patterns, string fieldName)
+        => MediaLocalizationRules.TryNormalizeHostPatterns(patterns, out var normalized, out var invalid)
+            ? normalized
+            : throw new ConfigException(
+                MediaLocalizationRules.InvalidHostPatternMessage(fieldName, invalid),
+                DiagnosticCode.ConfigInvalidValue);
 }

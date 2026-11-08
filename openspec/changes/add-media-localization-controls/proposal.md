@@ -20,7 +20,7 @@
 ## Impact
 
 - 受影响代码：`Bukit.Config`（`MediaConfig`、`SiteDefaultsApplier.Content`、`ProviderValidators`、`ConfigStrictFieldValidator`、`ConfigJsonSchemaGenerator`）、`Bukit.Engine/ContentProviderFactory`（有效配置规范化）、`Bukit.Content/Media`（`ImageAssetLocalizer`、`ImageContentSignature`）。
-- 公共契约：`MediaConfig` 新增三个属性和两个静态规则方法 `TryParseOnFailure`、`TryNormalizeHostPattern`（新增性变更，现有成员不变，公共类型数不变）；公共 API 基线随之更新。
+- 公共契约：`MediaConfig` 新增三个属性（新增性变更，现有成员不变）；公共 API 基线随之更新。共用规则放在 Bukit.Config 内部类 `MediaLocalizationRules`，通过新增的 `Bukit.Config->Bukit.Content` InternalsVisibleTo 供本地化器使用（架构测试允许清单同步登记）。
 - 跨仓影响：Bukit 主题无需改动。silkroute.cc 站点（sitegen 仓库）可在新版本中开启下载，配置 `onFailure: keep` 与 `downloadHosts`。现有站点不配置新键时输出不变。
 - 兼容性：全部默认值保持现有行为；octet-stream 响应过去必失败，现在可能成功——这是有意的行为放宽，且仍需通过签名与解码校验。
 
