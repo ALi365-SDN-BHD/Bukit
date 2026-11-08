@@ -299,8 +299,8 @@ internal sealed class BuildTransaction : IDisposable
             try
             {
                 Directory.CreateDirectory(Path.GetDirectoryName(cache)!);
-                if (Directory.Exists(cache)) { Directory.Move(cache, backup); backedUp = true; }
-                Directory.Move(staged, cache);
+                if (Directory.Exists(cache)) { _move(cache, backup, true); backedUp = true; }
+                _move(staged, cache, true);
                 _logger.Info($"event=build.cache_preserved path={Logical(cache)}");
             }
             catch (Exception ex)
@@ -308,13 +308,13 @@ internal sealed class BuildTransaction : IDisposable
                 _logger.Warn($"event=build.cache_preserve_failed path={Logical(cache)} error={ex.Message}");
                 if (backedUp && !Directory.Exists(cache))
                 {
-                    try { Directory.Move(backup, cache); backedUp = false; }
+                    try { _move(backup, cache, true); backedUp = false; }
                     catch (Exception restore) { _logger.Warn($"Cache restore failed; keep backup '{backup}': {restore.Message}"); }
                 }
                 continue;
             }
             if (backedUp)
-                try { Directory.Delete(backup, true); }
+                try { _delete(backup, true); }
                 catch (Exception ex) { _logger.Warn($"Cache backup cleanup failed: {backup}: {ex.Message}"); }
         }
     }
