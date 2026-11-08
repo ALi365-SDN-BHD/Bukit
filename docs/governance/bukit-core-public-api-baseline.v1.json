@@ -7697,6 +7697,21 @@
     },
     {
       "assembly": "Bukit.Shared",
+      "name": "Bukit.Shared.TermValueNormalizer",
+      "owner": "Shared foundation",
+      "classification": "cross-assembly-implementation",
+      "compatibility": "1.x-do-not-narrow",
+      "migrationHorizon": "2.0-review",
+      "signature": "public static class Bukit.Shared.TermValueNormalizer",
+      "publicMembers": [
+        "public static System.String! Normalize(System.String? raw)",
+        "public static System.String! Normalize(System.String? raw, out System.Boolean decoded)",
+        "public static System.String! ToSlug(System.String? raw)"
+      ],
+      "protectedMembers": []
+    },
+    {
+      "assembly": "Bukit.Shared",
       "name": "Bukit.Shared.UrlRedactor",
       "owner": "Shared foundation",
       "classification": "cross-assembly-implementation",
