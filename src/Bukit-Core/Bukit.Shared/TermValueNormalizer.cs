@@ -10,7 +10,7 @@ namespace Bukit.Shared;
 /// Shared by taxonomy page generation and the <c>util.term_slug</c> template function,
 /// so links built in templates point at the pages taxonomy actually writes.
 /// </summary>
-public static partial class TermValueNormalizer
+internal static partial class TermValueNormalizer
 {
     public static string Normalize(string? raw) => Normalize(raw, out _);
 
