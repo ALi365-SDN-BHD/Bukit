@@ -136,94 +136,104 @@ public sealed partial class SiteEngine
             contentSourceRoots: contentSourceRoots, extraWriteTargets: extraWriteTargets);
         overrides = overrides with { CacheDir = transaction.CacheDir };
         var buildLogger = new BuildDiagnosticLogger(_logger);
-        var plan = BuildPlanner.Plan(config, rootDir, overrides, buildLogger, _timeProvider.GetUtcNow());
-        var effectiveConfig = plan.EffectiveConfig;
-
-        var contentPipeline = new ContentPipeline(_contentProviderFactory, buildLogger);
-        var contentResult = await contentPipeline.ExecuteAsync(effectiveConfig, rootDir, overrides, plan.MediaCacheDir, cancellationToken);
-        var documents = contentResult.Documents;
-        var contentGraph = contentResult.ContentGraph ?? CanonicalContentGraph.Empty;
-        var bodyStore = contentResult.BodyStore;
-        var bodyCacheMetrics = contentResult.BodyCacheMetrics;
-
-        BuildResult completedResult;
-        IReadOnlyList<BuildVariantResult> completedVariants;
-        BuildManifest completedManifest;
         try
         {
-            var templateHashCache = new DirectoryHashCache(buildLogger);
-            using var assetWorkspace = await AssetSourceWorkspace.PrepareAsync(
-                plan.AssetsDir,
-                effectiveConfig.Theme.Scss,
-                effectiveConfig.Theme.Images,
-                buildLogger,
-                effectiveConfig.Build.PublishDotFiles,
-                effectiveConfig.Build.FollowSymlinks,
-                cancellationToken);
+            var plan = BuildPlanner.Plan(config, rootDir, overrides, buildLogger, _timeProvider.GetUtcNow());
+            var effectiveConfig = plan.EffectiveConfig;
 
-            var languages = I18nOutputMerger.GetLanguages(effectiveConfig.Site);
-            if (languages.Count == 0)
-            {
-                var result = await BuildSingleLanguageVariantAsync(
-                    effectiveConfig, rootDir, overrides, documents, contentGraph, bodyStore, plan.OutputDir,
-                    plan.LayoutsDir, assetWorkspace.AssetsDir, assetWorkspace.ScssOutputDir, plan.StaticDir, plan.MediaCacheDir,
-                    plan.ParentLayoutsDir, plan.ParentAssetsDir, plan.ParentStaticDir, plan.UserLayoutsDir,
-                    templateHashCache, plan.StartedAt, buildLogger, cancellationToken);
+            var contentPipeline = new ContentPipeline(_contentProviderFactory, buildLogger);
+            var contentResult = await contentPipeline.ExecuteAsync(effectiveConfig, rootDir, overrides, plan.MediaCacheDir, cancellationToken);
+            var documents = contentResult.Documents;
+            var contentGraph = contentResult.ContentGraph ?? CanonicalContentGraph.Empty;
+            var bodyStore = contentResult.BodyStore;
+            var bodyCacheMetrics = contentResult.BodyCacheMetrics;
 
-                buildLogger.Info($"event=build.variant.done language={effectiveConfig.Site.Language} baseUrl={BuildPathUtils.NormalizeBaseUrl(effectiveConfig.Site.BaseUrl)}");
-                bodyCacheMetrics = RefreshBodyCacheMetrics(bodyStore) ?? bodyCacheMetrics;
-                MetricsWriter.WriteIfRequested(rootDir, overrides.MetricsPath, effectiveConfig, plan.OutputDir, documents.Count, new[] { result }, bodyCacheMetrics);
-                completedManifest = PublicOutputLifecycle.CollectAndClean(rootDir, overrides, plan.OutputDir, [result], buildLogger);
-                var generatedFiles = BuildOutputInventory.Create(plan.OutputDir);
-                plan.Stopwatch.Stop();
-                var singleLanguageBuildResult = BuildResultFactory.Create(
-                    effectiveConfig,
-                    rootDir,
-                    plan.OutputDir,
-                    overrides,
-                    plan.StartedAt,
-                    DateTimeOffset.UtcNow,
-                    plan.Stopwatch.ElapsedMilliseconds,
-                    new[] { result },
-                    contentResult.SchemaErrors,
-                    generatedFiles,
-                    warningCount: buildLogger.WarningCount,
-                    errorCount: buildLogger.ErrorCount);
-                var securityData = BuildReporter.CreateSecurityReportData(effectiveConfig, rootDir, plan.OutputDir, new[] { result });
-                await BuildReporter.WriteIfEnabledAsync(effectiveConfig, rootDir, plan.OutputDir, singleLanguageBuildResult, new[] { result }, _logger, securityData, cancellationToken).ConfigureAwait(false);
-                BuildReporter.EnforceSecurityGate(effectiveConfig, securityData, overrides.IsCI, _logger);
-                completedResult = singleLanguageBuildResult;
-                completedVariants = [result];
-            }
-            else
+            BuildResult completedResult;
+            IReadOnlyList<BuildVariantResult> completedVariants;
+            BuildManifest completedManifest;
+            try
             {
-                bodyCacheMetrics = RefreshBodyCacheMetrics(bodyStore) ?? bodyCacheMetrics;
-                (completedResult, completedVariants, completedManifest) = await BuildMultiLanguageAsync(
-                    effectiveConfig, rootDir, overrides, documents, contentGraph, bodyStore, plan.OutputDir,
-                    plan.LayoutsDir, assetWorkspace.AssetsDir, assetWorkspace.ScssOutputDir, plan.StaticDir, plan.MediaCacheDir,
-                    plan.ParentLayoutsDir, plan.ParentAssetsDir, plan.ParentStaticDir, plan.UserLayoutsDir,
-                    templateHashCache, languages, plan.StartedAt, plan.Stopwatch,
-                    bodyCacheMetrics,
-                    contentResult.SchemaErrors, buildLogger, cancellationToken);
+                var templateHashCache = new DirectoryHashCache(buildLogger);
+                using var assetWorkspace = await AssetSourceWorkspace.PrepareAsync(
+                    plan.AssetsDir,
+                    effectiveConfig.Theme.Scss,
+                    effectiveConfig.Theme.Images,
+                    buildLogger,
+                    effectiveConfig.Build.PublishDotFiles,
+                    effectiveConfig.Build.FollowSymlinks,
+                    cancellationToken);
+
+                var languages = I18nOutputMerger.GetLanguages(effectiveConfig.Site);
+                if (languages.Count == 0)
+                {
+                    var result = await BuildSingleLanguageVariantAsync(
+                        effectiveConfig, rootDir, overrides, documents, contentGraph, bodyStore, plan.OutputDir,
+                        plan.LayoutsDir, assetWorkspace.AssetsDir, assetWorkspace.ScssOutputDir, plan.StaticDir, plan.MediaCacheDir,
+                        plan.ParentLayoutsDir, plan.ParentAssetsDir, plan.ParentStaticDir, plan.UserLayoutsDir,
+                        templateHashCache, plan.StartedAt, buildLogger, cancellationToken);
+
+                    buildLogger.Info($"event=build.variant.done language={effectiveConfig.Site.Language} baseUrl={BuildPathUtils.NormalizeBaseUrl(effectiveConfig.Site.BaseUrl)}");
+                    bodyCacheMetrics = RefreshBodyCacheMetrics(bodyStore) ?? bodyCacheMetrics;
+                    MetricsWriter.WriteIfRequested(rootDir, overrides.MetricsPath, effectiveConfig, plan.OutputDir, documents.Count, new[] { result }, bodyCacheMetrics);
+                    completedManifest = PublicOutputLifecycle.CollectAndClean(rootDir, overrides, plan.OutputDir, [result], buildLogger);
+                    var generatedFiles = BuildOutputInventory.Create(plan.OutputDir);
+                    plan.Stopwatch.Stop();
+                    var singleLanguageBuildResult = BuildResultFactory.Create(
+                        effectiveConfig,
+                        rootDir,
+                        plan.OutputDir,
+                        overrides,
+                        plan.StartedAt,
+                        DateTimeOffset.UtcNow,
+                        plan.Stopwatch.ElapsedMilliseconds,
+                        new[] { result },
+                        contentResult.SchemaErrors,
+                        generatedFiles,
+                        warningCount: buildLogger.WarningCount,
+                        errorCount: buildLogger.ErrorCount);
+                    var securityData = BuildReporter.CreateSecurityReportData(effectiveConfig, rootDir, plan.OutputDir, new[] { result });
+                    await BuildReporter.WriteIfEnabledAsync(effectiveConfig, rootDir, plan.OutputDir, singleLanguageBuildResult, new[] { result }, _logger, securityData, cancellationToken).ConfigureAwait(false);
+                    BuildReporter.EnforceSecurityGate(effectiveConfig, securityData, overrides.IsCI, _logger);
+                    completedResult = singleLanguageBuildResult;
+                    completedVariants = [result];
+                }
+                else
+                {
+                    bodyCacheMetrics = RefreshBodyCacheMetrics(bodyStore) ?? bodyCacheMetrics;
+                    (completedResult, completedVariants, completedManifest) = await BuildMultiLanguageAsync(
+                        effectiveConfig, rootDir, overrides, documents, contentGraph, bodyStore, plan.OutputDir,
+                        plan.LayoutsDir, assetWorkspace.AssetsDir, assetWorkspace.ScssOutputDir, plan.StaticDir, plan.MediaCacheDir,
+                        plan.ParentLayoutsDir, plan.ParentAssetsDir, plan.ParentStaticDir, plan.UserLayoutsDir,
+                        templateHashCache, languages, plan.StartedAt, plan.Stopwatch,
+                        bodyCacheMetrics,
+                        contentResult.SchemaErrors, buildLogger, cancellationToken);
+                }
             }
+            finally
+            {
+                await DisposeBodyStoreAsync(bodyStore);
+            }
+
+            cancellationToken.ThrowIfCancellationRequested();
+            var rootManifestPath = PublicOutputLifecycle.ManifestPath(rootDir, overrides);
+            foreach (var variant in completedVariants)
+                if (variant.PendingManifest is { } pending && pending.ManifestPath != rootManifestPath)
+                    pending.Manifest.Save(pending.ManifestPath);
+            completedManifest.Save(rootManifestPath);
+            WriteOutputMarker(plan.OutputDir);
+            BuildRecoveryTracker.MarkCompleted(plan.OutputDir);
+            buildLogger.FlushWarningSummary();
+            transaction.Commit(cancellationToken);
+            buildLogger.Info($"Build completed: {BuildTransaction.Logical(Path.GetFullPath(plan.OutputDir))}");
+            buildLogger.Info("event=build.done");
+            return completedResult;
         }
-        finally
+        catch
         {
-            await DisposeBodyStoreAsync(bodyStore);
+            // Failed builds still report how many repeated warnings were hidden.
+            buildLogger.FlushWarningSummary();
+            throw;
         }
-
-        cancellationToken.ThrowIfCancellationRequested();
-        var rootManifestPath = PublicOutputLifecycle.ManifestPath(rootDir, overrides);
-        foreach (var variant in completedVariants)
-            if (variant.PendingManifest is { } pending && pending.ManifestPath != rootManifestPath)
-                pending.Manifest.Save(pending.ManifestPath);
-        completedManifest.Save(rootManifestPath);
-        WriteOutputMarker(plan.OutputDir);
-        BuildRecoveryTracker.MarkCompleted(plan.OutputDir);
-        transaction.Commit(cancellationToken);
-        buildLogger.Info($"Build completed: {BuildTransaction.Logical(Path.GetFullPath(plan.OutputDir))}");
-        buildLogger.Info("event=build.done");
-        return completedResult;
     }
 
     private static BodyCacheMetrics? RefreshBodyCacheMetrics(IContentBodyStore bodyStore)

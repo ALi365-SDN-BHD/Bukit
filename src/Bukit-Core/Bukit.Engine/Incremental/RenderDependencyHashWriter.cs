@@ -10,17 +10,23 @@ namespace Bukit.Engine.Incremental;
 internal sealed class RenderDependencyHashWriter
 {
     private const int MaxDepth = 64;
-    private const int MaxNodes = 100_000;
+    // One writer encodes the whole site-wide value graph, so the node count grows with
+    // page count (pages_by_id, taxonomy). The budget only guards against runaway graphs;
+    // cycles are caught separately. 10M nodes covers sites with well over 100k pages.
+    internal const int DefaultMaxNodes = 10_000_000;
 
     private static readonly byte[] s_newline = [(byte)'\n'];
     private readonly IncrementalHash _hasher;
     private readonly HashSet<object> _activeContainers = new(ReferenceEqualityComparer.Instance);
     private int _depth;
+    private readonly int _maxNodes;
     private int _nodeCount;
 
-    internal RenderDependencyHashWriter(IncrementalHash hasher)
+    internal RenderDependencyHashWriter(IncrementalHash hasher, int maxNodes = DefaultMaxNodes)
     {
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(maxNodes);
         _hasher = hasher;
+        _maxNodes = maxNodes;
     }
 
     internal void AppendUtf8(string? value) => IncrementalBuildEngine.AppendUtf8(_hasher, value);
@@ -70,10 +76,10 @@ internal sealed class RenderDependencyHashWriter
     internal void AppendCanonicalValue(object? value)
     {
         _nodeCount++;
-        if (_nodeCount > MaxNodes)
+        if (_nodeCount > _maxNodes)
         {
             throw new InvalidOperationException(
-                $"Render dependency value graph exceeds the {MaxNodes.ToString(CultureInfo.InvariantCulture)} node budget.");
+                $"Render dependency value graph exceeds the {_maxNodes.ToString(CultureInfo.InvariantCulture)} node budget.");
         }
 
         if (_depth > MaxDepth)

@@ -116,10 +116,21 @@ internal static class TaxonomyIndexBuilder
 
     private static IReadOnlyList<string>? ResolveTaxonomyValues(ContentDocument item, ContentRecord? record, string key)
     {
-        if (key.Equals("tags", StringComparison.OrdinalIgnoreCase) &&
-            record?.Classification.Tags is { Count: > 0 } tags)
+        if (key.Equals("tags", StringComparison.OrdinalIgnoreCase))
         {
-            return tags;
+            // Canonical tags also absorb categories (for SEO keywords and search), but tag
+            // routes must only list real tags, or every category gets a duplicate /tags/ page.
+            if (GetStringList(item, key) is { Count: > 0 } ownTags)
+            {
+                return ownTags;
+            }
+
+            if (record?.Classification.Tags is { Count: > 0 } tags)
+            {
+                var sections = new HashSet<string>(record.Classification.Sections, StringComparer.OrdinalIgnoreCase);
+                var tagOnly = tags.Where(tag => !sections.Contains(tag)).ToArray();
+                return tagOnly.Length > 0 ? tagOnly : null;
+            }
         }
 
         if (key.Equals("categories", StringComparison.OrdinalIgnoreCase) &&

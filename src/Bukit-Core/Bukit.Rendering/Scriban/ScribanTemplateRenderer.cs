@@ -123,7 +123,10 @@ public sealed class ScribanTemplateRenderer
                 throw renderException;
             }
 
-            throw new RenderException($"Render failed: {templateRelativePath}{suffix}", ex, DiagnosticCode.RenderFailed);
+            // Include the root cause; a bare position is not enough to fix a template.
+            var cause = ex.GetBaseException().Message.ReplaceLineEndings(" ").Trim();
+            var reason = cause.Length == 0 ? string.Empty : $": {cause}";
+            throw new RenderException($"Render failed: {templateRelativePath}{suffix}{reason}", ex, DiagnosticCode.RenderFailed);
         }
     }
 

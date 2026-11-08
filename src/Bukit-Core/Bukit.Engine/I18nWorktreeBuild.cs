@@ -130,6 +130,7 @@ public sealed partial class SiteEngine
             new DirectoryHashCache(buildLogger),
             cancellationToken,
             buildLogger).ConfigureAwait(false);
+        buildLogger.FlushWarningSummary();
         buildLogger.Info($"event=build.variant.done language={request.Language} baseUrl={variantContext.BaseUrl} outputDir={request.OutputDir}");
         return (result, buildLogger.WarningCount, buildLogger.ErrorCount);
     }
@@ -244,6 +245,7 @@ public sealed partial class SiteEngine
         manifest.Save(rootManifestPath);
         WriteOutputMarker(prepared.Plan.OutputDir);
         BuildRecoveryTracker.MarkCompleted(prepared.Plan.OutputDir);
+        prepared.Logger.FlushWarningSummary();
         prepared.Logger.Info($"Build completed: {Path.GetFullPath(prepared.FinalOutputDir)}");
         prepared.Logger.Info("event=build.done");
         return result;

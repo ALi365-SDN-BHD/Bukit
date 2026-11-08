@@ -18,6 +18,7 @@ internal sealed class BuildTransaction : IDisposable
     private readonly ILogger _logger;
     private readonly string _logicalOutput;
     private readonly List<(string Path, string Fingerprint)> _readOnly = [];
+    private readonly List<string> _contentCaches = [];
     private readonly Action<string, string, bool> _move;
     private readonly Action<string, bool> _delete;
     private bool _committed;
@@ -100,6 +101,7 @@ internal sealed class BuildTransaction : IDisposable
                 _journal = BuildTransactionJournal.Create(rootDir, output,
                     targets.Select(t => new BuildTransactionJournal.Entry(t.Path, t.Stage, t.Backup, t.Directory)))
             };
+            transaction._contentCaches.AddRange(ContentCacheDirs(config, rootDir, extraWriteTargets));
             StageTargets(targets, output, config, cancellationToken);
             foreach (var resource in resources.Where(r => !r.Write))
                 transaction._readOnly.Add((resource.Path, Fingerprint(transaction.Map(resource.Path))));
@@ -267,6 +269,56 @@ internal sealed class BuildTransaction : IDisposable
         }
     }
 
+    // Writable content-source caches (Notion page/relation caches). Their entries are
+    // written atomically and keyed by source edit time, so a staged copy stays valid even
+    // when the build itself fails.
+    private static IEnumerable<string> ContentCacheDirs(AppConfig config, string rootDir, IReadOnlyList<string>? extraWriteTargets)
+    {
+        var resources = new List<BuildResourceLease.Resource>();
+        AddNotionResources(resources, config, rootDir);
+        var paths = resources.Where(r => r.Write).Select(r => r.Path)
+            .Concat((extraWriteTargets ?? []).Select(ResourcePath))
+            .Distinct(StringComparer.Ordinal)
+            .ToList();
+        // Keep only top-level cache roots; nested targets move with their root.
+        return paths.Where(path => !paths.Any(other => other != path && BuildResourceLease.Contains(other, path))).ToList();
+    }
+
+    /// <summary>
+    /// After a failed or cancelled build, installs staged content-source caches so the next
+    /// run does not refetch everything. Output and other caches still roll back.
+    /// </summary>
+    private void PreserveContentCaches()
+    {
+        foreach (var cache in _contentCaches)
+        {
+            var staged = Map(cache);
+            if (string.Equals(staged, cache, StringComparison.Ordinal) || !Directory.Exists(staged)) continue;
+            var backup = cache + ".bukit-cache-" + Guid.NewGuid().ToString("N") + "-backup";
+            var backedUp = false;
+            try
+            {
+                Directory.CreateDirectory(Path.GetDirectoryName(cache)!);
+                if (Directory.Exists(cache)) { Directory.Move(cache, backup); backedUp = true; }
+                Directory.Move(staged, cache);
+                _logger.Info($"event=build.cache_preserved path={Logical(cache)}");
+            }
+            catch (Exception ex)
+            {
+                _logger.Warn($"event=build.cache_preserve_failed path={Logical(cache)} error={ex.Message}");
+                if (backedUp && !Directory.Exists(cache))
+                {
+                    try { Directory.Move(backup, cache); backedUp = false; }
+                    catch (Exception restore) { _logger.Warn($"Cache restore failed; keep backup '{backup}': {restore.Message}"); }
+                }
+                continue;
+            }
+            if (backedUp)
+                try { Directory.Delete(backup, true); }
+                catch (Exception ex) { _logger.Warn($"Cache backup cleanup failed: {backup}: {ex.Message}"); }
+        }
+    }
+
     private static void AddPagesIndexResource(List<BuildResourceLease.Resource> resources, AppConfig config, string rootDir)
     {
         if (config.Site.Plugins?.GetValueOrDefault("pages-index")?.Enabled != false && PagesIndexConfigHelper.HasNotionContent(config) && config.Theme.Params is { } parameters &&
@@ -406,6 +458,7 @@ internal sealed class BuildTransaction : IDisposable
     private static void Delete(string path, bool directory) { if (directory) Directory.Delete(path, true); else File.Delete(path); }
     public void Dispose()
     {
+        if (!_committed) PreserveContentCaches();
         Active.Value = _previous;
         foreach (var target in _targets)
             try { if (Exists(target.Stage, target.Directory)) _delete(target.Stage, target.Directory); }

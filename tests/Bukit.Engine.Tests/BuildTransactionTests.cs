@@ -360,7 +360,7 @@ public sealed class BuildTransactionTests : IDisposable
     [InlineData(true, true, true)]
     [InlineData(false, false, false)]
     [InlineData(false, true, false)]
-    public void NotionAndMediaWriteSetCommitsTogetherOrPreservesOldBytes(bool customNotion, bool commit, bool independentEngineCache)
+    public void NotionCacheSurvivesAbortWhileMediaRollsBack(bool customNotion, bool commit, bool independentEngineCache)
     {
         var notion = Path.Combine(_root, customNotion ? "custom-notion" : ".cache/notion");
         var media = Path.Combine(_root, "downloads");
@@ -386,7 +386,8 @@ public sealed class BuildTransactionTests : IDisposable
             Assert.Equal("media-old", File.ReadAllText(Path.Combine(media, "old")));
             if (commit) transaction.Commit(default);
         }
-        Assert.Equal(commit ? "notion-new" : "notion-old", File.ReadAllText(Path.Combine(notion, "old")));
+        // Notion entries are atomic and keyed by edit time, so an aborted build keeps them.
+        Assert.Equal("notion-new", File.ReadAllText(Path.Combine(notion, "old")));
         Assert.Equal(commit ? "media-new" : "media-old", File.ReadAllText(Path.Combine(media, "old")));
         Assert.Equal("keep-me", File.ReadAllText(Path.Combine(cache, "unrelated")));
         Assert.Equal(commit && !independentEngineCache ? 1 : 0, cacheInstalls);

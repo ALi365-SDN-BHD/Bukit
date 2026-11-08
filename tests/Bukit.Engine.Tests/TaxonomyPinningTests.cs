@@ -233,6 +233,44 @@ public sealed class TaxonomyPinningTests
         Assert.Equal(2, TaxonomyPlugin.BuildIndexCountForTests);
     }
 
+    [Fact]
+    public void TagsIndex_DoesNotIncludeCategoryTerms()
+    {
+        var categorized = ContentDocument.Create(
+            id: "s1:cat-only",
+            title: "Category only",
+            slug: "cat-only",
+            publishAt: new DateTimeOffset(2025, 01, 02, 0, 0, 0, TimeSpan.Zero),
+            contentHtml: string.Empty,
+            fields: new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["categories"] = new ContentField("list", new List<object> { "news" })
+            });
+        var tagged = ContentDocument.Create(
+            id: "s1:tagged",
+            title: "Tagged",
+            slug: "tagged",
+            publishAt: new DateTimeOffset(2025, 01, 01, 0, 0, 0, TimeSpan.Zero),
+            contentHtml: string.Empty,
+            fields: new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["categories"] = new ContentField("list", new List<object> { "travel" }),
+                ["tags"] = new ContentField("list", new List<object> { "silk-road" })
+            });
+        var (context, _) = CreateContext(
+            CreateTaxonomyLayoutsDir(),
+            [
+                (categorized, new RouteInfo("/cat-only/", "cat-only/index.html", "pages/page.html")),
+                (tagged, new RouteInfo("/tagged/", "tagged/index.html", "pages/page.html"))
+            ]);
+
+        var tags = TaxonomyIndexBuilder.GetOrBuildIndex(context, "tags", [], new TaxonomyConfig(), new TaxonomyIndexCache());
+        var categories = TaxonomyIndexBuilder.GetOrBuildIndex(context, "categories", [], new TaxonomyConfig(), new TaxonomyIndexCache());
+
+        Assert.Equal(["silk-road"], tags.Keys.Order(StringComparer.Ordinal).ToArray());
+        Assert.Equal(["news", "travel"], categories.Keys.Order(StringComparer.Ordinal).ToArray());
+    }
+
     private static string ResolveTemplateKind(string kind)
         => kind.Trim().ToLowerInvariant() switch
         {

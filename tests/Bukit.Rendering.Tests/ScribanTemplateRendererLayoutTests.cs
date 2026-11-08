@@ -142,6 +142,20 @@ public sealed class ScribanTemplateRendererLayoutTests : IDisposable
     }
 
     [Fact]
+    public void RuntimeError_MessageIncludesRootCause()
+    {
+        File.WriteAllText(Path.Combine(_layoutsDir, "runtime.html"), "<p>{{ \"a\" | string.replace }}</p>");
+
+        var renderer = new Bukit.Rendering.Scriban.ScribanTemplateRenderer(_layoutsDir);
+        var ex = Assert.Throws<RenderException>(() =>
+            renderer.RenderPage("runtime.html", CreatePageModel()));
+
+        Assert.StartsWith("Render failed: runtime.html", ex.Message, StringComparison.Ordinal);
+        var cause = ex.InnerException!.GetBaseException().Message;
+        Assert.EndsWith(": " + cause.ReplaceLineEndings(" ").Trim(), ex.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void MaxLayoutDepth_ThrowsRenderExceptionWithDepthMessage()
     {
         var layoutPath = Path.Combine(_layoutsDir, "layout.html");
