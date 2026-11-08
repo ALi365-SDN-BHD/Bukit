@@ -62,6 +62,38 @@ internal static class DoctorTemplateChecker
         }
     }
 
+    /// <summary>
+    /// In renderMode theme the theme owns the head, so it must output the SEO model.
+    /// Without it the publish audit reports title mismatches and missing JSON-LD on every page.
+    /// </summary>
+    internal static void CheckSeoTemplateOutput(DoctorCommand.DoctorContext ctx)
+    {
+        var seo = ctx.Config.Site.Seo;
+        if (!seo.Enabled || !string.Equals((seo.RenderMode ?? "inject").Trim(), "theme", StringComparison.OrdinalIgnoreCase))
+        {
+            return;
+        }
+
+        var hasTitle = false;
+        var hasJsonLd = false;
+        foreach (var file in ctx.AllHtmlFiles)
+        {
+            var text = File.ReadAllText(file);
+            hasTitle |= text.Contains("seo.document_title", StringComparison.Ordinal) || text.Contains("seo.title", StringComparison.Ordinal);
+            hasJsonLd |= text.Contains("seo.json_ld", StringComparison.Ordinal);
+        }
+
+        if (!hasTitle)
+        {
+            Console.WriteLine("⚠ site.seo.renderMode is theme but no template uses seo.document_title; <title> may not match the SEO model.");
+        }
+
+        if (!hasJsonLd)
+        {
+            Console.WriteLine("⚠ site.seo.renderMode is theme but no template outputs seo.json_ld; pages will have no structured data.");
+        }
+    }
+
     internal static void CheckHardcodedText(DoctorCommand.DoctorContext ctx)
     {
         var issues = new List<string>();

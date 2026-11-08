@@ -133,7 +133,7 @@ public sealed class SeoPipelineTests
         Assert.Equal(html, result.HtmlTransform!.Transform(
             new HtmlTransformContext(route.Url, route.OutputPath, HtmlDocumentKind.Content,
                 BuildExecutionMode.Production, logger, page, item), html));
-        Assert.Contains(logger.Warnings, warning => warning.Contains("seo.document_title_mismatch", StringComparison.Ordinal));
+        Assert.Contains(logger.Warnings, warning => warning.Contains("seo.canonical_missing", StringComparison.Ordinal));
     }
 
     [Theory]
@@ -230,7 +230,7 @@ public sealed class SeoPipelineTests
                 BuildExecutionMode.Production, logger, page, item), html);
 
         Assert.Equal(html, processed);
-        Assert.Contains(logger.Warnings, warning => warning.Contains("seo.document_title_mismatch", StringComparison.Ordinal));
+        Assert.Contains(logger.Warnings, warning => warning.Contains("seo.canonical_missing", StringComparison.Ordinal));
     }
 
     [Fact]

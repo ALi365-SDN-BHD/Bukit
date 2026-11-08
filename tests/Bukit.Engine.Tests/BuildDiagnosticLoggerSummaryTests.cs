@@ -10,6 +10,7 @@ public sealed class BuildDiagnosticLoggerSummaryTests
     [InlineData("event=canonical.validation code=canonical_media_alt_missing field=x", "canonical.validation:canonical_media_alt_missing")]
     [InlineData("event=media.failed_reference url=x", "media.failed_reference")]
     [InlineData("seo.json_ld_missing route=/5/", "seo.json_ld_missing")]
+    [InlineData("publish.audit severity=warning code=seo.description_too_long route=/5/", "publish.audit:seo.description_too_long")]
     [InlineData("Template directory hash limit exceeded; reuse disabled.", null)]
     [InlineData("", null)]
     public void WarningKind_GroupsByEventCodeOrRuleId(string message, string? expected)

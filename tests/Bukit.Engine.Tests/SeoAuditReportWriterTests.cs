@@ -1634,7 +1634,8 @@ public sealed class SeoAuditReportWriterTests : IDisposable
     {
         var fullPath = Path.Combine(_outputDir, path);
         Directory.CreateDirectory(Path.GetDirectoryName(fullPath)!);
-        File.WriteAllText(fullPath, "<!doctype html><html><head></head><body></body></html>");
+        // Pages publish their JSON-LD; the audit validates the model's schema only then.
+        File.WriteAllText(fullPath, "<!doctype html><html><head><script type=\"application/ld+json\">{}</script></head><body></body></html>");
     }
 
     private void WriteOutput(string path, string html)
@@ -1670,4 +1671,28 @@ public sealed class SeoAuditReportWriterTests : IDisposable
             Content = TestContent.Markdown()
         };
 
+
+    [Fact]
+    public void Build_JsonLdNotRendered_ReportsOnceInsteadOfSchemaGaps()
+    {
+        WriteOutput("post/index.html", "<!doctype html><html><head></head><body></body></html>");
+        var seoIndex = new Dictionary<string, SeoIndexEntry>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["post/index.html"] = Entry("/post/", "post/index.html", "https://example.com/post/")
+        };
+        var seoModels = new Dictionary<string, SeoModel>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["post/index.html"] = new()
+            {
+                Title = "Post",
+                Canonical = "https://example.com/post/",
+                JsonLd = ["""{"@context":"https://schema.org","@type":"BlogPosting","headline":"Post"}"""]
+            }
+        };
+
+        var report = SeoAuditReportWriter.Build(Config(), _outputDir, seoIndex, seoModels);
+
+        Assert.Single(report.Issues, issue => issue.Code == "seo.json_ld_not_rendered");
+        Assert.DoesNotContain(report.Issues, issue => issue.Code.StartsWith("seo.schema_", StringComparison.Ordinal));
+    }
 }

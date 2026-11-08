@@ -162,4 +162,29 @@ public sealed class HtmlHeadScannerTests
         var end = HtmlHeadScanner.FindTagEnd(html, 0);
         Assert.Equal(html.IndexOf('>'), end);
     }
+
+    // ── FindTagEnd quoting ──────────────────────────────────────────
+
+    [Theory]
+    [InlineData("<meta content=\"a > b\">", 21)]
+    [InlineData("<meta content = 'x>y'>", 21)]
+    [InlineData("<meta name=description content=\"He said \"hi\">", 44)]
+    public void FindTagEnd_QuotedValues_SkipsAngleBracketsInsideValue(string tag, int expected)
+        => Assert.Equal(expected, HtmlHeadScanner.FindTagEnd(tag, 0));
+
+    [Fact]
+    public void FindTagEnd_StrayQuoteOutsideValue_DoesNotSwallowFollowingTags()
+    {
+        var html = "<meta data-x\"><title>T</title>";
+        Assert.Equal(13, HtmlHeadScanner.FindTagEnd(html, 0));
+    }
+
+    [Fact]
+    public void TitleInspector_StrayQuoteInEarlierTag_StillFindsTitle()
+    {
+        var html = "<html><head><meta property=og:title content=Say\"hi><title>Real</title></head><body></body></html>";
+        var inspection = HtmlDocumentTitleInspector.Inspect(html);
+        Assert.Equal(1, inspection.Count);
+        Assert.Equal("Real", inspection.PrimaryTitle);
+    }
 }

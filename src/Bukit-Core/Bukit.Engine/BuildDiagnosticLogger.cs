@@ -81,7 +81,14 @@ internal sealed class BuildDiagnosticLogger : ILogger
             return codeIndex < 0 ? kind : kind + ":" + FirstToken(message, codeIndex + " code=".Length);
         }
 
-        return IsRuleId(first) ? first : null;
+        if (!IsRuleId(first))
+        {
+            return null;
+        }
+
+        // Audit lines ("publish.audit severity=… code=…") group per code, not per prefix.
+        var ruleCodeIndex = message.IndexOf(" code=", StringComparison.Ordinal);
+        return ruleCodeIndex < 0 ? first : first + ":" + FirstToken(message, ruleCodeIndex + " code=".Length);
     }
 
     private static string FirstToken(string message, int start)

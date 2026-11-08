@@ -89,11 +89,21 @@ internal static partial class SeoDiagnostics
         if (!titleInspection.HasHead)
         {
             Report(config, logger, $"seo.head_missing route={route.Url}");
-            Report(config, logger, $"seo.document_title_missing route={route.Url}");
+            if (IsStrict(config))
+            {
+                Report(config, logger, $"seo.document_title_missing route={route.Url}");
+            }
+
             return html;
         }
 
-        AnalyzeDocumentTitle(config, route, seo, titleInspection, logger);
+        // The publish audit reports document title issues for every page; render time
+        // only repeats them in strict mode, where they must stop the build early.
+        if (IsStrict(config))
+        {
+            AnalyzeDocumentTitle(config, route, seo, titleInspection, logger);
+        }
+
         var head = titleInspection.HeadHtml!;
 
         var canonicalCount = Count(CanonicalRegex(), head);
@@ -219,9 +229,12 @@ internal static partial class SeoDiagnostics
         }
     }
 
+    private static bool IsStrict(AppConfig config)
+        => string.Equals(config.Site.Seo.Diagnostics, "strict", StringComparison.OrdinalIgnoreCase);
+
     private static void Report(AppConfig config, ILogger logger, string message)
     {
-        if (string.Equals(config.Site.Seo.Diagnostics, "strict", StringComparison.OrdinalIgnoreCase))
+        if (IsStrict(config))
         {
             logger.Error(message);
             throw new ConfigException(message, DiagnosticCode.ConfigInvalidValue);
@@ -279,12 +292,12 @@ internal static partial class SeoDiagnostics
         }
 
         var actual = inspection.PrimaryTitle!;
-        if (actual.Length > 60)
+        if (SeoTextWidth.Measure(actual) > SeoTextWidth.TitleMax)
         {
-            Report(config, logger, $"seo.document_title_too_long route={route.Url} length={actual.Length}");
+            Report(config, logger, $"seo.document_title_too_long route={route.Url} width={SeoTextWidth.Measure(actual)}");
         }
 
-        var expected = SeoDocumentTitleResolver.ResolveEffective(seo);
+        var expected = SeoDocumentTitleResolver.ResolveComparable(seo);
         if (!string.IsNullOrWhiteSpace(actual) &&
             !string.Equals(actual, expected, StringComparison.Ordinal))
         {

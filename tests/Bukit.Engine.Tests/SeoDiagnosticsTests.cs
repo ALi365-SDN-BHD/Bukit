@@ -160,7 +160,7 @@ public sealed class SeoDiagnosticsTests
     }
 
     [Fact]
-    public void AnalyzeHtml_WarnMode_ReportsFinalDocumentTitleProblems()
+    public void AnalyzeHtml_WarnMode_LeavesDocumentTitleProblemsToAudit()
     {
         var config = ConfigWithDiagnostics("warn");
         var logger = new TestLogger();
@@ -180,9 +180,41 @@ public sealed class SeoDiagnosticsTests
 
         SeoDiagnostics.AnalyzeHtml(config, route, model, html, logger);
 
-        Assert.Contains(logger.Warnings, warning => warning.Contains("seo.document_title_multiple", StringComparison.Ordinal));
-        Assert.Contains(logger.Warnings, warning => warning.Contains("seo.document_title_empty", StringComparison.Ordinal));
-        Assert.Contains(logger.Warnings, warning => warning.Contains("seo.document_title_mismatch", StringComparison.Ordinal));
+        // The publish audit owns title findings outside strict mode; render time stays quiet.
+        Assert.DoesNotContain(logger.Warnings, warning => warning.Contains("seo.document_title", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void AnalyzeHtml_StrictMode_StopsOnDocumentTitleProblems()
+    {
+        var config = ConfigWithDiagnostics("strict");
+        var route = new RouteInfo("/page/", "page/index.html", "pages/page.html");
+        var model = new SeoModel
+        {
+            Title = "Semantic title",
+            DocumentTitle = "Expected title",
+            Canonical = "https://example.com/page/"
+        };
+        var html = """<html><head><link rel="canonical" href="https://example.com/page/"><title>Actual</title></head><body></body></html>""";
+
+        var ex = Assert.Throws<ConfigException>(() => SeoDiagnostics.AnalyzeHtml(config, route, model, html, new TestLogger()));
+        Assert.Contains("seo.document_title_mismatch", ex.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void AnalyzeHtml_StrictMode_EncodedExpectedTitleMatchesDecodedHtml()
+    {
+        var config = ConfigWithDiagnostics("strict");
+        var route = new RouteInfo("/page/", "page/index.html", "pages/page.html");
+        var model = new SeoModel
+        {
+            Title = "Semantic title",
+            DocumentTitle = "Tom &amp; Jerry",
+            Canonical = "https://example.com/page/"
+        };
+        var html = """<html><head><link rel="canonical" href="https://example.com/page/"><title>Tom &amp; Jerry</title></head><body></body></html>""";
+
+        SeoDiagnostics.AnalyzeHtml(config, route, model, html, new TestLogger());
     }
 
     [Fact]

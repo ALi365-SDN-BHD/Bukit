@@ -42,6 +42,13 @@ internal static class SeoDocumentTitleResolver
     internal static string ResolveEffective(SeoModel seo)
         => Normalize(string.IsNullOrWhiteSpace(seo.DocumentTitle) ? seo.Title : seo.DocumentTitle);
 
+    /// <summary>
+    /// The effective title normalized the same way as a title read back from HTML
+    /// (entities decoded, whitespace collapsed), for comparisons only.
+    /// </summary>
+    internal static string ResolveComparable(SeoModel seo)
+        => Normalize(System.Net.WebUtility.HtmlDecode(ResolveEffective(seo)));
+
     internal static string Normalize(string value)
         => string.Join(' ', value.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries));
 }

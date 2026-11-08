@@ -76,18 +76,18 @@ internal static partial class MachineReadabilityTrustAuditBuilder
         {
             issues.Add(Error("seo.title_missing", entry.Route.Url, "SEO title is missing."));
         }
-        else if (model.Title.Length > TitleMaxLength)
+        else if (SeoTextWidth.Measure(model.Title) > TitleMaxLength)
         {
-            issues.Add(Warning("seo.title_too_long", entry.Route.Url, $"SEO title length is {model.Title.Length}, recommended maximum is {TitleMaxLength}."));
+            issues.Add(Warning("seo.title_too_long", entry.Route.Url, $"SEO title display width is {SeoTextWidth.Measure(model.Title)}, recommended maximum is {TitleMaxLength}."));
         }
 
         if (string.IsNullOrWhiteSpace(model.Description))
         {
             issues.Add(Warning("seo.description_missing", entry.Route.Url, "SEO description is missing."));
         }
-        else if (model.Description.Length > DescriptionMaxLength)
+        else if (SeoTextWidth.Measure(model.Description) > DescriptionMaxLength)
         {
-            issues.Add(Warning("seo.description_too_long", entry.Route.Url, $"SEO description length is {model.Description.Length}, recommended maximum is {DescriptionMaxLength}."));
+            issues.Add(Warning("seo.description_too_long", entry.Route.Url, $"SEO description display width is {SeoTextWidth.Measure(model.Description)}, recommended maximum is {DescriptionMaxLength}."));
         }
 
         ImageMetadataReader.AnalyzeImage(config, "seo.og_image", entry.Route.Url, model.Og.Image, outputDir, issues);
@@ -172,9 +172,9 @@ internal static partial class MachineReadabilityTrustAuditBuilder
         }
 
         var actual = inspection.PrimaryTitle!;
-        if (actual.Length > TitleMaxLength)
+        if (SeoTextWidth.Measure(actual) > TitleMaxLength)
         {
-            issues.Add(Warning("seo.document_title_too_long", entry.Route.Url, $"Final HTML document title length is {actual.Length}, recommended maximum is {TitleMaxLength}."));
+            issues.Add(Warning("seo.document_title_too_long", entry.Route.Url, $"Final HTML document title display width is {SeoTextWidth.Measure(actual)}, recommended maximum is {TitleMaxLength}."));
         }
 
         if (model is null || string.IsNullOrWhiteSpace(actual))
@@ -182,7 +182,7 @@ internal static partial class MachineReadabilityTrustAuditBuilder
             return;
         }
 
-        var expected = SeoDocumentTitleResolver.ResolveEffective(model);
+        var expected = SeoDocumentTitleResolver.ResolveComparable(model);
         if (string.Equals(actual, expected, StringComparison.Ordinal))
         {
             return;
