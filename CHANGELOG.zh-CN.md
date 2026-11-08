@@ -4,6 +4,8 @@ Bukit 所有重要变更都将记录在此文件中。
 
 ## [Unreleased]
 
+- **Analytics 的 consent 改为可选**：配置 GA、GTM 时不再必须写 `site.analytics.consent.google`。不写时，Bukit 不输出 consent 默认命令，由 Google 按其默认行为加载（相当于全部 granted）；写了 consent 却没有 Google provider 仍会报错。已有配置的输出不变。
+
 ## [2.0.8] - 2026-11-07
 
 - **多语言媒体暂存**：自定义 `content.media.downloadDir` 现在只暂存一份，由所有语言工作进程共享。新下载和 `.media-index.json` 只有在所有语言都成功后，才与输出、缓存一起提交。媒体变化按路径、大小和修改时间判断；媒体目录内的符号链接会被拒绝。这是行为变化：媒体目录只要包含符号链接，多语言构建就会失败。

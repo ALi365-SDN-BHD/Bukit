@@ -115,7 +115,7 @@ content:
 | `site.plugins.analytics.enabled` | `true` | Enables the Core built-in Analytics plugin lifecycle. When false, Bukit does not create or run its HTML transform. |
 | `site.analytics.enabled` | `true` | Enables Analytics output after the plugin lifecycle switch has allowed the plugin to run. |
 | `site.analytics.productionOnly` | `true` | Injects during production builds and removes Bukit-managed blocks from development/preview responses. Set false to retain Analytics in development and preview. |
-| `site.analytics.consent.google` | none | Required when any GA or GTM provider exists; defines explicit Consent Mode v2 defaults. |
+| `site.analytics.consent.google` | none | Optional; defines explicit Consent Mode v2 defaults for GA/GTM. Without it, Google loads with its own defaults (effectively granted). Rejected when no GA or GTM provider exists. |
 | Google consent `mode` | none | Required as `advanced`. |
 | Google consent `defaults` | none | Requires `adStorage`, `analyticsStorage`, `adUserData`, and `adPersonalization`, each `granted` or `denied`. |
 | Google consent `waitForUpdateMs` | none | Optional integer from 0 through 5000. |

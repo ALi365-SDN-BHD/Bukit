@@ -234,6 +234,32 @@ public sealed class AnalyticsReportWriterTests : IDisposable
     }
 
     [Fact]
+    public void WriteIfEnabled_GoogleAnalyticsWithoutConsent_WritesNullConsent()
+    {
+        var baseConfig = CreateConfig(reportEnabled: true);
+        var config = baseConfig with
+        {
+            Site = baseConfig.Site with
+            {
+                Analytics = new AnalyticsConfig
+                {
+                    Providers = [new AnalyticsProviderConfig { Type = "google-analytics", MeasurementId = "G-NOCONSENT" }]
+                }
+            }
+        };
+
+        AnalyticsReportWriter.WriteIfEnabled(
+            config,
+            _outputDir,
+            AnalyticsBuildState.Create(config, BuildExecutionMode.Production).Snapshot());
+
+        using var report = JsonDocument.Parse(File.ReadAllText(
+            Path.Combine(_outputDir, ".bukit", "analytics-report.json")));
+        Assert.Equal(JsonValueKind.Null, report.RootElement.GetProperty("googleConsent").ValueKind);
+        AssertMatchesSchema(report.RootElement, LoadSchema().RootElement);
+    }
+
+    [Fact]
     public void WriteIfEnabled_WhenBuildReportDisabled_DoesNotWrite()
     {
         var config = CreateConfig(reportEnabled: false);

@@ -240,9 +240,9 @@ public static class ConfigJsonSchemaGenerator
                     ("required", Arr("type")))))))),
             ("required", Arr("providers")));
         var consentConfigured = Obj(("required", Arr("consent")));
+        // Consent is optional for Google providers; configured consent still needs one.
         schema["allOf"] = new JsonArray(
-            Obj(("if", googleProviderConfigured), ("then", consentConfigured)),
-            Obj(("if", consentConfigured.DeepClone()), ("then", googleProviderConfigured.DeepClone())));
+            Obj(("if", consentConfigured), ("then", googleProviderConfigured)));
         return schema;
     }
 

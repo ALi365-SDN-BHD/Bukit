@@ -175,6 +175,14 @@ public sealed class ConfigJsonSchemaGeneratorTests
         var analytics = analyticsSchema.GetProperty("properties");
         Assert.Equal("boolean", analytics.GetProperty("enabled").GetProperty("type").GetString());
         Assert.Equal("boolean", analytics.GetProperty("productionOnly").GetProperty("type").GetString());
+        // Consent is optional for Google providers; only "consent requires a Google provider" remains.
+        var analyticsConditional = Assert.Single(analyticsSchema.GetProperty("allOf").EnumerateArray());
+        Assert.Equal(
+            new[] { "consent" },
+            analyticsConditional.GetProperty("if").GetProperty("required").EnumerateArray().Select(item => item.GetString()));
+        Assert.Equal(
+            new[] { "providers" },
+            analyticsConditional.GetProperty("then").GetProperty("required").EnumerateArray().Select(item => item.GetString()));
         var consent = analytics.GetProperty("consent");
         Assert.Equal(new[] { "google" }, consent.GetProperty("required").EnumerateArray().Select(item => item.GetString()));
         var googleConsent = consent.GetProperty("properties").GetProperty("google");
@@ -202,7 +210,6 @@ public sealed class ConfigJsonSchemaGeneratorTests
             new[] { "requirements-report" },
             analytics.GetProperty("csp").GetProperty("properties").GetProperty("mode").GetProperty("enum")
                 .EnumerateArray().Select(item => item.GetString()));
-        Assert.Equal(2, analyticsSchema.GetProperty("allOf").GetArrayLength());
         Assert.False(analytics.TryGetProperty("googleAnalyticsId", out _));
         Assert.False(analytics.TryGetProperty("disableInPreview", out _));
         var providerVariants = analytics.GetProperty("providers").GetProperty("items").GetProperty("oneOf");

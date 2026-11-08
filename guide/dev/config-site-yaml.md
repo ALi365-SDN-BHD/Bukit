@@ -108,12 +108,14 @@ text. Plausible requires explicit `site-specific` or `legacy` `snippetMode`
 and an explicit `scriptUrl`; there is no legacy URL default. For Plausible
 Cloud, mode and the `/js/pa-<site-id>.js` path must agree.
 
-Any GA or GTM provider requires `site.analytics.consent.google`. Only
-`mode: advanced` is accepted; all four Consent Mode v2 defaults are required
-as `granted|denied`, and `waitForUpdateMs` is optional from 0 through 5000.
-Consent config without a Google provider is rejected. The fixed default
-command precedes all Google bootstrap/config fragments; CMP updates remain
-site-owned (or GTM-template-owned when GTM is present).
+`site.analytics.consent.google` is optional for GA and GTM providers; without
+it no consent default command is rendered and Google's own defaults apply.
+When present, only `mode: advanced` is accepted; all four Consent Mode v2
+defaults are required as `granted|denied`, and `waitForUpdateMs` is optional
+from 0 through 5000. Consent config without a Google provider is rejected.
+When configured, the fixed default command precedes all Google
+bootstrap/config fragments; CMP updates remain site-owned (or
+GTM-template-owned when GTM is present).
 
 `site.analytics.csp.mode` accepts only `requirements-report` and requires
 build reports. Analytics report v2 contains deterministic hashes and origins,

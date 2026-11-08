@@ -496,6 +496,36 @@ public sealed class AnalyticsHtmlTransformTests
     }
 
     [Fact]
+    public void Transform_GoogleAnalyticsWithoutConsent_EmitsFullBootstrapWithoutConsentDefault()
+    {
+        var transform = CreateTransform(Provider("google-analytics", measurementId: "G-NOCONSENT"));
+        const string html = "<html><head><title>x</title></head><body></body></html>";
+
+        var first = transform.Transform(Context(), html);
+        var second = transform.Transform(Context(), first);
+        var third = transform.Transform(Context(), second);
+
+        Assert.DoesNotContain("gtag('consent'", third, StringComparison.Ordinal);
+        Assert.Equal(1, Count(third, "googletagmanager.com/gtag/js?id=G-NOCONSENT"));
+        Assert.Equal(1, Count(third, "window.dataLayer = window.dataLayer || []"));
+        Assert.Equal(1, Count(third, "function gtag()"));
+        Assert.Equal(1, Count(third, "gtag('config', 'G-NOCONSENT',"));
+        Assert.Equal(first, second);
+        Assert.Equal(second, third);
+    }
+
+    [Fact]
+    public void Transform_GoogleTagManagerWithoutConsent_KeepsNoScriptIframe()
+    {
+        var transform = CreateTransform(Provider("google-tag-manager", containerId: "GTM-NOCONSENT"));
+
+        var result = transform.Transform(Context(), "<html><head></head><body></body></html>");
+
+        Assert.DoesNotContain("gtag('consent'", result, StringComparison.Ordinal);
+        Assert.Contains("googletagmanager.com/ns.html?id=GTM-NOCONSENT", result, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void Transform_KeepsGtmNoScriptIframeWhenAllConsentDefaultsAreGranted()
     {
         var transform = CreateTransform(

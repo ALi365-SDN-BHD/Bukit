@@ -4,6 +4,8 @@ All notable changes to Bukit will be documented in this file.
 
 ## [Unreleased]
 
+- **Analytics consent is optional**: GA and GTM providers no longer require `site.analytics.consent.google`. Without it, Bukit emits no consent default command and Google applies its own defaults (effectively all storage granted); configuring consent without a Google provider is still rejected. Existing configurations render unchanged.
+
 ## [2.0.8] - 2026-11-07
 
 - **Multilingual media staging**: A custom `content.media.downloadDir` is now staged once and shared by all language workers. New downloads and `.media-index.json` commit with the output and cache only after every language succeeds. Media changes are detected by path, size, and modification time; symbolic links inside the media directory are rejected. This is a behavior change: a media directory that contains any symbolic link now fails a multilingual build.
