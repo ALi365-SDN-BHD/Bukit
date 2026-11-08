@@ -490,6 +490,8 @@ public sealed record TaxonomyConfig
     public string? PinOrderField { get; init; }
     public IReadOnlyDictionary<string, string>? PinFieldBySource { get; init; }
     public IReadOnlyDictionary<string, string>? PinOrderFieldBySource { get; init; }
+    /// <summary>How to emit term pages with no content: render (default), noindex, or skip.</summary>
+    public string EmptyTerms { get; init; } = "render";
 }
 
 public sealed record TaxonomyKindConfig

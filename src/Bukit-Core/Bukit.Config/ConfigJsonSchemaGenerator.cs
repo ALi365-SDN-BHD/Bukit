@@ -145,6 +145,7 @@ public static class ConfigJsonSchemaGenerator
             ("pinOrderField", StringSchema()),
             ("pinFieldBySource", StringMapSchema()),
             ("pinOrderFieldBySource", StringMapSchema()),
+            ("emptyTerms", EnumSchema("render", "noindex", "skip")),
             ("kinds", Obj(("type", "array"), ("items", Obj(("type", "object"), ("properties", Obj(
                 ("key", StringSchema()),
                 ("kind", StringSchema()),

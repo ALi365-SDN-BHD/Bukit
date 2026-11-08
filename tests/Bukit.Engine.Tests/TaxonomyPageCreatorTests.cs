@@ -229,6 +229,74 @@ public sealed class TaxonomyPageCreatorTests
         Assert.Equal("/tags/empty/", derived[0].Route.Url);
     }
 
+    [Fact]
+    public void CreateKind_EmptyTermsRender_IsDefaultAndIndexable()
+    {
+        var derived = CreateMixedKind(emptyTerms: "render");
+
+        var empty = Assert.Single(derived, d => d.Route.Url == "/tags/empty/");
+        Assert.False(empty.Document.Publish.NoIndex);
+        Assert.Contains(derived, d => d.Route.Url == "/tags/news/");
+    }
+
+    [Fact]
+    public void CreateKind_EmptyTermsNoindex_MarksOnlyEmptyTermPages()
+    {
+        var derived = CreateMixedKind(emptyTerms: "noindex");
+
+        var empty = Assert.Single(derived, d => d.Route.Url == "/tags/empty/");
+        Assert.True(empty.Document.Publish.NoIndex);
+        var news = Assert.Single(derived, d => d.Route.Url == "/tags/news/");
+        Assert.False(news.Document.Publish.NoIndex);
+    }
+
+    [Fact]
+    public void CreateKind_EmptyTermsSkip_OmitsEmptyTermPagesAndIndexEntries()
+    {
+        var derived = CreateMixedKind(emptyTerms: "skip");
+
+        Assert.DoesNotContain(derived, d => d.Route.Url == "/tags/empty/");
+        Assert.Contains(derived, d => d.Route.Url == "/tags/news/");
+        var index = Assert.Single(derived, d => d.Route.Url == "/tags/");
+        Assert.DoesNotContain("/tags/empty/", index.Document.Body.Html ?? string.Empty, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void CreateKind_EmptyTermsSkip_KeepsEmptyParentWithChildren()
+    {
+        var terms = new Dictionary<string, TaxonomyTerm>
+        {
+            ["parent"] = new("Parent", "parent"),
+            ["child"] = new("Child", "child")
+            {
+                ParentSlug = "parent",
+                Pages = [MakeTaxonomyPage("p1", "Post 1", "/p1/")]
+            }
+        };
+
+        var derived = TaxonomyPageCreator.CreateKind(
+            "", "tags", null, "Tags", null, "Tag", terms, "index.html", "term.html",
+            emitContentHtml: false, pageSize: 10, indexEnabled: false, hierarchical: true,
+            null, "as-is", emptyTerms: "skip");
+
+        Assert.Contains(derived, d => d.Route.Url == "/tags/parent/");
+        Assert.Contains(derived, d => d.Route.Url == "/tags/child/");
+    }
+
+    private static IReadOnlyList<RoutedContentDocument> CreateMixedKind(string emptyTerms)
+    {
+        var terms = new Dictionary<string, TaxonomyTerm>
+        {
+            ["news"] = new("News", "news") { Pages = [MakeTaxonomyPage("p1", "Post 1", "/p1/")] },
+            ["empty"] = new("Empty", "empty")
+        };
+
+        return TaxonomyPageCreator.CreateKind(
+            "", "tags", null, "Tags", null, "Tag", terms, "index.html", "term.html",
+            emitContentHtml: true, pageSize: 10, indexEnabled: true, hierarchical: false,
+            null, "as-is", emptyTerms);
+    }
+
     private static TaxonomyPage MakeTaxonomyPage(string id, string title, string url, IReadOnlyDictionary<string, object>? extra = null)
         => new(
             Id: id,

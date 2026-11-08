@@ -23,7 +23,8 @@ internal static class TaxonomyPageCreator
         bool indexEnabled,
         bool hierarchical,
         string? language,
-        string outputPathEncoding)
+        string outputPathEncoding,
+        string emptyTerms = "render")
     {
         var hierarchy = hierarchical
             ? TaxonomyHierarchyBuilder.BuildHierarchy(terms)
@@ -34,6 +35,15 @@ internal static class TaxonomyPageCreator
             .OrderByDescending(x => x.Weight)
             .ThenBy(x => x.DisplayName, StringComparer.OrdinalIgnoreCase)
             .ToList();
+        var emptyMode = NormalizeEmptyTerms(emptyTerms);
+        if (emptyMode == "skip")
+        {
+            // Keep empty parents that still have child terms, so hierarchy links resolve.
+            items = items
+                .Where(t => t.Pages.Count > 0 ||
+                            (hierarchy.TryGetValue(t.Slug, out var info) && info.Children.Count > 0))
+                .ToList();
+        }
 
         var publishAt = items
             .SelectMany(t => t.Pages)
@@ -66,7 +76,8 @@ internal static class TaxonomyPageCreator
                     totalPages: 1,
                     items: Array.Empty<TaxonomyPage>(),
                     language,
-                    outputPathEncoding));
+                    outputPathEncoding,
+                    noindex: emptyMode == "noindex"));
                 continue;
             }
 
@@ -222,7 +233,8 @@ internal static class TaxonomyPageCreator
         int totalPages,
         IReadOnlyList<TaxonomyPage> items,
         string? language,
-        string outputPathEncoding)
+        string outputPathEncoding,
+        bool noindex = false)
     {
         var html = string.Empty;
         if (emitContentHtml)
@@ -364,6 +376,11 @@ internal static class TaxonomyPageCreator
             ["taxonomy"] = new ContentField("object", taxonomyValue),
             ["pagination"] = new ContentField("object", paginationValue)
         };
+        if (noindex)
+        {
+            // Read by ContentDocument as publish.NoIndex: robots noindex and no sitemap entry.
+            fields["noindex"] = new ContentField("bool", true);
+        }
 
         var document = DerivedContentDocumentFactory.Create(
             id: page <= 1 ? $"{kind}-{term.Slug}" : $"{kind}-{term.Slug}-page-{page}",
@@ -381,6 +398,12 @@ internal static class TaxonomyPageCreator
             customFields: fields);
 
         return new RoutedContentDocument(document, route, publishAt);
+    }
+
+    internal static string NormalizeEmptyTerms(string? value)
+    {
+        var normalized = (value ?? string.Empty).Trim().ToLowerInvariant();
+        return normalized is "noindex" or "skip" ? normalized : "render";
     }
 
     internal static string EscapeHtml(string value)

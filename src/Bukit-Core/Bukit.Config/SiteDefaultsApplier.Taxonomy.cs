@@ -40,7 +40,8 @@ internal static partial class SiteDefaultsApplier
             PinField = ConfigYamlHelpers.GetOptionalString(taxonomyNode, "pinField") ?? "pinned",
             PinOrderField = ConfigYamlHelpers.GetOptionalString(taxonomyNode, "pinOrderField"),
             PinFieldBySource = ConfigYamlHelpers.ReadStringMap(taxonomyNode, "pinFieldBySource"),
-            PinOrderFieldBySource = ConfigYamlHelpers.ReadStringMap(taxonomyNode, "pinOrderFieldBySource")
+            PinOrderFieldBySource = ConfigYamlHelpers.ReadStringMap(taxonomyNode, "pinOrderFieldBySource"),
+            EmptyTerms = ConfigYamlHelpers.GetOptionalString(taxonomyNode, "emptyTerms") ?? "render"
         };
     }
 

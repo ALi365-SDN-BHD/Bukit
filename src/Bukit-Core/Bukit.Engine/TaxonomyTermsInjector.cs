@@ -174,7 +174,11 @@ internal static class TaxonomyTermsInjector
 
             foreach (var option in property.Value)
             {
-                var title = (option ?? string.Empty).Trim();
+                var title = Plugins.BuiltIn.TaxonomyTermValueNormalizer.Normalize(option, out var decoded);
+                if (decoded)
+                {
+                    context.Logger.Warn($"event=taxonomy.term.decoded key={property.Key} raw=\"{option}\" normalized=\"{title}\" source=notion_schema_option hint=fix_option_in_notion");
+                }
                 if (string.IsNullOrWhiteSpace(title))
                 {
                     continue;

@@ -496,6 +496,7 @@ with `--clean` after replacing images.
 | `taxonomy.pinOrderField` | none | Numeric pin order field. |
 | `taxonomy.pinFieldBySource` | none | Source-specific pin field map. |
 | `taxonomy.pinOrderFieldBySource` | none | Source-specific pin order field map. |
+| `taxonomy.emptyTerms` | `render` | Term pages with no content: `render` emits them as before, `noindex` emits them with robots noindex and keeps them out of the sitemap, `skip` emits none (a hierarchical parent with child terms is kept). |
 | `taxonomy.kinds[].key` | required | Source field key. |
 | `taxonomy.kinds[].kind` | same as `key` | Public taxonomy kind. |
 | `taxonomy.kinds[].title` | none | Index title. |
