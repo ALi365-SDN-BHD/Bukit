@@ -192,11 +192,13 @@ internal static class ProviderValidators
         }
     }
 
-    // A pattern is an exact host or "*." plus a host; no other wildcard, scheme, port or path.
+    // A pattern is an exact host, an exact IPv4 address, or "*." plus a host name;
+    // no other wildcard, scheme, port, path or IPv6 literal.
     internal static bool IsValidMediaHostPattern(string? pattern)
     {
         var value = pattern?.Trim() ?? string.Empty;
-        if (value.StartsWith("*.", StringComparison.Ordinal))
+        var wildcard = value.StartsWith("*.", StringComparison.Ordinal);
+        if (wildcard)
         {
             value = value[2..];
         }
@@ -227,7 +229,12 @@ internal static class ProviderValidators
             }
         }
 
-        return Uri.CheckHostName(value) == UriHostNameType.Dns;
+        return Uri.CheckHostName(value) switch
+        {
+            UriHostNameType.Dns => true,
+            UriHostNameType.IPv4 => !wildcard,
+            _ => false
+        };
     }
 
     internal static void RejectPathTraversal(string fieldName, string value)

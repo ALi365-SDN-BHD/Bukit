@@ -1,4 +1,3 @@
-using System.Text.RegularExpressions;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 
@@ -735,10 +734,15 @@ public static class ConfigJsonSchemaGenerator
 
     // For values the loader accepts in any case: the enum keeps editor completion,
     // the pattern accepts other casings and surrounding whitespace.
+    // Values are limited to ASCII letters, digits and '-', which need no regex escaping.
     private static JsonObject CaseInsensitiveEnumSchema(params string[] values)
     {
-        var alternatives = values.Select(v => string.Concat(v.Select(c =>
-            char.IsLetter(c) ? $"[{char.ToLowerInvariant(c)}{char.ToUpperInvariant(c)}]" : Regex.Escape(c.ToString()))));
+        var alternatives = values.Select(v => string.Concat(v.Select(c => c switch
+        {
+            >= 'a' and <= 'z' or >= 'A' and <= 'Z' => $"[{char.ToLowerInvariant(c)}{char.ToUpperInvariant(c)}]",
+            >= '0' and <= '9' or '-' => c.ToString(),
+            _ => throw new ArgumentException($"Unsupported character '{c}' in enum value '{v}'.", nameof(values))
+        })));
         var schema = StringSchema();
         schema["anyOf"] = new JsonArray(
             Obj(("enum", Arr(values))),

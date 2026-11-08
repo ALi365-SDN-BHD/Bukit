@@ -333,7 +333,8 @@ other than HTTP(S) or root-relative paths fail the build.
 
 Host patterns are an exact host, such as file.notion.so, or `*.` plus a host,
 such as *.amazonaws.com, which matches subdomains but not amazonaws.com itself.
-Matching is case-insensitive and uses the original URL, not a redirect target.
+An exact IPv4 address, such as 203.0.113.5, is also accepted; wildcards on
+addresses and IPv6 literals are not. Matching is case-insensitive and uses the original URL, not a redirect target.
 Skipped URLs make no request and are not counted as failures.
 
 A response with `Content-Type: application/octet-stream`, `binary/octet-stream`,

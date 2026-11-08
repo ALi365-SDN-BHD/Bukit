@@ -8,7 +8,6 @@ namespace Bukit.Content.Media;
 /// </summary>
 internal sealed class MediaHostFilter
 {
-    private static readonly IdnMapping s_idn = new();
     private readonly string[] _downloadHosts;
     private readonly string[] _skipHosts;
 
@@ -25,7 +24,8 @@ internal sealed class MediaHostFilter
             return true;
         }
 
-        var host = NormalizeHost(uri.IdnHost);
+        // IdnHost is already ASCII (punycode); only case and a trailing dot need normalizing.
+        var host = uri.IdnHost.TrimEnd('.').ToLowerInvariant();
         if (MatchesAny(host, _skipHosts))
         {
             return false;
@@ -63,6 +63,7 @@ internal sealed class MediaHostFilter
             return [];
         }
 
+        var idn = new IdnMapping();
         var result = new List<string>(patterns.Count);
         foreach (var raw in patterns)
         {
@@ -73,17 +74,17 @@ internal sealed class MediaHostFilter
             }
 
             var wildcard = pattern.StartsWith("*.", StringComparison.Ordinal);
-            var host = NormalizeHost(wildcard ? pattern[2..] : pattern);
+            var host = NormalizePatternHost(idn, wildcard ? pattern[2..] : pattern);
             if (host.Length > 0)
             {
                 result.Add(wildcard ? "*." + host : host);
             }
         }
 
-        return result.ToArray();
+        return result.Distinct(StringComparer.Ordinal).ToArray();
     }
 
-    private static string NormalizeHost(string host)
+    private static string NormalizePatternHost(IdnMapping idn, string host)
     {
         // Lowercase first: invariant-globalization IDN conversion does no case folding.
         var value = host.Trim().TrimEnd('.').ToLowerInvariant();
@@ -94,7 +95,7 @@ internal sealed class MediaHostFilter
 
         try
         {
-            value = s_idn.GetAscii(value);
+            value = idn.GetAscii(value);
         }
         catch (ArgumentException)
         {

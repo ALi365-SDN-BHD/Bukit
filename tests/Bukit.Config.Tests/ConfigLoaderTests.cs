@@ -1433,7 +1433,7 @@ public sealed class ConfigLoaderTests : IDisposable
     }
 
     [Fact]
-    public void Load_MediaLocalizationControls_AcceptsInternationalizedHosts()
+    public void Load_MediaLocalizationControls_AcceptsInternationalizedAndIpv4Hosts()
     {
         var yaml = """
             site:
@@ -1448,6 +1448,8 @@ public sealed class ConfigLoaderTests : IDisposable
                 downloadHosts:
                   - "BÜCHER.de"
                   - "*.例子.com"
+                skipHosts:
+                  - "203.0.113.5"
             """;
         var config = ConfigLoader.Load(WriteTempYaml(yaml));
 
@@ -1463,6 +1465,8 @@ public sealed class ConfigLoaderTests : IDisposable
     [InlineData("downloadHosts: [\"*.\"]", "content.media.downloadHosts")]
     [InlineData("downloadHosts: [\"bü..com\"]", "content.media.downloadHosts")]
     [InlineData("skipHosts: [\"ü" + "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" + ".com\"]", "content.media.skipHosts")]
+    [InlineData("skipHosts: [\"*.203.0.113.5\"]", "content.media.skipHosts")]
+    [InlineData("skipHosts: [\"[2001:db8::1]\"]", "content.media.skipHosts")]
     public void Load_MediaLocalizationControls_RejectsInvalidValues(string line, string expectedPath)
     {
         var yaml = $"""

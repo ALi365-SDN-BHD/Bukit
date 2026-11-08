@@ -18,7 +18,7 @@
 
 ### Requirement: Host rules select which images are downloaded
 
-`content.media.downloadHosts` and `content.media.skipHosts` MUST accept lists of host patterns. A pattern MUST be either an exact host or `*.` followed by a host; `*.example.com` MUST match any subdomain of `example.com` but not `example.com` itself. Any other wildcard form, a scheme, a port or a path MUST fail configuration validation. Matching MUST be case-insensitive on the IDN-normalized host of the original URL. A URL whose host matches `skipHosts`, or that does not match a non-empty `downloadHosts`, MUST be returned unchanged without any network request and MUST NOT be recorded as a failure. `skipHosts` MUST take precedence over `downloadHosts`. An empty or absent `downloadHosts` MUST mean every host is eligible.
+`content.media.downloadHosts` and `content.media.skipHosts` MUST accept lists of host patterns. A pattern MUST be an exact host, an exact IPv4 address, or `*.` followed by a host name; `*.example.com` MUST match any subdomain of `example.com` but not `example.com` itself. Any other wildcard form (including a wildcard on an IPv4 address), an IPv6 literal, a scheme, a port or a path MUST fail configuration validation. Matching MUST be case-insensitive on the IDN-normalized host of the original URL. A URL whose host matches `skipHosts`, or that does not match a non-empty `downloadHosts`, MUST be returned unchanged without any network request and MUST NOT be recorded as a failure. `skipHosts` MUST take precedence over `downloadHosts`. An empty or absent `downloadHosts` MUST mean every host is eligible.
 
 #### Scenario: Only Notion hosts are downloaded
 - **WHEN** `downloadHosts: ["*.amazonaws.com"]` and a document contains an S3 image and a `silkroute.cc` image
@@ -27,6 +27,10 @@
 #### Scenario: Skip wins over download
 - **WHEN** a host matches both `downloadHosts` and `skipHosts`
 - **THEN** the URL is returned unchanged without a request
+
+#### Scenario: IPv4 address pattern
+- **WHEN** `skipHosts: ["203.0.113.5"]` and an image URL is `https://203.0.113.5/a.png`
+- **THEN** configuration validation passes and the URL is returned unchanged without a request
 
 #### Scenario: Invalid pattern
 - **WHEN** `skipHosts: ["a*b.com"]` is configured

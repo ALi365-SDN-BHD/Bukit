@@ -36,3 +36,8 @@
   - m7（已修复）`contractConsumerGlobs` 补齐 ProviderValidators、SiteDefaultsApplier.Content、MediaHostFilter、ContentProviderFactory；`codex-workflow-self-test.sh` exit 0，closure `unmappedFiles=[]`。`publicContract` 保持 false：`AppConfig.cs` 已由 `bukit-config` 规则标为公共契约。
   - m8（已修复主要项）新增 keep 下 SSRF 拦截、超过大小上限、octet-stream 签名正确但解码失败、封面字段（keep/placeholder）测试，以及大写／尾点主机匹配测试；不安全缓存与超时仍走同一 `RecordFailure`，未单独测试。修复后 Config 506/506、Content 625/625 通过。
 - [x] 端到端：silkroute 测试站以 `onFailure: keep` + `downloadHosts` 构建，不可达的允许域名图片保留原地址，非允许域名图片不请求、保持原样。
+
+## 4. 深度审计修复（2026-11-08）
+
+- [x] `/code-review high` 审计的 10 项全部处理：共享下载改用 `DownloadOutcome` 类型结果（去掉字符串哨兵）；写入改用 `WriteResult`（去掉 -1 哨兵、闭包与不可达分支）；共享下载测试改为等待 `SharedDownloadJoins` 而非固定延时；URL 主机不再重复 IDN 转换，模式转换不再共享静态 `IdnMapping`；`ContentProviderFactory` 撤回重复规范化；Schema 辅助函数去掉 `Regex.Escape`，仅接受字母、数字与 `-`；`MatchesFileAsync` 恢复单次读取，签名长度常量共用；policy 补齐 Schema 生成器与严格字段校验器；域名规则接受精确 IPv4（spec 与指南已同步）。
+- [x] 专项测试：Config 509/509、Content 628/628、Engine 3125/3125、Architecture 422/422；`codex-workflow-self-test.sh`、`public-api-drift.sh check` exit 0；closure `unmappedFiles=[]`。

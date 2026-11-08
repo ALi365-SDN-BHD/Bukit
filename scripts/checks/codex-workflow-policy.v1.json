@@ -1972,6 +1972,8 @@
       ],
       "contractConsumerGlobs": [
         "src/Bukit-Core/Bukit.Config/AppConfig.cs",
+        "src/Bukit-Core/Bukit.Config/ConfigJsonSchemaGenerator.cs",
+        "src/Bukit-Core/Bukit.Config/ConfigStrictFieldValidator.cs",
         "src/Bukit-Core/Bukit.Config/ProviderValidators.cs",
         "src/Bukit-Core/Bukit.Config/SiteDefaultsApplier.Content.cs",
         "src/Bukit-Core/Bukit.Content/Media/ImageAssetLocalizer.cs",

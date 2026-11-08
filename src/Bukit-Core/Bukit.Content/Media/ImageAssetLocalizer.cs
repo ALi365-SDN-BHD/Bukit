@@ -44,11 +44,8 @@ public sealed class ImageAssetLocalizer : IImageAssetLocalizer, IDisposable
     private readonly CancellationTokenSource _lifetimeCancellation = new();
     private readonly CancellationToken _lifetimeToken;
     private readonly ConcurrentDictionary<string, string> _cache = new(StringComparer.Ordinal);
-    private readonly ConcurrentDictionary<string, Lazy<Task<string>>> _inflight = new(StringComparer.Ordinal);
-    // Compared by reference only; never returned to callers.
-    private static readonly string FailedDownloadMarker = new(['\0', 'f', 'a', 'i', 'l']);
-    private const long HeaderRejected = -1;
-    private const int SignatureHeaderBytes = 4096;
+    private readonly ConcurrentDictionary<string, Lazy<Task<DownloadOutcome>>> _inflight = new(StringComparer.Ordinal);
+    private int _sharedDownloadJoins;
     private readonly ConcurrentBag<MediaFailure> _failures = new();
     private readonly MediaIndexManager _indexManager;
     private readonly ImageContentValidator _imageValidator = new();
@@ -210,7 +207,7 @@ public sealed class ImageAssetLocalizer : IImageAssetLocalizer, IDisposable
             }
         }
 
-        var newDownload = new Lazy<Task<string>>(
+        var newDownload = new Lazy<Task<DownloadOutcome>>(
             () => DownloadCoreAsync(normalizedKey, uri, source, root, _lifetimeToken),
             LazyThreadSafetyMode.ExecutionAndPublication);
         var download = _inflight.GetOrAdd(normalizedKey, newDownload);
@@ -219,12 +216,16 @@ public sealed class ImageAssetLocalizer : IImageAssetLocalizer, IDisposable
         {
             _ = RemoveInflightWhenCompletedAsync(normalizedKey, download, downloadTask);
         }
+        else
+        {
+            Interlocked.Increment(ref _sharedDownloadJoins);
+        }
 
         try
         {
-            var result = await downloadTask.WaitAsync(cancellationToken);
-            // A shared download failed: answer with this caller's own source spelling.
-            return ReferenceEquals(result, FailedDownloadMarker) ? FailureResult(source) : result;
+            var outcome = await downloadTask.WaitAsync(cancellationToken);
+            // Callers sharing a download may spell the URL differently; a failure uses this caller's own source.
+            return outcome.LocalUrl ?? FailureResult(source);
         }
         finally
         {
@@ -237,8 +238,8 @@ public sealed class ImageAssetLocalizer : IImageAssetLocalizer, IDisposable
 
     private async Task RemoveInflightWhenCompletedAsync(
         string normalizedKey,
-        Lazy<Task<string>> download,
-        Task<string> downloadTask)
+        Lazy<Task<DownloadOutcome>> download,
+        Task<DownloadOutcome> downloadTask)
     {
         try
         {
@@ -254,7 +255,7 @@ public sealed class ImageAssetLocalizer : IImageAssetLocalizer, IDisposable
         }
     }
 
-    private async Task<string> DownloadCoreAsync(
+    private async Task<DownloadOutcome> DownloadCoreAsync(
         string normalizedKey, Uri uri, string source, string root,
         CancellationToken cancellationToken)
     {
@@ -301,18 +302,14 @@ public sealed class ImageAssetLocalizer : IImageAssetLocalizer, IDisposable
 
                 var contentType = identifyBySignature ? null : headerContentType!.Trim();
                 var tempPath = BuildTempFilePath(root, BuildFileIdentity(normalizedKey));
-                string? detectedContentType = null;
-                Func<ReadOnlyMemory<byte>, bool>? acceptHeader = identifyBySignature
-                    ? header => (detectedContentType = ImageContentSignature.Detect(header.Span)) is not null
-                    : null;
-                var bytesWritten = await WriteWithLimitAsync(response.Content, tempPath, maxFileSize, acceptHeader, cts.Token);
-                if (bytesWritten is null)
+                var write = await WriteWithLimitAsync(response.Content, tempPath, maxFileSize, identifyBySignature, cts.Token);
+                if (write.Status == WriteStatus.TooLarge)
                 {
                     _logger?.Warn($"event=media.download_too_large limit={maxFileSize} source={UrlRedactor.Redact(source)}");
                     return RecordDownloadFailure(source, $"File too large (limit: {maxFileSize} bytes)");
                 }
 
-                if (bytesWritten.Value == HeaderRejected)
+                if (write.Status == WriteStatus.SignatureRejected)
                 {
                     _logger?.Warn(
                         $"event=media.content_type_rejected type={headerContentType ?? "(null)"} signature=unrecognized source={UrlRedactor.Redact(source)}");
@@ -321,7 +318,7 @@ public sealed class ImageAssetLocalizer : IImageAssetLocalizer, IDisposable
                         $"Content-Type rejected: {headerContentType ?? "(null)"} (image signature not recognized)");
                 }
 
-                if (bytesWritten.Value == 0)
+                if (write.BytesWritten == 0)
                 {
                     DeleteFileBestEffort(tempPath);
                     if (attempt >= maxRetries)
@@ -334,14 +331,8 @@ public sealed class ImageAssetLocalizer : IImageAssetLocalizer, IDisposable
                     continue;
                 }
 
-                contentType ??= detectedContentType;
-                if (contentType is null)
-                {
-                    // Unreachable: a generic binary response either passed the header check or was rejected above.
-                    DeleteFileBestEffort(tempPath);
-                    return RecordDownloadFailure(source, "Content-Type rejected: image signature not recognized");
-                }
-
+                // A non-empty generic binary body is only written once its signature was identified.
+                contentType ??= write.DetectedContentType!;
                 var ext = ResolveExtension(sendResult.FinalUri, contentType);
                 var fileName = BuildStableFileName(normalizedKey, ext);
                 var localPath = Path.Combine(root, fileName);
@@ -450,7 +441,7 @@ public sealed class ImageAssetLocalizer : IImageAssetLocalizer, IDisposable
                 var publicUrl = _indexManager.CombineUrl(fileName);
                 _indexManager.RememberIndex(normalizedKey, fileName);
                 _cache.TryAdd(normalizedKey, fileName);
-                return publicUrl;
+                return new DownloadOutcome(publicUrl);
             }
             catch (UnsafeMediaTargetException ex)
             {
@@ -594,13 +585,30 @@ public sealed class ImageAssetLocalizer : IImageAssetLocalizer, IDisposable
         return FailureResult(sourceUrl);
     }
 
-    // Used inside the shared download task. Callers waiting on the same download may spell
-    // the URL differently, so each one maps the marker to its own result.
-    private string RecordDownloadFailure(string sourceUrl, string reason)
+    // Used inside the shared download task; each waiting caller maps the failure to its own result.
+    private DownloadOutcome RecordDownloadFailure(string sourceUrl, string reason)
     {
         _failures.Add(new MediaFailure(UrlRedactor.Redact(sourceUrl), reason));
-        return FailedDownloadMarker;
+        return DownloadOutcome.Failed;
     }
+
+    /// <summary>Number of callers that joined an already running download (test diagnostics).</summary>
+    internal int SharedDownloadJoins => Volatile.Read(ref _sharedDownloadJoins);
+
+    /// <summary>Result of a shared download: the local URL, or null when it failed.</summary>
+    private readonly record struct DownloadOutcome(string? LocalUrl)
+    {
+        public static DownloadOutcome Failed => default;
+    }
+
+    private enum WriteStatus
+    {
+        Written,
+        TooLarge,
+        SignatureRejected
+    }
+
+    private readonly record struct WriteResult(WriteStatus Status, long BytesWritten = 0, string? DetectedContentType = null);
 
     private string FailureResult(string sourceUrl)
         => _keepOriginalOnFailure ? sourceUrl : _config.DefaultImageUrl;
@@ -620,26 +628,27 @@ public sealed class ImageAssetLocalizer : IImageAssetLocalizer, IDisposable
                normalized.Equals("binary/octet-stream", StringComparison.OrdinalIgnoreCase);
     }
 
-    // Returns the byte count, null when over maxBytes, or HeaderRejected when acceptHeader
-    // rejects the leading bytes (no file is created in that case).
-    private static async Task<long?> WriteWithLimitAsync(
+    // With detectSignature, the leading bytes must match a known raster signature before any
+    // file is created; the detected type is returned with the result.
+    private static async Task<WriteResult> WriteWithLimitAsync(
         HttpContent content,
         string tempPath,
         long maxBytes,
-        Func<ReadOnlyMemory<byte>, bool>? acceptHeader,
+        bool detectSignature,
         CancellationToken cancellationToken)
     {
         if (content.Headers.ContentLength is > 0 && content.Headers.ContentLength.Value > maxBytes)
         {
-            return null;
+            return new WriteResult(WriteStatus.TooLarge);
         }
 
         await using var stream = await content.ReadAsStreamAsync(cancellationToken);
-        byte[]? header = null;
+        var header = Array.Empty<byte>();
         var headerLength = 0;
-        if (acceptHeader is not null)
+        string? detectedContentType = null;
+        if (detectSignature)
         {
-            header = new byte[SignatureHeaderBytes];
+            header = new byte[ImageContentSignature.MaxSignatureBytes];
             int headerRead;
             while (headerLength < header.Length &&
                    (headerRead = await stream.ReadAsync(header.AsMemory(headerLength), cancellationToken)) > 0)
@@ -647,13 +656,17 @@ public sealed class ImageAssetLocalizer : IImageAssetLocalizer, IDisposable
                 headerLength += headerRead;
                 if (headerLength > maxBytes)
                 {
-                    return null;
+                    return new WriteResult(WriteStatus.TooLarge);
                 }
             }
 
-            if (headerLength > 0 && !acceptHeader(header.AsMemory(0, headerLength)))
+            if (headerLength > 0)
             {
-                return HeaderRejected;
+                detectedContentType = ImageContentSignature.Detect(header.AsSpan(0, headerLength));
+                if (detectedContentType is null)
+                {
+                    return new WriteResult(WriteStatus.SignatureRejected);
+                }
             }
         }
 
@@ -680,14 +693,14 @@ public sealed class ImageAssetLocalizer : IImageAssetLocalizer, IDisposable
                 totalRead += read;
                 if (totalRead > maxBytes)
                 {
-                    return null;
+                    return new WriteResult(WriteStatus.TooLarge);
                 }
 
                 await output.WriteAsync(buffer.AsMemory(0, read), cancellationToken);
             }
 
             completed = true;
-            return totalRead;
+            return new WriteResult(WriteStatus.Written, totalRead, detectedContentType);
         }
         finally
         {

@@ -2050,7 +2050,13 @@ public sealed class ImageAssetLocalizerTests
             await handler.RequestStarted.WaitAsync(TimeSpan.FromSeconds(5));
             // Same cache key (fragment and host case are ignored), different spelling.
             var second = localizer.LocalizeAsync("https://IMG.example/a.png#hero", CancellationToken.None);
-            await Task.Delay(200);
+            var deadline = DateTime.UtcNow.AddSeconds(10);
+            while (localizer.SharedDownloadJoins == 0 && DateTime.UtcNow < deadline)
+            {
+                await Task.Delay(10);
+            }
+
+            Assert.Equal(1, localizer.SharedDownloadJoins);
             handler.Release();
 
             Assert.Equal("https://img.example/a.png", await first);
@@ -2171,6 +2177,20 @@ public sealed class ImageAssetLocalizerTests
 
             Assert.StartsWith("/assets/uploads/", result, StringComparison.Ordinal);
             Assert.Equal(1, handler.RequestCount);
+        });
+
+    [Fact]
+    public async Task LocalizeAsync_SkipHostsIpv4_ReturnsUrlWithoutRequest()
+        => await WithTempDirAsync(async dir =>
+        {
+            var handler = new CountingHandler(HttpStatusCode.OK, "image/png", "img");
+            using var localizer = CreateLocalizer(ControlConfig(dir, skipHosts: ["203.0.113.5"]), handler);
+
+            var result = await localizer.LocalizeAsync("https://203.0.113.5/a.png", CancellationToken.None);
+
+            Assert.Equal("https://203.0.113.5/a.png", result);
+            Assert.Equal(0, handler.RequestCount);
+            Assert.Empty(localizer.Failures);
         });
 
     [Fact]
