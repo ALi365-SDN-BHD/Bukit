@@ -4,6 +4,8 @@ Semua perubahan penting kepada Bukit akan didokumenkan dalam fail ini.
 
 ## [Belum Dikeluarkan]
 
+- **Pengarang SEO lalai**: `site.seo.defaultAuthor` dan `site.seo.defaultAuthorType` (lalai `Person`, atau `Organization`) menetapkan pengarang JSON-LD artikel apabila halaman tiada hubungan pengarang, medan `author` atau pengarang GEO. Jika tidak ditetapkan, output dan cache tokokan tidak berubah.
+
 ## [2.0.10] - 2026-11-09
 
 - **Kawalan penyetempatan media**: `content.media.onFailure: placeholder | keep` (lalai `placeholder`) mengekalkan URL asal apabila muat turun gagal; `content.media.downloadHosts` dan `skipHosts` mengehadkan muat turun mengikut hos (kad liar `*.`). Respons berjenis `application/octet-stream` atau tanpa jenis dikenal pasti melalui tandatangan fail dan mesti lulus semakan imej sedia ada.

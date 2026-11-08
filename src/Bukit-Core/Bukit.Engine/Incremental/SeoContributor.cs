@@ -14,6 +14,12 @@ internal sealed class SeoContributor : IRenderDependencyContributor
         writer.AppendLabeledCanonicalValue("seo.titleSeparator", seo.TitleSeparator);
         writer.AppendLabeledCanonicalValue("seo.defaultImage", seo.DefaultImage);
         writer.AppendLabeledCanonicalValue("seo.twitterSite", seo.TwitterSite);
+        // Appended only when set, so sites without a default author keep their existing hash.
+        if (seo.DefaultAuthor is not null)
+        {
+            writer.AppendLabeledCanonicalValue("seo.defaultAuthor", seo.DefaultAuthor);
+            writer.AppendLabeledCanonicalValue("seo.defaultAuthorType", seo.DefaultAuthorType);
+        }
         // Inject mode adds Markdown/JSON alternate links to content pages only while GEO is enabled.
         writer.AppendLabeledCanonicalValue("seo.geo.enabled", seo.Geo.Enabled);
 

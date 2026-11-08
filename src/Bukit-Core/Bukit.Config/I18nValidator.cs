@@ -123,6 +123,7 @@ internal static class I18nValidator
                 DiagnosticCode.ConfigInvalidValue);
         }
 
+        ValidateDefaultAuthor(site.Seo);
         SeoTitleTemplateValidator.Validate(site.Seo);
 
         if (site.Seo.Geo.LlmsTxtMaxArticles < 0)
@@ -245,6 +246,36 @@ internal static class I18nValidator
                         ? DiagnosticCode.ConfigRequiredFieldMissing
                         : DiagnosticCode.ConfigInvalidValue);
             }
+        }
+    }
+
+    private static void ValidateDefaultAuthor(SeoConfig seo)
+    {
+        if (seo.DefaultAuthor is not null && string.IsNullOrWhiteSpace(seo.DefaultAuthor))
+        {
+            throw new ConfigException(
+                "site.seo.defaultAuthor must be a non-empty string.",
+                DiagnosticCode.ConfigInvalidValue);
+        }
+
+        if (seo.DefaultAuthorType is null)
+        {
+            return;
+        }
+
+        if (seo.DefaultAuthor is null)
+        {
+            throw new ConfigException(
+                "site.seo.defaultAuthorType requires site.seo.defaultAuthor.",
+                DiagnosticCode.ConfigInvalidValue);
+        }
+
+        if (!seo.DefaultAuthorType.Trim().Equals("Person", StringComparison.OrdinalIgnoreCase) &&
+            !seo.DefaultAuthorType.Trim().Equals("Organization", StringComparison.OrdinalIgnoreCase))
+        {
+            throw new ConfigException(
+                "site.seo.defaultAuthorType must be Person|Organization.",
+                DiagnosticCode.ConfigInvalidValue);
         }
     }
 

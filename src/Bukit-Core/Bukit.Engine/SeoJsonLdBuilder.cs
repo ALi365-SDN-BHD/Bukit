@@ -106,7 +106,7 @@ internal static class SeoJsonLdBuilder
         {
             var effectiveType = schemaType ?? "BlogPosting";
             var effectiveAuthors = resolvedAuthors
-                ?? SeoAuthorResolver.Resolve(record, document.CustomFields, geo.GeoAuthor);
+                ?? SeoAuthorResolver.Resolve(record, document.CustomFields, geo.GeoAuthor, config.Site.Seo);
             if (string.Equals(effectiveType, "FAQPage", StringComparison.OrdinalIgnoreCase))
             {
                 var validItems = geo.FaqItems?.Where(item =>

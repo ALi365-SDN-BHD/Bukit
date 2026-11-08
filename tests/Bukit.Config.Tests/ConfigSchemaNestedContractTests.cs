@@ -54,7 +54,7 @@ public sealed class ConfigSchemaNestedContractTests
 
     private static readonly SchemaCase[] NestedCases =
     [
-        new("site/seo", "enabled", "renderMode", "diagnostics", "homeTitleTemplate", "pageTitleTemplate", "titleSeparator", "defaultImage", "twitterSite", "organization", "robotsTxt", "schema", "geo"),
+        new("site/seo", "enabled", "renderMode", "diagnostics", "homeTitleTemplate", "pageTitleTemplate", "titleSeparator", "defaultImage", "twitterSite", "defaultAuthor", "defaultAuthorType", "organization", "robotsTxt", "schema", "geo"),
         new("site/seo/organization", "type", "name", "url", "logo", "sameAs"),
         new("site/seo/robotsTxt", "enabled"),
         new("site/seo/schema", "webPage", "collectionPage", "searchAction"),

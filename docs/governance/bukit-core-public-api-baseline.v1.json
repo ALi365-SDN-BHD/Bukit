@@ -1731,6 +1731,8 @@
         "public System.String! PageTitleTemplate { get; init; }",
         "public System.String! RenderMode { get; init; }",
         "public System.String! TitleSeparator { get; init; }",
+        "public System.String? DefaultAuthor { get; init; }",
+        "public System.String? DefaultAuthorType { get; init; }",
         "public System.String? DefaultImage { get; init; }",
         "public System.String? TwitterSite { get; init; }",
         "public static System.Boolean op_Equality(Bukit.Config.SeoConfig? left, Bukit.Config.SeoConfig? right)",

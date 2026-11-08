@@ -1216,6 +1216,57 @@ public sealed class ConfigLoaderTests : IDisposable
         Assert.True(config.Site.Seo.Schema.SearchAction);
     }
 
+    [Theory]
+    [InlineData("defaultAuthorType: Organization", "Organization")]
+    [InlineData("defaultAuthorType: organization", "organization")]
+    [InlineData("", null)]
+    public void Load_SeoDefaultAuthor_ParsesAndValidates(string typeLine, string? expectedType)
+    {
+        var path = WriteTempYaml($$"""
+            site:
+              name: myblog
+              title: My Blog
+              seo:
+                defaultAuthor: 絲路文化交流協會
+                {{typeLine}}
+            content:
+              sources:
+                - type: markdown
+                  markdown:
+                    dir: content
+            """);
+
+        var config = ConfigLoader.Load(path);
+        ConfigValidator.Validate(config);
+
+        Assert.Equal("絲路文化交流協會", config.Site.Seo.DefaultAuthor);
+        Assert.Equal(expectedType, config.Site.Seo.DefaultAuthorType);
+    }
+
+    [Theory]
+    [InlineData("defaultAuthor: \"  \"", "site.seo.defaultAuthor must be a non-empty string.")]
+    [InlineData("defaultAuthorType: Organization", "site.seo.defaultAuthorType requires site.seo.defaultAuthor.")]
+    [InlineData("defaultAuthor: Society\n    defaultAuthorType: Company", "site.seo.defaultAuthorType must be Person|Organization.")]
+    public void Validate_SeoDefaultAuthor_RejectsInvalidValues(string seoLines, string expectedMessage)
+    {
+        var path = WriteTempYaml($$"""
+            site:
+              name: myblog
+              title: My Blog
+              seo:
+                {{seoLines}}
+            content:
+              sources:
+                - type: markdown
+                  markdown:
+                    dir: content
+            """);
+
+        var ex = Assert.ThrowsAny<ConfigException>(() => ConfigValidator.Validate(ConfigLoader.Load(path)));
+
+        Assert.Equal(expectedMessage, ex.Message);
+    }
+
     [Fact]
     public void Load_SeoConfig_PreservesExplicitlyEmptyTitleSeparator()
     {

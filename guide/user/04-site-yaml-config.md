@@ -95,6 +95,8 @@ content:
 | `site.seo.titleSeparator` | ` \| ` | Text substituted for `{separator}`; may be explicitly empty. |
 | `site.seo.defaultImage` | none | Default social image. |
 | `site.seo.twitterSite` | none | Twitter/X site handle. |
+| `site.seo.defaultAuthor` | none | Author name for SEO output when a page has no author relation, no `author` field, and no GEO author. |
+| `site.seo.defaultAuthorType` | `Person` | `Person` or `Organization` (case-insensitive); requires `defaultAuthor`. |
 | `site.seo.organization.type` | `Organization` | `Organization` or `NewsMediaOrganization`; invalid values fail configuration validation. |
 | `site.seo.organization.name` | none | Organization schema name. |
 | `site.seo.organization.url` | none | Absolute HTTP(S) URL or root-relative URL resolved against `site.url`; only an absolute HTTP(S) result is emitted. |

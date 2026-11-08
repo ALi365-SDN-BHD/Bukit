@@ -296,7 +296,8 @@ internal static class ConfigStrictFieldValidator
         RequireOnly(seo, Set(
             "enabled", "renderMode", "diagnostics",
             "homeTitleTemplate", "pageTitleTemplate", "titleSeparator",
-            "defaultImage", "twitterSite", "organization", "robotsTxt", "schema", "geo"), "site.seo");
+            "defaultImage", "twitterSite", "defaultAuthor", "defaultAuthorType",
+            "organization", "robotsTxt", "schema", "geo"), "site.seo");
         if (Map(seo, "organization") is { } organization) RequireOnly(organization, Set("type", "name", "url", "logo", "sameAs"), "site.seo.organization");
         if (Map(seo, "robotsTxt") is { } robots) RequireOnly(robots, Set("enabled"), "site.seo.robotsTxt");
         if (Map(seo, "schema") is { } schema) RequireOnly(schema, Set("webPage", "collectionPage", "searchAction"), "site.seo.schema");

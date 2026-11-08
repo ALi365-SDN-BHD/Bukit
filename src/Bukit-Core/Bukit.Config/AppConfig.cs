@@ -52,6 +52,10 @@ public sealed record SeoConfig
     public string TitleSeparator { get; init; } = " | ";
     public string? DefaultImage { get; init; }
     public string? TwitterSite { get; init; }
+    /// <summary>SEO author used when content has no author, author relation, or GEO author.</summary>
+    public string? DefaultAuthor { get; init; }
+    /// <summary>Schema type of <see cref="DefaultAuthor"/>: Person (default) or Organization.</summary>
+    public string? DefaultAuthorType { get; init; }
     public SeoOrganizationConfig? Organization { get; init; }
     public SeoRobotsTxtConfig RobotsTxt { get; init; } = new();
     public SeoSchemaConfig Schema { get; init; } = new();

@@ -27,6 +27,8 @@ internal static partial class SiteDefaultsApplier
             TitleSeparator = ConfigYamlHelpers.GetOptionalString(seoNode, "titleSeparator") ?? " | ",
             DefaultImage = ConfigYamlHelpers.GetOptionalString(seoNode, "defaultImage"),
             TwitterSite = ConfigYamlHelpers.GetOptionalString(seoNode, "twitterSite"),
+            DefaultAuthor = ConfigYamlHelpers.GetOptionalString(seoNode, "defaultAuthor"),
+            DefaultAuthorType = ConfigYamlHelpers.GetOptionalString(seoNode, "defaultAuthorType"),
             Organization = ReadSeoOrganization(orgNode),
             RobotsTxt = ReadSeoRobotsTxt(robotsTxtNode),
             Schema = ReadSeoSchema(schemaNode),

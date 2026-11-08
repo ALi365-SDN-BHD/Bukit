@@ -178,6 +178,8 @@ public static class ConfigJsonSchemaGenerator
             ("titleSeparator", StringSchema()),
             ("defaultImage", StringSchema()),
             ("twitterSite", StringSchema()),
+            ("defaultAuthor", Obj(("type", "string"), ("minLength", 1))),
+            ("defaultAuthorType", CaseInsensitiveEnumSchema("Person", "Organization")),
             ("organization", SeoOrganizationSchema()),
             ("robotsTxt", SeoRobotsTxtSchema()),
             ("schema", SeoSchemaDetailSchema()),

@@ -4,6 +4,8 @@ Bukit 所有重要变更都将记录在此文件中。
 
 ## [Unreleased]
 
+- **SEO 默认作者**：新增 `site.seo.defaultAuthor` 和 `site.seo.defaultAuthorType`（默认 `Person`，可设为 `Organization`）。页面没有作者关联、`author` 字段和 GEO 作者时，文章 JSON-LD 的作者使用这个值。不配置时，输出和增量缓存都不变。
+
 ## [2.0.10] - 2026-11-09
 
 - **图片本地化控制**：新增 `content.media.onFailure: placeholder | keep`（默认 `placeholder`），`keep` 在下载失败时保留原地址；新增 `content.media.downloadHosts` 和 `skipHosts`，按域名限定下载（支持 `*.` 通配）。类型为 `application/octet-stream` 或缺失的响应，按文件签名识别类型，并须通过现有图片校验。

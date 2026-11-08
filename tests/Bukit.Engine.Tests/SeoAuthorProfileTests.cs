@@ -253,6 +253,76 @@ public sealed class SeoAuthorProfileTests
         Assert.Contains("resolved", error.Message, StringComparison.OrdinalIgnoreCase);
     }
 
+    [Theory]
+    [InlineData("Organization", "Organization")]
+    [InlineData("organization", "Organization")]
+    [InlineData(null, "Person")]
+    public void BuildForContent_NoAuthorAnywhere_UsesSiteDefaultAuthor(string? configuredType, string expectedType)
+    {
+        var model = Build(CreateDocument(), DefaultAuthorConfig("絲路文化交流協會", configuredType));
+
+        using var article = Article(model.JsonLd);
+        var author = article.RootElement.GetProperty("author");
+        Assert.Equal(expectedType, author.GetProperty("@type").GetString());
+        Assert.Equal("絲路文化交流協會", author.GetProperty("name").GetString());
+        Assert.False(author.TryGetProperty("url", out _));
+        Assert.Equal("絲路文化交流協會", model.Article.Author);
+        Assert.Equal(expectedType, model.Article.AuthorType);
+    }
+
+    [Fact]
+    public void BuildForContent_ContentAuthor_WinsOverSiteDefaultAuthor()
+    {
+        var model = Build(
+            CreateDocument(("author", new ContentField("text", "Own Author"))),
+            DefaultAuthorConfig("絲路文化交流協會", "Organization"));
+
+        using var article = Article(model.JsonLd);
+        var author = article.RootElement.GetProperty("author");
+        Assert.Equal("Own Author", author.GetProperty("name").GetString());
+        Assert.Equal("Person", author.GetProperty("@type").GetString());
+    }
+
+    [Fact]
+    public void BuildForContent_GeoAuthor_WinsOverSiteDefaultAuthor()
+    {
+        var document = CreateDocument(("geo", new ContentField("map", new Dictionary<string, object>
+        {
+            ["author"] = new Dictionary<string, object> { ["name"] = "Geo Author" }
+        })));
+
+        var model = Build(document, DefaultAuthorConfig("絲路文化交流協會", "Organization"));
+
+        using var article = Article(model.JsonLd);
+        Assert.Equal("Geo Author", article.RootElement.GetProperty("author").GetProperty("name").GetString());
+    }
+
+    [Fact]
+    public void BuildForContent_NoAuthorAndNoDefault_HasNoAuthor()
+    {
+        var model = Build(CreateDocument());
+
+        using var article = Article(model.JsonLd);
+        Assert.False(article.RootElement.TryGetProperty("author", out _));
+        Assert.Null(model.Article.Author);
+    }
+
+    private static AppConfig DefaultAuthorConfig(string author, string? type)
+    {
+        var config = CreateConfig();
+        return config with
+        {
+            Site = config.Site with { Seo = config.Site.Seo with { DefaultAuthor = author, DefaultAuthorType = type } }
+        };
+    }
+
+    private static Bukit.Rendering.SeoModel Build(ContentDocument document, AppConfig config)
+        => SeoModelBuilder.BuildForContent(
+            config,
+            "/",
+            document,
+            new RouteInfo("/posts/article/", "posts/article/index.html", "pages/post.html"));
+
     private static Bukit.Rendering.SeoModel Build(ContentDocument document)
         => SeoModelBuilder.BuildForContent(
             CreateConfig(),

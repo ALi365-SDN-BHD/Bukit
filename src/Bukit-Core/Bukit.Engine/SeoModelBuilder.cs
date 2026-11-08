@@ -45,7 +45,7 @@ internal static class SeoModelBuilder
         var isStructuredContent = isArticle || IsStructuredContentSchemaType(schemaType);
         var isCollectionPage = !isStructuredContent && IsCollectionLikePage(fields);
         var updated = record.Lifecycle.UpdatedAt;
-        var resolvedAuthor = SeoAuthorResolver.Resolve(record, fields, geo.GeoAuthor);
+        var resolvedAuthor = SeoAuthorResolver.Resolve(record, fields, geo.GeoAuthor, config.Site.Seo);
         var tags = record.Classification.Tags.Count > 0 ? record.Classification.Tags : ContentFieldReader.GetTextList(fields, "tags") ?? Array.Empty<string>();
         var jsonLd = SeoJsonLdBuilder.BuildJsonLd(config, baseUrl, visibleTitle, description, canonical, image, route.Url, document, fields, isStructuredContent, isCollectionPage, geo, schemaType, record, resolvedAuthor, searchAction, breadcrumb);
 

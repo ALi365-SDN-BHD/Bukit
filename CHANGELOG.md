@@ -4,6 +4,8 @@ All notable changes to Bukit will be documented in this file.
 
 ## [Unreleased]
 
+- **Default SEO author**: `site.seo.defaultAuthor` and `site.seo.defaultAuthorType` (`Person` by default, or `Organization`) set the article JSON-LD author when a page has no author relation, no `author` field, and no GEO author. Unset, output and incremental caches are unchanged.
+
 ## [2.0.10] - 2026-11-09
 
 - **Media localization controls**: `content.media.onFailure: placeholder | keep` (default `placeholder`) keeps the original URL when a download fails; `content.media.downloadHosts` and `skipHosts` limit downloads by host (`*.` wildcards). Responses typed `application/octet-stream` or without a type are identified from their file signature and must pass the existing image checks.

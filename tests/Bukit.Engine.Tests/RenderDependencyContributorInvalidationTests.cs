@@ -97,6 +97,19 @@ public sealed class RenderDependencyContributorInvalidationTests
     }
 
     [Fact]
+    public void Seo_ChangesDefaultAuthorAndType()
+    {
+        var contributor = new SeoContributor();
+        var baseline = Config();
+        AppConfig With(string? author, string? type)
+            => baseline with { Site = baseline.Site with { Seo = new SeoConfig { DefaultAuthor = author, DefaultAuthorType = type } } };
+
+        Assert.NotEqual(Hash(contributor, baseline), Hash(contributor, With("Society", null)));
+        Assert.NotEqual(Hash(contributor, With("Society", null)), Hash(contributor, With("Other", null)));
+        Assert.NotEqual(Hash(contributor, With("Society", "Person")), Hash(contributor, With("Society", "Organization")));
+    }
+
+    [Fact]
     public void Seo_ChangesOrganizationSchemaAndSearchRoute()
     {
         var contributor = new SeoContributor();

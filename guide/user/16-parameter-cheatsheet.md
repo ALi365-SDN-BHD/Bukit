@@ -30,6 +30,8 @@
 | `site.seo.homeTitleTemplate` | `{siteTitle}` |
 | `site.seo.pageTitleTemplate` | `{pageTitle}` |
 | `site.seo.titleSeparator` | ` \| ` |
+| `site.seo.defaultAuthor` | none; last SEO author fallback |
+| `site.seo.defaultAuthorType` | `Person`; or `Organization` |
 | `site.seo.organization.type` | `Organization` |
 | `site.seo.organization.sameAs` | empty array |
 | `site.seo.schema.webPage` | `true` |

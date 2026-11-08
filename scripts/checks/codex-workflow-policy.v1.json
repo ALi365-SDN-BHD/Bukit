@@ -2006,6 +2006,31 @@
       ],
       "publicContract": false,
       "resource": "dotnet-serial"
+    },
+    {
+      "id": "seo-default-author-contract",
+      "matches": [
+        "openspec/changes/add-seo-default-author/proposal.md",
+        "openspec/changes/add-seo-default-author/tasks.md",
+        "openspec/changes/add-seo-default-author/specs/seo-default-author/spec.md",
+        "openspec/changes/archive/*-add-seo-default-author/*.md",
+        "openspec/changes/archive/*-add-seo-default-author/specs/seo-default-author/spec.md",
+        "openspec/specs/seo-default-author/spec.md",
+        "guide/dev/config-site-yaml.md"
+      ],
+      "specialtyTests": [
+        "dotnet test tests/Bukit.Config.Tests/Bukit.Config.Tests.csproj",
+        "dotnet test tests/Bukit.Engine.Tests/Bukit.Engine.Tests.csproj"
+      ],
+      "contractConsumerGlobs": [
+        "src/Bukit-Core/Bukit.Config/AppConfig.cs",
+        "src/Bukit-Core/Bukit.Config/I18nValidator.cs",
+        "src/Bukit-Core/Bukit.Config/ConfigJsonSchemaGenerator.cs",
+        "src/Bukit-Core/Bukit.Engine/SeoAuthorResolver.cs",
+        "src/Bukit-Core/Bukit.Engine/Incremental/SeoContributor.cs"
+      ],
+      "publicContract": false,
+      "resource": "dotnet-serial"
     }
   ],
   "resourceRules": [

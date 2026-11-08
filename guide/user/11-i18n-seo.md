@@ -81,6 +81,8 @@ site:
     titleSeparator: " | "
     defaultImage: /assets/og.png
     twitterSite: "@example"
+    defaultAuthor: Example News Desk
+    defaultAuthorType: Organization
     organization:
       type: NewsMediaOrganization
       name: Example News
@@ -108,6 +110,13 @@ URLs or root-relative URLs resolved against `site.url`; only absolute HTTP(S)
 results are emitted. `site.seo.organization.sameAs` contains explicit identity URLs,
 omits an empty array, and is never guessed. The configured organization becomes
 the matching publisher for article JSON-LD.
+
+`site.seo.defaultAuthor` is the last author fallback for article JSON-LD and
+`page.seo.article.author`. It is used only when a page has no `authoredBy`
+relation, no `author` field, and no GEO author; any of those wins. The type is
+`site.seo.defaultAuthorType` (`Person` by default, or `Organization`). Use it
+when one person or organization publishes all content without per-page
+bylines. It does not change the content model, feeds, or `llms.txt`.
 
 For collection list routes, `site.collections.<name>.noindexWhenEmpty: true`
 marks an empty result as `noindex,follow`. The same indexability decision

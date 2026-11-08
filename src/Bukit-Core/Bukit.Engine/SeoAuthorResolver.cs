@@ -1,3 +1,4 @@
+using Bukit.Config;
 using Bukit.Engine.Abstractions.Content;
 using Bukit.Rendering;
 
@@ -24,7 +25,8 @@ internal static class SeoAuthorResolver
     internal static ResolvedSeoAuthors Resolve(
         ContentRecord? record,
         IReadOnlyDictionary<string, ContentField>? fields,
-        GeoAuthorModel? geoAuthor)
+        GeoAuthorModel? geoAuthor,
+        SeoConfig? seo = null)
     {
         var projection = record?.Ownership.UsesAuthorRelation is true
             ? new ContentAuthorProjection(true, record.Ownership.AuthorProfiles)
@@ -67,7 +69,7 @@ internal static class SeoAuthorResolver
 
         var geoName = Clean(geoAuthor?.Name);
         return geoName is null
-            ? new ResolvedSeoAuthors(Array.Empty<ResolvedSeoAuthor>(), false)
+            ? DefaultAuthor(seo)
             : new ResolvedSeoAuthors(
                 [
                     new ResolvedSeoAuthor(
@@ -120,6 +122,22 @@ internal static class SeoAuthorResolver
         {
             UsesAuthorRelation = true
         };
+    }
+
+    // site.seo.defaultAuthor is the last fallback, used only when content, author
+    // relations and GEO metadata name no author.
+    private static ResolvedSeoAuthors DefaultAuthor(SeoConfig? seo)
+    {
+        var name = Clean(seo?.DefaultAuthor);
+        if (name is null)
+        {
+            return new ResolvedSeoAuthors(Array.Empty<ResolvedSeoAuthor>(), false);
+        }
+
+        var schemaType = AuthorSchemaType.Normalize(seo!.DefaultAuthorType) ?? AuthorSchemaType.Person;
+        return new ResolvedSeoAuthors(
+            [new ResolvedSeoAuthor(name, schemaType, null, null, Array.Empty<string>())],
+            false);
     }
 
     private static InvalidOperationException Block(string message)
