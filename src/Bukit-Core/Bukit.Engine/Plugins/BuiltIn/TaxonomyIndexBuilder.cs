@@ -40,7 +40,7 @@ internal static class TaxonomyIndexBuilder
         var indexKey = $"{key}|{string.Join(",", itemFields)}";
         if (!indexes.TryGetValue(indexKey, out var terms))
         {
-            terms = BuildIndexCore(context.RoutedDocuments, context.ContentGraph, key, itemFields, config);
+            terms = BuildIndexCore(context.RoutedDocuments, context.ContentGraph, key, itemFields, config, context.Logger.Warn);
             indexes[indexKey] = terms;
         }
 
@@ -52,10 +52,12 @@ internal static class TaxonomyIndexBuilder
         CanonicalContentGraph contentGraph,
         string key,
         IReadOnlyList<string> itemFields,
-        TaxonomyConfig config)
+        TaxonomyConfig config,
+        Action<string>? warn = null)
     {
         TaxonomyPlugin.BuildIndexCountForTestsScope.Value++;
         var terms = new Dictionary<string, TaxonomyTerm>(StringComparer.OrdinalIgnoreCase);
+        var decodedWarned = new HashSet<string>(StringComparer.Ordinal);
         var recordsById = contentGraph.Records
             .GroupBy(x => x.Identity.Id, StringComparer.OrdinalIgnoreCase)
             .ToDictionary(x => x.Key, x => x.First(), StringComparer.OrdinalIgnoreCase);
@@ -84,7 +86,11 @@ internal static class TaxonomyIndexBuilder
             }
             foreach (var raw in values)
             {
-                var display = (raw ?? string.Empty).Trim();
+                var display = TaxonomyTermValueNormalizer.Normalize(raw, out var decoded);
+                if (decoded && warn is not null && decodedWarned.Add(raw!))
+                {
+                    warn($"event=taxonomy.term.decoded key={key} raw=\"{raw}\" normalized=\"{display}\" hint=fix_value_at_source");
+                }
                 if (string.IsNullOrWhiteSpace(display))
                 {
                     continue;
@@ -116,10 +122,21 @@ internal static class TaxonomyIndexBuilder
 
     private static IReadOnlyList<string>? ResolveTaxonomyValues(ContentDocument item, ContentRecord? record, string key)
     {
-        if (key.Equals("tags", StringComparison.OrdinalIgnoreCase) &&
-            record?.Classification.Tags is { Count: > 0 } tags)
+        if (key.Equals("tags", StringComparison.OrdinalIgnoreCase))
         {
-            return tags;
+            // Canonical tags also absorb categories (for SEO keywords and search), but tag
+            // routes must only list real tags, or every category gets a duplicate /tags/ page.
+            if (GetStringList(item, key) is { Count: > 0 } ownTags)
+            {
+                return ownTags;
+            }
+
+            if (record?.Classification.Tags is { Count: > 0 } tags)
+            {
+                var sections = new HashSet<string>(record.Classification.Sections, StringComparer.OrdinalIgnoreCase);
+                var tagOnly = tags.Where(tag => !sections.Contains(tag)).ToArray();
+                return tagOnly.Length > 0 ? tagOnly : null;
+            }
         }
 
         if (key.Equals("categories", StringComparison.OrdinalIgnoreCase) &&

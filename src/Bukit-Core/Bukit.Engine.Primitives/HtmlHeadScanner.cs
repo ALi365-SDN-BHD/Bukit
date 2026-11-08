@@ -277,7 +277,10 @@ internal static class HtmlHeadScanner
 
     internal static int FindTagEnd(string html, int tagStart)
     {
+        // A quote only opens an attribute value right after '=' (whitespace allowed),
+        // matching HTML parsing; a stray quote elsewhere must not swallow the rest of the document.
         var quote = '\0';
+        var afterEquals = false;
         for (var index = tagStart + 1; index < html.Length; index++)
         {
             var current = html[index];
@@ -291,10 +294,22 @@ internal static class HtmlHeadScanner
                 continue;
             }
 
-            if (current is '"' or '\'')
+            if (current is '"' or '\'' && afterEquals)
             {
                 quote = current;
+                afterEquals = false;
                 continue;
+            }
+
+            if (current == '=')
+            {
+                afterEquals = true;
+                continue;
+            }
+
+            if (!char.IsWhiteSpace(current))
+            {
+                afterEquals = false;
             }
 
             if (current == '>')

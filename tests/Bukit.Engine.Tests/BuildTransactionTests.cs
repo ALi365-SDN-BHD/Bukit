@@ -360,7 +360,7 @@ public sealed class BuildTransactionTests : IDisposable
     [InlineData(true, true, true)]
     [InlineData(false, false, false)]
     [InlineData(false, true, false)]
-    public void NotionAndMediaWriteSetCommitsTogetherOrPreservesOldBytes(bool customNotion, bool commit, bool independentEngineCache)
+    public void NotionCacheSurvivesAbortWhileMediaRollsBack(bool customNotion, bool commit, bool independentEngineCache)
     {
         var notion = Path.Combine(_root, customNotion ? "custom-notion" : ".cache/notion");
         var media = Path.Combine(_root, "downloads");
@@ -386,10 +386,74 @@ public sealed class BuildTransactionTests : IDisposable
             Assert.Equal("media-old", File.ReadAllText(Path.Combine(media, "old")));
             if (commit) transaction.Commit(default);
         }
-        Assert.Equal(commit ? "notion-new" : "notion-old", File.ReadAllText(Path.Combine(notion, "old")));
+        // Notion entries are atomic and keyed by edit time, so an aborted build keeps them.
+        Assert.Equal("notion-new", File.ReadAllText(Path.Combine(notion, "old")));
         Assert.Equal(commit ? "media-new" : "media-old", File.ReadAllText(Path.Combine(media, "old")));
         Assert.Equal("keep-me", File.ReadAllText(Path.Combine(cache, "unrelated")));
         Assert.Equal(commit && !independentEngineCache ? 1 : 0, cacheInstalls);
+    }
+
+    [Theory]
+    [InlineData(false, false)]
+    [InlineData(true, false)]
+    [InlineData(false, true)]
+    public void NotionCachePreserveFailure_KeepsOrBacksUpPreviousCache(bool restoreFails, bool cleanupFails)
+    {
+        var notion = Path.Combine(_root, ".cache/notion");
+        Directory.CreateDirectory(notion);
+        File.WriteAllText(Path.Combine(notion, "old"), "notion-old");
+        var config = Config with { Content = Config.Content with { Sources = [new() { Type = "notion", Notion = new() { DatabaseId = "db", CacheMode = "readwrite" } }] } };
+        var logger = new TestLogger();
+        var installFails = !cleanupFails;
+        void Move(string from, string to, bool directory)
+        {
+            if (installFails && from.Contains("-stage", StringComparison.Ordinal) && to.EndsWith("notion", StringComparison.Ordinal)) throw new IOException("injected install failure");
+            if (restoreFails && from.Contains(".bukit-cache-", StringComparison.Ordinal)) throw new IOException("injected restore failure");
+            if (directory) Directory.Move(from, to); else File.Move(from, to);
+        }
+        void Delete(string path, bool directory)
+        {
+            if (cleanupFails && path.Contains(".bukit-cache-", StringComparison.Ordinal)) throw new IOException("injected cleanup failure");
+            if (directory) Directory.Delete(path, true); else File.Delete(path);
+        }
+
+        using (var transaction = BuildTransaction.Begin(config, _root, new(), logger, move: Move, delete: Delete))
+        {
+            File.WriteAllText(Path.Combine(BuildTransaction.Physical(notion), "old"), "notion-new");
+        }
+
+        var backups = Directory.GetDirectories(Path.GetDirectoryName(notion)!, "notion.bukit-cache-*-backup");
+        if (cleanupFails)
+        {
+            // Install succeeded; only the backup could not be removed.
+            Assert.Equal("notion-new", File.ReadAllText(Path.Combine(notion, "old")));
+            Assert.Single(backups);
+            Assert.Contains(logger.Warnings, w => w.Contains("Cache backup cleanup failed", StringComparison.Ordinal));
+        }
+        else if (restoreFails)
+        {
+            // Neither install nor restore worked: the previous cache stays in its backup.
+            Assert.False(Directory.Exists(notion));
+            Assert.Equal("notion-old", File.ReadAllText(Path.Combine(Assert.Single(backups), "old")));
+            Assert.Contains(logger.Warnings, w => w.Contains("keep backup", StringComparison.Ordinal));
+        }
+        else
+        {
+            Assert.Equal("notion-old", File.ReadAllText(Path.Combine(notion, "old")));
+            Assert.Empty(backups);
+        }
+
+        Assert.Equal(installFails, logger.Warnings.Any(w => w.Contains("event=build.cache_preserve_failed", StringComparison.Ordinal)));
+    }
+
+    private sealed class TestLogger : ILogger
+    {
+        public List<string> Warnings { get; } = [];
+
+        public void Debug(string message) { }
+        public void Info(string message) { }
+        public void Warn(string message) => Warnings.Add(message);
+        public void Error(string message) { }
     }
 
     [Theory]

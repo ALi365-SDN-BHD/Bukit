@@ -161,6 +161,25 @@ internal static class ProviderValidators
         {
             throw new ConfigException("content.media.retryBaseDelayMs must be a non-negative integer when set.", DiagnosticCode.ConfigRequiredFieldMissing);
         }
+
+        if (!MediaLocalizationRules.TryParseOnFailure(media.OnFailure, out _))
+        {
+            throw new ConfigException(MediaLocalizationRules.InvalidOnFailureMessage, DiagnosticCode.ConfigInvalidValue);
+        }
+
+        ValidateMediaHostPatterns("content.media.downloadHosts", media.DownloadHosts);
+        ValidateMediaHostPatterns("content.media.skipHosts", media.SkipHosts);
+    }
+
+    private static void ValidateMediaHostPatterns(string fieldName, IReadOnlyList<string>? patterns)
+    {
+        // Name the value, not its index: blank entries are dropped while loading, so indexes can shift.
+        if (!MediaLocalizationRules.TryNormalizeHostPatterns(patterns, out _, out var invalid))
+        {
+            throw new ConfigException(
+                MediaLocalizationRules.InvalidHostPatternMessage(fieldName, invalid),
+                DiagnosticCode.ConfigInvalidValue);
+        }
     }
 
     internal static void RejectPathTraversal(string fieldName, string value)

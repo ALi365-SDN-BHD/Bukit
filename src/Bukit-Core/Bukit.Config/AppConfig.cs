@@ -400,6 +400,12 @@ public sealed record MediaConfig
     public long? MaxFileSizeBytes { get; init; } = 50 * 1024 * 1024;
     public bool BlockPrivateNetworks { get; init; } = true;
     public int? RetryBaseDelayMs { get; init; } = 500;
+    /// <summary>Result of a failed download: "placeholder" (defaultImageUrl) or "keep" (original URL).</summary>
+    public string OnFailure { get; init; } = "placeholder";
+    /// <summary>When non-empty, only these hosts are downloaded. Supports "*." prefix wildcards.</summary>
+    public IReadOnlyList<string> DownloadHosts { get; init; } = [];
+    /// <summary>Hosts that are never downloaded; their URLs stay unchanged. Supports "*." prefix wildcards.</summary>
+    public IReadOnlyList<string> SkipHosts { get; init; } = [];
 }
 
 public sealed record NotionFieldPolicyConfig
@@ -484,6 +490,8 @@ public sealed record TaxonomyConfig
     public string? PinOrderField { get; init; }
     public IReadOnlyDictionary<string, string>? PinFieldBySource { get; init; }
     public IReadOnlyDictionary<string, string>? PinOrderFieldBySource { get; init; }
+    /// <summary>How to emit term pages with no content: render (default), noindex, or skip.</summary>
+    public string EmptyTerms { get; init; } = "render";
 }
 
 public sealed record TaxonomyKindConfig

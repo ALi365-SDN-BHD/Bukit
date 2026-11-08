@@ -167,6 +167,12 @@ public static class ConfigValidator
             throw new ConfigException("taxonomy.outputMode must be both|pages|data|fields_only.", DiagnosticCode.ConfigInvalidValue);
         }
 
+        var taxonomyEmptyTerms = (config.Taxonomy.EmptyTerms ?? "render").Trim().ToLowerInvariant();
+        if (taxonomyEmptyTerms is not ("render" or "noindex" or "skip"))
+        {
+            throw new ConfigException("taxonomy.emptyTerms must be render|noindex|skip.", DiagnosticCode.ConfigInvalidValue);
+        }
+
         if (config.Taxonomy.PageSize <= 0)
         {
             throw new ConfigException("taxonomy.pageSize must be a positive integer.", DiagnosticCode.ConfigInvalidValue);

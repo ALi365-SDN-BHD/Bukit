@@ -1,10 +1,12 @@
 using Bukit.Engine.Abstractions.Content;
+using System.Buffers;
 using System.Collections.Concurrent;
 using System.Net;
 using System.Security.Cryptography;
 using System.Text.Json;
 using Bukit.Config;
 using Bukit.Shared;
+using static Bukit.Content.Media.MediaTempFiles;
 
 namespace Bukit.Content.Media;
 
@@ -44,16 +46,26 @@ public sealed class ImageAssetLocalizer : IImageAssetLocalizer, IDisposable
     private readonly CancellationTokenSource _lifetimeCancellation = new();
     private readonly CancellationToken _lifetimeToken;
     private readonly ConcurrentDictionary<string, string> _cache = new(StringComparer.Ordinal);
-    private readonly ConcurrentDictionary<string, Lazy<Task<string>>> _inflight = new(StringComparer.Ordinal);
-    private readonly ConcurrentBag<MediaFailure> _failures = new();
+    private readonly ConcurrentDictionary<string, Lazy<Task<DownloadOutcome>>> _inflight = new(StringComparer.Ordinal);
+    // Keys whose download already failed in this localizer's lifetime; not retried. A localizer
+    // lives for one build: ImageLocalizeStage creates it and the build disposes its body store.
+    private readonly ConcurrentDictionary<string, byte> _failedKeys = new(StringComparer.Ordinal);
+    // A queue keeps failures in the order they happened, for the build summary.
+    private readonly ConcurrentQueue<MediaFailure> _failures = new();
+    private readonly Lock _failureReportLock = new();
+    private int _reportedFailureCount;
     private readonly MediaIndexManager _indexManager;
     private readonly ImageContentValidator _imageValidator = new();
+    private readonly bool _keepOriginalOnFailure;
+    private readonly MediaHostFilter _hostFilter;
     private int _disposeState;
 
     public IReadOnlyList<MediaFailure> Failures => _failures.ToArray();
 
     public ImageAssetLocalizer(MediaConfig config, ILogger? logger = null)
     {
+        _keepOriginalOnFailure = ParseKeepOnFailure(config);
+        _hostFilter = new MediaHostFilter(config.DownloadHosts, config.SkipHosts);
         _config = config;
         _logger = logger;
         _resolveHostAddresses = ResolveHostAddressesAsync;
@@ -86,6 +98,8 @@ public sealed class ImageAssetLocalizer : IImageAssetLocalizer, IDisposable
         ArgumentNullException.ThrowIfNull(config);
         ArgumentNullException.ThrowIfNull(handler);
         ArgumentNullException.ThrowIfNull(resolveHostAddresses);
+        _keepOriginalOnFailure = ParseKeepOnFailure(config);
+        _hostFilter = new MediaHostFilter(config.DownloadHosts, config.SkipHosts);
         _config = config;
         _httpClient = new HttpClient(handler, disposeHandler: true);
         _httpClient.DefaultRequestHeaders.UserAgent.ParseAdd(UserAgentValue);
@@ -109,38 +123,28 @@ public sealed class ImageAssetLocalizer : IImageAssetLocalizer, IDisposable
             return _config.DefaultImageUrl;
         }
 
-        var source = sourceUrl.Trim();
+        // Under onFailure: keep, failures return this text unchanged (before HTML decoding).
+        var original = sourceUrl.Trim();
+        var source = original;
 
         if (source.Contains("&amp;", StringComparison.Ordinal))
         {
             source = System.Net.WebUtility.HtmlDecode(source);
         }
 
-        if (!Uri.TryCreate(source, UriKind.Absolute, out var uri) ||
-            (uri.Scheme != Uri.UriSchemeHttp && uri.Scheme != Uri.UriSchemeHttps))
+        if (ResolveWithoutDownload(source, out var uri) is { } notDownloaded)
         {
-            if (IsLocalAssetReference(source))
-            {
-                _logger?.Debug($"event=media.skip_local source={UrlRedactor.Redact(source)}");
-                return source;
-            }
-
-            _logger?.Warn($"event=media.skip_non_http source={UrlRedactor.Redact(source)}");
-            return source;
+            return notDownloaded;
         }
 
         var normalizedKey = NormalizeSourceUrlForKey(uri);
 
-        if (!_config.DownloadToLocal)
+        if (_failedKeys.ContainsKey(normalizedKey))
         {
-            _logger?.Warn($"event=media.skip_download_disabled source={UrlRedactor.Redact(source)}");
-            return source;
-        }
-
-        if (string.IsNullOrWhiteSpace(_config.DownloadDir) || string.IsNullOrWhiteSpace(_config.UrlBase))
-        {
-            _logger?.Warn($"event=media.skip_missing_config source={UrlRedactor.Redact(source)} downloadDir={_config.DownloadDir} urlBase={_config.UrlBase}");
-            return _config.DefaultImageUrl;
+            // Already failed (and reported) in this build: skip the retries and timeouts, but warn so
+            // every page that still references the broken URL is visible.
+            _logger?.Warn($"event=media.failed_reference source={UrlRedactor.Redact(source)}");
+            return FailureResult(original);
         }
 
         var root = _config.DownloadDir.Trim();
@@ -158,7 +162,8 @@ public sealed class ImageAssetLocalizer : IImageAssetLocalizer, IDisposable
             _indexManager.ForgetIndex(normalizedKey);
             if (!DeleteUntrustedCachedFile(root, cachedFileName))
             {
-                return RecordFailure(source, "Unsafe cached media could not be removed.");
+                AddFailure(source, "Unsafe cached media could not be removed.");
+                return FailureResult(original);
             }
         }
 
@@ -173,7 +178,8 @@ public sealed class ImageAssetLocalizer : IImageAssetLocalizer, IDisposable
             _indexManager.ForgetIndex(normalizedKey);
             if (!DeleteUntrustedCachedFile(root, indexedFileName))
             {
-                return RecordFailure(source, "Unsafe cached media could not be removed.");
+                AddFailure(source, "Unsafe cached media could not be removed.");
+                return FailureResult(original);
             }
         }
 
@@ -190,11 +196,12 @@ public sealed class ImageAssetLocalizer : IImageAssetLocalizer, IDisposable
 
             if (!DeleteUntrustedCachedFile(root, existingName))
             {
-                return RecordFailure(source, "Unsafe cached media could not be removed.");
+                AddFailure(source, "Unsafe cached media could not be removed.");
+                return FailureResult(original);
             }
         }
 
-        var newDownload = new Lazy<Task<string>>(
+        var newDownload = new Lazy<Task<DownloadOutcome>>(
             () => DownloadCoreAsync(normalizedKey, uri, source, root, _lifetimeToken),
             LazyThreadSafetyMode.ExecutionAndPublication);
         var download = _inflight.GetOrAdd(normalizedKey, newDownload);
@@ -203,10 +210,16 @@ public sealed class ImageAssetLocalizer : IImageAssetLocalizer, IDisposable
         {
             _ = RemoveInflightWhenCompletedAsync(normalizedKey, download, downloadTask);
         }
+        else
+        {
+            _logger?.Debug($"{SharedDownloadEvent} source={UrlRedactor.Redact(source)}");
+        }
 
         try
         {
-            return await downloadTask.WaitAsync(cancellationToken);
+            var outcome = await downloadTask.WaitAsync(cancellationToken);
+            // Callers sharing a download may spell the URL differently; a failure uses this caller's own source.
+            return outcome.LocalUrl ?? FailureResult(original);
         }
         finally
         {
@@ -217,10 +230,47 @@ public sealed class ImageAssetLocalizer : IImageAssetLocalizer, IDisposable
         }
     }
 
+    // Returns the URL to use when this source is not downloaded, or null when it should be.
+    private string? ResolveWithoutDownload(string source, out Uri uri)
+    {
+        if (!Uri.TryCreate(source, UriKind.Absolute, out uri!) ||
+            (uri.Scheme != Uri.UriSchemeHttp && uri.Scheme != Uri.UriSchemeHttps))
+        {
+            if (IsLocalAssetReference(source))
+            {
+                _logger?.Debug($"event=media.skip_local source={UrlRedactor.Redact(source)}");
+                return source;
+            }
+
+            _logger?.Warn($"event=media.skip_non_http source={UrlRedactor.Redact(source)}");
+            return source;
+        }
+
+        if (!_config.DownloadToLocal)
+        {
+            _logger?.Warn($"event=media.skip_download_disabled source={UrlRedactor.Redact(source)}");
+            return source;
+        }
+
+        if (!_hostFilter.ShouldDownload(uri))
+        {
+            _logger?.Debug($"event=media.skip_host source={UrlRedactor.Redact(source)}");
+            return source;
+        }
+
+        if (string.IsNullOrWhiteSpace(_config.DownloadDir) || string.IsNullOrWhiteSpace(_config.UrlBase))
+        {
+            _logger?.Warn($"event=media.skip_missing_config source={UrlRedactor.Redact(source)} downloadDir={_config.DownloadDir} urlBase={_config.UrlBase}");
+            return _config.DefaultImageUrl;
+        }
+
+        return null;
+    }
+
     private async Task RemoveInflightWhenCompletedAsync(
         string normalizedKey,
-        Lazy<Task<string>> download,
-        Task<string> downloadTask)
+        Lazy<Task<DownloadOutcome>> download,
+        Task<DownloadOutcome> downloadTask)
     {
         try
         {
@@ -236,7 +286,7 @@ public sealed class ImageAssetLocalizer : IImageAssetLocalizer, IDisposable
         }
     }
 
-    private async Task<string> DownloadCoreAsync(
+    private async Task<DownloadOutcome> DownloadCoreAsync(
         string normalizedKey, Uri uri, string source, string root,
         CancellationToken cancellationToken)
     {
@@ -264,51 +314,70 @@ public sealed class ImageAssetLocalizer : IImageAssetLocalizer, IDisposable
                     if (attempt >= maxRetries)
                     {
                         _logger?.Warn($"event=media.download_failed status={(int)response.StatusCode} source={UrlRedactor.Redact(source)}");
-                        return RecordFailure(source, $"HTTP {(int)response.StatusCode}");
+                        return RecordDownloadFailure(normalizedKey, source, $"HTTP {(int)response.StatusCode}");
                     }
 
                     await DelayBeforeRetryAsync(attempt, retryBaseDelay, cancellationToken);
                     continue;
                 }
 
-                var contentType = response.Content.Headers.ContentType?.MediaType;
-                if (!IsAllowedContentType(contentType))
+                var headerContentType = response.Content.Headers.ContentType?.MediaType;
+                // Generic binary types (e.g. Notion file storage) are identified from the file signature below.
+                var identifyBySignature = IsGenericBinaryContentType(headerContentType);
+                if (!identifyBySignature && !IsAllowedContentType(headerContentType))
                 {
                     _logger?.Warn(
-                        $"event=media.content_type_rejected type={contentType ?? "(null)"} source={UrlRedactor.Redact(source)}");
-                    return RecordFailure(source, $"Content-Type rejected: {contentType ?? "(null)"}");
+                        $"event=media.content_type_rejected type={headerContentType ?? "(null)"} source={UrlRedactor.Redact(source)}");
+                    return RecordDownloadFailure(normalizedKey, source, $"Content-Type rejected: {headerContentType ?? "(null)"}");
                 }
 
-                var ext = ResolveExtension(sendResult.FinalUri, contentType);
-                var fileName = BuildStableFileName(normalizedKey, ext);
-                var localPath = Path.Combine(root, fileName);
-                var tempPath = BuildTempFilePath(root, fileName);
-                var bytesWritten = await WriteWithLimitAsync(response.Content, tempPath, maxFileSize, cts.Token);
-                if (bytesWritten is null)
+                var tempPath = BuildTempFilePath(root, BuildFileIdentity(normalizedKey));
+                var write = await WriteWithLimitAsync(
+                    response.Content,
+                    tempPath,
+                    maxFileSize,
+                    identifyBySignature ? null : headerContentType!.Trim(),
+                    cts.Token);
+                if (write.Status == WriteStatus.TooLarge)
                 {
                     _logger?.Warn($"event=media.download_too_large limit={maxFileSize} source={UrlRedactor.Redact(source)}");
-                    return RecordFailure(source, $"File too large (limit: {maxFileSize} bytes)");
+                    return RecordDownloadFailure(normalizedKey, source, $"File too large (limit: {maxFileSize} bytes)");
                 }
 
-                if (bytesWritten.Value == 0)
+                if (write.Status == WriteStatus.SignatureRejected)
+                {
+                    _logger?.Warn(
+                        $"event=media.content_type_rejected type={headerContentType ?? "(null)"} signature=unrecognized source={UrlRedactor.Redact(source)}");
+                    return RecordDownloadFailure(
+                        normalizedKey,
+                        source,
+                        $"Content-Type rejected: {headerContentType ?? "(null)"} (image signature not recognized)");
+                }
+
+                if (write.BytesWritten == 0)
                 {
                     DeleteFileBestEffort(tempPath);
                     if (attempt >= maxRetries)
                     {
                         _logger?.Warn($"event=media.download_empty source={UrlRedactor.Redact(source)}");
-                        return RecordFailure(source, "Empty response body");
+                        return RecordDownloadFailure(normalizedKey, source, "Empty response body");
                     }
 
                     await DelayBeforeRetryAsync(attempt, retryBaseDelay, cancellationToken);
                     continue;
                 }
+
+                var contentType = write.ContentType;
+                var ext = ResolveExtension(sendResult.FinalUri, contentType);
+                var fileName = BuildStableFileName(normalizedKey, ext);
+                var localPath = Path.Combine(root, fileName);
 
                 bool signatureMatches;
                 try
                 {
                     signatureMatches = await _imageValidator.ValidateAsync(
                         tempPath,
-                        contentType!,
+                        contentType,
                         cts.Token);
                 }
                 catch
@@ -322,7 +391,8 @@ public sealed class ImageAssetLocalizer : IImageAssetLocalizer, IDisposable
                     DeleteFileBestEffort(tempPath);
                     _logger?.Warn(
                         $"event=media.signature_rejected type={contentType} source={UrlRedactor.Redact(source)}");
-                    return RecordFailure(
+                    return RecordDownloadFailure(
+                        normalizedKey,
                         source,
                         "Image content signature does not match Content-Type or is not decodable.");
                 }
@@ -345,7 +415,7 @@ public sealed class ImageAssetLocalizer : IImageAssetLocalizer, IDisposable
                     DeleteFileBestEffort(tempPath);
                     _logger?.Warn(
                         $"event=media.move_conflict_unverified source={UrlRedactor.Redact(source)}");
-                    return RecordFailure(source, "Media file move conflicted with an unverifiable winner.");
+                    return RecordDownloadFailure(normalizedKey, source, "Media file move conflicted with an unverifiable winner.");
                 }
 
                 if (!winnerIsTrusted)
@@ -373,7 +443,7 @@ public sealed class ImageAssetLocalizer : IImageAssetLocalizer, IDisposable
                     {
                         _logger?.Warn(
                             $"event=media.winner_rejected type={contentType} source={UrlRedactor.Redact(source)}");
-                        return RecordFailure(source, "Media winner file failed content validation.");
+                        return RecordDownloadFailure(normalizedKey, source, "Media winner file failed content validation.");
                     }
 
                     bool winnerIdentityMatches;
@@ -398,7 +468,8 @@ public sealed class ImageAssetLocalizer : IImageAssetLocalizer, IDisposable
                     {
                         _logger?.Warn(
                             $"event=media.winner_identity_rejected source={UrlRedactor.Redact(source)}");
-                        return RecordFailure(
+                        return RecordDownloadFailure(
+                            normalizedKey,
                             source,
                             "Media winner file did not match downloaded content identity.");
                     }
@@ -407,13 +478,13 @@ public sealed class ImageAssetLocalizer : IImageAssetLocalizer, IDisposable
                 var publicUrl = _indexManager.CombineUrl(fileName);
                 _indexManager.RememberIndex(normalizedKey, fileName);
                 _cache.TryAdd(normalizedKey, fileName);
-                return publicUrl;
+                return new DownloadOutcome(publicUrl);
             }
             catch (UnsafeMediaTargetException ex)
             {
                 _logger?.Warn(
                     $"event=media.ssrf_blocked source={UrlRedactor.Redact(source)} error={ex.GetType().Name}");
-                return RecordFailure(source, "SSRF blocked (unsafe or unverifiable target)");
+                return RecordDownloadFailure(normalizedKey, source, "SSRF blocked (unsafe or unverifiable target)");
             }
             catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
             {
@@ -425,7 +496,7 @@ public sealed class ImageAssetLocalizer : IImageAssetLocalizer, IDisposable
                 {
                     _logger?.Warn(
                         $"event=media.download_error source={UrlRedactor.Redact(source)} {BuildDownloadErrorDiagnostic(ex)}");
-                    return RecordFailure(source, $"{ex.GetType().Name}: {ex.Message}");
+                    return RecordDownloadFailure(normalizedKey, source, $"{ex.GetType().Name}: {ex.Message}");
                 }
 
                 await DelayBeforeRetryAsync(attempt, retryBaseDelay, cancellationToken);
@@ -545,112 +616,63 @@ public sealed class ImageAssetLocalizer : IImageAssetLocalizer, IDisposable
         return !Uri.TryCreate(source, UriKind.Absolute, out _);
     }
 
-    private string RecordFailure(string sourceUrl, string reason)
-    {
-        _failures.Add(new MediaFailure(UrlRedactor.Redact(sourceUrl), reason));
-        return _config.DefaultImageUrl;
-    }
+    private void AddFailure(string sourceUrl, string reason)
+        => _failures.Enqueue(new MediaFailure(UrlRedactor.Redact(sourceUrl), reason));
 
-    private static async Task<long?> WriteWithLimitAsync(
-        HttpContent content, string tempPath, long maxBytes, CancellationToken cancellationToken)
+    /// <summary>Debug event logged when a caller joins a download that is already running.</summary>
+    internal const string SharedDownloadEvent = "event=media.download_shared";
+
+    /// <summary>
+    /// Logs a warning summary of failures not yet reported. Called after the front-matter and HTML
+    /// pass, and again on dispose for later failures (lazily localized bodies).
+    /// </summary>
+    internal void LogFailureSummary(ILogger logger, string phase)
     {
-        if (content.Headers.ContentLength is > 0 && content.Headers.ContentLength.Value > maxBytes)
+        ArgumentNullException.ThrowIfNull(logger);
+        MediaFailure[] pending;
+        lock (_failureReportLock)
         {
-            return null;
+            var all = _failures.ToArray();
+            pending = all[_reportedFailureCount..];
+            _reportedFailureCount = all.Length;
         }
 
-        var completed = false;
-        await using var stream = await content.ReadAsStreamAsync(cancellationToken);
-        await using var output = new FileStream(
-            tempPath,
-            FileMode.CreateNew,
-            FileAccess.Write,
-            FileShare.Read,
-            bufferSize: 81920,
-            FileOptions.Asynchronous | FileOptions.SequentialScan);
-        var buffer = new byte[8192];
-        long totalRead = 0;
-        try
+        if (pending.Length == 0)
         {
-            int read;
-            while ((read = await stream.ReadAsync(buffer, cancellationToken)) > 0)
-            {
-                totalRead += read;
-                if (totalRead > maxBytes)
-                {
-                    return null;
-                }
-
-                await output.WriteAsync(buffer.AsMemory(0, read), cancellationToken);
-            }
-
-            completed = true;
-            return totalRead;
+            return;
         }
-        finally
+
+        logger.Warn($"event=media.localize_summary phase={phase} failed={pending.Length}");
+        foreach (var failure in pending)
         {
-            if (!completed)
-            {
-                DeleteFileBestEffort(tempPath);
-            }
+            logger.Warn($"  - {failure.SourceUrl} => {failure.Reason}");
         }
     }
 
-    private static string BuildTempFilePath(string root, string fileName)
+    // Inside the shared download: record once, remember the key, and let each waiting caller
+    // map the failure to its own result.
+    private DownloadOutcome RecordDownloadFailure(string normalizedKey, string sourceUrl, string reason)
     {
-        return Path.Combine(root, $".{fileName}.{Guid.NewGuid():N}.tmp");
+        AddFailure(sourceUrl, reason);
+        _failedKeys.TryAdd(normalizedKey, 0);
+        return DownloadOutcome.Failed;
     }
 
-    private static async Task<FileContentIdentity> ReadFileContentIdentityAsync(
-        string path,
-        CancellationToken cancellationToken)
+    /// <summary>Result of a shared download: the local URL, or null when it failed.</summary>
+    private readonly record struct DownloadOutcome(string? LocalUrl)
     {
-        await using var stream = new FileStream(
-            path,
-            FileMode.Open,
-            FileAccess.Read,
-            FileShare.Read,
-            bufferSize: 8192,
-            FileOptions.Asynchronous | FileOptions.SequentialScan);
-        var length = stream.Length;
-        var sha256 = await SHA256.HashDataAsync(stream, cancellationToken);
-        return new FileContentIdentity(length, sha256);
+        public static DownloadOutcome Failed => default;
     }
 
-    private static bool MoveTempFileIntoPlace(string tempPath, string localPath, out bool winnerIsTrusted)
-    {
-        winnerIsTrusted = true;
-        try
-        {
-            File.Move(tempPath, localPath);
-            return true;
-        }
-        catch (IOException) when (File.Exists(localPath))
-        {
-            // Another writer won the race; the winner needs re-validation
-            winnerIsTrusted = false;
-            DeleteFileBestEffort(tempPath);
-            return true;
-        }
-        catch
-        {
-            DeleteFileBestEffort(tempPath);
-            return false;
-        }
-    }
+    private string FailureResult(string sourceUrl)
+        => _keepOriginalOnFailure ? sourceUrl : _config.DefaultImageUrl;
 
-    private static void DeleteFileBestEffort(string path)
+    private static bool ParseKeepOnFailure(MediaConfig config)
     {
-        try
-        {
-            File.Delete(path);
-        }
-        catch (IOException)
-        {
-        }
-        catch (UnauthorizedAccessException)
-        {
-        }
+        ArgumentNullException.ThrowIfNull(config);
+        return MediaLocalizationRules.TryParseOnFailure(config.OnFailure, out var keep)
+            ? keep
+            : throw new ConfigException(MediaLocalizationRules.InvalidOnFailureMessage, DiagnosticCode.ConfigInvalidValue);
     }
 
     private static bool IsAllowedContentType(string? contentType)
@@ -775,6 +797,11 @@ public sealed class ImageAssetLocalizer : IImageAssetLocalizer, IDisposable
         }
 
         _lifetimeCancellation.Cancel();
+        if (_logger is not null)
+        {
+            LogFailureSummary(_logger, "deferred");
+        }
+
         _indexManager.PersistIndex();
         _httpClient.Dispose();
 
@@ -782,8 +809,6 @@ public sealed class ImageAssetLocalizer : IImageAssetLocalizer, IDisposable
     }
 
     private sealed record MediaSendResult(HttpResponseMessage Response, Uri FinalUri);
-
-    private readonly record struct FileContentIdentity(long Length, byte[] Sha256);
 
     private sealed class UnsafeMediaTargetException(string message) : Exception(message);
 }

@@ -12,6 +12,11 @@ internal sealed class TaxonomyContributor : IRenderDependencyContributor
         writer.AppendLabeledCanonicalValue("taxonomy.indexEnabled", taxonomy.IndexEnabled);
         writer.AppendLabeledCanonicalValue("taxonomy.pinField", taxonomy.PinField);
         writer.AppendLabeledCanonicalValue("taxonomy.pinOrderField", taxonomy.PinOrderField);
+        if (Plugins.BuiltIn.TaxonomyPageCreator.NormalizeEmptyTerms(taxonomy.EmptyTerms) != "render")
+        {
+            // Only hashed when set, so the default keeps existing incremental caches valid.
+            writer.AppendLabeledCanonicalValue("taxonomy.emptyTerms", taxonomy.EmptyTerms);
+        }
         writer.AppendLabeledCanonicalValue(
             "taxonomy.itemFields",
             taxonomy.ItemFields?.OrderBy(x => x, StringComparer.Ordinal).ToList());

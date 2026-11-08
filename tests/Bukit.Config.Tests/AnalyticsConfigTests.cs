@@ -28,7 +28,7 @@ public sealed class AnalyticsConfigTests : IDisposable
     [Theory]
     [InlineData("google-analytics", "measurementId: G-CONSENT123")]
     [InlineData("google-tag-manager", "containerId: GTM-CONSENT123")]
-    public void Validate_GoogleProviderWithoutExplicitConsent_ThrowsRequiredField(
+    public void Validate_GoogleProviderWithoutConsent_IsValid(
         string providerType,
         string providerField)
     {
@@ -38,10 +38,9 @@ public sealed class AnalyticsConfigTests : IDisposable
                 {{providerField}}
             """);
 
-        var ex = Assert.Throws<ConfigException>(() => ConfigValidator.Validate(config));
+        ConfigValidator.Validate(config);
 
-        Assert.Equal(DiagnosticCode.ConfigRequiredFieldMissing, ex.Code);
-        Assert.Equal("site.analytics.consent.google is required when a Google provider is configured.", ex.Message);
+        Assert.Null(config.Site.Analytics.Consent);
     }
 
     [Fact]

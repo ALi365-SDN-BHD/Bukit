@@ -101,17 +101,8 @@ internal static class ContentProviderFactory
             var documents = ContentDocumentNormalizer.ToDocuments(result.Documents);
             var localizedDocuments = await pipeline.RewriteAsync(documents, cancellationToken);
 
-            var failures = localizer is ImageAssetLocalizer imageAssetLocalizer
-                ? imageAssetLocalizer.Failures
-                : Array.Empty<MediaFailure>();
-            if (failures.Count > 0)
-            {
-                logger.Warn($"event=media.localize_summary failed={failures.Count}");
-                foreach (var f in failures)
-                {
-                    logger.Warn($"  - {f.SourceUrl} => {f.Reason}");
-                }
-            }
+            // Body images are localized lazily later; the localizer reports those on dispose.
+            (localizer as ImageAssetLocalizer)?.LogFailureSummary(logger, "documents");
 
             var localizedRaw = localizedDocuments
                 .Select(document => new RawContentDocument(

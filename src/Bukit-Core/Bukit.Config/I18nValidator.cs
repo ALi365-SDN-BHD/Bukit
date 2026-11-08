@@ -223,13 +223,6 @@ internal static class I18nValidator
                 DiagnosticCode.ConfigRequiredFieldMissing);
         }
 
-        if (hasGoogleProvider && analytics.Consent?.Google is null)
-        {
-            throw new ConfigException(
-                "site.analytics.consent.google is required when a Google provider is configured.",
-                DiagnosticCode.ConfigRequiredFieldMissing);
-        }
-
         if (!hasGoogleProvider && analytics.Consent?.Google is not null)
         {
             throw new ConfigException(

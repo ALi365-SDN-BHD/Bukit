@@ -22,7 +22,7 @@ internal static class ConfigStrictFieldValidator
         "name", "layouts", "assets", "static", "staticTemplate", "params", "shortcodes",
         "components", "scss", "images", "componentValidation");
     private static readonly HashSet<string> TaxonomyKeys = Set(
-        "kinds", "outputMode", "itemFields", "pageSize", "indexEnabled", "pinField", "pinOrderField",
+        "kinds", "outputMode", "itemFields", "pageSize", "indexEnabled", "pinField", "pinOrderField", "emptyTerms",
         "pinFieldBySource", "pinOrderFieldBySource");
     private static readonly HashSet<string> LoggingKeys = Set("level");
     private static readonly HashSet<string> DeployKeys = Set("provider", "branch", "message", "repo", "cname", "keepHistory");
@@ -342,7 +342,8 @@ internal static class ConfigStrictFieldValidator
         {
             RequireOnly(media, Set(
                 "downloadToLocal", "downloadDir", "urlBase", "defaultImageUrl", "fieldKeys", "maxConcurrency",
-                "maxRetries", "timeoutMs", "maxFileSizeBytes", "blockPrivateNetworks", "retryBaseDelayMs"), "content.media");
+                "maxRetries", "timeoutMs", "maxFileSizeBytes", "blockPrivateNetworks", "retryBaseDelayMs",
+                "onFailure", "downloadHosts", "skipHosts"), "content.media");
         }
 
         if (Map(content, "modelSchema") is { } modelSchema) ValidateModelSchema(modelSchema);

@@ -4,7 +4,14 @@ namespace Bukit.Content.Media;
 
 internal static class ImageContentSignature
 {
-    private const int MaxSignatureBytes = 4096;
+    internal const int MaxSignatureBytes = 4096;
+
+    // Raster types a generic binary response may be identified as; SVG is never identified.
+    private static readonly string[] DetectableContentTypes =
+    [
+        "image/jpeg", "image/png", "image/gif", "image/webp",
+        "image/avif", "image/bmp", "image/x-icon", "image/tiff"
+    ];
 
     internal static async Task<bool> MatchesFileAsync(
         string path,
@@ -32,6 +39,20 @@ internal static class ImageContentSignature
         }
 
         return Matches(contentType, buffer.AsSpan(0, totalRead));
+    }
+
+    /// <summary>Returns the image content type whose signature the leading bytes match, or null.</summary>
+    internal static string? Detect(ReadOnlySpan<byte> content)
+    {
+        foreach (var contentType in DetectableContentTypes)
+        {
+            if (Matches(contentType, content))
+            {
+                return contentType;
+            }
+        }
+
+        return null;
     }
 
     internal static bool Matches(string contentType, ReadOnlySpan<byte> content)

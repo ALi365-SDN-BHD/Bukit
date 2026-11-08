@@ -4,6 +4,8 @@ Semua perubahan penting kepada Bukit akan didokumenkan dalam fail ini.
 
 ## [Belum Dikeluarkan]
 
+- **Persetujuan Analytics kini pilihan**: penyedia GA dan GTM tidak lagi memerlukan `site.analytics.consent.google`. Tanpanya, Bukit tidak menjana arahan lalai persetujuan dan Google menggunakan nilai lalainya sendiri (secara efektif semua storan `granted`); konfigurasi persetujuan tanpa penyedia Google masih ditolak. Konfigurasi sedia ada menghasilkan output yang sama.
+
 ## [2.0.8] - 2026-11-07
 
 - **Pentas media berbilang bahasa**: `content.media.downloadDir` tersuai kini dipentaskan sekali dan dikongsi oleh semua pekerja bahasa. Muat turun baharu dan `.media-index.json` hanya diserahkan bersama output dan cache selepas semua bahasa berjaya. Perubahan media dikesan melalui laluan, saiz, dan masa ubah suai; pautan simbolik di dalam direktori media ditolak. Ini perubahan tingkah laku: direktori media yang mengandungi sebarang pautan simbolik kini menggagalkan pembinaan berbilang bahasa.

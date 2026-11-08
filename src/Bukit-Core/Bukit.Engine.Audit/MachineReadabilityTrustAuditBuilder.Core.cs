@@ -8,9 +8,6 @@ namespace Bukit.Engine;
 
 internal static partial class MachineReadabilityTrustAuditBuilder
 {
-    private const int TitleMaxLength = 60;
-    private const int DescriptionMaxLength = 160;
-
     internal static MachineReadabilityTrustAuditResult BuildPublishAuditCore(
         AppConfig config,
         string outputDir,
@@ -59,20 +56,30 @@ internal static partial class MachineReadabilityTrustAuditBuilder
             seoModels.TryGetValue(key, out var model);
             var record = ResolveRecordForEntry(recordsById, entry, config.Site.Language);
             routeMapBuilder.Add(entry, model, record);
-            var schemaTypes = model is null
-                ? Array.Empty<string>()
-                : SeoSchemaValidator.ExtractSchemaTypes(model.JsonLd, entry.Route.Url, seoIssues, searchActionExpected);
-            var document = PublishDocumentBuilder.Build(entry, model, record, schemaTypes, config.Site.BaseUrl, projectionResults);
             var outputPath = Path.Combine(outputDir, entry.Route.OutputPath);
             var outputExists = File.Exists(outputPath);
+            var html = outputExists ? File.ReadAllText(outputPath) : null;
+            // Validate the model's JSON-LD only when the page actually publishes JSON-LD;
+            // otherwise one "not rendered" issue replaces per-field schema noise.
+            var jsonLdNotRendered = model is { JsonLd.Count: > 0 } &&
+                                    html is not null &&
+                                    !html.Contains("application/ld+json", StringComparison.OrdinalIgnoreCase);
+            if (jsonLdNotRendered)
+            {
+                seoIssues.Add(Warning("seo.json_ld_not_rendered", entry.Route.Url, "The SEO model has JSON-LD but the page HTML contains no application/ld+json script; the theme should output seo.json_ld."));
+            }
+
+            var schemaTypes = model is null
+                ? Array.Empty<string>()
+                : SeoSchemaValidator.ExtractSchemaTypes(model.JsonLd, entry.Route.Url, jsonLdNotRendered ? [] : seoIssues, searchActionExpected);
+            var document = PublishDocumentBuilder.Build(entry, model, record, schemaTypes, config.Site.BaseUrl, projectionResults);
             HtmlDocumentTitleInspection? titleInspection = null;
             if (!outputExists)
             {
                 seoIssues.Add(Error("seo.output_file_missing", entry.Route.Url, $"Output file is missing for route {entry.Route.Url}."));
             }
-            else
+            else if (html is not null)
             {
-                var html = File.ReadAllText(outputPath);
                 titleInspection = HtmlDocumentTitleInspector.Inspect(html);
                 var semanticInspection = SemanticLandmarkHeadingInspector.Inspect(html);
                 document = document with { SemanticOutline = semanticInspection.PrimaryHeadings };

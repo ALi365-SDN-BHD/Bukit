@@ -258,6 +258,60 @@ public sealed class LocalizedContentBodyStoreTests
         Assert.Equal(1, shared.TotalDisposeCount);
     }
 
+    [Theory]
+    [InlineData("keep", false)]
+    [InlineData("placeholder", true)]
+    public async Task GetAsync_FailedBodyImages_FollowOnFailure(string onFailure, bool expectPlaceholder)
+    {
+        var dir = Path.Combine(Path.GetTempPath(), $"bukit-media-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(dir);
+        try
+        {
+            var config = new Config.MediaConfig
+            {
+                DownloadToLocal = true,
+                DownloadDir = dir,
+                UrlBase = "/assets/uploads",
+                DefaultImageUrl = "/assets/images/noneimg-news.jpg",
+                MaxRetries = 0,
+                RetryBaseDelayMs = 0,
+                OnFailure = onFailure
+            };
+            const string html = "<img src=\"https://img.example/a.jpg\" srcset=\"https://img.example/a.jpg 1x, https://img.example/b.jpg 2x\" />";
+            using var localizer = new ImageAssetLocalizer(
+                config,
+                new NotFoundHandler(),
+                (_, _) => Task.FromResult(new[] { System.Net.IPAddress.Parse("93.184.216.34") }));
+            var store = new LocalizedContentBodyStore(
+                new TestBodyStore(_ => new ContentBody(html)),
+                new ContentImageRewritePipeline(config, localizer));
+
+            var body = await store.GetAsync(CreateItem());
+
+            if (expectPlaceholder)
+            {
+                Assert.DoesNotContain("https://img.example/", body.Html, StringComparison.Ordinal);
+                Assert.Contains("/assets/images/noneimg-news.jpg", body.Html, StringComparison.Ordinal);
+            }
+            else
+            {
+                Assert.Contains("src=\"https://img.example/a.jpg\"", body.Html, StringComparison.Ordinal);
+                Assert.Contains("https://img.example/b.jpg 2x", body.Html, StringComparison.Ordinal);
+                Assert.DoesNotContain("noneimg-news", body.Html, StringComparison.Ordinal);
+            }
+        }
+        finally
+        {
+            Directory.Delete(dir, recursive: true);
+        }
+    }
+
+    private sealed class NotFoundHandler : HttpMessageHandler
+    {
+        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+            => Task.FromResult(new HttpResponseMessage(System.Net.HttpStatusCode.NotFound));
+    }
+
     private static ContentDocument CreateItem(string id = "test-1")
     {
         return ContentDocument.Create(

@@ -75,6 +75,35 @@ public sealed class ConfigJsonSchemaGeneratorTests
         Assert.Equal(expected, actual);
     }
 
+    [Fact]
+    public void Generate_MediaOnFailure_AcceptsAnyCaseLikeTheLoader()
+    {
+        using var doc = JsonDocument.Parse(ConfigJsonSchemaGenerator.Generate());
+        var onFailure = doc.RootElement.GetProperty("properties")
+            .GetProperty("content").GetProperty("properties")
+            .GetProperty("media").GetProperty("properties")
+            .GetProperty("onFailure");
+        var anyOf = onFailure.GetProperty("anyOf");
+        var values = new List<string>();
+        foreach (var value in anyOf[0].GetProperty("enum").EnumerateArray())
+        {
+            values.Add(value.GetString()!);
+        }
+
+        var pattern = anyOf[1].GetProperty("pattern").GetString()!;
+
+        Assert.Equal(new[] { "placeholder", "keep" }, values);
+        foreach (var accepted in new[] { "keep", "Keep", " KEEP ", "PlaceHolder" })
+        {
+            Assert.Matches(pattern, accepted);
+        }
+
+        foreach (var rejected in new[] { "drop", "keeper", "kee p", "" })
+        {
+            Assert.DoesNotMatch(pattern, rejected);
+        }
+    }
+
     [Theory]
     [InlineData("aiBotAllowList")]
     [InlineData("aiBotBlockList")]
@@ -146,6 +175,14 @@ public sealed class ConfigJsonSchemaGeneratorTests
         var analytics = analyticsSchema.GetProperty("properties");
         Assert.Equal("boolean", analytics.GetProperty("enabled").GetProperty("type").GetString());
         Assert.Equal("boolean", analytics.GetProperty("productionOnly").GetProperty("type").GetString());
+        // Consent is optional for Google providers; only "consent requires a Google provider" remains.
+        var analyticsConditional = Assert.Single(analyticsSchema.GetProperty("allOf").EnumerateArray());
+        Assert.Equal(
+            new[] { "consent" },
+            analyticsConditional.GetProperty("if").GetProperty("required").EnumerateArray().Select(item => item.GetString()));
+        Assert.Equal(
+            new[] { "providers" },
+            analyticsConditional.GetProperty("then").GetProperty("required").EnumerateArray().Select(item => item.GetString()));
         var consent = analytics.GetProperty("consent");
         Assert.Equal(new[] { "google" }, consent.GetProperty("required").EnumerateArray().Select(item => item.GetString()));
         var googleConsent = consent.GetProperty("properties").GetProperty("google");
@@ -173,7 +210,6 @@ public sealed class ConfigJsonSchemaGeneratorTests
             new[] { "requirements-report" },
             analytics.GetProperty("csp").GetProperty("properties").GetProperty("mode").GetProperty("enum")
                 .EnumerateArray().Select(item => item.GetString()));
-        Assert.Equal(2, analyticsSchema.GetProperty("allOf").GetArrayLength());
         Assert.False(analytics.TryGetProperty("googleAnalyticsId", out _));
         Assert.False(analytics.TryGetProperty("disableInPreview", out _));
         var providerVariants = analytics.GetProperty("providers").GetProperty("items").GetProperty("oneOf");

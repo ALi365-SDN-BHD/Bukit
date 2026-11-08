@@ -69,7 +69,7 @@ internal sealed class PluginPipeline
 
         if (ctx.IncrementalEnabled)
         {
-            ctx.Logger.Info($"Incremental build: rendered={ctx.RenderedCount}, skipped={ctx.SkippedCount}, cache={Path.GetDirectoryName(ctx.ManifestPath)}");
+            ctx.Logger.Info($"Incremental build: rendered={ctx.RenderedCount}, skipped={ctx.SkippedCount}, cache={BuildTransaction.Logical(Path.GetDirectoryName(ctx.ManifestPath) ?? ".")}");
         }
 
         return new PluginPipelineResult(metricsCollector.Snapshot());

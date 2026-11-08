@@ -43,7 +43,7 @@
 | `site.plugins.analytics.enabled` | `true` |
 | `site.analytics.enabled` | `true` |
 | `site.analytics.productionOnly` | `true` |
-| `site.analytics.consent.google` | none; required with GA/GTM |
+| `site.analytics.consent.google` | none; optional, only valid with GA/GTM |
 | `site.analytics.csp.mode` | none; optional `requirements-report` |
 | `site.analytics.providers` | empty array |
 | Plausible provider `snippetMode` | none; required as `site-specific` or `legacy` |
@@ -98,6 +98,9 @@
 | `content.media.maxFileSizeBytes` | `52428800` |
 | `content.media.blockPrivateNetworks` | `true` |
 | `content.media.retryBaseDelayMs` | `500` |
+| `content.media.onFailure` | `placeholder` |
+| `content.media.downloadHosts` | empty (all hosts) |
+| `content.media.skipHosts` | empty |
 | `content.modelSchema.requireMediaAlt` | `true` |
 | `content.modelSchema.requireRelationTargets` | `true` |
 | `build.output` | `dist` |

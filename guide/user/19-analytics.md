@@ -144,8 +144,15 @@ title after load must supply the intended `page_title` on its later events.
 
 ## Google Consent Mode
 
-Any `google-analytics` or `google-tag-manager` provider requires an explicit
-`site.analytics.consent.google` policy. Bukit currently supports only Google
+`site.analytics.consent.google` is optional. Without it, Bukit emits no consent
+default command: GA loads with its own `dataLayer`/`gtag` bootstrap and GTM keeps
+its `<noscript>` iframe. Google then receives no Consent Mode signals and uses
+its own defaults (effectively all storage granted). Bukit injects Google loaders
+at the start of `<head>`, so a theme script cannot set consent defaults before
+them; if your audience requires consent, configure it here. Compliance stays
+with the site.
+
+When configured, Bukit currently supports only Google
 Consent Mode v2 `advanced` mode. All four defaults are required and each must
 be `granted` or `denied`; `waitForUpdateMs` is optional from 0 through 5000.
 The generated default command appears once, before every Google loader,

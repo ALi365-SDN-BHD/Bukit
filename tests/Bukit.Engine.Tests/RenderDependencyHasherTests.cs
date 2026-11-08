@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using Bukit.Config;
 using Bukit.Content;
+using Bukit.Engine.Abstractions.Content;
 using Bukit.Engine.Incremental;
 using Bukit.Rendering;
 using Xunit;
@@ -1492,5 +1493,52 @@ public sealed class RenderDependencyHasherTests
             () => RenderDependencyHasher.Compute(config, SiteModelWithData(("cycle", cyclic))));
 
         Assert.Contains("render dependency value cycle", exception.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void Compute_LargeSiteData_StaysWithinNodeBudget()
+    {
+        // ~3500-page sites exceeded the old 100k budget through pages_by_id.
+        var config = CreateBaseConfig();
+        var pages = new Dictionary<string, object>();
+        for (var i = 0; i < 5000; i++)
+        {
+            pages[$"page-{i}"] = new PageInfo
+            {
+                Title = $"Title {i}",
+                Url = $"/{i}/",
+                Content = "<p>body</p>",
+                Summary = "summary",
+                Fields = new Dictionary<string, ContentField>
+                {
+                    ["categories"] = new("text", "news"),
+                    ["tags"] = new("text", "a,b"),
+                    ["cover"] = new("url", $"https://example.com/{i}.jpg")
+                }
+            };
+        }
+
+        var hash = RenderDependencyHasher.Compute(config, SiteModelWithData(("pages_by_id", pages)));
+
+        Assert.Equal(64, hash.Length);
+
+        // The same graph trips the former 100k budget, so this test guards the regression.
+        using var hasher = System.Security.Cryptography.IncrementalHash.CreateHash(
+            System.Security.Cryptography.HashAlgorithmName.SHA256);
+        var legacy = new RenderDependencyHashWriter(hasher, maxNodes: 100_000);
+        Assert.Throws<InvalidOperationException>(() => legacy.AppendObjectValue(pages));
+    }
+
+    [Fact]
+    public void Writer_ExceedingNodeBudget_FailsWithStableDiagnostic()
+    {
+        using var hasher = System.Security.Cryptography.IncrementalHash.CreateHash(
+            System.Security.Cryptography.HashAlgorithmName.SHA256);
+        var writer = new RenderDependencyHashWriter(hasher, maxNodes: 3);
+
+        var exception = Assert.Throws<InvalidOperationException>(
+            () => writer.AppendObjectValue(new[] { 1, 2, 3 }));
+
+        Assert.Contains("exceeds the 3 node budget", exception.Message, StringComparison.Ordinal);
     }
 }

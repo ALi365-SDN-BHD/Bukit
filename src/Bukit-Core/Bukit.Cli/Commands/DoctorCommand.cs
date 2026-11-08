@@ -236,6 +236,7 @@ public static class DoctorCommand
         Console.WriteLine();
         DoctorTemplateChecker.CheckHardcodedUrls(ctx);
         DoctorTemplateChecker.CheckHardcodedText(ctx);
+        DoctorTemplateChecker.CheckSeoTemplateOutput(ctx);
 
         if (!Directory.Exists(assetsDir))
         {

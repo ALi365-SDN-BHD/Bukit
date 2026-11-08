@@ -145,6 +145,7 @@ public static class ConfigJsonSchemaGenerator
             ("pinOrderField", StringSchema()),
             ("pinFieldBySource", StringMapSchema()),
             ("pinOrderFieldBySource", StringMapSchema()),
+            ("emptyTerms", EnumSchema("render", "noindex", "skip")),
             ("kinds", Obj(("type", "array"), ("items", Obj(("type", "object"), ("properties", Obj(
                 ("key", StringSchema()),
                 ("kind", StringSchema()),
@@ -239,9 +240,9 @@ public static class ConfigJsonSchemaGenerator
                     ("required", Arr("type")))))))),
             ("required", Arr("providers")));
         var consentConfigured = Obj(("required", Arr("consent")));
+        // Consent is optional for Google providers; configured consent still needs one.
         schema["allOf"] = new JsonArray(
-            Obj(("if", googleProviderConfigured), ("then", consentConfigured)),
-            Obj(("if", consentConfigured.DeepClone()), ("then", googleProviderConfigured.DeepClone())));
+            Obj(("if", consentConfigured), ("then", googleProviderConfigured)));
         return schema;
     }
 
@@ -448,7 +449,10 @@ public static class ConfigJsonSchemaGenerator
             ("timeoutMs", IntSchema(1)),
             ("maxFileSizeBytes", IntSchema(1)),
             ("blockPrivateNetworks", BoolSchema()),
-            ("retryBaseDelayMs", IntSchema(0)))));
+            ("retryBaseDelayMs", IntSchema(0)),
+            ("onFailure", CaseInsensitiveEnumSchema("placeholder", "keep")),
+            ("downloadHosts", StringArraySchema()),
+            ("skipHosts", StringArraySchema()))));
 
     private static JsonObject ContentSourceItemSchema()
         => Obj(("type", "object"), ("required", Arr("type")), ("properties", Obj(
@@ -726,6 +730,24 @@ public static class ConfigJsonSchemaGenerator
     {
         var schema = StringSchema();
         schema["enum"] = new JsonArray([.. values.Select(v => JsonValue.Create(v))]);
+        return schema;
+    }
+
+    // For values the loader accepts in any case: the enum keeps editor completion,
+    // the pattern accepts other casings and surrounding whitespace.
+    // Values are limited to ASCII letters, digits and '-', which need no regex escaping.
+    private static JsonObject CaseInsensitiveEnumSchema(params string[] values)
+    {
+        var alternatives = values.Select(v => string.Concat(v.Select(c => c switch
+        {
+            >= 'a' and <= 'z' or >= 'A' and <= 'Z' => $"[{char.ToLowerInvariant(c)}{char.ToUpperInvariant(c)}]",
+            >= '0' and <= '9' or '-' => c.ToString(),
+            _ => throw new ArgumentException($"Unsupported character '{c}' in enum value '{v}'.", nameof(values))
+        })));
+        var schema = StringSchema();
+        schema["anyOf"] = new JsonArray(
+            Obj(("enum", Arr(values))),
+            Obj(("pattern", $"^\\s*(?:{string.Join('|', alternatives)})\\s*$")));
         return schema;
     }
 

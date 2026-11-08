@@ -107,6 +107,31 @@ public sealed class DoctorTemplateCheckerTests : IDisposable
         return new DoctorCommand.DoctorContext(_rootDir, config, _layoutsDir, allHtmlFiles);
     }
 
+    [Fact]
+    public void CheckSeoTemplateOutput_ThemeModeWithoutSeoOutput_Warns()
+    {
+        WriteTemplate("layouts/base.html", "<html><head><title>{{ page.title }}</title></head></html>");
+        var config = CreateConfig();
+        config = config with { Site = config.Site with { Seo = config.Site.Seo with { Enabled = true, RenderMode = "theme" } } };
+
+        var output = CaptureStdOut(() => DoctorTemplateChecker.CheckSeoTemplateOutput(CreateContext(config)));
+
+        Assert.Contains("seo.document_title", output, StringComparison.Ordinal);
+        Assert.Contains("seo.json_ld", output, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void CheckSeoTemplateOutput_ThemeModeWithSeoOutput_IsQuiet()
+    {
+        WriteTemplate("layouts/base.html", "<title>{{ page.seo.document_title }}</title>{{ for j in page.seo.json_ld }}{{ j }}{{ end }}");
+        var config = CreateConfig();
+        config = config with { Site = config.Site with { Seo = config.Site.Seo with { Enabled = true, RenderMode = "theme" } } };
+
+        var output = CaptureStdOut(() => DoctorTemplateChecker.CheckSeoTemplateOutput(CreateContext(config)));
+
+        Assert.Equal(string.Empty, output.Trim());
+    }
+
     private AppConfig CreateConfig(string? listTemplate = null, ThemeConfig? theme = null, TaxonomyConfig? taxonomyTemplates = null)
     {
         return new AppConfig

@@ -267,9 +267,11 @@ public sealed class NotionContentSource : IContentProvider, INotionRelationFallb
                 MaxDegreeOfParallelism = renderConcurrency,
                 CancellationToken = cancellationToken
             };
+            var progress = new NotionProgressReporter(_logger, "summary_prefetch", missingSummary.Length);
             await Parallel.ForEachAsync(missingSummary, parallelOptions, async (draft, token) =>
             {
                 var html = await RenderBodyAsync(draft.PageId, draft.LastEditedTime, token).ConfigureAwait(false);
+                progress.Increment();
                 // Record successful empty bodies too: cache-off reads must not repeat the request.
                 prefetchedBodies[draft.PageId] = new ContentBody(html);
                 if (string.IsNullOrWhiteSpace(html))
@@ -283,6 +285,7 @@ public sealed class NotionContentSource : IContentProvider, INotionRelationFallb
                     prefetchedSummaries[draft.PageId] = extracted;
                 }
             });
+            progress.Complete();
         }
 
         var items = new List<RawContentDocument>(drafts.Count);

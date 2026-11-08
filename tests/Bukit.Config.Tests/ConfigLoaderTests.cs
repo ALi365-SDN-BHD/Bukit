@@ -1383,6 +1383,138 @@ public sealed class ConfigLoaderTests : IDisposable
     }
 
     [Fact]
+    public void Load_MediaLocalizationControls_ParsesValues()
+    {
+        var yaml = """
+            site:
+              name: myblog
+              title: My Blog
+            content:
+              sources:
+                - type: markdown
+                  markdown:
+                    dir: content
+              media:
+                onFailure: keep
+                downloadHosts:
+                  - "*.amazonaws.com"
+                  - file.notion.so
+                skipHosts:
+                  - silkroute.cc
+            """;
+        var config = ConfigLoader.Load(WriteTempYaml(yaml));
+
+        var media = config.Content.Media;
+        Assert.Equal("keep", media.OnFailure);
+        Assert.Equal(new[] { "*.amazonaws.com", "file.notion.so" }, media.DownloadHosts);
+        Assert.Equal(new[] { "silkroute.cc" }, media.SkipHosts);
+    }
+
+    [Fact]
+    public void Load_MediaLocalizationControls_DefaultsKeepCurrentBehavior()
+    {
+        var yaml = """
+            site:
+              name: myblog
+              title: My Blog
+            content:
+              sources:
+                - type: markdown
+                  markdown:
+                    dir: content
+              media:
+                downloadToLocal: true
+            """;
+        var media = ConfigLoader.Load(WriteTempYaml(yaml)).Content.Media;
+
+        Assert.Equal("placeholder", media.OnFailure);
+        Assert.Empty(media.DownloadHosts);
+        Assert.Empty(media.SkipHosts);
+    }
+
+    [Fact]
+    public void Load_MediaLocalizationControls_AcceptsInternationalizedAndIpv4Hosts()
+    {
+        var yaml = """
+            site:
+              name: myblog
+              title: My Blog
+            content:
+              sources:
+                - type: markdown
+                  markdown:
+                    dir: content
+              media:
+                downloadHosts:
+                  - "BÜCHER.de"
+                  - "*.例子.com"
+                skipHosts:
+                  - "203.0.113.5"
+            """;
+        var config = ConfigLoader.Load(WriteTempYaml(yaml));
+
+        ConfigValidator.Validate(config);
+    }
+
+    [Theory]
+    [InlineData("onFailure: drop", "content.media.onFailure")]
+    [InlineData("downloadHosts: [\"a*b.com\"]", "content.media.downloadHosts")]
+    [InlineData("skipHosts: [\"*\"]", "content.media.skipHosts")]
+    [InlineData("skipHosts: [\"https://silkroute.cc\"]", "content.media.skipHosts")]
+    [InlineData("skipHosts: [\"silkroute.cc:443\"]", "content.media.skipHosts")]
+    [InlineData("downloadHosts: [\"*.\"]", "content.media.downloadHosts")]
+    [InlineData("downloadHosts: [\"bü..com\"]", "content.media.downloadHosts")]
+    [InlineData("skipHosts: [\"ü" + "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" + ".com\"]", "content.media.skipHosts")]
+    [InlineData("skipHosts: [\"*.203.0.113.5\"]", "content.media.skipHosts")]
+    [InlineData("skipHosts: [\"010.0.0.1\"]", "content.media.skipHosts")]
+    [InlineData("skipHosts: [\"203.000.113.5\"]", "content.media.skipHosts")]
+    [InlineData("skipHosts: [\"[2001:db8::1]\"]", "content.media.skipHosts")]
+    public void Load_MediaLocalizationControls_RejectsInvalidValues(string line, string expectedPath)
+    {
+        var yaml = $"""
+            site:
+              name: myblog
+              title: My Blog
+            content:
+              sources:
+                - type: markdown
+                  markdown:
+                    dir: content
+              media:
+                {line}
+            """;
+
+        var config = ConfigLoader.Load(WriteTempYaml(yaml));
+
+        var ex = Assert.Throws<ConfigException>(() => ConfigValidator.Validate(config));
+        Assert.Contains(expectedPath, ex.Message, StringComparison.Ordinal);
+        Assert.Equal(DiagnosticCode.ConfigInvalidValue, ex.Code);
+    }
+
+    [Fact]
+    public void Load_MediaLocalizationControls_InvalidHostAfterBlankEntry_NamesTheValue()
+    {
+        var yaml = """
+            site:
+              name: myblog
+              title: My Blog
+            content:
+              sources:
+                - type: markdown
+                  markdown:
+                    dir: content
+              media:
+                downloadHosts:
+                  - ""
+                  - "a*b.com"
+            """;
+        var config = ConfigLoader.Load(WriteTempYaml(yaml));
+
+        var ex = Assert.Throws<ConfigException>(() => ConfigValidator.Validate(config));
+        Assert.Contains("content.media.downloadHosts entry 'a*b.com'", ex.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void Load_MediaConfigWithoutFieldKeys_UsesSeoImageDefault()
     {
         var yaml = """

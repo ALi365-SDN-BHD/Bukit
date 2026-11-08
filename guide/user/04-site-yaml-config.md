@@ -115,7 +115,7 @@ content:
 | `site.plugins.analytics.enabled` | `true` | Enables the Core built-in Analytics plugin lifecycle. When false, Bukit does not create or run its HTML transform. |
 | `site.analytics.enabled` | `true` | Enables Analytics output after the plugin lifecycle switch has allowed the plugin to run. |
 | `site.analytics.productionOnly` | `true` | Injects during production builds and removes Bukit-managed blocks from development/preview responses. Set false to retain Analytics in development and preview. |
-| `site.analytics.consent.google` | none | Required when any GA or GTM provider exists; defines explicit Consent Mode v2 defaults. |
+| `site.analytics.consent.google` | none | Optional; defines explicit Consent Mode v2 defaults for GA/GTM. Without it, Google loads with its own defaults (effectively granted). Rejected when no GA or GTM provider exists. |
 | Google consent `mode` | none | Required as `advanced`. |
 | Google consent `defaults` | none | Requires `adStorage`, `analyticsStorage`, `adUserData`, and `adPersonalization`, each `granted` or `denied`. |
 | Google consent `waitForUpdateMs` | none | Optional integer from 0 through 5000. |
@@ -327,6 +327,32 @@ other than HTTP(S) or root-relative paths fail the build.
 | `content.media.maxFileSizeBytes` | `52428800` | Positive maximum file size. |
 | `content.media.blockPrivateNetworks` | `true` | SSRF guard for private networks. |
 | `content.media.retryBaseDelayMs` | `500` | Non-negative retry delay. |
+| `content.media.onFailure` | `placeholder` | Result of a failed download: `placeholder` uses `defaultImageUrl`; `keep` keeps the original URL. Failures are still listed in the build log. An empty image field always uses `defaultImageUrl`. |
+| `content.media.downloadHosts` | empty (all hosts) | When set, only images on these hosts are downloaded; others keep their original URL. |
+| `content.media.skipHosts` | empty | Images on these hosts are never downloaded and keep their original URL. Takes precedence over `downloadHosts`. |
+
+Host patterns are an exact host, such as file.notion.so, or `*.` plus a host,
+such as *.amazonaws.com, which matches subdomains but not amazonaws.com itself.
+An exact IPv4 address in canonical form, such as 203.0.113.5, is also accepted;
+leading zeros (010.0.0.1), wildcards on addresses and IPv6 literals are not. Matching is case-insensitive and uses the original URL, not a redirect target.
+Skipped URLs make no request and are not counted as failures. A URL that fails
+once is not retried for the rest of the build.
+
+A response with `Content-Type: application/octet-stream`, `binary/octet-stream`,
+or no content type (common for Notion file storage) is identified from the
+file's signature. It is stored only if it is a supported raster image that
+passes decoding; SVG is never accepted.
+
+Example: download only Notion-hosted images and keep other links on failure.
+
+```yaml
+content:
+  media:
+    onFailure: keep
+    downloadHosts:
+      - "*.amazonaws.com"
+      - "*.notion.so"
+```
 
 ## Content Model Schema
 
@@ -470,6 +496,7 @@ with `--clean` after replacing images.
 | `taxonomy.pinOrderField` | none | Numeric pin order field. |
 | `taxonomy.pinFieldBySource` | none | Source-specific pin field map. |
 | `taxonomy.pinOrderFieldBySource` | none | Source-specific pin order field map. |
+| `taxonomy.emptyTerms` | `render` | Term pages with no content: `render` emits them as before, `noindex` emits them with robots noindex and keeps them out of the sitemap, `skip` emits none (a hierarchical parent with child terms is kept). |
 | `taxonomy.kinds[].key` | required | Source field key. |
 | `taxonomy.kinds[].kind` | same as `key` | Public taxonomy kind. |
 | `taxonomy.kinds[].title` | none | Index title. |

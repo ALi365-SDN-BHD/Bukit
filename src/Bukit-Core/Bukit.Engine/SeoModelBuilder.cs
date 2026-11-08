@@ -4,6 +4,7 @@ using Bukit.Engine.Abstractions.Content;
 using Bukit.Rendering;
 using Bukit.Routing;
 using Bukit.Engine.Abstractions.Routing;
+using Bukit.Engine.Primitives;
 namespace Bukit.Engine;
 
 internal static class SeoModelBuilder
@@ -24,7 +25,7 @@ internal static class SeoModelBuilder
         var fields = document.CustomFields;
         var seoTitle = seoTitleOverride ?? FirstTextField(fields, "seo_title") ?? FirstTextField(fields, "seotitle") ?? document.Title;
         var visibleTitle = visibleTitleOverride ?? record.Presentation.Title;
-        var description = descriptionOverride ?? FirstTextField(fields, "seo_desc") ?? FirstTextField(fields, "seodesc") ?? record.Presentation.Summary ?? config.Site.Description;
+        var description = descriptionOverride ?? FirstTextField(fields, "seo_desc") ?? FirstTextField(fields, "seodesc") ?? DerivedDescription(record.Presentation.Summary ?? config.Site.Description);
         var canonical = ResolveCanonical(
             config.Site.Url,
             baseUrl,
@@ -133,7 +134,7 @@ internal static class SeoModelBuilder
         bool forceNoindexWhenEmpty)
     {
         var title = page.Title;
-        var description = page.Summary ?? config.Site.Description;
+        var description = DerivedDescription(page.Summary ?? config.Site.Description);
         var canonical = BuildAbsoluteUrl(config.Site.Url, baseUrl, canonicalUrl);
         var prev = string.IsNullOrWhiteSpace(prevUrl) ? null : BuildAbsoluteUrl(config.Site.Url, baseUrl, prevUrl);
         var next = string.IsNullOrWhiteSpace(nextUrl) ? null : BuildAbsoluteUrl(config.Site.Url, baseUrl, nextUrl);
@@ -444,4 +445,9 @@ internal static class SeoModelBuilder
         var text = segment.Replace('-', ' ');
         return string.IsNullOrWhiteSpace(text) ? segment : char.ToUpperInvariant(text[0]) + text[1..];
     }
+
+    // Auto summaries and the site description are fallbacks, not editorial SEO text:
+    // keep them within the description budget. Explicit seo_desc is never cut.
+    internal static string? DerivedDescription(string? text)
+        => string.IsNullOrEmpty(text) ? text : SeoTextWidth.Truncate(text, SeoTextWidth.DescriptionMax);
 }

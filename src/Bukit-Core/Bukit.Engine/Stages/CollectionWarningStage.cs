@@ -32,7 +32,7 @@ internal sealed class CollectionWarningStage : IContentStage
             {
                 var routeWord = filteredLists.Count == 1 ? "route" : "routes";
                 logger.Info(
-                    $"[INFO] site.collections.{collectionName}.filteredLists defines {filteredLists.Count} manual static filtered list {routeWord} under listRoute={collection.ListRoute}; " +
+                    $"site.collections.{collectionName}.filteredLists defines {filteredLists.Count} manual static filtered list {routeWord} under listRoute={collection.ListRoute}; " +
                     $"first route: {DescribeFilteredList(filteredLists[0])}. " +
                     "Use taxonomy.kinds only when automatically generated tag/category/term routes are needed.");
                 continue;

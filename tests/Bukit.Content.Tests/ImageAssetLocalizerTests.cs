@@ -1901,6 +1901,510 @@ public sealed class ImageAssetLocalizerTests
         }
     }
 
+    // ── Media localization controls: onFailure, host rules, generic binary types ──
+
+    private static MediaConfig ControlConfig(string dir, string onFailure = "placeholder",
+        IReadOnlyList<string>? downloadHosts = null, IReadOnlyList<string>? skipHosts = null)
+        => new()
+        {
+            DownloadToLocal = true,
+            DownloadDir = dir,
+            UrlBase = "/assets/uploads",
+            DefaultImageUrl = "/assets/images/noneimg-news.jpg",
+            RetryBaseDelayMs = 0,
+            MaxRetries = 0,
+            OnFailure = onFailure,
+            DownloadHosts = downloadHosts ?? Array.Empty<string>(),
+            SkipHosts = skipHosts ?? Array.Empty<string>()
+        };
+
+    private static async Task WithTempDirAsync(Func<string, Task> test)
+    {
+        var dir = Path.Combine(Path.GetTempPath(), $"bukit-media-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(dir);
+        try
+        {
+            await test(dir);
+        }
+        finally
+        {
+            if (Directory.Exists(dir))
+            {
+                Directory.Delete(dir, recursive: true);
+            }
+        }
+    }
+
+    [Theory]
+    [InlineData("keep")]
+    [InlineData("KEEP")]
+    public async Task LocalizeAsync_OnFailureKeep_ReturnsOriginalUrlAndRecordsFailure(string onFailure)
+        => await WithTempDirAsync(async dir =>
+        {
+            var handler = new CountingHandler(HttpStatusCode.NotFound, "text/plain", "missing");
+            using var localizer = CreateLocalizer(ControlConfig(dir, onFailure), handler);
+
+            var result = await localizer.LocalizeAsync("https://img.example/a.jpg?x=1&amp;y=2", CancellationToken.None);
+
+            // keep returns the caller's text unchanged, not the HTML-decoded request URL.
+            Assert.Equal("https://img.example/a.jpg?x=1&amp;y=2", result);
+            Assert.Single(localizer.Failures);
+            Assert.Contains("HTTP 404", localizer.Failures[0].Reason, StringComparison.Ordinal);
+        });
+
+    [Fact]
+    public async Task LocalizeAsync_OnFailureKeep_KeepsOriginalForRejectedContentType()
+        => await WithTempDirAsync(async dir =>
+        {
+            var handler = new CountingHandler(HttpStatusCode.OK, "text/html", "<html></html>");
+            using var localizer = CreateLocalizer(ControlConfig(dir, "keep"), handler);
+
+            var result = await localizer.LocalizeAsync("https://img.example/a.jpg", CancellationToken.None);
+
+            Assert.Equal("https://img.example/a.jpg", result);
+            Assert.Single(localizer.Failures);
+            Assert.Empty(Directory.GetFiles(dir));
+        });
+
+    [Fact]
+    public async Task LocalizeAsync_OnFailureKeep_KeepsOriginalForHandlerException()
+        => await WithTempDirAsync(async dir =>
+        {
+            using var localizer = CreateLocalizer(ControlConfig(dir, "keep"), new ThrowingHandler());
+
+            var result = await localizer.LocalizeAsync("https://img.example/a.jpg", CancellationToken.None);
+
+            Assert.Equal("https://img.example/a.jpg", result);
+            Assert.Single(localizer.Failures);
+        });
+
+    [Fact]
+    public async Task LocalizeAsync_OnFailureKeep_KeepsOriginalForSsrfBlock()
+        => await WithTempDirAsync(async dir =>
+        {
+            var handler = new CountingHandler(HttpStatusCode.OK, "image/png", "img");
+            using var localizer = CreateLocalizer(ControlConfig(dir, "keep") with { BlockPrivateNetworks = true }, handler);
+
+            var result = await localizer.LocalizeAsync("http://127.0.0.1:8080/a.png", CancellationToken.None);
+
+            Assert.Equal("http://127.0.0.1:8080/a.png", result);
+            var failure = Assert.Single(localizer.Failures);
+            Assert.Contains("SSRF", failure.Reason, StringComparison.Ordinal);
+            Assert.Equal(0, handler.RequestCount);
+        });
+
+    [Fact]
+    public async Task LocalizeAsync_OnFailureKeep_KeepsOriginalForTooLargeFile()
+        => await WithTempDirAsync(async dir =>
+        {
+            var handler = new ByteArrayHandler("image/png", CreateImagePayload("image/png", "large"));
+            using var localizer = CreateLocalizer(ControlConfig(dir, "keep") with { MaxFileSizeBytes = 10 }, handler);
+
+            var result = await localizer.LocalizeAsync("https://img.example/a.png", CancellationToken.None);
+
+            Assert.Equal("https://img.example/a.png", result);
+            var failure = Assert.Single(localizer.Failures);
+            Assert.Contains("File too large", failure.Reason, StringComparison.Ordinal);
+            Assert.Empty(Directory.GetFiles(dir));
+        });
+
+    [Fact]
+    public async Task LocalizeAsync_OnFailureKeep_KeepsOriginalForOctetStreamWithUndecodableBody()
+        => await WithTempDirAsync(async dir =>
+        {
+            // A valid PNG signature followed by garbage: detected as PNG, then rejected by decoding.
+            byte[] payload = [0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 1, 2, 3, 4, 5, 6, 7, 8];
+            var handler = new ByteArrayHandler("application/octet-stream", payload);
+            using var localizer = CreateLocalizer(ControlConfig(dir, "keep"), handler);
+
+            var result = await localizer.LocalizeAsync("https://img.example/a", CancellationToken.None);
+
+            Assert.Equal("https://img.example/a", result);
+            var failure = Assert.Single(localizer.Failures);
+            Assert.Contains("not decodable", failure.Reason, StringComparison.Ordinal);
+            Assert.Empty(Directory.GetFiles(dir));
+        });
+
+    [Theory]
+    [InlineData("https://IMG.Example/a.png")]
+    [InlineData("https://img.example./a.png")]
+    public async Task LocalizeAsync_DownloadHosts_MatchesUppercaseAndTrailingDotHosts(string source)
+        => await WithTempDirAsync(async dir =>
+        {
+            var handler = new CountingHandler(HttpStatusCode.OK, "image/png", "img");
+            using var localizer = CreateLocalizer(ControlConfig(dir, downloadHosts: ["img.example"]), handler);
+
+            var result = await localizer.LocalizeAsync(source, CancellationToken.None);
+
+            Assert.StartsWith("/assets/uploads/", result, StringComparison.Ordinal);
+            Assert.Equal(1, handler.RequestCount);
+        });
+
+    [Fact]
+    public async Task LocalizeAsync_OnFailureKeep_SharedFailedDownload_ReturnsEachCallersOwnUrl()
+        => await WithTempDirAsync(async dir =>
+        {
+            using var handler = new GatedNotFoundHandler();
+            var logger = new EventWaitLogger(ImageAssetLocalizer.SharedDownloadEvent);
+            using var localizer = CreateLocalizer(ControlConfig(dir, "keep"), handler, logger);
+
+            var first = localizer.LocalizeAsync("https://img.example/a.png", CancellationToken.None);
+            await handler.RequestStarted.WaitAsync(TimeSpan.FromSeconds(5));
+            // Same cache key (fragment and host case are ignored), different spelling.
+            var second = localizer.LocalizeAsync("https://IMG.example/a.png#hero", CancellationToken.None);
+            // The localizer logs this event once the second caller has joined the running download.
+            await logger.Seen.WaitAsync(TimeSpan.FromSeconds(10));
+            handler.Release();
+
+            Assert.Equal("https://img.example/a.png", await first);
+            Assert.Equal("https://IMG.example/a.png#hero", await second);
+            Assert.Equal(1, handler.RequestCount);
+        });
+
+    [Theory]
+    [InlineData("keep", "https://img.example/a.png")]
+    [InlineData("placeholder", "/assets/images/noneimg-news.jpg")]
+    public async Task LocalizeAsync_FailedUrl_IsNotRetriedOrReportedAgainInSameLocalizer(string onFailure, string expected)
+        => await WithTempDirAsync(async dir =>
+        {
+            var handler = new CountingHandler(HttpStatusCode.NotFound, "text/plain", "missing");
+            using var localizer = CreateLocalizer(ControlConfig(dir, onFailure) with { MaxRetries = 2 }, handler);
+
+            Assert.Equal(expected, await localizer.LocalizeAsync("https://img.example/a.png", CancellationToken.None));
+            Assert.Equal(expected, await localizer.LocalizeAsync("https://img.example/a.png", CancellationToken.None));
+
+            Assert.Equal(3, handler.RequestCount); // one download with 2 retries, then remembered
+            Assert.Single(localizer.Failures);
+        });
+
+    [Fact]
+    public async Task LogFailureSummary_ReportsEachFailureOnce_AndRepeatedReferencesWarn()
+        => await WithTempDirAsync(async dir =>
+        {
+            var handler = new CountingHandler(HttpStatusCode.NotFound, "text/plain", "missing");
+            var logger = new RecordingLogger();
+            var localizer = CreateLocalizer(ControlConfig(dir, "keep"), handler, logger);
+
+            await localizer.LocalizeAsync("https://img.example/a.png", CancellationToken.None);
+            localizer.LogFailureSummary(logger, "documents");
+            // Later failures (e.g. lazily localized bodies) are reported on dispose.
+            await localizer.LocalizeAsync("https://img.example/b.png", CancellationToken.None);
+            await localizer.LocalizeAsync("https://img.example/a.png", CancellationToken.None);
+            localizer.Dispose();
+
+            Assert.Contains("event=media.localize_summary phase=documents failed=1", logger.Warnings);
+            Assert.Contains("event=media.localize_summary phase=deferred failed=1", logger.Warnings);
+            Assert.Contains(logger.Warnings, w => w.StartsWith("event=media.failed_reference", StringComparison.Ordinal));
+            Assert.Equal(2, logger.Warnings.Count(w => w.StartsWith("  - ", StringComparison.Ordinal)));
+        });
+
+    [Fact]
+    public void Constructor_InvalidMediaControls_Throw()
+    {
+        using var handler = new CountingHandler(HttpStatusCode.OK, "image/png", "img");
+        var onFailure = Assert.Throws<ConfigException>(() => CreateLocalizer(new MediaConfig { OnFailure = "keeep" }, handler));
+        var hosts = Assert.Throws<ConfigException>(() => CreateLocalizer(new MediaConfig { DownloadHosts = ["bü..com"] }, handler));
+        Assert.Equal(DiagnosticCode.ConfigInvalidValue, onFailure.Code);
+        Assert.Contains("content.media.downloadHosts entry 'bü..com'", hosts.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task LocalizeAsync_SkipHostsCanonicalIpv4_MatchesCanonicalizedUrlHost()
+        => await WithTempDirAsync(async dir =>
+        {
+            var handler = new CountingHandler(HttpStatusCode.OK, "image/png", "img");
+            using var localizer = CreateLocalizer(ControlConfig(dir, skipHosts: ["8.0.0.1"]), handler);
+
+            // Uri reads a leading zero as octal: 010.0.0.1 is 8.0.0.1.
+            var result = await localizer.LocalizeAsync("https://010.0.0.1/a.png", CancellationToken.None);
+
+            Assert.Equal("https://010.0.0.1/a.png", result);
+            Assert.Equal(0, handler.RequestCount);
+        });
+
+    [Fact]
+    public async Task LocalizeAsync_OctetStreamNonImage_RejectsAfterLeadingBytesWithoutReadingBody()
+        => await WithTempDirAsync(async dir =>
+        {
+            var body = new CountingReadStream(new string('x', 1024 * 1024));
+            using var localizer = CreateLocalizer(ControlConfig(dir, "keep"), new StreamHandler("application/octet-stream", body));
+
+            var result = await localizer.LocalizeAsync("https://img.example/a", CancellationToken.None);
+
+            Assert.Equal("https://img.example/a", result);
+            var failure = Assert.Single(localizer.Failures);
+            Assert.Contains("image signature not recognized", failure.Reason, StringComparison.Ordinal);
+            Assert.True(body.BytesRead < 64 * 1024, $"read {body.BytesRead} bytes");
+            Assert.Empty(Directory.GetFiles(dir));
+        });
+
+    [Fact]
+    public async Task LocalizeAsync_OnFailureKeep_EmptySourceStillReturnsDefaultImage()
+        => await WithTempDirAsync(async dir =>
+        {
+            using var localizer = CreateLocalizer(ControlConfig(dir, "keep"), new CountingHandler(HttpStatusCode.OK, "image/png", "x"));
+
+            Assert.Equal("/assets/images/noneimg-news.jpg", await localizer.LocalizeAsync("  ", CancellationToken.None));
+            Assert.Empty(localizer.Failures);
+        });
+
+    [Fact]
+    public async Task LocalizeAsync_OnFailureDefault_ReturnsDefaultImage()
+        => await WithTempDirAsync(async dir =>
+        {
+            var handler = new CountingHandler(HttpStatusCode.NotFound, "text/plain", "missing");
+            using var localizer = CreateLocalizer(ControlConfig(dir) with { OnFailure = new MediaConfig().OnFailure }, handler);
+
+            var result = await localizer.LocalizeAsync("https://img.example/a.jpg", CancellationToken.None);
+
+            Assert.Equal("/assets/images/noneimg-news.jpg", result);
+        });
+
+    [Fact]
+    public async Task LocalizeAsync_HostNotInDownloadHosts_ReturnsOriginalWithoutRequestOrFailure()
+        => await WithTempDirAsync(async dir =>
+        {
+            var handler = new CountingHandler(HttpStatusCode.OK, "image/png", "img");
+            using var localizer = CreateLocalizer(ControlConfig(dir, downloadHosts: ["*.amazonaws.com"]), handler);
+
+            var kept = await localizer.LocalizeAsync("https://silkroute.cc/wp-content/a.jpg", CancellationToken.None);
+            var localized = await localizer.LocalizeAsync("https://prod-files.s3.us-west-2.amazonaws.com/a.png", CancellationToken.None);
+
+            Assert.Equal("https://silkroute.cc/wp-content/a.jpg", kept);
+            Assert.StartsWith("/assets/uploads/", localized, StringComparison.Ordinal);
+            Assert.Equal(1, handler.RequestCount);
+            Assert.Empty(localizer.Failures);
+        });
+
+    [Theory]
+    [InlineData("https://example.com/a.png", false)]
+    [InlineData("https://cdn.example.com/a.png", true)]
+    [InlineData("https://A.B.EXAMPLE.COM/a.png", true)]
+    [InlineData("https://badexample.com/a.png", false)]
+    public async Task LocalizeAsync_WildcardDownloadHost_MatchesSubdomainsOnly(string url, bool downloaded)
+        => await WithTempDirAsync(async dir =>
+        {
+            var handler = new CountingHandler(HttpStatusCode.OK, "image/png", "img");
+            using var localizer = CreateLocalizer(ControlConfig(dir, downloadHosts: ["*.example.com"]), handler);
+
+            var result = await localizer.LocalizeAsync(url, CancellationToken.None);
+
+            Assert.Equal(downloaded ? 1 : 0, handler.RequestCount);
+            if (!downloaded)
+            {
+                Assert.Equal(url, result);
+            }
+        });
+
+    [Fact]
+    public async Task LocalizeAsync_SkipHostWinsOverDownloadHost()
+        => await WithTempDirAsync(async dir =>
+        {
+            var handler = new CountingHandler(HttpStatusCode.OK, "image/png", "img");
+            using var localizer = CreateLocalizer(
+                ControlConfig(dir, downloadHosts: ["*.example.com"], skipHosts: ["cdn.Example.com"]),
+                handler);
+
+            var result = await localizer.LocalizeAsync("https://cdn.example.com/a.png", CancellationToken.None);
+
+            Assert.Equal("https://cdn.example.com/a.png", result);
+            Assert.Equal(0, handler.RequestCount);
+            Assert.Empty(localizer.Failures);
+        });
+
+    [Fact]
+    public async Task LocalizeAsync_SkipHostsOnly_DownloadsOtherHosts()
+        => await WithTempDirAsync(async dir =>
+        {
+            var handler = new CountingHandler(HttpStatusCode.OK, "image/png", "img");
+            using var localizer = CreateLocalizer(ControlConfig(dir, skipHosts: ["silkroute.cc"]), handler);
+
+            Assert.Equal("https://silkroute.cc/a.png", await localizer.LocalizeAsync("https://silkroute.cc/a.png", CancellationToken.None));
+            Assert.StartsWith("/assets/uploads/", await localizer.LocalizeAsync("https://img.example/a.png", CancellationToken.None), StringComparison.Ordinal);
+            Assert.Equal(1, handler.RequestCount);
+        });
+
+    [Fact]
+    public async Task LocalizeAsync_IdnDownloadHost_MatchesPunycodeHost()
+        => await WithTempDirAsync(async dir =>
+        {
+            var handler = new CountingHandler(HttpStatusCode.OK, "image/png", "img");
+            using var localizer = CreateLocalizer(ControlConfig(dir, downloadHosts: ["例子.com"]), handler);
+
+            var result = await localizer.LocalizeAsync("https://xn--fsqu00a.com/a.png", CancellationToken.None);
+
+            Assert.StartsWith("/assets/uploads/", result, StringComparison.Ordinal);
+            Assert.Equal(1, handler.RequestCount);
+        });
+
+    [Fact]
+    public async Task LocalizeAsync_SkipHostsIpv4_ReturnsUrlWithoutRequest()
+        => await WithTempDirAsync(async dir =>
+        {
+            var handler = new CountingHandler(HttpStatusCode.OK, "image/png", "img");
+            using var localizer = CreateLocalizer(ControlConfig(dir, skipHosts: ["203.0.113.5"]), handler);
+
+            var result = await localizer.LocalizeAsync("https://203.0.113.5/a.png", CancellationToken.None);
+
+            Assert.Equal("https://203.0.113.5/a.png", result);
+            Assert.Equal(0, handler.RequestCount);
+            Assert.Empty(localizer.Failures);
+        });
+
+    [Fact]
+    public async Task LocalizeAsync_UppercaseIdnDownloadHost_MatchesLowercaseHost()
+        => await WithTempDirAsync(async dir =>
+        {
+            var handler = new CountingHandler(HttpStatusCode.OK, "image/png", "img");
+            using var localizer = CreateLocalizer(ControlConfig(dir, downloadHosts: ["BÜCHER.de"]), handler);
+
+            var result = await localizer.LocalizeAsync("https://bücher.de/a.png", CancellationToken.None);
+
+            Assert.StartsWith("/assets/uploads/", result, StringComparison.Ordinal);
+            Assert.Equal(1, handler.RequestCount);
+        });
+
+    [Theory]
+    [InlineData("application/octet-stream", "image/png", ".png")]
+    [InlineData("binary/octet-stream", "image/jpeg", ".jpg")]
+    [InlineData("application/octet-stream", "image/webp", ".webp")]
+    public async Task LocalizeAsync_GenericBinaryContentType_IdentifiesImageBySignature(
+        string headerType, string realType, string expectedExtension)
+        => await WithTempDirAsync(async dir =>
+        {
+            var handler = new ByteArrayHandler(headerType, CreateImagePayload(realType, "notion"));
+            using var localizer = CreateLocalizer(ControlConfig(dir), handler);
+
+            var result = await localizer.LocalizeAsync(
+                "https://prod-files-secure.s3.us-west-2.amazonaws.com/abc/image?X-Amz-Signature=s",
+                CancellationToken.None);
+
+            Assert.StartsWith("/assets/uploads/", result, StringComparison.Ordinal);
+            Assert.EndsWith(expectedExtension, result, StringComparison.Ordinal);
+            Assert.Empty(localizer.Failures);
+            Assert.Single(Directory.GetFiles(dir, "*" + expectedExtension));
+            Assert.Empty(Directory.GetFiles(dir, "*.tmp"));
+        });
+
+    [Fact]
+    public async Task LocalizeAsync_MissingContentTypeWithPngBody_IdentifiesBySignature()
+        => await WithTempDirAsync(async dir =>
+        {
+            var handler = new RawBytesHandler(CreateImagePayload("image/png", "nul"));
+            using var localizer = CreateLocalizer(ControlConfig(dir), handler);
+
+            var result = await localizer.LocalizeAsync("https://img.example/file", CancellationToken.None);
+
+            Assert.EndsWith(".png", result, StringComparison.Ordinal);
+        });
+
+    [Fact]
+    public async Task LocalizeAsync_OctetStreamWithHtmlBody_FailsAndRemovesTempFile()
+        => await WithTempDirAsync(async dir =>
+        {
+            var handler = new ByteArrayHandler("application/octet-stream", Encoding.UTF8.GetBytes("<html>not an image</html>"));
+            using var localizer = CreateLocalizer(ControlConfig(dir, "keep"), handler);
+
+            var result = await localizer.LocalizeAsync("https://img.example/a.png", CancellationToken.None);
+
+            Assert.Equal("https://img.example/a.png", result);
+            Assert.Single(localizer.Failures);
+            Assert.Contains("signature not recognized", localizer.Failures[0].Reason, StringComparison.Ordinal);
+            Assert.Empty(Directory.GetFiles(dir));
+        });
+
+    [Fact]
+    public async Task LocalizeAsync_TextHtmlWithPngBody_StaysRejected()
+        => await WithTempDirAsync(async dir =>
+        {
+            var handler = new ByteArrayHandler("text/html", CreateImagePayload("image/png", "html"));
+            using var localizer = CreateLocalizer(ControlConfig(dir), handler);
+
+            var result = await localizer.LocalizeAsync("https://img.example/a.png", CancellationToken.None);
+
+            Assert.Equal("/assets/images/noneimg-news.jpg", result);
+            Assert.Contains("Content-Type rejected: text/html", localizer.Failures[0].Reason, StringComparison.Ordinal);
+            Assert.Empty(Directory.GetFiles(dir));
+        });
+
+    [Fact]
+    public void ImageContentSignature_Detect_IgnoresSvgAndUnknown()
+    {
+        Assert.Null(ImageContentSignature.Detect(Encoding.UTF8.GetBytes("<svg xmlns=\"http://www.w3.org/2000/svg\"/>")));
+        Assert.Null(ImageContentSignature.Detect(ReadOnlySpan<byte>.Empty));
+        Assert.Equal("image/png", ImageContentSignature.Detect(CreateImagePayload("image/png", "p")));
+        Assert.Equal("image/gif", ImageContentSignature.Detect("GIF89a\x01\x00"u8));
+    }
+
+    private sealed class GatedNotFoundHandler : HttpMessageHandler
+    {
+        private readonly TaskCompletionSource _started = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        private readonly TaskCompletionSource _release = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        private int _requestCount;
+
+        public Task RequestStarted => _started.Task;
+
+        public int RequestCount => Volatile.Read(ref _requestCount);
+
+        public void Release() => _release.TrySetResult();
+
+        protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+        {
+            Interlocked.Increment(ref _requestCount);
+            _started.TrySetResult();
+            await _release.Task.WaitAsync(cancellationToken);
+            return new HttpResponseMessage(HttpStatusCode.NotFound);
+        }
+    }
+
+    private sealed class StreamHandler(string contentType, Stream body) : HttpMessageHandler
+    {
+        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+        {
+            // No Content-Length, so the size check cannot reject early.
+            var content = new StreamContent(body);
+            content.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue(contentType);
+            return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK) { Content = content });
+        }
+    }
+
+    private sealed class CountingReadStream(string text) : Stream
+    {
+        private readonly MemoryStream _inner = new(System.Text.Encoding.ASCII.GetBytes(text));
+        private long _bytesRead;
+
+        public long BytesRead => Interlocked.Read(ref _bytesRead);
+        public override bool CanRead => true;
+        public override bool CanSeek => false;
+        public override bool CanWrite => false;
+        public override long Length => throw new NotSupportedException();
+        public override long Position { get => throw new NotSupportedException(); set => throw new NotSupportedException(); }
+        public override void Flush() { }
+        public override long Seek(long offset, SeekOrigin origin) => throw new NotSupportedException();
+        public override void SetLength(long value) => throw new NotSupportedException();
+        public override void Write(byte[] buffer, int offset, int count) => throw new NotSupportedException();
+
+        public override int Read(byte[] buffer, int offset, int count)
+        {
+            var read = _inner.Read(buffer, offset, count);
+            Interlocked.Add(ref _bytesRead, read);
+            return read;
+        }
+
+        public override ValueTask<int> ReadAsync(Memory<byte> buffer, CancellationToken cancellationToken = default)
+        {
+            var read = _inner.Read(buffer.Span);
+            Interlocked.Add(ref _bytesRead, read);
+            return ValueTask.FromResult(read);
+        }
+    }
+
+    private sealed class RawBytesHandler(byte[] payload) : HttpMessageHandler
+    {
+        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+            => Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK) { Content = new ByteArrayContent(payload) });
+    }
+
     private static ImageAssetLocalizer CreateLocalizer(
         MediaConfig config,
         HttpMessageHandler handler,
@@ -2313,6 +2817,25 @@ public sealed class ImageAssetLocalizerTests
             response.Content.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue(_contentType);
             return Task.FromResult(response);
         }
+    }
+
+    private sealed class EventWaitLogger(string eventPrefix) : ILogger
+    {
+        private readonly TaskCompletionSource _seen = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        public Task Seen => _seen.Task;
+
+        public void Debug(string message)
+        {
+            if (message.StartsWith(eventPrefix, StringComparison.Ordinal))
+            {
+                _seen.TrySetResult();
+            }
+        }
+
+        public void Info(string message) { }
+        public void Warn(string message) { }
+        public void Error(string message) { }
     }
 
     private sealed class RecordingLogger : ILogger
