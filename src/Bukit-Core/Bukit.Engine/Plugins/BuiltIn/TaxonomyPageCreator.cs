@@ -39,10 +39,11 @@ internal static class TaxonomyPageCreator
         if (emptyMode == "skip")
         {
             // Keep empty parents that still have child terms, so hierarchy links resolve.
-            items = items
-                .Where(t => t.Pages.Count > 0 ||
-                            (hierarchy.TryGetValue(t.Slug, out var info) && info.Children.Count > 0))
-                .ToList();
+            items =
+            [
+                .. items.Where(t => t.Pages.Count > 0 ||
+                                    (hierarchy.TryGetValue(t.Slug, out var info) && info.Children.Count > 0))
+            ];
         }
 
         var publishAt = items

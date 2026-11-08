@@ -1,4 +1,5 @@
 using Xunit;
+using Bukit.Engine.Primitives;
 
 namespace Bukit.Engine.Tests;
 

@@ -272,7 +272,7 @@ internal sealed class BuildTransaction : IDisposable
     // Writable content-source caches (Notion page/relation caches). Their entries are
     // written atomically and keyed by source edit time, so a staged copy stays valid even
     // when the build itself fails.
-    private static IEnumerable<string> ContentCacheDirs(AppConfig config, string rootDir, IReadOnlyList<string>? extraWriteTargets)
+    private static List<string> ContentCacheDirs(AppConfig config, string rootDir, IReadOnlyList<string>? extraWriteTargets)
     {
         var resources = new List<BuildResourceLease.Resource>();
         AddNotionResources(resources, config, rootDir);
@@ -281,7 +281,7 @@ internal sealed class BuildTransaction : IDisposable
             .Distinct(StringComparer.Ordinal)
             .ToList();
         // Keep only top-level cache roots; nested targets move with their root.
-        return paths.Where(path => !paths.Any(other => other != path && BuildResourceLease.Contains(other, path))).ToList();
+        return [.. paths.Where(path => !paths.Any(other => other != path && BuildResourceLease.Contains(other, path)))];
     }
 
     /// <summary>

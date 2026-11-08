@@ -16,7 +16,7 @@ public static class BuildCommand
         // Ctrl+C cancels the build instead of killing the process, so the build
         // transaction can roll back cleanly and keep content-source caches.
         using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-        ConsoleCancelEventHandler onCancel = (_, e) =>
+        void OnCancel(object? sender, ConsoleCancelEventArgs e)
         {
             if (cts.IsCancellationRequested)
             {
@@ -25,15 +25,16 @@ public static class BuildCommand
 
             e.Cancel = true;
             cts.Cancel();
-        };
-        Console.CancelKeyPress += onCancel;
+        }
+
+        Console.CancelKeyPress += OnCancel;
         try
         {
             return await RunAsync(command, logFormat, useWorktreeIsolation: true, cts.Token).ConfigureAwait(false);
         }
         finally
         {
-            Console.CancelKeyPress -= onCancel;
+            Console.CancelKeyPress -= OnCancel;
         }
     }
 

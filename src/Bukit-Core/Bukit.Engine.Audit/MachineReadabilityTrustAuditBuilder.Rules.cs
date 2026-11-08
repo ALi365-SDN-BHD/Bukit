@@ -1,6 +1,7 @@
 using Bukit.Config;
 using Bukit.Engine.Abstractions.Plugins;
 using Bukit.Engine.Abstractions.Content;
+using Bukit.Engine.Audit;
 using Bukit.Engine.PublishAuditRules;
 using Bukit.Rendering;
 
@@ -72,26 +73,7 @@ internal static partial class MachineReadabilityTrustAuditBuilder
         string outputDir,
         List<SeoAuditIssue> issues)
     {
-        if (string.IsNullOrWhiteSpace(model.Title))
-        {
-            issues.Add(Error("seo.title_missing", entry.Route.Url, "SEO title is missing."));
-        }
-        else if (SeoTextWidth.Measure(model.Title) > TitleMaxLength)
-        {
-            issues.Add(Warning("seo.title_too_long", entry.Route.Url, $"SEO title display width is {SeoTextWidth.Measure(model.Title)}, recommended maximum is {TitleMaxLength}."));
-        }
-
-        if (string.IsNullOrWhiteSpace(model.Description))
-        {
-            issues.Add(Warning("seo.description_missing", entry.Route.Url, "SEO description is missing."));
-        }
-        else if (SeoTextWidth.Measure(model.Description) > DescriptionMaxLength)
-        {
-            issues.Add(Warning("seo.description_too_long", entry.Route.Url, $"SEO description display width is {SeoTextWidth.Measure(model.Description)}, recommended maximum is {DescriptionMaxLength}."));
-        }
-
-        ImageMetadataReader.AnalyzeImage(config, "seo.og_image", entry.Route.Url, model.Og.Image, outputDir, issues);
-        ImageMetadataReader.AnalyzeImage(config, "seo.twitter_image", entry.Route.Url, model.Twitter.Image, outputDir, issues);
+        SeoTextAndImageRules.AnalyzeModel(config, entry.Route.Url, model, outputDir, issues);
 
         if (string.IsNullOrWhiteSpace(config.Site.Url) && IsAbsoluteHttpUrl(model.Canonical))
         {
@@ -172,10 +154,7 @@ internal static partial class MachineReadabilityTrustAuditBuilder
         }
 
         var actual = inspection.PrimaryTitle!;
-        if (SeoTextWidth.Measure(actual) > TitleMaxLength)
-        {
-            issues.Add(Warning("seo.document_title_too_long", entry.Route.Url, $"Final HTML document title display width is {SeoTextWidth.Measure(actual)}, recommended maximum is {TitleMaxLength}."));
-        }
+        SeoTextAndImageRules.AnalyzeDocumentTitleWidth(entry.Route.Url, actual, issues);
 
         if (model is null || string.IsNullOrWhiteSpace(actual))
         {

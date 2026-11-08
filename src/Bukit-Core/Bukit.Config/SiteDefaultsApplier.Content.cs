@@ -54,8 +54,8 @@ internal static partial class SiteDefaultsApplier
             BlockPrivateNetworks = ConfigYamlHelpers.GetOptionalBool(mediaNode, "blockPrivateNetworks") ?? true,
             RetryBaseDelayMs = ConfigYamlHelpers.GetOptionalInt(mediaNode, "retryBaseDelayMs") ?? 500,
             OnFailure = ConfigYamlHelpers.GetOptionalString(mediaNode, "onFailure") ?? "placeholder",
-            DownloadHosts = ConfigYamlHelpers.ReadStringList(mediaNode, "downloadHosts") ?? Array.Empty<string>(),
-            SkipHosts = ConfigYamlHelpers.ReadStringList(mediaNode, "skipHosts") ?? Array.Empty<string>()
+            DownloadHosts = ConfigYamlHelpers.ReadStringList(mediaNode, "downloadHosts") ?? [],
+            SkipHosts = ConfigYamlHelpers.ReadStringList(mediaNode, "skipHosts") ?? []
         };
     }
 

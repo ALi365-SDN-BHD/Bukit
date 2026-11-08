@@ -6,6 +6,7 @@ using System.Security.Cryptography;
 using System.Text.Json;
 using Bukit.Config;
 using Bukit.Shared;
+using static Bukit.Content.Media.MediaTempFiles;
 
 namespace Bukit.Content.Media;
 
@@ -51,7 +52,7 @@ public sealed class ImageAssetLocalizer : IImageAssetLocalizer, IDisposable
     private readonly ConcurrentDictionary<string, byte> _failedKeys = new(StringComparer.Ordinal);
     // A queue keeps failures in the order they happened, for the build summary.
     private readonly ConcurrentQueue<MediaFailure> _failures = new();
-    private readonly object _failureReportLock = new();
+    private readonly Lock _failureReportLock = new();
     private int _reportedFailureCount;
     private readonly MediaIndexManager _indexManager;
     private readonly ImageContentValidator _imageValidator = new();
@@ -131,38 +132,12 @@ public sealed class ImageAssetLocalizer : IImageAssetLocalizer, IDisposable
             source = System.Net.WebUtility.HtmlDecode(source);
         }
 
-        if (!Uri.TryCreate(source, UriKind.Absolute, out var uri) ||
-            (uri.Scheme != Uri.UriSchemeHttp && uri.Scheme != Uri.UriSchemeHttps))
+        if (ResolveWithoutDownload(source, out var uri) is { } notDownloaded)
         {
-            if (IsLocalAssetReference(source))
-            {
-                _logger?.Debug($"event=media.skip_local source={UrlRedactor.Redact(source)}");
-                return source;
-            }
-
-            _logger?.Warn($"event=media.skip_non_http source={UrlRedactor.Redact(source)}");
-            return source;
+            return notDownloaded;
         }
 
         var normalizedKey = NormalizeSourceUrlForKey(uri);
-
-        if (!_config.DownloadToLocal)
-        {
-            _logger?.Warn($"event=media.skip_download_disabled source={UrlRedactor.Redact(source)}");
-            return source;
-        }
-
-        if (!_hostFilter.ShouldDownload(uri))
-        {
-            _logger?.Debug($"event=media.skip_host source={UrlRedactor.Redact(source)}");
-            return source;
-        }
-
-        if (string.IsNullOrWhiteSpace(_config.DownloadDir) || string.IsNullOrWhiteSpace(_config.UrlBase))
-        {
-            _logger?.Warn($"event=media.skip_missing_config source={UrlRedactor.Redact(source)} downloadDir={_config.DownloadDir} urlBase={_config.UrlBase}");
-            return _config.DefaultImageUrl;
-        }
 
         if (_failedKeys.ContainsKey(normalizedKey))
         {
@@ -253,6 +228,43 @@ public sealed class ImageAssetLocalizer : IImageAssetLocalizer, IDisposable
                 _inflight.TryRemove(KeyValuePair.Create(normalizedKey, download));
             }
         }
+    }
+
+    // Returns the URL to use when this source is not downloaded, or null when it should be.
+    private string? ResolveWithoutDownload(string source, out Uri uri)
+    {
+        if (!Uri.TryCreate(source, UriKind.Absolute, out uri!) ||
+            (uri.Scheme != Uri.UriSchemeHttp && uri.Scheme != Uri.UriSchemeHttps))
+        {
+            if (IsLocalAssetReference(source))
+            {
+                _logger?.Debug($"event=media.skip_local source={UrlRedactor.Redact(source)}");
+                return source;
+            }
+
+            _logger?.Warn($"event=media.skip_non_http source={UrlRedactor.Redact(source)}");
+            return source;
+        }
+
+        if (!_config.DownloadToLocal)
+        {
+            _logger?.Warn($"event=media.skip_download_disabled source={UrlRedactor.Redact(source)}");
+            return source;
+        }
+
+        if (!_hostFilter.ShouldDownload(uri))
+        {
+            _logger?.Debug($"event=media.skip_host source={UrlRedactor.Redact(source)}");
+            return source;
+        }
+
+        if (string.IsNullOrWhiteSpace(_config.DownloadDir) || string.IsNullOrWhiteSpace(_config.UrlBase))
+        {
+            _logger?.Warn($"event=media.skip_missing_config source={UrlRedactor.Redact(source)} downloadDir={_config.DownloadDir} urlBase={_config.UrlBase}");
+            return _config.DefaultImageUrl;
+        }
+
+        return null;
     }
 
     private async Task RemoveInflightWhenCompletedAsync(
@@ -652,23 +664,6 @@ public sealed class ImageAssetLocalizer : IImageAssetLocalizer, IDisposable
         public static DownloadOutcome Failed => default;
     }
 
-    private enum WriteStatus
-    {
-        Written,
-        TooLarge,
-        SignatureRejected
-    }
-
-    /// <summary>
-    /// Outcome of writing a response body. <see cref="ContentType"/> is the header type, or the
-    /// type identified from the leading bytes; it is set whenever any bytes were written.
-    /// </summary>
-    private readonly record struct WriteResult(WriteStatus Status, long BytesWritten, string ContentType)
-    {
-        public static WriteResult TooLarge => new(WriteStatus.TooLarge, 0, string.Empty);
-        public static WriteResult SignatureRejected => new(WriteStatus.SignatureRejected, 0, string.Empty);
-    }
-
     private string FailureResult(string sourceUrl)
         => _keepOriginalOnFailure ? sourceUrl : _config.DefaultImageUrl;
 
@@ -678,167 +673,6 @@ public sealed class ImageAssetLocalizer : IImageAssetLocalizer, IDisposable
         return MediaLocalizationRules.TryParseOnFailure(config.OnFailure, out var keep)
             ? keep
             : throw new ConfigException(MediaLocalizationRules.InvalidOnFailureMessage, DiagnosticCode.ConfigInvalidValue);
-    }
-
-    private static bool IsGenericBinaryContentType(string? contentType)
-    {
-        if (string.IsNullOrWhiteSpace(contentType))
-        {
-            return true;
-        }
-
-        var normalized = contentType.Trim();
-        return normalized.Equals("application/octet-stream", StringComparison.OrdinalIgnoreCase) ||
-               normalized.Equals("binary/octet-stream", StringComparison.OrdinalIgnoreCase);
-    }
-
-    // Without a known content type (generic binary response), the leading bytes must match a
-    // raster signature before any file is created; the identified type is returned.
-    private static async Task<WriteResult> WriteWithLimitAsync(
-        HttpContent content,
-        string tempPath,
-        long maxBytes,
-        string? knownContentType,
-        CancellationToken cancellationToken)
-    {
-        if (content.Headers.ContentLength is > 0 && content.Headers.ContentLength.Value > maxBytes)
-        {
-            return WriteResult.TooLarge;
-        }
-
-        var buffer = ArrayPool<byte>.Shared.Rent(Math.Max(8192, ImageContentSignature.MaxSignatureBytes));
-        try
-        {
-            await using var stream = await content.ReadAsStreamAsync(cancellationToken);
-            var contentType = knownContentType ?? string.Empty;
-            var headerLength = 0;
-            if (knownContentType is null)
-            {
-                int headerRead;
-                while (headerLength < ImageContentSignature.MaxSignatureBytes &&
-                       (headerRead = await stream.ReadAsync(
-                           buffer.AsMemory(headerLength, ImageContentSignature.MaxSignatureBytes - headerLength),
-                           cancellationToken)) > 0)
-                {
-                    headerLength += headerRead;
-                    if (headerLength > maxBytes)
-                    {
-                        return WriteResult.TooLarge;
-                    }
-                }
-
-                if (headerLength > 0)
-                {
-                    var detected = ImageContentSignature.Detect(buffer.AsSpan(0, headerLength));
-                    if (detected is null)
-                    {
-                        return WriteResult.SignatureRejected;
-                    }
-
-                    contentType = detected;
-                }
-            }
-
-            var completed = false;
-            await using var output = new FileStream(
-                tempPath,
-                FileMode.CreateNew,
-                FileAccess.Write,
-                FileShare.Read,
-                bufferSize: 81920,
-                FileOptions.Asynchronous | FileOptions.SequentialScan);
-            long totalRead = headerLength;
-            try
-            {
-                if (headerLength > 0)
-                {
-                    await output.WriteAsync(buffer.AsMemory(0, headerLength), cancellationToken);
-                }
-
-                int read;
-                while ((read = await stream.ReadAsync(buffer, cancellationToken)) > 0)
-                {
-                    totalRead += read;
-                    if (totalRead > maxBytes)
-                    {
-                        return WriteResult.TooLarge;
-                    }
-
-                    await output.WriteAsync(buffer.AsMemory(0, read), cancellationToken);
-                }
-
-                completed = true;
-                return new WriteResult(WriteStatus.Written, totalRead, contentType);
-            }
-            finally
-            {
-                if (!completed)
-                {
-                    DeleteFileBestEffort(tempPath);
-                }
-            }
-        }
-        finally
-        {
-            ArrayPool<byte>.Shared.Return(buffer);
-        }
-    }
-
-    private static string BuildTempFilePath(string root, string fileName)
-    {
-        return Path.Combine(root, $".{fileName}.{Guid.NewGuid():N}.tmp");
-    }
-
-    private static async Task<FileContentIdentity> ReadFileContentIdentityAsync(
-        string path,
-        CancellationToken cancellationToken)
-    {
-        await using var stream = new FileStream(
-            path,
-            FileMode.Open,
-            FileAccess.Read,
-            FileShare.Read,
-            bufferSize: 8192,
-            FileOptions.Asynchronous | FileOptions.SequentialScan);
-        var length = stream.Length;
-        var sha256 = await SHA256.HashDataAsync(stream, cancellationToken);
-        return new FileContentIdentity(length, sha256);
-    }
-
-    private static bool MoveTempFileIntoPlace(string tempPath, string localPath, out bool winnerIsTrusted)
-    {
-        winnerIsTrusted = true;
-        try
-        {
-            File.Move(tempPath, localPath);
-            return true;
-        }
-        catch (IOException) when (File.Exists(localPath))
-        {
-            // Another writer won the race; the winner needs re-validation
-            winnerIsTrusted = false;
-            DeleteFileBestEffort(tempPath);
-            return true;
-        }
-        catch
-        {
-            DeleteFileBestEffort(tempPath);
-            return false;
-        }
-    }
-
-    private static void DeleteFileBestEffort(string path)
-    {
-        try
-        {
-            File.Delete(path);
-        }
-        catch (IOException)
-        {
-        }
-        catch (UnauthorizedAccessException)
-        {
-        }
     }
 
     private static bool IsAllowedContentType(string? contentType)
@@ -975,8 +809,6 @@ public sealed class ImageAssetLocalizer : IImageAssetLocalizer, IDisposable
     }
 
     private sealed record MediaSendResult(HttpResponseMessage Response, Uri FinalUri);
-
-    private readonly record struct FileContentIdentity(long Length, byte[] Sha256);
 
     private sealed class UnsafeMediaTargetException(string message) : Exception(message);
 }

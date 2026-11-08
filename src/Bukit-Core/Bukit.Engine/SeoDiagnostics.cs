@@ -6,6 +6,7 @@ using Bukit.Rendering;
 using Bukit.Routing;
 using Bukit.Engine.Abstractions.Routing;
 using Bukit.Shared;
+using Bukit.Engine.Primitives;
 
 namespace Bukit.Engine;
 

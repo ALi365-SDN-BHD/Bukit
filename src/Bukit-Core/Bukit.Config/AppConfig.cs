@@ -403,9 +403,9 @@ public sealed record MediaConfig
     /// <summary>Result of a failed download: "placeholder" (defaultImageUrl) or "keep" (original URL).</summary>
     public string OnFailure { get; init; } = "placeholder";
     /// <summary>When non-empty, only these hosts are downloaded. Supports "*." prefix wildcards.</summary>
-    public IReadOnlyList<string> DownloadHosts { get; init; } = Array.Empty<string>();
+    public IReadOnlyList<string> DownloadHosts { get; init; } = [];
     /// <summary>Hosts that are never downloaded; their URLs stay unchanged. Supports "*." prefix wildcards.</summary>
-    public IReadOnlyList<string> SkipHosts { get; init; } = Array.Empty<string>();
+    public IReadOnlyList<string> SkipHosts { get; init; } = [];
 }
 
 public sealed record NotionFieldPolicyConfig

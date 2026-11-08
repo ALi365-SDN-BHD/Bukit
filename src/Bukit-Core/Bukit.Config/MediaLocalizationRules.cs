@@ -112,7 +112,7 @@ internal static class MediaLocalizationRules
             result.Add(pattern);
         }
 
-        normalized = result.Distinct(StringComparer.Ordinal).ToArray();
+        normalized = [.. result.Distinct(StringComparer.Ordinal)];
         return true;
     }
 

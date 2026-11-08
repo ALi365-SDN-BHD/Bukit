@@ -1,4 +1,4 @@
-namespace Bukit.Engine;
+namespace Bukit.Engine.Primitives;
 
 /// <summary>
 /// Approximate display width of SEO text: East Asian wide and fullwidth characters count 2,

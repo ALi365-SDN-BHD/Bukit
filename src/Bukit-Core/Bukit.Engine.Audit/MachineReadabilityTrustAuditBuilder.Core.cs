@@ -8,9 +8,6 @@ namespace Bukit.Engine;
 
 internal static partial class MachineReadabilityTrustAuditBuilder
 {
-    private const int TitleMaxLength = SeoTextWidth.TitleMax;
-    private const int DescriptionMaxLength = SeoTextWidth.DescriptionMax;
-
     internal static MachineReadabilityTrustAuditResult BuildPublishAuditCore(
         AppConfig config,
         string outputDir,
