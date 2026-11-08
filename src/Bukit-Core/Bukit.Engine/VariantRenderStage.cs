@@ -1,5 +1,6 @@
 using Bukit.Theme;
 using System.Diagnostics;
+using Bukit.Config;
 using Bukit.Content;
 using Bukit.Engine.Abstractions.Content;
 using Bukit.Engine.Abstractions.Routing;
@@ -57,6 +58,15 @@ internal static class VariantRenderStage
             routeResult.ListRouteGraph,
             renderDependencyHash,
             routeMetadata);
+        if (manifestSetup.IncrementalEnabled)
+        {
+            renderDependencyHashResolver = WithBreadcrumbDependencies(
+                context.Config.Site.Seo.Schema,
+                seoStage.Breadcrumbs,
+                renderDependencyHash,
+                renderDependencyHashResolver);
+        }
+
         var result = await new RenderPipeline().ExecuteAsync(new RenderPipelineContext(
             BodyStore: context.BodyStore,
             Renderer: renderer,
@@ -88,6 +98,30 @@ internal static class VariantRenderStage
             cancellationToken);
         metrics.Merge(result.StageMetrics);
         return result;
+    }
+
+    /// <summary>
+    /// With breadcrumb home/parent enabled, a page's BreadcrumbList depends on other pages' titles,
+    /// so each page's dependency hash also covers its breadcrumb nodes.
+    /// </summary>
+    internal static Func<RouteInfo, string>? WithBreadcrumbDependencies(
+        SeoSchemaConfig schema,
+        BreadcrumbDescriptorCatalog? breadcrumbs,
+        string renderDependencyHash,
+        Func<RouteInfo, string>? inner)
+    {
+        if (breadcrumbs is null || (!schema.BreadcrumbHome && schema.BreadcrumbParent is null))
+        {
+            return inner;
+        }
+
+        return route =>
+        {
+            var hash = inner?.Invoke(route) ?? renderDependencyHash;
+            return breadcrumbs.Find(route.Url) is { } descriptor
+                ? RenderDependencyHasher.ComputeForBreadcrumb(hash, descriptor)
+                : hash;
+        };
     }
 
     private static Func<RouteInfo, string>? BuildRenderDependencyHashResolver(

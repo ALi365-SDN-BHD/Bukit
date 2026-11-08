@@ -4,7 +4,7 @@ Bukit 所有重要变更都将记录在此文件中。
 
 ## [Unreleased]
 
-- **面包屑首页与分类上级**：新增 `site.seo.schema.breadcrumbHome`，开启后 BreadcrumbList JSON-LD 以首页开头；新增 `site.seo.schema.breadcrumbParent`（填分类法类型，如 `categories`），内容页会以所属的第一个分类页作为上级，`/2596/` 这类扁平网址也能得到“首页 › 分类 › 文章”。两项默认关闭，不配置时输出和增量缓存都不变。
+- **面包屑首页与分类上级**：新增 `site.seo.schema.breadcrumbHome`，开启后 BreadcrumbList JSON-LD 以首页开头；新增 `site.seo.schema.breadcrumbParent`（填分类法类型，如 `categories`），内容页会以所属的第一个分类页作为上级，`/2596/` 这类扁平网址也能得到“首页 › 分类 › 文章”。分类法类型不存在时配置校验报错；增量构建时，面包屑任一级的名称或网址变化都会重新渲染该页。两项默认关闭，不配置时输出和增量缓存都不变。
 - **SEO 默认作者**：新增 `site.seo.defaultAuthor` 和 `site.seo.defaultAuthorType`（默认 `Person`，可设为 `Organization`）。页面没有作者关联、`author` 字段和 GEO 作者时，文章 JSON-LD 的作者使用这个值。不配置时，输出和增量缓存都不变。
 
 ## [2.0.10] - 2026-11-09

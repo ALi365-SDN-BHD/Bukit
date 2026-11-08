@@ -12,7 +12,8 @@ route exists. The home page itself SHALL still have no BreadcrumbList.
 ### Requirement: Taxonomy term page as breadcrumb parent
 When `site.seo.schema.breadcrumbParent` names a taxonomy kind, a content page
 listed on a term page of that kind SHALL get the term's first page as parent,
-preferring the document's own term order. A blank value SHALL fail validation.
+preferring the document's own term order. Terms SHALL be identified by slug.
+A blank value, or one that is not a taxonomy kind, SHALL fail validation.
 
 #### Scenario: Flat post URL in a category
 - **WHEN** `breadcrumbParent` is `categories` and post `/2596/` is listed under category "news"
@@ -23,8 +24,18 @@ preferring the document's own term order. A blank value SHALL fail validation.
 - **THEN** BreadcrumbList output and incremental hashes are unchanged
 
 ### Requirement: Breadcrumb options invalidate incremental output
-Changing either option SHALL change the incremental SEO dependency hash.
+Changing either option SHALL change the incremental SEO dependency hash. With
+either option on, a page's dependency hash SHALL include every breadcrumb node's
+name and target.
 
 #### Scenario: Option edited
 - **WHEN** `breadcrumbParent` changes between incremental builds
 - **THEN** pages are re-rendered
+
+#### Scenario: Parent renamed
+- **WHEN** a category's routeMetadata title changes between incremental builds
+- **THEN** every post with that category as breadcrumb parent is re-rendered
+
+#### Scenario: Unknown kind
+- **WHEN** `breadcrumbParent` is `category` but only `categories` exists
+- **THEN** configuration validation fails

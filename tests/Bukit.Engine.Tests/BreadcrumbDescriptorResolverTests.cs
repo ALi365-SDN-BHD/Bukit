@@ -234,6 +234,46 @@ public sealed class BreadcrumbDescriptorResolverTests
         Assert.Equal(["文章一"], catalog.Find("/2596/")!.Items.Select(item => item.Name));
     }
 
+    [Fact]
+    public void Resolve_BreadcrumbParent_SameTermNameUnderDifferentParents_UsesListingTermPage()
+    {
+        var config = Config(schema => schema with { BreadcrumbParent = "categories" });
+        var graph = ListRouteGraph.Create(
+        [
+            TermRoute("新闻", "club-news", "社团新闻", "/categories/club/news/", 1, ["/2596/"]),
+            TermRoute("新闻", "trade-news", "商贸新闻", "/categories/trade/news/", 1, ["/2597/"])
+        ]);
+        var catalog = BreadcrumbDescriptorResolver.Resolve(
+            config,
+            "/",
+            [Routed("p1", "文章一", "/2596/", ["新闻"]), Routed("p2", "文章二", "/2597/", ["新闻"])],
+            graph,
+            staticEntries: null,
+            routeMetadata: null);
+
+        Assert.Equal(["社团新闻", "文章一"], catalog.Find("/2596/")!.Items.Select(item => item.Name));
+        Assert.Equal(["商贸新闻", "文章二"], catalog.Find("/2597/")!.Items.Select(item => item.Name));
+    }
+
+    [Fact]
+    public void Resolve_BreadcrumbParent_UsesRouteMetadataTitleOfTermPage()
+    {
+        var config = Config(schema => schema with { BreadcrumbParent = "categories" });
+        var graph = ListRouteGraph.Create(
+        [
+            TermRoute("news", "news", "categories: news", "/categories/news/", 1, ["/2596/"]) with { RouteMetadataApplied = true, Title = "最新動態" }
+        ]);
+        var catalog = BreadcrumbDescriptorResolver.Resolve(
+            config,
+            "/",
+            [Routed("p1", "文章一", "/2596/", ["news"])],
+            graph,
+            staticEntries: null,
+            routeMetadata: null);
+
+        Assert.Equal(["最新動態", "文章一"], catalog.Find("/2596/")!.Items.Select(item => item.Name));
+    }
+
     private static ListRouteGraph TaxonomyGraph()
         => ListRouteGraph.Create(
         [

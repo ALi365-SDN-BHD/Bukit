@@ -10,11 +10,12 @@
 
 - [x] `BreadcrumbDescriptorResolver` 支持首页节点与分类上级；新增 `BreadcrumbTaxonomyParentResolver`。
 - [x] `SeoContributor` 在开启时把两个字段加入增量哈希。
+- [x] 审计修复：页面依赖哈希包含面包屑各级名称与网址；分类页按 slug 识别；`breadcrumbParent` 必须是存在的分类法 kind。
 
 ## 3. 测试
 
-- [x] Config：默认值、读取、空白分类法、Schema 契约。
-- [x] Engine：首页节点（有/无首页路由）、按文档分类顺序取上级、回退到分类页顺序、分页条目、其他分类法不受影响、增量哈希。
+- [x] Config：默认值、读取、空白分类法、未知分类法（内置与自定义）、Schema 契约。
+- [x] Engine：面包屑依赖哈希、同名分类、routeMetadata 分类标题；首页节点（有/无首页路由）、按文档分类顺序取上级、回退到分类页顺序、分页条目、其他分类法不受影响、增量哈希。
 
 ## 4. 文档与契约
 

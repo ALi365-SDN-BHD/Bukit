@@ -1298,6 +1298,35 @@ public sealed class ConfigLoaderTests : IDisposable
     }
 
     [Fact]
+    public void Validate_SeoSchemaBreadcrumbParent_MustNameATaxonomyKind()
+    {
+        static string Yaml(string parent, string taxonomy) => $$"""
+            site:
+              name: myblog
+              title: My Blog
+              seo:
+                schema:
+                  breadcrumbParent: {{parent}}
+            content:
+              sources:
+                - type: markdown
+                  markdown:
+                    dir: content
+            {{taxonomy}}
+            """;
+        const string kinds = "taxonomy:\n  kinds:\n    - key: topics\n      kind: subjects\n    - key: regions";
+
+        ConfigValidator.Validate(ConfigLoader.Load(WriteTempYaml(Yaml("tags", ""))));
+        ConfigValidator.Validate(ConfigLoader.Load(WriteTempYaml(Yaml("Subjects", kinds))));
+        ConfigValidator.Validate(ConfigLoader.Load(WriteTempYaml(Yaml("regions", kinds))));
+
+        var legacy = Assert.ThrowsAny<ConfigException>(() => ConfigValidator.Validate(ConfigLoader.Load(WriteTempYaml(Yaml("category", "")))));
+        Assert.Equal("site.seo.schema.breadcrumbParent 'category' is not a taxonomy kind (tags|categories).", legacy.Message);
+        var configured = Assert.ThrowsAny<ConfigException>(() => ConfigValidator.Validate(ConfigLoader.Load(WriteTempYaml(Yaml("topics", kinds)))));
+        Assert.Equal("site.seo.schema.breadcrumbParent 'topics' is not a taxonomy kind (subjects|regions).", configured.Message);
+    }
+
+    [Fact]
     public void Load_SeoConfig_PreservesExplicitlyEmptyTitleSeparator()
     {
         var yaml = """

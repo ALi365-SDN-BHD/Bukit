@@ -4,7 +4,7 @@ All notable changes to Bukit will be documented in this file.
 
 ## [Unreleased]
 
-- **Breadcrumb home and taxonomy parent**: `site.seo.schema.breadcrumbHome` starts BreadcrumbList JSON-LD with the home page, and `site.seo.schema.breadcrumbParent` (a taxonomy kind such as `categories`) puts a content page's first term page before it, so flat URLs like `/2596/` get Home › category › post. Both are off by default; unset, output and incremental caches are unchanged.
+- **Breadcrumb home and taxonomy parent**: `site.seo.schema.breadcrumbHome` starts BreadcrumbList JSON-LD with the home page, and `site.seo.schema.breadcrumbParent` (a taxonomy kind such as `categories`) puts a content page's first term page before it, so flat URLs like `/2596/` get Home › category › post. An unknown taxonomy kind fails validation, and incremental builds re-render pages whose breadcrumb nodes change. Both are off by default; unset, output and incremental caches are unchanged.
 - **Default SEO author**: `site.seo.defaultAuthor` and `site.seo.defaultAuthorType` (`Person` by default, or `Organization`) set the article JSON-LD author when a page has no author relation, no `author` field, and no GEO author. Unset, output and incremental caches are unchanged.
 
 ## [2.0.10] - 2026-11-09

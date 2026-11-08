@@ -15,6 +15,7 @@ public static class ConfigValidator
     public static void Validate(AppConfig config, ConfigValidationOptions options)
     {
         I18nValidator.ValidateSite(config.Site);
+        ValidateBreadcrumbParent(config);
 
         if (config.Site.Analytics.Csp is not null && !config.Build.Report.Enabled)
         {
@@ -481,6 +482,26 @@ public static class ConfigValidator
             {
                 throw new ConfigException($"{fieldName} must not contain encoded slashes.", DiagnosticCode.ConfigInvalidValue);
             }
+        }
+    }
+
+    private static void ValidateBreadcrumbParent(AppConfig config)
+    {
+        var parent = config.Site.Seo.Schema.BreadcrumbParent?.Trim();
+        if (string.IsNullOrEmpty(parent))
+        {
+            return;
+        }
+
+        // Kinds as TaxonomyPlugin names them: configured kinds, or the built-in tags/categories.
+        var known = config.Taxonomy.Kinds is { Count: > 0 } kinds
+            ? kinds.Select(kind => string.IsNullOrWhiteSpace(kind.Kind) ? kind.Key.Trim() : kind.Kind.Trim()).ToArray()
+            : ["tags", "categories"];
+        if (!known.Contains(parent, StringComparer.OrdinalIgnoreCase))
+        {
+            throw new ConfigException(
+                $"site.seo.schema.breadcrumbParent '{parent}' is not a taxonomy kind ({string.Join("|", known)}).",
+                DiagnosticCode.ConfigInvalidValue);
         }
     }
 }

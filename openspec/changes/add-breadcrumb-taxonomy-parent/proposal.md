@@ -9,8 +9,9 @@ silkroute.cc 的文章网址是 `/2596/` 这种一级结构。Bukit 的 Breadcru
 - 新增 `site.seo.schema.breadcrumbHome`（布尔，默认 `false`）：开启后每个 BreadcrumbList 以首页开头，名称取首页路由的标题，没有首页路由时取 `site.title`。
 - 新增 `site.seo.schema.breadcrumbParent`（分类法 kind，可选）：内容页如果出现在该分类法的某个分类页（含分页）里，就以该分类的第一页作为上级。文档自身字段里的分类顺序优先，否则取第一个列出它的分类页。分类名称沿用分类页标题（可被 `content.routeMetadata` 覆盖）。
 - 网址层级上的上级照旧保留；如果分类页同时也是网址上级，不重复出现。
-- 校验：`breadcrumbParent` 为空白时报错。
-- 两项任一开启时进入增量构建 SEO 哈希；都不配置时哈希和输出不变。
+- 校验：`breadcrumbParent` 为空白，或不是已配置的分类法 kind（未配置 `taxonomy.kinds` 时为 `tags`/`categories`）时报错。
+- 分类页按 slug 识别，同名分类（层级分类中不同父级下）不会串到别的分类。
+- 两项任一开启时进入增量构建 SEO 哈希；同时每个页面的依赖哈希包含其面包屑各级的名称和网址，上级改名（如 routeMetadata 标题）或换上级时页面会重新渲染。都不配置时哈希和输出不变。
 - YAML 读取、严格字段白名单、JSON Schema、用户文档、CHANGELOG、公共 API 基线同步更新。
 
 ## Impact

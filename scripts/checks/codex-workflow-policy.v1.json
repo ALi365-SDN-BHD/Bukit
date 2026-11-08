@@ -2050,7 +2050,10 @@
         "src/Bukit-Core/Bukit.Config/AppConfig.cs",
         "src/Bukit-Core/Bukit.Engine/BreadcrumbDescriptor.cs",
         "src/Bukit-Core/Bukit.Engine/BreadcrumbTaxonomyParentResolver.cs",
-        "src/Bukit-Core/Bukit.Engine/Incremental/SeoContributor.cs"
+        "src/Bukit-Core/Bukit.Engine/Incremental/SeoContributor.cs",
+        "src/Bukit-Core/Bukit.Config/ConfigValidator.cs",
+        "src/Bukit-Core/Bukit.Engine/VariantRenderStage.cs",
+        "src/Bukit-Core/Bukit.Engine/Incremental/RenderDependencyHasher.cs"
       ],
       "publicContract": false,
       "resource": "dotnet-serial"

@@ -11,7 +11,8 @@ namespace Bukit.Engine;
 internal sealed record SeoStageResult(
     SeoPipelineResult SeoResult,
     IReadOnlyDictionary<string, IReadOnlyList<SeoAlternateModel>> SeoAlternates,
-    int MaxDegreeOfParallelism);
+    int MaxDegreeOfParallelism,
+    BreadcrumbDescriptorCatalog? Breadcrumbs = null);
 
 internal static class VariantSeoStage
 {
@@ -65,6 +66,7 @@ internal static class VariantSeoStage
         return Task.FromResult(new SeoStageResult(
             seoResult,
             seoAlternates,
-            maxDegreeOfParallelism));
+            maxDegreeOfParallelism,
+            breadcrumbs));
     }
 }

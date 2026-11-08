@@ -63,6 +63,24 @@ internal static class RenderDependencyHasher
         return HashUtil.ToHexLower(hasher.GetHashAndReset());
     }
 
+    /// <summary>
+    /// Folds a page's BreadcrumbList (names and targets of every node) into its dependency hash,
+    /// so renamed or re-parented ancestors re-render the page.
+    /// </summary>
+    internal static string ComputeForBreadcrumb(string baseHash, BreadcrumbDescriptor descriptor)
+    {
+        using var hasher = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
+        var writer = new RenderDependencyHashWriter(hasher);
+        writer.AppendUtf8(baseHash);
+        foreach (var item in descriptor.Items)
+        {
+            writer.AppendFramedValue("breadcrumb.name", item.Name);
+            writer.AppendFramedValue("breadcrumb.item", item.Item);
+        }
+
+        return HashUtil.ToHexLower(hasher.GetHashAndReset());
+    }
+
     private static void AppendRouteMetadataValue(
         RenderDependencyHashWriter writer,
         RouteMetadataEntry metadata)

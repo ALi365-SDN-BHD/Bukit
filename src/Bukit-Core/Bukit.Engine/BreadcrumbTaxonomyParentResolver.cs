@@ -20,8 +20,9 @@ internal static class BreadcrumbTaxonomyParentResolver
             return result;
         }
 
-        // term text -> first-page route key, and content route key -> terms in term-route order.
+        // Terms are identified by slug: names can repeat across a hierarchy, slugs cannot.
         var termPages = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        var termNames = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
         var candidates = new Dictionary<string, List<string>>(StringComparer.OrdinalIgnoreCase);
         foreach (var route in listRouteGraph.Routes)
         {
@@ -32,23 +33,24 @@ internal static class BreadcrumbTaxonomyParentResolver
                 continue;
             }
 
-            var term = taxonomy.Term ?? taxonomy.Slug ?? route.RouteId;
+            var slug = taxonomy.Slug ?? taxonomy.Term ?? route.RouteId;
+            termNames.TryAdd(slug, taxonomy.Term ?? slug);
             if ((route.PageNumber ?? 1) == 1)
             {
-                termPages.TryAdd(term, BreadcrumbDescriptorResolver.NormalizeForComparison(route.Url));
+                termPages.TryAdd(slug, BreadcrumbDescriptorResolver.NormalizeForComparison(route.Url));
             }
 
             foreach (var item in route.Items)
             {
                 var itemKey = BreadcrumbDescriptorResolver.NormalizeForComparison(item.Url);
-                if (!candidates.TryGetValue(itemKey, out var terms))
+                if (!candidates.TryGetValue(itemKey, out var slugs))
                 {
-                    candidates[itemKey] = terms = new List<string>();
+                    candidates[itemKey] = slugs = new List<string>();
                 }
 
-                if (!terms.Contains(term, StringComparer.OrdinalIgnoreCase))
+                if (!slugs.Contains(slug, StringComparer.OrdinalIgnoreCase))
                 {
-                    terms.Add(term);
+                    slugs.Add(slug);
                 }
             }
         }
@@ -57,18 +59,21 @@ internal static class BreadcrumbTaxonomyParentResolver
         foreach (var routedDocument in routed)
         {
             var key = BreadcrumbDescriptorResolver.NormalizeForComparison(routedDocument.Route.Url);
-            if (!candidates.TryGetValue(key, out var terms))
+            if (!candidates.TryGetValue(key, out var slugs))
             {
                 continue;
             }
 
             // Prefer the document's own term order; fall back to term-route order.
             var declared = ContentFieldReader.GetTextList(routedDocument.Document.CustomFields, fieldKey) ?? [];
-            var term = declared
+            var slug = declared
                 .Select(value => value.Trim())
-                .FirstOrDefault(value => terms.Contains(value, StringComparer.OrdinalIgnoreCase))
-                ?? terms[0];
-            if (termPages.TryGetValue(term, out var parentKey) && !string.Equals(parentKey, key, StringComparison.OrdinalIgnoreCase))
+                .Select(value => slugs.FirstOrDefault(candidate =>
+                    string.Equals(termNames[candidate], value, StringComparison.OrdinalIgnoreCase) ||
+                    string.Equals(candidate, value, StringComparison.OrdinalIgnoreCase)))
+                .FirstOrDefault(candidate => candidate is not null)
+                ?? slugs[0];
+            if (termPages.TryGetValue(slug, out var parentKey) && !string.Equals(parentKey, key, StringComparison.OrdinalIgnoreCase))
             {
                 result[key] = parentKey;
             }
