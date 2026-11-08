@@ -1,20 +1,21 @@
-using System.Globalization;
+using Bukit.Config;
 
 namespace Bukit.Content.Media;
 
 /// <summary>
 /// Decides from the original URL's host whether an image is downloaded.
-/// Patterns are exact hosts or "*." plus a host (subdomains only); skip rules win.
+/// Patterns follow <see cref="MediaConfig.TryNormalizeHostPattern"/>; skip rules win.
 /// </summary>
 internal sealed class MediaHostFilter
 {
     private readonly string[] _downloadHosts;
     private readonly string[] _skipHosts;
 
+    /// <exception cref="ArgumentException">A pattern is not a valid host pattern.</exception>
     internal MediaHostFilter(IReadOnlyList<string>? downloadHosts, IReadOnlyList<string>? skipHosts)
     {
-        _downloadHosts = Normalize(downloadHosts);
-        _skipHosts = Normalize(skipHosts);
+        _downloadHosts = Normalize(downloadHosts, nameof(downloadHosts));
+        _skipHosts = Normalize(skipHosts, nameof(skipHosts));
     }
 
     internal bool ShouldDownload(Uri uri)
@@ -24,7 +25,7 @@ internal sealed class MediaHostFilter
             return true;
         }
 
-        // IdnHost is already ASCII (punycode); only case and a trailing dot need normalizing.
+        // IdnHost is already ASCII (punycode) and canonical; only case and a trailing dot need normalizing.
         var host = uri.IdnHost.TrimEnd('.').ToLowerInvariant();
         if (MatchesAny(host, _skipHosts))
         {
@@ -56,52 +57,29 @@ internal sealed class MediaHostFilter
         return false;
     }
 
-    private static string[] Normalize(IReadOnlyList<string>? patterns)
+    private static string[] Normalize(IReadOnlyList<string>? patterns, string paramName)
     {
         if (patterns is null || patterns.Count == 0)
         {
             return [];
         }
 
-        var idn = new IdnMapping();
         var result = new List<string>(patterns.Count);
         foreach (var raw in patterns)
         {
-            var pattern = raw?.Trim() ?? string.Empty;
-            if (pattern.Length == 0)
+            if (string.IsNullOrWhiteSpace(raw))
             {
                 continue;
             }
 
-            var wildcard = pattern.StartsWith("*.", StringComparison.Ordinal);
-            var host = NormalizePatternHost(idn, wildcard ? pattern[2..] : pattern);
-            if (host.Length > 0)
+            if (!MediaConfig.TryNormalizeHostPattern(raw, out var normalized))
             {
-                result.Add(wildcard ? "*." + host : host);
+                throw new ArgumentException($"Invalid media host pattern '{raw}'.", paramName);
             }
+
+            result.Add(normalized);
         }
 
         return result.Distinct(StringComparer.Ordinal).ToArray();
-    }
-
-    private static string NormalizePatternHost(IdnMapping idn, string host)
-    {
-        // Lowercase first: invariant-globalization IDN conversion does no case folding.
-        var value = host.Trim().TrimEnd('.').ToLowerInvariant();
-        if (value.Length == 0)
-        {
-            return string.Empty;
-        }
-
-        try
-        {
-            value = idn.GetAscii(value);
-        }
-        catch (ArgumentException)
-        {
-            // Keep the raw value; it simply will not match a valid host.
-        }
-
-        return value;
     }
 }

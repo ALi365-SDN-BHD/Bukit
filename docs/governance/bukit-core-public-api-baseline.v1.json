@@ -1361,6 +1361,8 @@
         "public System.String! DownloadDir { get; init; }",
         "public System.String! OnFailure { get; init; }",
         "public System.String! UrlBase { get; init; }",
+        "public static System.Boolean TryNormalizeHostPattern(System.String? pattern, out System.String! normalized)",
+        "public static System.Boolean TryParseOnFailure(System.String? value, out System.Boolean keepOriginal)",
         "public static System.Boolean op_Equality(Bukit.Config.MediaConfig? left, Bukit.Config.MediaConfig? right)",
         "public static System.Boolean op_Inequality(Bukit.Config.MediaConfig? left, Bukit.Config.MediaConfig? right)",
         "public virtual System.Boolean Equals(System.Object? obj)",

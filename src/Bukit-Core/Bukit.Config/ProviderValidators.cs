@@ -162,9 +162,7 @@ internal static class ProviderValidators
             throw new ConfigException("content.media.retryBaseDelayMs must be a non-negative integer when set.", DiagnosticCode.ConfigRequiredFieldMissing);
         }
 
-        var onFailure = (media.OnFailure ?? "placeholder").Trim();
-        if (!onFailure.Equals("placeholder", StringComparison.OrdinalIgnoreCase) &&
-            !onFailure.Equals("keep", StringComparison.OrdinalIgnoreCase))
+        if (!MediaConfig.TryParseOnFailure(media.OnFailure, out _))
         {
             throw new ConfigException("content.media.onFailure must be one of: placeholder, keep.", DiagnosticCode.ConfigInvalidValue);
         }
@@ -183,58 +181,13 @@ internal static class ProviderValidators
         // Name the value, not its index: blank entries are dropped while loading, so indexes can shift.
         foreach (var pattern in patterns)
         {
-            if (!IsValidMediaHostPattern(pattern))
+            if (!MediaConfig.TryNormalizeHostPattern(pattern, out _))
             {
                 throw new ConfigException(
-                    $"{fieldName} entry '{pattern}' must be a host name or '*.' followed by a host name.",
+                    $"{fieldName} entry '{pattern}' must be a host name, a canonical IPv4 address, or '*.' followed by a host name.",
                     DiagnosticCode.ConfigInvalidValue);
             }
         }
-    }
-
-    // A pattern is an exact host, an exact IPv4 address, or "*." plus a host name;
-    // no other wildcard, scheme, port, path or IPv6 literal.
-    internal static bool IsValidMediaHostPattern(string? pattern)
-    {
-        var value = pattern?.Trim() ?? string.Empty;
-        var wildcard = value.StartsWith("*.", StringComparison.Ordinal);
-        if (wildcard)
-        {
-            value = value[2..];
-        }
-
-        if (value.Length == 0 || value.StartsWith('.') || value.EndsWith('.'))
-        {
-            return false;
-        }
-
-        foreach (var ch in value)
-        {
-            if (ch is '*' or '/' or ':' or '@' or '?' or '#' or '[' or ']' || char.IsWhiteSpace(ch))
-            {
-                return false;
-            }
-        }
-
-        if (!value.All(char.IsAscii))
-        {
-            // Validate internationalized names in their ASCII (punycode) form.
-            try
-            {
-                value = new System.Globalization.IdnMapping().GetAscii(value.ToLowerInvariant());
-            }
-            catch (ArgumentException)
-            {
-                return false;
-            }
-        }
-
-        return Uri.CheckHostName(value) switch
-        {
-            UriHostNameType.Dns => true,
-            UriHostNameType.IPv4 => !wildcard,
-            _ => false
-        };
     }
 
     internal static void RejectPathTraversal(string fieldName, string value)

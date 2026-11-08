@@ -1466,6 +1466,8 @@ public sealed class ConfigLoaderTests : IDisposable
     [InlineData("downloadHosts: [\"bü..com\"]", "content.media.downloadHosts")]
     [InlineData("skipHosts: [\"ü" + "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" + ".com\"]", "content.media.skipHosts")]
     [InlineData("skipHosts: [\"*.203.0.113.5\"]", "content.media.skipHosts")]
+    [InlineData("skipHosts: [\"010.0.0.1\"]", "content.media.skipHosts")]
+    [InlineData("skipHosts: [\"203.000.113.5\"]", "content.media.skipHosts")]
     [InlineData("skipHosts: [\"[2001:db8::1]\"]", "content.media.skipHosts")]
     public void Load_MediaLocalizationControls_RejectsInvalidValues(string line, string expectedPath)
     {

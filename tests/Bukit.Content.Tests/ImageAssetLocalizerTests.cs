@@ -1946,7 +1946,8 @@ public sealed class ImageAssetLocalizerTests
 
             var result = await localizer.LocalizeAsync("https://img.example/a.jpg?x=1&amp;y=2", CancellationToken.None);
 
-            Assert.Equal("https://img.example/a.jpg?x=1&y=2", result);
+            // keep returns the caller's text unchanged, not the HTML-decoded request URL.
+            Assert.Equal("https://img.example/a.jpg?x=1&amp;y=2", result);
             Assert.Single(localizer.Failures);
             Assert.Contains("HTTP 404", localizer.Failures[0].Reason, StringComparison.Ordinal);
         });
@@ -2044,24 +2045,58 @@ public sealed class ImageAssetLocalizerTests
         => await WithTempDirAsync(async dir =>
         {
             using var handler = new GatedNotFoundHandler();
-            using var localizer = CreateLocalizer(ControlConfig(dir, "keep"), handler);
+            var logger = new EventWaitLogger("event=media.download_shared");
+            using var localizer = CreateLocalizer(ControlConfig(dir, "keep"), handler, logger);
 
             var first = localizer.LocalizeAsync("https://img.example/a.png", CancellationToken.None);
             await handler.RequestStarted.WaitAsync(TimeSpan.FromSeconds(5));
             // Same cache key (fragment and host case are ignored), different spelling.
             var second = localizer.LocalizeAsync("https://IMG.example/a.png#hero", CancellationToken.None);
-            var deadline = DateTime.UtcNow.AddSeconds(10);
-            while (localizer.SharedDownloadJoins == 0 && DateTime.UtcNow < deadline)
-            {
-                await Task.Delay(10);
-            }
-
-            Assert.Equal(1, localizer.SharedDownloadJoins);
+            // The localizer logs this event once the second caller has joined the running download.
+            await logger.Seen.WaitAsync(TimeSpan.FromSeconds(10));
             handler.Release();
 
             Assert.Equal("https://img.example/a.png", await first);
             Assert.Equal("https://IMG.example/a.png#hero", await second);
             Assert.Equal(1, handler.RequestCount);
+        });
+
+    [Theory]
+    [InlineData("keep", "https://img.example/a.png")]
+    [InlineData("placeholder", "/assets/images/noneimg-news.jpg")]
+    public async Task LocalizeAsync_FailedUrl_IsNotRetriedOrReportedAgainInSameLocalizer(string onFailure, string expected)
+        => await WithTempDirAsync(async dir =>
+        {
+            var handler = new CountingHandler(HttpStatusCode.NotFound, "text/plain", "missing");
+            using var localizer = CreateLocalizer(ControlConfig(dir, onFailure) with { MaxRetries = 2 }, handler);
+
+            Assert.Equal(expected, await localizer.LocalizeAsync("https://img.example/a.png", CancellationToken.None));
+            Assert.Equal(expected, await localizer.LocalizeAsync("https://img.example/a.png", CancellationToken.None));
+
+            Assert.Equal(3, handler.RequestCount); // one download with 2 retries, then remembered
+            Assert.Single(localizer.Failures);
+        });
+
+    [Fact]
+    public void Constructor_InvalidMediaControls_Throw()
+    {
+        using var handler = new CountingHandler(HttpStatusCode.OK, "image/png", "img");
+        Assert.Throws<ArgumentException>(() => CreateLocalizer(new MediaConfig { OnFailure = "keeep" }, handler));
+        Assert.Throws<ArgumentException>(() => CreateLocalizer(new MediaConfig { DownloadHosts = ["bü..com"] }, handler));
+    }
+
+    [Fact]
+    public async Task LocalizeAsync_SkipHostsCanonicalIpv4_MatchesCanonicalizedUrlHost()
+        => await WithTempDirAsync(async dir =>
+        {
+            var handler = new CountingHandler(HttpStatusCode.OK, "image/png", "img");
+            using var localizer = CreateLocalizer(ControlConfig(dir, skipHosts: ["8.0.0.1"]), handler);
+
+            // Uri reads a leading zero as octal: 010.0.0.1 is 8.0.0.1.
+            var result = await localizer.LocalizeAsync("https://010.0.0.1/a.png", CancellationToken.None);
+
+            Assert.Equal("https://010.0.0.1/a.png", result);
+            Assert.Equal(0, handler.RequestCount);
         });
 
     [Fact]
@@ -2759,6 +2794,25 @@ public sealed class ImageAssetLocalizerTests
             response.Content.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue(_contentType);
             return Task.FromResult(response);
         }
+    }
+
+    private sealed class EventWaitLogger(string eventPrefix) : ILogger
+    {
+        private readonly TaskCompletionSource _seen = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        public Task Seen => _seen.Task;
+
+        public void Debug(string message)
+        {
+            if (message.StartsWith(eventPrefix, StringComparison.Ordinal))
+            {
+                _seen.TrySetResult();
+            }
+        }
+
+        public void Info(string message) { }
+        public void Warn(string message) { }
+        public void Error(string message) { }
     }
 
     private sealed class RecordingLogger : ILogger

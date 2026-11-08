@@ -41,3 +41,8 @@
 
 - [x] `/code-review high` 审计的 10 项全部处理：共享下载改用 `DownloadOutcome` 类型结果（去掉字符串哨兵）；写入改用 `WriteResult`（去掉 -1 哨兵、闭包与不可达分支）；共享下载测试改为等待 `SharedDownloadJoins` 而非固定延时；URL 主机不再重复 IDN 转换，模式转换不再共享静态 `IdnMapping`；`ContentProviderFactory` 撤回重复规范化；Schema 辅助函数去掉 `Regex.Escape`，仅接受字母、数字与 `-`；`MatchesFileAsync` 恢复单次读取，签名长度常量共用；policy 补齐 Schema 生成器与严格字段校验器；域名规则接受精确 IPv4（spec 与指南已同步）。
 - [x] 专项测试：Config 509/509、Content 628/628、Engine 3125/3125、Architecture 422/422；`codex-workflow-self-test.sh`、`public-api-drift.sh check` exit 0；closure `unmappedFiles=[]`。
+
+## 5. 第二轮审查修复（2026-11-08）
+
+- [x] `/code-review high` 的 9 项全部处理：配置校验与本地化共用 `MediaConfig.TryParseOnFailure`／`TryNormalizeHostPattern`（不新增公共类型，架构测试锁定的类型数不变）；IPv4 只接受规范点分十进制，`010.0.0.1` 等写法校验失败；`keep` 返回调用方原文（不做 HTML 解码）；同一次构建内失败的地址不再重复下载或重复报告；构造函数对非法 `onFailure`／域名规则抛出 `ArgumentException`；`WriteResult` 直接给出非空类型；两种失败记录合并为 `AddFailure`；测试专用计数改为 `event=media.download_shared` 调试日志；写入缓冲改用 `ArrayPool`。spec、proposal、指南、公共 API 基线、policy 同步。
+- [x] 专项测试：Architecture 422/422、Config 511/511、Content 632/632；`public-api-drift.sh check`、`public-api-drift-self-test.sh`、`codex-workflow-self-test.sh` exit 0；closure `unmappedFiles=[]`。

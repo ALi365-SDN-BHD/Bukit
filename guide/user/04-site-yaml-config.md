@@ -333,9 +333,10 @@ other than HTTP(S) or root-relative paths fail the build.
 
 Host patterns are an exact host, such as file.notion.so, or `*.` plus a host,
 such as *.amazonaws.com, which matches subdomains but not amazonaws.com itself.
-An exact IPv4 address, such as 203.0.113.5, is also accepted; wildcards on
-addresses and IPv6 literals are not. Matching is case-insensitive and uses the original URL, not a redirect target.
-Skipped URLs make no request and are not counted as failures.
+An exact IPv4 address in canonical form, such as 203.0.113.5, is also accepted;
+leading zeros (010.0.0.1), wildcards on addresses and IPv6 literals are not. Matching is case-insensitive and uses the original URL, not a redirect target.
+Skipped URLs make no request and are not counted as failures. A URL that fails
+once is not retried for the rest of the build.
 
 A response with `Content-Type: application/octet-stream`, `binary/octet-stream`,
 or no content type (common for Notion file storage) is identified from the
