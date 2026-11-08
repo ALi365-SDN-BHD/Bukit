@@ -75,6 +75,35 @@ public sealed class ConfigJsonSchemaGeneratorTests
         Assert.Equal(expected, actual);
     }
 
+    [Fact]
+    public void Generate_MediaOnFailure_AcceptsAnyCaseLikeTheLoader()
+    {
+        using var doc = JsonDocument.Parse(ConfigJsonSchemaGenerator.Generate());
+        var onFailure = doc.RootElement.GetProperty("properties")
+            .GetProperty("content").GetProperty("properties")
+            .GetProperty("media").GetProperty("properties")
+            .GetProperty("onFailure");
+        var anyOf = onFailure.GetProperty("anyOf");
+        var values = new List<string>();
+        foreach (var value in anyOf[0].GetProperty("enum").EnumerateArray())
+        {
+            values.Add(value.GetString()!);
+        }
+
+        var pattern = anyOf[1].GetProperty("pattern").GetString()!;
+
+        Assert.Equal(new[] { "placeholder", "keep" }, values);
+        foreach (var accepted in new[] { "keep", "Keep", " KEEP ", "PlaceHolder" })
+        {
+            Assert.Matches(pattern, accepted);
+        }
+
+        foreach (var rejected in new[] { "drop", "keeper", "kee p", "" })
+        {
+            Assert.DoesNotMatch(pattern, rejected);
+        }
+    }
+
     [Theory]
     [InlineData("aiBotAllowList")]
     [InlineData("aiBotBlockList")]

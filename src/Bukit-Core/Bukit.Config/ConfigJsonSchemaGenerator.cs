@@ -1,3 +1,4 @@
+using System.Text.RegularExpressions;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 
@@ -449,7 +450,7 @@ public static class ConfigJsonSchemaGenerator
             ("maxFileSizeBytes", IntSchema(1)),
             ("blockPrivateNetworks", BoolSchema()),
             ("retryBaseDelayMs", IntSchema(0)),
-            ("onFailure", EnumSchema("placeholder", "keep")),
+            ("onFailure", CaseInsensitiveEnumSchema("placeholder", "keep")),
             ("downloadHosts", StringArraySchema()),
             ("skipHosts", StringArraySchema()))));
 
@@ -729,6 +730,19 @@ public static class ConfigJsonSchemaGenerator
     {
         var schema = StringSchema();
         schema["enum"] = new JsonArray([.. values.Select(v => JsonValue.Create(v))]);
+        return schema;
+    }
+
+    // For values the loader accepts in any case: the enum keeps editor completion,
+    // the pattern accepts other casings and surrounding whitespace.
+    private static JsonObject CaseInsensitiveEnumSchema(params string[] values)
+    {
+        var alternatives = values.Select(v => string.Concat(v.Select(c =>
+            char.IsLetter(c) ? $"[{char.ToLowerInvariant(c)}{char.ToUpperInvariant(c)}]" : Regex.Escape(c.ToString()))));
+        var schema = StringSchema();
+        schema["anyOf"] = new JsonArray(
+            Obj(("enum", Arr(values))),
+            Obj(("pattern", $"^\\s*(?:{string.Join('|', alternatives)})\\s*$")));
         return schema;
     }
 

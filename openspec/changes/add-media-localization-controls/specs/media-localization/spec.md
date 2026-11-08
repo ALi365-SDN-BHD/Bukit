@@ -2,7 +2,7 @@
 
 ### Requirement: Download failure keeps the original URL when configured
 
-`content.media.onFailure` MUST accept `placeholder` (default) or `keep`, case-insensitive; any other value MUST fail configuration validation. When an HTTP(S) image download fails for any reason (HTTP error, rejected content type, size limit, empty body, signature or decode rejection, SSRF block, timeout, network error, or an unsafe cached file), the localizer MUST record the failure and return `defaultImageUrl` under `placeholder`, or the original source URL under `keep`. The original URL MUST be used for front-matter image fields and for body `<img src>` and `srcset` alike. An empty source and missing `downloadDir`/`urlBase` are not download failures and MUST keep returning `defaultImageUrl`.
+`content.media.onFailure` MUST accept `placeholder` (default) or `keep`, case-insensitive, and the generated JSON Schema MUST accept the same casings; any other value MUST fail configuration validation. When an HTTP(S) image download fails for any reason (HTTP error, rejected content type, size limit, empty body, signature or decode rejection, SSRF block, timeout, network error, or an unsafe cached file), the localizer MUST record the failure and return `defaultImageUrl` under `placeholder`, or the original source URL under `keep`. The original URL MUST be used for front-matter image fields and for body `<img src>` and `srcset` alike. When several references share one in-flight download, each MUST receive its own source spelling under `keep`. An empty source and missing `downloadDir`/`urlBase` are not download failures and MUST keep returning `defaultImageUrl`.
 
 #### Scenario: Keep mode on HTTP 404
 - **WHEN** `onFailure: keep` and an image URL returns 404 after all retries
@@ -34,7 +34,7 @@
 
 ### Requirement: Generic binary responses are identified by content signature
 
-When the response Content-Type is `application/octet-stream`, `binary/octet-stream`, or missing, the localizer MUST identify the image type from the downloaded file's leading bytes using the same signatures as the existing Content-Type check, limited to the allowed raster formats. The identified type MUST then pass the existing signature and decode validation, and the stored file extension MUST follow the identified type. If no allowed type is identified, the download MUST fail with a content-type rejection. Responses with any other non-image Content-Type MUST still be rejected before the body is written.
+When the response Content-Type is `application/octet-stream`, `binary/octet-stream`, or missing, the localizer MUST identify the image type from the response's leading bytes, before the body is stored, using the same signatures as the existing Content-Type check, limited to the allowed raster formats. The identified type MUST then pass the existing signature and decode validation, and the stored file extension MUST follow the identified type. If no allowed type is identified, the download MUST fail with a content-type rejection. Responses with any other non-image Content-Type MUST still be rejected before the body is written.
 
 #### Scenario: Notion file served as octet-stream
 - **WHEN** a response has `Content-Type: application/octet-stream` and a valid PNG body
@@ -42,7 +42,7 @@ When the response Content-Type is `application/octet-stream`, `binary/octet-stre
 
 #### Scenario: Octet-stream that is not an image
 - **WHEN** a response has `Content-Type: application/octet-stream` and an HTML body
-- **THEN** the download fails, the temporary file is removed, and the `onFailure` result is returned
+- **THEN** the download fails after reading only the leading bytes, no file is left behind, and the `onFailure` result is returned
 
 #### Scenario: Other content types stay rejected
 - **WHEN** a response has `Content-Type: text/html` and a valid PNG body

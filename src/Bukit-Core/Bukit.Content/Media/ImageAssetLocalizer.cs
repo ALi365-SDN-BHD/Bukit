@@ -45,6 +45,10 @@ public sealed class ImageAssetLocalizer : IImageAssetLocalizer, IDisposable
     private readonly CancellationToken _lifetimeToken;
     private readonly ConcurrentDictionary<string, string> _cache = new(StringComparer.Ordinal);
     private readonly ConcurrentDictionary<string, Lazy<Task<string>>> _inflight = new(StringComparer.Ordinal);
+    // Compared by reference only; never returned to callers.
+    private static readonly string FailedDownloadMarker = new(['\0', 'f', 'a', 'i', 'l']);
+    private const long HeaderRejected = -1;
+    private const int SignatureHeaderBytes = 4096;
     private readonly ConcurrentBag<MediaFailure> _failures = new();
     private readonly MediaIndexManager _indexManager;
     private readonly ImageContentValidator _imageValidator = new();
@@ -218,7 +222,9 @@ public sealed class ImageAssetLocalizer : IImageAssetLocalizer, IDisposable
 
         try
         {
-            return await downloadTask.WaitAsync(cancellationToken);
+            var result = await downloadTask.WaitAsync(cancellationToken);
+            // A shared download failed: answer with this caller's own source spelling.
+            return ReferenceEquals(result, FailedDownloadMarker) ? FailureResult(source) : result;
         }
         finally
         {
@@ -276,7 +282,7 @@ public sealed class ImageAssetLocalizer : IImageAssetLocalizer, IDisposable
                     if (attempt >= maxRetries)
                     {
                         _logger?.Warn($"event=media.download_failed status={(int)response.StatusCode} source={UrlRedactor.Redact(source)}");
-                        return RecordFailure(source, $"HTTP {(int)response.StatusCode}");
+                        return RecordDownloadFailure(source, $"HTTP {(int)response.StatusCode}");
                     }
 
                     await DelayBeforeRetryAsync(attempt, retryBaseDelay, cancellationToken);
@@ -290,16 +296,29 @@ public sealed class ImageAssetLocalizer : IImageAssetLocalizer, IDisposable
                 {
                     _logger?.Warn(
                         $"event=media.content_type_rejected type={headerContentType ?? "(null)"} source={UrlRedactor.Redact(source)}");
-                    return RecordFailure(source, $"Content-Type rejected: {headerContentType ?? "(null)"}");
+                    return RecordDownloadFailure(source, $"Content-Type rejected: {headerContentType ?? "(null)"}");
                 }
 
                 var contentType = identifyBySignature ? null : headerContentType!.Trim();
                 var tempPath = BuildTempFilePath(root, BuildFileIdentity(normalizedKey));
-                var bytesWritten = await WriteWithLimitAsync(response.Content, tempPath, maxFileSize, cts.Token);
+                string? detectedContentType = null;
+                Func<ReadOnlyMemory<byte>, bool>? acceptHeader = identifyBySignature
+                    ? header => (detectedContentType = ImageContentSignature.Detect(header.Span)) is not null
+                    : null;
+                var bytesWritten = await WriteWithLimitAsync(response.Content, tempPath, maxFileSize, acceptHeader, cts.Token);
                 if (bytesWritten is null)
                 {
                     _logger?.Warn($"event=media.download_too_large limit={maxFileSize} source={UrlRedactor.Redact(source)}");
-                    return RecordFailure(source, $"File too large (limit: {maxFileSize} bytes)");
+                    return RecordDownloadFailure(source, $"File too large (limit: {maxFileSize} bytes)");
+                }
+
+                if (bytesWritten.Value == HeaderRejected)
+                {
+                    _logger?.Warn(
+                        $"event=media.content_type_rejected type={headerContentType ?? "(null)"} signature=unrecognized source={UrlRedactor.Redact(source)}");
+                    return RecordDownloadFailure(
+                        source,
+                        $"Content-Type rejected: {headerContentType ?? "(null)"} (image signature not recognized)");
                 }
 
                 if (bytesWritten.Value == 0)
@@ -308,34 +327,19 @@ public sealed class ImageAssetLocalizer : IImageAssetLocalizer, IDisposable
                     if (attempt >= maxRetries)
                     {
                         _logger?.Warn($"event=media.download_empty source={UrlRedactor.Redact(source)}");
-                        return RecordFailure(source, "Empty response body");
+                        return RecordDownloadFailure(source, "Empty response body");
                     }
 
                     await DelayBeforeRetryAsync(attempt, retryBaseDelay, cancellationToken);
                     continue;
                 }
 
+                contentType ??= detectedContentType;
                 if (contentType is null)
                 {
-                    try
-                    {
-                        contentType = await ImageContentSignature.DetectFileAsync(tempPath, cts.Token);
-                    }
-                    catch
-                    {
-                        DeleteFileBestEffort(tempPath);
-                        throw;
-                    }
-
-                    if (contentType is null)
-                    {
-                        DeleteFileBestEffort(tempPath);
-                        _logger?.Warn(
-                            $"event=media.content_type_rejected type={headerContentType ?? "(null)"} signature=unrecognized source={UrlRedactor.Redact(source)}");
-                        return RecordFailure(
-                            source,
-                            $"Content-Type rejected: {headerContentType ?? "(null)"} (image signature not recognized)");
-                    }
+                    // Unreachable: a generic binary response either passed the header check or was rejected above.
+                    DeleteFileBestEffort(tempPath);
+                    return RecordDownloadFailure(source, "Content-Type rejected: image signature not recognized");
                 }
 
                 var ext = ResolveExtension(sendResult.FinalUri, contentType);
@@ -361,7 +365,7 @@ public sealed class ImageAssetLocalizer : IImageAssetLocalizer, IDisposable
                     DeleteFileBestEffort(tempPath);
                     _logger?.Warn(
                         $"event=media.signature_rejected type={contentType} source={UrlRedactor.Redact(source)}");
-                    return RecordFailure(
+                    return RecordDownloadFailure(
                         source,
                         "Image content signature does not match Content-Type or is not decodable.");
                 }
@@ -384,7 +388,7 @@ public sealed class ImageAssetLocalizer : IImageAssetLocalizer, IDisposable
                     DeleteFileBestEffort(tempPath);
                     _logger?.Warn(
                         $"event=media.move_conflict_unverified source={UrlRedactor.Redact(source)}");
-                    return RecordFailure(source, "Media file move conflicted with an unverifiable winner.");
+                    return RecordDownloadFailure(source, "Media file move conflicted with an unverifiable winner.");
                 }
 
                 if (!winnerIsTrusted)
@@ -412,7 +416,7 @@ public sealed class ImageAssetLocalizer : IImageAssetLocalizer, IDisposable
                     {
                         _logger?.Warn(
                             $"event=media.winner_rejected type={contentType} source={UrlRedactor.Redact(source)}");
-                        return RecordFailure(source, "Media winner file failed content validation.");
+                        return RecordDownloadFailure(source, "Media winner file failed content validation.");
                     }
 
                     bool winnerIdentityMatches;
@@ -437,7 +441,7 @@ public sealed class ImageAssetLocalizer : IImageAssetLocalizer, IDisposable
                     {
                         _logger?.Warn(
                             $"event=media.winner_identity_rejected source={UrlRedactor.Redact(source)}");
-                        return RecordFailure(
+                        return RecordDownloadFailure(
                             source,
                             "Media winner file did not match downloaded content identity.");
                     }
@@ -452,7 +456,7 @@ public sealed class ImageAssetLocalizer : IImageAssetLocalizer, IDisposable
             {
                 _logger?.Warn(
                     $"event=media.ssrf_blocked source={UrlRedactor.Redact(source)} error={ex.GetType().Name}");
-                return RecordFailure(source, "SSRF blocked (unsafe or unverifiable target)");
+                return RecordDownloadFailure(source, "SSRF blocked (unsafe or unverifiable target)");
             }
             catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
             {
@@ -464,7 +468,7 @@ public sealed class ImageAssetLocalizer : IImageAssetLocalizer, IDisposable
                 {
                     _logger?.Warn(
                         $"event=media.download_error source={UrlRedactor.Redact(source)} {BuildDownloadErrorDiagnostic(ex)}");
-                    return RecordFailure(source, $"{ex.GetType().Name}: {ex.Message}");
+                    return RecordDownloadFailure(source, $"{ex.GetType().Name}: {ex.Message}");
                 }
 
                 await DelayBeforeRetryAsync(attempt, retryBaseDelay, cancellationToken);
@@ -587,8 +591,19 @@ public sealed class ImageAssetLocalizer : IImageAssetLocalizer, IDisposable
     private string RecordFailure(string sourceUrl, string reason)
     {
         _failures.Add(new MediaFailure(UrlRedactor.Redact(sourceUrl), reason));
-        return _keepOriginalOnFailure ? sourceUrl : _config.DefaultImageUrl;
+        return FailureResult(sourceUrl);
     }
+
+    // Used inside the shared download task. Callers waiting on the same download may spell
+    // the URL differently, so each one maps the marker to its own result.
+    private string RecordDownloadFailure(string sourceUrl, string reason)
+    {
+        _failures.Add(new MediaFailure(UrlRedactor.Redact(sourceUrl), reason));
+        return FailedDownloadMarker;
+    }
+
+    private string FailureResult(string sourceUrl)
+        => _keepOriginalOnFailure ? sourceUrl : _config.DefaultImageUrl;
 
     private static bool IsKeepOnFailure(MediaConfig config)
         => string.Equals(config.OnFailure?.Trim(), "keep", StringComparison.OrdinalIgnoreCase);
@@ -605,16 +620,44 @@ public sealed class ImageAssetLocalizer : IImageAssetLocalizer, IDisposable
                normalized.Equals("binary/octet-stream", StringComparison.OrdinalIgnoreCase);
     }
 
+    // Returns the byte count, null when over maxBytes, or HeaderRejected when acceptHeader
+    // rejects the leading bytes (no file is created in that case).
     private static async Task<long?> WriteWithLimitAsync(
-        HttpContent content, string tempPath, long maxBytes, CancellationToken cancellationToken)
+        HttpContent content,
+        string tempPath,
+        long maxBytes,
+        Func<ReadOnlyMemory<byte>, bool>? acceptHeader,
+        CancellationToken cancellationToken)
     {
         if (content.Headers.ContentLength is > 0 && content.Headers.ContentLength.Value > maxBytes)
         {
             return null;
         }
 
-        var completed = false;
         await using var stream = await content.ReadAsStreamAsync(cancellationToken);
+        byte[]? header = null;
+        var headerLength = 0;
+        if (acceptHeader is not null)
+        {
+            header = new byte[SignatureHeaderBytes];
+            int headerRead;
+            while (headerLength < header.Length &&
+                   (headerRead = await stream.ReadAsync(header.AsMemory(headerLength), cancellationToken)) > 0)
+            {
+                headerLength += headerRead;
+                if (headerLength > maxBytes)
+                {
+                    return null;
+                }
+            }
+
+            if (headerLength > 0 && !acceptHeader(header.AsMemory(0, headerLength)))
+            {
+                return HeaderRejected;
+            }
+        }
+
+        var completed = false;
         await using var output = new FileStream(
             tempPath,
             FileMode.CreateNew,
@@ -622,10 +665,15 @@ public sealed class ImageAssetLocalizer : IImageAssetLocalizer, IDisposable
             FileShare.Read,
             bufferSize: 81920,
             FileOptions.Asynchronous | FileOptions.SequentialScan);
-        var buffer = new byte[8192];
-        long totalRead = 0;
+        long totalRead = headerLength;
         try
         {
+            if (headerLength > 0)
+            {
+                await output.WriteAsync(header.AsMemory(0, headerLength), cancellationToken);
+            }
+
+            var buffer = new byte[8192];
             int read;
             while ((read = await stream.ReadAsync(buffer, cancellationToken)) > 0)
             {

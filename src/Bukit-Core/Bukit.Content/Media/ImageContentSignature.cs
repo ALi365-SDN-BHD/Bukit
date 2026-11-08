@@ -22,13 +22,7 @@ internal static class ImageContentSignature
         return Matches(contentType, header);
     }
 
-    /// <summary>Returns the image content type whose signature the file starts with, or null.</summary>
-    internal static async Task<string?> DetectFileAsync(string path, CancellationToken cancellationToken)
-    {
-        var header = await ReadHeaderAsync(path, cancellationToken);
-        return Detect(header);
-    }
-
+    /// <summary>Returns the image content type whose signature the leading bytes match, or null.</summary>
     internal static string? Detect(ReadOnlySpan<byte> content)
     {
         foreach (var contentType in DetectableContentTypes)

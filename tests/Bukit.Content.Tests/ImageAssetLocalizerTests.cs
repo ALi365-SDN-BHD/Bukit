@@ -2040,6 +2040,41 @@ public sealed class ImageAssetLocalizerTests
         });
 
     [Fact]
+    public async Task LocalizeAsync_OnFailureKeep_SharedFailedDownload_ReturnsEachCallersOwnUrl()
+        => await WithTempDirAsync(async dir =>
+        {
+            using var handler = new GatedNotFoundHandler();
+            using var localizer = CreateLocalizer(ControlConfig(dir, "keep"), handler);
+
+            var first = localizer.LocalizeAsync("https://img.example/a.png", CancellationToken.None);
+            await handler.RequestStarted.WaitAsync(TimeSpan.FromSeconds(5));
+            // Same cache key (fragment and host case are ignored), different spelling.
+            var second = localizer.LocalizeAsync("https://IMG.example/a.png#hero", CancellationToken.None);
+            await Task.Delay(200);
+            handler.Release();
+
+            Assert.Equal("https://img.example/a.png", await first);
+            Assert.Equal("https://IMG.example/a.png#hero", await second);
+            Assert.Equal(1, handler.RequestCount);
+        });
+
+    [Fact]
+    public async Task LocalizeAsync_OctetStreamNonImage_RejectsAfterLeadingBytesWithoutReadingBody()
+        => await WithTempDirAsync(async dir =>
+        {
+            var body = new CountingReadStream(new string('x', 1024 * 1024));
+            using var localizer = CreateLocalizer(ControlConfig(dir, "keep"), new StreamHandler("application/octet-stream", body));
+
+            var result = await localizer.LocalizeAsync("https://img.example/a", CancellationToken.None);
+
+            Assert.Equal("https://img.example/a", result);
+            var failure = Assert.Single(localizer.Failures);
+            Assert.Contains("image signature not recognized", failure.Reason, StringComparison.Ordinal);
+            Assert.True(body.BytesRead < 64 * 1024, $"read {body.BytesRead} bytes");
+            Assert.Empty(Directory.GetFiles(dir));
+        });
+
+    [Fact]
     public async Task LocalizeAsync_OnFailureKeep_EmptySourceStillReturnsDefaultImage()
         => await WithTempDirAsync(async dir =>
         {
@@ -2221,6 +2256,69 @@ public sealed class ImageAssetLocalizerTests
         Assert.Null(ImageContentSignature.Detect(ReadOnlySpan<byte>.Empty));
         Assert.Equal("image/png", ImageContentSignature.Detect(CreateImagePayload("image/png", "p")));
         Assert.Equal("image/gif", ImageContentSignature.Detect("GIF89a\x01\x00"u8));
+    }
+
+    private sealed class GatedNotFoundHandler : HttpMessageHandler
+    {
+        private readonly TaskCompletionSource _started = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        private readonly TaskCompletionSource _release = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        private int _requestCount;
+
+        public Task RequestStarted => _started.Task;
+
+        public int RequestCount => Volatile.Read(ref _requestCount);
+
+        public void Release() => _release.TrySetResult();
+
+        protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+        {
+            Interlocked.Increment(ref _requestCount);
+            _started.TrySetResult();
+            await _release.Task.WaitAsync(cancellationToken);
+            return new HttpResponseMessage(HttpStatusCode.NotFound);
+        }
+    }
+
+    private sealed class StreamHandler(string contentType, Stream body) : HttpMessageHandler
+    {
+        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+        {
+            // No Content-Length, so the size check cannot reject early.
+            var content = new StreamContent(body);
+            content.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue(contentType);
+            return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK) { Content = content });
+        }
+    }
+
+    private sealed class CountingReadStream(string text) : Stream
+    {
+        private readonly MemoryStream _inner = new(System.Text.Encoding.ASCII.GetBytes(text));
+        private long _bytesRead;
+
+        public long BytesRead => Interlocked.Read(ref _bytesRead);
+        public override bool CanRead => true;
+        public override bool CanSeek => false;
+        public override bool CanWrite => false;
+        public override long Length => throw new NotSupportedException();
+        public override long Position { get => throw new NotSupportedException(); set => throw new NotSupportedException(); }
+        public override void Flush() { }
+        public override long Seek(long offset, SeekOrigin origin) => throw new NotSupportedException();
+        public override void SetLength(long value) => throw new NotSupportedException();
+        public override void Write(byte[] buffer, int offset, int count) => throw new NotSupportedException();
+
+        public override int Read(byte[] buffer, int offset, int count)
+        {
+            var read = _inner.Read(buffer, offset, count);
+            Interlocked.Add(ref _bytesRead, read);
+            return read;
+        }
+
+        public override ValueTask<int> ReadAsync(Memory<byte> buffer, CancellationToken cancellationToken = default)
+        {
+            var read = _inner.Read(buffer.Span);
+            Interlocked.Add(ref _bytesRead, read);
+            return ValueTask.FromResult(read);
+        }
     }
 
     private sealed class RawBytesHandler(byte[] payload) : HttpMessageHandler
