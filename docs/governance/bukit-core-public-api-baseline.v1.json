@@ -1941,6 +1941,7 @@
         "public System.Collections.Generic.IReadOnlyList\u003CBukit.Config.TaxonomyKindConfig!\u003E? Kinds { get; init; }",
         "public System.Collections.Generic.IReadOnlyList\u003CSystem.String!\u003E? ItemFields { get; init; }",
         "public System.Int32 PageSize { get; init; }",
+        "public System.String! EmptyTerms { get; init; }",
         "public System.String! OutputMode { get; init; }",
         "public System.String! PinField { get; init; }",
         "public System.String? PinOrderField { get; init; }",
