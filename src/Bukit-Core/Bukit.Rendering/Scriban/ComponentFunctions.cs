@@ -309,6 +309,57 @@ internal static class ComponentUtilityFunctions
         }
         return sb.ToString();
     }
+
+    /// <summary>
+    /// Slug of a taxonomy term, identical to the taxonomy page URL segment
+    /// (percent-encoded values decoded, whitespace collapsed, Latin accents folded).
+    /// Usage: {{ tag | util.term_slug }}
+    /// </summary>
+    public static string TermSlug(object? input)
+    {
+        return TermValueNormalizer.ToSlug(input?.ToString());
+    }
+}
+
+/// <summary>
+/// AOT-safe wrapper for util.* string helpers. Scriban binds a plain <c>Func</c>
+/// through reflection, which Native AOT trims away ("not a valid function").
+/// </summary>
+internal sealed class UtilStringFunction : IScriptCustomFunction
+{
+    private readonly Func<object?, object?, string> _invoke;
+    private readonly string[] _parameterNames;
+
+    private UtilStringFunction(Func<object?, object?, string> invoke, int requiredParameterCount, params string[] parameterNames)
+    {
+        _invoke = invoke;
+        RequiredParameterCount = requiredParameterCount;
+        _parameterNames = parameterNames;
+    }
+
+    internal static UtilStringFunction Unary(Func<object?, string> invoke)
+        => new((value, _) => invoke(value), 1, "value");
+
+    internal static UtilStringFunction WithOptionalArg(Func<object?, object?, string> invoke, string argName)
+        => new(invoke, 1, "value", argName);
+
+    public object? Invoke(TemplateContext context, ScriptNode? callerContext, ScriptArray arguments, ScriptBlockStatement? blockStatement)
+    {
+        var value = arguments.Count > 0 ? arguments[0] : null;
+        var arg = arguments.Count > 1 ? arguments[1] : null;
+        return _invoke(value, arg);
+    }
+
+    public ValueTask<object?> InvokeAsync(TemplateContext context, ScriptNode? callerContext, ScriptArray arguments, ScriptBlockStatement? blockStatement)
+    {
+        return new ValueTask<object?>(Invoke(context, callerContext, arguments, blockStatement));
+    }
+
+    public int RequiredParameterCount { get; }
+    public int ParameterCount => _parameterNames.Length;
+    public ScriptVarParamKind VarParamKind => ScriptVarParamKind.None;
+    public Type ReturnType => typeof(string);
+    public ScriptParameterInfo GetParameterInfo(int index) => new(typeof(object), _parameterNames[Math.Min(index, _parameterNames.Length - 1)]);
 }
 
 internal sealed class JsonStringFunction : IScriptCustomFunction

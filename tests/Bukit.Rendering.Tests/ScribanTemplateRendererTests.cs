@@ -217,6 +217,33 @@ public sealed class ScribanTemplateRendererTests : IDisposable
     }
 
     [Fact]
+    public void RenderPage_UtilStringHelpers_WorkInPipesAndCalls()
+    {
+        var templatePath = Path.Combine(_layoutsDir, "page.html");
+        File.WriteAllText(
+            templatePath,
+            "[{{ '%e4%b8%80 Café' | util.term_slug }}]" +
+            "[{{ util.term_slug 'Istana  Budaya' }}]" +
+            "[{{ 'Hello World' | util.slugify }}]" +
+            "[{{ 'my_page-title' | util.titleize }}]" +
+            "[{{ 'abcdefghij' | util.truncate '5' }}]" +
+            "[{{ '2024-06-15' | util.format_date 'yyyy/MM/dd' }}]" +
+            "[{{ '2024-06-15' | util.format_date }}]");
+
+        var renderer = new Bukit.Rendering.Scriban.ScribanTemplateRenderer(_layoutsDir);
+        var model = new PageModel
+        {
+            Site = CreateSite(),
+            Page = new PageInfo { Title = "t", Content = "", Url = "/t/" }
+        };
+
+        var result = renderer.RenderPage("page.html", model);
+        Assert.Equal(
+            "[一-cafe][istana-budaya][hello-world][My Page Title][" + Bukit.Rendering.Scriban.ComponentUtilityFunctions.Truncate("abcdefghij", 5) + "][2024/06/15][2024-06-15]",
+            result);
+    }
+
+    [Fact]
     public void RenderPage_UtilJsonString_EmitsJsonStringLiteral()
     {
         var templatePath = Path.Combine(_layoutsDir, "page.html");

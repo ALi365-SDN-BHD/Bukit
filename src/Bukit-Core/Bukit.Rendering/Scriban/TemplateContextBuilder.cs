@@ -109,12 +109,19 @@ internal sealed class TemplateContextBuilder
         context.PushGlobal(new ScriptObject { ["image"] = imageObj });
 
         var utilObj = new ScriptObject();
-        utilObj.SetValue("format_date", new Func<string, string, string>((input, format) =>
-            ComponentUtilityFunctions.FormatDate(input, format)), readOnly: true);
-        utilObj.SetValue("truncate", new Func<string, string, string>((input, maxLen) =>
-            int.TryParse(maxLen, out var n) ? ComponentUtilityFunctions.Truncate(input, n) : ComponentUtilityFunctions.Truncate(input)), readOnly: true);
-        utilObj.SetValue("titleize", new Func<string, string>(ComponentUtilityFunctions.Titleize), readOnly: true);
-        utilObj.SetValue("slugify", new Func<string, string>(ComponentUtilityFunctions.Slugify), readOnly: true);
+        // IScriptCustomFunction instead of Func delegates: delegates are bound by reflection and fail under Native AOT.
+        utilObj.SetValue("format_date", UtilStringFunction.WithOptionalArg((input, format) =>
+        {
+            var fmt = format?.ToString();
+            return string.IsNullOrEmpty(fmt)
+                ? ComponentUtilityFunctions.FormatDate(input)
+                : ComponentUtilityFunctions.FormatDate(input, fmt);
+        }, "format"), readOnly: true);
+        utilObj.SetValue("truncate", UtilStringFunction.WithOptionalArg((input, maxLen) =>
+            int.TryParse(maxLen?.ToString(), out var n) ? ComponentUtilityFunctions.Truncate(input, n) : ComponentUtilityFunctions.Truncate(input), "max_length"), readOnly: true);
+        utilObj.SetValue("titleize", UtilStringFunction.Unary(ComponentUtilityFunctions.Titleize), readOnly: true);
+        utilObj.SetValue("slugify", UtilStringFunction.Unary(ComponentUtilityFunctions.Slugify), readOnly: true);
+        utilObj.SetValue("term_slug", UtilStringFunction.Unary(ComponentUtilityFunctions.TermSlug), readOnly: true);
         utilObj.SetValue("json_string", new JsonStringFunction(), readOnly: true);
         context.PushGlobal(new ScriptObject { ["util"] = utilObj });
 

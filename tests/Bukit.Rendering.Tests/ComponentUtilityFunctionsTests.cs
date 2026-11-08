@@ -129,4 +129,16 @@ public sealed class ComponentUtilityFunctionsTests
         var result = ComponentUtilityFunctions.Slugify("");
         Assert.Equal("", result);
     }
+
+    [Theory]
+    [InlineData("%e4%b8%80%e5%b8%b6%e4%b8%80%e8%b7%af", "一帶一路")]
+    [InlineData("Istana  Budaya", "istana-budaya")]
+    [InlineData("Café Straße", "cafe-strasse")]
+    [InlineData("100%", "100")]
+    [InlineData("%e4%b8", "e4b8")]
+    [InlineData(null, "")]
+    public void TermSlug_MatchesTaxonomySlug(string? input, string expected)
+    {
+        Assert.Equal(expected, ComponentUtilityFunctions.TermSlug(input));
+    }
 }
