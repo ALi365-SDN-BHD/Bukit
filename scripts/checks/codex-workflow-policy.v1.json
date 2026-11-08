@@ -1984,6 +1984,28 @@
       ],
       "publicContract": false,
       "resource": "dotnet-serial"
+    },
+    {
+      "id": "analytics-google-consent-optional-contract",
+      "matches": [
+        "openspec/changes/allow-google-analytics-without-consent/proposal.md",
+        "openspec/changes/allow-google-analytics-without-consent/tasks.md",
+        "openspec/changes/allow-google-analytics-without-consent/specs/analytics-rendering/spec.md",
+        "openspec/changes/archive/*-allow-google-analytics-without-consent/*.md",
+        "openspec/changes/archive/*-allow-google-analytics-without-consent/specs/analytics-rendering/spec.md",
+        "openspec/specs/analytics-rendering/spec.md"
+      ],
+      "specialtyTests": [
+        "dotnet test tests/Bukit.Config.Tests/Bukit.Config.Tests.csproj",
+        "dotnet test tests/Bukit.Engine.Tests/Bukit.Engine.Tests.csproj"
+      ],
+      "contractConsumerGlobs": [
+        "src/Bukit-Core/Bukit.Config/I18nValidator.cs",
+        "src/Bukit-Core/Bukit.Config/ConfigJsonSchemaGenerator.cs",
+        "src/Bukit-Core/Bukit.Engine.Analytics/AnalyticsFragmentRenderer.cs"
+      ],
+      "publicContract": false,
+      "resource": "dotnet-serial"
     }
   ],
   "resourceRules": [
