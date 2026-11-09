@@ -500,7 +500,7 @@ public sealed record TaxonomyConfig
     public IReadOnlyDictionary<string, string>? PinOrderFieldBySource { get; init; }
     /// <summary>How to emit term pages with no content: render (default), noindex, or skip.</summary>
     public string EmptyTerms { get; init; } = "render";
-    /// <summary>Orders term-page entries published at the same time: title (default), url, or any content field. Numbers compare numerically.</summary>
+    /// <summary>Orders term-page entries published at the same time: title (default), url (the route URL), or any content field. Numbers compare numerically.</summary>
     public string TieBreakField { get; init; } = "title";
     /// <summary>Direction for <see cref="TieBreakField"/>: asc (default) or desc. Entries without the field come last.</summary>
     public string TieBreakOrder { get; init; } = "asc";

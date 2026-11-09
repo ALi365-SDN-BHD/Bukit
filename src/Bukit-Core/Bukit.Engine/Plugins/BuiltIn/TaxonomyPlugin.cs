@@ -233,7 +233,7 @@ internal sealed class TaxonomyPlugin : IBukitPlugin, IDerivePagesPlugin, IAfterB
         var generatedPaths = new List<string> { "taxonomy.json" };
         foreach (var (_, kind, _, terms, routePrefix) in kindTerms)
         {
-            TaxonomyFeedWriter.WriteFeeds(context.OutputDir, _config.Site.Url ?? string.Empty, context.BaseUrl, _config.Site.Title, terms, kind, routePrefix, generatedPaths);
+            TaxonomyFeedWriter.WriteFeeds(context.OutputDir, _config.Site.Url ?? string.Empty, context.BaseUrl, _config.Site.Title, terms, kind, routePrefix, generatedPaths, TaxonomySortHelper.ResolveDirection(_config.Taxonomy));
         }
 
         foreach (var (_, kind, _, terms, routePrefix) in kindTerms)

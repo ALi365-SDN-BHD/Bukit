@@ -48,6 +48,23 @@ public sealed class TaxonomyFeedWriterTests : IDisposable
     }
 
     [Fact]
+    public void WriteFeeds_TieBreakDesc_SameTimeOrdersByValue()
+    {
+        var sameDay = new DateTimeOffset(2024, 1, 1, 0, 0, 0, TimeSpan.Zero);
+        var terms = new Dictionary<string, TaxonomyTerm>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["tech"] = new TaxonomyTerm("Tech", "tech")
+        };
+        terms["tech"].Pages.Add(new TaxonomyPage("a", "A", "/a/", sameDay, null, null, false, null, "999"));
+        terms["tech"].Pages.Add(new TaxonomyPage("b", "B", "/b/", sameDay, null, null, false, null, "2596"));
+
+        TaxonomyFeedWriter.WriteFeeds(_tempDir, "https://example.com", "/", "My Site", terms, "tags", tieBreakDirection: -1);
+
+        var content = File.ReadAllText(Path.Combine(_tempDir, "tags", "tech", "feed.xml"));
+        Assert.True(content.IndexOf("https://example.com/b/", StringComparison.Ordinal) < content.IndexOf("https://example.com/a/", StringComparison.Ordinal));
+    }
+
+    [Fact]
     public void WriteFeeds_EmptyTermPages_DoesNotWriteFeed()
     {
         var terms = new Dictionary<string, TaxonomyTerm>(StringComparer.OrdinalIgnoreCase)

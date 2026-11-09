@@ -15,7 +15,8 @@ internal static class TaxonomyFeedWriter
         Dictionary<string, TaxonomyTerm> terms,
         string kind,
         string? routePrefix = null,
-        ICollection<string>? generatedPaths = null)
+        ICollection<string>? generatedPaths = null,
+        int tieBreakDirection = 0)
     {
         var normalizedSiteUrl = NormalizeFeedUrl(siteUrl);
         var normalizedBaseUrl = NormalizeFeedUrl(baseUrl);
@@ -29,8 +30,12 @@ internal static class TaxonomyFeedWriter
                 continue;
             }
 
-            var posts = term.Pages
-                .OrderByDescending(p => p.PublishAt)
+            // Feeds stay chronological (pinning is not applied) but use the same tie-break as term pages.
+            var byDate = term.Pages.OrderByDescending(p => p.PublishAt);
+            var posts = (tieBreakDirection == 0
+                    ? byDate
+                    : byDate.ThenBy(p => p, Comparer<TaxonomyPage>.Create((a, b) =>
+                        TaxonomySortHelper.CompareTieBreakValues(a.TieBreakValue, b.TieBreakValue, tieBreakDirection))))
                 .ThenBy(p => p.Url, StringComparer.Ordinal)
                 .Take(20)
                 .ToList();

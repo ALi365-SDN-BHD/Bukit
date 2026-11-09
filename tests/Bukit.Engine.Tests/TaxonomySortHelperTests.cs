@@ -115,6 +115,40 @@ public sealed class TaxonomySortHelperTests
         Assert.True(TaxonomySortHelper.ComparePages(MakePage("Alpha", "/2/"), MakePage("Bravo", "/1/") with { TieBreakValue = "9" }, 0) < 0);
     }
 
+    [Fact]
+    public void CompareTieBreakValues_MixedNumbersAndText_IsTransitive()
+    {
+        var values = new List<string> { "1.7x", "1.10", "1.5", "SR-2", "10" };
+
+        values.Sort((x, y) => TaxonomySortHelper.CompareTieBreakValues(x, y, 1));
+
+        Assert.Equal(new[] { "1.10", "1.5", "10", "1.7x", "SR-2" }, values);
+
+        values.Sort((x, y) => TaxonomySortHelper.CompareTieBreakValues(x, y, -1));
+
+        Assert.Equal(new[] { "10", "1.5", "1.10", "SR-2", "1.7x" }, values);
+    }
+
+    [Fact]
+    public void ReadTieBreakValue_DatesAreChronologicalAndListsUseFirstValue()
+    {
+        var doc = ContentDocument.Create(
+            id: "x", title: "X", slug: "x", publishAt: DateTimeOffset.UnixEpoch, contentHtml: string.Empty,
+            fields: new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["early"] = new ContentField("date", new DateTimeOffset(2023, 12, 1, 0, 0, 0, TimeSpan.Zero)),
+                ["late"] = new ContentField("date", new DateTimeOffset(2024, 1, 5, 0, 0, 0, TimeSpan.Zero)),
+                ["tags"] = new ContentField("list", new List<object> { "b", "a" })
+            });
+
+        var early = TaxonomySortHelper.ReadTieBreakValue(doc, "/x/", "early");
+        var late = TaxonomySortHelper.ReadTieBreakValue(doc, "/x/", "late");
+
+        Assert.True(TaxonomySortHelper.CompareTieBreakValues(early, late, 1) < 0);
+        Assert.Equal("b", TaxonomySortHelper.ReadTieBreakValue(doc, "/x/", "tags"));
+        Assert.Equal("/x/", TaxonomySortHelper.ReadTieBreakValue(doc, "/x/", "URL"));
+    }
+
     [Theory]
     [InlineData(null, null, false)]
     [InlineData("title", "desc", false)]

@@ -22,6 +22,10 @@ internal static class TaxonomySortHelper
         return new TieBreak(field, descending);
     }
 
+    /// <summary>0 when no tie-break is configured; 1 ascending; -1 descending.</summary>
+    internal static int ResolveDirection(TaxonomyConfig config)
+        => ResolveTieBreak(config) is { } tieBreak ? (tieBreak.Descending ? -1 : 1) : 0;
+
     internal static string? ReadTieBreakValue(ContentDocument item, string url, string field)
     {
         if (field.Equals("url", StringComparison.OrdinalIgnoreCase))
@@ -34,9 +38,22 @@ internal static class TaxonomySortHelper
             return null;
         }
 
-        var text = value is IFormattable formattable
-            ? formattable.ToString(null, CultureInfo.InvariantCulture)
-            : value.ToString();
+        return FormatTieBreakValue(value);
+    }
+
+    // Dates use ISO 8601 so text order is chronological; lists use their first value.
+    private static string? FormatTieBreakValue(object? value)
+    {
+        var text = value switch
+        {
+            null => null,
+            string s => s,
+            DateTimeOffset dto => dto.ToUniversalTime().ToString("o", CultureInfo.InvariantCulture),
+            DateTime dt => (dt.Kind == DateTimeKind.Unspecified ? dt : dt.ToUniversalTime()).ToString("o", CultureInfo.InvariantCulture),
+            System.Collections.IEnumerable list => list.Cast<object?>().Select(FormatTieBreakValue).FirstOrDefault(x => x is not null),
+            IFormattable formattable => formattable.ToString(null, CultureInfo.InvariantCulture),
+            _ => value.ToString()
+        };
         return string.IsNullOrWhiteSpace(text) ? null : text.Trim();
     }
 
@@ -88,7 +105,8 @@ internal static class TaxonomySortHelper
         return string.Compare(a.Url, b.Url, StringComparison.OrdinalIgnoreCase);
     }
 
-    // Missing values always come last; numbers compare by value, text by CompareNatural.
+    // Missing values always come last and numbers always before text, whatever the direction
+    // (separate groups keep the order transitive); numbers compare by value, text by CompareNatural.
     internal static int CompareTieBreakValues(string? a, string? b, int direction)
     {
         if (a is null || b is null)
@@ -96,12 +114,19 @@ internal static class TaxonomySortHelper
             return a is null ? (b is null ? 0 : 1) : -1;
         }
 
-        var cmp = double.TryParse(a, NumberStyles.Float, CultureInfo.InvariantCulture, out var x) &&
-                  double.TryParse(b, NumberStyles.Float, CultureInfo.InvariantCulture, out var y)
-            ? x.CompareTo(y)
-            : CompareNatural(a, b);
+        var aIsNumber = TryParseNumber(a, out var x);
+        var bIsNumber = TryParseNumber(b, out var y);
+        if (aIsNumber != bIsNumber)
+        {
+            return aIsNumber ? -1 : 1;
+        }
+
+        var cmp = aIsNumber ? x.CompareTo(y) : CompareNatural(a, b);
         return direction < 0 ? -cmp : cmp;
     }
+
+    private static bool TryParseNumber(string text, out double value)
+        => double.TryParse(text, NumberStyles.Float, CultureInfo.InvariantCulture, out value) && double.IsFinite(value);
 
     // Compares strings with digit runs ordered by numeric value, so /999/ sorts before /1000/.
     internal static int CompareNatural(string? a, string? b)

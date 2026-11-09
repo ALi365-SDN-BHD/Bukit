@@ -115,7 +115,7 @@ internal static class TaxonomyIndexBuilder
             }
         }
 
-        var direction = tieBreak is null ? 0 : tieBreak.Descending ? -1 : 1;
+        var direction = TaxonomySortHelper.ResolveDirection(config);
         foreach (var term in terms.Values)
         {
             term.Pages.Sort((a, b) => TaxonomySortHelper.ComparePages(a, b, direction));
