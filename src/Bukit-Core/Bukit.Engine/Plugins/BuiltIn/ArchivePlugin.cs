@@ -75,7 +75,7 @@ internal sealed class ArchivePlugin : IBukitPlugin, IDerivePagesPlugin, ITemplat
 
             foreach (var monthGroup in byMonth)
             {
-                derived.Add(CreateMonthPage(prefix, archiveBaseUrl, yearGroup.Key, monthGroup.Key, monthGroup.ToList(), collectionKey, _config.Site.OutputPathEncoding, template, ContentOrdering.Resolve(_config)));
+                derived.Add(CreateMonthPage(prefix, archiveBaseUrl, yearGroup.Key, monthGroup.Key, monthGroup.ToList(), collectionKey, _config.Site.OutputPathEncoding, template));
             }
         }
 
@@ -175,16 +175,13 @@ internal sealed class ArchivePlugin : IBukitPlugin, IDerivePagesPlugin, ITemplat
         IReadOnlyList<RoutedContentDocument> monthPosts,
         string collectionKey,
         string outputPathEncoding,
-        string template,
-        ContentTieBreak? tieBreak = null)
+        string template)
     {
         var sb = new StringBuilder();
         sb.AppendLine("<ul>");
-        var ordered = monthPosts
-            .OrderByDescending(x => x.Document.PublishAt)
-            .ThenByTieBreak(tieBreak, x => x.Document, x => x.Route.Url)
-            .ThenBy(x => x.Document.Id, StringComparer.Ordinal);
-        foreach (var routedDocument in ordered)
+        // monthPosts keep CollectionRouteIndex order (newest, content.ordering, URL, Id), the same order
+        // as the collection list, so the month page lists same-time posts exactly like every other list.
+        foreach (var routedDocument in monthPosts)
         {
             var item = routedDocument.Document;
             var route = routedDocument.Route;

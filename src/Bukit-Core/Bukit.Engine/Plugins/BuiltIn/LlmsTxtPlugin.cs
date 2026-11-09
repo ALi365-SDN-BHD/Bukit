@@ -253,7 +253,7 @@ internal sealed class LlmsTxtPlugin : IBukitPlugin, IAfterBuildAsyncPlugin
             var byPublished = pages
                 .OrderByDescending(page => page.Priority)
                 .ThenByDescending(page => page.Published);
-            var orderedPages = (tieBreak is null ? byPublished : byPublished.ThenBy(page => page.TieBreakValue, ContentOrdering.Comparer(tieBreak.Direction)))
+            var orderedPages = (tieBreak is null ? byPublished : byPublished.ThenBy(page => page.TieBreakValue, tieBreak.Comparer))
                 .ThenBy(page => page.Url, StringComparer.Ordinal)
                 .ToList();
             var section = orderedPages.Any(p => p.Url == "/" || p.Url == canonicalBase) ? "Documentation" : "Pages";

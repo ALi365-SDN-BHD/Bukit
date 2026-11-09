@@ -86,7 +86,8 @@ internal static class TaxonomyIndexBuilder
                 isPinned = true;
             }
 
-            var tieBreakValue = tieBreak is null ? null : TaxonomySortHelper.ReadTieBreakValue(item, route.Url, tieBreak.Field);
+            // A title tie-break compares the page titles directly, so it needs no separate value.
+            var tieBreakValue = tieBreak is null || tieBreak.IsTitle ? null : TaxonomySortHelper.ReadTieBreakValue(item, route.Url, tieBreak.Field);
             foreach (var raw in values)
             {
                 var display = TaxonomyTermValueNormalizer.Normalize(raw, out var decoded);
@@ -115,10 +116,9 @@ internal static class TaxonomyIndexBuilder
             }
         }
 
-        var direction = TaxonomySortHelper.ResolveDirection(config);
         foreach (var term in terms.Values)
         {
-            term.Pages.Sort((a, b) => TaxonomySortHelper.ComparePages(a, b, direction));
+            term.Pages.Sort((a, b) => TaxonomySortHelper.ComparePages(a, b, tieBreak));
         }
 
         return terms;

@@ -182,7 +182,7 @@ public static class ConfigValidator
         var content = config.Content;
         if (content.OrderingTieBreakField is not null && string.IsNullOrWhiteSpace(content.OrderingTieBreakField))
         {
-            throw new ConfigException("content.ordering.tieBreakField must be url or a content field name.", DiagnosticCode.ConfigInvalidValue);
+            throw new ConfigException("content.ordering.tieBreakField must be url, title, or a content field name.", DiagnosticCode.ConfigInvalidValue);
         }
 
         if ((content.OrderingTieBreakOrder ?? "asc").Trim().ToLowerInvariant() is not ("asc" or "desc"))

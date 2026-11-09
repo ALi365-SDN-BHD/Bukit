@@ -16,7 +16,7 @@ internal static class TaxonomyFeedWriter
         string kind,
         string? routePrefix = null,
         ICollection<string>? generatedPaths = null,
-        int tieBreakDirection = 0)
+        ContentTieBreak? tieBreak = null)
     {
         var normalizedSiteUrl = NormalizeFeedUrl(siteUrl);
         var normalizedBaseUrl = NormalizeFeedUrl(baseUrl);
@@ -31,14 +31,10 @@ internal static class TaxonomyFeedWriter
             }
 
             // Feeds stay chronological (pinning is not applied) but order same-time entries exactly like
-            // term pages: the tie-break, then title, then URL (see TaxonomySortHelper.ComparePages).
-            var byDate = term.Pages.OrderByDescending(p => p.PublishAt);
-            var posts = (tieBreakDirection == 0
-                    ? byDate
-                    : byDate.ThenBy(p => p, Comparer<TaxonomyPage>.Create((a, b) =>
-                        TaxonomySortHelper.CompareTieBreakValues(a.TieBreakValue, b.TieBreakValue, tieBreakDirection))))
-                .ThenBy(p => p.Title, StringComparer.OrdinalIgnoreCase)
-                .ThenBy(p => p.Url, StringComparer.OrdinalIgnoreCase)
+            // term pages (TaxonomySortHelper.CompareSameTime).
+            var posts = term.Pages
+                .OrderByDescending(p => p.PublishAt)
+                .ThenBy(p => p, Comparer<TaxonomyPage>.Create((a, b) => TaxonomySortHelper.CompareSameTime(a, b, tieBreak)))
                 .Take(20)
                 .ToList();
 

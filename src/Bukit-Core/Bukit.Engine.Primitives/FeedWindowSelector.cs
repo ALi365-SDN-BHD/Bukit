@@ -10,14 +10,14 @@ internal static class FeedWindowSelector
         Func<T, string> canonicalUrl,
         int configuredLimit,
         Func<T, string?>? tieBreakValue = null,
-        int tieBreakDirection = 0)
+        ContentTieBreak? tieBreak = null)
     {
         var limit = configuredLimit > 0 ? configuredLimit : DefaultLimit;
         var byDate = candidates.OrderByDescending(publishedAt);
         // content.ordering decides which same-time entries make the window, as on list pages.
-        var ordered = tieBreakValue is null || tieBreakDirection == 0
+        var ordered = tieBreakValue is null || tieBreak is null
             ? byDate
-            : byDate.ThenBy(tieBreakValue, ContentOrdering.Comparer(tieBreakDirection));
+            : byDate.ThenBy(tieBreakValue, tieBreak.Comparer);
         return ordered
             .ThenBy(canonicalUrl, StringComparer.Ordinal)
             .GroupBy(canonicalUrl, StringComparer.OrdinalIgnoreCase)

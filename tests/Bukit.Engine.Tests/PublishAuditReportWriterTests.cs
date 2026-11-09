@@ -806,6 +806,7 @@ public sealed class PublishAuditReportWriterTests : IDisposable
     [InlineData("unordered")]
     [InlineData("ordered-without-documents")]
     [InlineData("ordered-with-documents")]
+    [InlineData("ordered-with-partial-documents")]
     public void Build_FeedWindowEdgeWithTiedEntries_FollowsContentOrderingWhenKnown(string scenario)
     {
         // "newest" is alone on 06-06; a, b and c share 06-05, and only one of them fits a limit-2 feed.
@@ -871,7 +872,13 @@ public sealed class PublishAuditReportWriterTests : IDisposable
             index,
             models,
             graph,
-            documentsByOutputPath: scenario == "ordered-with-documents" ? documents : null).SeoReport;
+            documentsByOutputPath: scenario switch
+            {
+                "ordered-with-documents" => documents,
+                // "c" has no document, so its ID is unknown and the edge cannot be predicted.
+                "ordered-with-partial-documents" => documents.Where(x => x.Key != "c/index.html").ToDictionary(x => x.Key, x => x.Value, StringComparer.OrdinalIgnoreCase),
+                _ => null
+            }).SeoReport;
 
         // Which tied entry is expected in the feed: none when it cannot be predicted.
         string? expectedTied = scenario switch

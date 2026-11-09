@@ -33,6 +33,7 @@ internal sealed class I18nRootFeedWriter : II18nRootProjectionWriter
     {
         var postCandidates = new List<(string RouteUrl, RssGenerator.Post Post)>();
         var rssCollections = ResolveRssCollections(context.Config.Site.Collections);
+        var tieBreak = ContentOrdering.Resolve(context.Config);
         foreach (var result in context.Results)
         {
             var documentsByPath = SearchIndexDocuments.BuildDocumentMap(result.RoutedDocuments);
@@ -48,7 +49,7 @@ internal sealed class I18nRootFeedWriter : II18nRootProjectionWriter
 
                 postCandidates.Add((
                     I18nRootProjectionPath.CombineBaseUrl(result.BaseUrl, seo.Route.Url),
-                    RssGenerator.ToPost(document, seo.Canonical, result.BodyStore, ContentOrdering.Resolve(context.Config), seo.Route.Url)));
+                    RssGenerator.ToPost(document, seo.Canonical, result.BodyStore, tieBreak, seo.Route.Url)));
             }
         }
 

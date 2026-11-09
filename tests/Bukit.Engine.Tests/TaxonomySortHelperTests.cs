@@ -179,14 +179,29 @@ public sealed class TaxonomySortHelperTests
 
         string[] Order(Bukit.Config.TaxonomyConfig config)
         {
-            var direction = TaxonomySortHelper.ResolveDirection(config);
-            return pages.Order(Comparer<TaxonomyPage>.Create((a, b) => TaxonomySortHelper.ComparePages(a, b, direction)))
+            var tieBreak = TaxonomySortHelper.ResolveTieBreak(config);
+            return pages.Order(Comparer<TaxonomyPage>.Create((a, b) => TaxonomySortHelper.ComparePages(a, b, tieBreak)))
                 .Select(p => p.Title).ToArray();
         }
 
         var unset = Order(new Bukit.Config.TaxonomyConfig());
         Assert.Equal(unset, Order(new Bukit.Config.TaxonomyConfig { TieBreakField = "title", TieBreakOrder = "asc" }));
         Assert.Equal(["2024", "Issue 10", "Issue 9"], unset);
+
+        // title desc is the exact reverse, also for titles whose digit runs sort differently by value.
+        var desc = Order(new Bukit.Config.TaxonomyConfig { TieBreakField = "title", TieBreakOrder = "desc" });
+        Assert.Equal(unset.Reverse(), desc);
+    }
+
+    [Fact]
+    public void ComparePages_TitleTieBreak_UsesPageTitleNotTieBreakValue()
+    {
+        var day = new DateTimeOffset(2026, 11, 2, 0, 0, 0, TimeSpan.Zero);
+        var titleDesc = new ContentTieBreak("title", Descending: true);
+        var alpha = MakePage("Alpha", "/a/", day) with { TieBreakValue = "Zulu" };
+        var bravo = MakePage("Bravo", "/b/", day) with { TieBreakValue = "Able" };
+
+        Assert.True(TaxonomySortHelper.ComparePages(bravo, alpha, titleDesc) < 0);
     }
 
     // ── ComparePinOrder ─────────────────────────────────────────────

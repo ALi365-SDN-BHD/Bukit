@@ -58,7 +58,7 @@ public sealed class TaxonomyFeedWriterTests : IDisposable
         terms["tech"].Pages.Add(new TaxonomyPage("a", "A", "/a/", sameDay, null, null, false, null, "999"));
         terms["tech"].Pages.Add(new TaxonomyPage("b", "B", "/b/", sameDay, null, null, false, null, "2596"));
 
-        TaxonomyFeedWriter.WriteFeeds(_tempDir, "https://example.com", "/", "My Site", terms, "tags", tieBreakDirection: -1);
+        TaxonomyFeedWriter.WriteFeeds(_tempDir, "https://example.com", "/", "My Site", terms, "tags", tieBreak: new ContentTieBreak("ID", Descending: true));
 
         var content = File.ReadAllText(Path.Combine(_tempDir, "tags", "tech", "feed.xml"));
         Assert.True(content.IndexOf("https://example.com/b/", StringComparison.Ordinal) < content.IndexOf("https://example.com/a/", StringComparison.Ordinal));

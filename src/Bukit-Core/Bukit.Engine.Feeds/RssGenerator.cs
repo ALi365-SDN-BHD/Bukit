@@ -26,16 +26,17 @@ public static class RssGenerator
         /// <summary>The content.ordering value used to order posts with the same publish time.</summary>
         internal string? TieBreakValue { get; init; }
 
-        /// <summary>1 ascending, -1 descending, 0 when content.ordering is unset.</summary>
-        internal int TieBreakDirection { get; init; }
+        /// <summary>The content.ordering tie-break the value was read for; null when unset.</summary>
+        internal ContentTieBreak? TieBreak { get; init; }
     }
 
     /// <summary>Picks the newest posts for a feed, ordering same-time posts by content.ordering.</summary>
     internal static IReadOnlyList<Post> SelectWindow(IEnumerable<Post> posts, int maxItems)
     {
         var materialized = posts as IReadOnlyList<Post> ?? posts.ToList();
-        var direction = materialized.FirstOrDefault(x => x.TieBreakDirection != 0)?.TieBreakDirection ?? 0;
-        return FeedWindowSelector.Select(materialized, x => x.PublishAt, x => x.AbsoluteUrl, maxItems, x => x.TieBreakValue, direction);
+        // Every post of one feed is built with the same site tie-break, so the first one set is the feed's.
+        var tieBreak = materialized.FirstOrDefault(x => x.TieBreak is not null)?.TieBreak;
+        return FeedWindowSelector.Select(materialized, x => x.PublishAt, x => x.AbsoluteUrl, maxItems, x => x.TieBreakValue, tieBreak);
     }
 
     public static void Generate(
@@ -290,7 +291,7 @@ public static class RssGenerator
             Entities: PublicContentProjectionPolicy.SanitizeEntities(document.Record).Select(x => x.Name).Distinct(StringComparer.OrdinalIgnoreCase).ToArray())
         {
             TieBreakValue = tieBreak is null ? null : ContentOrdering.ReadValue(document, routeUrl ?? absoluteUrl, tieBreak.Field),
-            TieBreakDirection = tieBreak?.Direction ?? 0
+            TieBreak = tieBreak
         };
     }
 

@@ -85,6 +85,64 @@ public sealed class ContentOrderingTests
     }
 
     [Fact]
+    public void WithContentOrdering_TaxonomyOrderAloneIsNotIgnored()
+    {
+        var site = new SiteConfig { Name = "t", Title = "t" };
+        var orderOnly = new AppConfig { Site = site, Content = new ContentConfig(), Taxonomy = new TaxonomyConfig { TieBreakOrder = "desc" } };
+        var overridesSite = orderOnly with { Content = new ContentConfig { OrderingTieBreakField = "ID", OrderingTieBreakOrder = "asc" } };
+
+        var titleDesc = TaxonomySortHelper.ResolveTieBreak(TaxonomySortHelper.WithContentOrdering(orderOnly));
+        Assert.Equal(("title", true), (titleDesc!.Field, titleDesc.Descending));
+        var idDesc = TaxonomySortHelper.ResolveTieBreak(TaxonomySortHelper.WithContentOrdering(overridesSite));
+        Assert.Equal(("ID", true), (idDesc!.Field, idDesc.Descending));
+    }
+
+    [Fact]
+    public void ContentTitleOrdering_TermPagesMatchCollectionList()
+    {
+        var titles = new[] { ("/x/", "Issue 9"), ("/y/", "Issue 10"), ("/z/", "2024") };
+        var routed = titles.Select(t => new RoutedContentDocument(
+            ContentDocument.Create(
+                id: t.Item1,
+                title: t.Item2,
+                slug: t.Item1.Trim('/'),
+                publishAt: SameDay,
+                contentHtml: "<p></p>",
+                fields: ContentFieldReader.ToFieldMap(new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase) { ["collection"] = "post" })),
+            new RouteInfo(t.Item1, $"{t.Item1.Trim('/')}/index.html", "pages/post.html"))).ToList();
+
+        foreach (var order in new[] { "asc", "desc" })
+        {
+            var config = new AppConfig
+            {
+                Site = new SiteConfig { Name = "t", Title = "t" },
+                Content = new ContentConfig { OrderingTieBreakField = "title", OrderingTieBreakOrder = order }
+            };
+            var list = CollectionRouteIndex.Create(routed, ContentOrdering.Resolve(config)).AllOrdered.Select(x => x.Route.Url).ToList();
+            var termTieBreak = TaxonomySortHelper.ResolveTieBreak(TaxonomySortHelper.WithContentOrdering(config));
+            var term = routed
+                .Select(x => new TaxonomyPage(x.Document.Id, x.Document.Title, x.Route.Url, x.Document.PublishAt, null, null, false, null))
+                .Order(Comparer<TaxonomyPage>.Create((a, b) => TaxonomySortHelper.ComparePages(a, b, termTieBreak)))
+                .Select(x => x.Url)
+                .ToList();
+
+            Assert.Equal(list, term);
+        }
+    }
+
+    [Theory]
+    [InlineData("1234567890123456789", "1234567890123456788", 1)]
+    [InlineData("-5", "3", -1)]
+    [InlineData("007", "7", 0)]
+    [InlineData("-0", "0", 0)]
+    [InlineData("1.5", "2", -1)]
+    public void CompareValues_IntegersCompareExactly(string a, string b, int expectedSign)
+    {
+        Assert.Equal(expectedSign, Math.Sign(ContentOrdering.CompareValues(a, b, 1)));
+        Assert.Equal(-expectedSign, Math.Sign(ContentOrdering.CompareValues(a, b, -1)));
+    }
+
+    [Fact]
     public void FeedWindow_SameDayPostsFillWindowByTieBreak()
     {
         var tieBreak = new ContentTieBreak("ID", Descending: true);
@@ -93,7 +151,7 @@ public sealed class ContentOrderingTests
             .ToList();
 
         var window = RssGenerator.SelectWindow(posts, maxItems: 2);
-        var unordered = RssGenerator.SelectWindow(posts.Select(p => p with { TieBreakDirection = 0 }), maxItems: 2);
+        var unordered = RssGenerator.SelectWindow(posts.Select(p => p with { TieBreak = null }), maxItems: 2);
 
         Assert.Equal(["https://example.com/6170/", "https://example.com/6169/"], window.Select(p => p.AbsoluteUrl));
         Assert.Equal(["https://example.com/6167/", "https://example.com/6168/"], unordered.Select(p => p.AbsoluteUrl));

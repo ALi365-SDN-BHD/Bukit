@@ -7,50 +7,50 @@ namespace Bukit.Engine.Plugins.BuiltIn;
 using Bukit.Engine.Abstractions.Plugins;
 internal static class TaxonomySortHelper
 {
-    internal sealed record TieBreak(string Field, bool Descending);
-
     /// <summary>
-    /// Taxonomy settings with the site-wide content.ordering tie-break filled in when
-    /// taxonomy.tieBreakField is unset, so term pages order same-time entries like every other list.
+    /// Taxonomy settings with the term-page tie-break resolved: taxonomy.tieBreakField wins; when it is unset
+    /// the field comes from content.ordering, else title. taxonomy.tieBreakOrder wins whenever it is set,
+    /// so writing only tieBreakOrder: desc reverses the inherited (or title) order instead of being ignored.
     /// </summary>
     internal static TaxonomyConfig WithContentOrdering(AppConfig config)
     {
         var taxonomy = config.Taxonomy;
-        if (!string.IsNullOrWhiteSpace(taxonomy.TieBreakField) || ContentOrdering.Resolve(config) is not { } siteWide)
+        if (!string.IsNullOrWhiteSpace(taxonomy.TieBreakField))
         {
             return taxonomy;
         }
 
-        return taxonomy with { TieBreakField = siteWide.Field, TieBreakOrder = siteWide.Descending ? "desc" : "asc" };
+        var order = string.IsNullOrWhiteSpace(taxonomy.TieBreakOrder) ? null : taxonomy.TieBreakOrder;
+        if (ContentOrdering.Resolve(config) is { } siteWide)
+        {
+            return taxonomy with { TieBreakField = siteWide.Field, TieBreakOrder = order ?? (siteWide.Descending ? "desc" : "asc") };
+        }
+
+        return order is null ? taxonomy : taxonomy with { TieBreakField = "title" };
     }
 
     /// <summary>
     /// Returns the configured same-time ordering, or null for the built-in title-ascending order.
     /// title asc is that built-in order, so writing it gives the same output and cache as leaving it unset;
-    /// title desc is a real tie-break and reverses it.
+    /// title desc is its exact reverse.
     /// </summary>
-    internal static TieBreak? ResolveTieBreak(TaxonomyConfig config)
-    {
-        if (ContentOrdering.Create(config.TieBreakField, config.TieBreakOrder) is not { } tieBreak ||
-            (!tieBreak.Descending && tieBreak.Field.Equals("title", StringComparison.OrdinalIgnoreCase)))
-        {
-            return null;
-        }
-
-        return new TieBreak(tieBreak.Field, tieBreak.Descending);
-    }
-
-    /// <summary>0 when no tie-break is configured; 1 ascending; -1 descending.</summary>
-    internal static int ResolveDirection(TaxonomyConfig config)
-        => ResolveTieBreak(config) is { } tieBreak ? (tieBreak.Descending ? -1 : 1) : 0;
+    internal static ContentTieBreak? ResolveTieBreak(TaxonomyConfig config)
+        => ContentOrdering.Create(config.TieBreakField, config.TieBreakOrder) is { } tieBreak &&
+           !(tieBreak.IsTitle && !tieBreak.Descending)
+            ? tieBreak
+            : null;
 
     internal static string? ReadTieBreakValue(ContentDocument item, string url, string field)
         => ContentOrdering.ReadValue(item, url, field);
 
-    internal static int ComparePages(TaxonomyPage a, TaxonomyPage b) => ComparePages(a, b, 0);
+    internal static int ComparePages(TaxonomyPage a, TaxonomyPage b) => ComparePages(a, b, tieBreak: null);
 
     /// <param name="tieBreakDirection">0 ignores TieBreakValue; 1 sorts it ascending; -1 descending.</param>
     internal static int ComparePages(TaxonomyPage a, TaxonomyPage b, int tieBreakDirection)
+        => ComparePages(a, b, tieBreakDirection == 0 ? null : new ContentTieBreak("value", tieBreakDirection < 0));
+
+    /// <summary>Term-page order: pinned entries first, then newest, then <see cref="CompareSameTime"/>.</summary>
+    internal static int ComparePages(TaxonomyPage a, TaxonomyPage b, ContentTieBreak? tieBreak)
     {
         if (a.IsPinned && !b.IsPinned)
         {
@@ -72,14 +72,20 @@ internal static class TaxonomySortHelper
         }
 
         var publishAtCmp = b.PublishAt.CompareTo(a.PublishAt);
-        if (publishAtCmp != 0)
-        {
-            return publishAtCmp;
-        }
+        return publishAtCmp != 0 ? publishAtCmp : CompareSameTime(a, b, tieBreak);
+    }
 
-        if (tieBreakDirection != 0)
+    /// <summary>
+    /// Orders entries with the same publish time: the tie-break (title compares the page titles), then
+    /// title, then URL. Term pages and term feeds both use this, so they always agree.
+    /// </summary>
+    internal static int CompareSameTime(TaxonomyPage a, TaxonomyPage b, ContentTieBreak? tieBreak)
+    {
+        if (tieBreak is not null)
         {
-            var tieCmp = CompareTieBreakValues(a.TieBreakValue, b.TieBreakValue, tieBreakDirection);
+            var tieCmp = tieBreak.IsTitle
+                ? ContentOrdering.CompareTitles(a.Title, b.Title, tieBreak.Direction)
+                : tieBreak.Compare(a.TieBreakValue, b.TieBreakValue);
             if (tieCmp != 0)
             {
                 return tieCmp;
