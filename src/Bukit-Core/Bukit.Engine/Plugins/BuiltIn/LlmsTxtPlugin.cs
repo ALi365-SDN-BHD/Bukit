@@ -209,7 +209,8 @@ internal sealed class LlmsTxtPlugin : IBukitPlugin, IAfterBuildAsyncPlugin
 
         var selection = BuildLlmsSelection(keyed.Values);
 
-        var pages = new List<(string Url, string Title, string? Description, DateTimeOffset Published, int Priority)>();
+        var tieBreak = ContentOrdering.Resolve(config);
+        var pages = new List<(string Url, string Title, string? Description, DateTimeOffset Published, int Priority, string? TieBreakValue)>();
         var groups = new Dictionary<string, List<LlmsCandidate>>(StringComparer.OrdinalIgnoreCase);
 
         foreach (var candidate in selection.Primary)
@@ -231,12 +232,12 @@ internal sealed class LlmsTxtPlugin : IBukitPlugin, IAfterBuildAsyncPlugin
             }
             else
             {
-                pages.Add((url, pageTitle, desc, candidate.Document.PublishAt, candidate.Policy.Priority));
+                var tieBreakValue = tieBreak is null ? null : ContentOrdering.ReadValue(candidate.Document, candidate.Entry.Route.Url, tieBreak.Field);
+                pages.Add((url, pageTitle, desc, candidate.Document.PublishAt, candidate.Policy.Priority, tieBreakValue));
             }
         }
 
         var optionalPages = new List<(string Url, string Title, string? Description)>();
-        var tieBreak = ContentOrdering.Resolve(config);
         foreach (var candidate in OrderDeterministically(selection.Optional, tieBreak))
         {
             var url = ResolveFullUrl(candidate.Entry.Route.Url, canonicalBase);
@@ -249,9 +250,10 @@ internal sealed class LlmsTxtPlugin : IBukitPlugin, IAfterBuildAsyncPlugin
 
         if (pages.Count > 0)
         {
-            var orderedPages = pages
+            var byPublished = pages
                 .OrderByDescending(page => page.Priority)
-                .ThenByDescending(page => page.Published)
+                .ThenByDescending(page => page.Published);
+            var orderedPages = (tieBreak is null ? byPublished : byPublished.ThenBy(page => page.TieBreakValue, ContentOrdering.Comparer(tieBreak.Direction)))
                 .ThenBy(page => page.Url, StringComparer.Ordinal)
                 .ToList();
             var section = orderedPages.Any(p => p.Url == "/" || p.Url == canonicalBase) ? "Documentation" : "Pages";

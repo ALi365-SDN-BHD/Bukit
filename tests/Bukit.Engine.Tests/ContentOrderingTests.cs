@@ -44,7 +44,7 @@ public sealed class ContentOrderingTests
         routed.Add(Routed("6166", SameDay.AddDays(-1)));
 
         var byId = CollectionRouteIndex.Create(routed, new ContentTieBreak("ID", Descending: true));
-        var byUrl = CollectionRouteIndex.Create(routed);
+        var byUrl = CollectionRouteIndex.Create(routed, tieBreak: null);
 
         Assert.Equal(["6170", "6169", "6168", "6167", "6166"], byId.AllOrdered.Select(x => x.Document.Id));
         Assert.Equal(["6170", "6169", "6168", "6167", "6166"], byId.GetByCollection("post").Select(x => x.Document.Id));
@@ -56,7 +56,7 @@ public sealed class ContentOrderingTests
     {
         var routed = new[] { "6167", "6170", "6168" }.Select(id => Routed(id, SameDay)).ToList();
 
-        var graph = ListRouteGraphBuilder.Build(routed, collections: null, "none", templateResolver: null, new ContentTieBreak("ID", Descending: true));
+        var graph = ListRouteGraphBuilder.Build(routed, collections: null, "none", new ContentTieBreak("ID", Descending: true));
 
         var home = Assert.Single(graph.Routes, route => route.Kind == ListRouteKind.Home);
         Assert.Equal(["/6170/", "/6168/", "/6167/"], home.Items.Select(item => item.Url));
@@ -75,7 +75,12 @@ public sealed class ContentOrderingTests
 
         var inherited = TaxonomySortHelper.ResolveTieBreak(TaxonomySortHelper.WithContentOrdering(inherits));
         Assert.Equal(("ID", true), (inherited!.Field, inherited.Descending));
-        Assert.Null(TaxonomySortHelper.ResolveTieBreak(TaxonomySortHelper.WithContentOrdering(own)));
+        var ownTitle = TaxonomySortHelper.ResolveTieBreak(TaxonomySortHelper.WithContentOrdering(own));
+        Assert.Equal(("title", false), (ownTitle!.Field, ownTitle.Descending));
+
+        var titleDesc = inherits with { Content = inherits.Content with { OrderingTieBreakField = "title" } };
+        var inheritedTitle = TaxonomySortHelper.ResolveTieBreak(TaxonomySortHelper.WithContentOrdering(titleDesc));
+        Assert.Equal(("title", true), (inheritedTitle!.Field, inheritedTitle.Descending));
         Assert.Same(neither.Taxonomy, TaxonomySortHelper.WithContentOrdering(neither));
     }
 

@@ -313,6 +313,7 @@ internal static class PageRenderDispatcher
         ConcurrentDictionary<string, byte> currentKeys,
         ConcurrentDictionary<string, int> renderReasons,
         int maxDegreeOfParallelism,
+        ContentTieBreak? tieBreak,
         CancellationToken cancellationToken,
         Func<ContentDocument, RouteInfo, SeoModel>? seoBuilder = null,
         Func<RouteInfo, PageInfo, SeoModel>? listSeoBuilder = null,
@@ -321,7 +322,7 @@ internal static class PageRenderDispatcher
         ILogger? logger = null)
     {
         var stageMetrics = new BuildStageMetricsCollector();
-        var specialLists = SpecialListRouteBuilder.Build(routed, collections, layoutsDir, listPageContentMode, outputPathEncoding, templateResolver);
+        var specialLists = SpecialListRouteBuilder.Build(routed, collections, layoutsDir, listPageContentMode, outputPathEncoding, tieBreak, templateResolver);
         var transformLogger = logger ?? new ConsoleLogger(LogLevel.Error);
         foreach (var x in specialLists)
         {

@@ -24,17 +24,14 @@ internal static class TaxonomySortHelper
         return taxonomy with { TieBreakField = siteWide.Field, TieBreakOrder = siteWide.Descending ? "desc" : "asc" };
     }
 
-    /// <summary>Returns the configured same-time ordering, or null for the default (title).</summary>
+    /// <summary>
+    /// Returns the configured same-time ordering, or null when unset (title ascending by default).
+    /// An explicit title is a real tie-break too, so title desc orders term pages like every other list.
+    /// </summary>
     internal static TieBreak? ResolveTieBreak(TaxonomyConfig config)
-    {
-        if (ContentOrdering.Create(config.TieBreakField, config.TieBreakOrder) is not { } tieBreak ||
-            tieBreak.Field.Equals("title", StringComparison.OrdinalIgnoreCase))
-        {
-            return null;
-        }
-
-        return new TieBreak(tieBreak.Field, tieBreak.Descending);
-    }
+        => ContentOrdering.Create(config.TieBreakField, config.TieBreakOrder) is { } tieBreak
+            ? new TieBreak(tieBreak.Field, tieBreak.Descending)
+            : null;
 
     /// <summary>0 when no tie-break is configured; 1 ascending; -1 descending.</summary>
     internal static int ResolveDirection(TaxonomyConfig config)

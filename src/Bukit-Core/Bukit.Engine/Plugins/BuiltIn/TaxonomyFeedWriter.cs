@@ -98,10 +98,8 @@ internal static class TaxonomyFeedWriter
         }
         sb.Append("  <atom:link href=\"").Append(EscapeXml(feedUrl)).AppendLine("\" rel=\"self\" type=\"application/rss+xml\"/>");
 
-        if (posts.Count > 0)
-        {
-            sb.Append("  <lastBuildDate>").Append(posts[0].PublishAt.ToString("R")).AppendLine("</lastBuildDate>");
-        }
+        // WriteFeeds skips terms without pages, so posts is never empty here.
+        sb.Append("  <lastBuildDate>").Append(posts[0].PublishAt.ToString("R")).AppendLine("</lastBuildDate>");
 
         foreach (var post in posts)
         {

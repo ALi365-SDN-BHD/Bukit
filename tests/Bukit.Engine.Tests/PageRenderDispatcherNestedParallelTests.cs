@@ -40,6 +40,7 @@ public sealed class PageRenderDispatcherNestedParallelTests
             currentKeys: new ConcurrentDictionary<string, byte>(StringComparer.OrdinalIgnoreCase),
             renderReasons: new ConcurrentDictionary<string, int>(StringComparer.OrdinalIgnoreCase),
             maxDegreeOfParallelism: 4,
+            tieBreak: null,
             cancellationToken: CancellationToken.None);
 
         Assert.True(result.RenderedCount > 0);
@@ -77,6 +78,7 @@ public sealed class PageRenderDispatcherNestedParallelTests
             currentKeys: new ConcurrentDictionary<string, byte>(StringComparer.OrdinalIgnoreCase),
             renderReasons: new ConcurrentDictionary<string, int>(StringComparer.OrdinalIgnoreCase),
             maxDegreeOfParallelism: 4,
+            tieBreak: null,
             cancellationToken: CancellationToken.None);
 
         Assert.True(result.RenderedCount > 0);

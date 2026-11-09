@@ -55,10 +55,12 @@ public sealed partial class SiteEngine
         IReadOnlyDictionary<string, CollectionConfig>? collections,
         ThemeTemplateResolver? templateResolver = null)
     {
+        // Route URLs only: with no documents there is nothing to order.
         var graph = ListRouteGraphBuilder.Build(
             [],
             collections,
             outputPathEncoding: "none",
+            tieBreak: null,
             templateResolver);
         return [.. graph.Routes.Select(route => route.ToRouteInfo())];
     }
@@ -69,10 +71,12 @@ public sealed partial class SiteEngine
         string outputPathEncoding,
         ThemeTemplateResolver? templateResolver = null)
     {
+        // Returns route URLs only, so item order does not matter here.
         var graph = BuildListRouteGraph(
             routedDocuments,
             collections,
             outputPathEncoding,
+            tieBreak: null,
             templateResolver);
         return [.. graph.Routes.Select(route => route.ToRouteInfo())];
     }
@@ -82,14 +86,17 @@ public sealed partial class SiteEngine
         IReadOnlyList<RoutedContentDocument> routedDocuments,
         IReadOnlyDictionary<string, CollectionConfig>? collections,
         string outputPathEncoding,
+        ContentTieBreak? tieBreak,
         ThemeTemplateResolver? templateResolver = null)
     {
         ArgumentNullException.ThrowIfNull(context);
 
+        // This graph is stored for later plugins, so it must use the site's content.ordering.
         var graph = BuildListRouteGraph(
             routedDocuments,
             collections,
             outputPathEncoding,
+            tieBreak,
             templateResolver);
         context.Set(BuildDataKeys.ListRouteGraph, graph);
         return [.. graph.Routes.Select(route => route.ToRouteInfo())];
@@ -99,6 +106,7 @@ public sealed partial class SiteEngine
         IReadOnlyList<RoutedContentDocument> routedDocuments,
         IReadOnlyDictionary<string, CollectionConfig>? collections,
         string outputPathEncoding,
+        ContentTieBreak? tieBreak,
         ThemeTemplateResolver? templateResolver)
     {
         ArgumentNullException.ThrowIfNull(routedDocuments);
@@ -108,6 +116,7 @@ public sealed partial class SiteEngine
             routedDocuments,
             collections,
             outputPathEncoding,
+            tieBreak,
             templateResolver);
     }
 

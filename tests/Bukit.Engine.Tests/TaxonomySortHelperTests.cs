@@ -151,7 +151,8 @@ public sealed class TaxonomySortHelperTests
 
     [Theory]
     [InlineData(null, null, false)]
-    [InlineData("title", "desc", false)]
+    [InlineData("title", "desc", true)]
+    [InlineData("title", null, true)]
     [InlineData("ID", "desc", true)]
     [InlineData("url", null, true)]
     public void ResolveTieBreak_MapsConfig(string? field, string? order, bool enabled)

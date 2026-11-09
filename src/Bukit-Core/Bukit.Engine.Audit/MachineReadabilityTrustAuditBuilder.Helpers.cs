@@ -249,7 +249,8 @@ internal static partial class MachineReadabilityTrustAuditBuilder
         IReadOnlyDictionary<string, ContentDocument>? documentsByOutputPath)
     {
         // Mirror the feed writers' window, including the content.ordering tie-break when documents are known.
-        var tieBreak = documentsByOutputPath is null ? null : ContentOrdering.Resolve(config);
+        var siteTieBreak = ContentOrdering.Resolve(config);
+        var tieBreak = documentsByOutputPath is null ? null : siteTieBreak;
         var candidates = seoIndex
             .Where(pair => pair.Value.Indexable && IsFeedContent(config, pair.Value))
             .OrderBy(pair => pair.Value.Route.Url, StringComparer.OrdinalIgnoreCase)
@@ -258,14 +259,29 @@ internal static partial class MachineReadabilityTrustAuditBuilder
                 ResolveRecordForEntry(recordsById, pair.Value, config.Site.Language)?.Lifecycle.PublishedAt ?? pair.Value.LastModified,
                 tieBreak is not null && documentsByOutputPath!.TryGetValue(pair.Key, out var document)
                     ? ContentOrdering.ReadValue(document, pair.Value.Route.Url, tieBreak.Field)
-                    : null));
-        return FeedWindowSelector.Select(
-                candidates,
-                candidate => candidate.PublishedAt,
-                candidate => candidate.Entry.Canonical,
-                config.Site.Feed.Limit,
-                candidate => candidate.TieBreakValue,
-                tieBreak?.Direction ?? 0)
+                    : null))
+            .ToList();
+        var window = FeedWindowSelector.Select(
+            candidates,
+            candidate => candidate.PublishedAt,
+            candidate => candidate.Entry.Canonical,
+            config.Site.Feed.Limit,
+            candidate => candidate.TieBreakValue,
+            tieBreak?.Direction ?? 0);
+
+        // Without documents the tie-break values are unknown, so which same-time entries at the window
+        // edge made the feed cannot be predicted. Leave that edge out instead of reporting false misses.
+        if (siteTieBreak is not null && tieBreak is null && window.Count > 0)
+        {
+            var edge = window[^1].PublishedAt;
+            var tiedAtEdge = candidates.Count(candidate => candidate.PublishedAt == edge);
+            if (tiedAtEdge > window.Count(candidate => candidate.PublishedAt == edge))
+            {
+                window = window.Where(candidate => candidate.PublishedAt != edge).ToArray();
+            }
+        }
+
+        return window
             .Select(candidate => candidate.Entry.Route.Url)
             .ToHashSet(StringComparer.OrdinalIgnoreCase);
     }

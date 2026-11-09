@@ -22,11 +22,12 @@ public static class RssGenerator
         string? ReviewStatus = null,
         IReadOnlyList<string>? Entities = null)
     {
+        // Set only by ToPost from content.ordering; internal so the public Post shape stays unchanged.
         /// <summary>The content.ordering value used to order posts with the same publish time.</summary>
-        public string? TieBreakValue { get; init; }
+        internal string? TieBreakValue { get; init; }
 
         /// <summary>1 ascending, -1 descending, 0 when content.ordering is unset.</summary>
-        public int TieBreakDirection { get; init; }
+        internal int TieBreakDirection { get; init; }
     }
 
     /// <summary>Picks the newest posts for a feed, ordering same-time posts by content.ordering.</summary>

@@ -23,9 +23,10 @@ internal static class SpecialListRouteBuilder
         string layoutsDir,
         string listPageContentMode,
         string outputPathEncoding,
+        ContentTieBreak? tieBreak,
         ThemeTemplateResolver? templateResolver = null)
     {
-        var graph = ListRouteGraphBuilder.Build(routed, collections, outputPathEncoding, templateResolver);
+        var graph = ListRouteGraphBuilder.Build(routed, collections, outputPathEncoding, tieBreak, templateResolver);
         return ListRouteRenderPlanBuilder
             .Build(graph, routed, layoutsDir, listPageContentMode)
             .ToList();

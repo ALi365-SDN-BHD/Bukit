@@ -101,7 +101,7 @@ public sealed class RenderPipelineTests
             ManifestEntries: null,
             MaxDegreeOfParallelism: 1,
             Logger: new ConsoleLogger(LogLevel.Error),
-            ListRouteGraph: ListRouteGraphBuilder.Build(routedDocuments, CreateCollections(), "pretty"),
+            ListRouteGraph: ListRouteGraphBuilder.Build(routedDocuments, CreateCollections(), "pretty", tieBreak: null),
             RenderDocuments: routedDocuments,
             RoutedDocuments: routedDocuments), CancellationToken.None);
 
@@ -153,7 +153,7 @@ public sealed class RenderPipelineTests
             ManifestEntries: manifestEntries,
             MaxDegreeOfParallelism: 1,
             Logger: new ConsoleLogger(LogLevel.Error),
-            ListRouteGraph: ListRouteGraphBuilder.Build(routedDocuments, CreateCollections(), "pretty"),
+            ListRouteGraph: ListRouteGraphBuilder.Build(routedDocuments, CreateCollections(), "pretty", tieBreak: null),
             RenderDocuments: routedDocuments,
             RoutedDocuments: routedDocuments), CancellationToken.None);
 
@@ -183,7 +183,7 @@ public sealed class RenderPipelineTests
                     "pages/post.html"));
             })
             .ToRoutedDocuments();
-        var graph = ListRouteGraphBuilder.Build(routedDocuments, CreateCollections(), "pretty");
+        var graph = ListRouteGraphBuilder.Build(routedDocuments, CreateCollections(), "pretty", tieBreak: null);
         string? expectedManifest = null;
 
         try

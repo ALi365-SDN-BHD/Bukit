@@ -404,6 +404,7 @@ public static class DoctorCommand
                 routedDocuments,
                 config.Site.Collections,
                 config.Site.OutputPathEncoding,
+                ContentOrdering.Resolve(config),
                 templateResolver);
             var requirementSession = PluginExecutionSession.Create(
                 config,

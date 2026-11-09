@@ -15,8 +15,8 @@ internal static partial class ListRouteGraphBuilder
         IReadOnlyList<RoutedContentDocument> routed,
         IReadOnlyDictionary<string, CollectionConfig>? collections,
         string outputPathEncoding,
-        ThemeTemplateResolver? templateResolver = null,
-        ContentTieBreak? tieBreak = null)
+        ContentTieBreak? tieBreak,
+        ThemeTemplateResolver? templateResolver = null)
     {
         ArgumentNullException.ThrowIfNull(routed);
 

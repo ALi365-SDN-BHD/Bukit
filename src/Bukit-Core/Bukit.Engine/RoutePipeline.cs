@@ -46,8 +46,8 @@ internal sealed class RoutePipeline
             routedDocuments,
             config.Site.Collections,
             config.Site.OutputPathEncoding,
-            templateResolver,
-            ContentOrdering.Resolve(config));
+            ContentOrdering.Resolve(config),
+            templateResolver);
         var listRoutes = listRouteGraph.Routes.Select(route => route.ToRouteInfo()).ToArray();
         return new RoutePipelineResult(contentDocuments, routedDocuments, listRoutes)
         {

@@ -169,6 +169,7 @@ public sealed class SpecialListRendererNestedParallelTests
                 new ConcurrentDictionary<string, byte>(StringComparer.OrdinalIgnoreCase),
                 renderReasons,
                 maxDegreeOfParallelism: 4,
+                tieBreak: null,
                 CancellationToken.None);
 
             await renderer.Blocked.WaitAsync(TimeSpan.FromSeconds(5));
@@ -217,6 +218,7 @@ public sealed class SpecialListRendererNestedParallelTests
                 new ConcurrentDictionary<string, byte>(StringComparer.OrdinalIgnoreCase),
                 new ConcurrentDictionary<string, int>(StringComparer.OrdinalIgnoreCase),
                 maxDegreeOfParallelism: 4,
+                tieBreak: null,
                 cancellation.Token);
 
         try

@@ -32,8 +32,8 @@ public sealed class CollectionRouteIndexTests
             Logger = new ConsoleLogger(LogLevel.Error)
         };
 
-        var first = CollectionRouteIndex.GetOrBuild(context);
-        var second = CollectionRouteIndex.GetOrBuild(context);
+        var first = CollectionRouteIndex.GetOrBuild(context, tieBreak: null);
+        var second = CollectionRouteIndex.GetOrBuild(context, tieBreak: null);
 
         Assert.Same(first, second);
         Assert.Equal(new[] { "post-1", "post-2", "page-1" }, first.AllOrdered.Select(x => x.Document.Id).ToArray());
@@ -54,7 +54,7 @@ public sealed class CollectionRouteIndexTests
             new RoutedContentDocument(articleCollection, new RouteInfo("/articles/article-1/", "articles/article-1/index.html", "article.html"))
         };
 
-        var index = CollectionRouteIndex.Create(routed);
+        var index = CollectionRouteIndex.Create(routed, tieBreak: null);
 
         Assert.Equal(new[] { "news-1", "article-1" }, index.AllOrdered.Select(item => item.Document.Id));
         Assert.Equal(new[] { "news-1" }, index.GetByCollection("news").Select(item => item.Document.Id));
@@ -71,12 +71,12 @@ public sealed class CollectionRouteIndexTests
         [
             new RoutedContentDocument(alpha, new RouteInfo("/post/alpha/", "post/alpha/index.html", "post.html")),
             new RoutedContentDocument(beta, new RouteInfo("/post/beta/", "post/beta/index.html", "post.html"))
-        ]);
+        ], tieBreak: null);
         var reversed = CollectionRouteIndex.Create(
         [
             new RoutedContentDocument(beta, new RouteInfo("/post/beta/", "post/beta/index.html", "post.html")),
             new RoutedContentDocument(alpha, new RouteInfo("/post/alpha/", "post/alpha/index.html", "post.html"))
-        ]);
+        ], tieBreak: null);
 
         Assert.Equal(
             forward.AllOrdered.Select(item => item.Document.Id),

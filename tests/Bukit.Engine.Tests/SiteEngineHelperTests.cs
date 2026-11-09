@@ -567,7 +567,8 @@ public sealed class SiteEngineHelperTests
             context,
             routed,
             config.Site.Collections,
-            config.Site.OutputPathEncoding);
+            config.Site.OutputPathEncoding,
+            tieBreak: null);
 
         Assert.Contains(result, r => r.Url == "/blog/");
         Assert.Contains(result, r => r.Url == "/blog/page/2/");

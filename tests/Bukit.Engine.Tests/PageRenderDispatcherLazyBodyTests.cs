@@ -410,6 +410,7 @@ public sealed class PageRenderDispatcherLazyBodyTests
             currentKeys: new ConcurrentDictionary<string, byte>(StringComparer.OrdinalIgnoreCase),
             renderReasons: new ConcurrentDictionary<string, int>(StringComparer.OrdinalIgnoreCase),
             maxDegreeOfParallelism: 1,
+            tieBreak: null,
             cancellationToken: CancellationToken.None);
 
         Assert.Equal(3, result.RenderedCount);
@@ -446,6 +447,7 @@ public sealed class PageRenderDispatcherLazyBodyTests
             currentKeys: new ConcurrentDictionary<string, byte>(StringComparer.OrdinalIgnoreCase),
             renderReasons: new ConcurrentDictionary<string, int>(StringComparer.OrdinalIgnoreCase),
             maxDegreeOfParallelism: 1,
+            tieBreak: null,
             cancellationToken: CancellationToken.None);
 
         Assert.Contains("/", renderer.ListPageUrls);
@@ -482,6 +484,7 @@ public sealed class PageRenderDispatcherLazyBodyTests
             currentKeys: new ConcurrentDictionary<string, byte>(StringComparer.OrdinalIgnoreCase),
             renderReasons: new ConcurrentDictionary<string, int>(StringComparer.OrdinalIgnoreCase),
             maxDegreeOfParallelism: 1,
+            tieBreak: null,
             cancellationToken: CancellationToken.None);
 
         Assert.True(renderer.ListPageFieldsByUrl.TryGetValue("/blog/malaysia/page/2/", out var fields));
@@ -544,6 +547,7 @@ public sealed class PageRenderDispatcherLazyBodyTests
             currentKeys: new ConcurrentDictionary<string, byte>(StringComparer.OrdinalIgnoreCase),
             renderReasons: new ConcurrentDictionary<string, int>(StringComparer.OrdinalIgnoreCase),
             maxDegreeOfParallelism: 1,
+            tieBreak: null,
             cancellationToken: CancellationToken.None);
 
         Assert.True(bodyStore.Count > 0);
@@ -591,6 +595,7 @@ public sealed class PageRenderDispatcherLazyBodyTests
             currentKeys: new ConcurrentDictionary<string, byte>(StringComparer.OrdinalIgnoreCase),
             renderReasons: new ConcurrentDictionary<string, int>(StringComparer.OrdinalIgnoreCase),
             maxDegreeOfParallelism: 1,
+            tieBreak: null,
             cancellationToken: CancellationToken.None);
 
         Assert.Equal(0, bodyStore.Count);
@@ -636,6 +641,7 @@ public sealed class PageRenderDispatcherLazyBodyTests
             currentKeys: new ConcurrentDictionary<string, byte>(StringComparer.OrdinalIgnoreCase),
             renderReasons: new ConcurrentDictionary<string, int>(StringComparer.OrdinalIgnoreCase),
             maxDegreeOfParallelism: 1,
+            tieBreak: null,
             cancellationToken: CancellationToken.None);
 
         Assert.True(bodyStore.Count > 0);

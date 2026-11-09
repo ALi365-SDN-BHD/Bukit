@@ -4,7 +4,8 @@ Bukit 所有重要变更都将记录在此文件中。
 
 ## [Unreleased]
 
-- **全站同时间排序**：新增 `content.ordering.tieBreakField`（`url`、`title` 或任意内容字段，如 `ID`）和 `content.ordering.tieBreakOrder`（`asc` | `desc`）。发布时间相同的文章在所有列表里按这个字段排序：首页 `pages`、集合列表和分页、归档、全站和集合 feed（RSS、Atom、JSON Feed，以及审计预测的 feed 范围）、`llms.txt`。`taxonomy.tieBreakField` 不设置时，分类页也用它，同一个站点的首页和分类页不再出现同一批文章顺序不同。不配置时，输出和增量缓存都不变。
+- **全站同时间排序**：新增 `content.ordering.tieBreakField`（`url`、`title` 或任意内容字段，如 `ID`）和 `content.ordering.tieBreakOrder`（`asc` | `desc`）。发布时间相同的文章在所有列表里按这个字段排序：首页 `pages`、集合列表和分页、归档、全站和集合 feed（RSS、Atom、JSON Feed，以及审计预测的 feed 范围）、`llms.txt`。`taxonomy.tieBreakField` 不设置时，分类页也用它，同一个站点的首页和分类页不再出现同一批文章顺序不同。明确写 `title` 时，两处设置都会真正按标题排序，`title` 配 `desc` 在分类页也会倒序（以前会退回正序）。不配置时，输出和增量缓存都不变。
+- **空 RSS feed**：没有文章的 feed 不再把 `lastBuildDate` 写成 `Thu, 01 Jan 1970`，这个可选字段直接省略。Atom 仍保留必需的 `<updated>`。
 - **分类页同时间排序**：新增 `taxonomy.tieBreakField`（`title`、`url` 或任意内容字段，如 `ID`）和 `taxonomy.tieBreakOrder`（`asc` | `desc`）。发布时间相同的文章在分页前按这个字段排序，从 WordPress 迁移的站点跨页也能保持旧站的 ID 顺序。数字按数值比较，没有该字段的文章排在后面，分类 RSS 也按同样规则排列同一时间的文章。默认 `title`，输出和增量缓存都不变。
 - **大页面输出不再被截断**：模板不再使用 Scriban 默认的 1 MiB 字符串上限。在 `include` 里这个上限实际只有约 52.4 万字符，超出后页面其余部分全部变空。ItemList JSON-LD 最多列 100 条，超出时给出 `numberOfItems` 总数，关了分页的列表页也不会过大。页面有 `<html>` 却没有 `</html>` 时，审计报 `render.output_truncated`，不再报 `seo.document_title_missing`。
 - **面包屑首页与分类上级**：新增 `site.seo.schema.breadcrumbHome`，开启后 BreadcrumbList JSON-LD 以首页开头；新增 `site.seo.schema.breadcrumbParent`（填分类法类型，如 `categories`），内容页会以所属的第一个分类页作为上级，`/2596/` 这类扁平网址也能得到“首页 › 分类 › 文章”。分类法类型不存在时配置校验报错；增量构建时，面包屑任一级的名称或网址变化都会重新渲染该页。两项默认关闭，不配置时输出和增量缓存都不变。
