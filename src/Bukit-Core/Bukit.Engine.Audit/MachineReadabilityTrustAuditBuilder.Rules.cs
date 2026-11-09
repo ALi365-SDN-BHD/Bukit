@@ -108,6 +108,12 @@ internal static partial class MachineReadabilityTrustAuditBuilder
         List<SeoAuditIssue> seoIssues,
         List<PublishAuditIssue> publishIssues)
     {
+        if (LooksTruncated(html))
+        {
+            seoIssues.Add(Error("render.output_truncated", entry.Route.Url, "HTML output is truncated (no closing </html>); a template output limit or render failure cut it short."));
+            return;
+        }
+
         AnalyzeDocumentTitle(config, entry, model, titleInspection, seoIssues);
 
         if (!titleInspection.HasHead)
@@ -129,6 +135,11 @@ internal static partial class MachineReadabilityTrustAuditBuilder
             SemanticHtmlAuditRules.Analyze(entry, document, html, semanticInspection, publishIssues);
         }
     }
+
+    // A document that opens <html> but never closes it was cut short while rendering.
+    internal static bool LooksTruncated(string html)
+        => html.Contains("<html", StringComparison.OrdinalIgnoreCase) &&
+           !html.Contains("</html>", StringComparison.OrdinalIgnoreCase);
 
     private static void AnalyzeDocumentTitle(
         AppConfig config,

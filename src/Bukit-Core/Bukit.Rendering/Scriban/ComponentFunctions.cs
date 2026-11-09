@@ -45,7 +45,8 @@ internal sealed class ComponentRenderFunction : IScriptCustomFunction
                 TemplateLoader = _templateLoader,
                 EnableRelaxedMemberAccess = true,
                 EnableRelaxedTargetAccess = true,
-                EnableNullIndexer = true
+                EnableNullIndexer = true,
+                LimitToString = 0
             };
 
             var componentGlobals = new ScriptObject();
@@ -197,7 +198,8 @@ internal sealed class ThemeComponentRenderFunction : IScriptCustomFunction
                 TemplateLoader = _templateLoader,
                 EnableRelaxedMemberAccess = true,
                 EnableRelaxedTargetAccess = true,
-                EnableNullIndexer = true
+                EnableNullIndexer = true,
+                LimitToString = 0
             };
 
             if (!_getCachedTemplate(templatePath, out var compTemplate))

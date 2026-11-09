@@ -622,6 +622,25 @@ public sealed class SeoAuditReportWriterTests : IDisposable
     }
 
     [Fact]
+    public void Build_ReportsTruncatedOutputInsteadOfMissingTitle()
+    {
+        WriteOutput("blog/index.html", "<!doctype html><html><head><script type=\"application/ld+json\">{\"a\":\"...");
+        var index = new Dictionary<string, SeoIndexEntry>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["blog/index.html"] = Entry("/blog/", "blog/index.html", "https://example.com/blog/")
+        };
+        var models = new Dictionary<string, SeoModel>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["blog/index.html"] = new() { Title = "Blog", Description = "Blog", Canonical = "https://example.com/blog/" }
+        };
+
+        var report = SeoAuditReportWriter.Build(Config(), _outputDir, index, models);
+
+        Assert.Contains(report.Issues, x => x.Code == "render.output_truncated" && x.Route == "/blog/" && x.Severity == "error");
+        Assert.DoesNotContain(report.Issues, x => x.Code == "seo.document_title_missing");
+    }
+
+    [Fact]
     public void Build_ReportsMissingHeadAndSmallSameSiteImage()
     {
         var outputPath = Path.Combine(_outputDir, "image", "index.html");

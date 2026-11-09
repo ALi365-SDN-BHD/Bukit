@@ -86,6 +86,13 @@ internal static partial class SeoDiagnostics
             return html;
         }
 
+        if (html.Contains("<html", StringComparison.OrdinalIgnoreCase) &&
+            !html.Contains("</html>", StringComparison.OrdinalIgnoreCase))
+        {
+            Report(config, logger, $"render.output_truncated route={route.Url} length={html.Length}");
+            return html;
+        }
+
         var titleInspection = HtmlDocumentTitleInspector.Inspect(html);
         if (!titleInspection.HasHead)
         {

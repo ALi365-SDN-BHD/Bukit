@@ -661,6 +661,8 @@ internal static class SeoJsonLdBuilder
         }));
     }
 
+    internal const int MaxItemListElements = 100;
+
     internal static IReadOnlyDictionary<string, object?>? BuildItemList(
         AppConfig config,
         string baseUrl,
@@ -677,10 +679,18 @@ internal static class SeoJsonLdBuilder
             return null;
         }
 
+        // Unpaginated lists can hold thousands of entries; list only the first ones.
         var elements = new List<Dictionary<string, object?>>();
+        var total = 0;
         for (var i = 0; i < values.Count; i++)
         {
             if (!TryReadListEntry(values[i], out var name, out var url))
+            {
+                continue;
+            }
+
+            total++;
+            if (elements.Count >= MaxItemListElements)
             {
                 continue;
             }
@@ -705,12 +715,18 @@ internal static class SeoJsonLdBuilder
             return null;
         }
 
-        return new Dictionary<string, object?>
+        var itemList = new Dictionary<string, object?>
         {
             ["@context"] = "https://schema.org",
-            ["@type"] = "ItemList",
-            ["itemListElement"] = elements
+            ["@type"] = "ItemList"
         };
+        if (total > elements.Count)
+        {
+            itemList["numberOfItems"] = total;
+        }
+
+        itemList["itemListElement"] = elements;
+        return itemList;
     }
 
     private static bool TryGetListField(IReadOnlyDictionary<string, ContentField> fields, string key, out IReadOnlyList<object> values)

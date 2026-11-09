@@ -53,7 +53,9 @@ internal sealed class TemplateContextBuilder
             TemplateLoader = _templateLoader,
             EnableRelaxedMemberAccess = true,
             EnableRelaxedTargetAccess = true,
-            EnableNullIndexer = true
+            EnableNullIndexer = true,
+            // Scriban's default 1 MiB limit silently truncates large output (counted twice inside include).
+            LimitToString = 0
         };
 
         if (_shortcodes is { Count: > 0 })

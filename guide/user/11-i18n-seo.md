@@ -213,6 +213,7 @@ quality through issue codes:
 | `seo.document_title_mismatch` | inject: error; theme/off: warning | Actual HTML differs from the resolved model title. |
 | `seo.document_title_duplicate` | warning | Unrelated routes share the same actual HTML title; mutual hreflang alternates are excluded. |
 | `seo.html_head_missing` | warning | The output has no standard complete head. |
+| `render.output_truncated` | error | The output opens `<html>` but has no `</html>`; rendering was cut short. Title and head checks are skipped for that page. |
 
 BreadcrumbList audit codes use the `seo.schema_breadcrumb_*` prefix and check a
 non-empty item array, ListItem type, consecutive positions, non-empty names, and
