@@ -163,8 +163,11 @@ public static class RssGenerator
         sb.AppendLine($"    <title>{EscapeXml(siteTitle)}</title>");
         sb.AppendLine($"    <link>{EscapeXml(homeUrl)}</link>");
         sb.AppendLine($"    <description>{EscapeXml(channelDescription)}</description>");
-        var lastBuildDate = posts.Count == 0 ? DateTimeOffset.UnixEpoch : posts.Max(x => x.PublishAt);
-        sb.AppendLine($"    <lastBuildDate>{lastBuildDate:R}</lastBuildDate>");
+        // lastBuildDate is optional in RSS 2.0; an empty feed omits it instead of claiming 1970.
+        if (posts.Count > 0)
+        {
+            sb.AppendLine($"    <lastBuildDate>{posts.Max(x => x.PublishAt):R}</lastBuildDate>");
+        }
         sb.AppendLine("    <generator>bukit</generator>");
         sb.AppendLine($"    <atom:link href=\"{EscapeXml(feedUrl)}\" rel=\"self\" type=\"application/rss+xml\" />");
 

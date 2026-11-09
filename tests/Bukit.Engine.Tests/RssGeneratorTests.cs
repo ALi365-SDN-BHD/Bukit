@@ -388,6 +388,20 @@ public sealed class RssGeneratorTests
     }
 
     [Fact]
+    public void GenerateMerged_EmptyFeed_OmitsLastBuildDate()
+    {
+        var root = Path.Combine(Path.GetTempPath(), "bukit-tests", Guid.NewGuid().ToString("N"));
+        var outDir = Path.Combine(root, "dist");
+        Directory.CreateDirectory(outDir);
+
+        RssGenerator.GenerateMerged(outDir, "https://example.com", "/", "Site", Array.Empty<RssGenerator.Post>());
+
+        var rss = File.ReadAllText(Path.Combine(outDir, "rss.xml"));
+        Assert.DoesNotContain("<lastBuildDate>", rss, StringComparison.Ordinal);
+        Assert.DoesNotContain("1970", rss, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void Generate_CategoriesInRss()
     {
         var root = Path.Combine(Path.GetTempPath(), "bukit-tests", Guid.NewGuid().ToString("N"));
