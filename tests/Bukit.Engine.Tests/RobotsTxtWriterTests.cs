@@ -32,6 +32,46 @@ public sealed class RobotsTxtWriterTests : IDisposable
     }
 
     [Fact]
+    public void ContentSignal_IsWrittenInTheWildcardGroup()
+    {
+        var robotsConfig = new SeoRobotsTxtConfig { Enabled = true, ContentSignalSearch = true, ContentSignalAiInput = true, ContentSignalAiTrain = false };
+        RobotsTxtWriter.WriteIfRequested(Config(Geo("allow"), robots: robotsConfig), _outputDir, "/", IndexableIndex());
+        var robots = File.ReadAllText(Path.Combine(_outputDir, "robots.txt"));
+
+        Assert.StartsWith(
+            "User-agent: *" + Environment.NewLine + "Allow: /" + Environment.NewLine + "Content-Signal: search=yes, ai-input=yes, ai-train=no" + Environment.NewLine,
+            robots,
+            StringComparison.Ordinal);
+        Assert.Single(robots.Split(Environment.NewLine), line => line.StartsWith("Content-Signal:", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void ContentSignal_WarnsWhenRobotsTxtIsNotGenerated()
+    {
+        var signalOnly = new SeoRobotsTxtConfig { Enabled = false, ContentSignalAiTrain = false };
+        var disabledLogger = new RecordingLogger();
+        RobotsTxtWriter.WriteIfRequested(Config(Geo("allow"), robots: signalOnly), _outputDir, "/", IndexableIndex(), logger: disabledLogger);
+        Assert.Contains(disabledLogger.Warnings, message => message.Contains("event=robots.content_signal_inactive reason=robots_txt_disabled", StringComparison.Ordinal));
+
+        File.WriteAllText(Path.Combine(_outputDir, "robots.txt"), "User-agent: *\nAllow: /\n");
+        var staticLogger = new RecordingLogger();
+        RobotsTxtWriter.WriteIfRequested(Config(Geo("allow"), robots: signalOnly with { Enabled = true }), _outputDir, "/", IndexableIndex(), logger: staticLogger);
+        Assert.Contains(staticLogger.Warnings, message => message.Contains("event=robots.content_signal_inactive reason=static_robots_txt", StringComparison.Ordinal));
+
+        var quietLogger = new RecordingLogger();
+        RobotsTxtWriter.WriteIfRequested(Config(Geo("allow"), robotsEnabled: false), _outputDir, "/", IndexableIndex(), logger: quietLogger);
+        Assert.DoesNotContain(quietLogger.Warnings, message => message.Contains("content_signal", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void ContentSignal_ListsOnlySetValues_AndIsOmittedWhenNoneSet()
+    {
+        Assert.Equal("Content-Signal: ai-train=no", RobotsTxtWriter.BuildContentSignalLine(new SeoRobotsTxtConfig { ContentSignalAiTrain = false }));
+        Assert.Null(RobotsTxtWriter.BuildContentSignalLine(new SeoRobotsTxtConfig { Enabled = true }));
+        Assert.DoesNotContain("Content-Signal", Write(Geo("allow")), StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void BlockTrainingMode_BlocksTrainingButKeepsAiSearchAndUserFetch()
     {
         var robots = Write(Geo("block-training"));
@@ -225,7 +265,7 @@ public sealed class RobotsTxtWriterTests : IDisposable
     private static SeoGeoConfig Geo(string mode, IReadOnlyList<string>? allow = null, IReadOnlyList<string>? block = null)
         => new() { AiBotMode = mode, AiBotAllowList = allow, AiBotBlockList = block };
 
-    private static AppConfig Config(SeoGeoConfig geo, bool robotsEnabled = true)
+    private static AppConfig Config(SeoGeoConfig geo, bool robotsEnabled = true, SeoRobotsTxtConfig? robots = null)
         => new()
         {
             Site = new SiteConfig
@@ -235,7 +275,7 @@ public sealed class RobotsTxtWriterTests : IDisposable
                 Url = "https://example.com",
                 Seo = new SeoConfig
                 {
-                    RobotsTxt = new SeoRobotsTxtConfig { Enabled = robotsEnabled },
+                    RobotsTxt = robots ?? new SeoRobotsTxtConfig { Enabled = robotsEnabled },
                     Geo = geo
                 }
             },

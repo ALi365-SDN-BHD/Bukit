@@ -75,6 +75,52 @@ training crawlers alone is not reported.
 Crawler names change often. The list reflects vendor documentation as of
 mid-2026; check each vendor's crawler page before relying on it.
 
+
+## Content signals
+
+`site.seo.robotsTxt.contentSignal` declares how AI companies may use the
+site's content, following [Content Signals](https://contentsignals.org). Bukit
+writes it as one `Content-Signal:` line in the `User-agent: *` group, listing
+only the values you set:
+
+| Key | Line value | Meaning |
+|---|---|---|
+| `search` | `search` | Build a search index and show links or short excerpts in search results. |
+| `aiInput` | `ai-input` | Use content as input to AI answers (grounding, retrieval). |
+| `aiTrain` | `ai-train` | Train or fine-tune AI models. |
+
+```yaml
+site:
+  seo:
+    robotsTxt:
+      enabled: true
+      contentSignal:
+        search: true
+        aiInput: true
+        aiTrain: false
+```
+
+writes
+
+```text
+User-agent: *
+Allow: /
+Content-Signal: search=yes, ai-input=yes, ai-train=no
+```
+
+Values are YAML booleans: write `true` or `false`, not `yes` or `no` (those
+are only the words used in the generated line). Any other value fails config
+loading with the full key path, such as
+`site.seo.robotsTxt.contentSignal.search`.
+
+The line is only written when Bukit generates `robots.txt`. When
+`site.seo.robotsTxt.enabled` is `false`, `site.url` is missing, or the theme ships its
+own `robots.txt`, the build warns with `event=robots.content_signal_inactive`.
+
+It is a declaration of preference, not access control: crawlers are still
+allowed or blocked by `aiBotMode`. Unset, no line is written and `robots.txt`
+is unchanged.
+
 ## FAQ and HowTo content
 
 `geo.schema_type: FAQPage` requires a nonempty `faq` list in the page's geo block; `HowTo`

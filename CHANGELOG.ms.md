@@ -4,6 +4,8 @@ Semua perubahan penting kepada Bukit akan didokumenkan dalam fail ini.
 
 ## [Belum Dikeluarkan]
 
+- **Content Signals dalam robots.txt**: `site.seo.robotsTxt.contentSignal` (`search`, `aiInput`, `aiTrain`, setiap satu `true` atau `false`) menulis baris `Content-Signal:` dalam kumpulan `User-agent: *`, contohnya `Content-Signal: search=yes, ai-input=yes, ai-train=no`, supaya tapak boleh menyatakan cara syarikat AI boleh menggunakan kandungannya. Hanya nilai yang ditetapkan disenaraikan. Jika tidak ditetapkan, `robots.txt` tidak berubah.
+
 - **URL berkod peratus**: medan `url` atau `route.url`, atau entri `aliases`, yang ditampal dalam bentuk sudah berkod peratus (seperti `/%e8%81%94%e7%b3%bb%e6%96%b9%e5%bc%8f/`) kini dinyahkod sekali (di sini kepada `/联系方式/`), jadi folder output sepadan dengan alamat yang diminta pelayar dan tidak lagi memulangkan 404. Kod yang akan mengubah laluan (`/`, `\`, `.`, `%`), aksara kawalan, aksara tidak kelihatan atau mirip (lebar sifar, pengatasan bidi, NBSP) dan UTF-8 tidak sah dikekalkan berkod. Binaan merekodkan `event=route.url.decoded` atau `event=route.alias.decoded` bersama nilai asal supaya sumber boleh dibetulkan. URL tanpa `%` tidak berubah.
 
 ## [2.0.11] - 2026-11-09

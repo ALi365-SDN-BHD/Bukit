@@ -1298,6 +1298,36 @@ public sealed class ConfigLoaderTests : IDisposable
     }
 
     [Fact]
+    public void Load_SeoRobotsTxtContentSignal_ReadsSetValuesOnly()
+    {
+        static string Yaml(string robots) => $$"""
+            site:
+              name: myblog
+              title: My Blog
+              seo:
+                robotsTxt:
+                  enabled: true
+            {{robots}}
+            content:
+              sources:
+                - type: markdown
+                  markdown:
+                    dir: content
+            """;
+
+        var defaults = ConfigLoader.Load(WriteTempYaml(Yaml(string.Empty)));
+        Assert.Equal(new SeoRobotsTxtConfig { Enabled = true }, defaults.Site.Seo.RobotsTxt);
+
+        var config = ConfigLoader.Load(WriteTempYaml(Yaml("      contentSignal:\n        search: true\n        aiTrain: false")));
+        ConfigValidator.Validate(config);
+        Assert.Equal(new SeoRobotsTxtConfig { Enabled = true, ContentSignalSearch = true, ContentSignalAiTrain = false }, config.Site.Seo.RobotsTxt);
+
+        Assert.ThrowsAny<ConfigException>(() => ConfigLoader.Load(WriteTempYaml(Yaml("      contentSignal:\n        aiTraining: false"))));
+        var ex = Assert.ThrowsAny<ConfigException>(() => ConfigLoader.Load(WriteTempYaml(Yaml("      contentSignal:\n        search: yes"))));
+        Assert.Contains("site.seo.robotsTxt.contentSignal.search", ex.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void Validate_SeoSchemaBreadcrumbParent_MustNameATaxonomyKind()
     {
         static string Yaml(string parent, string taxonomy) => $$"""

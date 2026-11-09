@@ -103,6 +103,7 @@ content:
 | `site.seo.organization.logo` | none | Absolute HTTP(S) URL or root-relative URL resolved against `site.url`; only an absolute HTTP(S) result is emitted. |
 | `site.seo.organization.sameAs` | empty | Explicit organization identity/profile URLs. Empty values are omitted and Bukit never guesses them. |
 | `site.seo.robotsTxt.enabled` | `false` | Controls generated `robots.txt`. |
+| `site.seo.robotsTxt.contentSignal` | unset | `search`, `aiInput`, `aiTrain` (each `true` or `false`, all optional). Writes a `Content-Signal:` line in the `User-agent: *` group; see [17 GEO](17-geo.md#content-signals). |
 | `site.seo.schema.webPage` | `true` | Emits WebPage JSON-LD. |
 | `site.seo.schema.collectionPage` | `true` | Emits CollectionPage JSON-LD. |
 | `site.seo.schema.breadcrumbHome` | `false` | Starts every BreadcrumbList JSON-LD with the home page. |

@@ -4,6 +4,8 @@ Bukit 所有重要变更都将记录在此文件中。
 
 ## [Unreleased]
 
+- **robots.txt 支持 Content Signals**：新增 `site.seo.robotsTxt.contentSignal`（`search`、`aiInput`、`aiTrain`，各为 `true` 或 `false`），在 `User-agent: *` 组写入一行 `Content-Signal:`，例如 `Content-Signal: search=yes, ai-input=yes, ai-train=no`，用来声明 AI 公司可以如何使用网站内容。只列出设置了的项。不配置时 `robots.txt` 不变。
+
 - **百分号编码的网址**：`url`、`route.url` 字段或 `aliases` 里填入已编码的网址（如 `/%e8%81%94%e7%b3%bb%e6%96%b9%e5%bc%8f/`）时，现在会解码一次（此例为 `/联系方式/`），输出目录与浏览器请求的地址一致，不再 404。会改变路径的编码（`/`、`\`、`.`、`%`）、控制字符、不可见或易混淆字符（零宽字符、方向控制符、不换行空格）和不合法的 UTF-8 保持原样。构建会输出 `event=route.url.decoded` 或 `event=route.alias.decoded` 并附原值，便于回到内容源修正。不含 `%` 的网址不受影响。
 
 ## [2.0.11] - 2026-11-09

@@ -4,6 +4,8 @@ All notable changes to Bukit will be documented in this file.
 
 ## [Unreleased]
 
+- **Content Signals in robots.txt**: `site.seo.robotsTxt.contentSignal` (`search`, `aiInput`, `aiTrain`, each `true` or `false`) writes a `Content-Signal:` line in the `User-agent: *` group, for example `Content-Signal: search=yes, ai-input=yes, ai-train=no`, so a site can say how AI companies may use its content. Only set values are listed. Unset, `robots.txt` is unchanged.
+
 - **Percent-encoded URLs**: a `url` or `route.url` field, or an `aliases` entry, that was pasted already percent-encoded (such as `/%e8%81%94%e7%b3%bb%e6%96%b9%e5%bc%8f/`) is now decoded once (here to `/联系方式/`), so the output folder matches the address browsers request instead of returning 404. Escapes that would change the path (`/`, `\`, `.`, `%`), control characters, invisible or look-alike characters (zero-width, bidi overrides, NBSP) and invalid UTF-8 are left encoded. The build logs `event=route.url.decoded` or `event=route.alias.decoded` with the original value, so the source can be fixed. URLs without `%` are unchanged.
 
 ## [2.0.11] - 2026-11-09

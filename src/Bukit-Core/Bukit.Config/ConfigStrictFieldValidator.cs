@@ -299,7 +299,11 @@ internal static class ConfigStrictFieldValidator
             "defaultImage", "twitterSite", "defaultAuthor", "defaultAuthorType",
             "organization", "robotsTxt", "schema", "geo"), "site.seo");
         if (Map(seo, "organization") is { } organization) RequireOnly(organization, Set("type", "name", "url", "logo", "sameAs"), "site.seo.organization");
-        if (Map(seo, "robotsTxt") is { } robots) RequireOnly(robots, Set("enabled"), "site.seo.robotsTxt");
+        if (Map(seo, "robotsTxt") is { } robots)
+        {
+            RequireOnly(robots, Set("enabled", "contentSignal"), "site.seo.robotsTxt");
+            if (Map(robots, "contentSignal") is { } contentSignal) RequireOnly(contentSignal, Set("search", "aiInput", "aiTrain"), "site.seo.robotsTxt.contentSignal");
+        }
         if (Map(seo, "schema") is { } schema) RequireOnly(schema, Set("webPage", "collectionPage", "searchAction", "breadcrumbHome", "breadcrumbParent"), "site.seo.schema");
         if (Map(seo, "geo") is { } geo)
         {

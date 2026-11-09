@@ -55,11 +55,19 @@ internal static partial class SiteDefaultsApplier
         };
     }
 
+    private const string ContentSignalPath = "site.seo.robotsTxt.contentSignal";
+
     private static SeoRobotsTxtConfig ReadSeoRobotsTxt(YamlMappingNode? robotsTxtNode)
-        => new()
+    {
+        var signal = robotsTxtNode is null ? null : ConfigYamlHelpers.GetOptionalMapping(robotsTxtNode, "contentSignal");
+        return new()
         {
-            Enabled = robotsTxtNode is not null && (ConfigYamlHelpers.GetOptionalBool(robotsTxtNode, "enabled") ?? false)
+            Enabled = robotsTxtNode is not null && (ConfigYamlHelpers.GetOptionalBool(robotsTxtNode, "enabled") ?? false),
+            ContentSignalSearch = signal is null ? null : ConfigYamlHelpers.GetOptionalBool(signal, "search", ContentSignalPath),
+            ContentSignalAiInput = signal is null ? null : ConfigYamlHelpers.GetOptionalBool(signal, "aiInput", ContentSignalPath),
+            ContentSignalAiTrain = signal is null ? null : ConfigYamlHelpers.GetOptionalBool(signal, "aiTrain", ContentSignalPath)
         };
+    }
 
     private static SeoSchemaConfig ReadSeoSchema(YamlMappingNode? schemaNode)
         => new()

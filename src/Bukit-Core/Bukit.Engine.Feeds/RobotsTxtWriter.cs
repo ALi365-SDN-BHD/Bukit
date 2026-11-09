@@ -17,8 +17,15 @@ internal static class RobotsTxtWriter
         var robotsPath = Path.Combine(outputDir, "robots.txt");
         var geo = config.Site.Seo.Geo;
         var aiPolicyConfigured = HasConfiguredAiPolicy(geo);
+        var contentSignalLine = BuildContentSignalLine(config.Site.Seo.RobotsTxt);
         if (!config.Site.Seo.RobotsTxt.Enabled || string.IsNullOrWhiteSpace(config.Site.Url))
         {
+            if (contentSignalLine is not null)
+            {
+                var reason = !config.Site.Seo.RobotsTxt.Enabled ? "robots_txt_disabled" : "site_url_missing";
+                logger?.Warn($"event=robots.content_signal_inactive reason={reason} message=site.seo.robotsTxt.contentSignal only takes effect when site.seo.robotsTxt.enabled is true and site.url is set.");
+            }
+
             if (aiPolicyConfigured)
             {
                 var reason = !config.Site.Seo.RobotsTxt.Enabled ? "robots_txt_disabled"
@@ -32,6 +39,11 @@ internal static class RobotsTxtWriter
 
         if (File.Exists(robotsPath))
         {
+            if (contentSignalLine is not null)
+            {
+                logger?.Warn("event=robots.content_signal_inactive reason=static_robots_txt message=A static robots.txt is kept as is, so site.seo.robotsTxt.contentSignal is not written. Add the Content-Signal line to that file or remove it.");
+            }
+
             if (aiPolicyConfigured)
             {
                 logger?.Info("event=robots.ai_policy_inactive reason=static_robots_txt message=A static robots.txt is kept as is, so the configured AI bot policy is not written.");
@@ -50,6 +62,11 @@ internal static class RobotsTxtWriter
             "User-agent: *",
             "Allow: /"
         };
+        if (contentSignalLine is not null)
+        {
+            lines.Add(contentSignalLine);
+        }
+
         if (seoIndex.Values.Any(x => x.Indexable))
         {
             foreach (var sitemapUrl in sitemapUrls ?? [SitemapGenerator.BuildAbsoluteUrl(config.Site.Url, baseUrl, "/sitemap.xml")])
@@ -126,6 +143,27 @@ internal static class RobotsTxtWriter
                 return (agent, allowed);
             })
         ];
+    }
+
+    /// <summary>
+    /// Builds the <c>Content-Signal:</c> line for the <c>User-agent: *</c> group, listing only the
+    /// signals that are set, or null when none is set.
+    /// </summary>
+    internal static string? BuildContentSignalLine(SeoRobotsTxtConfig robots)
+    {
+        var parts = new List<string>(3);
+        Add("search", robots.ContentSignalSearch);
+        Add("ai-input", robots.ContentSignalAiInput);
+        Add("ai-train", robots.ContentSignalAiTrain);
+        return parts.Count == 0 ? null : "Content-Signal: " + string.Join(", ", parts);
+
+        void Add(string name, bool? value)
+        {
+            if (value is { } set)
+            {
+                parts.Add($"{name}={(set ? "yes" : "no")}");
+            }
+        }
     }
 
     // Any non-default AI crawler setting, whether or not GEO is enabled.

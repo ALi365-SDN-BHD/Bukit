@@ -119,6 +119,12 @@ public sealed record AnalyticsProviderConfig
 public sealed record SeoRobotsTxtConfig
 {
     public bool Enabled { get; init; }
+
+    // Content Signals (https://contentsignals.org), from site.seo.robotsTxt.contentSignal:
+    // how AI companies may use the site's content. Unset values are left out of the line.
+    public bool? ContentSignalSearch { get; init; }
+    public bool? ContentSignalAiInput { get; init; }
+    public bool? ContentSignalAiTrain { get; init; }
 }
 
 public sealed record SeoSchemaConfig

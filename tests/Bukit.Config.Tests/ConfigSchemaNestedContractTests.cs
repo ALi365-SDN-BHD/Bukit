@@ -56,7 +56,8 @@ public sealed class ConfigSchemaNestedContractTests
     [
         new("site/seo", "enabled", "renderMode", "diagnostics", "homeTitleTemplate", "pageTitleTemplate", "titleSeparator", "defaultImage", "twitterSite", "defaultAuthor", "defaultAuthorType", "organization", "robotsTxt", "schema", "geo"),
         new("site/seo/organization", "type", "name", "url", "logo", "sameAs"),
-        new("site/seo/robotsTxt", "enabled"),
+        new("site/seo/robotsTxt", "enabled", "contentSignal"),
+        new("site/seo/robotsTxt/contentSignal", "search", "aiInput", "aiTrain"),
         new("site/seo/schema", "webPage", "collectionPage", "searchAction", "breadcrumbHome", "breadcrumbParent"),
         new("site/seo/geo", "enabled", "llmsTxt", "llmsFullTxt", "llmsTxtMaxArticles", "aiBotMode", "aiBotAllowList", "aiBotBlockList", "llmsTxtOptionalLinks"),
         new("site/seo/geo/llmsTxtOptionalLinks[]", "title", "url", "description"),

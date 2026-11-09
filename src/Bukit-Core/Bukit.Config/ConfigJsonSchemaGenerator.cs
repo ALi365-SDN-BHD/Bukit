@@ -192,7 +192,11 @@ public static class ConfigJsonSchemaGenerator
 
     private static JsonObject SeoRobotsTxtSchema()
         => Obj(("type", "object"), ("properties", Obj(
-            ("enabled", BoolSchema()))));
+            ("enabled", BoolSchema()),
+            ("contentSignal", Obj(("type", "object"), ("properties", Obj(
+                ("search", BoolSchema()),
+                ("aiInput", BoolSchema()),
+                ("aiTrain", BoolSchema()))))))));
 
     private static JsonObject SeoSchemaDetailSchema()
         => Obj(("type", "object"), ("properties", Obj(
