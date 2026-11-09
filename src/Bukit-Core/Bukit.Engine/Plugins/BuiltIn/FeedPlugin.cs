@@ -1,4 +1,5 @@
 using Bukit.Config;
+using Bukit.Engine.Primitives;
 
 namespace Bukit.Engine.Plugins.BuiltIn;
 

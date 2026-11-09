@@ -5,6 +5,7 @@ using Bukit.Engine.Abstractions.Content;
 using Bukit.Engine.Abstractions.Plugins;
 using Bukit.Routing;
 using Bukit.Engine.Abstractions.Routing;
+using Bukit.Engine.Primitives;
 namespace Bukit.Engine;
 
 public static class RssGenerator
@@ -33,7 +34,7 @@ public static class RssGenerator
     /// <summary>Picks the newest posts for a feed, ordering same-time posts by content.ordering.</summary>
     internal static IReadOnlyList<Post> SelectWindow(IEnumerable<Post> posts, int maxItems)
     {
-        var materialized = posts as IReadOnlyList<Post> ?? posts.ToList();
+        IReadOnlyList<Post> materialized = posts as IReadOnlyList<Post> ?? [.. posts];
         // Every post of one feed is built with the same site tie-break, so the first one set is the feed's.
         var tieBreak = materialized.FirstOrDefault(x => x.TieBreak is not null)?.TieBreak;
         return FeedWindowSelector.Select(materialized, x => x.PublishAt, x => x.AbsoluteUrl, maxItems, x => x.TieBreakValue, tieBreak);

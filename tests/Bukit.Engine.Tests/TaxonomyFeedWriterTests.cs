@@ -1,5 +1,6 @@
 using Bukit.Engine.Plugins.BuiltIn;
 using Xunit;
+using Bukit.Engine.Primitives;
 
 namespace Bukit.Engine.Tests;
 

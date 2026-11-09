@@ -4,6 +4,7 @@ using Bukit.Content;
 using Bukit.Engine.Abstractions.Content;
 using Bukit.Rendering;
 using Bukit.Engine.Abstractions.Plugins;
+using Bukit.Engine.Primitives;
 
 namespace Bukit.Engine.Plugins.BuiltIn;
 

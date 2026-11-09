@@ -5,6 +5,7 @@ using Bukit.Engine.Abstractions.Content;
 using Bukit.Routing;
 using Bukit.Engine.Abstractions.Routing;
 using Bukit.Engine.Abstractions.Plugins;
+using Bukit.Engine.Primitives;
 
 namespace Bukit.Engine.Plugins.BuiltIn;
 

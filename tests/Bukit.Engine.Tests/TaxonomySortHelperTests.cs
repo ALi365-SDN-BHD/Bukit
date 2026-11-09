@@ -2,6 +2,7 @@ using Xunit;
 using Bukit.Content;
 using Bukit.Engine.Abstractions.Content;
 using Bukit.Engine.Plugins.BuiltIn;
+using Bukit.Engine.Primitives;
 
 namespace Bukit.Engine.Tests;
 

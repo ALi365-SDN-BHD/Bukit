@@ -249,45 +249,25 @@ internal static partial class MachineReadabilityTrustAuditBuilder
         IReadOnlyDictionary<string, ContentDocument>? documentsByOutputPath)
     {
         // Mirror the feed writers' window, including the content.ordering tie-break when documents are known.
-        var tieBreak = ContentOrdering.Resolve(config);
-        var candidates = seoIndex
-            .Where(pair => pair.Value.Indexable && IsFeedContent(config, pair.Value))
-            .OrderBy(pair => pair.Value.Route.Url, StringComparer.OrdinalIgnoreCase)
-            .Select(pair =>
-            {
-                ContentDocument? document = null;
-                var known = tieBreak is null || documentsByOutputPath?.TryGetValue(pair.Key, out document) == true;
-                return new FeedAuditCandidate(
+        List<FeedAuditCandidate> candidates =
+        [
+            .. seoIndex
+                .Where(pair => pair.Value.Indexable && IsFeedContent(config, pair.Value))
+                .OrderBy(pair => pair.Value.Route.Url, StringComparer.OrdinalIgnoreCase)
+                .Select(pair => new FeedAuditCandidate(
                     pair.Value,
                     ResolveRecordForEntry(recordsById, pair.Value, config.Site.Language)?.Lifecycle.PublishedAt ?? pair.Value.LastModified,
-                    tieBreak is not null && document is not null ? ContentOrdering.ReadValue(document, pair.Value.Route.Url, tieBreak.Field) : null,
-                    known);
-            })
-            .ToList();
-        var window = FeedWindowSelector.Select(
-            candidates,
-            candidate => candidate.PublishedAt,
-            candidate => candidate.Entry.Canonical,
-            config.Site.Feed.Limit,
-            candidate => candidate.TieBreakValue,
-            tieBreak);
+                    documentsByOutputPath is not null && documentsByOutputPath.TryGetValue(pair.Key, out var document) ? document : null))
+        ];
 
-        // An entry without its document has an unknown tie-break value, so when one shares the window
-        // edge time, which of those entries made the feed cannot be predicted. Leave that edge out
-        // instead of reporting false misses. If the whole window shares that time nothing is expected;
-        // build-time audits pass every document and check those entries exactly.
-        if (window.Count > 0)
-        {
-            var edge = window[^1].PublishedAt;
-            var atEdge = candidates.Where(candidate => candidate.PublishedAt == edge).ToList();
-            if (atEdge.Count > window.Count(candidate => candidate.PublishedAt == edge) &&
-                atEdge.Any(candidate => !candidate.TieBreakKnown))
-            {
-                window = window.Where(candidate => candidate.PublishedAt != edge).ToArray();
-            }
-        }
-
-        return window
+        return FeedWindowSelector.PredictWindow(
+                candidates,
+                candidate => candidate.PublishedAt,
+                candidate => candidate.Entry.Canonical,
+                config.Site.Feed.Limit,
+                config,
+                candidate => candidate.Document,
+                candidate => candidate.Entry.Route.Url)
             .Select(candidate => candidate.Entry.Route.Url)
             .ToHashSet(StringComparer.OrdinalIgnoreCase);
     }
@@ -302,7 +282,7 @@ internal static partial class MachineReadabilityTrustAuditBuilder
            collections.TryGetValue(entry.Collection, out var collection) &&
            collection.Output?.Rss == true;
 
-    private sealed record FeedAuditCandidate(SeoIndexEntry Entry, DateTimeOffset PublishedAt, string? TieBreakValue, bool TieBreakKnown);
+    private sealed record FeedAuditCandidate(SeoIndexEntry Entry, DateTimeOffset PublishedAt, ContentDocument? Document);
 
     private static bool IsLlmsContent(AppConfig config, SeoIndexEntry entry)
         => entry.Indexable &&

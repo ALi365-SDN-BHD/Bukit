@@ -3,6 +3,7 @@ using Bukit.Engine.Abstractions.Content;
 using Bukit.Engine.Abstractions.Routing;
 using Bukit.Engine.Plugins.BuiltIn;
 using Xunit;
+using Bukit.Engine.Primitives;
 
 namespace Bukit.Engine.Tests;
 

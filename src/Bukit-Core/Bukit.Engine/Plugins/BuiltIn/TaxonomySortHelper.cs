@@ -2,6 +2,7 @@ using System.Globalization;
 using Bukit.Config;
 using Bukit.Content;
 using Bukit.Engine.Abstractions.Content;
+using Bukit.Engine.Primitives;
 namespace Bukit.Engine.Plugins.BuiltIn;
 
 using Bukit.Engine.Abstractions.Plugins;

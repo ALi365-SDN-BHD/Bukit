@@ -2,7 +2,7 @@ using System.Globalization;
 using Bukit.Config;
 using Bukit.Engine.Abstractions.Content;
 
-namespace Bukit.Engine;
+namespace Bukit.Engine.Primitives;
 
 /// <summary>The field and direction that order entries sharing a publish time.</summary>
 internal sealed record ContentTieBreak(string Field, bool Descending)
