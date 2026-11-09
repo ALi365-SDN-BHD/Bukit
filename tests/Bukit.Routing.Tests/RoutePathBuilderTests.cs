@@ -7,6 +7,24 @@ namespace Bukit.Routing.Tests;
 public sealed class RoutePathBuilderTests
 {
     [Theory]
+    [InlineData("/%e8%81%94%e7%b3%bb/", "/联系/")]
+    [InlineData("/%E8%81%94/a b/", "/联/a b/")]
+    [InlineData("/联系/", "/联系/")]
+    [InlineData("/news/", "/news/")]
+    [InlineData("/100%/", "/100%/")]
+    [InlineData("/a%2Fb/", "/a%2Fb/")]
+    [InlineData("/%2e%2e/x/", "/%2e%2e/x/")]
+    [InlineData("/a%5Cb/", "/a%5Cb/")]
+    [InlineData("/%2541/", "/%2541/")]
+    [InlineData("/%0A/", "/%0A/")]
+    [InlineData("/%ff%fe/", "/%ff%fe/")]
+    [InlineData("/😀/%e8%81%94/", "/😀/联/")]
+    public void DecodePercentEncodedUrl_DecodesOnlySafeUtf8Escapes(string input, string expected)
+    {
+        Assert.Equal(expected, RoutePathBuilder.DecodePercentEncodedUrl(input));
+    }
+
+    [Theory]
     [InlineData("post", "/post/")]
     [InlineData("/post", "/post/")]
     [InlineData("post/", "/post/")]

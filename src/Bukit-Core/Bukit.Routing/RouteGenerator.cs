@@ -195,6 +195,7 @@ public static class RouteGenerator
             if (!string.IsNullOrWhiteSpace(url) &&
                 !string.IsNullOrWhiteSpace(template))
             {
+                url = RoutePathBuilder.DecodePercentEncodedUrl(url);
                 RouteSecurityValidator.ValidateInternalUrl(url, $"route.url for {source.Slug}");
                 RejectStaticAssetUrl(url, source);
                 var normalizedUrl = RoutePathBuilder.NormalizeUrl(url);
@@ -220,6 +221,7 @@ public static class RouteGenerator
 
         if (!string.IsNullOrWhiteSpace(url))
         {
+            url = RoutePathBuilder.DecodePercentEncodedUrl(url);
             RouteSecurityValidator.ValidateInternalUrl(url, $"route.url for {source.Slug}");
             RejectStaticAssetUrl(url, source);
         }

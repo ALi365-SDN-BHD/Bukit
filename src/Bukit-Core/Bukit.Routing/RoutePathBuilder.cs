@@ -30,6 +30,60 @@ public static class RoutePathBuilder
         return trimmed;
     }
 
+    private static readonly System.Text.RegularExpressions.Regex PercentEscape =
+        new("%[0-9A-Fa-f]{2}", System.Text.RegularExpressions.RegexOptions.CultureInvariant);
+
+    private static readonly UTF8Encoding StrictUtf8 = new(encoderShouldEmitUTF8Identifier: false, throwOnInvalidBytes: true);
+
+    // Decodes a URL field that was pasted already percent-encoded (e.g. /%e8%81%94/ -> /联/),
+    // so the output folder matches what browsers request. Decodes one layer only, and only when
+    // every escape forms valid UTF-8 and none of them encodes a path or control character.
+    public static string DecodePercentEncodedUrl(string url)
+    {
+        if (string.IsNullOrEmpty(url) || !PercentEscape.IsMatch(url))
+        {
+            return url;
+        }
+
+        var bytes = new List<byte>(url.Length);
+        for (var i = 0; i < url.Length; i++)
+        {
+            var c = url[i];
+            if (c == '%')
+            {
+                if (i + 2 >= url.Length || !Uri.IsHexDigit(url[i + 1]) || !Uri.IsHexDigit(url[i + 2]))
+                {
+                    return url; // stray '%': not an encoded URL
+                }
+
+                var b = Convert.ToByte(url.Substring(i + 1, 2), 16);
+                // Never let an escape change the path: / \ . % and control characters stay encoded.
+                if (b < 0x20 || b == 0x7F || b == (byte)'/' || b == (byte)'\\' || b == (byte)'.' || b == (byte)'%')
+                {
+                    return url;
+                }
+
+                bytes.Add(b);
+                i += 2;
+            }
+            else
+            {
+                var len = char.IsHighSurrogate(c) && i + 1 < url.Length ? 2 : 1;
+                bytes.AddRange(Encoding.UTF8.GetBytes(url.Substring(i, len)));
+                i += len - 1;
+            }
+        }
+
+        try
+        {
+            return StrictUtf8.GetString(bytes.ToArray());
+        }
+        catch (DecoderFallbackException)
+        {
+            return url;
+        }
+    }
+
     public static string NormalizeListRoute(string route)
     {
         var normalized = NormalizeUrl(route, isFileRoute: false);

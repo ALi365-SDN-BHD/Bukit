@@ -112,6 +112,26 @@ public sealed class RouteGeneratorTests
     }
 
     [Fact]
+    public void GenerateWithSource_FullOverridePercentEncodedUrl_DecodesToUnicodeFolder()
+    {
+        var document = CreateDocument(
+            "contact",
+            new Dictionary<string, object>
+            {
+                ["collection"] = "posts",
+                ["route"] = new Dictionary<string, object>
+                {
+                    ["url"] = "/%e8%81%94%e7%b3%bb%e6%96%b9%e5%bc%8f/",
+                    ["template"] = "pages/full.html"
+                }
+            });
+
+        var result = RouteGenerator.GenerateWithSource(document);
+
+        Assert.Equal(new RouteInfo("/联系方式/", "联系方式/index.html", "pages/full.html"), result.Route);
+    }
+
+    [Fact]
     public void Generate_WithNonWebExtensionPermalink_RemainsDirectoryAndConsistent()
     {
         var document = CreateDocument(
