@@ -17,7 +17,7 @@ internal static class JsonFeedGenerator
         var normalizedSiteUrl = RssGenerator.InternalNormalizeSiteUrl(siteUrl);
         var normalizedBaseUrl = RssGenerator.InternalNormalizeBaseUrl(baseUrl);
 
-        var sorted = FeedWindowSelector.Select(posts, x => x.PublishAt, x => x.AbsoluteUrl, maxItems);
+        var sorted = RssGenerator.SelectWindow(posts, maxItems);
 
         var feedUrl = RssGenerator.BuildAbsoluteUrl(normalizedSiteUrl, normalizedBaseUrl, "/" + feedFileName);
         var homeUrl = RssGenerator.BuildAbsoluteUrl(normalizedSiteUrl, normalizedBaseUrl, "/");

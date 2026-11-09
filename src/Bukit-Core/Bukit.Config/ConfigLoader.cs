@@ -103,6 +103,7 @@ public static class ConfigLoader
             SiteDefaultsApplier.ReadMediaConfigFrom(contentNode),
             ConfigCollectionReader.ReadContentModelSchema(contentNode),
             ConfigCollectionReader.ReadRouteMetadata(contentNode));
+        content = ConfigCollectionReader.ApplyContentOrdering(content, contentNode);
 
         var buildReportNode = buildNode is null ? null : ConfigYamlHelpers.GetOptionalMapping(buildNode, "report");
         var build = new BuildConfig

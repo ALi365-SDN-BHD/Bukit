@@ -244,20 +244,28 @@ internal static partial class MachineReadabilityTrustAuditBuilder
 
     private static HashSet<string> BuildFeedWindowRoutes(
         AppConfig config,
-        IEnumerable<SeoIndexEntry> entries,
-        IReadOnlyDictionary<string, ContentRecord[]> recordsById)
+        IReadOnlyDictionary<string, SeoIndexEntry> seoIndex,
+        IReadOnlyDictionary<string, ContentRecord[]> recordsById,
+        IReadOnlyDictionary<string, ContentDocument>? documentsByOutputPath)
     {
-        var candidates = entries
-            .Where(entry => entry.Indexable && IsFeedContent(config, entry))
-            .OrderBy(entry => entry.Route.Url, StringComparer.OrdinalIgnoreCase)
-            .Select(entry => new FeedAuditCandidate(
-                entry,
-                ResolveRecordForEntry(recordsById, entry, config.Site.Language)?.Lifecycle.PublishedAt ?? entry.LastModified));
+        // Mirror the feed writers' window, including the content.ordering tie-break when documents are known.
+        var tieBreak = documentsByOutputPath is null ? null : ContentOrdering.Resolve(config);
+        var candidates = seoIndex
+            .Where(pair => pair.Value.Indexable && IsFeedContent(config, pair.Value))
+            .OrderBy(pair => pair.Value.Route.Url, StringComparer.OrdinalIgnoreCase)
+            .Select(pair => new FeedAuditCandidate(
+                pair.Value,
+                ResolveRecordForEntry(recordsById, pair.Value, config.Site.Language)?.Lifecycle.PublishedAt ?? pair.Value.LastModified,
+                tieBreak is not null && documentsByOutputPath!.TryGetValue(pair.Key, out var document)
+                    ? ContentOrdering.ReadValue(document, pair.Value.Route.Url, tieBreak.Field)
+                    : null));
         return FeedWindowSelector.Select(
                 candidates,
                 candidate => candidate.PublishedAt,
                 candidate => candidate.Entry.Canonical,
-                config.Site.Feed.Limit)
+                config.Site.Feed.Limit,
+                candidate => candidate.TieBreakValue,
+                tieBreak?.Direction ?? 0)
             .Select(candidate => candidate.Entry.Route.Url)
             .ToHashSet(StringComparer.OrdinalIgnoreCase);
     }
@@ -272,7 +280,7 @@ internal static partial class MachineReadabilityTrustAuditBuilder
            collections.TryGetValue(entry.Collection, out var collection) &&
            collection.Output?.Rss == true;
 
-    private sealed record FeedAuditCandidate(SeoIndexEntry Entry, DateTimeOffset PublishedAt);
+    private sealed record FeedAuditCandidate(SeoIndexEntry Entry, DateTimeOffset PublishedAt, string? TieBreakValue);
 
     private static bool IsLlmsContent(AppConfig config, SeoIndexEntry entry)
         => entry.Indexable &&

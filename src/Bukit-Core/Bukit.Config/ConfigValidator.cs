@@ -174,9 +174,20 @@ public static class ConfigValidator
             throw new ConfigException("taxonomy.emptyTerms must be render|noindex|skip.", DiagnosticCode.ConfigInvalidValue);
         }
 
-        if (string.IsNullOrWhiteSpace(config.Taxonomy.TieBreakField))
+        if (config.Taxonomy.TieBreakField is not null && string.IsNullOrWhiteSpace(config.Taxonomy.TieBreakField))
         {
             throw new ConfigException("taxonomy.tieBreakField must be title, url, or a content field name.", DiagnosticCode.ConfigInvalidValue);
+        }
+
+        var content = config.Content;
+        if (content.OrderingTieBreakField is not null && string.IsNullOrWhiteSpace(content.OrderingTieBreakField))
+        {
+            throw new ConfigException("content.ordering.tieBreakField must be url or a content field name.", DiagnosticCode.ConfigInvalidValue);
+        }
+
+        if ((content.OrderingTieBreakOrder ?? "asc").Trim().ToLowerInvariant() is not ("asc" or "desc"))
+        {
+            throw new ConfigException("content.ordering.tieBreakOrder must be asc|desc.", DiagnosticCode.ConfigInvalidValue);
         }
 
         var taxonomyTieBreakOrder = (config.Taxonomy.TieBreakOrder ?? "asc").Trim().ToLowerInvariant();

@@ -35,7 +35,7 @@ internal sealed class PaginationPlugin : IBukitPlugin, IDerivePagesPlugin, ITemp
         }
 
         var pageSize = paginationCollection.Value.Config.Pagination.PageSize;
-        var posts = CollectionRouteIndex.GetOrBuild(context).GetByCollection(paginationCollection.Value.Key);
+        var posts = CollectionRouteIndex.GetOrBuild(context, ContentOrdering.Resolve(_config)).GetByCollection(paginationCollection.Value.Key);
         return posts.Count > pageSize ? new[] { "pagination" } : Array.Empty<string>();
     }
 
@@ -55,7 +55,7 @@ internal sealed class PaginationPlugin : IBukitPlugin, IDerivePagesPlugin, ITemp
             return Array.Empty<RoutedContentDocument>();
         }
 
-        var index = CollectionRouteIndex.GetOrBuild(context);
+        var index = CollectionRouteIndex.GetOrBuild(context, ContentOrdering.Resolve(_config));
         var posts = index.GetByCollection(collectionKey);
 
         if (posts.Count <= pageSize)

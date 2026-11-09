@@ -599,9 +599,9 @@ public sealed class ConfigLoaderFullCoverageTests : IDisposable
     }
 
     [Theory]
-    [InlineData(null, "title", "asc")]
+    [InlineData(null, null, null)]
     [InlineData("tieBreakField: ID\n  tieBreakOrder: desc", "ID", "desc")]
-    public void Load_TaxonomyTieBreak_ParsesValue(string? value, string expectedField, string expectedOrder)
+    public void Load_TaxonomyTieBreak_ParsesValue(string? value, string? expectedField, string? expectedOrder)
     {
         var yaml = $$"""
             site:
@@ -620,6 +620,53 @@ public sealed class ConfigLoaderFullCoverageTests : IDisposable
 
         Assert.Equal(expectedField, config.Taxonomy.TieBreakField);
         Assert.Equal(expectedOrder, config.Taxonomy.TieBreakOrder);
+    }
+
+    [Theory]
+    [InlineData(null, null, "asc")]
+    [InlineData("ordering:\n    tieBreakField: ID\n    tieBreakOrder: desc", "ID", "desc")]
+    public void Load_ContentOrdering_ParsesValue(string? value, string? expectedField, string expectedOrder)
+    {
+        var yaml = $$"""
+            site:
+              name: myblog
+              title: My Blog
+            content:
+            {{(value is null ? "" : "  " + value)}}
+              sources:
+                - type: markdown
+                  markdown:
+                    dir: content
+            """;
+        var config = ConfigLoader.Load(WriteTempYaml(yaml));
+
+        Assert.Equal(expectedField, config.Content.OrderingTieBreakField);
+        Assert.Equal(expectedOrder, config.Content.OrderingTieBreakOrder);
+    }
+
+    [Theory]
+    [InlineData("tieBreakField: ID\n    tieBreakOrder: down", "content.ordering.tieBreakOrder must be asc|desc")]
+    [InlineData("tieBreakField: ID\n    unexpected: x", "content.ordering.unexpected")]
+    public void Load_ContentOrdering_InvalidValue_Throws(string value, string expected)
+    {
+        var yaml = $$"""
+            site:
+              name: myblog
+              title: My Blog
+            content:
+              ordering:
+                {{value}}
+              sources:
+                - type: markdown
+                  markdown:
+                    dir: content
+            """;
+
+        var path = WriteTempYaml(yaml);
+
+        // Unknown keys fail while loading; bad values fail validation.
+        var ex = Assert.Throws<ConfigException>(() => ConfigValidator.Validate(ConfigLoader.Load(path)));
+        Assert.Contains(expected, ex.Message, StringComparison.Ordinal);
     }
 
     [Fact]

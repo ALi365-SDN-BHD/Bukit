@@ -8,6 +8,13 @@ internal sealed class CollectionsAndFieldScopesContributor : IRenderDependencyCo
 
     public void Contribute(RenderDependencyContext context, RenderDependencyHashWriter writer)
     {
+        // Only hashed when set, so the default keeps existing incremental caches valid.
+        if (ContentOrdering.Resolve(context.Config) is { } tieBreak)
+        {
+            writer.AppendLabeledCanonicalValue("content.ordering.tieBreakField", tieBreak.Field);
+            writer.AppendLabeledCanonicalValue("content.ordering.tieBreakOrder", tieBreak.Descending ? "desc" : "asc");
+        }
+
         var collections = context.Config.Site.Collections;
         if (collections is { Count: > 0 })
         {

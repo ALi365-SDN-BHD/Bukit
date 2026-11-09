@@ -226,6 +226,15 @@ public sealed record ContentConfig
     public MediaConfig Media { get; init; } = new();
     public ContentModelSchemaConfig? ModelSchema { get; init; }
     public RouteMetadataConfig? RouteMetadata { get; init; }
+    /// <summary>
+    /// content.ordering.tieBreakField: orders entries with the same publish time in every list (home page,
+    /// collection lists and pagination, archives, site feeds and llms.txt). Use url, title or any content field;
+    /// numbers compare numerically. Unset keeps each list's built-in order. Term pages use it when
+    /// taxonomy.tieBreakField is unset.
+    /// </summary>
+    public string? OrderingTieBreakField { get; init; }
+    /// <summary>content.ordering.tieBreakOrder: asc (default) or desc. Entries without the field come last.</summary>
+    public string OrderingTieBreakOrder { get; init; } = "asc";
 }
 
 public sealed record RouteMetadataConfig
@@ -500,10 +509,10 @@ public sealed record TaxonomyConfig
     public IReadOnlyDictionary<string, string>? PinOrderFieldBySource { get; init; }
     /// <summary>How to emit term pages with no content: render (default), noindex, or skip.</summary>
     public string EmptyTerms { get; init; } = "render";
-    /// <summary>Orders term-page entries published at the same time: title (default), url (the route URL), or any content field. Numbers compare numerically.</summary>
-    public string TieBreakField { get; init; } = "title";
+    /// <summary>Orders term-page entries published at the same time: title, url (the route URL), or any content field. Numbers compare numerically. Unset uses content.ordering, then title.</summary>
+    public string? TieBreakField { get; init; }
     /// <summary>Direction for <see cref="TieBreakField"/>: asc (default) or desc. Entries without the field come last.</summary>
-    public string TieBreakOrder { get; init; } = "asc";
+    public string? TieBreakOrder { get; init; }
 }
 
 public sealed record TaxonomyKindConfig

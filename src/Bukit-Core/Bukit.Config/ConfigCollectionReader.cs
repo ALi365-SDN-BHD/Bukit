@@ -197,6 +197,18 @@ internal static class ConfigCollectionReader
         return sources;
     }
 
+    internal static ContentConfig ApplyContentOrdering(ContentConfig content, YamlMappingNode contentNode)
+    {
+        var node = ConfigYamlHelpers.GetOptionalMapping(contentNode, "ordering");
+        return node is null
+            ? content
+            : content with
+            {
+                OrderingTieBreakField = ConfigYamlHelpers.GetOptionalString(node, "tieBreakField"),
+                OrderingTieBreakOrder = ConfigYamlHelpers.GetOptionalString(node, "tieBreakOrder") ?? "asc"
+            };
+    }
+
     internal static RouteMetadataConfig? ReadRouteMetadata(YamlMappingNode contentNode)
     {
         var node = ConfigYamlHelpers.GetOptionalMapping(contentNode, "routeMetadata");

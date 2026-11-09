@@ -53,7 +53,8 @@ internal static class SeoAlternatesService
                 variantRouted,
                 config.Site.Collections,
                 config.Site.OutputPathEncoding,
-                templateResolver);
+                templateResolver,
+                ContentOrdering.Resolve(config));
             listRouteGraph = AddTaxonomyRoutesForAlternates(
                 config,
                 baseUrl,

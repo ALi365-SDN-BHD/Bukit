@@ -9,17 +9,31 @@ internal static class TaxonomySortHelper
 {
     internal sealed record TieBreak(string Field, bool Descending);
 
+    /// <summary>
+    /// Taxonomy settings with the site-wide content.ordering tie-break filled in when
+    /// taxonomy.tieBreakField is unset, so term pages order same-time entries like every other list.
+    /// </summary>
+    internal static TaxonomyConfig WithContentOrdering(AppConfig config)
+    {
+        var taxonomy = config.Taxonomy;
+        if (!string.IsNullOrWhiteSpace(taxonomy.TieBreakField) || ContentOrdering.Resolve(config) is not { } siteWide)
+        {
+            return taxonomy;
+        }
+
+        return taxonomy with { TieBreakField = siteWide.Field, TieBreakOrder = siteWide.Descending ? "desc" : "asc" };
+    }
+
     /// <summary>Returns the configured same-time ordering, or null for the default (title).</summary>
     internal static TieBreak? ResolveTieBreak(TaxonomyConfig config)
     {
-        var field = config.TieBreakField?.Trim();
-        if (string.IsNullOrEmpty(field) || field.Equals("title", StringComparison.OrdinalIgnoreCase))
+        if (ContentOrdering.Create(config.TieBreakField, config.TieBreakOrder) is not { } tieBreak ||
+            tieBreak.Field.Equals("title", StringComparison.OrdinalIgnoreCase))
         {
             return null;
         }
 
-        var descending = string.Equals(config.TieBreakOrder?.Trim(), "desc", StringComparison.OrdinalIgnoreCase);
-        return new TieBreak(field, descending);
+        return new TieBreak(tieBreak.Field, tieBreak.Descending);
     }
 
     /// <summary>0 when no tie-break is configured; 1 ascending; -1 descending.</summary>
@@ -27,35 +41,7 @@ internal static class TaxonomySortHelper
         => ResolveTieBreak(config) is { } tieBreak ? (tieBreak.Descending ? -1 : 1) : 0;
 
     internal static string? ReadTieBreakValue(ContentDocument item, string url, string field)
-    {
-        if (field.Equals("url", StringComparison.OrdinalIgnoreCase))
-        {
-            return url;
-        }
-
-        if (!TaxonomyIndexBuilder.TryGetItemValue(item, field, out var value) || value is null)
-        {
-            return null;
-        }
-
-        return FormatTieBreakValue(value);
-    }
-
-    // Dates use ISO 8601 so text order is chronological; lists use their first value.
-    private static string? FormatTieBreakValue(object? value)
-    {
-        var text = value switch
-        {
-            null => null,
-            string s => s,
-            DateTimeOffset dto => dto.ToUniversalTime().ToString("o", CultureInfo.InvariantCulture),
-            DateTime dt => (dt.Kind == DateTimeKind.Unspecified ? dt : dt.ToUniversalTime()).ToString("o", CultureInfo.InvariantCulture),
-            System.Collections.IEnumerable list => list.Cast<object?>().Select(FormatTieBreakValue).FirstOrDefault(x => x is not null),
-            IFormattable formattable => formattable.ToString(null, CultureInfo.InvariantCulture),
-            _ => value.ToString()
-        };
-        return string.IsNullOrWhiteSpace(text) ? null : text.Trim();
-    }
+        => ContentOrdering.ReadValue(item, url, field);
 
     internal static int ComparePages(TaxonomyPage a, TaxonomyPage b) => ComparePages(a, b, 0);
 
@@ -105,66 +91,10 @@ internal static class TaxonomySortHelper
         return string.Compare(a.Url, b.Url, StringComparison.OrdinalIgnoreCase);
     }
 
-    // Missing values always come last and numbers always before text, whatever the direction
-    // (separate groups keep the order transitive); numbers compare by value, text by CompareNatural.
     internal static int CompareTieBreakValues(string? a, string? b, int direction)
-    {
-        if (a is null || b is null)
-        {
-            return a is null ? (b is null ? 0 : 1) : -1;
-        }
+        => ContentOrdering.CompareValues(a, b, direction);
 
-        var aIsNumber = TryParseNumber(a, out var x);
-        var bIsNumber = TryParseNumber(b, out var y);
-        if (aIsNumber != bIsNumber)
-        {
-            return aIsNumber ? -1 : 1;
-        }
-
-        var cmp = aIsNumber ? x.CompareTo(y) : CompareNatural(a, b);
-        return direction < 0 ? -cmp : cmp;
-    }
-
-    private static bool TryParseNumber(string text, out double value)
-        => double.TryParse(text, NumberStyles.Float, CultureInfo.InvariantCulture, out value) && double.IsFinite(value);
-
-    // Compares strings with digit runs ordered by numeric value, so /999/ sorts before /1000/.
-    internal static int CompareNatural(string? a, string? b)
-    {
-        a ??= string.Empty;
-        b ??= string.Empty;
-        int i = 0, j = 0;
-        while (i < a.Length && j < b.Length)
-        {
-            if (char.IsAsciiDigit(a[i]) && char.IsAsciiDigit(b[j]))
-            {
-                var startA = i;
-                var startB = j;
-                while (i < a.Length && char.IsAsciiDigit(a[i])) i++;
-                while (j < b.Length && char.IsAsciiDigit(b[j])) j++;
-                var numA = a.AsSpan(startA, i - startA).TrimStart('0');
-                var numB = b.AsSpan(startB, j - startB).TrimStart('0');
-                var cmp = numA.Length != numB.Length ? numA.Length.CompareTo(numB.Length) : numA.SequenceCompareTo(numB);
-                if (cmp != 0)
-                {
-                    return cmp;
-                }
-
-                continue;
-            }
-
-            var charCmp = char.ToLowerInvariant(a[i]).CompareTo(char.ToLowerInvariant(b[j]));
-            if (charCmp != 0)
-            {
-                return charCmp;
-            }
-
-            i++;
-            j++;
-        }
-
-        return (a.Length - i).CompareTo(b.Length - j);
-    }
+    internal static int CompareNatural(string? a, string? b) => ContentOrdering.CompareNatural(a, b);
 
     internal static int ComparePinOrder(int? a, int? b)
     {

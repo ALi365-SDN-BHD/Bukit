@@ -320,6 +320,29 @@ public sealed class LlmsTxtPluginTests : IDisposable
     }
 
     [Fact]
+    public async Task AfterBuild_SamePublishedArticles_UseContentOrdering()
+    {
+        var outputDir = Path.Combine(_root, "dist-content-ordering");
+        var day = DateTimeOffset.Parse("2026-11-02T00:00:00Z");
+        var articles = new[]
+        {
+            new ArticleFixture("a", "posts", day, "/posts/a/"),
+            new ArticleFixture("c", "posts", day, "/posts/c/"),
+            new ArticleFixture("b", "posts", day, "/posts/b/")
+        };
+        var (context, config) = CreateArticleContext(outputDir, articles, maxArticles: 2);
+        config = config with
+        {
+            Content = config.Content with { OrderingTieBreakField = "url", OrderingTieBreakOrder = "desc" }
+        };
+
+        await new LlmsTxtPlugin(config).AfterBuildAsync(context);
+
+        var content = File.ReadAllText(Path.Combine(outputDir, "llms.txt"), Encoding.UTF8);
+        Assert.Equal(["https://example.com/posts/c/", "https://example.com/posts/b/"], ReadSectionUrls(content, "Posts"));
+    }
+
+    [Fact]
     public async Task AfterBuild_Unlimited_DeduplicatesEntriesAndPreservesCanonicalUrls()
     {
         var outputDir = Path.Combine(_root, "dist-unlimited-deduplicated");

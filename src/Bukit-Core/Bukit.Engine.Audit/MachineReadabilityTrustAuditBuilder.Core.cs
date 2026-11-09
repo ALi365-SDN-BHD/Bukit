@@ -44,7 +44,7 @@ internal static partial class MachineReadabilityTrustAuditBuilder
             .GroupBy(x => x.Identity.Id, StringComparer.OrdinalIgnoreCase)
             .ToDictionary(x => x.Key, x => x.ToArray(), StringComparer.OrdinalIgnoreCase);
         var trustRequirements = TrustAuditRequirements.From(ContentModelSchemaFactory.FromConfig(config));
-        var feedWindowRoutes = BuildFeedWindowRoutes(config, seoIndex.Values, recordsById);
+        var feedWindowRoutes = BuildFeedWindowRoutes(config, seoIndex, recordsById, documentsByOutputPath);
         var searchActionExpected = config.Site.Seo.Enabled &&
                                    config.Site.Seo.Schema.SearchAction &&
                                    !string.IsNullOrWhiteSpace(config.Site.Search.Route);

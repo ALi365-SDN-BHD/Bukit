@@ -20,16 +20,18 @@ internal sealed class CollectionRouteIndex
 
     internal IReadOnlyList<RoutedContentDocument> AllOrdered { get; }
 
-    internal static CollectionRouteIndex GetOrBuild(BuildContext context)
+    internal static CollectionRouteIndex GetOrBuild(BuildContext context, ContentTieBreak? tieBreak = null)
     {
-        return context.GetOrAdd(BuildDataKeys.CollectionRouteIndex, () => Create(context.RoutedDocuments));
+        return context.GetOrAdd(BuildDataKeys.CollectionRouteIndex, () => Create(context.RoutedDocuments, tieBreak));
     }
 
-    internal static CollectionRouteIndex Create(IReadOnlyList<RoutedContentDocument> routed)
+    /// <param name="tieBreak">Orders entries with the same publish time (content.ordering); null keeps URL order.</param>
+    internal static CollectionRouteIndex Create(IReadOnlyList<RoutedContentDocument> routed, ContentTieBreak? tieBreak = null)
     {
         var ordered = routed
             .Where(x => !string.IsNullOrWhiteSpace(GetCollection(x.Document)))
             .OrderByDescending(x => x.Document.PublishAt)
+            .ThenByTieBreak(tieBreak, x => x.Document, x => x.Route.Url)
             .ThenBy(x => x.Route.Url, StringComparer.Ordinal)
             .ThenBy(x => x.Document.Id, StringComparer.Ordinal)
             .ToList();

@@ -121,23 +121,25 @@ internal sealed class LlmsTxtPlugin : IBukitPlugin, IAfterBuildAsyncPlugin
 
     private static IReadOnlyList<LlmsCandidate> SelectCollectionItems(
         IEnumerable<LlmsCandidate> candidates,
-        int maxArticles)
+        int maxArticles,
+        ContentTieBreak? tieBreak)
     {
         var materialized = candidates.ToList();
         var includes = materialized
             .Where(candidate => candidate.Policy.Visibility == LlmsVisibility.Include)
             .ToList();
         var orderedAutos = OrderDeterministically(materialized
-            .Where(candidate => candidate.Policy.Visibility != LlmsVisibility.Include));
+            .Where(candidate => candidate.Policy.Visibility != LlmsVisibility.Include), tieBreak);
         var selectedAutos = maxArticles == 0 ? orderedAutos : orderedAutos.Take(maxArticles).ToList();
 
-        return OrderDeterministically(includes.Concat(selectedAutos));
+        return OrderDeterministically(includes.Concat(selectedAutos), tieBreak);
     }
 
-    private static IReadOnlyList<LlmsCandidate> OrderDeterministically(IEnumerable<LlmsCandidate> candidates)
+    private static IReadOnlyList<LlmsCandidate> OrderDeterministically(IEnumerable<LlmsCandidate> candidates, ContentTieBreak? tieBreak)
         => candidates
             .OrderByDescending(candidate => candidate.Policy.Priority)
             .ThenByDescending(candidate => candidate.Document.PublishAt)
+            .ThenByTieBreak(tieBreak, candidate => candidate.Document, candidate => candidate.Entry.Route.Url)
             .ThenBy(candidate => candidate.Entry.Canonical, StringComparer.Ordinal)
             .ToList();
 
@@ -234,7 +236,8 @@ internal sealed class LlmsTxtPlugin : IBukitPlugin, IAfterBuildAsyncPlugin
         }
 
         var optionalPages = new List<(string Url, string Title, string? Description)>();
-        foreach (var candidate in OrderDeterministically(selection.Optional))
+        var tieBreak = ContentOrdering.Resolve(config);
+        foreach (var candidate in OrderDeterministically(selection.Optional, tieBreak))
         {
             var url = ResolveFullUrl(candidate.Entry.Route.Url, canonicalBase);
             var pageTitle = ResolveLinkTitle(candidate);
@@ -272,7 +275,7 @@ internal sealed class LlmsTxtPlugin : IBukitPlugin, IAfterBuildAsyncPlugin
 
         foreach (var (groupKey, group) in groups.OrderBy(x => x.Key, StringComparer.OrdinalIgnoreCase))
         {
-            var selected = SelectCollectionItems(group, geo.LlmsTxtMaxArticles);
+            var selected = SelectCollectionItems(group, geo.LlmsTxtMaxArticles, tieBreak);
             sb.AppendLine($"## {ToTitle(groupKey)}");
             sb.AppendLine();
             foreach (var candidate in selected)

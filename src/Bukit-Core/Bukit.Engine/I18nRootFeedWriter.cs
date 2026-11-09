@@ -48,7 +48,7 @@ internal sealed class I18nRootFeedWriter : II18nRootProjectionWriter
 
                 postCandidates.Add((
                     I18nRootProjectionPath.CombineBaseUrl(result.BaseUrl, seo.Route.Url),
-                    RssGenerator.ToPost(document, seo.Canonical, result.BodyStore)));
+                    RssGenerator.ToPost(document, seo.Canonical, result.BodyStore, ContentOrdering.Resolve(context.Config), seo.Route.Url)));
             }
         }
 

@@ -55,7 +55,8 @@ internal static class RssProjectionWriter
             context.ContentGraph,
             context.SeoIndex,
             context.Config.Site.Url ?? string.Empty,
-            context.BaseUrl);
+            context.BaseUrl,
+            ContentOrdering.Resolve(context.Config));
 
     private static bool ShouldWriteFeed(PublishProjectionContext context, string format)
         => !string.IsNullOrWhiteSpace(context.Config.Site.Url) &&
@@ -110,7 +111,8 @@ internal static class RssProjectionWriter
                 context.SeoIndex,
                 context.Config.Site.Url ?? string.Empty,
                 context.BaseUrl,
-                key);
+                key,
+                ContentOrdering.Resolve(context.Config));
             var feedBase = NormalizeCollectionFeedBase(collection.Output.FeedPath ?? $"{context.Config.Site.Feed.Path}/{key}");
             var title = collection.Output.FeedTitle ?? context.Config.Site.Title;
             var description = collection.Output.FeedDescription ?? context.Config.Site.Description;

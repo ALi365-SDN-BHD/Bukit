@@ -18,7 +18,7 @@ internal sealed class TaxonomyContributor : IRenderDependencyContributor
             writer.AppendLabeledCanonicalValue("taxonomy.emptyTerms", taxonomy.EmptyTerms);
         }
 
-        if (Plugins.BuiltIn.TaxonomySortHelper.ResolveTieBreak(taxonomy) is { } tieBreak)
+        if (Plugins.BuiltIn.TaxonomySortHelper.ResolveTieBreak(Plugins.BuiltIn.TaxonomySortHelper.WithContentOrdering(context.Config)) is { } tieBreak)
         {
             writer.AppendLabeledCanonicalValue("taxonomy.tieBreakField", tieBreak.Field);
             writer.AppendLabeledCanonicalValue("taxonomy.tieBreakOrder", tieBreak.Descending ? "desc" : "asc");

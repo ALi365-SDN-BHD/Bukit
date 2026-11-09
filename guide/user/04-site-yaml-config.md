@@ -316,6 +316,25 @@ names, scopes, and keys use `^[a-z][a-z0-9_]*$`. Duplicate scope and key pairs,
 missing required values, unknown value types, invalid email values, and URLs
 other than HTTP(S) or root-relative paths fail the build.
 
+## Content Ordering
+
+Lists put the newest entries first. When entries share a publish time (for example, a date with
+no time), `content.ordering` decides their order everywhere: the home page `pages` list,
+collection lists and pagination, archives, site and collection feeds, and `llms.txt`. Term pages
+use it too unless `taxonomy.tieBreakField` is set.
+
+| Field | Default | Notes |
+|---|---|---|
+| `content.ordering.tieBreakField` | none | `url` (the final route URL), `title`, or any content field such as a numeric `ID`. Same rules as `taxonomy.tieBreakField`: numbers compare by value and come before text, text compares digit runs numerically (`SR-999` before `SR-1000`), dates compare chronologically, a list field uses its first value, and entries without the field come last. Unset, each list keeps its built-in order (route URL for lists and feeds). |
+| `content.ordering.tieBreakOrder` | `asc` | Direction for `tieBreakField`: `asc` or `desc`. |
+
+```yaml
+content:
+  ordering:
+    tieBreakField: ID
+    tieBreakOrder: desc
+```
+
 ## Content Media
 
 | Field | Default | Notes |
@@ -501,8 +520,8 @@ with `--clean` after replacing images.
 | `taxonomy.pinFieldBySource` | none | Source-specific pin field map. |
 | `taxonomy.pinOrderFieldBySource` | none | Source-specific pin order field map. |
 | `taxonomy.emptyTerms` | `render` | Term pages with no content: `render` emits them as before, `noindex` emits them with robots noindex and keeps them out of the sitemap, `skip` emits none (a hierarchical parent with child terms is kept). |
-| `taxonomy.tieBreakField` | `title` | Orders term-page entries with the same publish time (after pinned entries): `title`, `url` (the final route URL, so a content field named `url`/`URL` cannot be selected), or any content field such as a numeric `ID`. Numbers compare by value and come before text in either direction; text compares digit runs numerically (`SR-999` before `SR-1000`); dates compare chronologically; a list field uses its first value. Entries without the field come last. Term RSS feeds use the same tie-break within one publish time. This decides which page each entry lands on. |
-| `taxonomy.tieBreakOrder` | `asc` | Direction for `tieBreakField`: `asc` or `desc`. |
+| `taxonomy.tieBreakField` | `content.ordering.tieBreakField`, else `title` | Orders term-page entries with the same publish time (after pinned entries): `title`, `url` (the final route URL, so a content field named `url`/`URL` cannot be selected), or any content field such as a numeric `ID`. Numbers compare by value and come before text in either direction; text compares digit runs numerically (`SR-999` before `SR-1000`); dates compare chronologically; a list field uses its first value. Entries without the field come last. Term RSS feeds use the same tie-break within one publish time. This decides which page each entry lands on. |
+| `taxonomy.tieBreakOrder` | `asc` | Direction for `tieBreakField`: `asc` or `desc`. When `taxonomy.tieBreakField` is unset, `content.ordering.tieBreakOrder` applies. |
 | `taxonomy.kinds[].key` | required | Source field key. |
 | `taxonomy.kinds[].kind` | same as `key` | Public taxonomy kind. |
 | `taxonomy.kinds[].title` | none | Index title. |

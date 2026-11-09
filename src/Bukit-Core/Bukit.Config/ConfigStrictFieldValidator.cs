@@ -13,7 +13,7 @@ internal static class ConfigStrictFieldValidator
         "searchIncludeDerived", "pluginFailMode", "deriveConflictPolicy",
         "timezone", "permalinks", "collections", "plugins", "feed",
         "sitemapDetail", "pagination", "search", "related", "menus");
-    private static readonly HashSet<string> ContentKeys = Set("sources", "media", "modelSchema", "routeMetadata");
+    private static readonly HashSet<string> ContentKeys = Set("sources", "media", "modelSchema", "routeMetadata", "ordering");
     private static readonly HashSet<string> BuildKeys = Set(
         "output", "clean", "draft", "listPageContentMode", "schemaFailMode", "fingerprintMode",
         "publishDotFiles", "followSymlinks", "languageJobs", "report");
@@ -348,6 +348,11 @@ internal static class ConfigStrictFieldValidator
         }
 
         if (Map(content, "modelSchema") is { } modelSchema) ValidateModelSchema(modelSchema);
+        if (Map(content, "ordering") is { } ordering)
+        {
+            RequireOnly(ordering, Set("tieBreakField", "tieBreakOrder"), "content.ordering");
+        }
+
         if (Map(content, "routeMetadata") is { } routeMetadata)
         {
             RequireOnly(routeMetadata, Set(

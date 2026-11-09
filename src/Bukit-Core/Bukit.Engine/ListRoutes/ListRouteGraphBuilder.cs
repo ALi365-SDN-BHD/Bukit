@@ -15,11 +15,12 @@ internal static partial class ListRouteGraphBuilder
         IReadOnlyList<RoutedContentDocument> routed,
         IReadOnlyDictionary<string, CollectionConfig>? collections,
         string outputPathEncoding,
-        ThemeTemplateResolver? templateResolver = null)
+        ThemeTemplateResolver? templateResolver = null,
+        ContentTieBreak? tieBreak = null)
     {
         ArgumentNullException.ThrowIfNull(routed);
 
-        var index = CollectionRouteIndex.Create(routed);
+        var index = CollectionRouteIndex.Create(routed, tieBreak);
         var routes = new List<ListRoutePlan>
         {
             BuildHome(index, templateResolver)

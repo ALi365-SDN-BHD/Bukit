@@ -20,7 +20,22 @@ public static class RssGenerator
         string? Language = null,
         string? Source = null,
         string? ReviewStatus = null,
-        IReadOnlyList<string>? Entities = null);
+        IReadOnlyList<string>? Entities = null)
+    {
+        /// <summary>The content.ordering value used to order posts with the same publish time.</summary>
+        public string? TieBreakValue { get; init; }
+
+        /// <summary>1 ascending, -1 descending, 0 when content.ordering is unset.</summary>
+        public int TieBreakDirection { get; init; }
+    }
+
+    /// <summary>Picks the newest posts for a feed, ordering same-time posts by content.ordering.</summary>
+    internal static IReadOnlyList<Post> SelectWindow(IEnumerable<Post> posts, int maxItems)
+    {
+        var materialized = posts as IReadOnlyList<Post> ?? posts.ToList();
+        var direction = materialized.FirstOrDefault(x => x.TieBreakDirection != 0)?.TieBreakDirection ?? 0;
+        return FeedWindowSelector.Select(materialized, x => x.PublishAt, x => x.AbsoluteUrl, maxItems, x => x.TieBreakValue, direction);
+    }
 
     public static void Generate(
         string outputDir,
@@ -38,14 +53,14 @@ public static class RssGenerator
         var normalizedBaseUrl = InternalNormalizeBaseUrl(baseUrl);
 
         var rssCollections = ResolveRssCollections(collections);
-        var posts = BuildPostsFromSeoIndex(seoIndex, routed, rssCollections, bodyStore)
+        var posts = BuildPostsFromSeoIndex(seoIndex, routed, rssCollections, bodyStore, tieBreak: null)
             ?? routed
                 .Where(x => !x.Document.Publish.ExcludeFromFeed && rssCollections.Contains(GetCollection(x.Document)))
                 .OrderBy(x => x.Route.Url, StringComparer.OrdinalIgnoreCase)
                 .Select(x => ToPost(x.Document, BuildAbsoluteUrl(normalizedSiteUrl, normalizedBaseUrl, x.Route.Url), bodyStore))
                 .ToList();
 
-        posts = FeedWindowSelector.Select(posts, x => x.PublishAt, x => x.AbsoluteUrl, maxItems).ToList();
+        posts = SelectWindow(posts, maxItems).ToList();
 
         var feedUrl = BuildAbsoluteUrl(normalizedSiteUrl, normalizedBaseUrl, "/rss.xml");
         var homeUrl = BuildAbsoluteUrl(normalizedSiteUrl, normalizedBaseUrl, "/");
@@ -60,7 +75,8 @@ public static class RssGenerator
         IReadOnlyDictionary<string, SeoIndexEntry>? seoIndex,
         string siteUrl,
         string baseUrl,
-        string? collectionKey)
+        string? collectionKey,
+        ContentTieBreak? tieBreak = null)
     {
         var normalizedSiteUrl = InternalNormalizeSiteUrl(siteUrl);
         var normalizedBaseUrl = InternalNormalizeBaseUrl(baseUrl);
@@ -71,11 +87,11 @@ public static class RssGenerator
             rssCollections = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { collectionKey };
         }
 
-        var posts = BuildPostsFromSeoIndex(seoIndex, routed, rssCollections, bodyStore)
+        var posts = BuildPostsFromSeoIndex(seoIndex, routed, rssCollections, bodyStore, tieBreak)
             ?? routed
                 .Where(x => !x.Document.Publish.ExcludeFromFeed && rssCollections.Contains(GetCollection(x.Document)))
                 .OrderBy(x => x.Route.Url, StringComparer.OrdinalIgnoreCase)
-                .Select(x => ToPost(x.Document, BuildAbsoluteUrl(normalizedSiteUrl, normalizedBaseUrl, x.Route.Url), bodyStore))
+                .Select(x => ToPost(x.Document, BuildAbsoluteUrl(normalizedSiteUrl, normalizedBaseUrl, x.Route.Url), bodyStore, tieBreak, x.Route.Url))
                 .ToList();
 
         return posts;
@@ -88,9 +104,10 @@ public static class RssGenerator
         CanonicalContentGraph? contentGraph,
         IReadOnlyDictionary<string, SeoIndexEntry>? seoIndex,
         string siteUrl,
-        string baseUrl)
+        string baseUrl,
+        ContentTieBreak? tieBreak = null)
     {
-        return CollectPosts(collections, routed, bodyStore, contentGraph, seoIndex, siteUrl, baseUrl, null);
+        return CollectPosts(collections, routed, bodyStore, contentGraph, seoIndex, siteUrl, baseUrl, null, tieBreak);
     }
 
     public static void GenerateMerged(
@@ -105,7 +122,7 @@ public static class RssGenerator
         var normalizedSiteUrl = InternalNormalizeSiteUrl(siteUrl);
         var normalizedBaseUrl = InternalNormalizeBaseUrl(baseUrl);
 
-        var sorted = FeedWindowSelector.Select(posts, x => x.PublishAt, x => x.AbsoluteUrl, maxItems);
+        var sorted = SelectWindow(posts, maxItems);
 
         var feedUrl = BuildAbsoluteUrl(normalizedSiteUrl, normalizedBaseUrl, "/rss.xml");
         var homeUrl = BuildAbsoluteUrl(normalizedSiteUrl, normalizedBaseUrl, "/");
@@ -131,7 +148,7 @@ public static class RssGenerator
         var normalizedBaseUrl = InternalNormalizeBaseUrl(baseUrl);
         var normalizedFeedPath = NormalizeRelativeFeedPath(feedPath);
 
-        var sorted = FeedWindowSelector.Select(posts, x => x.PublishAt, x => x.AbsoluteUrl, maxItems);
+        var sorted = SelectWindow(posts, maxItems);
 
         var feedUrl = BuildAbsoluteUrl(normalizedSiteUrl, normalizedBaseUrl, "/" + normalizedFeedPath);
         var homeUrl = BuildAbsoluteUrl(normalizedSiteUrl, normalizedBaseUrl, "/");
@@ -219,7 +236,8 @@ public static class RssGenerator
         IReadOnlyDictionary<string, SeoIndexEntry>? seoIndex,
         IReadOnlyList<RoutedContentDocument> routed,
         IReadOnlySet<string> rssCollections,
-        IContentBodyStore bodyStore)
+        IContentBodyStore bodyStore,
+        ContentTieBreak? tieBreak = null)
     {
         if (seoIndex is null || seoIndex.Count == 0)
         {
@@ -241,13 +259,18 @@ public static class RssGenerator
                 continue;
             }
 
-            posts.Add(ToPost(document, entry.Canonical, bodyStore));
+            posts.Add(ToPost(document, entry.Canonical, bodyStore, tieBreak, entry.Route.Url));
         }
 
         return posts;
     }
 
-    internal static Post ToPost(ContentDocument document, string absoluteUrl, IContentBodyStore bodyStore)
+    internal static Post ToPost(
+        ContentDocument document,
+        string absoluteUrl,
+        IContentBodyStore bodyStore,
+        ContentTieBreak? tieBreak = null,
+        string? routeUrl = null)
     {
 #pragma warning disable CS0618
         var html = ContentBodyResolver.GetHtml(document, bodyStore);
@@ -263,7 +286,11 @@ public static class RssGenerator
             Language: document.Record.Presentation.Language,
             Source: document.Record.Provenance.Source,
             ReviewStatus: string.IsNullOrWhiteSpace(document.Record.Trust.ReviewStatus) ? null : document.Record.Trust.ReviewStatus,
-            Entities: PublicContentProjectionPolicy.SanitizeEntities(document.Record).Select(x => x.Name).Distinct(StringComparer.OrdinalIgnoreCase).ToArray());
+            Entities: PublicContentProjectionPolicy.SanitizeEntities(document.Record).Select(x => x.Name).Distinct(StringComparer.OrdinalIgnoreCase).ToArray())
+        {
+            TieBreakValue = tieBreak is null ? null : ContentOrdering.ReadValue(document, routeUrl ?? absoluteUrl, tieBreak.Field),
+            TieBreakDirection = tieBreak?.Direction ?? 0
+        };
     }
 
     private static IReadOnlyList<string>? MergeCategories(IReadOnlyList<string>? tags, IReadOnlyList<string>? categories, IReadOnlyList<string>? fallbackTags = null, IReadOnlyList<string>? fallbackCategories = null)

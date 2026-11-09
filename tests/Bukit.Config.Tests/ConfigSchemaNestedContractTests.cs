@@ -98,6 +98,7 @@ public sealed class ConfigSchemaNestedContractTests
         new("content/modelSchema/relationMappings[]", "rawKey", "relationType", "targetType", "targetField", "targetIdField", "required", "reference"),
         new("content/modelSchema/relationMappings[]/reference", "targetType", "idField", "labelField", "urlField", "required"),
         new("content/modelSchema/media", "requireAlt", "requireDescription", "requireLicense", "allowedKinds"),
+        new("content/ordering", "tieBreakField", "tieBreakOrder"),
         new("content/routeMetadata", "source", "routeField", "titleField", "summaryField", "seoTitleField", "seoDescriptionField", "requiredRoutes"),
         new("build/report", "enabled", "securityFailMode"),
         new("theme/scss", "enabled", "entryPoint", "outputDir"),

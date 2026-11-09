@@ -29,7 +29,7 @@ internal sealed class ArchivePlugin : IBukitPlugin, IDerivePagesPlugin, ITemplat
             return Array.Empty<string>();
         }
 
-        var posts = CollectionRouteIndex.GetOrBuild(context).GetByCollection(archiveCollection.Value.Key);
+        var posts = CollectionRouteIndex.GetOrBuild(context, ContentOrdering.Resolve(_config)).GetByCollection(archiveCollection.Value.Key);
         return posts.Count > 0 ? new[] { "archive" } : Array.Empty<string>();
     }
 
@@ -44,7 +44,7 @@ internal sealed class ArchivePlugin : IBukitPlugin, IDerivePagesPlugin, ITemplat
         var collectionKey = archiveCollection.Value.Key;
         var listRoute = archiveCollection.Value.Config.ListRoute;
         var archiveBaseUrl = $"{RoutePathBuilder.NormalizeListRoute(listRoute)}archive/";
-        var posts = CollectionRouteIndex.GetOrBuild(context).GetByCollection(collectionKey);
+        var posts = CollectionRouteIndex.GetOrBuild(context, ContentOrdering.Resolve(_config)).GetByCollection(collectionKey);
 
         if (posts.Count == 0)
         {
@@ -75,7 +75,7 @@ internal sealed class ArchivePlugin : IBukitPlugin, IDerivePagesPlugin, ITemplat
 
             foreach (var monthGroup in byMonth)
             {
-                derived.Add(CreateMonthPage(prefix, archiveBaseUrl, yearGroup.Key, monthGroup.Key, monthGroup.ToList(), collectionKey, _config.Site.OutputPathEncoding, template));
+                derived.Add(CreateMonthPage(prefix, archiveBaseUrl, yearGroup.Key, monthGroup.Key, monthGroup.ToList(), collectionKey, _config.Site.OutputPathEncoding, template, ContentOrdering.Resolve(_config)));
             }
         }
 
@@ -175,11 +175,16 @@ internal sealed class ArchivePlugin : IBukitPlugin, IDerivePagesPlugin, ITemplat
         IReadOnlyList<RoutedContentDocument> monthPosts,
         string collectionKey,
         string outputPathEncoding,
-        string template)
+        string template,
+        ContentTieBreak? tieBreak = null)
     {
         var sb = new StringBuilder();
         sb.AppendLine("<ul>");
-        foreach (var routedDocument in monthPosts.OrderByDescending(x => x.Document.PublishAt).ThenBy(x => x.Document.Id, StringComparer.Ordinal))
+        var ordered = monthPosts
+            .OrderByDescending(x => x.Document.PublishAt)
+            .ThenByTieBreak(tieBreak, x => x.Document, x => x.Route.Url)
+            .ThenBy(x => x.Document.Id, StringComparer.Ordinal);
+        foreach (var routedDocument in ordered)
         {
             var item = routedDocument.Document;
             var route = routedDocument.Route;
