@@ -802,6 +802,95 @@ public sealed class PublishAuditReportWriterTests : IDisposable
         Assert.DoesNotContain(oldest.RepresentationKinds, kind => kind is "feed" or "atom" or "jsonfeed");
     }
 
+    [Theory]
+    [InlineData("unordered")]
+    [InlineData("ordered-without-documents")]
+    [InlineData("ordered-with-documents")]
+    public void Build_FeedWindowEdgeWithTiedEntries_FollowsContentOrderingWhenKnown(string scenario)
+    {
+        // "newest" is alone on 06-06; a, b and c share 06-05, and only one of them fits a limit-2 feed.
+        var slugs = new[] { "newest", "a", "b", "c" };
+        foreach (var slug in slugs)
+        {
+            WriteOutput($"{slug}/index.html", $"""
+                <!doctype html><html><head><title>{slug}</title><link rel="canonical" href="https://example.com/{slug}/" /></head>
+                <body><main><article><h1>{slug}</h1><time datetime="2026-06-05">June 5</time><p>Body.</p></article></main></body></html>
+                """);
+        }
+        Directory.CreateDirectory(Path.Combine(_outputDir, "feed"));
+        File.WriteAllText(Path.Combine(_outputDir, "rss.xml"), "<rss><channel></channel></rss>");
+        File.WriteAllText(Path.Combine(_outputDir, "feed", "atom.xml"), "<feed xmlns=\"http://www.w3.org/2005/Atom\"></feed>");
+        File.WriteAllText(Path.Combine(_outputDir, "feed", "feed.json"), "{\"version\":\"https://jsonfeed.org/version/1.1\",\"items\":[]}");
+
+        var index = new Dictionary<string, SeoIndexEntry>(StringComparer.OrdinalIgnoreCase);
+        var models = new Dictionary<string, SeoModel>(StringComparer.OrdinalIgnoreCase);
+        var documents = new Dictionary<string, ContentDocument>(StringComparer.OrdinalIgnoreCase);
+        var ids = new Dictionary<string, int> { ["newest"] = 9, ["a"] = 1, ["b"] = 3, ["c"] = 2 };
+        foreach (var slug in slugs)
+        {
+            var key = $"{slug}/index.html";
+            var canonical = $"https://example.com/{slug}/";
+            index[key] = new SeoIndexEntry(
+                new RouteInfo($"/{slug}/", key, "pages/post.html"),
+                canonical,
+                Robots: null,
+                Indexable: true,
+                LastModified: DateTimeOffset.Parse("2030-01-01T00:00:00Z"),
+                SourceItemId: slug,
+                ContentType: "post",
+                Collection: "post");
+            models[key] = Model(slug, canonical);
+            documents[key] = ContentDocument.Create(
+                id: slug,
+                title: slug,
+                slug: slug,
+                publishAt: DateTimeOffset.Parse(slug == "newest" ? "2026-06-06T00:00:00Z" : "2026-06-05T00:00:00Z"),
+                contentHtml: "<p>body</p>",
+                fields: new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase)
+                {
+                    ["ID"] = new ContentField("number", ids[slug])
+                });
+        }
+
+        var graph = new CanonicalContentGraph(
+        [
+            FeedRecord("newest", "2026-06-06T00:00:00Z"),
+            FeedRecord("a", "2026-06-05T00:00:00Z"),
+            FeedRecord("b", "2026-06-05T00:00:00Z"),
+            FeedRecord("c", "2026-06-05T00:00:00Z")
+        ], []);
+        var config = ConfigWithAllFeeds(limit: 2);
+        if (scenario != "unordered")
+        {
+            config = config with { Content = config.Content with { OrderingTieBreakField = "ID", OrderingTieBreakOrder = "desc" } };
+        }
+
+        var report = MachineReadabilityTrustAuditBuilder.Build(
+            config,
+            _outputDir,
+            index,
+            models,
+            graph,
+            documentsByOutputPath: scenario == "ordered-with-documents" ? documents : null).SeoReport;
+
+        // Which tied entry is expected in the feed: none when it cannot be predicted.
+        string? expectedTied = scenario switch
+        {
+            "unordered" => "a",                // falls back to canonical URL order
+            "ordered-with-documents" => "b",   // highest ID among a, b, c
+            _ => null                          // tie-break values unknown: edge left out
+        };
+        foreach (var code in new[] { "publish.rss_missing_route", "publish.atom_feed_missing_route", "publish.json_feed_missing_route" })
+        {
+            Assert.Contains(report.Issues, issue => issue.Code == code && issue.Route == "/newest/");
+            foreach (var slug in new[] { "a", "b", "c" })
+            {
+                var reported = report.Issues.Any(issue => issue.Code == code && issue.Route == $"/{slug}/");
+                Assert.Equal(slug == expectedTied, reported);
+            }
+        }
+    }
+
     [Fact]
     public void Build_ReportsAiCrawlerConflictForWildcardDisallow()
     {

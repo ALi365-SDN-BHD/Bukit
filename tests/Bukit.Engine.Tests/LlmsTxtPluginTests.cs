@@ -473,6 +473,37 @@ public sealed class LlmsTxtPluginTests : IDisposable
             urls);
     }
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task AfterBuild_SamePublishedPagesWithoutCollection_UseContentOrdering(bool ordered)
+    {
+        var outputDir = Path.Combine(_root, $"dist-pages-ordering-{ordered}");
+        var day = DateTimeOffset.Parse("2026-11-02T00:00:00Z");
+        var articles = new[]
+        {
+            new ArticleFixture("p999", "", day, "/p/999/"),
+            new ArticleFixture("p2596", "", day, "/p/2596/"),
+            new ArticleFixture("p1000", "", day, "/p/1000/")
+        };
+        var (context, config) = CreateArticleContext(outputDir, articles, maxArticles: 0);
+        if (ordered)
+        {
+            config = config with
+            {
+                Content = config.Content with { OrderingTieBreakField = "url", OrderingTieBreakOrder = "desc" }
+            };
+        }
+
+        await new LlmsTxtPlugin(config).AfterBuildAsync(context);
+
+        var content = File.ReadAllText(Path.Combine(outputDir, "llms.txt"), Encoding.UTF8);
+        string[] expected = ordered
+            ? ["https://example.com/p/2596/", "https://example.com/p/1000/", "https://example.com/p/999/"]
+            : ["https://example.com/p/1000/", "https://example.com/p/2596/", "https://example.com/p/999/"];
+        Assert.Equal(expected, ReadSectionUrls(content, "Pages"));
+    }
+
     [Fact]
     public async Task Curation_Priority_SortsDescendingThenPublishedThenUrl()
     {

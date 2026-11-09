@@ -152,7 +152,8 @@ public sealed class TaxonomySortHelperTests
     [Theory]
     [InlineData(null, null, false)]
     [InlineData("title", "desc", true)]
-    [InlineData("title", null, true)]
+    [InlineData("title", null, false)]
+    [InlineData("Title", "asc", false)]
     [InlineData("ID", "desc", true)]
     [InlineData("url", null, true)]
     public void ResolveTieBreak_MapsConfig(string? field, string? order, bool enabled)
@@ -167,6 +168,25 @@ public sealed class TaxonomySortHelperTests
             Assert.Equal(field, result.Field);
             Assert.Equal(order == "desc", result.Descending);
         }
+    }
+
+    [Fact]
+    public void ExplicitTitleAsc_OrdersLikeUnset()
+    {
+        // Ordinal and natural title order disagree here ("10" < "9" ordinally, 9 < 10 naturally).
+        var day = new DateTimeOffset(2026, 11, 2, 0, 0, 0, TimeSpan.Zero);
+        var pages = new[] { MakePage("Issue 9", "/b/", day), MakePage("Issue 10", "/a/", day), MakePage("2024", "/c/", day) };
+
+        string[] Order(Bukit.Config.TaxonomyConfig config)
+        {
+            var direction = TaxonomySortHelper.ResolveDirection(config);
+            return pages.Order(Comparer<TaxonomyPage>.Create((a, b) => TaxonomySortHelper.ComparePages(a, b, direction)))
+                .Select(p => p.Title).ToArray();
+        }
+
+        var unset = Order(new Bukit.Config.TaxonomyConfig());
+        Assert.Equal(unset, Order(new Bukit.Config.TaxonomyConfig { TieBreakField = "title", TieBreakOrder = "asc" }));
+        Assert.Equal(["2024", "Issue 10", "Issue 9"], unset);
     }
 
     // ── ComparePinOrder ─────────────────────────────────────────────

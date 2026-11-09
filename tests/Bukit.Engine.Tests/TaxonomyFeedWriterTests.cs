@@ -65,6 +65,25 @@ public sealed class TaxonomyFeedWriterTests : IDisposable
     }
 
     [Fact]
+    public void WriteFeeds_NoTieBreak_SameTimeOrdersByTitleLikeTermPage()
+    {
+        var sameDay = new DateTimeOffset(2024, 1, 1, 0, 0, 0, TimeSpan.Zero);
+        var terms = new Dictionary<string, TaxonomyTerm>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["tech"] = new TaxonomyTerm("Tech", "tech")
+        };
+        terms["tech"].Pages.Add(new TaxonomyPage("z", "Zebra", "/a/", sameDay, null, null, false, null));
+        terms["tech"].Pages.Add(new TaxonomyPage("a", "Apple", "/b/", sameDay, null, null, false, null));
+        var pageOrder = terms["tech"].Pages.Order(Comparer<TaxonomyPage>.Create(TaxonomySortHelper.ComparePages)).Select(p => p.Url).ToList();
+
+        TaxonomyFeedWriter.WriteFeeds(_tempDir, "https://example.com", "/", "My Site", terms, "tags");
+
+        var content = File.ReadAllText(Path.Combine(_tempDir, "tags", "tech", "feed.xml"));
+        Assert.Equal(["/b/", "/a/"], pageOrder);
+        Assert.True(content.IndexOf("https://example.com/b/", StringComparison.Ordinal) < content.IndexOf("https://example.com/a/", StringComparison.Ordinal));
+    }
+
+    [Fact]
     public void WriteFeeds_EmptyTermPages_DoesNotWriteFeed()
     {
         var terms = new Dictionary<string, TaxonomyTerm>(StringComparer.OrdinalIgnoreCase)

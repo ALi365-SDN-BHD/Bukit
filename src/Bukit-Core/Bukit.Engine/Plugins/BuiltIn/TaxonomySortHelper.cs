@@ -25,13 +25,20 @@ internal static class TaxonomySortHelper
     }
 
     /// <summary>
-    /// Returns the configured same-time ordering, or null when unset (title ascending by default).
-    /// An explicit title is a real tie-break too, so title desc orders term pages like every other list.
+    /// Returns the configured same-time ordering, or null for the built-in title-ascending order.
+    /// title asc is that built-in order, so writing it gives the same output and cache as leaving it unset;
+    /// title desc is a real tie-break and reverses it.
     /// </summary>
     internal static TieBreak? ResolveTieBreak(TaxonomyConfig config)
-        => ContentOrdering.Create(config.TieBreakField, config.TieBreakOrder) is { } tieBreak
-            ? new TieBreak(tieBreak.Field, tieBreak.Descending)
-            : null;
+    {
+        if (ContentOrdering.Create(config.TieBreakField, config.TieBreakOrder) is not { } tieBreak ||
+            (!tieBreak.Descending && tieBreak.Field.Equals("title", StringComparison.OrdinalIgnoreCase)))
+        {
+            return null;
+        }
+
+        return new TieBreak(tieBreak.Field, tieBreak.Descending);
+    }
 
     /// <summary>0 when no tie-break is configured; 1 ascending; -1 descending.</summary>
     internal static int ResolveDirection(TaxonomyConfig config)

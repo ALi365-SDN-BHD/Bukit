@@ -30,20 +30,17 @@ internal static class TaxonomyFeedWriter
                 continue;
             }
 
-            // Feeds stay chronological (pinning is not applied) but use the same tie-break as term pages.
+            // Feeds stay chronological (pinning is not applied) but order same-time entries exactly like
+            // term pages: the tie-break, then title, then URL (see TaxonomySortHelper.ComparePages).
             var byDate = term.Pages.OrderByDescending(p => p.PublishAt);
             var posts = (tieBreakDirection == 0
                     ? byDate
                     : byDate.ThenBy(p => p, Comparer<TaxonomyPage>.Create((a, b) =>
                         TaxonomySortHelper.CompareTieBreakValues(a.TieBreakValue, b.TieBreakValue, tieBreakDirection))))
-                .ThenBy(p => p.Url, StringComparer.Ordinal)
+                .ThenBy(p => p.Title, StringComparer.OrdinalIgnoreCase)
+                .ThenBy(p => p.Url, StringComparer.OrdinalIgnoreCase)
                 .Take(20)
                 .ToList();
-
-            if (posts.Count == 0)
-            {
-                continue;
-            }
 
             var termPath = BuildTermPath(normalizedRoutePrefix, term.Slug);
             var termUrl = BuildAbsoluteUrl(normalizedSiteUrl, normalizedBaseUrl, termPath);
@@ -98,7 +95,7 @@ internal static class TaxonomyFeedWriter
         }
         sb.Append("  <atom:link href=\"").Append(EscapeXml(feedUrl)).AppendLine("\" rel=\"self\" type=\"application/rss+xml\"/>");
 
-        // WriteFeeds skips terms without pages, so posts is never empty here.
+        // WriteFeeds skips terms without pages (term.Pages.Count == 0), so posts is never empty here.
         sb.Append("  <lastBuildDate>").Append(posts[0].PublishAt.ToString("R")).AppendLine("</lastBuildDate>");
 
         foreach (var post in posts)

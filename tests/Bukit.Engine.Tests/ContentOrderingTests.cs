@@ -70,13 +70,13 @@ public sealed class ContentOrderingTests
             Site = new SiteConfig { Name = "t", Title = "t" },
             Content = new ContentConfig { OrderingTieBreakField = "ID", OrderingTieBreakOrder = "desc" }
         };
-        var own = inherits with { Taxonomy = new TaxonomyConfig { TieBreakField = "title" } };
+        var own = inherits with { Taxonomy = new TaxonomyConfig { TieBreakField = "url" } };
         var neither = new AppConfig { Site = new SiteConfig { Name = "t", Title = "t" }, Content = new ContentConfig() };
 
         var inherited = TaxonomySortHelper.ResolveTieBreak(TaxonomySortHelper.WithContentOrdering(inherits));
         Assert.Equal(("ID", true), (inherited!.Field, inherited.Descending));
-        var ownTitle = TaxonomySortHelper.ResolveTieBreak(TaxonomySortHelper.WithContentOrdering(own));
-        Assert.Equal(("title", false), (ownTitle!.Field, ownTitle.Descending));
+        var ownUrl = TaxonomySortHelper.ResolveTieBreak(TaxonomySortHelper.WithContentOrdering(own));
+        Assert.Equal(("url", false), (ownUrl!.Field, ownUrl.Descending));
 
         var titleDesc = inherits with { Content = inherits.Content with { OrderingTieBreakField = "title" } };
         var inheritedTitle = TaxonomySortHelper.ResolveTieBreak(TaxonomySortHelper.WithContentOrdering(titleDesc));

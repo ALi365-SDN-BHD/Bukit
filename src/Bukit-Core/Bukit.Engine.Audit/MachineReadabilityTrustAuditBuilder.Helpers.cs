@@ -271,6 +271,8 @@ internal static partial class MachineReadabilityTrustAuditBuilder
 
         // Without documents the tie-break values are unknown, so which same-time entries at the window
         // edge made the feed cannot be predicted. Leave that edge out instead of reporting false misses.
+        // If the whole window shares that time nothing is expected; build-time audits pass documents
+        // and check those entries exactly.
         if (siteTieBreak is not null && tieBreak is null && window.Count > 0)
         {
             var edge = window[^1].PublishedAt;
