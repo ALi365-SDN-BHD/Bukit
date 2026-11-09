@@ -598,6 +598,52 @@ public sealed class ConfigLoaderFullCoverageTests : IDisposable
         Assert.Contains("taxonomy.unexpectedField", ex.Message, StringComparison.Ordinal);
     }
 
+    [Theory]
+    [InlineData(null, "title", "asc")]
+    [InlineData("tieBreakField: ID\n  tieBreakOrder: desc", "ID", "desc")]
+    public void Load_TaxonomyTieBreak_ParsesValue(string? value, string expectedField, string expectedOrder)
+    {
+        var yaml = $$"""
+            site:
+              name: myblog
+              title: My Blog
+            content:
+              sources:
+                - type: markdown
+                  markdown:
+                    dir: content
+            taxonomy:
+              pageSize: 10
+            {{(value is null ? "" : "  " + value)}}
+            """;
+        var config = ConfigLoader.Load(WriteTempYaml(yaml));
+
+        Assert.Equal(expectedField, config.Taxonomy.TieBreakField);
+        Assert.Equal(expectedOrder, config.Taxonomy.TieBreakOrder);
+    }
+
+    [Fact]
+    public void Load_TaxonomyTieBreak_InvalidValue_Throws()
+    {
+        var yaml = """
+            site:
+              name: myblog
+              title: My Blog
+            content:
+              sources:
+                - type: markdown
+                  markdown:
+                    dir: content
+            taxonomy:
+              tieBreakField: ID
+              tieBreakOrder: down
+            """;
+        var config = ConfigLoader.Load(WriteTempYaml(yaml));
+        var ex = Assert.Throws<ConfigException>(() => ConfigValidator.Validate(config));
+
+        Assert.Contains("taxonomy.tieBreakOrder must be asc|desc", ex.Message, StringComparison.Ordinal);
+    }
+
     [Fact]
     public void Load_TaxonomyItemFields_ParsesValues()
     {

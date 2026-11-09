@@ -1948,6 +1948,8 @@
         "public System.String! EmptyTerms { get; init; }",
         "public System.String! OutputMode { get; init; }",
         "public System.String! PinField { get; init; }",
+        "public System.String! TieBreakField { get; init; }",
+        "public System.String! TieBreakOrder { get; init; }",
         "public System.String? PinOrderField { get; init; }",
         "public static System.Boolean op_Equality(Bukit.Config.TaxonomyConfig? left, Bukit.Config.TaxonomyConfig? right)",
         "public static System.Boolean op_Inequality(Bukit.Config.TaxonomyConfig? left, Bukit.Config.TaxonomyConfig? right)",

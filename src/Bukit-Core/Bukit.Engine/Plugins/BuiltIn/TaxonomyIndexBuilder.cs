@@ -58,6 +58,7 @@ internal static class TaxonomyIndexBuilder
         TaxonomyPlugin.BuildIndexCountForTestsScope.Value++;
         var terms = new Dictionary<string, TaxonomyTerm>(StringComparer.OrdinalIgnoreCase);
         var decodedWarned = new HashSet<string>(StringComparer.Ordinal);
+        var tieBreak = TaxonomySortHelper.ResolveTieBreak(config);
         var recordsById = contentGraph.Records
             .GroupBy(x => x.Identity.Id, StringComparer.OrdinalIgnoreCase)
             .ToDictionary(x => x.Key, x => x.First(), StringComparer.OrdinalIgnoreCase);
@@ -84,6 +85,8 @@ internal static class TaxonomyIndexBuilder
             {
                 isPinned = true;
             }
+
+            var tieBreakValue = tieBreak is null ? null : TaxonomySortHelper.ReadTieBreakValue(item, route.Url, tieBreak.Field);
             foreach (var raw in values)
             {
                 var display = TaxonomyTermValueNormalizer.Normalize(raw, out var decoded);
@@ -108,13 +111,14 @@ internal static class TaxonomyIndexBuilder
                     terms[slug] = term;
                 }
 
-                term.Pages.Add(new TaxonomyPage(item.Id, item.Title, route.Url, item.PublishAt, summary, extra, isPinned, pinOrder));
+                term.Pages.Add(new TaxonomyPage(item.Id, item.Title, route.Url, item.PublishAt, summary, extra, isPinned, pinOrder, tieBreakValue));
             }
         }
 
+        var direction = tieBreak is null ? 0 : tieBreak.Descending ? -1 : 1;
         foreach (var term in terms.Values)
         {
-            term.Pages.Sort(TaxonomySortHelper.ComparePages);
+            term.Pages.Sort((a, b) => TaxonomySortHelper.ComparePages(a, b, direction));
         }
 
         return terms;

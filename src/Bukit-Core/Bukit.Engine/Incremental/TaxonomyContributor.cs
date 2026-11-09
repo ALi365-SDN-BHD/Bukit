@@ -17,6 +17,12 @@ internal sealed class TaxonomyContributor : IRenderDependencyContributor
             // Only hashed when set, so the default keeps existing incremental caches valid.
             writer.AppendLabeledCanonicalValue("taxonomy.emptyTerms", taxonomy.EmptyTerms);
         }
+
+        if (Plugins.BuiltIn.TaxonomySortHelper.ResolveTieBreak(taxonomy) is { } tieBreak)
+        {
+            writer.AppendLabeledCanonicalValue("taxonomy.tieBreakField", tieBreak.Field);
+            writer.AppendLabeledCanonicalValue("taxonomy.tieBreakOrder", tieBreak.Descending ? "desc" : "asc");
+        }
         writer.AppendLabeledCanonicalValue(
             "taxonomy.itemFields",
             taxonomy.ItemFields?.OrderBy(x => x, StringComparer.Ordinal).ToList());

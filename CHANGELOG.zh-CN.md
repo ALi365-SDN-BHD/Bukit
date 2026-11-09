@@ -4,6 +4,7 @@ Bukit 所有重要变更都将记录在此文件中。
 
 ## [Unreleased]
 
+- **分类页同时间排序**：新增 `taxonomy.tieBreakField`（`title`、`url` 或任意内容字段，如 `ID`）和 `taxonomy.tieBreakOrder`（`asc` | `desc`）。发布时间相同的文章在分页前按这个字段排序，从 WordPress 迁移的站点跨页也能保持旧站的 ID 顺序。数字按数值比较，没有该字段的文章排在后面。默认 `title`，输出和增量缓存都不变。
 - **大页面输出不再被截断**：模板不再使用 Scriban 默认的 1 MiB 字符串上限。在 `include` 里这个上限实际只有约 52.4 万字符，超出后页面其余部分全部变空。ItemList JSON-LD 最多列 100 条，超出时给出 `numberOfItems` 总数，关了分页的列表页也不会过大。页面有 `<html>` 却没有 `</html>` 时，审计报 `render.output_truncated`，不再报 `seo.document_title_missing`。
 - **面包屑首页与分类上级**：新增 `site.seo.schema.breadcrumbHome`，开启后 BreadcrumbList JSON-LD 以首页开头；新增 `site.seo.schema.breadcrumbParent`（填分类法类型，如 `categories`），内容页会以所属的第一个分类页作为上级，`/2596/` 这类扁平网址也能得到“首页 › 分类 › 文章”。分类法类型不存在时配置校验报错；增量构建时，面包屑任一级的名称或网址变化都会重新渲染该页。两项默认关闭，不配置时输出和增量缓存都不变。
 - **SEO 默认作者**：新增 `site.seo.defaultAuthor` 和 `site.seo.defaultAuthorType`（默认 `Person`，可设为 `Organization`）。页面没有作者关联、`author` 字段和 GEO 作者时，文章 JSON-LD 的作者使用这个值。不配置时，输出和增量缓存都不变。

@@ -334,4 +334,4 @@ internal sealed class TaxonomyTerm
     public List<TaxonomyPage> Pages { get; init; } = new();
 }
 
-internal sealed record TaxonomyPage(string Id, string Title, string Url, DateTimeOffset PublishAt, string? Summary, IReadOnlyDictionary<string, object>? Extra, bool IsPinned, int? PinOrder);
+internal sealed record TaxonomyPage(string Id, string Title, string Url, DateTimeOffset PublishAt, string? Summary, IReadOnlyDictionary<string, object>? Extra, bool IsPinned, int? PinOrder, string? TieBreakValue = null);

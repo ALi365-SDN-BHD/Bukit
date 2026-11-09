@@ -501,6 +501,8 @@ with `--clean` after replacing images.
 | `taxonomy.pinFieldBySource` | none | Source-specific pin field map. |
 | `taxonomy.pinOrderFieldBySource` | none | Source-specific pin order field map. |
 | `taxonomy.emptyTerms` | `render` | Term pages with no content: `render` emits them as before, `noindex` emits them with robots noindex and keeps them out of the sitemap, `skip` emits none (a hierarchical parent with child terms is kept). |
+| `taxonomy.tieBreakField` | `title` | Orders term-page entries with the same publish time (after pinned entries): `title`, `url`, or any content field such as a numeric `ID`. Numbers compare by value; text compares digit runs numerically (`SR-999` before `SR-1000`). Entries without the field come last. This decides which page each entry lands on. |
+| `taxonomy.tieBreakOrder` | `asc` | Direction for `tieBreakField`: `asc` or `desc`. |
 | `taxonomy.kinds[].key` | required | Source field key. |
 | `taxonomy.kinds[].kind` | same as `key` | Public taxonomy kind. |
 | `taxonomy.kinds[].title` | none | Index title. |

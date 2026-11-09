@@ -177,6 +177,42 @@ public sealed class TaxonomyPinningTests
     }
 
     [Fact]
+    public void TieBreakField_SameDate_OrdersByFieldValueAcrossPages()
+    {
+        var sameDay = new DateTimeOffset(2024, 01, 01, 0, 0, 0, TimeSpan.Zero);
+        ContentDocument Post(string slug, string title, double id) => ContentDocument.Create(
+            id: "s1:" + slug,
+            title: title,
+            slug: slug,
+            publishAt: sameDay,
+            contentHtml: string.Empty,
+            fields: new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["categories"] = new ContentField("list", new List<object> { "Cat One" }),
+                ["ID"] = new ContentField("number", id)
+            });
+        var routed = new List<(ContentDocument Item, RouteInfo Route)>
+        {
+            (Post("a", "Alpha", 999), new RouteInfo("/a/", "a/index.html", "pages/page.html")),
+            (Post("b", "Bravo", 2596), new RouteInfo("/b/", "b/index.html", "pages/page.html")),
+            (Post("c", "Charlie", 1000), new RouteInfo("/c/", "c/index.html", "pages/page.html"))
+        };
+        var (ctx, config) = CreateContext(
+            CreateTaxonomyLayoutsDir(),
+            routed,
+            new TaxonomyConfig { TieBreakField = "ID", TieBreakOrder = "desc", PageSize = 2 });
+
+        var derived = new TaxonomyPlugin(config).DerivePages(ctx);
+
+        string[] Titles(string url) => Assert.IsType<List<object>>(
+                Assert.Single(derived, x => x.Route.Url == url).Document.CustomFields!["items"].Value)
+            .Select(x => (string)Assert.IsType<Dictionary<string, object>>(x)["title"])
+            .ToArray();
+        Assert.Equal(new[] { "Bravo", "Charlie" }, Titles("/categories/cat-one/"));
+        Assert.Equal(new[] { "Alpha" }, Titles("/categories/cat-one/page/2/"));
+    }
+
+    [Fact]
     public void GetOrBuildIndex_SameContextAndDifferentTaxonomyConfig_RebuildsSorting()
     {
         var first = ContentDocument.Create(

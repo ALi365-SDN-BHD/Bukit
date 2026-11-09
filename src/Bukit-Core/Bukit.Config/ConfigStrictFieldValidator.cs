@@ -22,7 +22,7 @@ internal static class ConfigStrictFieldValidator
         "name", "layouts", "assets", "static", "staticTemplate", "params", "shortcodes",
         "components", "scss", "images", "componentValidation");
     private static readonly HashSet<string> TaxonomyKeys = Set(
-        "kinds", "outputMode", "itemFields", "pageSize", "indexEnabled", "pinField", "pinOrderField", "emptyTerms",
+        "kinds", "outputMode", "itemFields", "pageSize", "indexEnabled", "pinField", "pinOrderField", "emptyTerms", "tieBreakField", "tieBreakOrder",
         "pinFieldBySource", "pinOrderFieldBySource");
     private static readonly HashSet<string> LoggingKeys = Set("level");
     private static readonly HashSet<string> DeployKeys = Set("provider", "branch", "message", "repo", "cname", "keepHistory");

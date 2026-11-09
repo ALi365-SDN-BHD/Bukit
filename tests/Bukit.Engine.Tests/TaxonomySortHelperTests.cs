@@ -71,6 +71,69 @@ public sealed class TaxonomySortHelperTests
         Assert.True(TaxonomySortHelper.ComparePages(a, b) < 0);
     }
 
+    private static TaxonomyPage WithValue(string url, string? value, DateTimeOffset? publishAt = null, bool pinned = false)
+        => MakePage(url, url, publishAt, pinned) with { TieBreakValue = value };
+
+    [Fact]
+    public void ComparePages_TieBreakDesc_SameDate_NumbersCompareByValue()
+    {
+        var pages = new List<TaxonomyPage> { WithValue("/a/", "999"), WithValue("/b/", "1000"), WithValue("/c/", "2596") };
+
+        pages.Sort((x, y) => TaxonomySortHelper.ComparePages(x, y, -1));
+
+        Assert.Equal(new[] { "/c/", "/b/", "/a/" }, pages.Select(p => p.Url));
+    }
+
+    [Fact]
+    public void ComparePages_TieBreakAsc_PrefixedIdsCompareNaturally()
+    {
+        Assert.True(TaxonomySortHelper.ComparePages(WithValue("/z/", "SR-999"), WithValue("/a/", "SR-1000"), 1) < 0);
+    }
+
+    [Fact]
+    public void ComparePages_TieBreak_MissingValueLastInBothDirections()
+    {
+        Assert.True(TaxonomySortHelper.ComparePages(WithValue("/z/", "1"), WithValue("/a/", null), -1) < 0);
+        Assert.True(TaxonomySortHelper.ComparePages(WithValue("/z/", "1"), WithValue("/a/", null), 1) < 0);
+    }
+
+    [Fact]
+    public void ComparePages_TieBreak_DateAndPinStillWin()
+    {
+        var older = WithValue("/old/", "9999", new DateTimeOffset(2023, 1, 1, 0, 0, 0, TimeSpan.Zero));
+        var newer = WithValue("/new/", "1", new DateTimeOffset(2024, 1, 1, 0, 0, 0, TimeSpan.Zero));
+        var pinned = WithValue("/pin/", "2", new DateTimeOffset(2020, 1, 1, 0, 0, 0, TimeSpan.Zero), pinned: true);
+
+        Assert.True(TaxonomySortHelper.ComparePages(newer, older, -1) < 0);
+        Assert.True(TaxonomySortHelper.ComparePages(pinned, newer, -1) < 0);
+    }
+
+    [Fact]
+    public void ComparePages_NoDirection_IgnoresTieBreakValue()
+    {
+        Assert.True(TaxonomySortHelper.ComparePages(WithValue("/a/", "1"), WithValue("/b/", "2"), 0) < 0);
+        Assert.True(TaxonomySortHelper.ComparePages(MakePage("Alpha", "/2/"), MakePage("Bravo", "/1/") with { TieBreakValue = "9" }, 0) < 0);
+    }
+
+    [Theory]
+    [InlineData(null, null, false)]
+    [InlineData("title", "desc", false)]
+    [InlineData("ID", "desc", true)]
+    [InlineData("url", null, true)]
+    public void ResolveTieBreak_MapsConfig(string? field, string? order, bool enabled)
+    {
+        var config = new Bukit.Config.TaxonomyConfig { TieBreakField = field!, TieBreakOrder = order! };
+
+        var result = TaxonomySortHelper.ResolveTieBreak(config);
+
+        Assert.Equal(enabled, result is not null);
+        if (result is not null)
+        {
+            Assert.Equal(field, result.Field);
+            Assert.Equal(order == "desc", result.Descending);
+        }
+    }
+
     // ── ComparePinOrder ─────────────────────────────────────────────
 
     [Fact]
