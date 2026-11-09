@@ -30,9 +30,6 @@ public static class RoutePathBuilder
         return trimmed;
     }
 
-    private static readonly System.Text.RegularExpressions.Regex PercentEscape =
-        new("%[0-9A-Fa-f]{2}", System.Text.RegularExpressions.RegexOptions.CultureInvariant);
-
     private static readonly UTF8Encoding StrictUtf8 = new(encoderShouldEmitUTF8Identifier: false, throwOnInvalidBytes: true);
 
     // Decodes a URL field that was pasted already percent-encoded (e.g. /%e8%81%94/ -> /联/),
@@ -40,7 +37,7 @@ public static class RoutePathBuilder
     // every escape forms valid UTF-8 and none of them encodes a path or control character.
     public static string DecodePercentEncodedUrl(string url)
     {
-        if (string.IsNullOrEmpty(url) || !PercentEscape.IsMatch(url))
+        if (string.IsNullOrEmpty(url) || !url.Contains('%'))
         {
             return url;
         }
@@ -76,7 +73,7 @@ public static class RoutePathBuilder
 
         try
         {
-            return StrictUtf8.GetString(bytes.ToArray());
+            return StrictUtf8.GetString([.. bytes]);
         }
         catch (DecoderFallbackException)
         {
