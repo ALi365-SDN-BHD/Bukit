@@ -32,6 +32,7 @@ internal static class VariantRouteStage
             context.Documents,
             templateResolver);
         routeGenerationStopwatch.Stop();
+        WarnDecodedRouteUrls(routeResult.RoutedDocuments, logger);
         metrics.AddDuration("routeGeneration", routeGenerationStopwatch.ElapsedMilliseconds);
 
         var pluginContext = new BuildContext
@@ -94,5 +95,23 @@ internal static class VariantRouteStage
             staticHtmlRoutes,
             staticEntries,
             pluginContext);
+    }
+
+    private static void WarnDecodedRouteUrls(IReadOnlyList<RoutedContentDocument> routedDocuments, ILogger logger)
+    {
+        foreach (var routed in routedDocuments)
+        {
+            var authored = RouteGenerator.GetAuthoredRouteUrl(routed.Document);
+            if (string.IsNullOrWhiteSpace(authored) || !authored.Contains('%', StringComparison.Ordinal))
+            {
+                continue;
+            }
+
+            var decoded = RoutePathBuilder.DecodePercentEncodedUrl(authored.Trim());
+            if (!string.Equals(decoded, authored.Trim(), StringComparison.Ordinal))
+            {
+                logger.Warn($"event=route.url.decoded id={routed.Document.Id} raw=\"{authored.Trim()}\" normalized=\"{decoded}\" hint=fix_url_in_source");
+            }
+        }
     }
 }

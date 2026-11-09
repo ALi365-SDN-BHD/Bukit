@@ -37,7 +37,7 @@ public static class RoutePathBuilder
     // every escape forms valid UTF-8 and none of them encodes a path or control character.
     public static string DecodePercentEncodedUrl(string url)
     {
-        if (string.IsNullOrEmpty(url) || !url.Contains('%'))
+        if (string.IsNullOrEmpty(url) || !url.Contains('%', StringComparison.Ordinal))
         {
             return url;
         }
@@ -71,14 +71,34 @@ public static class RoutePathBuilder
             }
         }
 
+        string decoded;
         try
         {
-            return StrictUtf8.GetString([.. bytes]);
+            decoded = StrictUtf8.GetString([.. bytes]);
         }
         catch (DecoderFallbackException)
         {
             return url;
         }
+
+        // Invisible or look-alike characters (zero-width, bidi overrides, NBSP...) would make
+        // folder names that look identical but differ, so such URLs stay encoded.
+        return decoded.Any(IsInvisibleOrSpecialSpace) ? url : decoded;
+    }
+
+    private static bool IsInvisibleOrSpecialSpace(char ch)
+    {
+        if (ch == ' ')
+        {
+            return false;
+        }
+
+        var category = char.GetUnicodeCategory(ch);
+        return char.IsWhiteSpace(ch) ||
+            category is System.Globalization.UnicodeCategory.Format
+                or System.Globalization.UnicodeCategory.Control
+                or System.Globalization.UnicodeCategory.PrivateUse
+                or System.Globalization.UnicodeCategory.OtherNotAssigned;
     }
 
     public static string NormalizeListRoute(string route)

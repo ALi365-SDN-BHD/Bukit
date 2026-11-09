@@ -55,6 +55,13 @@ public static class RouteGenerator
         return (ValidateRoute(baseRoute, source), baseSource);
     }
 
+    // Returns the URL field exactly as authored, for reporting URLs that routing decoded.
+    public static string GetAuthoredRouteUrl(ContentDocument document)
+    {
+        TryGetPartialRouteFields(ToSource(document).Fields, out var url, out _, out _);
+        return url;
+    }
+
     private static void RequireCollection(RouteContentSource source)
     {
         var collection = ContentFieldReader.GetText(source.Fields, "collection");

@@ -37,7 +37,13 @@ internal sealed class AliasPlugin : IBukitPlugin, IDerivePagesPlugin
 
             foreach (var alias in aliases)
             {
-                var aliasUrl = alias.StartsWith('/') ? alias : "/" + alias;
+                var decodedAlias = RoutePathBuilder.DecodePercentEncodedUrl(alias);
+                if (!string.Equals(decodedAlias, alias, StringComparison.Ordinal))
+                {
+                    context.Logger.Warn($"event=route.alias.decoded id={document.Id} raw=\"{alias}\" normalized=\"{decodedAlias}\" hint=fix_alias_in_source");
+                }
+
+                var aliasUrl = decodedAlias.StartsWith('/') ? decodedAlias : "/" + decodedAlias;
                 if (!aliasUrl.EndsWith('/'))
                 {
                     aliasUrl += "/";

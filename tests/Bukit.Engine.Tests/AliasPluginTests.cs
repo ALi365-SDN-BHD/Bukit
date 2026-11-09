@@ -59,6 +59,25 @@ public sealed class AliasPluginTests
     }
 
     [Fact]
+    public void DerivePages_PercentEncodedAlias_IsDecoded()
+    {
+        var fieldValues = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["aliases"] = "/%e8%81%94%e7%b3%bb/"
+        };
+        var (ctx, config) = CreateContext(new List<(ContentDocument, RouteInfo)>
+        {
+            (Item("p1", "Post", "post", fieldValues), Route("/post/"))
+        });
+
+        var derived = new AliasPlugin(config).DerivePages(ctx);
+
+        Assert.Single(derived);
+        Assert.Equal("/联系/", derived[0].Route.Url);
+        Assert.Equal("联系/index.html", derived[0].Route.OutputPath);
+    }
+
+    [Fact]
     public void DerivePages_NoAliases_ReturnsEmpty()
     {
         var (ctx, config) = CreateContext(new List<(ContentDocument, RouteInfo)>

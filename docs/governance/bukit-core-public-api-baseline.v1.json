@@ -7309,6 +7309,7 @@
       "publicMembers": [
         "public static Bukit.Engine.Abstractions.Routing.RouteInfo! Generate(Bukit.Engine.Abstractions.Content.ContentDocument! document, System.String! outputPathEncoding = \u0022none\u0022, System.Collections.Generic.IReadOnlyDictionary\u003CSystem.String!, System.String!\u003E? permalinks = null, System.Collections.Generic.IReadOnlyDictionary\u003CSystem.String!, Bukit.Routing.RouteGenerator.CollectionRouteRule!\u003E? collections = null)",
         "public static System.String! ExpandPermalinkPattern(System.String! pattern, Bukit.Engine.Abstractions.Content.ContentDocument! document)",
+        "public static System.String! GetAuthoredRouteUrl(Bukit.Engine.Abstractions.Content.ContentDocument! document)",
         "public static System.ValueTuple\u003CBukit.Engine.Abstractions.Routing.RouteInfo!, Bukit.Routing.RouteGenerator.RouteSource\u003E GenerateWithSource(Bukit.Engine.Abstractions.Content.ContentDocument! document, System.String! outputPathEncoding = \u0022none\u0022, System.Collections.Generic.IReadOnlyDictionary\u003CSystem.String!, System.String!\u003E? permalinks = null, System.Collections.Generic.IReadOnlyDictionary\u003CSystem.String!, Bukit.Routing.RouteGenerator.CollectionRouteRule!\u003E? collections = null)"
       ],
       "protectedMembers": []
@@ -7363,6 +7364,7 @@
       "signature": "public static class Bukit.Routing.RoutePathBuilder",
       "publicMembers": [
         "public static System.String! BuildOutputPathFromUrl(System.String! url, System.String! outputPathEncoding = \u0022none\u0022)",
+        "public static System.String! DecodePercentEncodedUrl(System.String! url)",
         "public static System.String! NormalizeListRoute(System.String! route)",
         "public static System.String! NormalizeOutputPath(System.String! outputPath, System.String! outputPathEncoding = \u0022none\u0022)",
         "public static System.String! NormalizeUrl(System.String! url)"

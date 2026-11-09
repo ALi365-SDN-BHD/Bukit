@@ -19,6 +19,11 @@ public sealed class RoutePathBuilderTests
     [InlineData("/%0A/", "/%0A/")]
     [InlineData("/%ff%fe/", "/%ff%fe/")]
     [InlineData("/😀/%e8%81%94/", "/😀/联/")]
+    [InlineData("/a%E2%80%AEb/", "/a%E2%80%AEb/")]
+    [InlineData("/a%E2%80%8Bb/", "/a%E2%80%8Bb/")]
+    [InlineData("/a%C2%A0b/", "/a%C2%A0b/")]
+    [InlineData("/a%E3%80%80b/", "/a%E3%80%80b/")]
+    [InlineData("/a%EF%BB%BFb/", "/a%EF%BB%BFb/")]
     public void DecodePercentEncodedUrl_DecodesOnlySafeUtf8Escapes(string input, string expected)
     {
         Assert.Equal(expected, RoutePathBuilder.DecodePercentEncodedUrl(input));
