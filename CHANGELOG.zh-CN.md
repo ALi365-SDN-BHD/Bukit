@@ -4,6 +4,8 @@ Bukit 所有重要变更都将记录在此文件中。
 
 ## [Unreleased]
 
+## [2.0.11] - 2026-11-09
+
 - **全站同时间排序**：新增 `content.ordering.tieBreakField`（`url`、`title` 或任意内容字段，如 `ID`）和 `content.ordering.tieBreakOrder`（`asc` | `desc`）。发布时间相同的文章在所有列表里按这个字段排序：首页 `pages`、集合列表和分页、归档、全站和集合 feed（RSS、Atom、JSON Feed，以及审计预测的 feed 范围）、`llms.txt`。`taxonomy.tieBreakField` 不设置时，分类页也用它，同一个站点的首页和分类页不再出现同一批文章顺序不同。`title` 在所有列表里都按文章标题、不区分大小写比较，和分类页的内置顺序相同：`title` `asc` 写不写，分类页和增量缓存都一样；`title` 配 `desc` 是它的完全反转（以前会退回正序）。整数按精确值比较，超过 15 位的 ID 也不会排错。归档月份页中发布时间相同的文章和集合列表顺序一致。只写 `taxonomy.tieBreakOrder` 时，会作用于沿用的字段（或标题），不再被忽略。分类 RSS 中发布时间相同的文章改为和分类页一致（排序字段、标题、网址），不再只按网址排。不配置时，其他输出和增量缓存都不变。
 - **空 RSS feed**：没有文章的 feed 不再把 `lastBuildDate` 写成 `Thu, 01 Jan 1970`，这个可选字段直接省略。Atom 仍保留必需的 `<updated>`。
 - **分类页同时间排序**：新增 `taxonomy.tieBreakField`（`title`、`url` 或任意内容字段，如 `ID`）和 `taxonomy.tieBreakOrder`（`asc` | `desc`）。发布时间相同的文章在分页前按这个字段排序，从 WordPress 迁移的站点跨页也能保持旧站的 ID 顺序。数字按数值比较，没有该字段的文章排在后面，分类 RSS 也按同样规则排列同一时间的文章。不设置或写 `title` `asc` 时保持内置的标题顺序，输出和增量缓存都不变。
