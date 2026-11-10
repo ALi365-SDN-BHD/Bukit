@@ -147,9 +147,9 @@ internal static class PageRenderDispatcher
 
                         if (incrementalEnabled)
                         {
+                            // "metadata_changed" covers record and custom-field changes; "content_changed" is the body alone.
                             var reason = !hasExisting ? "new_page" : !outputExists ? "output_missing"
                                 : existing!.TemplateHash != templateHash ? "template_changed"
-                                // Record and custom-field changes; "content_changed" below is the body alone.
                                 : existing.MetadataHash != mh ? "metadata_changed"
                                 : existing.RouteHash != rh ? "route_changed"
                                 : existing.RenderDependencyHash != entryRenderDependencyHash ? RenderReadTracking.ChangeReason(dependencySnapshot, existing, routeBaseHash)
