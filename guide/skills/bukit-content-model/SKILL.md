@@ -76,7 +76,7 @@ Front matter `image` / `cover` need `image_alt` / `cover_alt`, or the default
 exported file-type field whose key contains `image`, `cover`, `icon`, or `gallery`
 (Notion file properties): add a text field named `<key>_alt`, for example a Notion
 property `Cover Alt` (key `cover_alt`), and export it with `fieldPolicy.mode: all` or
-`fieldPolicy.allowed`.
+`content.sources[].notion.fieldPolicy.allowed`.
 
 `content.modelSchema` validates content records. It runs even when absent (defaults:
 `requireMediaAlt: true`, `requireRelationTargets: true`, other `require*` false).
@@ -122,7 +122,7 @@ build:
     `targetType`, `targetField`, `targetIdField` (default map key `id`).
 - `modelSchema.media.requireAlt|requireDescription|requireLicense` currently have no
   effect; use the top-level `requireMediaAlt|requireMediaDescription|requireMediaLicense`.
-  `media.allowedKinds` works.
+  `content.modelSchema.media.allowedKinds` works.
 
 ### Front matter read into the model
 

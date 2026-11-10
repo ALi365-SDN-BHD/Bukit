@@ -5,7 +5,7 @@ description: Use when configuring or checking files Bukit generates besides page
 
 # Bukit Built-in Outputs
 
-These outputs are produced by every build. They are controlled by `site.*` settings,
+These outputs are produced by every build. They are controlled by `site` settings,
 not by `site.plugins` toggles: setting `site.plugins.sitemap`, `feed`, `search-index`,
 or `llms-txt` to `false` has no effect.
 
@@ -44,9 +44,9 @@ site:
     mode: split                  # split|merged (i18n root only)
 ```
 
-RSS is always `/rss.xml` at the site root; only Atom and JSON Feed use `feed.path`.
+RSS is always `/rss.xml` at the site root; only Atom and JSON Feed use `site.feed.path`.
 Each collection also gets its own feeds unless `output.rss: false`; set
-`output.feedTitle` / `output.feedDescription` to override `site.title` /
+`site.collections.<name>.output.feedTitle` / `feedDescription` to override `site.title` /
 `site.description`. Multilingual `feed.mode: merged` skips collection feeds.
 Exclude one document with front matter `feedexclude: true`.
 
@@ -75,7 +75,7 @@ site:
     mode: split                 # split|merged|index (i18n)
 ```
 
-`bukit-search.html` is an embeddable fragment, not a route. If `search.route` is set
+`bukit-search.html` is an embeddable fragment, not a route. If `site.search.route` is set
 while `site.seo.schema.searchAction` is on (default), that route must exist and
 `site.url` must be set, or the build fails (exit 2). With `site.seo.enabled: false`
 this check is skipped and no SearchAction is written. Exclude a document with

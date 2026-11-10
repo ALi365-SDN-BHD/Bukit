@@ -57,7 +57,7 @@ the command; error objects are multi-line JSON, see `bukit-cli-reference`). Read
 | Theme CSS or tokens not applied | Never auto-linked | Add `<link>` tags in the layout. |
 | No sitemap, feed, or robots.txt | `site.url` missing; robots off by default | Set `site.url`; `site.seo.robotsTxt.enabled: true`. |
 | `event=robots.content_signal_inactive` / `robots.ai_policy_inactive` | robots.txt not generated or static file wins | Enable robots, set `site.url`, or edit the static file. |
-| `event=route.url.decoded` / `route.alias.decoded` | Percent-encoded URL in front matter | Write the decoded Unicode path in the source. |
+| `event=route.url.decoded` / `event=route.alias.decoded` | Percent-encoded URL in front matter | Write the decoded Unicode path in the source. |
 | `[BKT-0602] ... does not contain .bukit-output-marker` | Output dir holds non-Bukit files | Use an empty dedicated `build.output`; never fake a marker. |
 | `[BKT-0601] Refusing to clean unsafe output directory` | Output is root, home, outside project, `.git`, or symlink | Use `dist` or `public`. |
 | `Asset output collision at '<path>'` (exit 1) | Two sources write one path, or case-only clash | Rename one file. |
@@ -80,7 +80,7 @@ the command; error objects are multi-line JSON, see `bukit-cli-reference`). Read
 | `Build output is not ready for deployment` | No completed build | Run a successful `bukit build` first. |
 | `GITHUB_TOKEN environment variable is required` | Token var unset | Set it or use `--token-env NAME`. |
 | `Non-fast-forward push rejected` | Target branch diverged | `--force` only if overwriting is intended. |
-| Page missing from llms.txt | Invalid `geo.llms` curation | Look for build warnings `geo.llms_field_unknown`, `geo.llms_visibility_invalid`, `geo.llms_tier_invalid`, `geo.llms_priority_invalid` (they fail the build under `strict`; Bukit 2.0.11 and earlier do not log them) and the publish audit warning `publish.llms_missing_route route=<url>`; check that `geo.llms` uses only `visibility`, `tier`, and an integer `priority` (`bukit-geo`). |
+| Page missing from llms.txt | Invalid front matter `geo` → `llms` curation | Look for build warnings `geo.llms_field_unknown`, `geo.llms_visibility_invalid`, `geo.llms_tier_invalid`, `geo.llms_priority_invalid` (they fail the build under `strict`; Bukit 2.0.11 and earlier do not log them) and the publish audit warning `publish.llms_missing_route route=<url>`; check that the `llms` map uses only `visibility`, `tier`, and an integer `priority` (`bukit-geo`). |
 
 ## Reports to inspect
 

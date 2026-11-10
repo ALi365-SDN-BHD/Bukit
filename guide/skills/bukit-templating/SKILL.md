@@ -17,7 +17,7 @@ Files are found in this order: `<siteRoot>/layouts/` (override, if it exists), t
 - Content page: route template (front matter override or collection `template`), else
   the first theme.yaml `templates` entry whose `accepts` (`type`, `collection`,
   `kind: detail`) matches, else an error.
-- Home: theme.yaml `templates.home` (must be `required: true`), else `pages/index.html`.
+- Home: the theme.yaml `templates` entry `home` (must be `required: true`), else `pages/index.html`.
 - Other kinds: `list`, `taxonomy_index`, `taxonomy_term`, `pagination`, `archive`,
   `search`.
 
@@ -56,7 +56,7 @@ string silently; `bukit doctor` reports it. In SEO `inject` mode Core rewrites t
 
 ## Model
 
-Keys are snake_case. User data keys (`page.fields`, `site.data`, `site.params`) keep
+Keys are snake_case. User data keys (`page.fields`, `site.data`, `site.params.<key>`) keep
 the author's spelling and are case-sensitive. Missing members return null (no error).
 Treat `site`, `pages`, and `items` as read-only: copy a value into a local variable
 before changing it, because writing to the shared model can fail the render.
@@ -67,7 +67,7 @@ before changing it, because writing to the shared model can fail the render.
 | `page`, `pages` | all page templates (`pages` = routed pages; on taxonomy term pages `pages` is the term's entries, same as `items`) |
 | `items` | home, collection, filtered, taxonomy, pagination lists |
 | `pagination` | paginated lists (absent otherwise; test with `if pagination`) |
-| `collection` | collection and filtered lists (`collection.key`); also set on taxonomy term pages with key `page`, so test `taxonomy` first |
+| `collection` | collection and filtered lists (`collection` with its `key`); also set on taxonomy term pages with key `page`, so test `taxonomy` first |
 | `filter` | filtered lists (`field`, `operator`, `value`, `values`) |
 | `taxonomy` | taxonomy term pages (`kind`, `term`, `slug`, `url`, `count`, ...) |
 | `seo` | same as `page.seo` |
@@ -139,18 +139,18 @@ There is no automatic HTML escaping. Escape text with `| html.escape`;
 
 ## Bukit functions
 
-Besides Scriban built-ins (`string.*`, `array.*`, `date.*`, `math.*`, `html.*`):
+Besides Scriban built-ins (the `string`, `array`, `date`, `math`, and `html` modules):
 
 | Function | Notes |
 |---|---|
 | `util.format_date v "yyyy-MM-dd"` | .NET format strings (use `date.to_string "%Y-%m-%d"` for strftime). |
-| `util.truncate v 100`, `util.titleize`, `util.slugify` | |
+| `util.truncate v 100`, `util.titleize v`, `util.slugify v` | |
 | `util.term_slug` | Same slug as taxonomy URLs. |
 | `util.json_string` | JSON string with quotes; does not escape `</script>`. |
 | `comp.render "name" ...` | Theme components (`bukit-theme`). |
 | `render_section {type: "hero", ...}` | Theme sections. |
 | `shortcode "name" "a1" ...` | Theme shortcode, up to four arguments; only when `theme.shortcodes` is set (`bukit-theme`). |
-| `image.srcset`, `image.img` | Produce `?w=N` URLs that no build step serves; prefer plain `<img>` plus image processing. |
+| `image` functions `srcset` and `img` | Produce `?w=N` URLs that no build step serves; prefer plain `<img>` plus image processing. |
 
 There is no translation helper, `markdownify`, `relative_url`, or asset fingerprinting.
 

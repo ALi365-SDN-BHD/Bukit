@@ -10,7 +10,7 @@ need to include tracking code; do not hand-write provider snippets in templates.
 
 ## Configuration
 
-```yaml
+```text
 site:
   analytics:
     enabled: true            # default true
@@ -33,7 +33,7 @@ site:
 |---|---|---|
 | `google-analytics` | `measurementId` | `G-` followed by uppercase letters/digits |
 | `google-tag-manager` | `containerId` | `GTM-` followed by uppercase letters/digits |
-| `plausible` | `domain`, `snippetMode`, `scriptUrl` | DNS host; on `plausible.io`, site-specific needs `/js/pa-<id>.js` and legacy must not use it |
+| `plausible` | `domain`, `snippetMode`, `scriptUrl` | DNS host; on plausible.io, site-specific needs `/js/pa-<id>.js` and legacy must not use it |
 | `umami` | `websiteId`, `scriptUrl` | UUID |
 
 Every `scriptUrl` must be an absolute HTTPS `.js` URL without credentials, fragment, or

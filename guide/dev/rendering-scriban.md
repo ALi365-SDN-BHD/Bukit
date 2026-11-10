@@ -75,7 +75,7 @@ Analytics. Analytics remains active when SEO rendering is disabled or uses
 Incremental rendering compares content, route, template, SEO, Analytics, and
 model dependency hashes. Shared data collections are tracked per route: the
 renderer reports the templates each render used to `RenderReadRecorder`, and
-`ScribanTemplateReadAnalyzer` maps their `site.*` and `pages` references to
+`ScribanTemplateReadAnalyzer` maps their `site` and `pages` references to
 collection keys (see [incremental-build.md](incremental-build.md)). Analytics dependencies include both switches,
 execution mode, provider order, provider type, unique key, and normalized
 options, so an output-affecting config change forces re-rendering. The render

@@ -88,8 +88,8 @@ the rest are sorted. Path matching is case-sensitive. Results are matched, unmat
   (≤ impressions), `averagePosition`; `google-analytics-4` rows need `sessions`,
   `engagedSessions` (≤ sessions), `keyEvents`. Do not mix metric sets.
 - All files must share the exact same `window`.
-- Findings: `seo.insights.snippet_mismatch`, `seo.insights.landing_quality`,
-  `seo.insights.discoverability`, `seo.insights.position_opportunity`. Snippet and
+- Findings (codes prefixed `seo.insights.`): `snippet_mismatch`, `landing_quality`,
+  `discoverability`, `position_opportunity`. Snippet and
   discoverability need both GSC and GA4 data for the route.
 
 ## Shared rules for the three advanced inputs

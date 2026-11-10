@@ -104,7 +104,7 @@ Variant failures fail the build under `site.pluginFailMode: strict`.
 
 - `{{ comp.render "card" item }}` with theme.yaml components (object argument), or
   `{{ comp.render "name" "a" "b" }}` with site.yaml `theme.components` (positional props).
-  If theme.yaml declares any `components`, `comp.render` sees only those and every
+  If theme.yaml declares any `components`, `comp.render "name"` sees only those and every
   site.yaml component becomes unreachable, so use one source per site. theme.yaml
   components are not inherited from a parent theme.
 - theme.yaml component and section templates resolve under `<themeRoot>/layouts/`. For

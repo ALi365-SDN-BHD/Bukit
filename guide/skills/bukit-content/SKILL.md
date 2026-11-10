@@ -146,7 +146,7 @@ value_type: email      # required: text|multiline|email|phone|url
 ---
 ```
 
-`scope` and `key` must match `^[a-z][a-z0-9_]*$`, `scope.key` pairs must be unique,
+`scope` and `key` must match `^[a-z][a-z0-9_]*$`, each `scope` + `key` pair must be unique,
 and `email`/`url` values are validated. Template access:
 `{{ site.data_index.settings.contact.email }}`.
 

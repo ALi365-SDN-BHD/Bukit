@@ -377,7 +377,7 @@ downloaded again:
 | AWS SigV4 | `X-Amz-Signature` | `X-Amz-Algorithm`, `X-Amz-Credential`, `X-Amz-Date`, `X-Amz-Expires`, `X-Amz-SignedHeaders`, `X-Amz-Signature`, `X-Amz-Security-Token` |
 | Google Cloud Storage V4 | `X-Goog-Signature` | `X-Goog-Algorithm`, `X-Goog-Credential`, `X-Goog-Date`, `X-Goog-Expires`, `X-Goog-SignedHeaders`, `X-Goog-Signature` |
 | AWS SigV2, GCS V2, CloudFront | `Signature` together with `AWSAccessKeyId`, `GoogleAccessId` or `Key-Pair-Id` | `Signature`, `Expires`, `Policy`, `AWSAccessKeyId`, `GoogleAccessId`, `Key-Pair-Id` |
-| Notion file proxy | host `notion.so`, `*.notion.so` or `*.notion.site` | `expirationTimestamp`, `signature` |
+| Notion file proxy | host notion.so, *.notion.so or *.notion.site | `expirationTimestamp`, `signature` |
 
 Parameter names match case-insensitively. All other parameters, such as S3
 `versionId` or image sizes, still select different files, and the download

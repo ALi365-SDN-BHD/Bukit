@@ -47,7 +47,7 @@ Other collection keys:
   noindex-follow}`; declaring both fails.
 - `schemaFailMode: off|warn|strict` overrides `build.schemaFailMode` for documents in
   this collection (`bukit-content-model`).
-- `output.rss` (default `true`), `output.feedTitle` / `output.feedDescription`
+- `output.rss: true` (the default), `output.feedTitle:` / `output.feedDescription:`
   (default `site.title` / `site.description`) configure the collection feed
   (`bukit-outputs`).
 
@@ -94,7 +94,7 @@ slugs, and list routes are not decoded.
 
 ## Home page
 
-`/` is always the home list route, rendered with theme.yaml `templates.home` or
+`/` is always the home list route, rendered with the theme.yaml `templates` entry `home` or
 `pages/index.html`. `items` holds all routed content, newest first, unpaginated. A
 content page with `url: /` conflicts with it.
 
@@ -180,7 +180,7 @@ that collection. Requirements and limits:
 - URLs are fixed: `<listRoute>archive/`, `<listRoute>archive/<yyyy>/`,
   `<listRoute>archive/<yyyy>/<MM>/`.
 - The theme needs a template with `accepts.kind: archive`.
-- `output.archiveDetail` (`depth`, `template`, `routePrefix`) passes validation but is
+- `site.collections.<name>.output.archiveDetail` (`depth`, `template`, `routePrefix`) passes validation but is
   ignored by the build today. Do not rely on it.
 
 ## Route conflicts

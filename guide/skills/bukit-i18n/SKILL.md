@@ -40,7 +40,7 @@ collection: page
 ```
 
 - Page language comes only from front matter `language` (Notion:
-  `propertyMap.Language`). No `lang` alias, no `about.en.md` naming, no folder
+  `content.sources[].notion.propertyMap.Language`). No `lang` alias, no `about.en.md` naming, no folder
   inference. Untagged pages go to the default language only.
 - `i18nKey` groups translations for hreflang; pages with the same URL in different
   languages are grouped automatically.
@@ -58,8 +58,8 @@ files (sitemap, feeds, search index, `llms.txt`, `robots.txt`, `agent-manifest.j
 | Setting | `split` | `merged` | `index` |
 |---|---|---|---|
 | `sitemapMode` | per-language sitemaps | one root sitemap with `xhtml:link` alternates; per-language ones suppressed | per-language sitemaps plus a root sitemap index |
-| `feed.mode` | per-language feeds | root feeds only | — |
-| `search.mode` | `/<lang>/search.json` only | adds root `search.json` | adds root `search.index.json` |
+| `site.feed.mode` | per-language feeds | root feeds only | — |
+| `site.search.mode` | `/<lang>/search.json` only | adds root `search.json` | adds root `search.index.json` |
 
 ## hreflang
 

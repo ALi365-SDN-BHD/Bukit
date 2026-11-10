@@ -89,8 +89,8 @@ en`, or those pages silently disappear.
 | `publishDotFiles` | `false` | |
 | `followSymlinks` | `false` | Supported copy paths only; forced off by `--ci`. |
 | `languageJobs` | `1` | Multilingual worker count. |
-| `report.enabled` | `true` | Optional `.bukit/` reports. |
-| `report.securityFailMode` | `auto` | `auto\|off\|warn\|strict`. |
+| `build.report.enabled` | `true` | Optional `.bukit/` reports. |
+| `build.report.securityFailMode` | `auto` | `auto\|off\|warn\|strict`. |
 
 ## Built-in plugin toggles
 
