@@ -5,6 +5,7 @@ Bukit 所有重要变更都将记录在此文件中。
 ## [Unreleased]
 
 - **过期图片链接立即失败**：图片下载被拒绝（HTTP 400、401 或 403），且网址自身的签名已过期（AWS SigV4、Google Cloud Storage V4、AWS SigV2/CloudFront 或 Notion 文件代理）时，不再按 `content.media.maxRetries` 重试，因为过期签名不可能成功。主要加快仍含过期链接的 `readonly` Notion 缓存构建。失败记录、`onFailure` 结果和已保存图片的复用不变，警告增加 `signature=expired`。其他失败照常重试。
+- **共享数据中的签名链接会给出警告**：增量构建时，如果 `site.modules`、`site.data`、`site.data_index`、`site.related_pages` 或 `site.data_files` 里还有已识别签名方案的链接（AWS SigV4、Google Cloud Storage V4、AWS SigV2/CloudFront、Notion 文件代理），Bukit 会输出一条 `event=incremental.signed_links` 警告，列出每个读取键及其链接数。这些链接每次拉取都会变，读取它们的页面每次构建都会重渲染；用 `content.media` 把文件本地化即可避免。哈希与输出不变。
 
 ## [2.0.14] - 2026-11-10
 

@@ -5,6 +5,7 @@ using Bukit.Config;
 using Bukit.Content;
 using Bukit.Engine.Abstractions.Content;
 using Bukit.Engine.Abstractions.Routing;
+using Bukit.Engine.Analytics;
 using Bukit.Engine.Incremental;
 using Bukit.Engine.RouteMetadata;
 using Bukit.Rendering;
@@ -51,6 +52,13 @@ internal static class VariantRenderStage
                 imageSourceFingerprint: imageSourceFingerprint,
                 pagesFingerprint: () => ComputePagesFingerprint(renderAssetPlan.RenderDocuments, routeMetadata))
             : null;
+        if (dependencySnapshot is not null)
+        {
+            SignedLinkDiagnostics.Report(
+                new RenderDependencyContext(context.Config, siteModel, context.Overrides.ExecutionMode, AnalyticsRendererContract.Version),
+                logger);
+        }
+
         var renderDependencyHash = dependencySnapshot?.BaseHash ?? string.Empty;
         renderDependencyHashStopwatch.Stop();
         metrics.AddDuration(

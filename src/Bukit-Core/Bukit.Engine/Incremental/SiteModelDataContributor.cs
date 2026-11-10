@@ -27,11 +27,26 @@ internal sealed class SiteModelDataContributor : IRenderDependencyContributor
     internal static IEnumerable<(string Key, Action<RenderDependencyHashWriter> Write)> EnumerateCollections(
         RenderDependencyContext context)
     {
+        foreach (var (key, label, value, isModule) in EnumerateCollectionValues(context))
+        {
+            yield return isModule
+                ? (key, writer => AppendModule(writer, label, (IReadOnlyList<ModuleInfo>)value!))
+                : (key, writer => writer.AppendLabeledCanonicalValue(label, value));
+        }
+    }
+
+    /// <summary>
+    /// The values behind <see cref="EnumerateCollections"/>: each collection's read key, the
+    /// label it is hashed under (the module key for modules), its value, and whether it is a module list.
+    /// </summary>
+    internal static IEnumerable<(string Key, string Label, object? Value, bool IsModule)> EnumerateCollectionValues(
+        RenderDependencyContext context)
+    {
         var excludedSource = context.Config.Content.RouteMetadata?.Source;
         var siteModel = context.SiteModel;
         foreach (var module in Ordered(siteModel.Modules, excludedSource))
         {
-            yield return (CollectionKey("site.modules.", module.Key), writer => AppendModule(writer, module.Key, module.Value));
+            yield return (CollectionKey("site.modules.", module.Key), module.Key, module.Value, true);
         }
 
         foreach (var entry in Ordered(siteModel.Data, excludedSource))
@@ -46,18 +61,18 @@ internal sealed class SiteModelDataContributor : IRenderDependencyContributor
                 };
                 if (publicAlias is not null)
                 {
-                    yield return ($"site.{publicAlias}", writer => writer.AppendLabeledCanonicalValue($"site.{publicAlias}", entry.Value));
+                    yield return ($"site.{publicAlias}", $"site.{publicAlias}", entry.Value, false);
                 }
 
                 continue;
             }
 
-            yield return (CollectionKey("site.data.", entry.Key), writer => writer.AppendLabeledCanonicalValue($"site.data.{entry.Key}", entry.Value));
+            yield return (CollectionKey("site.data.", entry.Key), $"site.data.{entry.Key}", entry.Value, false);
         }
 
         foreach (var entry in Ordered(siteModel.DataIndex, excludedSource))
         {
-            yield return (CollectionKey("site.data_index.", entry.Key), writer => writer.AppendLabeledCanonicalValue($"site.data_index.{entry.Key}", entry.Value));
+            yield return (CollectionKey("site.data_index.", entry.Key), $"site.data_index.{entry.Key}", entry.Value, false);
         }
     }
 

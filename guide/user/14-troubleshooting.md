@@ -171,6 +171,13 @@ addition:
   plugin counts as reading everything, and so does a custom renderer.
 - With `theme.images` enabled, any image change renders every page again; that
   costs time but leaves nothing stale.
+- A warning `event=incremental.signed_links keys=<key>:<count>` means shared
+  data (`site.modules`, `site.data`, `site.data_index`, `site.related_pages` or
+  `site.data_files`) still holds signed links, such as Notion file URLs that were
+  not downloaded. Their signature changes on every fetch, so every page that
+  reads those keys renders again on every build. Bukit does not skip them,
+  because the skipped page would keep an expired link. Download those files with
+  `content.media` to make the pages reusable.
 - `renderReasons` in `<output>/.bukit/incremental-manifest.json` counts each
   page under the first input that changed: `new_page`, `output_missing`,
   `template_changed`, `metadata_changed` (the page record or custom fields; a

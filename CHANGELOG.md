@@ -5,6 +5,7 @@ All notable changes to Bukit will be documented in this file.
 ## [Unreleased]
 
 - **Expired image links fail fast**: when an image download is refused (HTTP 400, 401 or 403) and the URL's own signature has expired (AWS SigV4, Google Cloud Storage V4, AWS SigV2/CloudFront, or the Notion file proxy), it is no longer retried `content.media.maxRetries` times, since an expired signature can never succeed. This mostly speeds up builds from a `readonly` Notion cache that still holds expired links. The failure, `onFailure` result and reuse of already saved images are unchanged, and the warning gains `signature=expired`. Other failures keep their retries.
+- **Warning for signed links in shared data**: with incremental builds, Bukit now logs one `event=incremental.signed_links` warning when `site.modules`, `site.data`, `site.data_index`, `site.related_pages` or `site.data_files` still holds links of a recognized signing scheme (AWS SigV4, Google Cloud Storage V4, AWS SigV2/CloudFront, Notion file proxy). It names each read key and its link count. These links change on every fetch, so the pages that read them render again on every build; localize the files with `content.media` to avoid that. Hashing and output are unchanged.
 
 ## [2.0.14] - 2026-11-10
 
