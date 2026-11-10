@@ -274,18 +274,19 @@ public sealed partial class SiteEngine
         var rootOutputs = PublicOutputLifecycle.ProjectionPlan(config, [], root: true)
             .Where(item => item.Destination != "robots.txt" || previous.OwnedOutputs.Contains("robots.txt") ||
                 !File.Exists(Path.Combine(outputDir, "robots.txt"))).ToArray();
-        var completedManifest = PublicOutputLifecycle.CollectAndClean(rootDir, overrides, outputDir, variantResults, buildLogger, rootOutputs);
+        var reportTimer = new ReportStageTimer(buildLogger, ReportStageTimer.FinalizeScope);
+        var completedManifest = reportTimer.Step("collect-and-clean", () => PublicOutputLifecycle.CollectAndClean(rootDir, overrides, outputDir, variantResults, buildLogger, rootOutputs));
         if (rootOutputs.Any(x => x.Destination == "robots.txt") && PublicOutputLifecycle.SameRoot(previous, outputDir) && previous.OwnedOutputs.Contains("robots.txt"))
         {
             PublicOutputLifecycle.DeleteOwnedFile(outputDir, "robots.txt");
         }
-        var projectionResults = I18nOutputMerger.GenerateRootOutputs(config, outputDir, rootBaseUrl, variantResults, buildLogger, _searchIndexBuilder);
-        SeoAuditReportWriter.WriteMerged(
+        var projectionResults = reportTimer.Step("root-outputs", () => I18nOutputMerger.GenerateRootOutputs(config, outputDir, rootBaseUrl, variantResults, buildLogger, _searchIndexBuilder));
+        reportTimer.Step("seo-audit-merged", () => SeoAuditReportWriter.WriteMerged(
             config,
             outputDir,
             [.. variantResults.Select(variant => variant.ToPublishedVariant())],
             buildLogger,
-            projectionResults);
+            projectionResults));
         var reportVariants = reportedOutputDir is null
             ? variantResults
             : [.. variantResults.Select(variant => variant with
@@ -294,8 +295,11 @@ public sealed partial class SiteEngine
                     reportedOutputDir,
                     Path.GetRelativePath(outputDir, variant.OutputDir))
             })];
-        MetricsWriter.WriteIfRequested(reportedRootDir ?? rootDir, overrides.MetricsPath, config, reportedOutputDir ?? outputDir, documentCount, reportVariants, bodyCacheMetrics);
-        var generatedFiles = BuildOutputInventory.Create(outputDir);
+        if (!string.IsNullOrWhiteSpace(overrides.MetricsPath))
+        {
+            reportTimer.Step("metrics-write", () => MetricsWriter.WriteIfRequested(reportedRootDir ?? rootDir, overrides.MetricsPath, config, reportedOutputDir ?? outputDir, documentCount, reportVariants, bodyCacheMetrics));
+        }
+        var generatedFiles = reportTimer.Step("output-inventory", () => BuildOutputInventory.Create(outputDir));
         buildStopwatch.Stop();
         var buildResult = BuildResultFactory.Create(
             config,
@@ -310,9 +314,10 @@ public sealed partial class SiteEngine
             generatedFiles,
             warningCount: buildLogger.WarningCount + additionalWarningCount,
             errorCount: buildLogger.ErrorCount + additionalErrorCount);
-        var securityData = BuildReporter.CreateSecurityReportData(config, rootDir, outputDir, variantResults);
-        await BuildReporter.WriteIfEnabledAsync(config, rootDir, outputDir, buildResult, variantResults, _logger, securityData, cancellationToken).ConfigureAwait(false);
-        BuildReporter.EnforceSecurityGate(config, securityData, overrides.IsCI, _logger);
+        var securityData = reportTimer.Step("security-data", () => BuildReporter.CreateSecurityReportData(config, rootDir, outputDir, variantResults));
+        await BuildReporter.WriteIfEnabledAsync(config, rootDir, outputDir, buildResult, variantResults, _logger, securityData, cancellationToken, reportTimer).ConfigureAwait(false);
+        reportTimer.Step("security-gate", () => BuildReporter.EnforceSecurityGate(config, securityData, overrides.IsCI, _logger));
+        reportTimer.Complete();
         return (buildResult, completedManifest);
     }
 

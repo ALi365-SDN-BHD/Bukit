@@ -5,12 +5,13 @@ namespace Bukit.Rendering.Scriban;
 
 internal static class ScribanRootModelMapper
 {
-    internal static ScriptObject ToScriptObject(PageModel model)
+    internal static ScriptObject ToScriptObject(PageModel model, SharedModelCache? shared = null)
     {
+        shared ??= SharedModelCache.Current;
         var root = new ScriptObject();
-        root.SetValue("site", ScribanSiteModelMapper.ToScriptObject(model.Site), readOnly: true);
+        root.SetValue("site", ToSite(model.Site, shared), readOnly: true);
         root.SetValue("page", ScribanPageModelMapper.ToScriptObject(model.Page), readOnly: true);
-        root.SetValue("pages", ScribanListModelMapper.ToPageInfoScriptArray(model.Pages), readOnly: true);
+        root.SetValue("pages", shared?.GetPages(model.Pages) ?? ScribanListModelMapper.ToPageInfoScriptArray(model.Pages), readOnly: true);
         if (model.Page.Seo is not null)
         {
             root.SetValue("seo", ScribanSeoModelMapper.ToScriptObject(model.Page.Seo), readOnly: true);
@@ -20,10 +21,11 @@ internal static class ScribanRootModelMapper
         return root;
     }
 
-    internal static ScriptObject ToScriptObject(ListPageModel model)
+    internal static ScriptObject ToScriptObject(ListPageModel model, SharedModelCache? shared = null)
     {
+        shared ??= SharedModelCache.Current;
         var root = new ScriptObject();
-        root.SetValue("site", ScribanSiteModelMapper.ToScriptObject(model.Site), readOnly: true);
+        root.SetValue("site", ToSite(model.Site, shared), readOnly: true);
 
         root.SetValue("page", ScribanPageModelMapper.ToScriptObject(model.Page ?? new PageInfo
         {
@@ -32,8 +34,20 @@ internal static class ScribanRootModelMapper
             Content = string.Empty
         }), readOnly: true);
 
-        root.SetValue("pages", ScribanListModelMapper.ToPageInfoScriptArray(model.Pages), readOnly: true);
-        root.SetValue("items", ScribanListModelMapper.ToPageInfoScriptArray(model.Items ?? model.Pages), readOnly: true);
+        var pages = ScribanListModelMapper.ToPageInfoScriptArray(model.Pages);
+        var itemsSource = model.Items ?? model.Pages;
+        if (ReferenceEquals(itemsSource, model.Pages))
+        {
+            // One converted array under both names; freeze it so neither name can change the other.
+            ScriptValueFreezer.Freeze(pages);
+            root.SetValue("pages", pages, readOnly: true);
+            root.SetValue("items", pages, readOnly: true);
+        }
+        else
+        {
+            root.SetValue("pages", pages, readOnly: true);
+            root.SetValue("items", ScribanListModelMapper.ToPageInfoScriptArray(itemsSource), readOnly: true);
+        }
 
         if (model.Pagination is not null)
         {
@@ -63,4 +77,7 @@ internal static class ScribanRootModelMapper
 
         return root;
     }
+
+    private static ScriptObject ToSite(SiteModel site, SharedModelCache? shared) =>
+        shared?.GetSite(site) ?? ScribanSiteModelMapper.ToScriptObject(site);
 }

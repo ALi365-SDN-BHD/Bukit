@@ -1607,6 +1607,39 @@
       "resource": "dotnet-serial"
     },
     {
+      "id": "fix-render-shared-model-cost-contract",
+      "matches": [
+        "openspec/changes/fix-render-shared-model-cost/proposal.md",
+        "openspec/changes/fix-render-shared-model-cost/tasks.md",
+        "openspec/changes/fix-render-shared-model-cost/specs/static-rendering/spec.md",
+        "guide/dev/rendering-scriban.md"
+      ],
+      "specialtyTests": [
+        "openspec validate fix-render-shared-model-cost --type change --strict --no-interactive",
+        "dotnet test tests/Bukit.Rendering.Tests/Bukit.Rendering.Tests.csproj",
+        "dotnet test tests/Bukit.Engine.Tests/Bukit.Engine.Tests.csproj"
+      ],
+      "contractConsumerGlobs": [],
+      "publicContract": false,
+      "resource": "dotnet-serial"
+    },
+    {
+      "id": "observe-report-stage-timing-contract",
+      "matches": [
+        "openspec/changes/observe-report-stage-timing/proposal.md",
+        "openspec/changes/observe-report-stage-timing/tasks.md",
+        "openspec/changes/observe-report-stage-timing/specs/library-logging/spec.md",
+        "guide/dev/observability.md"
+      ],
+      "specialtyTests": [
+        "openspec validate observe-report-stage-timing --type change --strict --no-interactive",
+        "dotnet test tests/Bukit.Engine.Tests/Bukit.Engine.Tests.csproj"
+      ],
+      "contractConsumerGlobs": [],
+      "publicContract": false,
+      "resource": "dotnet-serial"
+    },
+    {
       "id": "fix-core-five-findings-contract",
       "matches": [
         "openspec/changes/fix-core-five-findings/proposal.md",

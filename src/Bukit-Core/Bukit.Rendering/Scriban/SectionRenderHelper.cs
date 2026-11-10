@@ -214,7 +214,7 @@ internal sealed class SectionRenderHelper
             return Diagnostic("theme.section.template_parse_failed", $"section template error: {sectionType}: {sectionTemplate.Messages}");
         }
 
-        var sectionContext = new TemplateContext
+        var sectionContext = new BukitTemplateContext
         {
             TemplateLoader = _templateLoader,
             EnableRelaxedMemberAccess = true,

@@ -20,6 +20,45 @@ protect mutable collections in that logger itself.
 preparation, route generation, taxonomy setup, derive pages, rendering, asset
 sync, plugin stages, and total variant time.
 
+Render metrics come from `PageRenderDispatcher`:
+
+- `pageRender`, `listBuild`, `staticRender`: time per content, list, and
+  static page, from after the body is loaded to after the file is written.
+- `renderCall` (template renderer call), `htmlTransform` (HTML transforms),
+  `renderWrite` (output file write): the parts of those three, for all kinds.
+- `renderModelBind`: template model conversion inside `renderCall`. Only the
+  built-in Scriban renderer reports it.
+- `renderDispatch`: wall-clock time of the whole render dispatch.
+- `variantSetup` (media normalization and theme loading), `mediaResolve`
+  (only with media localization), `renderPlan` (renderer, site model,
+  manifest and asset plans), `assetPrepare` and `seoPrepare`: wall-clock
+  time of the variant steps before rendering that have no other stage.
+
+Per-page values are summed across parallel workers, so they can exceed
+`renderDispatch`; compare `renderDispatch`, not the per-page sums, with
+`variantTotal`. The wall-clock stages, without the per-page sums, add up to
+`variantTotal`. Per-page durations are summed in `Stopwatch` ticks and
+converted to milliseconds once, so sub-millisecond pages are not lost.
+
+Report-stage steps run after rendering and are not in `metrics.json`. Each one
+logs an info line `event=build.report.timing scope=<variant|finalize> step=<name> duration_ms=<n>`,
+in execution order, and each scope ends with `step=total`, the wall-clock time
+of that scope:
+
+- Variant scope (`language=<code>` in multi-language builds): `projections`,
+  `media-validate` (only with media localization; it rescans every rendered
+  HTML file), `output-record`, `seo-audit`, `analytics-report`.
+- Single-language finalize: `metrics-write` (only with `--metrics`),
+  `collect-and-clean`, `output-inventory`, `security-data`,
+  `security-report`, one `writer:<type name>` per report writer that runs,
+  `security-gate`.
+- Multi-language finalize: `collect-and-clean`, `root-outputs`,
+  `seo-audit-merged`, `metrics-write` (only with `--metrics`),
+  `output-inventory`, `security-data`, `security-report`, the writer lines,
+  `security-gate`.
+
+A step that throws is not logged, and neither is its scope's `total`.
+
 ## Reports
 
 Use `.bukit/build-report.json` for build health, `.bukit/seo-report.json` for

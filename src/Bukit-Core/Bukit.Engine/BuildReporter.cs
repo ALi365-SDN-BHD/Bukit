@@ -29,11 +29,20 @@ internal static class BuildReporter
         IReadOnlyList<BuildVariantResult> variants,
         ILogger logger,
         SecurityReportData? securityData = null,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default,
+        ReportStageTimer? reportTimer = null)
     {
         var reportDir = Path.Combine(outputDir, ReportDirectoryName);
         Directory.CreateDirectory(reportDir);
-        BuildReporterSecurity.WriteSecurityReport(Path.Combine(reportDir, "security-report.json"), config, securityData);
+        void WriteSecurityReport() => BuildReporterSecurity.WriteSecurityReport(Path.Combine(reportDir, "security-report.json"), config, securityData);
+        if (reportTimer is null)
+        {
+            WriteSecurityReport();
+        }
+        else
+        {
+            reportTimer.Step("security-report", WriteSecurityReport);
+        }
 
         var context = new BuildReportWriterContext(
             config,
@@ -45,7 +54,14 @@ internal static class BuildReporter
         foreach (var writer in BuildReportWriterPlan.Create(config.Build.Report.Enabled))
         {
             cancellationToken.ThrowIfCancellationRequested();
-            await writer.WriteAsync(context, cancellationToken).ConfigureAwait(false);
+            if (reportTimer is null)
+            {
+                await writer.WriteAsync(context, cancellationToken).ConfigureAwait(false);
+            }
+            else
+            {
+                await reportTimer.StepAsync("writer:" + writer.GetType().Name, () => writer.WriteAsync(context, cancellationToken)).ConfigureAwait(false);
+            }
         }
 
         logger.Debug(config.Build.Report.Enabled

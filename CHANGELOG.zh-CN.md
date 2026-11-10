@@ -4,6 +4,9 @@ Bukit 所有重要变更都将记录在此文件中。
 
 ## [Unreleased]
 
+- **大型站点渲染提速**：以前每渲染一页，都要把全站页面索引（`pages`）和站点模型（`site`，含 `site.data.pages_by_id`）重新转换一遍，渲染耗时随页数平方增长。现在每次渲染只转换一次并共享。只读取这些值的模板输出不变。行为变化：`site`、`pages`、列表页的 `items` 及其内部所有层级现在都是只读的，模板给它们添加新键或按下标给数组赋值（如 `pages[0] = x`）会报只读错误；在组件和区块内，该错误按 `theme.componentValidation` 处理。
+- **渲染与报告计时**：`--metrics` 现在记录真实的 `pageRender`、`listBuild`、`staticRender` 耗时（以前一直为 0），并新增 `renderCall`、`htmlTransform`、`renderWrite`、`renderModelBind`、`renderDispatch`，以及渲染前的变体步骤 `variantSetup`、`mediaResolve`、`renderPlan`、`assetPrepare`、`seoPrepare`。渲染之后的每个报告步骤输出一条带耗时的 `event=build.report.timing` 日志，每个范围以 `step=total` 结尾。报告文件与 `metrics.json` 结构不变。
+
 - **robots.txt 支持 Content Signals**：新增 `site.seo.robotsTxt.contentSignal`（`search`、`aiInput`、`aiTrain`，各为 `true` 或 `false`），在 `User-agent: *` 组写入一行 `Content-Signal:`，例如 `Content-Signal: search=yes, ai-input=yes, ai-train=no`，用来声明 AI 公司可以如何使用网站内容。只列出设置了的项。不配置时 `robots.txt` 不变。
 
 - **百分号编码的网址**：`url`、`route.url` 字段或 `aliases` 里填入已编码的网址（如 `/%e8%81%94%e7%b3%bb%e6%96%b9%e5%bc%8f/`）时，现在会解码一次（此例为 `/联系方式/`），输出目录与浏览器请求的地址一致，不再 404。会改变路径的编码（`/`、`\`、`.`、`%`）、控制字符、不可见或易混淆字符（零宽字符、方向控制符、不换行空格）和不合法的 UTF-8 保持原样。构建会输出 `event=route.url.decoded` 或 `event=route.alias.decoded` 并附原值，便于回到内容源修正。不含 `%` 的网址不受影响。
