@@ -22,4 +22,4 @@
 ## 4. 验证
 
 - [x] `Bukit.Content.Tests` 专项测试、CRLF 格式检查、`openspec validate fix-media-expired-signature-fail-fast --strict`。证据（2026-11-11）：Content 691/691、Architecture 422/422、docs active-links 与 size-policy 通过；改动的 `.cs` 文件在 LF 下 `dotnet format whitespace` 通过，转成 CRLF 后 `dotnet format style --diagnostics IDE0055` 通过（同一检查能识别 04b02c25 的已知 Windows 问题）。
-- [ ] PR CI 通过。
+- [x] PR CI 通过：#117 全部检查通过，2026-11-10 合并（5c0ebd19）。
