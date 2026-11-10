@@ -4,6 +4,8 @@ Bukit 所有重要变更都将记录在此文件中。
 
 ## [Unreleased]
 
+- **过期图片链接立即失败**：图片下载被拒绝（HTTP 400、401 或 403），且网址自身的签名已过期（AWS SigV4、Google Cloud Storage V4、AWS SigV2/CloudFront 或 Notion 文件代理）时，不再按 `content.media.maxRetries` 重试，因为过期签名不可能成功。主要加快仍含过期链接的 `readonly` Notion 缓存构建。失败记录、`onFailure` 结果和已保存图片的复用不变，警告增加 `signature=expired`。其他失败照常重试。
+
 ## [2.0.14] - 2026-11-10
 
 - **Notion 正文跟随渲染器变化与同一分钟内的编辑**：Notion 正文缓存（格式 2）记录渲染器版本，以及取自 Notion `Date` 响应头的抓取时间。`readwrite` 模式下，只有渲染器版本和 `last_edited_time` 相同、链接未过期、且抓取时间不早于编辑所在分钟结束后 5 秒时才复用缓存，因此抓取后同一分钟内的再次编辑不再丢失。增量正文指纹改为 `{last_edited_time}:renderer={版本}[:unsettled]:content={on|off}`；没有 `last_edited_time` 的页面改为根据正文计算内容哈希。升级后第一次 `readwrite` 构建会重新拉取全部 Notion 正文，大型数据库耗时较长。`readonly` 仍复用匹配的条目，旧版本条目汇总为一条 `notion.cache.renderer_mismatch` 警告；切回 `readwrite` 时请用 `--clean` 构建一次。
