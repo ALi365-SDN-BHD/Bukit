@@ -4,6 +4,7 @@ Semua perubahan penting kepada Bukit akan didokumenkan dalam fail ini.
 
 ## [Belum Dikeluarkan]
 
+- **Pautan imej tamat tempoh gagal serta-merta**: apabila muat turun imej ditolak (HTTP 400, 401 atau 403) dan tandatangan URL itu sendiri telah tamat tempoh (AWS SigV4, Google Cloud Storage V4, AWS SigV2/CloudFront atau proksi fail Notion), ia tidak lagi dicuba semula sebanyak `content.media.maxRetries` kali, kerana tandatangan yang tamat tempoh tidak akan berjaya. Ini terutamanya mempercepat binaan daripada cache Notion `readonly` yang masih menyimpan pautan tamat tempoh. Kegagalan, hasil `onFailure` dan penggunaan semula imej yang telah disimpan tidak berubah, dan amaran menambah `signature=expired`. Kegagalan lain masih dicuba semula.
 - **Amaran untuk pautan bertandatangan dalam data kongsi**: dalam binaan tambahan, Bukit kini merekodkan satu amaran `event=incremental.signed_links` apabila `site.modules`, `site.data`, `site.data_index`, `site.related_pages` atau `site.data_files` masih mengandungi pautan skema tandatangan yang dikenali (AWS SigV4, Google Cloud Storage V4, AWS SigV2/CloudFront, proksi fail Notion). Amaran itu menamakan setiap kunci bacaan dan bilangan pautannya. Pautan ini berubah pada setiap pengambilan, jadi halaman yang membacanya dipaparkan semula pada setiap binaan; setempatkan fail dengan `content.media` untuk mengelakkannya. Pencincangan dan output tidak berubah.
 
 ## [2.0.14] - 2026-11-10
