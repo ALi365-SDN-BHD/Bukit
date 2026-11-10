@@ -91,7 +91,8 @@ Logged during build, controlled by `site.seo.diagnostics`: `seo.site_url_missing
 `seo.canonical_duplicate_index`, `seo.hreflang_x_default_missing`, per-page HTML checks
 (`seo.head_missing`, `seo.canonical_missing`, `seo.canonical_duplicate`,
 `seo.robots_missing`, `seo.hreflang_missing`, `seo.json_ld_missing`), and GEO schema
-checks. llms curation is not checked at build time (`bukit-geo`).
+checks, and `geo.llms_*` curation checks when llms output is on (new after 2.0.11;
+see `bukit-geo`).
 `strict` makes any of these stop the build at the first one hit (exit 2), except
 `seo.og_locale_region_missing`, which stays a warning; `off` silences them.
 

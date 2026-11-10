@@ -67,13 +67,17 @@ geo:
 ```
 
 Only these three keys are allowed, and `priority` must be a YAML integer. Invalid
-curation (unknown key, bad value, `llms: false`) silently excludes the page from llms
-output. The build logs no curation diagnostic: the `geo.llms_*_invalid` /
-`geo.llms_field_unknown` checks exist in Core but are not wired into the build
-(Core defect), so `site.seo.diagnostics: strict` does not catch them either. The only
-signal is the publish audit warning `publish.llms_missing_route route=<url>` (and
-`publish.llms_full_missing_route`). Use `visibility: exclude` to remove a page on
-purpose.
+curation (unknown key, bad value, `llms: false`, or a `geo:` value that is not a
+mapping) excludes the page from llms output and, when `llmsTxt` or `llmsFullTxt` is on,
+logs `geo.llms_field_unknown`, `geo.llms_visibility_invalid`, `geo.llms_tier_invalid`,
+or `geo.llms_priority_invalid`, each with `route=<output path>`, for every routed page
+(noindex pages included). These follow `site.seo.diagnostics`: a warning by default,
+a build failure (exit 2) under `strict`, silent under `off`.
+
+These build diagnostics are new (CHANGELOG "Unreleased"). Bukit 2.0.11 and earlier drop
+such pages silently, even under `strict`; there the only signal is the publish audit
+warning `publish.llms_missing_route route=<url>` (and `publish.llms_full_missing_route`).
+Use `visibility: exclude` to remove a page on purpose.
 
 ## Structured data front matter
 

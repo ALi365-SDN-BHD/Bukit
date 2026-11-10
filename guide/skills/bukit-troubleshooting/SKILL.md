@@ -80,7 +80,7 @@ the command; error objects are multi-line JSON, see `bukit-cli-reference`). Read
 | `Build output is not ready for deployment` | No completed build | Run a successful `bukit build` first. |
 | `GITHUB_TOKEN environment variable is required` | Token var unset | Set it or use `--token-env NAME`. |
 | `Non-fast-forward push rejected` | Target branch diverged | `--force` only if overwriting is intended. |
-| Page missing from llms.txt | Invalid `geo.llms` curation (no build diagnostic; Core defect) | The only signal is the publish audit warning `publish.llms_missing_route route=<url>`; check that `geo.llms` uses only `visibility`, `tier`, and an integer `priority` (`bukit-geo`). |
+| Page missing from llms.txt | Invalid `geo.llms` curation | Look for build warnings `geo.llms_field_unknown`, `geo.llms_visibility_invalid`, `geo.llms_tier_invalid`, `geo.llms_priority_invalid` (they fail the build under `strict`; Bukit 2.0.11 and earlier do not log them) and the publish audit warning `publish.llms_missing_route route=<url>`; check that `geo.llms` uses only `visibility`, `tier`, and an integer `priority` (`bukit-geo`). |
 
 ## Reports to inspect
 
