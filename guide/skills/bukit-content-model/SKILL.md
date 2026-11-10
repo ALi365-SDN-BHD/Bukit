@@ -84,8 +84,11 @@ property `Cover Alt` (key `cover_alt`), and export it with `fieldPolicy.mode: al
 ```yaml
 content:
   modelSchema:
-    requireSummary: true          # also requireAuthor, requireUpdatedAt, requireProvenance, ...
+    requireSummary: true          # also requireAuthor, requireOrganization, requireUpdatedAt,
+                                  # requireReviewedAt, requireProvenance, requireEntityIds
     statuses: [draft, published, archived, expired]   # default list
+    # contentTypes: [page, post]  # allowed `type` values; no default (any type)
+    # reviewStatuses / syncStatuses: allowed `review_status` / `sync_status` values
     fieldScopes:
       post:                       # key = collection name
         - name: difficulty
@@ -104,11 +107,19 @@ build:
   collection's `schemaFailMode` overrides the build value.
 - `customFields` applies to every document; `fieldScopes.<collection>` to one
   collection. Field options: `required`, `default`, `enum`, `format`
-  (`url|email|date|slug`), `min`/`max`.
+  (`url|email|date|slug`; `semanticType` is used when `format` is absent), `min`/`max`,
+  `sourcePolicy` (`raw|canonical|custom|provider|any`; only the value is checked).
+  `label` has no effect.
 - `rejectUnknownRawKeys: true` fails the build on any undeclared front matter key,
   whatever `schemaFailMode` says. Use it only with a complete field list.
-- `canonicalMappings`, `entityMappings`, `relationMappings` map raw fields to canonical
-  fields, entities, and relations for structured data.
+- Mappings (lists) turn raw fields into canonical fields, entities, and relations:
+  - `canonicalMappings`: `{ canonicalField: summary, rawKey: abstract }` copies
+    `abstract` to `summary` when `summary` is not set.
+  - `entityMappings`: `{ rawKey: brand, entityType: Organization }`. Each value is a
+    name or a map; optional `nameField`, `idField`, `urlField`, `descriptionField`,
+    `sameAsField` name the map keys (defaults `name`, `url`, `description`, `sameAs`).
+  - `relationMappings`: `{ rawKey: related, relationType: related }` plus optional
+    `targetType`, `targetField`, `targetIdField` (default map key `id`).
 - `modelSchema.media.requireAlt|requireDescription|requireLicense` currently have no
   effect; use the top-level `requireMediaAlt|requireMediaDescription|requireMediaLicense`.
   `media.allowedKinds` works.

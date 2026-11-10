@@ -29,7 +29,7 @@ site:
       permalink: /blog/{year}/{month}/{slug}/   # must include {slug}
       template: pages/post.html
       listRoute: /blog/
-      listTitle: Blog
+      listTitle: Blog             # optional listDescription: list page summary
       listTemplate: pages/list.html
       pagination: { enabled: true, pageSize: 10, urlPattern: "page/:num/" }
     page:
