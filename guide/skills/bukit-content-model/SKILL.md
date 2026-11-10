@@ -6,11 +6,13 @@ description: Use when a Bukit site loads content from Notion, localizes remote m
 # Bukit Notion, Media, and Content Model
 
 Source basics (providers, modes, collections, front matter, data) are in
-`bukit-content`. The YAML below nests under `content.sources` or `content` as shown.
+`bukit-content`.
 
 ## Notion
 
 ```yaml
+content:
+  sources:
     - type: notion
       name: news
       collection: news
@@ -70,7 +72,11 @@ directory].
 ## Model schema
 
 Front matter `image` / `cover` need `image_alt` / `cover_alt`, or the default
-`requireMediaAlt` check reports `canonical_media_alt_missing`.
+`requireMediaAlt` check reports `canonical_media_alt_missing`. The same applies to any
+exported file-type field whose key contains `image`, `cover`, `icon`, or `gallery`
+(Notion file properties): add a text field named `<key>_alt`, for example a Notion
+property `Cover Alt` (key `cover_alt`), and export it with `fieldPolicy.mode: all` or
+`fieldPolicy.allowed`.
 
 `content.modelSchema` validates content records. It runs even when absent (defaults:
 `requireMediaAlt: true`, `requireRelationTargets: true`, other `require*` false).
@@ -129,7 +135,9 @@ content:
 ```
 
 Each row needs `route` (starting and ending with `/`) and `summary`; `title` falls back
-to the row's document title (first `# H1`, else slug). Duplicate routes fail. The source is hidden from `site.data`.
+to the row's document title (first `# H1`, else slug). Duplicate routes fail. The source
+is hidden from `site.data`. Rows use `seo_description` by default; page front matter
+uses `seo_desc` (`bukit-seo`). Do not rename one to match the other.
 
 ## Check
 

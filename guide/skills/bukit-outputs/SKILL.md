@@ -75,7 +75,9 @@ site:
 
 `bukit-search.html` is an embeddable fragment, not a route. If `search.route` is set
 while `site.seo.schema.searchAction` is on (default), that route must exist and
-`site.url` must be set, or the build fails (exit 2). Exclude a document with `searchexclude: true`.
+`site.url` must be set, or the build fails (exit 2). With `site.seo.enabled: false`
+this check is skipped and no SearchAction is written. Exclude a document with
+`searchexclude: true`.
 
 ## robots.txt
 

@@ -64,8 +64,8 @@ Add `logging.level: debug` in `site.yaml` for more detail (`--ci` forces `warn`)
 | `Multilingual build requires a clean site directory ...` / `... inside a Git repository` (JSON codes `i18n-worktree-*`, exit 1) | Multilingual build needs committed inputs in a Git repo; any untracked file under the site root counts | Commit inputs; ignore `dist/`, `.cache/`, and the project `.bukit/` (metrics files). |
 | Build failed mid-way | Transaction rolled back | Previous output is intact; fix and rebuild. Keep any backup named in `Rollback failed; preserve backup`. |
 | Every build re-renders all pages | Default `build.clean: true` | `bukit build --no-clean` for incremental reuse, for local speed only; it can keep stale pages after a Bukit upgrade or when other pages a template lists change (`bukit-build`). |
-| Media downloads fail or rate-limit | `media.download_failed`, `media.ssrf_blocked` events | Lower `content.media.maxConcurrency`; check `skipHosts`; private hosts are blocked. |
-| `NOTION_TOKEN is required ...` | Env var missing | Export `NOTION_TOKEN`. |
+| Media downloads fail or rate-limit | `media.download_failed`, `media.ssrf_blocked` events | Lower `content.media.maxConcurrency`; check `skipHosts`; private hosts are blocked (`bukit-content-model`). |
+| `NOTION_TOKEN is required ...` | Env var missing | Export `NOTION_TOKEN` (`bukit-content-model`). |
 | `SEO report not found under ... Run a full build first.` | Audit `--dir` defaults to `dist` | Pass `--dir <build.output>`. |
 | Links 404 in `preview`/`dev` | Servers ignore `baseUrl` | `bukit build --base-url /` then `bukit preview`; for dev use `BUKIT_SITE__BASE_URL=/ bukit dev`. |
 | `404.html` or static `robots.txt` not copied | Named theme ignores project-root `static/` | Move it to `themes/<name>/static/` (`bukit-outputs`). |

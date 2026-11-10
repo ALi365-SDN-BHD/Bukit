@@ -173,6 +173,7 @@
         "guide/dev/architecture.md",
         "guide/dev/content.md",
         "guide/dev/public-api-governance.md",
+        "guide/skills/bukit-content-model/SKILL.md",
         "guide/skills/bukit-content/SKILL.md",
         "openspec/changes/migrate-notion-compatibility/design.md",
         "openspec/changes/migrate-notion-compatibility/proposal.md",
