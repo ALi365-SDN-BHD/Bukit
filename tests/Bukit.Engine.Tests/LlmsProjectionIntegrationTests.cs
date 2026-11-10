@@ -18,11 +18,106 @@ public sealed class LlmsProjectionIntegrationTests
     private sealed class TestLogger : ILogger
     {
         public List<string> Errors { get; } = new();
+        public List<string> Warnings { get; } = new();
 
         public void Debug(string message) { }
         public void Info(string message) { }
-        public void Warn(string message) { }
+        public void Warn(string message) => Warnings.Add(message);
         public void Error(string message) => Errors.Add(message);
+    }
+
+    [Fact]
+    public async Task BuildAsync_InvalidLlmsCuration_WarnsAndExcludesPage()
+    {
+        var root = CreateCurationSite("warn");
+        try
+        {
+            var logger = new TestLogger();
+            var config = ConfigLoader.Load(Path.Combine(root, "site.yaml"));
+
+            await new SiteEngine(logger).BuildAsync(config, root, new ConfigOverrides(), CancellationToken.None);
+
+            Assert.Contains(logger.Warnings, warning =>
+                warning.Contains("geo.llms_priority_invalid route=blog/broken/index.html", StringComparison.Ordinal));
+            var llms = File.ReadAllText(Path.Combine(root, "dist", "llms.txt"));
+            Assert.Contains("https://example.com/blog/visible/", llms, StringComparison.Ordinal);
+            Assert.DoesNotContain("https://example.com/blog/broken/", llms, StringComparison.Ordinal);
+        }
+        finally
+        {
+            TestCleanup.DeleteDirectory(root, recursive: true);
+        }
+    }
+
+    [Fact]
+    public async Task BuildAsync_InvalidLlmsCurationStrict_FailsBuild()
+    {
+        var root = CreateCurationSite("strict");
+        try
+        {
+            var config = ConfigLoader.Load(Path.Combine(root, "site.yaml"));
+
+            var exception = await Assert.ThrowsAsync<ConfigException>(() =>
+                new SiteEngine(new TestLogger()).BuildAsync(config, root, new ConfigOverrides(), CancellationToken.None));
+
+            Assert.Contains("geo.llms_priority_invalid route=blog/broken/index.html", exception.Message, StringComparison.Ordinal);
+        }
+        finally
+        {
+            TestCleanup.DeleteDirectory(root, recursive: true);
+        }
+    }
+
+    private static string CreateCurationSite(string diagnostics)
+    {
+        var root = Path.Combine(Path.GetTempPath(), "bukit-llms-curation-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(Path.Combine(root, "content"));
+        Directory.CreateDirectory(Path.Combine(root, "layouts", "layouts"));
+        Directory.CreateDirectory(Path.Combine(root, "layouts", "pages"));
+        File.WriteAllText(Path.Combine(root, "site.yaml"), $$"""
+            site:
+              name: llms-curation
+              title: Llms Curation
+              url: https://example.com
+              baseUrl: /
+              language: en
+              collections:
+                post:
+                  permalink: /blog/{slug}/
+                  template: pages/post.html
+              seo:
+                diagnostics: {{diagnostics}}
+                geo:
+                  enabled: true
+                  llmsTxt: true
+            content:
+              sources:
+                - type: markdown
+                  name: post
+                  collection: post
+                  markdown:
+                    dir: content
+            build:
+              output: dist
+            theme:
+              layouts: layouts
+            """);
+        WritePost(root, "visible.md", "Visible", "visible", extraFrontMatter: "");
+        // A quoted priority is a string, not a YAML integer: invalid curation.
+        WritePost(root, "broken.md", "Broken", "broken", extraFrontMatter: "geo:\n  llms:\n    priority: \"10\"");
+        File.WriteAllText(Path.Combine(root, "layouts", "layouts", "base.html"), """
+            <!doctype html>
+            <html><head><title>{{ page.title }}</title></head><body>{{ content }}</body></html>
+            """);
+        foreach (var name in new[] { "post", "page", "index", "list" })
+        {
+            File.WriteAllText(Path.Combine(root, "layouts", "pages", name + ".html"), """
+                {% layout "layouts/base.html" %}
+                {{ page.content }}
+                """);
+        }
+
+        return root;
     }
 
     [Fact]

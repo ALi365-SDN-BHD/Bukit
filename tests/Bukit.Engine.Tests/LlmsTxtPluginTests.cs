@@ -660,21 +660,25 @@ public sealed class LlmsTxtPluginTests : IDisposable
         Assert.DoesNotContain("https://example.com/posts/broken/", full, StringComparison.Ordinal);
     }
 
+    // The writers only exclude invalid curation; reporting it (and failing under strict) is the
+    // build's job, covered end to end in LlmsProjectionIntegrationTests.
     [Fact]
-    public async Task Curation_InvalidMetadataStrictMode_FailsBuild()
+    public async Task Curation_InvalidMetadataStrictMode_WriterExcludesWithoutThrowing()
     {
         var outputDir = Path.Combine(_root, "dist-curation-invalid-strict");
         var articles = new[]
         {
-            new ArticleFixture("broken", "posts", DateTimeOffset.Parse("2026-01-01T00:00:00Z"), "/posts/broken/",
+            new ArticleFixture("kept", "posts", DateTimeOffset.Parse("2026-01-01T00:00:00Z"), "/posts/kept/"),
+            new ArticleFixture("broken", "posts", DateTimeOffset.Parse("2026-01-02T00:00:00Z"), "/posts/broken/",
                 Llms: new Dictionary<string, object> { ["visibility"] = "always" })
         };
         var (context, config) = CreateArticleContext(outputDir, articles, maxArticles: 0, diagnostics: "strict");
 
-        var exception = await Assert.ThrowsAsync<ConfigException>(
-            () => new LlmsTxtPlugin(config).AfterBuildAsync(context));
+        await new LlmsTxtPlugin(config).AfterBuildAsync(context);
 
-        Assert.Contains("geo.llms_visibility_invalid", exception.Message, StringComparison.Ordinal);
+        var compact = File.ReadAllText(Path.Combine(outputDir, "llms.txt"), Encoding.UTF8);
+        Assert.Contains("https://example.com/posts/kept/", compact, StringComparison.Ordinal);
+        Assert.DoesNotContain("https://example.com/posts/broken/", compact, StringComparison.Ordinal);
     }
 
     private sealed record ArticleFixture(
