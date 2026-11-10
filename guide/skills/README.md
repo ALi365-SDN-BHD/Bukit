@@ -1,27 +1,32 @@
 # Bukit Core Agent Skills
 
-These skills describe stable Bukit Core behavior only. They are generated from
-the current source tree and must stay aligned with `BukitCliSpecs.cs`,
-`AppConfig.cs`, and the Core build pipeline.
+Skills that teach an AI assistant to build and maintain websites with stable Bukit
+Core. They describe current Core behavior only; the source of truth is
+`src/Bukit-Core` (`BukitCliSpecs.cs` for commands, `AppConfig.cs` and the config
+validators for `site.yaml`). Labs workflows live in
+[`guide/labs-skills`](../labs-skills/README.md) and are opt-in.
 
-## Skills
+Start with [`using-bukit`](using-bukit/SKILL.md), then load the narrow skill for the
+task.
 
 | Skill | Use |
 |---|---|
-| `using-bukit` | Gateway skill for Bukit Core tasks. |
-| `bukit-cli-reference` | Static Core CLI command reference. |
-| `bukit-config` | `site.yaml` fields and validation. |
-| `bukit-content` | Markdown, Notion, media, and data sources. |
-| `bukit-routing` | Route rules, list routes, taxonomy, pagination. |
-| `bukit-templating` | Scriban model and template rendering. |
-| `bukit-theme` | Local theme runtime and manifests. |
-| `bukit-i18n` | Language variants and merged outputs. |
-| `bukit-seo` | SEO reports and metadata rendering. |
-| `bukit-geo` | GEO and llms outputs. |
-| `bukit-preview` | Static preview server. |
-| `bukit-dev` | LiveReload development server. |
-| `bukit-deploy` | GitHub Pages deployment. |
-| `bukit-debug` | Focused troubleshooting and metrics. |
+| [`using-bukit`](using-bukit/SKILL.md) | Gateway: ground rules, project layout, standard loop, skill map. |
+| [`bukit-cli-reference`](bukit-cli-reference/SKILL.md) | Commands, options, exit codes, environment variables. |
+| [`bukit-config`](bukit-config/SKILL.md) | `site.yaml` structure, defaults, validation, plugin toggles. |
+| [`bukit-content`](bukit-content/SKILL.md) | Markdown, Notion, front matter, data, media. |
+| [`bukit-routing`](bukit-routing/SKILL.md) | Collections, permalinks, lists, pagination, taxonomy, conflicts. |
+| [`bukit-templating`](bukit-templating/SKILL.md) | Scriban templates, model, helpers, limits. |
+| [`bukit-theme`](bukit-theme/SKILL.md) | Theme layout, theme.yaml, assets, SCSS, images, components. |
+| [`bukit-i18n`](bukit-i18n/SKILL.md) | Language filtering, multilingual output, hreflang. |
+| [`bukit-build`](bukit-build/SKILL.md) | Build pipeline, clean, incremental cache, reports, security gate. |
+| [`bukit-outputs`](bukit-outputs/SKILL.md) | Sitemap, feeds, search, robots.txt, aliases, 404, projections. |
+| [`bukit-seo`](bukit-seo/SKILL.md) | SEO metadata, render modes, `seo audit`, `seo diff`. |
+| [`bukit-seo-insights`](bukit-seo-insights/SKILL.md) | Search Console, GA4, question, AI citation, authority joins. |
+| [`bukit-geo`](bukit-geo/SKILL.md) | llms.txt, GEO front matter, AI crawler policy, `geo audit`. |
+| [`bukit-analytics`](bukit-analytics/SKILL.md) | Analytics providers, consent, CSP report. |
+| [`bukit-local-server`](bukit-local-server/SKILL.md) | `dev` and `preview`. |
+| [`bukit-publish-deploy`](bukit-publish-deploy/SKILL.md) | `publish audit`, GitHub Pages deploy, CI. |
+| [`bukit-troubleshooting`](bukit-troubleshooting/SKILL.md) | Errors, events, symptom-to-fix table. |
 
-Do not load Labs skills unless the user explicitly asks for Labs, preview, or
-experimental workflows.
+Maintenance rules: [`MAINTENANCE.md`](MAINTENANCE.md).

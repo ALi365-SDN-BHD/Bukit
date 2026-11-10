@@ -1,6 +1,6 @@
 {
   "name": "bukit-core-skills",
-  "version": "1.0.0",
-  "description": "Core-only Bukit skills generated from the current source tree.",
+  "version": "2.0.0",
+  "description": "Core-only Bukit agent skills, written against the current source tree.",
   "skillsPath": "guide/skills"
 }
