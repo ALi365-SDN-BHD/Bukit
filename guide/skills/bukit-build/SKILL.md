@@ -78,7 +78,14 @@ for a Bukit project root, never where `.cache` is shared with other tools.
 - `--jobs <n>`: render parallelism, default CPU count, clamped to 1..2×CPU.
 - `--metrics <file.json>`: stage timings and render reasons, plus a sibling `.html`.
   The path is relative to the project root, so `--metrics .bukit/metrics.json` writes
-  to `<root>/.bukit/`, not into `dist`.
+  to `<root>/.bukit/`, not into `dist`. Render stages to compare: `pageRender`,
+  `listBuild`, `staticRender` (per kind), `renderCall` (template), `htmlTransform`,
+  `renderWrite`, `renderModelBind`, `renderDispatch`. Stage times are summed across
+  `--jobs` workers, so they can exceed wall-clock time.
+- Slow after rendering: each report step logs an info line
+  `event=build.report.timing scope=variant|finalize step=<name> duration_ms=<n>`
+  (`scope=variant` adds `language=<code>` in multilingual builds), and each scope ends with
+  `step=total`. `--ci` hides info lines.
 - `content.media.maxConcurrency` limits concurrent media downloads; it is independent
   of `--jobs`.
 
