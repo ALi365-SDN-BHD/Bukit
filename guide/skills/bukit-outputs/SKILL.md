@@ -36,7 +36,7 @@ under `site.seo.diagnostics: strict` that fails the build.
 site:
   url: https://example.com
   feed:
-    formats: [rss, atom, json]   # default [rss]; [] disables all feeds
+    formats: [rss, atom, json]   # default [rss]; [] disables feeds (a merged i18n root still writes rss.xml)
     limit: 20                    # <= 0 falls back to 20
     path: feed                   # Atom, JSON, and collection feeds go here
     mode: split                  # split|merged (i18n root only)

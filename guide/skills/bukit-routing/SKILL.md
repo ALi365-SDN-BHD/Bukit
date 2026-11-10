@@ -14,7 +14,8 @@ for conflicts.
 1. Full override: front matter with both `url` and `template` (top level or under
    `route:`).
 2. Base rule: `site.collections.<collection>` (`permalink` + `template`), else
-   `site.permalinks.<type>` (pattern only; the template must come from theme.yaml),
+   `site.permalinks.<type>` (pattern only; the template comes from theme.yaml or a
+   front matter `template:`),
    else fail with `No route rule matches content document '<id>' (collection=..., type=...)`.
 3. Partial override on top of the base rule: `url` alone or `template` alone.
 
@@ -115,7 +116,7 @@ site:
     post:
       listRoute: /blog/            # required, or filtered lists are silently skipped
       filteredLists:
-        - field: category
+        - field: categories        # exact front matter key; no category/categories mapping
           operator: equals         # equals | contains (use value) | in (use values)
           value: engineering
           listRoute: /blog/engineering/
@@ -124,13 +125,14 @@ site:
 ```
 
 Matching is case-insensitive and also compares slugs (`Release Notes` =
-`release-notes`); list fields match if any element matches. Filtered lists are always
+`release-notes`); list fields match if any element matches. A wrong `field` name with
+`emptyBehavior: skip` builds no page and logs nothing. Filtered lists are always
 paginated using `pageSize` from the filter or the collection, even when collection
 pagination is disabled. Templates receive `filter`, `collection`, and `pagination`.
 
 ## Taxonomy pages
 
-Without a `taxonomy:` section, any `tags` or `categories` in front matter automatically
+Unless `taxonomy.kinds` lists kinds, any `tags` or `categories` in front matter automatically
 creates `/tags/`, `/tags/<term>/` (paginated `page/N/`), and the same for categories.
 These need theme templates matching `accepts.kind: taxonomy_index` and
 `taxonomy_term` inside the theme layouts directory; otherwise the build fails. Fixes:
@@ -163,7 +165,9 @@ terms with no pages: `noindex` renders them with `noindex`, `skip` builds no pag
 `itemFields` values appear on each item and under `fields.<key>.value`; `date` falls
 back to the publish date.
 
-With `kinds`, only listed kinds are built. Term pages get `taxonomy` and `items`; index
+With `kinds`, only listed kinds are built. A kind also accepts `title`, `description`,
+`singularTitlePrefix`, `template` (base for both index and term), and `hierarchical`.
+Term pages get `taxonomy` and `items`; index
 pages get the term list in `page.fields.terms.value`. Use `util.term_slug` to build
 term links that match.
 

@@ -83,7 +83,10 @@ and llms output.
 
 Logged during build, controlled by `site.seo.diagnostics`: `seo.site_url_missing`,
 `seo.canonical_relative`, `seo.canonical_external`, `seo.canonical_double_slash`,
-`seo.canonical_duplicate_index`, `seo.hreflang_x_default_missing`, GEO schema checks.
+`seo.canonical_duplicate_index`, `seo.hreflang_x_default_missing`, per-page HTML checks
+(`seo.head_missing`, `seo.canonical_missing`, `seo.canonical_duplicate`,
+`seo.robots_missing`, `seo.hreflang_missing`, `seo.json_ld_missing`), GEO schema and
+`geo.llms_*` curation checks.
 `strict` makes any of these stop the build at the first one hit (exit 2), except
 `seo.og_locale_region_missing`, which stays a warning; `off` silences them.
 
@@ -118,8 +121,8 @@ bukit seo diff --baseline baseline-seo.json --current dist/.bukit/seo-report.jso
   --fail-on-route-removed --fail-on-indexable-drop
 ```
 
-Without any threshold flag, diff only prints and exits 0. `--fail-on-new-code a,b`
-fails when listed codes appear. Exit 1 means a budget was exceeded; 2 means bad input.
+Without any threshold flag, diff only prints and exits 0. `--max-new-issues n` budgets
+errors and warnings together. `--fail-on-new-code a,b` fails when listed codes appear. Exit 1 means a budget was exceeded; 2 means bad input.
 Do not diff a SEO report against a publish report.
 
 Related: `bukit-outputs` (sitemap, robots), `bukit-geo`, `bukit-seo-insights`

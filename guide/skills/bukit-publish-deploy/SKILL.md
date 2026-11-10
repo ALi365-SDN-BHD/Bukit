@@ -75,7 +75,9 @@ bukit deploy --force                      # allow a non-fast-forward push
   (`BKT-DEPLOY-PRIVACY-0001`). An existing `CNAME` on the target branch is kept; delete
   it on the branch to drop a custom domain.
 - Success prints `Expected site URL (publication not verified): <url>`. Check the
-  GitHub Pages settings (source branch) yourself.
+  GitHub Pages settings (source branch) yourself. The dry-run plan and this line are
+  info-level, so `--ci` (or `logging.level: warn|error`) hides them; in CI rely on
+  exit code 0.
 - `Non-fast-forward push rejected`: someone else changed the branch; rerun with
   `--force` only if overwriting is intended.
 

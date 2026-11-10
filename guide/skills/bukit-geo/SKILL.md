@@ -67,9 +67,11 @@ geo:
 ```
 
 Only these three keys are allowed, and `priority` must be a YAML integer. Invalid
-curation (unknown key, bad value, `llms: false`) silently excludes the page from llms
-output with no warning, so double-check spelling. Use `visibility: exclude` to remove a
-page.
+curation (unknown key, bad value, `llms: false`) excludes the page from llms output and
+logs `geo.llms_field_unknown`, `geo.llms_visibility_invalid`, `geo.llms_tier_invalid`,
+or `geo.llms_priority_invalid route=<output path>`. These follow `site.seo.diagnostics`:
+a warning by default, a build failure under `strict`, silent under `off`. Use
+`visibility: exclude` to remove a page.
 
 ## Structured data front matter
 
@@ -113,6 +115,9 @@ Claude-SearchBot, PerplexityBot) or user-fetch bots (ChatGPT-User, Claude-User,
 Perplexity-User) in any mode produces the publish audit warning
 `publish.ai_crawler_policy_conflict` on indexable routes. In `selective` mode the build
 also logs `event=robots.ai_search_blocked` for such bots left off the allow list.
+Blocking `Google-Extended` (as `block-training` does) logs
+`event=robots.ai_grounding_blocked`, because that token also controls grounding in
+Gemini answers.
 
 For the `Content-Signal` line (`search`, `aiInput`, `aiTrain`), see `bukit-outputs`.
 

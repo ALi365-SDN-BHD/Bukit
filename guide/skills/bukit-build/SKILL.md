@@ -45,8 +45,9 @@ render-dependency, and content hashes all match the manifest in
 `<cacheDir>/build-manifest.json` (`build-manifest.<lang>.json` per language).
 
 Because the default clean build starts from an empty staging directory, every page
-reports `output_missing` and is re-rendered. Reuse happens only with
-`--no-clean` (or `build.clean: false`) and in `bukit dev` rebuilds.
+reports `new_page` (no manifest entry yet) or `output_missing` and is re-rendered.
+Reuse happens only with `--no-clean` (or `build.clean: false`) and in `bukit dev`
+rebuilds.
 
 ```bash
 bukit build --no-clean --metrics .bukit/metrics.json
@@ -57,10 +58,20 @@ image processing, collections, plugin enablement) invalidate the affected pages
 automatically. Do not tell users to delete `.cache` to see template changes. To reset
 everything use `bukit clean --config site.yaml` or `bukit build --no-incremental`.
 
+Known gaps: `--no-clean` reuse does not notice (a) a Bukit version upgrade and (b)
+changes in other documents that a page's template reads (page lists, cross-links,
+related blocks). Such pages keep their old HTML. Use `--no-clean` for local speed only;
+run the default clean build after upgrading Bukit and for every release or deploy.
+
 `.cache/` holds `build-manifest*.json`, `media/` (localized media unless
 `content.media.downloadDir` is set), and `notion/` (only when a Notion source sets
 `cacheMode: readonly|readwrite`; `notion.cacheDir` relocates it). `--cache-dir`
-relocates `.cache/`. Keep `dist/` and `.cache/` out of Git.
+relocates `.cache/` for `bukit build`; it is relative to the current directory, and
+`bukit dev` and `bukit clean` still use `<root>/.cache`. Keep `dist/`, `.cache/`, and
+the project `.bukit/` (metrics files) out of Git.
+
+`bukit clean` always deletes `<root>/.cache` without checking what is in it. Run it only
+for a Bukit project root, never where `.cache` is shared with other tools.
 
 ## Performance options
 
@@ -101,7 +112,8 @@ own reports. Its `generatedFiles` lists public output only.
 
 `build.report.securityFailMode`: `auto` (default), `off`, `warn`, `strict`. `auto`
 becomes strict under `--ci` or a release environment (`BUKIT_BUILD_MODE`,
-`BUKIT_PROFILE`, `BUKIT_RELEASE`). In strict mode failed checks in
+`BUKIT_PROFILE`, `BUKIT_RELEASE`; `BUKIT_RELEASE=0` or `false` does not count). In
+strict mode failed checks in
 `security-report.json` stop the build with `BKT-BUILD-SECURITY-0001` (exit 1).
 
 ## Transactions and recovery
@@ -117,7 +129,10 @@ becomes strict under `--ci` or a release environment (`BUKIT_BUILD_MODE`,
 
 With two or more `site.languages`, `bukit build` builds each language in a Git worktree
 worker. Inputs must be committed: errors `i18n-worktree-git-required`, `-dirty`, or
-`-input-untracked` mean commit or ignore the files. `build.languageJobs` sets worker
+`-input-untracked` mean commit or ignore the files. Any untracked file under the site
+root counts, including `--metrics .bukit/metrics.json` output and a generated
+`site.schema.json`, so git-ignore the project `.bukit/` or write those files outside
+the site root. `build.languageJobs` sets worker
 count (default 1). `dev` and `deploy` build in-process without this requirement.
 See `bukit-i18n`.
 

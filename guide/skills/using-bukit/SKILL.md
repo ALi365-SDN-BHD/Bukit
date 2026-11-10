@@ -34,6 +34,7 @@ layouts/              unnamed theme, or overrides for a named theme
 themes/<name>/        named theme: theme.yaml, tokens.yaml, layouts/, assets/, static/
 dist/                 build output (do not commit)
 .cache/               incremental and media cache (do not commit)
+.bukit/               optional local files such as --metrics output (do not commit)
 ```
 
 Core has no scaffolding command; create these files directly.
@@ -50,6 +51,10 @@ bukit publish audit --dir dist
 bukit preview                   # final check at http://localhost:4173
 bukit deploy --dry-run
 ```
+
+`bukit dev` and `bukit preview` serve until Ctrl+C. Do not run this block top to bottom
+in one shell: start them in the background or a separate terminal, and stop them before
+the next step.
 
 ## Skill map
 

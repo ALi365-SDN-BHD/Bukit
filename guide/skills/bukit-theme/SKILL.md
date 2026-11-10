@@ -83,7 +83,8 @@ sections:
 
 `<themeRoot>/tokens.yaml` (groups `colors`, `font`, `radius`, `spacing`, `layout`)
 generates `/assets/css/theme-tokens.css` with CSS variables. Link it yourself. Parse
-errors are ignored silently, so check the generated file.
+errors are ignored silently, so check the generated file. Tokens are read only when
+`theme.yaml` is present; for an unnamed theme both files live in `layouts/`.
 
 ## SCSS
 
@@ -106,9 +107,10 @@ Variant failures fail the build under `site.pluginFailMode: strict`.
   If theme.yaml declares any `components`, `comp.render` sees only those and every
   site.yaml component becomes unreachable, so use one source per site. theme.yaml
   components are not inherited from a parent theme.
-- Component and section templates resolve under `<themeRoot>/layouts/`. For an unnamed
-  theme the root is the layouts folder itself (`layouts/layouts/...`), so prefer a named
-  theme when you use them.
+- theme.yaml component and section templates resolve under `<themeRoot>/layouts/`. For
+  an unnamed theme the root is the layouts folder itself (`layouts/layouts/...`), so
+  prefer a named theme when you use them. site.yaml `theme.components` templates use
+  the normal layout lookup instead.
 - `{{ render_section {type: "hero", variant: "dark", props: {...}} }}`; schemas are
   checked when `componentValidation` is `warn` or `strict`.
 - Shortcodes: `{% youtube "abc123" %}` anywhere in the final HTML, including Markdown

@@ -60,9 +60,9 @@ Add `logging.level: debug` in `site.yaml` for more detail (`--ci` forces `warn`)
 | `[BKT-0601] Refusing to clean unsafe output directory` | Output is root, home, outside project, `.git`, or symlink | Use `dist` or `public`. |
 | `Asset output collision at '<path>'` (exit 1) | Two sources write one path, or case-only clash | Rename one file. |
 | `BKT-BUILD-SECURITY-0001 ... (mode=strict)` | Failed security checks under `--ci` | Read `dist/.bukit/security-report.json`. |
-| `Multilingual build requires a clean site directory ...` / `... inside a Git repository` (JSON codes `i18n-worktree-*`, exit 1) | Multilingual build needs committed inputs in a Git repo | Commit inputs; ignore `dist/` and `.cache/`. |
+| `Multilingual build requires a clean site directory ...` / `... inside a Git repository` (JSON codes `i18n-worktree-*`, exit 1) | Multilingual build needs committed inputs in a Git repo; any untracked file under the site root counts | Commit inputs; ignore `dist/`, `.cache/`, and the project `.bukit/` (metrics files). |
 | Build failed mid-way | Transaction rolled back | Previous output is intact; fix and rebuild. Keep any backup named in `Rollback failed; preserve backup`. |
-| Every build re-renders all pages | Default `build.clean: true` | `bukit build --no-clean` for incremental reuse (`bukit-build`). |
+| Every build re-renders all pages | Default `build.clean: true` | `bukit build --no-clean` for incremental reuse, for local speed only; it can keep stale pages after a Bukit upgrade or when other pages a template lists change (`bukit-build`). |
 | Media downloads fail or rate-limit | `media.download_failed`, `media.ssrf_blocked` events | Lower `content.media.maxConcurrency`; check `skipHosts`; private hosts are blocked. |
 | `NOTION_TOKEN is required ...` | Env var missing | Export `NOTION_TOKEN`. |
 | `SEO report not found under ... Run a full build first.` | Audit `--dir` defaults to `dist` | Pass `--dir <build.output>`. |
@@ -73,7 +73,7 @@ Add `logging.level: debug` in `site.yaml` for more detail (`--ci` forces `warn`)
 | `Build output is not ready for deployment` | No completed build | Run a successful `bukit build` first. |
 | `GITHUB_TOKEN environment variable is required` | Token var unset | Set it or use `--token-env NAME`. |
 | `Non-fast-forward push rejected` | Target branch diverged | `--force` only if overwriting is intended. |
-| Page missing from llms.txt | Invalid `geo.llms` curation (no curation-specific diagnostic) | The only signal is the publish audit warning `publish.llms_missing_route route=<url>`; check `visibility`, `tier`, integer `priority` (`bukit-geo`). |
+| Page missing from llms.txt | Invalid `geo.llms` curation | Look for build warnings `geo.llms_field_unknown`, `geo.llms_visibility_invalid`, `geo.llms_tier_invalid`, `geo.llms_priority_invalid` (hidden when `site.seo.diagnostics: off`) and the publish audit warning `publish.llms_missing_route route=<url>`; check `visibility`, `tier`, integer `priority` (`bukit-geo`). |
 
 ## Reports to inspect
 
@@ -86,5 +86,6 @@ Add `logging.level: debug` in `site.yaml` for more detail (`--ci` forces `warn`)
 
 - Do not delete the last good output or `.cache` as a first fix.
 - `bukit clean --config site.yaml` resets the configured output and `.cache`; it never
-  touches the project `.bukit/`.
+  touches the project `.bukit/`. The safety checks cover the output directory only:
+  `<root>/.cache` is always deleted, so run it only for a Bukit project root.
 - Never create `.bukit-output-marker` by hand.

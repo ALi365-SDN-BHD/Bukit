@@ -26,7 +26,10 @@ content:
 
 An unnamed source is keyed by its type (`markdown`) when it is the only source of that
 type; otherwise unnamed sources become `markdown1`, `markdown2`, ... Names must be
-unique. Give sources explicit `name`s when templates reference `site.data.<name>`.
+unique. Give sources explicit `name`s when templates reference `site.data.<name>`, and
+do not name a source `taxonomy`, `pages_by_id`, or `taxonomy_ensure_terms` (built-in
+`site.data` keys). `markdown.includePaths` loads only the listed files (`.md` is
+appended when missing).
 
 ## Collection and type
 
@@ -80,6 +83,7 @@ categories: [Guides]
 language: en
 draft: false
 image: /assets/images/tea.jpg
+image_alt: A cup of green tea   # required with image (requireMediaAlt default)
 ---
 ```
 
@@ -92,6 +96,7 @@ image: /assets/images/tea.jpg
 | `aliases` | Redirect pages. Currently breaks the build (Core defect, see `bukit-outputs`); do not use. |
 | `language`, `i18nKey` | Language variant and translation group (`bukit-i18n`). No `lang` alias. |
 | `draft: true` | Dropped unless `--draft` / `build.draft: true`. |
+| `image`, `cover` (+ `image_alt` / `cover_alt`) | Page image. Without the `_alt` key the build logs `canonical_media_alt_missing` (fails under `schemaFailMode: strict`). Optional `_caption`, `_description`, `_license`. |
 | `noindex`, `canonical`, `seo_title`, `seo_desc`, `geo:` ... | `bukit-seo`, `bukit-geo`. |
 | `sitemapexclude`, `searchexclude`, `feedexclude` | Output exclusions. |
 
@@ -127,8 +132,9 @@ expose scalars as `site.data_index.<source>.<scope>.<key>`:
         requiredKeys: [contact.email]   # optional; fails the build if missing
 ```
 
-Each item needs four fields (default names `scope`, `key`, `value`, `value_type`;
-rename with `scopeField`, `keyField`, `valueField`, `valueTypeField`):
+Each item needs `scope`, `key`, and `value_type`; `value` may be empty unless the key is
+in `requiredKeys` (default field names shown; rename with `scopeField`, `keyField`,
+`valueField`, `valueTypeField`):
 
 ```markdown
 ---
@@ -246,9 +252,10 @@ build:
 
 ## Route metadata
 
-`content.routeMetadata` sets titles and summaries for list pages, singleton pages
-(collection or type `page`/`singleton`), static-template pages, and breadcrumbs from a
-data source. Ordinary collection pages are not affected.
+`content.routeMetadata` sets titles and summaries for list pages, static-template
+pages, breadcrumbs, and content pages whose `type` is `page` (the default) or
+`singleton`, from a data source. Only the type decides, not the collection: a post with
+no `type` is affected when a row has its URL, and a page with any other type never is.
 
 ```yaml
 content:
@@ -264,8 +271,8 @@ content:
     # seoTitleField seo_title, seoDescriptionField seo_description
 ```
 
-Each row needs `route` (starting and ending with `/`), `title`, and `summary`;
-duplicate routes fail. The source is hidden from `site.data`.
+Each row needs `route` (starting and ending with `/`) and `summary`; `title` falls back
+to the row's document title (first `# H1`, else slug). Duplicate routes fail. The source is hidden from `site.data`.
 
 ## Check
 

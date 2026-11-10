@@ -7,7 +7,8 @@ description: Use when you need the exact Bukit Core command, subcommand, option,
 
 Bukit Core registers exactly twelve static commands. Any other command name (for
 example `init`, `lint`, or a `--version` flag) is not a Core command and exits 2; use
-`version` for the version.
+`version` for the version. The one exception is external-plugin tooling (Labs, not
+covered here): `plugin`, and commands exposed by plugins in `.bukit/plugins.yaml`.
 
 ## Command map
 
@@ -70,7 +71,7 @@ Bare `bukit seo`, `bukit publish`, `bukit geo`, and `bukit config` print usage a
 | `--draft` | Keep documents with `draft: true`. Without it they are removed. |
 | `--ci` | Log level `warn`; forces `build.followSymlinks: false`; turns `build.report.securityFailMode: auto` into strict. |
 | `--incremental` / `--no-incremental` | Incremental rendering is on by default. Mutually exclusive. |
-| `--cache-dir <dir>` | Replace `<root>/.cache` for the build manifest and media cache. |
+| `--cache-dir <dir>` | Replace `<root>/.cache` for the build manifest and media cache. Relative to the current directory; not used by `dev`, not removed by `clean`. |
 | `--metrics <file.json>` | Write stage metrics JSON plus a sibling `.html`, relative to the project root. |
 | `--jobs <n>` | Render parallelism, positive integer (default CPU count). |
 | `--log-format text\|json` | Log and error format. Accepted on every command line; JSON errors go to stderr. |
@@ -83,8 +84,8 @@ Details: `bukit-build`. Servers: `bukit-local-server`. Audits and deploy:
 | Code | Meaning |
 |---:|---|
 | 0 | Success. |
-| 1 | Command-level failure: audit found errors (or warnings with `--strict`); diff budget exceeded; insights `--strict-join` gaps; security gate failed; `doctor`, `config check`, `deploy` config errors; missing default audit report; deploy readiness or push failure; multilingual worktree errors; any unexpected build error (e.g. asset output collision, JSON code `cli-error`). |
-| 2 | Usage or input error: unknown command/option, missing or invalid option value, conflicting options, config or content errors during `build`, unsafe `clean` target, refused non-loopback host, unknown completion shell, invalid insight inputs. |
+| 1 | Command-level failure: audit found errors (or warnings with `--strict`); diff budget exceeded; insights `--strict-join` gaps; security gate failed; `config check` and `deploy` config errors; `doctor` validation and health-check failures; missing default audit report; deploy readiness or push failure; multilingual worktree errors; any unexpected build error (e.g. asset output collision, JSON code `cli-error`). |
+| 2 | Usage or input error: unknown command/option, missing or invalid option value, conflicting options, config or content errors during `build`, `doctor` when `site.yaml` cannot be loaded (missing file, YAML error, unknown key), an explicit `--report` file that is missing or an invalid SEO/publish report, unsafe `clean` target, refused non-loopback host, unknown completion shell, invalid insight inputs. |
 | 3 | Template render failure (`RenderException`). |
 
 `geo audit` exits 0 whatever the score; it fails only for a missing or invalid report (1)
@@ -98,7 +99,7 @@ or bad usage/missing directory (2).
 | `NOTION_TOKEN` | Required for Notion sources when secrets are validated (`build`, `config check`, `doctor`). |
 | `GITHUB_TOKEN` | Default deploy token; choose another variable with `--token-env NAME` (pass the name, never the value). |
 | `BUKIT_DEPLOY_GIT_TIMEOUT_SECONDS` | Per-git-command deploy timeout, default 300, `0` = no limit. |
-| `BUKIT_BUILD_MODE=release\|profile`, `BUKIT_PROFILE`, `BUKIT_RELEASE` | Make `securityFailMode: auto` strict, like `--ci`. |
+| `BUKIT_BUILD_MODE=release\|profile`, `BUKIT_PROFILE`, `BUKIT_RELEASE` | Make `securityFailMode: auto` strict, like `--ci`. `BUKIT_PROFILE` counts with any non-empty value; `BUKIT_RELEASE` with any non-empty value except `0` or `false`. |
 | `BUKIT_TRACE_ID`, `BUKIT_SPAN_ID` | Added to JSON log lines. |
 
 Logs go to stderr: `[info] ...` in text mode, one JSON object per line with
@@ -113,7 +114,7 @@ bukit doctor
 bukit build
 bukit seo audit --dir dist
 bukit publish audit --dir dist
-bukit preview
+bukit preview        # long-running: serves until Ctrl+C; run it last or in the background
 ```
 
 Audit commands default `--dir` to `dist`, not to `build.output`. Pass `--dir` when the
@@ -123,7 +124,13 @@ output directory is different.
 
 `bukit clean` with no options targets `./dist`. `bukit clean --config site.yaml` targets
 the configured `build.output`, and `--dir` must stay inside the current directory.
+`--dir` is ignored when `--config` or `--site` is given.
 It deletes the target and `<root>/.cache`. It never deletes the project `.bukit/`.
+
+The refusals below protect the output directory only. `<root>/.cache` (the current
+directory without `--config`/`--site`) is always deleted, even when no output directory
+exists, so run `bukit clean` only for a Bukit project root and never where `.cache` is
+shared with other tools.
 
 It refuses, with exit 2 and the target left intact: the project root, the home
 directory, paths outside the project, any path with a `.git` segment, symlinked

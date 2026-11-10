@@ -31,8 +31,9 @@ Files are found in this order: `<siteRoot>/layouts/` (override, if it exists), t
 </article>
 ```
 
-The directive must be the whole first non-blank line. The child renders first; the
-layout outputs it with `{{ content }}`. Layouts can chain up to 10 levels.
+The directive must be the whole first non-blank line; `{{ layout "layouts/base.html" }}`
+is accepted too. The child renders first; the layout outputs it with `{{ content }}`.
+Layouts can chain up to 10 levels.
 
 ```html
 {{ base = site.base_url }}{{ if base == "/" }}{{ base = "" }}{{ end }}<!DOCTYPE html>
@@ -61,10 +62,10 @@ the author's spelling and are case-sensitive. Missing members return null (no er
 | Root | Available on |
 |---|---|
 | `site` | all templates |
-| `page`, `pages` | all page templates (`pages` = routed pages) |
+| `page`, `pages` | all page templates (`pages` = routed pages; on taxonomy term pages `pages` is the term's entries, same as `items`) |
 | `items` | home, collection, filtered, taxonomy, pagination lists |
 | `pagination` | paginated lists (absent otherwise; test with `if pagination`) |
-| `collection` | collection and filtered lists (`collection.key`) |
+| `collection` | collection and filtered lists (`collection.key`); also set on taxonomy term pages with key `page`, so test `taxonomy` first |
 | `filter` | filtered lists (`field`, `operator`, `value`, `values`) |
 | `taxonomy` | taxonomy term pages (`kind`, `term`, `slug`, `url`, `count`, ...) |
 | `seo` | same as `page.seo` |
@@ -73,8 +74,9 @@ the author's spelling and are case-sensitive. Missing members return null (no er
 `site`: `name`, `title`, `description`, `url`, `base_url` (`"/"` or `"/sub"`, no
 trailing slash; includes `/<lang>` in multilingual builds), `language`, `build_year`,
 `params` (from `theme.params`), `data.<source>`, `data_index.<source>.<scope>.<key>`,
-`data_files.<file>`, `modules.<type>`, `related_pages[<id>]`. There is no
-`site.menus` or `site.languages`.
+`data_files.<file>`, `modules.<type>`, `related_pages[<id>]`. `site.data` also holds
+the built-in keys `taxonomy` (all terms, usable on any page) and `pages_by_id`. There
+is no `site.menus` or `site.languages`.
 
 `page`: `title`, `url` (root-relative, without `base_url`), `content` (HTML),
 `summary`, `table_of_contents` (`level`, `text`, `id`, `url`), `publish_date`,
@@ -145,6 +147,7 @@ Besides Scriban built-ins (`string.*`, `array.*`, `date.*`, `math.*`, `html.*`):
 | `util.json_string` | JSON string with quotes; does not escape `</script>`. |
 | `comp.render "name" ...` | Theme components (`bukit-theme`). |
 | `render_section {type: "hero", ...}` | Theme sections. |
+| `shortcode "name" "a1" ...` | Theme shortcode, up to four arguments; only when `theme.shortcodes` is set (`bukit-theme`). |
 | `image.srcset`, `image.img` | Produce `?w=N` URLs that no build step serves; prefer plain `<img>` plus image processing. |
 
 There is no translation helper, `markdownify`, `relative_url`, or asset fingerprinting.

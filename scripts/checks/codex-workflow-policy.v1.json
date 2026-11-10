@@ -1921,9 +1921,23 @@
       ]
     },
     {
-      "id": "deploy-skill-token-repo",
+      "id": "core-skill-pack",
       "matches": [
-        "guide/skills/bukit-deploy/SKILL.md"
+        "guide/skills/bukit-analytics/SKILL.md",
+        "guide/skills/bukit-build/SKILL.md",
+        "guide/skills/bukit-config/SKILL.md",
+        "guide/skills/bukit-geo/SKILL.md",
+        "guide/skills/bukit-i18n/SKILL.md",
+        "guide/skills/bukit-local-server/SKILL.md",
+        "guide/skills/bukit-outputs/SKILL.md",
+        "guide/skills/bukit-publish-deploy/SKILL.md",
+        "guide/skills/bukit-routing/SKILL.md",
+        "guide/skills/bukit-seo-insights/SKILL.md",
+        "guide/skills/bukit-seo/SKILL.md",
+        "guide/skills/bukit-templating/SKILL.md",
+        "guide/skills/bukit-theme/SKILL.md",
+        "guide/skills/bukit-troubleshooting/SKILL.md",
+        "guide/skills/using-bukit/SKILL.md"
       ],
       "specialtyTests": [
         "bash guide/skills/scripts/validate-skills-strict.sh"
