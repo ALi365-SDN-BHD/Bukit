@@ -5707,11 +5707,103 @@ public sealed partial class SiteEngineIntegrationTests
         }
     }
 
+    // fix-notion-body-cache-contract: ContractVersion is a constant, so a bump is simulated by
+    // rewriting what the previous build recorded (the cached body and the page fingerprint) to
+    // an older contract. The next --no-clean build must refetch the body and render the page,
+    // and the build after that reuses both again.
+    [Fact]
+    public async Task BuildAsync_NotionRendererContractBump_RefetchesBodyAndRendersAgain()
+    {
+        const string notionId = "39bfa39a-5013-81ae-9516-fbd448f3bd47";
+        var (root, baseConfig) = CreateBuildReportHealthSite();
+        var originalToken = Environment.GetEnvironmentVariable(EnvironmentHelper.NotionTokenKey);
+        try
+        {
+            Environment.SetEnvironmentVariable(EnvironmentHelper.NotionTokenKey, "contract-token");
+            var config = baseConfig with
+            {
+                Content = TestContent.Notion(notionId) with { Media = new MediaConfig { DownloadToLocal = false } },
+                Build = baseConfig.Build with { Clean = true, Report = new BuildReportConfig { Enabled = false } }
+            };
+            File.WriteAllText(Path.Combine(root, "layouts", "pages", "page.html"), "<html><body>{{ page.content }}</body></html>");
+            WriteTestThemeTemplates(root);
+            var pagePath = Path.Combine(root, "dist", "pages", "notion-page", "index.html");
+            var cacheDir = Path.Combine(root, ".notion-body-cache");
+            var manifestPath = Path.Combine(root, ".cache", "build-manifest.json");
+            var handler = new MinuteEditNotionHandler("2026-11-10T10:00:00.000Z")
+            {
+                ServerTime = new DateTimeOffset(2026, 11, 10, 10, 5, 0, TimeSpan.Zero),
+                Body = "current render"
+            };
+
+            var pageRenders = new List<int>();
+            async Task BuildAsync(bool clean)
+            {
+                var options = new NotionContentSourceOptions
+                {
+                    DatabaseId = "db-minute",
+                    Token = "token",
+                    FilterType = "none",
+                    FieldPolicyMode = "all",
+                    RenderContent = true,
+                    CacheMode = "readwrite",
+                    CacheDir = cacheDir,
+                    MaxRps = 1000,
+                    MaxRetries = 0
+                };
+                var serverTime = handler.ServerTime;
+                var source = new NotionContentSource(options, logger: null,
+                    () => new NotionContentClient(options, handler, static (_, _) => Task.CompletedTask, () => serverTime));
+                var counter = new CountingPageRenderer(new ScribanTemplateRendererAdapter(Path.Combine(root, "layouts")), "/pages/notion-page/");
+                var engine = new SiteEngine(new TestLogger(), new SingleProviderFactory(source), new DefaultSearchIndexBuilder(), _ => counter);
+                await engine.BuildAsync(config, root, new ConfigOverrides { Clean = clean, Incremental = true });
+                pageRenders.Add(counter.PageRenders);
+            }
+
+            await BuildAsync(clean: true);
+            Assert.Contains("current render", File.ReadAllText(pagePath), StringComparison.Ordinal);
+            await BuildAsync(clean: false);
+            Assert.Equal(0, pageRenders[^1]);
+            var blocksBeforeBump = handler.BlockRequests;
+
+            var cacheFile = Assert.Single(Directory.GetFiles(Path.Combine(cacheDir, "pages"), "*.json"));
+            var cached = System.Text.Json.Nodes.JsonNode.Parse(File.ReadAllText(cacheFile))!.AsObject();
+            // The fingerprint embeds the contract version, so a page built under the older
+            // contract carries a different content hash.
+            var manifest = BuildManifest.Load(manifestPath);
+            var entry = Assert.Single(manifest.Entries.Values, e => e.Url == "/pages/notion-page/");
+            entry.ContentHash = "built-under-older-renderer-contract";
+            manifest.Save(manifestPath);
+            cached["renderer"] = cached["renderer"]!.GetValue<int>() - 1;
+            cached["html"] = "<p>old render</p>";
+            File.WriteAllText(cacheFile, cached.ToJsonString());
+
+            await BuildAsync(clean: false);
+            Assert.Equal(1, pageRenders[^1]);
+            Assert.True(handler.BlockRequests > blocksBeforeBump);
+            var html = File.ReadAllText(pagePath);
+            Assert.Contains("current render", html, StringComparison.Ordinal);
+            Assert.DoesNotContain("old render", html, StringComparison.Ordinal);
+
+            var blocksAfterBump = handler.BlockRequests;
+            await BuildAsync(clean: false);
+            Assert.Equal(0, pageRenders[^1]);
+            Assert.Equal(blocksAfterBump, handler.BlockRequests);
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable(EnvironmentHelper.NotionTokenKey, originalToken);
+            CleanupDir(root);
+        }
+    }
+
     private sealed class MinuteEditNotionHandler(string lastEditedTime) : HttpMessageHandler
     {
         public DateTimeOffset ServerTime { get; set; }
 
         public string Body { get; set; } = string.Empty;
+
+        public int BlockRequests { get; private set; }
 
         protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
         {
@@ -5743,6 +5835,7 @@ public sealed partial class SiteEngineIntegrationTests
             }
             else if (request.Method == HttpMethod.Get && url.Contains("/v1/blocks/", StringComparison.Ordinal))
             {
+                BlockRequests++;
                 body = $$$"""{"results":[{"type":"paragraph","paragraph":{"rich_text":[{"plain_text":"{{{Body}}}"}]}}],"has_more":false}""";
             }
             else

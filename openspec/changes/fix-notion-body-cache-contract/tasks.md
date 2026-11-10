@@ -30,7 +30,7 @@
 
 - [x] 缓存：契约递增重拉、分钟内抓取重拉、落定复用、本机时钟超前、空 `lastEditedTime` 不复用、格式 1 失效、readonly 升级后复用并警告；`fetchedAt` 取最早响应时间。
 - [x] 指纹：契约版本进入指纹；落定前后指纹不同；落定后稳定；空 `last_edited_time` 无稳定指纹；现有 `EndsWith(":content=…")` 断言保持通过。
-- [ ] 端到端（无媒体本地化，`--no-clean`）：契约递增重渲染；分钟内二次编辑在下一次构建生效；本机时钟超前时同样生效。INC-09 保持通过。
+- [x] 端到端（无媒体本地化，`--no-clean`）：契约递增重渲染；分钟内二次编辑在下一次构建生效；本机时钟超前时同样生效。INC-09 保持通过。
 
 ## 6. 文档
 
@@ -43,4 +43,4 @@
 - [x] `python3 scripts/checks/codex-workflow.py closure` 生成验证闭包并解决未映射文件。
 - [x] Notion、Content 专项测试与相关增量测试，格式检查，`openspec validate fix-notion-body-cache-contract --strict`，AOT 二进制编译。
 
-证据（2026-11-10）：Notion 439、Content.Notion 79、Content 666、Engine 3280、端到端 Theory 与 INC-09 3/3；审查 0 Critical / 0 Important（`/tmp/claude/codex-reports/review-s58/report.md`）；AOT `aot-s58`。未勾选项：`ContractVersion` 为 const，无法在端到端测试中递增；契约递增后的重拉由缓存层测试覆盖。
+证据（2026-11-10）：Notion 439、Content.Notion 79、Content 666、Engine 3280、端到端 Theory 与 INC-09 3/3；审查 0 Critical / 0 Important（`/tmp/claude/codex-reports/review-s58/report.md`）；AOT `aot-s58`。端到端契约递增（2026-11-11）：`ContractVersion` 为 const，`BuildAsync_NotionRendererContractBump_RefetchesBodyAndRendersAgain` 把上次构建记录的正文缓存渲染器版本和页面内容哈希改为旧契约下的值，下一次 `--no-clean` 构建重拉正文并重渲染该页，再下一次两者都复用。
