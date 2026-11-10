@@ -26,13 +26,20 @@ touch the network; you supply the files. Run `bukit build` first.
 | `--rules` | Required. Rules profile (below). |
 | `--targets` | Required for `question-insights`. |
 | `--out` | Report path; must not be one of the input files. |
-| `--strict-join` | Exit 1 when any observation is unmatched or ambiguous. The report is still written first. |
+| `--strict-join` | Exit 1 on join gaps; the report is still written first. Gaps are unmatched or ambiguous observation rows for `insights` and `question-insights`, and unmatched or ambiguous cited URLs on allowed hosts for `generative-insights` and `authority-insights`. |
 
 All paths must be local; URLs, `//host` paths, and schemes are rejected. Each input file
 is capped at 50 MiB and 100,000 rows. Unknown or duplicate JSON fields are rejected.
 
 Exit codes: 0 report written; 1 `--strict-join` with join gaps; 2 any input, schema,
-path, or I/O error (stderr: `<Label> failed: <code>.`).
+path, or I/O error (stderr: `<Label> failed: <code>.`). A missing `--observations` or
+`--rules` is rejected earlier by the argument parser (`Error: Missing required
+option: ...`, exit 2). Paths are relative to the current directory.
+
+Success prints `<Label>: sourceRows=N matched=N unmatched=N ambiguous=N` (plus
+`findings=N` for `seo insights`), `<Label> report: <path>`, and `<Label>
+classification: complete|join-gaps-allowed|strict-join-failed`. Labels: `SEO insights`,
+`SEO question insights`, `SEO generative insights`, `SEO authority insights`.
 
 ## Rules profile (shared)
 
@@ -151,7 +158,10 @@ Reports are local files, but they are not anonymized: unmatched and ambiguous en
 keep the raw observed URL including query strings (only credentials are stripped),
 authority reports keep `sourceUrl`, and the question and generative reports record the
 absolute local path of each observation file. Do not publish these reports or commit
-them to a public repository. Keep them out of the deployed output.
+them to a public repository. Keep them out of the deployed output. The default `--out`
+(`<dir>/.bukit/`) is deleted by the next clean build and is excluded only by
+`bukit deploy`, not by other uploads of the output; pass `--out` outside the output
+directory to keep a report.
 
 ## Workflow
 

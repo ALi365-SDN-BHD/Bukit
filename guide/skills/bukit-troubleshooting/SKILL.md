@@ -17,7 +17,8 @@ bukit seo audit --dir dist  # output quality
 ```
 
 Add `logging.level: debug` in `site.yaml` for more detail (`--ci` forces `warn`). Use
-`--log-format json` for machine-readable stderr. Read the first error, not the last.
+`bukit build --log-format json` for machine-readable log lines (the option goes after
+the command; error objects are multi-line JSON, see `bukit-cli-reference`). Read the first error, not the last.
 
 ## Reading errors
 

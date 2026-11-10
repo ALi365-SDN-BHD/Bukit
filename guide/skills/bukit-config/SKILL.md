@@ -140,7 +140,11 @@ outside the site root): an untracked file there fails the next `bukit build` wit
 `config check` runs all `site.yaml` validators, including collection rules (`{slug}`
 in permalinks, pagination and filteredLists patterns, source `collection`
 assignment) and provider secrets (for example `NOTION_TOKEN`). On failure it prints
-`✖ Config error` and the message to stdout and exits 1. It does not load theme.yaml,
+`✖ Config error` and the message to stdout and exits 1. On success it prints
+`✔ Config check passed` with the resolved `config:` path and `root:` directory; use the
+root line to confirm `--config`/`--site` picked the intended project. `config schema
+--output <file>` (relative to the current directory) prints `Config schema written:
+<path>`. It does not load theme.yaml,
 templates, or content files, so route conflicts and template errors appear only in
 `doctor` or `build`.
 

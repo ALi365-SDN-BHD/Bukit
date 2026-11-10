@@ -105,7 +105,15 @@ bukit seo audit --dir dist --external # also live HTTP checks (needs network)
 ```
 
 `--dir` defaults to `dist`; pass the real `build.output`. `--report <file>` reads a
-specific report. A missing default report exits 1 ("Run a full build first").
+specific report. Paths are relative to the current directory. A missing default report
+exits 1 ("Run a full build first"); a missing explicit `--report` or an invalid report
+exits 2.
+
+Output on stdout: `<Label> audit: routes=N errors=N warnings=N` (Label `SEO` or
+`Publish`), an optional `<Label> summary: ...` line, `<Label> issues by group:`, then
+`=== SEO|Publish|GEO Issues ===` sections with one `<severity> <code> <route>
+<message>` line per issue. The exit code is the contract; parse these lines only for
+reporting.
 
 ### `--external`
 
@@ -129,6 +137,9 @@ For every route in the report it requests:
 - External errors and warnings are added to the audit totals, so they set the exit code
   like any other issue (warnings fail only with `--strict`). Large sites make many
   requests; keep `--external` out of every-commit CI.
+- Images and links are read from the HTML under `--dir` (default `dist`), even when
+  `--report` points elsewhere; routes whose file is missing get only the canonical
+  check.
 
 Common issue codes:
 

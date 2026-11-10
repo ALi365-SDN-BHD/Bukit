@@ -35,7 +35,7 @@ bukit dev --no-watch          # serve the build without watching
 - `site.yaml` is read once. Restart `bukit dev` after changing config.
 - Builds run in development mode: with `site.analytics.productionOnly: true`
   (default) analytics are not injected.
-- `--output` overrides the output directory.
+- `--output` overrides the output directory (relative to the project root).
 
 ## preview
 
@@ -63,3 +63,8 @@ disk stay unchanged.
   `.bukit-output-marker`.
 - A non-loopback `--host` (for example `0.0.0.0`) requires `--allow-lan` or
   `--public`; otherwise exit 2. Use them only on trusted networks.
+- Read the actual URL from the startup line (preview: `Preview: http://...`, dev:
+  `dev server: http://...`); a busy port moves to the next one with a
+  `Port X unavailable` line. Bind failure (`Failed to listen on ...`) exits 1; an
+  invalid preview `--port` or a missing directory exits 2. If dev's initial build fails,
+  dev exits with the build's exit code; only later rebuild failures keep serving.

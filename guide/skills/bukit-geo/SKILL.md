@@ -138,7 +138,8 @@ bukit geo audit --dir dist
 
 Prints whether `llms.txt`, `llms-full.txt`, and `robots.txt` exist, geo-enhanced routes,
 and `GEO Score: N/100` from `.bukit/geo-report.json`. It exits 0 regardless of score,
-so it is informational, not a gate. Use `bukit seo audit` and `bukit publish audit`
+so it is informational, not a gate (exit 1 when `.bukit/geo-report.json` is missing or
+invalid, exit 2 when `--dir` does not exist). Use `bukit seo audit` and `bukit publish audit`
 for pass/fail checks (`geo.llms_txt_missing`, `publish.llms_missing_route`, ...);
 these are warnings, so use `--strict` to fail on them.
 
