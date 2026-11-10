@@ -50,7 +50,9 @@ Directory choice: `--dir` if given; else `build.output` when `--config` or `--si
 given; else `./dist`. `/` and extensionless paths fall back to `index.html`. Path
 traversal returns 403. When analytics are production-only and preview can load the site config
 (`--config`/`--site`, or a `site.yaml` found from the directory), managed analytics
-blocks are stripped from responses; otherwise they are kept with a warning. Files on
+blocks are stripped from responses; otherwise they are kept with a warning. A
+`site.yaml` found this way that fails to load stops preview with `Preview analytics
+policy error: failed to load ...` (exit 2). Files on
 disk stay unchanged.
 
 ## Shared behavior

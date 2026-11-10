@@ -146,7 +146,7 @@ bukit completion fish > ~/.config/fish/completions/bukit.fish
 |---:|---|
 | 0 | Success. |
 | 1 | Command-level failure: audit found errors (or warnings with `--strict`); diff budget exceeded; insights `--strict-join` gaps; security gate failed; `config check` and `deploy` config errors; `doctor` validation and health-check failures; missing default audit report; deploy readiness or push failure; multilingual worktree errors; any unexpected build error (e.g. asset output collision, JSON code `cli-error`). |
-| 2 | Usage or input error: unknown command/option, missing or invalid option value, conflicting options, config or content errors during `build` and `dev`, config load errors for `clean`/`preview` with `--config`/`--site`, `doctor` when `site.yaml` cannot be loaded (missing file, YAML error, unknown key), an explicit `--report` file that is missing or an invalid SEO/publish report, unsafe `clean` target, refused non-loopback host, unknown completion shell, invalid insight inputs. |
+| 2 | Usage or input error: unknown command/option, missing or invalid option value, conflicting options, config or content errors during `build` and `dev`, config load errors for `clean` with `--config`/`--site` and for `preview` (including a `site.yaml` it finds above the served directory: `Preview analytics policy error`), `doctor` when `site.yaml` cannot be loaded (missing file, YAML error, unknown key), an explicit `--report` file that is missing or an invalid SEO/publish report, unsafe `clean` target, refused non-loopback host, unknown completion shell, invalid insight inputs. |
 | 3 | Template render failure (`RenderException`). |
 
 `geo audit` exits 0 whatever the score; it fails only for a missing or invalid report (1)
@@ -157,7 +157,7 @@ or bad usage/missing directory (2).
 | Variable | Effect |
 |---|---|
 | `BUKIT_<SECTION>__<KEY>...` | Override any `site.yaml` scalar before validation. Segments are snake case mapped to camelCase: `BUKIT_SITE__BASE_URL=/docs/` sets `site.baseUrl`. Applies to every command that loads config. An empty value can fail validation for every command. |
-| `NOTION_TOKEN` | Required for Notion sources when secrets are validated (`build`, `config check`, `doctor`, and `deploy` without `--skip-build`/`--dry-run`). |
+| `NOTION_TOKEN` | Required for Notion sources when secrets are validated (`build`, `dev`, `config check`, `doctor`, and `deploy` without `--skip-build`/`--dry-run`). |
 | `GITHUB_TOKEN` | Default deploy token; choose another variable with `--token-env NAME` (pass the name, never the value). |
 | `BUKIT_DEPLOY_GIT_TIMEOUT_SECONDS` | Per-git-command deploy timeout, default 300, `0` = no limit. |
 | `BUKIT_BUILD_MODE=release\|profile`, `BUKIT_PROFILE`, `BUKIT_RELEASE` | Make `securityFailMode: auto` strict, like `--ci`. `BUKIT_PROFILE` counts with any non-empty value; `BUKIT_RELEASE` with any non-empty value except `0` or `false`. |
@@ -172,13 +172,19 @@ Logs go to stderr: `[info] ...` in text mode, one JSON object per line with
 ```json
 {"schema": "https://bukit.dev/schemas/cli-error.v1.json", "version": "1.0",
  "command": "build", "exitCode": 2,
- "errors": [{"code": "ContentCollectionMissing", "message": "...", "showUsage": false}],
- "usage": "..."}
+ "errors": [{"code": "ContentCollectionMissing", "message": "...", "showUsage": false}]}
 ```
 
+`usage` appears only for usage errors (`showUsage: true`). Log lines are single-line
+`{"ts": ..., "level": "Debug|Info|Warn|Error", "msg": ...}` objects; in a failed run
+they come first, and the error object starts at a line that is exactly `{`.
+
 Messages a command prints itself stay plain text in JSON mode: audit results,
-`report not found`, preview/clean/geo/insights/deploy validation errors, and
-`config check` / `doctor` output. Level comes from `logging.level` (`debug|info|warn|error`);
+`report not found`, preview/clean/geo/insights validation errors, deploy
+config/`--repo`/`--token-env` errors, and `config check` / `doctor` output. Deploy
+readiness and push failures and dev's host refusal are log lines (JSON in JSON mode).
+
+Level comes from `logging.level` (`debug|info|warn|error`);
 `--ci` forces `warn`.
 
 ## Default loop
@@ -202,9 +208,10 @@ the configured `build.output`, and `--dir` must stay inside the current director
 `--dir` is ignored when `--config` or `--site` is given.
 It deletes the target and `<root>/.cache`. It never deletes the project `.bukit/`.
 
-The refusals below protect the output directory only. `<root>/.cache` (the current
-directory without `--config`/`--site`) is always deleted, even when no output directory
-exists, so run `bukit clean` only for a Bukit project root and never where `.cache` is
+The refusals below check only the output path. When clean does not refuse,
+`<root>/.cache` (the current directory without `--config`/`--site`) is deleted without
+inspection, even when no output directory exists; a refusal (exit 2) leaves both the
+output and `.cache` intact. Run `bukit clean` only for a Bukit project root and never where `.cache` is
 shared with other tools.
 
 It refuses, with exit 2 and the target left intact: the project root, the home
@@ -216,9 +223,13 @@ Success prints `Cleaned: <dir>`, even when nothing existed.
 
 ## `doctor` results
 
-Output goes to stdout. Checks run in order and stop at the first `✖` line (exit 1); fix
-it and rerun to see later checks. `⚠` lines are advisory and never change the exit
+Output goes to stdout. Checks run in order and stop at the first `✖` line, or at
+`- result: refuse` in the `Output directory safety:` block (output not empty and no
+`.bukit-output-marker`), with exit 1; fix it and rerun to see later checks. `⚠` lines are advisory and never change the exit
 code, so read them even on exit 0. Success ends with `✔ Doctor passed`. A `site.yaml`
 that cannot be loaded (missing, YAML error, unknown key) exits 2; a loaded config that
 fails validation prints `✖ Config error` and exits 1. With a Notion source, doctor
-needs `NOTION_TOKEN` (`✖ NOTION_TOKEN not set`, exit 1) and calls the Notion API.
+validates `NOTION_TOKEN` in the config check: without it the first check fails with
+`✖ Config error` / `[BKT-0001] NOTION_TOKEN is required for notion provider ...`
+(exit 1). With the token set it calls the Notion API (`✖ Notion database check
+failed: <status>` or `✖ Notion request failed: ...`, exit 1).

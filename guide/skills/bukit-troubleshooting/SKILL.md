@@ -93,6 +93,7 @@ the command; error objects are multi-line JSON, see `bukit-cli-reference`). Read
 
 - Do not delete the last good output or `.cache` as a first fix.
 - `bukit clean --config site.yaml` resets the configured output and `.cache`; it never
-  touches the project `.bukit/`. The safety checks cover the output directory only:
-  `<root>/.cache` is always deleted, so run it only for a Bukit project root.
+  touches the project `.bukit/`. The safety checks cover the output path only:
+  unless clean refuses, `<root>/.cache` is deleted without inspection, so run it only
+  for a Bukit project root.
 - Never create `.bukit-output-marker` by hand.

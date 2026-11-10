@@ -70,7 +70,8 @@ relocates `.cache/` for `bukit build`; it is relative to the current directory, 
 `bukit dev` and `bukit clean` still use `<root>/.cache`. Keep `dist/`, `.cache/`, and
 the project `.bukit/` (metrics files) out of Git.
 
-`bukit clean` always deletes `<root>/.cache` without checking what is in it. Run it only
+Unless it refuses the output, `bukit clean` deletes `<root>/.cache` without checking
+what is in it. Run it only
 for a Bukit project root, never where `.cache` is shared with other tools.
 
 ## Performance options

@@ -174,8 +174,9 @@ message or a changed severity therefore counts as one new and one resolved issue
 | `--fail-on-indexable-drop` | A route indexable in the baseline is still present but no longer indexable. |
 
 Without any of these flags, diff only prints and exits 0. Every budget is checked and
-each breach prints `<Label> diff budget exceeded: ...` to stderr. Both `--baseline` and
-`--current` are required. Missing files, invalid JSON, or two different report kinds
+each breach prints `<Label> diff budget exceeded: ...` to stderr. Both reports are required
+(`--baseline`/`--current`, or positional `diff <baseline> <current>`); a missing one
+prints usage and exits 2. Missing files, invalid JSON, or two different report kinds
 exit 2. Do not diff a SEO report against a publish report.
 
 Output on stdout: a summary line `SEO diff: newIssues=N newErrors=N newWarnings=N
