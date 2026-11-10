@@ -171,6 +171,14 @@ addition:
   plugin counts as reading everything, and so does a custom renderer.
 - With `theme.images` enabled, any image change renders every page again; that
   costs time but leaves nothing stale.
+- `renderReasons` in `<output>/.bukit/incremental-manifest.json` counts each
+  page under the first input that changed: `new_page`, `output_missing`,
+  `template_changed`, `metadata_changed` (the page record or custom fields; a
+  Notion edit also changes `last_edited_time`, so it shows here),
+  `route_changed`, `render_dependency_changed`, `data_dependency_changed`,
+  `content_changed` (the body alone) or `render` (none of these). Skipped pages
+  count as `unchanged`. Lists count as `list_render` or `list_unchanged`. With
+  `--no-incremental`, every page counts as `full_render`.
 
 Use `--metrics` to inspect stage timing, `--jobs` to limit or increase render
 parallelism, and `--incremental` to reuse unchanged render results. For an

@@ -63,8 +63,9 @@ input that changed: `new_page`, `output_missing`, `template_changed` (templates,
 manifest or engine build), `metadata_changed` (page record or custom fields),
 `route_changed`, `render_dependency_changed` (a site-wide render input),
 `data_dependency_changed` (a shared collection the page's templates read, such as
-`site.data.<key>` or `pages`), `content_changed` (body only, including a changed `bodyFingerprint`), or `unchanged`;
-lists report `list_render`. A Notion edit also changes `last_edited_time`, so it shows
+`site.data.<key>` or `pages`), `content_changed` (body only, including a changed `bodyFingerprint`),
+`render` (none of these), or `unchanged`; lists report `list_render` or `list_unchanged`, and
+`--no-incremental` reports every page as `full_render`. A Notion edit also changes `last_edited_time`, so it shows
 as `metadata_changed`. Do not tell users to delete `.cache` to see template changes. To reset
 everything use `bukit clean --config site.yaml` or `bukit build --no-incremental`.
 
