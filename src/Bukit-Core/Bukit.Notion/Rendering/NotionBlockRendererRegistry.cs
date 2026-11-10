@@ -20,6 +20,9 @@ public sealed class NotionBlockRendererRegistry
     private readonly Dictionary<string, INotionBlockRenderer> _renderers = new(StringComparer.Ordinal);
     private readonly Dictionary<string, NotionBlockTransformer> _customTransformers = new(StringComparer.Ordinal);
 
+    /// <summary>Block types with a built-in renderer, for the renderer contract corpus test.</summary>
+    internal IReadOnlyCollection<string> BuiltInBlockTypes => _renderers.Keys;
+
     /// <summary>
     /// Registers a built-in renderer for the given block type.
     /// </summary>

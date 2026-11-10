@@ -7,6 +7,12 @@ namespace Bukit.Content.Notion;
 
 internal static class NotionCacheManager
 {
+    internal const int CacheFormat = 2;
+
+    // Notion truncates last_edited_time to the minute; a read is complete once the
+    // minute has ended, plus a margin for clock skew between Notion servers.
+    private static readonly TimeSpan s_settleDelay = TimeSpan.FromSeconds(65);
+
     internal static PageHtmlCache? CreatePageHtmlCache(NotionContentSourceOptions options)
     {
         var mode = NormalizeCacheMode(options.CacheMode);
@@ -56,20 +62,9 @@ internal static class NotionCacheManager
             {
                 var json = await File.ReadAllBytesAsync(cachePath, cancellationToken);
                 using var doc = JsonDocument.Parse(json);
-                var root = doc.RootElement;
-
-                var version = root.TryGetProperty("version", out var v) && v.TryGetInt32(out var vv) ? vv : 0;
-                var cachedLastEdited = root.TryGetProperty("lastEditedTime", out var let) && let.ValueKind == JsonValueKind.String ? let.GetString() : null;
-                var cachedHtml = root.TryGetProperty("html", out var h) && h.ValueKind == JsonValueKind.String ? h.GetString() : null;
-                var linksExpireAt = ReadCachedLinksExpiry(root, cachedHtml);
-                var linksExpired = linksExpireAt is { } expireAt && expireAt <= DateTimeOffset.UtcNow;
-
-                if (version == 1 &&
-                    string.Equals(cachedLastEdited, lastEditedTime, StringComparison.Ordinal) &&
-                    cachedHtml is not null &&
-                    (!linksExpired || cache.Mode == "readonly"))
+                if (TryReuseCachedHtml(cache, doc.RootElement, lastEditedTime) is { } cachedHtml)
                 {
-                    return cachedHtml!;
+                    return cachedHtml;
                 }
             }
             catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
@@ -94,7 +89,7 @@ internal static class NotionCacheManager
             using (var writer = new Utf8JsonWriter(buffer, new JsonWriterOptions { Indented = false }))
             {
                 writer.WriteStartObject();
-                writer.WriteNumber("version", 1);
+                writer.WriteNumber("version", CacheFormat);
                 if (lastEditedTime is null)
                 {
                     writer.WriteNull("lastEditedTime");
@@ -103,6 +98,12 @@ internal static class NotionCacheManager
                 {
                     writer.WriteString("lastEditedTime", lastEditedTime);
                 }
+                writer.WriteNumber("renderer", NotionBlocksRenderer.ContractVersion);
+                if (renderer.LastPageFetchedAt is { } pageFetchedAt)
+                {
+                    writer.WriteString("fetchedAt", pageFetchedAt);
+                }
+
                 writer.WriteString("html", html);
                 WriteLinksExpiry(writer, renderer, html);
                 writer.WriteEndObject();
@@ -114,20 +115,81 @@ internal static class NotionCacheManager
         return html;
     }
 
-    private static DateTimeOffset? ReadCachedLinksExpiry(JsonElement root, string? cachedHtml)
+    /// <summary>
+    /// Returns the cached HTML when it can be reused. Readonly mode reuses any readable
+    /// format, expired links included (offline freeze). Readwrite mode needs the current
+    /// format and renderer contract, unexpired links, and a fetch after the edit minute settled.
+    /// </summary>
+    private static string? TryReuseCachedHtml(PageHtmlCache cache, JsonElement root, string? lastEditedTime)
     {
-        DateTimeOffset? linksExpireAt = null;
-        if (root.TryGetProperty("linksExpireAt", out var expiry) && expiry.ValueKind == JsonValueKind.String)
+        var cachedLastEdited = root.TryGetProperty("lastEditedTime", out var let) && let.ValueKind == JsonValueKind.String ? let.GetString() : null;
+        var cachedHtml = root.TryGetProperty("html", out var h) && h.ValueKind == JsonValueKind.String ? h.GetString() : null;
+        if (cachedHtml is null || !string.Equals(cachedLastEdited, lastEditedTime, StringComparison.Ordinal))
         {
-            DateTimeOffset.TryParse(expiry.GetString(), CultureInfo.InvariantCulture,
-                DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal, out var parsedExpiry);
-            if (parsedExpiry != default)
-            {
-                linksExpireAt = parsedExpiry;
-            }
+            return null;
         }
 
-        return linksExpireAt ?? NotionHtmlLinkExpiry.GetEarliestExpiry(cachedHtml);
+        var version = root.TryGetProperty("version", out var v) && v.TryGetInt32(out var vv) ? vv : 0;
+        int? cachedRenderer = root.TryGetProperty("renderer", out var r) && r.TryGetInt32(out var rv) ? rv : null;
+        if (cache.Mode == "readonly")
+        {
+            if (version is not (1 or CacheFormat))
+            {
+                return null;
+            }
+
+            if (cachedRenderer != NotionBlocksRenderer.ContractVersion)
+            {
+                cache.CountStaleContract();
+            }
+
+            return cachedHtml;
+        }
+
+        var linksExpireAt = ReadCachedLinksExpiry(root, cachedHtml);
+        var linksExpired = linksExpireAt is { } expireAt && expireAt <= DateTimeOffset.UtcNow;
+        return version == CacheFormat &&
+            cachedRenderer == NotionBlocksRenderer.ContractVersion &&
+            !string.IsNullOrWhiteSpace(lastEditedTime) &&
+            !linksExpired &&
+            ReadTimestamp(root, "fetchedAt") is { } fetched &&
+            IsSettled(lastEditedTime, fetched)
+            ? cachedHtml
+            : null;
+    }
+
+    /// <summary>
+    /// True when a read at Notion server time <paramref name="readAt"/> saw every edit of
+    /// the minute in <paramref name="lastEditedTime"/>. False when the time is empty or
+    /// unparseable.
+    /// </summary>
+    internal static bool IsSettled(string? lastEditedTime, DateTimeOffset readAt)
+    {
+        if (string.IsNullOrWhiteSpace(lastEditedTime) ||
+            !DateTimeOffset.TryParse(lastEditedTime, CultureInfo.InvariantCulture,
+                DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal, out var edited))
+        {
+            return false;
+        }
+
+        var minute = new DateTimeOffset(edited.UtcTicks - edited.UtcTicks % TimeSpan.TicksPerMinute, TimeSpan.Zero);
+        return readAt >= minute + s_settleDelay;
+    }
+
+    private static DateTimeOffset? ReadCachedLinksExpiry(JsonElement root, string? cachedHtml)
+        => ReadTimestamp(root, "linksExpireAt") ?? NotionHtmlLinkExpiry.GetEarliestExpiry(cachedHtml);
+
+    private static DateTimeOffset? ReadTimestamp(JsonElement root, string name)
+    {
+        if (root.TryGetProperty(name, out var value) && value.ValueKind == JsonValueKind.String &&
+            DateTimeOffset.TryParse(value.GetString(), CultureInfo.InvariantCulture,
+                DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal, out var parsed) &&
+            parsed != default)
+        {
+            return parsed;
+        }
+
+        return null;
     }
 
     private static void WriteLinksExpiry(Utf8JsonWriter writer, NotionBlocksRenderer renderer, string html)
@@ -143,5 +205,24 @@ internal static class NotionCacheManager
         }
     }
 
-    internal sealed record PageHtmlCache(string Mode, string RootDir, string PagesDir);
+    internal sealed record PageHtmlCache(string Mode, string RootDir, string PagesDir)
+    {
+        private int _staleContractCount;
+
+        internal int StaleContractCount => Volatile.Read(ref _staleContractCount);
+
+        internal void CountStaleContract() => Interlocked.Increment(ref _staleContractCount);
+
+        /// <summary>Emits one summary warning for readonly entries from another renderer contract.</summary>
+        internal void ReportStaleContracts(ILogger? logger)
+        {
+            var count = Interlocked.Exchange(ref _staleContractCount, 0);
+            if (count > 0)
+            {
+                logger?.Warn(
+                    $"event=notion.cache.renderer_mismatch mode=readonly entries={count} renderer={NotionBlocksRenderer.ContractVersion} " +
+                    "message=Readonly cache reused bodies rendered by another Notion renderer version; rebuild the cache in readwrite mode to refresh them.");
+            }
+        }
+    }
 }

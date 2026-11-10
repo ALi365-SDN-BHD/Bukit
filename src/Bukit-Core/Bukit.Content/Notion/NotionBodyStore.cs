@@ -63,6 +63,9 @@ internal sealed class NotionBodyStore : IContentBodyStore, IAsyncDisposable
 
     internal int CachedEntryCount => _cache.Count;
 
+    /// <summary>Runs once after every admitted render has settled, during disposal.</summary>
+    internal Action? OnDrained { get; init; }
+
     /// <summary>
     /// Seeds a completed body result for a key (used by bounded summary prefetch so the
     /// prerendered HTML is fetched exactly once and later reads share the same value).
@@ -252,8 +255,15 @@ internal sealed class NotionBodyStore : IContentBodyStore, IAsyncDisposable
             _lifetimeCts.Dispose();
             // Released only after every admitted/background operation that may use them
             // has settled above.
-            _ownedGate?.Dispose();
-            _ownedClient?.Dispose();
+            try
+            {
+                OnDrained?.Invoke();
+            }
+            finally
+            {
+                _ownedGate?.Dispose();
+                _ownedClient?.Dispose();
+            }
         }
     }
 }
