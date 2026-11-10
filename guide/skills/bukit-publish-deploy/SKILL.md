@@ -67,6 +67,10 @@ bukit deploy --force                      # allow a non-fast-forward push
 - `--dry-run` and `--skip-build` require a non-empty output whose
   `.bukit-build-state.json` is `completed`, and skip provider secret checks such as
   `NOTION_TOKEN`.
+- `--dry-run` stops before the provider: it does not check `git`, that the token
+  variable is set, branch/CNAME validity, the remote, or
+  `publish-audit-report.json` and the privacy scan (`BKT-DEPLOY-PRIVACY-*`). A full
+  `bukit deploy` checks the token only after its internal build.
 - Every deploy also needs `<output>/.bukit/publish-audit-report.json`
   (`BKT-DEPLOY-PRIVACY-0002` if missing). Do not delete `.bukit/` before deploying.
 - The deploy copies the output except `.bukit/`, `.bukit-build-state.json`,

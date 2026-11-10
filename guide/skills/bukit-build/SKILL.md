@@ -76,7 +76,8 @@ for a Bukit project root, never where `.cache` is shared with other tools.
 
 ## Performance options
 
-- `--jobs <n>`: render parallelism, default CPU count, clamped to 1..2×CPU.
+- `--jobs <n>`: render parallelism, integer ≥ 1 (default CPU count; values above
+  2×CPU are clamped; `0` or a non-integer exits 2).
 - `--metrics <file.json>`: stage timings and render reasons, plus a sibling `.html`.
   The path is relative to the project root, so `--metrics .bukit/metrics.json` writes
   to `<root>/.bukit/`, not into `dist`. Render stages to compare: `pageRender`,

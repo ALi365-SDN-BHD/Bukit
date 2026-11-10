@@ -49,7 +49,7 @@ bukit build
 bukit seo audit --dir dist
 bukit publish audit --dir dist
 bukit preview                   # final check at http://localhost:4173
-bukit deploy --dry-run
+bukit deploy --dry-run          # prints the plan only; not a full preflight
 ```
 
 `bukit dev` and `bukit preview` serve until Ctrl+C. Do not run this block top to bottom

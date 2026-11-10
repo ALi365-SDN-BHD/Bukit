@@ -118,7 +118,7 @@ Details: `bukit-build`. Servers: `bukit-local-server`. Audits and deploy:
 | `seo *-insights`, `seo insights` | `--out <file>` | `<dir>/.bukit/<command report>.json` | Report path. | `bukit-seo-insights` |
 | `seo *-insights`, `seo insights` | `--strict-join` | off | Exit 1 on unmatched or ambiguous rows. | `bukit-seo-insights` |
 | `geo audit` | `--dir <dir>` | `dist` | Output directory. | `bukit-geo` |
-| `deploy` | `--dry-run` | off | Print the plan; needs a completed build. | `bukit-publish-deploy` |
+| `deploy` | `--dry-run` | off | Print the plan (info level) and exit 0. Checks only config (no provider secrets), `--repo`/`--token-env` syntax, and a completed non-empty output; not git, the token variable, branch/CNAME, the remote, or the publish/privacy scan, so exit 0 does not prove a deploy will succeed. | `bukit-publish-deploy` |
 | `deploy` | `--skip-build` | off | Push the existing output. | `bukit-publish-deploy` |
 | `deploy` | `--base-url`, `--site-url`, `--output`, `--ci` | config | Passed to the internal clean build. `--output` also picks the directory pushed with `--skip-build`/`--dry-run` (relative to the project root). `--ci` sets the log level to `warn`, hiding the dry-run plan and success line. | `bukit-publish-deploy` |
 | `deploy` | `--branch <name>` | `deploy.branch` or `gh-pages` | Target branch. | `bukit-publish-deploy` |
