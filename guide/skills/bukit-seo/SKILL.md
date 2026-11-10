@@ -101,11 +101,34 @@ Logged during build, controlled by `site.seo.diagnostics`: `seo.site_url_missing
 bukit build
 bukit seo audit --dir dist            # exit 1 on errors
 bukit seo audit --dir dist --strict   # also exit 1 on warnings
-bukit seo audit --dir dist --external # live HTTP checks of external links and images
+bukit seo audit --dir dist --external # also live HTTP checks (needs network)
 ```
 
 `--dir` defaults to `dist`; pass the real `build.output`. `--report <file>` reads a
 specific report. A missing default report exits 1 ("Run a full build first").
+
+### `--external`
+
+Live HTTP checks on top of the report (same behavior for `publish audit --external`).
+For every route in the report it requests:
+
+| Target | Failure severity |
+|---|---|
+| The page's `canonical` URL | error |
+| `og:image`, `twitter:image`, and `<img src>` absolute http(s) URLs (must answer `image/*`) | warning |
+| Every `<a href>` resolved against the canonical, including internal links (`mailto:`/`tel:` skipped) | warning |
+
+- Requests use `HEAD` and fall back to `GET` on 405/501. Status ≥ 400, a timeout (15 s
+  per request), or a connection error fails the check. Each URL is checked once per
+  run. Private network addresses are blocked.
+- Canonicals and internal links point at the live `site.url`, so run `--external`
+  after the site is deployed. Before the first deploy every canonical fails as an
+  error.
+- Output lines on stdout: `external ok <label> <url> status=200`, or
+  `external <error|warning> seo.external_http_status|external_image_mime|external_fetch_timeout|external_fetch_failed - <label> <url> ...`.
+- External errors and warnings are added to the audit totals, so they set the exit code
+  like any other issue (warnings fail only with `--strict`). Large sites make many
+  requests; keep `--external` out of every-commit CI.
 
 Common issue codes:
 
@@ -126,9 +149,28 @@ bukit seo diff --baseline baseline-seo.json --current dist/.bukit/seo-report.jso
   --fail-on-route-removed --fail-on-indexable-drop
 ```
 
-Without any threshold flag, diff only prints and exits 0. `--max-new-issues n` budgets
-errors and warnings together. `--fail-on-new-code a,b` fails when listed codes appear. Exit 1 means a budget was exceeded; 2 means bad input.
-Do not diff a SEO report against a publish report.
+An issue's identity is the exact tuple severity + code + route + message. "New" means
+present in `--current` but not in `--baseline`; "resolved" is the reverse. A reworded
+message or a changed severity therefore counts as one new and one resolved issue.
+
+| Option | Fails (exit 1) when |
+|---|---|
+| `--max-new-errors <n>` | New issues with severity `error` > n. |
+| `--max-new-warnings <n>` | New `warning` issues > n. |
+| `--max-new-issues <n>` | All new issues, any severity, > n. |
+| `--fail-on-new-code <a,b>` | Any new issue has one of these codes (comma list, case-insensitive). |
+| `--fail-on-route-removed` | A route URL in the baseline is missing from current (case-insensitive). |
+| `--fail-on-indexable-drop` | A route indexable in the baseline is still present but no longer indexable. |
+
+Without any of these flags, diff only prints and exits 0. Every budget is checked and
+each breach prints `<Label> diff budget exceeded: ...` to stderr. Both `--baseline` and
+`--current` are required. Missing files, invalid JSON, or two different report kinds
+exit 2. Do not diff a SEO report against a publish report.
+
+Output on stdout: a summary line `SEO diff: newIssues=N newErrors=N newWarnings=N
+resolvedIssues=N addedRoutes=N removedRoutes=N indexableDrops=N`, then `+ <severity>
+<code> <route> <message>` per new issue, `- route <url>` per removed route, and
+`! indexable-drop <url>` per indexable drop.
 
 Related: `bukit-outputs` (sitemap, robots), `bukit-geo`, `bukit-seo-insights`
 (search-console and analytics joins), `bukit-publish-deploy`.

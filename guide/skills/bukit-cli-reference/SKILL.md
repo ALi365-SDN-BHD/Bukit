@@ -79,6 +79,57 @@ Bare `bukit seo`, `bukit publish`, `bukit geo`, and `bukit config` print usage a
 Details: `bukit-build`. Servers: `bukit-local-server`. Audits and deploy:
 `bukit-seo`, `bukit-geo`, `bukit-publish-deploy`, `bukit-seo-insights`.
 
+### Other options at a glance
+
+| Command | Option | Default | Meaning | Details |
+|---|---|---|---|---|
+| `preview` | `--dir <dir>` | `build.output` with `--config`/`--site`, else `./dist` | Directory to serve. | `bukit-local-server` |
+| `preview`, `dev` | `--host <host>` | `localhost` | Bind address; non-loopback needs `--allow-lan`. | `bukit-local-server` |
+| `preview` | `--port <n\|auto>` | `4173` | Port; `auto` picks a free one. | `bukit-local-server` |
+| `dev` | `--port <n>` | `35729` | Integer only; `0` picks a free port. | `bukit-local-server` |
+| `preview` | `--strict-port` | off | Fail instead of trying later ports. | `bukit-local-server` |
+| `preview`, `dev` | `--allow-lan` / `--public` | off | Allow binding a non-loopback host (aliases). | `bukit-local-server` |
+| `dev` | `--output <dir>` | `build.output` | Output directory for dev builds. | `bukit-local-server` |
+| `dev` | `--no-watch` | off | Build once and serve; no watch, no reload. | `bukit-local-server` |
+| `clean` | `--dir <dir>` | `./dist` | Target; ignored with `--config`/`--site`. | below |
+| `doctor`, `config check` | `--site-url <url>` | `site.url` | Override `site.url` for the checks. | `bukit-config` |
+| `config schema` | `--output <file>` | stdout | Write the JSON Schema to a file. | `bukit-config` |
+| `seo audit`, `publish audit` | `--dir <dir>` | `dist` | Output directory holding `.bukit/`. | `bukit-seo` |
+| `seo audit`, `publish audit` | `--report <file>` | `<dir>/.bukit/<seo-report\|publish-audit-report>.json` | Read this report instead. | `bukit-seo` |
+| `seo audit`, `publish audit` | `--strict` | off | Warnings also exit 1. | `bukit-seo` |
+| `seo audit`, `publish audit` | `--external` | off | Live HTTP checks of canonicals, images, links. | `bukit-seo` |
+| `seo diff`, `publish diff` | `--baseline`, `--current` | required | Reports to compare. | `bukit-seo` |
+| `seo diff`, `publish diff` | `--max-new-errors`, `--max-new-warnings`, `--max-new-issues` | no budget | Allowed new issue counts. | `bukit-seo` |
+| `seo diff`, `publish diff` | `--fail-on-new-code`, `--fail-on-route-removed`, `--fail-on-indexable-drop` | off | Extra failure rules. | `bukit-seo` |
+| `seo *-insights`, `seo insights` | `--dir <dir>` | `dist` | Build output. | `bukit-seo-insights` |
+| `seo *-insights`, `seo insights` | `--routes <file>` | `<dir>/.bukit/seo-route-map.json` | Route map (`--route-map` alias except `seo insights`). | `bukit-seo-insights` |
+| `seo *-insights`, `seo insights` | `--observations <a,b>` | required | 1–10 local observation files. | `bukit-seo-insights` |
+| `seo *-insights`, `seo insights` | `--rules <file>` | required | Rules profile. | `bukit-seo-insights` |
+| `seo question-insights` | `--targets <file>` | required | Question target map. | `bukit-seo-insights` |
+| `seo *-insights`, `seo insights` | `--out <file>` | `<dir>/.bukit/<command report>.json` | Report path. | `bukit-seo-insights` |
+| `seo *-insights`, `seo insights` | `--strict-join` | off | Exit 1 on unmatched or ambiguous rows. | `bukit-seo-insights` |
+| `geo audit` | `--dir <dir>` | `dist` | Output directory. | `bukit-geo` |
+| `deploy` | `--dry-run` | off | Print the plan; needs a completed build. | `bukit-publish-deploy` |
+| `deploy` | `--skip-build` | off | Push the existing output. | `bukit-publish-deploy` |
+| `deploy` | `--base-url`, `--site-url`, `--output`, `--ci` | config | Passed to the internal build. | `bukit-publish-deploy` |
+| `deploy` | `--branch <name>` | `deploy.branch` or `gh-pages` | Target branch. | `bukit-publish-deploy` |
+| `deploy` | `--repo <owner/name>` | `deploy.repo`, then `origin` | Target repository. | `bukit-publish-deploy` |
+| `deploy` | `--token-env <NAME>` | `GITHUB_TOKEN` | Variable holding the token. | `bukit-publish-deploy` |
+| `deploy` | `--message <text>` | `deploy.message` or `bukit deploy` | Commit message. | `bukit-publish-deploy` |
+| `deploy` | `--force` | off | Overwrite a diverged branch. | `bukit-publish-deploy` |
+
+### `version` and `completion`
+
+`bukit version` prints two lines, `bukit <version>` and `runtime: native-aot`; parse the
+first line in scripts. `bukit completion` without an argument prints the bash script.
+Unknown shells exit 2 with `Usage: bukit completion [bash|zsh|fish]`.
+
+```bash
+bukit completion bash > ~/.local/share/bash-completion/completions/bukit
+bukit completion zsh > "${fpath[1]}/_bukit"     # then restart zsh
+bukit completion fish > ~/.config/fish/completions/bukit.fish
+```
+
 ## Exit codes
 
 | Code | Meaning |
