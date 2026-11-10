@@ -54,14 +54,27 @@ bukit build --no-clean --metrics .bukit/metrics.json
 ```
 
 Site-wide inputs (site identity, SEO config, taxonomy, analytics, theme/template model,
-image processing, collections, plugin enablement) invalidate the affected pages
-automatically. Do not tell users to delete `.cache` to see template changes. To reset
+image processing, collections, plugin enablement and plugin options) invalidate the
+affected pages automatically. The template hash includes the Bukit engine version and
+source revision, so the first `--no-clean` build after an upgrade re-renders every page.
+
+`<output>/.bukit/incremental-manifest.json` counts pages by `renderReasons`, the first
+input that changed: `new_page`, `output_missing`, `template_changed` (templates, theme
+manifest or engine build), `metadata_changed` (page record or custom fields),
+`route_changed`, `render_dependency_changed` (a site-wide render input),
+`data_dependency_changed` (a shared collection the page's templates read, such as
+`site.data.<key>` or `pages`), `content_changed` (body only, including a changed `bodyFingerprint`), or `unchanged`;
+lists report `list_render`. A Notion edit also changes `last_edited_time`, so it shows
+as `metadata_changed`. Do not tell users to delete `.cache` to see template changes. To reset
 everything use `bukit clean --config site.yaml` or `bukit build --no-incremental`.
 
-Known gaps: `--no-clean` reuse does not notice (a) a Bukit version upgrade and (b)
-changes in other documents that a page's template reads (page lists, cross-links,
-related blocks). Such pages keep their old HTML. Use `--no-clean` for local speed only;
-run the default clean build after upgrading Bukit and for every release or deploy.
+Each page depends only on the shared collections its templates read (`site.data`,
+`site.modules` and `site.data_index` keys, `site.related_pages`, `site.data_files`,
+`pages`); whole `site`/`site.data` use, unknown globals, section plugins and custom
+renderers count as reading all of them. Known gaps: a Bukit binary built without git metadata or with uncommitted changes shares
+its release's identity, so an upgrade between such builds is not noticed either. Use
+`--no-clean` for local speed only; run the default clean build for every release or
+deploy.
 
 `.cache/` holds `build-manifest*.json`, `media/` (localized media unless
 `content.media.downloadDir` is set), and `notion/` (only when a Notion source sets

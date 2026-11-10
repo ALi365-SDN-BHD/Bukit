@@ -64,7 +64,7 @@ public sealed class PageRenderDispatcherMetricsTests
     [InlineData("new", "new_page", 1, 0, 1)]
     [InlineData("missing", "output_missing", 1, 0, 1)]
     [InlineData("template", "template_changed", 1, 0, 1)]
-    [InlineData("metadata", "content_changed", 1, 0, 1)]
+    [InlineData("metadata", "metadata_changed", 1, 0, 1)]
     [InlineData("route", "route_changed", 1, 0, 1)]
     [InlineData("dependency", "render_dependency_changed", 1, 0, 1)]
     [InlineData("body", "content_changed", 1, 0, 2)]
@@ -72,7 +72,7 @@ public sealed class PageRenderDispatcherMetricsTests
     [InlineData("new missing template metadata route dependency body", "new_page", 1, 0, 1)]
     [InlineData("missing template metadata route dependency body", "output_missing", 1, 0, 1)]
     [InlineData("template metadata route dependency body", "template_changed", 1, 0, 1)]
-    [InlineData("metadata route dependency body", "content_changed", 1, 0, 1)]
+    [InlineData("metadata route dependency body", "metadata_changed", 1, 0, 1)]
     [InlineData("route dependency body", "route_changed", 1, 0, 1)]
     [InlineData("dependency body", "render_dependency_changed", 1, 0, 1)]
     public async Task DispatchAsync_ReportsFirstChangedInputWithoutExtraBodyReads(

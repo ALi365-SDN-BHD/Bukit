@@ -1,4 +1,5 @@
 using System.Collections.Concurrent;
+using System.Reflection;
 using Bukit.Config;
 using Bukit.Engine.Incremental;
 using Bukit.Shared;
@@ -14,6 +15,17 @@ internal sealed record ManifestSetupResult(
 
 internal static class VariantManifestPlanner
 {
+    // The engine build (version plus source revision), so upgrading Bukit re-renders every page.
+    private static readonly string s_engineIdentity =
+        typeof(VariantManifestPlanner).Assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion ??
+        typeof(VariantManifestPlanner).Assembly.GetName().Version?.ToString() ??
+        "unknown";
+
+    /// <summary>Test seam: replaces the engine identity for builds started in this async flow.</summary>
+    internal static readonly AsyncLocal<string?> EngineIdentityOverride = new();
+
+    internal static string EngineIdentity => EngineIdentityOverride.Value ?? s_engineIdentity;
+
     internal static ManifestSetupResult Create(
         BuildVariantContext context,
         ConfigOverrides overrides,
@@ -59,13 +71,14 @@ internal static class VariantManifestPlanner
             incrementalEnabled);
     }
 
-    private static string ComputeCompositeTemplateHash(
+    internal static string ComputeCompositeTemplateHash(
         BuildVariantContext context,
         DirectoryHashCache templateHashCache)
     {
         var parts = new List<string>
         {
             "scriban-renderer-v1",
+            "engine:" + EngineIdentity,
             ComputeTemplateDirectoryPart("child", context.LayoutsDir, context, templateHashCache),
             ComputeTemplateDirectoryPart("parent", context.ParentLayoutsDir, context, templateHashCache),
             ComputeTemplateDirectoryPart("user", context.UserLayoutsDir, context, templateHashCache),

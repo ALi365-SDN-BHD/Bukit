@@ -192,8 +192,9 @@ public sealed class RouteMetadataRenderingTests
         var beforeSite = CreateSiteModelWithRouteMetadataTemplateData("Before");
         var afterSite = CreateSiteModelWithRouteMetadataTemplateData("After");
 
-        var beforeBaseHash = RenderDependencyHasher.Compute(config, beforeSite);
-        var afterBaseHash = RenderDependencyHasher.Compute(config, afterSite);
+        // The base excludes the route metadata source; routes reading it as site.data depend on it per route.
+        var beforeBaseHash = RenderDependencyHasher.ComputeSnapshot(config, beforeSite).BaseHash;
+        var afterBaseHash = RenderDependencyHasher.ComputeSnapshot(config, afterSite).BaseHash;
 
         Assert.Equal(beforeBaseHash, afterBaseHash);
         Assert.NotEqual(
@@ -358,8 +359,9 @@ public sealed class RouteMetadataRenderingTests
             ["/insights/"] = Entry("/insights/", "Insights", "After")
         };
 
-        var beforeBaseHash = RenderDependencyHasher.Compute(config, beforeSite);
-        var afterBaseHash = RenderDependencyHasher.Compute(config, afterSite);
+        // The base excludes the route metadata source; routes reading it as site.data depend on it per route.
+        var beforeBaseHash = RenderDependencyHasher.ComputeSnapshot(config, beforeSite).BaseHash;
+        var afterBaseHash = RenderDependencyHasher.ComputeSnapshot(config, afterSite).BaseHash;
 
         Assert.Equal(beforeBaseHash, afterBaseHash);
         Assert.NotEqual(

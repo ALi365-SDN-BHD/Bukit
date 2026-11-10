@@ -170,6 +170,8 @@ internal sealed class SectionRenderHelper
             _sectionPlugins.TryGetValue(themeSection.Plugin, out var plugin) &&
             plugin.SupportedHook == SectionHook.BeforeRender)
         {
+            // A section plugin may use any data; the page then depends on every collection.
+            RenderReadRecorder.Current?.RecordAll();
             var ctx = new SectionContext
             {
                 SectionType = sectionType,
@@ -212,6 +214,19 @@ internal sealed class SectionRenderHelper
         if (sectionTemplate.HasErrors)
         {
             return Diagnostic("theme.section.template_parse_failed", $"section template error: {sectionType}: {sectionTemplate.Messages}");
+        }
+
+        if (RenderReadRecorder.Current is { } recorder)
+        {
+            recorder.AddTemplate(ScribanTemplateReadAnalyzer.Analyze(sectionTemplate));
+            recorder.Declare("section");
+            recorder.Declare("items");
+            recorder.Declare("render_component");
+            if (!string.IsNullOrWhiteSpace(sectionDef.Source) && _allPages is not null)
+            {
+                // Section items come from the page list, outside any template expression.
+                recorder.RecordKey(RenderReadRecorder.Pages);
+            }
         }
 
         var sectionContext = new BukitTemplateContext
@@ -280,6 +295,7 @@ internal sealed class SectionRenderHelper
             _sectionPlugins.TryGetValue(themeSection.Plugin, out var afterPlugin) &&
             afterPlugin.SupportedHook == SectionHook.AfterRender)
         {
+            RenderReadRecorder.Current?.RecordAll();
             var afterCtx = new SectionContext
             {
                 SectionType = sectionType,

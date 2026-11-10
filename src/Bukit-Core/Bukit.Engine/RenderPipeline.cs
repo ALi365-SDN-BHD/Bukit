@@ -39,7 +39,8 @@ internal sealed record RenderPipelineContext(
     ThemeTemplateResolver? TemplateResolver = null,
     Func<RouteInfo, string>? RenderDependencyHashResolver = null,
     IReadOnlyDictionary<string, RouteMetadataEntry>? RouteMetadata = null,
-    IReadOnlyList<RenderEntry>? PrecomputedEntries = null)
+    IReadOnlyList<RenderEntry>? PrecomputedEntries = null,
+    RenderDependencySnapshot? DependencySnapshot = null)
 {
 }
 
@@ -83,7 +84,8 @@ internal sealed class RenderPipeline
             context.ListSeoBuilder,
             context.RenderDependencyHashResolver,
             context.RouteMetadata,
-            context.HtmlTransformPipeline);
+            context.HtmlTransformPipeline,
+            context.DependencySnapshot);
 
         if (context.IncrementalEnabled && context.ManifestEntries is not null)
         {

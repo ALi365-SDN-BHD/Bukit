@@ -70,6 +70,7 @@ public sealed class ScribanTemplateRenderer
 
     public string RenderPage(string templateRelativePath, PageModel model)
     {
+        RenderReadRecorder.Current?.MarkTracked();
         var started = Stopwatch.GetTimestamp();
         ScriptObject globals;
         using (_sharedModels.Activate())
@@ -83,6 +84,12 @@ public sealed class ScribanTemplateRenderer
 
     public string RenderList(string templateRelativePath, ListPageModel model)
     {
+        if (RenderReadRecorder.Current is { } recorder)
+        {
+            recorder.MarkTracked();
+            recorder.MarkPagesAsListItems();
+        }
+
         var started = Stopwatch.GetTimestamp();
         ScriptObject globals;
         using (_sharedModels.Activate())
@@ -124,6 +131,7 @@ public sealed class ScribanTemplateRenderer
 
     private string RenderTemplate(Template template, string templateRelativePath, ScriptObject globals)
     {
+        ScribanTemplateReadAnalyzer.Record(template);
         var context = _contextBuilder.BuildContext(globals);
 
         try

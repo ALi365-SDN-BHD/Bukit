@@ -436,6 +436,36 @@ public sealed class RenderPipelineTests
         finally { TestCleanup.DeleteDirectory(root); }
     }
 
+    [Fact]
+    public void ManifestPlanner_TemplateHashFollowsEngineIdentity()
+    {
+        var root = Path.Combine(Path.GetTempPath(), "bukit-manifest-engine-" + Guid.NewGuid().ToString("N"));
+        try
+        {
+            var context = CreateManifestContext(root);
+            Directory.CreateDirectory(context.LayoutsDir);
+            File.WriteAllText(Path.Combine(context.LayoutsDir, "a.html"), "a");
+            var logger = new BudgetLogger();
+            string Compute(string identity)
+            {
+                VariantManifestPlanner.EngineIdentityOverride.Value = identity;
+                try
+                {
+                    return VariantManifestPlanner.Create(context, context.Overrides, new DirectoryHashCache(logger), logger).TemplateHash;
+                }
+                finally
+                {
+                    VariantManifestPlanner.EngineIdentityOverride.Value = null;
+                }
+            }
+
+            Assert.Equal(Compute("2.0.12+aaa"), Compute("2.0.12+aaa"));
+            Assert.NotEqual(Compute("2.0.12+aaa"), Compute("2.0.12+bbb"));
+            Assert.NotEqual(Compute("2.0.12+aaa"), Compute("2.0.13+aaa"));
+        }
+        finally { TestCleanup.DeleteDirectory(root); }
+    }
+
     private static BuildVariantContext CreateManifestContext(string root)
         => new(new AppConfig { Site = new SiteConfig { Name = "test", Title = "Test" }, Content = TestContent.Markdown() },
             root, new ConfigOverrides(), [], CanonicalContentGraph.Empty, EmptyContentBodyStore.Instance,

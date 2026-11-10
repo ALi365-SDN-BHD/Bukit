@@ -172,6 +172,44 @@ public sealed class IncrementalBuildEngineTests
     }
 
     [Fact]
+    public void BodyFingerprint_IsBodyIdentity_NotMetadata()
+    {
+        static ContentDocument WithFingerprint(string fingerprint)
+            => CreateItem(fieldValues: new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["bodyFingerprint"] = fingerprint
+            });
+
+        static string ListHash(ContentDocument item, bool includeContent)
+            => IncrementalBuildEngine.ComputeListContentHash(
+                "template-hash",
+                "pages/list.html",
+                [new RoutedContentDocument(item, CreateRoute())],
+                new BuildManifest(),
+                NullContentBodyStore.Instance,
+                includeContent);
+
+        var before = WithFingerprint("a");
+        var after = WithFingerprint("b");
+
+        // A body edit leaves the metadata hash alone, so the render reason is content_changed.
+        Assert.Equal(
+            IncrementalBuildEngine.ComputeMetadataHash(before),
+            IncrementalBuildEngine.ComputeMetadataHash(after));
+        Assert.Equal(
+            IncrementalBuildEngine.ComputeMetadataHash(CreateItem()),
+            IncrementalBuildEngine.ComputeMetadataHash(before));
+        Assert.NotEqual(
+            IncrementalBuildEngine.ComputeStableContentHash(before, IncrementalBuildEngine.ComputeMetadataHash(before)),
+            IncrementalBuildEngine.ComputeStableContentHash(after, IncrementalBuildEngine.ComputeMetadataHash(after)));
+
+        // Lists still change on a body edit, with or without content.
+        Assert.NotEqual(ListHash(before, includeContent: false), ListHash(after, includeContent: false));
+        Assert.NotEqual(ListHash(before, includeContent: true), ListHash(after, includeContent: true));
+        Assert.Equal(ListHash(before, includeContent: false), ListHash(WithFingerprint("a"), includeContent: false));
+    }
+
+    [Fact]
     public void ComputeListContentHash_StructuralFieldEncoding_PreventsAmbiguousCollisions()
     {
         static ContentDocument WithField(object? value, string type = "value")

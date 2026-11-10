@@ -1,3 +1,4 @@
+using System.Text.Json.Serialization;
 using System.Text.Json;
 using Bukit.Shared;
 
@@ -68,7 +69,9 @@ public sealed class BuildManifest
                         ContentHash = GetString(entryEl, "contentHash") ?? string.Empty,
                         RouteHash = GetString(entryEl, "routeHash") ?? string.Empty,
                         TemplateHash = GetString(entryEl, "templateHash") ?? string.Empty,
-                        RenderDependencyHash = GetString(entryEl, "renderDependencyHash") ?? string.Empty
+                        RenderDependencyHash = GetString(entryEl, "renderDependencyHash") ?? string.Empty,
+                        RenderBaseHash = GetString(entryEl, "renderBaseHash"),
+                        RenderReads = GetStringArray(entryEl, "renderReads")
                     };
 
                     manifest.Entries[key] = entry;
@@ -133,6 +136,18 @@ public sealed class BuildManifest
                     writer.WriteString("routeHash", kv.Value.RouteHash);
                     writer.WriteString("templateHash", kv.Value.TemplateHash);
                     writer.WriteString("renderDependencyHash", kv.Value.RenderDependencyHash);
+                    if (kv.Value.RenderBaseHash is not null)
+                    {
+                        writer.WriteString("renderBaseHash", kv.Value.RenderBaseHash);
+                    }
+
+                    if (kv.Value.RenderReads is not null)
+                    {
+                        writer.WriteStartArray("renderReads");
+                        foreach (var read in kv.Value.RenderReads) writer.WriteStringValue(read);
+                        writer.WriteEndArray();
+                    }
+
                     writer.WriteEndObject();
                 }
 
@@ -255,6 +270,28 @@ public sealed class BuildManifest
 
         return p.ValueKind == JsonValueKind.String ? p.GetString() : null;
     }
+
+    // A malformed list reads as missing, which makes the route depend on every collection.
+    private static string[]? GetStringArray(JsonElement element, string propertyName)
+    {
+        if (!element.TryGetProperty(propertyName, out var p) || p.ValueKind != JsonValueKind.Array)
+        {
+            return null;
+        }
+
+        var values = new List<string>();
+        foreach (var item in p.EnumerateArray())
+        {
+            if (item.ValueKind != JsonValueKind.String || item.GetString() is not { } value)
+            {
+                return null;
+            }
+
+            values.Add(value);
+        }
+
+        return [.. values];
+    }
 }
 
 public sealed class PluginOutputManifestEntry
@@ -275,4 +312,21 @@ public sealed class BuildManifestEntry
     public string RouteHash { get; set; } = string.Empty;
     public string TemplateHash { get; set; } = string.Empty;
     public string RenderDependencyHash { get; set; } = string.Empty;
+
+    /// <summary>
+    /// The route's render dependency hash without shared collections: site-wide inputs with the
+    /// route's metadata and breadcrumb. Null in manifests written before it was recorded.
+    /// </summary>
+    // JsonInclude: the i18n worktree protocol serializes entries between worker and parent.
+    [JsonInclude]
+    [JsonPropertyName("renderBaseHash")]
+    internal string? RenderBaseHash { get; set; }
+
+    /// <summary>
+    /// The shared collections the last render read (see <c>RenderReadRecorder</c>); <c>*</c> means
+    /// every collection. Null when not recorded, which also means every collection.
+    /// </summary>
+    [JsonInclude]
+    [JsonPropertyName("renderReads")]
+    internal IReadOnlyList<string>? RenderReads { get; set; }
 }

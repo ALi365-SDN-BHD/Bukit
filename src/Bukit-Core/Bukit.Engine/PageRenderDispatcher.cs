@@ -52,7 +52,8 @@ internal static class PageRenderDispatcher
         Func<RouteInfo, PageInfo, SeoModel>? listSeoBuilder = null,
         Func<RouteInfo, string>? renderDependencyHashResolver = null,
         IReadOnlyDictionary<string, RouteMetadataEntry>? routeMetadata = null,
-        HtmlTransformPipeline? htmlTransformPipeline = null)
+        HtmlTransformPipeline? htmlTransformPipeline = null,
+        RenderDependencySnapshot? dependencySnapshot = null)
     {
         var renderedCount = 0;
         var skippedCount = 0;
@@ -99,7 +100,8 @@ internal static class PageRenderDispatcher
 
         var dispatchTask = Parallel.ForEachAsync(entries, parallelOptions, async (entry, ct) =>
         {
-            var entryRenderDependencyHash = renderDependencyHashResolver?.Invoke(entry.Route) ?? renderDependencyHash;
+            // Site-wide inputs plus this route's metadata and breadcrumb; shared collections are added per route.
+            var routeBaseHash = renderDependencyHashResolver?.Invoke(entry.Route) ?? renderDependencyHash;
             switch (entry.Kind)
             {
                 case RenderEntryKind.Page:
@@ -118,6 +120,8 @@ internal static class PageRenderDispatcher
 
                         BuildManifestEntry? existing = null;
                         var hasExisting = needsIncrementalMode && manifestEntries!.TryGetValue(key, out existing) && existing is not null;
+                        // Compare against the collections the previous render read.
+                        var entryRenderDependencyHash = RenderReadTracking.HashFor(dependencySnapshot, routeBaseHash, existing?.RenderReads);
 
                         var canEvaluateSkip = incrementalEnabled && hasExisting && outputExists &&
                             existing!.TemplateHash == templateHash && existing.MetadataHash == mh &&
@@ -145,9 +149,10 @@ internal static class PageRenderDispatcher
                         {
                             var reason = !hasExisting ? "new_page" : !outputExists ? "output_missing"
                                 : existing!.TemplateHash != templateHash ? "template_changed"
-                                : existing.MetadataHash != mh ? "content_changed"
+                                // Record and custom-field changes; "content_changed" below is the body alone.
+                                : existing.MetadataHash != mh ? "metadata_changed"
                                 : existing.RouteHash != rh ? "route_changed"
-                                : existing.RenderDependencyHash != entryRenderDependencyHash ? "render_dependency_changed"
+                                : existing.RenderDependencyHash != entryRenderDependencyHash ? RenderReadTracking.ChangeReason(dependencySnapshot, existing, routeBaseHash)
                                 : contentHash is not null && existing.ContentHash != contentHash ? "content_changed" : "render";
                             renderReasons.AddOrUpdate(reason, 1, (_, v) => v + 1);
                         }
@@ -200,7 +205,7 @@ internal static class PageRenderDispatcher
                         }
                         var pageModel = new PageModel { Site = siteModel, Page = pageInfo, Pages = pageIndex };
                         var renderCallStarted = Stopwatch.GetTimestamp();
-                        var html = renderer.RenderPage(route.Template, pageModel);
+                        var html = RenderReadTracking.Render(dependencySnapshot, () => renderer.RenderPage(route.Template, pageModel), out var pageReads);
                         stageMetrics.AddElapsedTicks("renderCall", Stopwatch.GetTimestamp() - renderCallStarted);
                         if (htmlTransformPipeline is not null)
                         {
@@ -215,7 +220,7 @@ internal static class PageRenderDispatcher
                         Interlocked.Increment(ref renderedCount);
                         stageMetrics.Increment("pageRender");
                         stageMetrics.AddElapsedTicks("pageRender", Stopwatch.GetTimestamp() - pageRenderStarted);
-                        if (needsIncrementalMode) manifestEntries![key] = new BuildManifestEntry { OutputPath = key, Url = route.Url, Template = route.Template, MetadataHash = mh, ContentHash = contentHash ?? IncrementalBuildEngine.ComputeContentHash(document, mh, content), RouteHash = rh, TemplateHash = templateHash, RenderDependencyHash = entryRenderDependencyHash };
+                        if (needsIncrementalMode) manifestEntries![key] = new BuildManifestEntry { OutputPath = key, Url = route.Url, Template = route.Template, MetadataHash = mh, ContentHash = contentHash ?? IncrementalBuildEngine.ComputeContentHash(document, mh, content), RouteHash = rh, TemplateHash = templateHash, RenderDependencyHash = RenderReadTracking.HashFor(dependencySnapshot, routeBaseHash, pageReads), RenderBaseHash = dependencySnapshot is null ? null : routeBaseHash, RenderReads = pageReads };
                         break;
                     }
 
@@ -231,6 +236,7 @@ internal static class PageRenderDispatcher
                         var outputExists = File.Exists(outputPath);
                         manifest.Entries.TryGetValue(key, out var le);
                         var hasExisting = incrementalEnabled && le is not null;
+                        var entryRenderDependencyHash = RenderReadTracking.HashFor(dependencySnapshot, routeBaseHash, le?.RenderReads);
 
                         var canSkip = incrementalEnabled && hasExisting && outputExists &&
                             le!.TemplateHash == templateHash && le.ContentHash == ch &&
@@ -255,7 +261,7 @@ internal static class PageRenderDispatcher
                         listPage = listPage with { Seo = listSeoBuilder?.Invoke(listRoute, listPage) };
                         var listModel = SpecialListRenderer.CreateListPageModel(siteModel, listPage, pageInfos, entry.ListPageContext);
                         var listCallStarted = Stopwatch.GetTimestamp();
-                        var listHtml = renderer.RenderList(listRoute.Template, listModel);
+                        var listHtml = RenderReadTracking.Render(dependencySnapshot, () => renderer.RenderList(listRoute.Template, listModel), out var listReads);
                         stageMetrics.AddElapsedTicks("renderCall", Stopwatch.GetTimestamp() - listCallStarted);
                         if (htmlTransformPipeline is not null)
                         {
@@ -274,7 +280,7 @@ internal static class PageRenderDispatcher
 
                         if (needsIncrementalMode)
                         {
-                            manifestEntries![key] = new BuildManifestEntry { OutputPath = key, Url = listRoute.Url, Template = listRoute.Template, ContentHash = ch, RouteHash = rh, TemplateHash = templateHash, RenderDependencyHash = entryRenderDependencyHash };
+                            manifestEntries![key] = new BuildManifestEntry { OutputPath = key, Url = listRoute.Url, Template = listRoute.Template, ContentHash = ch, RouteHash = rh, TemplateHash = templateHash, RenderDependencyHash = RenderReadTracking.HashFor(dependencySnapshot, routeBaseHash, listReads), RenderBaseHash = dependencySnapshot is null ? null : routeBaseHash, RenderReads = listReads };
                         }
                         break;
                     }
@@ -357,7 +363,8 @@ internal static class PageRenderDispatcher
         Func<RouteInfo, PageInfo, SeoModel>? listSeoBuilder = null,
         HtmlTransformPipeline? htmlTransformPipeline = null,
         ThemeTemplateResolver? templateResolver = null,
-        ILogger? logger = null)
+        ILogger? logger = null,
+        RenderDependencySnapshot? dependencySnapshot = null)
     {
         var stageMetrics = new BuildStageMetricsCollector();
         var specialLists = SpecialListRouteBuilder.Build(routed, collections, layoutsDir, listPageContentMode, outputPathEncoding, tieBreak, templateResolver);
@@ -385,7 +392,7 @@ internal static class PageRenderDispatcher
             var updates = new ConcurrentDictionary<string, BuildManifestEntry>(StringComparer.Ordinal);
             await Parallel.ForEachAsync(specialLists, parallelOptions, async (x, ct) =>
             {
-                var result = await SpecialListRenderer.RenderSpecialListIfNeededAsync(x.Route, x.Items, bodyStore, renderer, siteModel, outputDir, templateHash, renderDependencyHash, baselineEntries, updates, renderReasons, maxDegreeOfParallelism, specialLists.Count, x.IncludeContent, x.PageFields, x.PageContext, ct, transformLogger, seoBuilder, listSeoBuilder, htmlTransformPipeline);
+                var result = await SpecialListRenderer.RenderSpecialListIfNeededAsync(x.Route, x.Items, bodyStore, renderer, siteModel, outputDir, templateHash, renderDependencyHash, baselineEntries, updates, renderReasons, maxDegreeOfParallelism, specialLists.Count, x.IncludeContent, x.PageFields, x.PageContext, ct, transformLogger, seoBuilder, listSeoBuilder, htmlTransformPipeline, dependencySnapshot);
                 Interlocked.Add(ref rendered, result.RenderedCount);
                 Interlocked.Add(ref skipped, result.SkippedCount);
                 stageMetrics.Merge(result.StageMetrics);

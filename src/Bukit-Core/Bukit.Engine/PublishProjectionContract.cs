@@ -112,14 +112,20 @@ internal abstract class AggregatePublishProjectionBase : IPublishProjection
         var sitemapLocKeys = Representation.Kind.Equals("sitemap", StringComparison.OrdinalIgnoreCase)
             ? SitemapCanonicalIdentity.ReadLocKeys(text)
             : null;
-        foreach (var routedDocument in context.RoutedDocuments.Concat(context.DerivedDocuments)
-                     .OrderBy(x => x.Route.Url, StringComparer.OrdinalIgnoreCase))
+        var routes = context.RoutedDocuments.Concat(context.DerivedDocuments)
+            .OrderBy(x => x.Route.Url, StringComparer.OrdinalIgnoreCase)
+            .Select(routedDocument =>
+            {
+                var route = routedDocument.Route;
+                context.SeoIndex.TryGetValue(BuildPathUtils.NormalizeRelPath(route.OutputPath), out var entry);
+                return (Route: route, Entry: entry);
+            })
+            .ToList();
+        var presentPatterns = FindPresentPatterns(text, routes);
+        foreach (var (route, entry) in routes)
         {
-            var route = routedDocument.Route;
-            var key = BuildPathUtils.NormalizeRelPath(route.OutputPath);
-            context.SeoIndex.TryGetValue(key, out var entry);
             var indexable = entry?.Indexable != false;
-            var routePresent = IsRoutePresent(text, route, entry) ||
+            var routePresent = IsRoutePresent(presentPatterns, route, entry) ||
                                (sitemapLocKeys is not null && SitemapCanonicalIdentity.Contains(sitemapLocKeys, entry?.Canonical));
             var exists = Representation.Kind.Equals("robots", StringComparison.OrdinalIgnoreCase)
                 ? fileExists
@@ -135,25 +141,34 @@ internal abstract class AggregatePublishProjectionBase : IPublishProjection
         return outputs;
     }
 
-    private bool IsRoutePresent(string? text, RouteInfo route, SeoIndexEntry? entry)
+    // Scans the aggregate file once for every route URL and canonical, instead of once per route.
+    private static HashSet<string> FindPresentPatterns(string? text, IReadOnlyList<(RouteInfo Route, SeoIndexEntry? Entry)> routes)
     {
         if (string.IsNullOrWhiteSpace(text))
         {
-            return false;
+            return [];
         }
 
-        if (ContainsInvariant(text, route.Url))
+        var patterns = new List<string>(routes.Count * 2);
+        foreach (var (route, entry) in routes)
         {
-            return true;
+            if (!string.IsNullOrWhiteSpace(route.Url))
+            {
+                patterns.Add(route.Url);
+            }
+
+            if (!string.IsNullOrWhiteSpace(entry?.Canonical))
+            {
+                patterns.Add(entry.Canonical);
+            }
         }
 
-        return !string.IsNullOrWhiteSpace(entry?.Canonical) && ContainsInvariant(text, entry.Canonical);
+        return OrdinalIgnoreCaseMultiMatcher.FindPresent(text, patterns);
     }
 
-    private static bool ContainsInvariant(string? haystack, string needle)
-        => !string.IsNullOrWhiteSpace(haystack) &&
-           !string.IsNullOrWhiteSpace(needle) &&
-           haystack.Contains(needle, StringComparison.OrdinalIgnoreCase);
+    private static bool IsRoutePresent(HashSet<string> presentPatterns, RouteInfo route, SeoIndexEntry? entry)
+        => (!string.IsNullOrWhiteSpace(route.Url) && presentPatterns.Contains(route.Url)) ||
+           (!string.IsNullOrWhiteSpace(entry?.Canonical) && presentPatterns.Contains(entry.Canonical));
 }
 
 internal sealed class RssFeedPublishProjection : AggregatePublishProjectionBase

@@ -20,6 +20,11 @@ internal sealed class NonAnalyticsPluginEnablementContributor : IRenderDependenc
 
             writer.AppendLabeledCanonicalValue("plugin.name", plugin.Key);
             writer.AppendLabeledCanonicalValue("plugin.enabled", plugin.Value.Enabled);
+            // Options can change the rendered HTML; dictionaries are hashed in ordinal key order.
+            if (plugin.Value.Enabled && plugin.Value.Options is { Count: > 0 } options)
+            {
+                writer.AppendLabeledCanonicalValue("plugin.options", options);
+            }
         }
     }
 }
