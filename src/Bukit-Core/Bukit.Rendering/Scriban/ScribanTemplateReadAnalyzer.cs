@@ -11,7 +11,7 @@ namespace Bukit.Rendering.Scriban;
 /// </summary>
 internal static class ScribanTemplateReadAnalyzer
 {
-    private static readonly ConditionalWeakTable<Template, TemplateReadSet> s_cache = new();
+    private static readonly ConditionalWeakTable<Template, TemplateReadSet> s_cache = [];
 
     internal static TemplateReadSet Analyze(Template template) =>
         s_cache.GetValue(template, static parsed => Compute(parsed));

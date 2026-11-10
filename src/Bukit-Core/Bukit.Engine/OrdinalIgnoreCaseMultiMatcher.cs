@@ -89,7 +89,7 @@ internal static class OrdinalIgnoreCaseMultiMatcher
     private sealed class Automaton
     {
         // Transition key = (state << 16) | folded char.
-        private readonly Dictionary<long, int> _next = new();
+        private readonly Dictionary<long, int> _next = [];
         private readonly List<int> _fail = [0];
         private readonly List<int> _outputLink = [-1];
         private readonly List<List<int>?> _matches = [null];

@@ -315,7 +315,7 @@ public sealed partial class SiteEngine
             warningCount: buildLogger.WarningCount + additionalWarningCount,
             errorCount: buildLogger.ErrorCount + additionalErrorCount);
         var securityData = reportTimer.Step("security-data", () => BuildReporter.CreateSecurityReportData(config, rootDir, outputDir, variantResults));
-        await BuildReporter.WriteIfEnabledAsync(config, rootDir, outputDir, buildResult, variantResults, _logger, securityData, cancellationToken, reportTimer).ConfigureAwait(false);
+        await BuildReporter.WriteIfEnabledAsync(config, rootDir, outputDir, buildResult, variantResults, _logger, securityData, reportTimer, cancellationToken).ConfigureAwait(false);
         reportTimer.Step("security-gate", () => BuildReporter.EnforceSecurityGate(config, securityData, overrides.IsCI, _logger));
         reportTimer.Complete();
         return (buildResult, completedManifest);

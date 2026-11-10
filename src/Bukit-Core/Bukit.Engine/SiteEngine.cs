@@ -206,7 +206,7 @@ public sealed partial class SiteEngine
                         warningCount: buildLogger.WarningCount,
                         errorCount: buildLogger.ErrorCount);
                     var securityData = reportTimer.Step("security-data", () => BuildReporter.CreateSecurityReportData(effectiveConfig, rootDir, plan.OutputDir, new[] { result }));
-                    await BuildReporter.WriteIfEnabledAsync(effectiveConfig, rootDir, plan.OutputDir, singleLanguageBuildResult, new[] { result }, _logger, securityData, cancellationToken, reportTimer).ConfigureAwait(false);
+                    await BuildReporter.WriteIfEnabledAsync(effectiveConfig, rootDir, plan.OutputDir, singleLanguageBuildResult, new[] { result }, _logger, securityData, reportTimer, cancellationToken).ConfigureAwait(false);
                     reportTimer.Step("security-gate", () => BuildReporter.EnforceSecurityGate(effectiveConfig, securityData, overrides.IsCI, _logger));
                     reportTimer.Complete();
                     completedResult = singleLanguageBuildResult;

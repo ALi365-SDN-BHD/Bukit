@@ -178,29 +178,9 @@ internal sealed partial class VariantBuildPipeline
                 VariantReportStage.GetPluginOutputs(routePipelineResult.PluginContext).Select(output =>
                     new AssetOutputItem(output.Plugin, output.Path, AssetOutputCategory.Plugin, Operation: AssetOutputOperation.Generate))).ToArray();
             AssetOutputPlan.Validate(plannedOutputs, assetPipelinePreparation.OutputPlan.DestinationComparer);
-            var searchSnippets = templateResolver.TryResolveKindTemplate("search", out var searchTemplate) &&
-                TemplateCapabilitiesResolver.SupportsSearchSnippets(searchTemplate, context.LayoutsDir);
-            var reportTimer = new ReportStageTimer(
-                logger,
-                ReportStageTimer.VariantScope,
-                context.DefaultLanguage is null ? null : context.Config.Site.Language);
-            var projectionResults = await reportTimer.StepAsync("projections", () => new DefaultContentProjectionWriter().WriteAsync(new PublishProjectionContext(
-                context.Config, context.OutputDir, context.ContentGraph, seoStage.SeoResult.SeoIndex.Entries,
-                seoStage.SeoResult.SeoIndex.Models, routePipelineResult.PluginContext.RoutedDocuments,
-                context.BodyStore, context.BaseUrl, searchSnippets, logger,
-                routePipelineResult.RouteResult.ListRouteGraph,
-                DerivedDocuments: routePipelineResult.PluginContext.DerivedDocuments), cancellationToken)).ConfigureAwait(false);
-            if (media is not null)
-            {
-                reportTimer.Step("media-validate", () => media.ValidateOutputs(plannedOutputs));
-            }
-
-            reportTimer.Step("output-record", () => PublicOutputLifecycle.Record(manifestSetup.Manifest, context.OutputDir, plannedOutputs));
-            var result = await VariantReportStage.ExecuteAsync(
-                context, routePipelineResult, seoStage.SeoResult, renderPipelineResult,
-                variantStageMetrics, templateResolver, analyticsTransformPlan.AnalyticsBuildState, logger, projectionResults,
-                reportTimer);
-            reportTimer.Complete();
+            var result = await VariantReportRunner.RunAsync(
+                context, routePipelineResult, seoStage, renderPipelineResult, variantStageMetrics, templateResolver,
+                analyticsTransformPlan.AnalyticsBuildState, manifestSetup, media, plannedOutputs, logger, cancellationToken);
             return result with { PendingManifest = manifestSetup, PlannedOutputs = plannedOutputs };
         }
         finally

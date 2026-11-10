@@ -29,8 +29,8 @@ internal static class BuildReporter
         IReadOnlyList<BuildVariantResult> variants,
         ILogger logger,
         SecurityReportData? securityData = null,
-        CancellationToken cancellationToken = default,
-        ReportStageTimer? reportTimer = null)
+        ReportStageTimer? reportTimer = null,
+        CancellationToken cancellationToken = default)
     {
         var reportDir = Path.Combine(outputDir, ReportDirectoryName);
         Directory.CreateDirectory(reportDir);

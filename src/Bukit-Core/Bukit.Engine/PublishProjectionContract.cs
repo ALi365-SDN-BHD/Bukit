@@ -142,7 +142,7 @@ internal abstract class AggregatePublishProjectionBase : IPublishProjection
     }
 
     // Scans the aggregate file once for every route URL and canonical, instead of once per route.
-    private static HashSet<string> FindPresentPatterns(string? text, IReadOnlyList<(RouteInfo Route, SeoIndexEntry? Entry)> routes)
+    private static HashSet<string> FindPresentPatterns(string? text, List<(RouteInfo Route, SeoIndexEntry? Entry)> routes)
     {
         if (string.IsNullOrWhiteSpace(text))
         {
