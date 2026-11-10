@@ -5570,7 +5570,7 @@ public sealed partial class SiteEngineIntegrationTests
                 return built;
             }
 
-            async Task<string> BuildFullHtmlAsync(bool renderContent)
+            async Task<string> BuildFullHtmlAsync(bool renderContent, string relativePath = "pages/notion-page/index.html")
             {
                 var (fullRoot, fullBase) = CreateBuildReportHealthSite();
                 try
@@ -5584,7 +5584,7 @@ public sealed partial class SiteEngineIntegrationTests
                     WriteTestThemeTemplates(fullRoot);
                     var engine = new SiteEngine(new TestLogger(), new SingleProviderFactory(CreateSource(renderContent)), new DefaultSearchIndexBuilder());
                     await engine.BuildAsync(fullConfig, fullRoot, new ConfigOverrides { Clean = true, Incremental = false });
-                    return File.ReadAllText(Path.Combine(fullRoot, "dist", "pages", "notion-page", "index.html"));
+                    return File.ReadAllText(Path.Combine(fullRoot, "dist", relativePath));
                 }
                 finally
                 {
@@ -5598,9 +5598,12 @@ public sealed partial class SiteEngineIntegrationTests
             Assert.Contains("Notion body", File.ReadAllText(pagePath), StringComparison.Ordinal);
 
             var disabled = await BuildAsync(renderContent: false, clean: false);
-            Assert.Equal(0, disabled.Incremental.CacheHitCount);
+            // The blog list reads no collection that depends on the content mode, so it may be reused;
+            // its HTML must still match a full build.
+            Assert.True(disabled.Incremental.CacheHitCount <= 1);
             Assert.Equal(1, pageRenders[^1]);
             Assert.DoesNotContain("Notion body", File.ReadAllText(pagePath), StringComparison.Ordinal);
+            Assert.Equal(await BuildFullHtmlAsync(false, "blog/index.html"), File.ReadAllText(Path.Combine(root, "dist", "blog", "index.html")));
 
             var stableDisabled = await BuildAsync(renderContent: false, clean: false);
             Assert.True(stableDisabled.Incremental.CacheHitCount >= 1);
@@ -5610,9 +5613,10 @@ public sealed partial class SiteEngineIntegrationTests
             Assert.Equal(await BuildFullHtmlAsync(false), disabledHtml);
 
             var enabled = await BuildAsync(renderContent: true, clean: false);
-            Assert.Equal(0, enabled.Incremental.CacheHitCount);
+            Assert.True(enabled.Incremental.CacheHitCount <= 1);
             Assert.Equal(1, pageRenders[^1]);
             Assert.Contains("Notion body", File.ReadAllText(pagePath), StringComparison.Ordinal);
+            Assert.Equal(await BuildFullHtmlAsync(true, "blog/index.html"), File.ReadAllText(Path.Combine(root, "dist", "blog", "index.html")));
 
             var stableEnabled = await BuildAsync(renderContent: true, clean: false);
             Assert.True(stableEnabled.Incremental.CacheHitCount >= 1);

@@ -161,6 +161,27 @@ internal sealed class SectionRenderHelper
         return RenderOneSectionBase(sectionDef, templatePath, themeSection, _parentGlobals);
     }
 
+    // Kept out of RenderOneSectionBase to hold its class coupling down.
+    private static void RecordAllReads() => RenderReadRecorder.Current?.RecordAll();
+
+    private void RecordSectionReads(Template sectionTemplate, PageSectionDefinition sectionDef)
+    {
+        if (RenderReadRecorder.Current is not { } recorder)
+        {
+            return;
+        }
+
+        recorder.AddTemplate(ScribanTemplateReadAnalyzer.Analyze(sectionTemplate));
+        recorder.Declare("section");
+        recorder.Declare("items");
+        recorder.Declare("render_component");
+        if (!string.IsNullOrWhiteSpace(sectionDef.Source) && _allPages is not null)
+        {
+            // Section items come from the page list, outside any template expression.
+            recorder.RecordKey(RenderReadRecorder.Pages);
+        }
+    }
+
     private string RenderOneSectionBase(PageSectionDefinition sectionDef, string templatePath, ThemeSectionDefinition themeSection, ScriptObject parentGlobals)
     {
         var sectionType = sectionDef.Type;
@@ -170,6 +191,8 @@ internal sealed class SectionRenderHelper
             _sectionPlugins.TryGetValue(themeSection.Plugin, out var plugin) &&
             plugin.SupportedHook == SectionHook.BeforeRender)
         {
+            // A section plugin may use any data; the page then depends on every collection.
+            RecordAllReads();
             var ctx = new SectionContext
             {
                 SectionType = sectionType,
@@ -214,7 +237,9 @@ internal sealed class SectionRenderHelper
             return Diagnostic("theme.section.template_parse_failed", $"section template error: {sectionType}: {sectionTemplate.Messages}");
         }
 
-        var sectionContext = new TemplateContext
+        RecordSectionReads(sectionTemplate, sectionDef);
+
+        var sectionContext = new BukitTemplateContext
         {
             TemplateLoader = _templateLoader,
             EnableRelaxedMemberAccess = true,
@@ -280,6 +305,7 @@ internal sealed class SectionRenderHelper
             _sectionPlugins.TryGetValue(themeSection.Plugin, out var afterPlugin) &&
             afterPlugin.SupportedHook == SectionHook.AfterRender)
         {
+            RecordAllReads();
             var afterCtx = new SectionContext
             {
                 SectionType = sectionType,

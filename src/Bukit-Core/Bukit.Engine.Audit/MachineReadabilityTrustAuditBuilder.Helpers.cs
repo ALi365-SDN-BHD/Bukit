@@ -373,10 +373,11 @@ internal static partial class MachineReadabilityTrustAuditBuilder
         PublishDocument document,
         TrustAuditRequirements trustRequirements,
         string outputDir,
+        AgentManifestSnapshot agentManifest,
         List<PublishAuditIssue> issues)
     {
         TrustAuditRules.Analyze(document, trustRequirements, issues);
-        RepresentationAuditRules.Analyze(document, outputDir, issues);
+        RepresentationAuditRules.Analyze(document, outputDir, issues, agentManifest);
     }
 
     private static void AnalyzePublishDocumentDuplicates(IReadOnlyList<PublishDocument> documents, List<PublishAuditIssue> issues)

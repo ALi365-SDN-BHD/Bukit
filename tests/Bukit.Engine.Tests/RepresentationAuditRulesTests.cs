@@ -130,4 +130,53 @@ public sealed class RepresentationAuditRulesTests : IDisposable
         // JSON projection exists; markdown may still be missing, but no json-specific error
         Assert.DoesNotContain(issues, i => i.Code == "publish.representation_file_missing" && i.Message.Contains(".json"));
     }
+
+    [Theory]
+    [InlineData(null, null)]
+    [InlineData("{ not json", "publish.manifest_invalid")]
+    [InlineData("{\"items\": []}", "publish.manifest_invalid")]
+    [InlineData("{\"documents\": {}}", "publish.manifest_invalid")]
+    [InlineData("{\"documents\": [{\"route\": \"/posts/post-1/\", \"id\": \"post-1\", \"canonicalId\": \"post-1\", \"language\": \"en\", \"reviewStatus\": null}]}", null)]
+    [InlineData("{\"documents\": [{\"route\": \"/posts/post-1/\", \"id\": \"other\", \"language\": \"de\"}]}", "publish.manifest_mismatch")]
+    [InlineData("{\"documents\": [{\"route\": \"/elsewhere/\", \"canonicalId\": \"post-1\", \"language\": \"en\"}]}", "publish.manifest_mismatch")]
+    public void Analyze_SharedManifestSnapshot_ReportsSameIssuesAsPerDocumentParse(string? manifest, string? expectedCode)
+    {
+        if (manifest is not null)
+        {
+            File.WriteAllText(Path.Combine(_outputDir, "agent-manifest.json"), manifest);
+        }
+
+        var documents = new[]
+        {
+            MakeDocument(["html", "semantic-html", "json", "markdown"], record: MakeRecord()),
+            MakeDocument(["html", "semantic-html", "json", "markdown"], routeUrl: "/posts/post-2/", outputPath: "posts/post-2/index.html", record: MakeRecord()),
+            MakeDocument(["html", "semantic-html", "json", "markdown"], record: MakeRecord()) with { Indexable = false }
+        };
+
+        var perDocument = new List<PublishAuditIssue>();
+        foreach (var document in documents)
+        {
+            RepresentationAuditRules.Analyze(document, _outputDir, perDocument);
+        }
+
+        var shared = new List<PublishAuditIssue>();
+        using (var snapshot = new AgentManifestSnapshot(_outputDir))
+        {
+            foreach (var document in documents)
+            {
+                RepresentationAuditRules.Analyze(document, _outputDir, shared, snapshot);
+            }
+        }
+
+        Assert.Equal(perDocument, shared);
+        var manifestIssues = shared.Where(issue => issue.Route == "/posts/post-1/" && issue.Code.StartsWith("publish.manifest_", StringComparison.Ordinal)).ToList();
+        if (expectedCode is null)
+        {
+            Assert.Empty(manifestIssues);
+        }
+        else
+        {
+            Assert.Contains(manifestIssues, issue => issue.Code == expectedCode);
+        }
+    }
 }

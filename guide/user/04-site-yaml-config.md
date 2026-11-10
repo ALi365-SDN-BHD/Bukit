@@ -367,6 +367,31 @@ or no content type (common for Notion file storage) is identified from the
 file's signature. It is stored only if it is a supported raster image that
 passes decoding; SVG is never accepted.
 
+A localized file is named after a hash of its URL. Signature and expiry
+parameters are left out of that hash when the URL uses one of these signing
+schemes, so a re-signed link to the same object keeps its file and is not
+downloaded again:
+
+| Scheme | Recognized by | Parameters left out |
+|---|---|---|
+| AWS SigV4 | `X-Amz-Signature` | `X-Amz-Algorithm`, `X-Amz-Credential`, `X-Amz-Date`, `X-Amz-Expires`, `X-Amz-SignedHeaders`, `X-Amz-Signature`, `X-Amz-Security-Token` |
+| Google Cloud Storage V4 | `X-Goog-Signature` | `X-Goog-Algorithm`, `X-Goog-Credential`, `X-Goog-Date`, `X-Goog-Expires`, `X-Goog-SignedHeaders`, `X-Goog-Signature` |
+| AWS SigV2, GCS V2, CloudFront | `Signature` together with `AWSAccessKeyId`, `GoogleAccessId` or `Key-Pair-Id` | `Signature`, `Expires`, `Policy`, `AWSAccessKeyId`, `GoogleAccessId`, `Key-Pair-Id` |
+| Notion file proxy | host notion.so, *.notion.so or *.notion.site | `expirationTimestamp`, `signature` |
+
+Parameter names match case-insensitively. All other parameters, such as S3
+`versionId` or image sizes, still select different files, and the download
+always uses the full signed URL. If one reference to an image has an expired
+link and another has a fresh one, the fresh link is used, and the expired
+reference reuses the downloaded file. Other schemes (Azure SAS, Alibaba OSS,
+Tencent COS) are not recognized; their URLs are named by the full address.
+
+After upgrading to a version with this rule, signed images are downloaded once
+more under a new, stable name; unsigned images keep their file names. A file an
+earlier version stored is still used for the exact signed URL it came from, so a
+`readonly` Notion cache whose links have expired keeps its local images. Delete
+old files by hand only after a `readwrite` build has refreshed the links.
+
 Example: download only Notion-hosted images and keep other links on failure.
 
 ```yaml

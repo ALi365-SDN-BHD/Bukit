@@ -1,18 +1,76 @@
 {
   "skills": [
-    {"name": "using-bukit", "path": "guide/skills/using-bukit/SKILL.md"},
-    {"name": "bukit-cli-reference", "path": "guide/skills/bukit-cli-reference/SKILL.md"},
-    {"name": "bukit-config", "path": "guide/skills/bukit-config/SKILL.md"},
-    {"name": "bukit-content", "path": "guide/skills/bukit-content/SKILL.md"},
-    {"name": "bukit-routing", "path": "guide/skills/bukit-routing/SKILL.md"},
-    {"name": "bukit-templating", "path": "guide/skills/bukit-templating/SKILL.md"},
-    {"name": "bukit-theme", "path": "guide/skills/bukit-theme/SKILL.md"},
-    {"name": "bukit-i18n", "path": "guide/skills/bukit-i18n/SKILL.md"},
-    {"name": "bukit-seo", "path": "guide/skills/bukit-seo/SKILL.md"},
-    {"name": "bukit-geo", "path": "guide/skills/bukit-geo/SKILL.md"},
-    {"name": "bukit-preview", "path": "guide/skills/bukit-preview/SKILL.md"},
-    {"name": "bukit-dev", "path": "guide/skills/bukit-dev/SKILL.md"},
-    {"name": "bukit-deploy", "path": "guide/skills/bukit-deploy/SKILL.md"},
-    {"name": "bukit-debug", "path": "guide/skills/bukit-debug/SKILL.md"}
+    {
+      "name": "using-bukit",
+      "path": "guide/skills/using-bukit/SKILL.md"
+    },
+    {
+      "name": "bukit-cli-reference",
+      "path": "guide/skills/bukit-cli-reference/SKILL.md"
+    },
+    {
+      "name": "bukit-config",
+      "path": "guide/skills/bukit-config/SKILL.md"
+    },
+    {
+      "name": "bukit-content",
+      "path": "guide/skills/bukit-content/SKILL.md"
+    },
+    {
+      "name": "bukit-content-model",
+      "path": "guide/skills/bukit-content-model/SKILL.md"
+    },
+    {
+      "name": "bukit-routing",
+      "path": "guide/skills/bukit-routing/SKILL.md"
+    },
+    {
+      "name": "bukit-templating",
+      "path": "guide/skills/bukit-templating/SKILL.md"
+    },
+    {
+      "name": "bukit-theme",
+      "path": "guide/skills/bukit-theme/SKILL.md"
+    },
+    {
+      "name": "bukit-i18n",
+      "path": "guide/skills/bukit-i18n/SKILL.md"
+    },
+    {
+      "name": "bukit-build",
+      "path": "guide/skills/bukit-build/SKILL.md"
+    },
+    {
+      "name": "bukit-outputs",
+      "path": "guide/skills/bukit-outputs/SKILL.md"
+    },
+    {
+      "name": "bukit-seo",
+      "path": "guide/skills/bukit-seo/SKILL.md"
+    },
+    {
+      "name": "bukit-seo-insights",
+      "path": "guide/skills/bukit-seo-insights/SKILL.md"
+    },
+    {
+      "name": "bukit-geo",
+      "path": "guide/skills/bukit-geo/SKILL.md"
+    },
+    {
+      "name": "bukit-analytics",
+      "path": "guide/skills/bukit-analytics/SKILL.md"
+    },
+    {
+      "name": "bukit-local-server",
+      "path": "guide/skills/bukit-local-server/SKILL.md"
+    },
+    {
+      "name": "bukit-publish-deploy",
+      "path": "guide/skills/bukit-publish-deploy/SKILL.md"
+    },
+    {
+      "name": "bukit-troubleshooting",
+      "path": "guide/skills/bukit-troubleshooting/SKILL.md"
+    }
   ]
 }

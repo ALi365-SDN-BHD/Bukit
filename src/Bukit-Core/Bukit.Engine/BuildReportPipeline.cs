@@ -40,12 +40,22 @@ internal sealed record BuildReportPipelineContext(
 
 internal sealed class BuildReportPipeline
 {
-    internal BuildVariantResult Execute(BuildReportPipelineContext ctx)
+    internal BuildVariantResult Execute(BuildReportPipelineContext ctx) => Execute(null, ctx);
+
+    internal BuildVariantResult Execute(ReportStageTimer? reportTimer, BuildReportPipelineContext ctx)
     {
         var contentGraph = ctx.ContentGraph ?? CanonicalContentGraph.Empty;
         var projectionResults = ctx.ProjectionResults ?? [];
-        SeoAuditReportWriter.Write(ctx.Config, ctx.OutputDir, ctx.SeoIndex, ctx.SeoModels, contentGraph, ctx.Logger,
+        void WriteSeoAudit() => SeoAuditReportWriter.Write(ctx.Config, ctx.OutputDir, ctx.SeoIndex, ctx.SeoModels, contentGraph, ctx.Logger,
             projectionResults, SearchIndexDocuments.BuildDocumentMap(ctx.RoutedDocuments.Concat(ctx.DerivedDocuments)));
+        if (reportTimer is null)
+        {
+            WriteSeoAudit();
+        }
+        else
+        {
+            reportTimer.Step("seo-audit", WriteSeoAudit);
+        }
         return new BuildVariantResult(
             Language: ctx.Language,
             OutputDir: ctx.OutputDir,

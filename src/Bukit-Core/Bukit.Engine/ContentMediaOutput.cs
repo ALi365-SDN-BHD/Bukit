@@ -2,6 +2,7 @@ using System.Collections.Concurrent;
 using System.Net;
 using System.Text;
 using System.Text.RegularExpressions;
+using Bukit.Config;
 using Bukit.Content.Media;
 using Bukit.Engine.Abstractions.Content;
 using Bukit.Shared;
@@ -16,6 +17,8 @@ internal sealed partial class ContentMediaOutput(BuildVariantContext context) : 
     private readonly ConcurrentDictionary<(string Id, ContentBodyRef Body), Lazy<Task<ContentBody>>> _bodies = new();
     private readonly ConcurrentDictionary<string, byte> _references = new(StringComparer.Ordinal);
     private readonly ConcurrentDictionary<string, byte> _fallbacks = new(StringComparer.Ordinal);
+    // Computed once per variant; RewriteUrl runs for every link in every rendered page.
+    private readonly MediaConfig _effective = ContentProviderFactory.BuildEffectiveMediaConfig(context.Config.Content.Media, context.RootDir, context.MediaDownloadDir);
     private readonly string _mediaPrefix = ContentProviderFactory.BuildEffectiveMediaConfig(context.Config.Content.Media, context.RootDir, context.MediaDownloadDir).UrlBase.TrimEnd('/');
     private readonly string _baseUrl = BuildPathUtils.NormalizeBaseUrl(context.BaseUrl).TrimEnd('/');
     private readonly string _rootBaseUrl = BuildPathUtils.NormalizeBaseUrl(context.RootBaseUrl ?? context.BaseUrl).TrimEnd('/');
@@ -80,7 +83,7 @@ internal sealed partial class ContentMediaOutput(BuildVariantContext context) : 
 
     internal IReadOnlyList<AssetOutputItem> Plan(ILogger logger, CancellationToken cancellationToken)
     {
-        var effective = ContentProviderFactory.BuildEffectiveMediaConfig(context.Config.Content.Media, context.RootDir, context.MediaDownloadDir);
+        var effective = _effective;
         var options = new DirectoryCopyOptions { IgnoreDotPrefixedFiles = true, FollowSymlinks = false };
         var candidates = Directory.Exists(effective.DownloadDir)
             ? DirectoryCopy.EnumerateFilesForSync(effective.DownloadDir, options, logger, cancellationToken).ToDictionary(item => BuildPathUtils.NormalizeRelPath(item.RelativePath), StringComparer.Ordinal)
@@ -154,7 +157,7 @@ internal sealed partial class ContentMediaOutput(BuildVariantContext context) : 
             if (collect) _references.TryAdd(relative, 0);
             return _baseUrl + _mediaPrefix + "/" + string.Join('/', relative.Split('/').Select(Uri.EscapeDataString)) + suffix;
         }
-        var fallback = ContentProviderFactory.BuildEffectiveMediaConfig(context.Config.Content.Media, context.RootDir, context.MediaDownloadDir).DefaultImageUrl;
+        var fallback = _effective.DefaultImageUrl;
         if (path == fallback || path == _baseUrl + fallback || path == _rootBaseUrl + fallback)
         {
             if (collect && requireFallback) _fallbacks.TryAdd(fallback.TrimStart('/'), 0);

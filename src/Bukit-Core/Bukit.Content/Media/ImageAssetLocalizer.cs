@@ -47,9 +47,13 @@ public sealed class ImageAssetLocalizer : IImageAssetLocalizer, IDisposable
     private readonly CancellationToken _lifetimeToken;
     private readonly ConcurrentDictionary<string, string> _cache = new(StringComparer.Ordinal);
     private readonly ConcurrentDictionary<string, Lazy<Task<DownloadOutcome>>> _inflight = new(StringComparer.Ordinal);
-    // Keys whose download already failed in this localizer's lifetime; not retried. A localizer
-    // lives for one build: ImageLocalizeStage creates it and the build disposes its body store.
-    private readonly ConcurrentDictionary<string, byte> _failedKeys = new(StringComparer.Ordinal);
+    // Full request targets whose download already failed in this localizer's lifetime; not
+    // retried. Keyed by the signed target, not the media identity, so a fresh signature for the
+    // same object is still tried. A localizer lives for one build: ImageLocalizeStage creates it
+    // and the build disposes its body store.
+    private readonly ConcurrentDictionary<string, byte> _failedTargets = new(StringComparer.Ordinal);
+    // One own-URL retry at a time per media identity, after a shared download was refused.
+    private readonly ConcurrentDictionary<string, SemaphoreSlim> _retryGates = new(StringComparer.Ordinal);
     // A queue keeps failures in the order they happened, for the build summary.
     private readonly ConcurrentQueue<MediaFailure> _failures = new();
     private readonly Lock _failureReportLock = new();
@@ -138,14 +142,7 @@ public sealed class ImageAssetLocalizer : IImageAssetLocalizer, IDisposable
         }
 
         var normalizedKey = NormalizeSourceUrlForKey(uri);
-
-        if (_failedKeys.ContainsKey(normalizedKey))
-        {
-            // Already failed (and reported) in this build: skip the retries and timeouts, but warn so
-            // every page that still references the broken URL is visible.
-            _logger?.Warn($"event=media.failed_reference source={UrlRedactor.Redact(source)}");
-            return FailureResult(original);
-        }
+        var requestTarget = SignedUrlIdentity.RequestTarget(uri);
 
         var root = _config.DownloadDir.Trim();
         Directory.CreateDirectory(root);
@@ -201,8 +198,22 @@ public sealed class ImageAssetLocalizer : IImageAssetLocalizer, IDisposable
             }
         }
 
+        if (await FindLegacySignedFileAsync(root, uri, requestTarget, cancellationToken) is { } legacyName)
+        {
+            _indexManager.RememberIndex(normalizedKey, legacyName);
+            _cache.TryAdd(normalizedKey, legacyName);
+            return _indexManager.CombineUrl(legacyName);
+        }
+
+        // Checked after the success lookups: once any reference to an object has downloaded, an
+        // expired signature for the same object reuses the local file instead of failing.
+        if (_failedTargets.ContainsKey(requestTarget))
+        {
+            return FailedReference(source, original);
+        }
+
         var newDownload = new Lazy<Task<DownloadOutcome>>(
-            () => DownloadCoreAsync(normalizedKey, uri, source, root, _lifetimeToken),
+            () => DownloadCoreAsync(normalizedKey, uri, source, root, singleAttempt: false, _lifetimeToken),
             LazyThreadSafetyMode.ExecutionAndPublication);
         var download = _inflight.GetOrAdd(normalizedKey, newDownload);
         var downloadTask = download.Value;
@@ -218,8 +229,27 @@ public sealed class ImageAssetLocalizer : IImageAssetLocalizer, IDisposable
         try
         {
             var outcome = await downloadTask.WaitAsync(cancellationToken);
+            if (outcome.LocalUrl is not null)
+            {
+                return outcome.LocalUrl;
+            }
+
             // Callers sharing a download may spell the URL differently; a failure uses this caller's own source.
-            return outcome.LocalUrl ?? FailureResult(original);
+            if (string.Equals(outcome.RequestTarget, requestTarget, StringComparison.Ordinal))
+            {
+                return FailureResult(original);
+            }
+
+            // This caller's URL differs only by signature parameters. A refusal may just mean the
+            // other signature expired, so this caller's own URL gets one try; any other failure is
+            // about the object itself, and this caller's URL is recorded as failed without a request.
+            if (outcome.StatusCode is 400 or 401 or 403)
+            {
+                return await RetryWithOwnUrlAsync(normalizedKey, uri, requestTarget, source, original, root, cancellationToken);
+            }
+
+            RecordFailedTarget(requestTarget, source, outcome.Reason);
+            return FailureResult(original);
         }
         finally
         {
@@ -228,6 +258,45 @@ public sealed class ImageAssetLocalizer : IImageAssetLocalizer, IDisposable
                 _inflight.TryRemove(KeyValuePair.Create(normalizedKey, download));
             }
         }
+    }
+
+    // Serialized per media identity: the first waiter tries its own URL once; later waiters
+    // usually find the result already cached, or their own URL already failed.
+    private async Task<string> RetryWithOwnUrlAsync(
+        string normalizedKey, Uri uri, string requestTarget, string source, string original, string root,
+        CancellationToken cancellationToken)
+    {
+        using var linked = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, _lifetimeToken);
+        var gate = _retryGates.GetOrAdd(normalizedKey, static _ => new SemaphoreSlim(1, 1));
+        await gate.WaitAsync(linked.Token);
+        try
+        {
+            if (_cache.TryGetValue(normalizedKey, out var cachedFileName) &&
+                await IsTrustedCachedFileAsync(root, cachedFileName, linked.Token))
+            {
+                return _indexManager.CombineUrl(cachedFileName);
+            }
+
+            if (_failedTargets.ContainsKey(requestTarget))
+            {
+                return FailedReference(source, original);
+            }
+
+            var outcome = await DownloadCoreAsync(normalizedKey, uri, source, root, singleAttempt: true, linked.Token);
+            return outcome.LocalUrl ?? FailureResult(original);
+        }
+        finally
+        {
+            gate.Release();
+        }
+    }
+
+    // Already failed (and reported) in this build: skip the retries and timeouts, but warn so
+    // every page that still references the broken URL is visible.
+    private string FailedReference(string source, string original)
+    {
+        _logger?.Warn($"event=media.failed_reference source={UrlRedactor.Redact(source)}");
+        return FailureResult(original);
     }
 
     // Returns the URL to use when this source is not downloaded, or null when it should be.
@@ -287,10 +356,11 @@ public sealed class ImageAssetLocalizer : IImageAssetLocalizer, IDisposable
     }
 
     private async Task<DownloadOutcome> DownloadCoreAsync(
-        string normalizedKey, Uri uri, string source, string root,
+        string normalizedKey, Uri uri, string source, string root, bool singleAttempt,
         CancellationToken cancellationToken)
     {
-        var maxRetries = _config.MaxRetries is >= 0 ? _config.MaxRetries.Value : 0;
+        var requestTarget = SignedUrlIdentity.RequestTarget(uri);
+        var maxRetries = !singleAttempt && _config.MaxRetries is >= 0 ? _config.MaxRetries.Value : 0;
         var maxFileSize = _config.MaxFileSizeBytes is > 0
             ? _config.MaxFileSizeBytes.Value
             : DefaultMaxFileSize;
@@ -314,7 +384,7 @@ public sealed class ImageAssetLocalizer : IImageAssetLocalizer, IDisposable
                     if (attempt >= maxRetries)
                     {
                         _logger?.Warn($"event=media.download_failed status={(int)response.StatusCode} source={UrlRedactor.Redact(source)}");
-                        return RecordDownloadFailure(normalizedKey, source, $"HTTP {(int)response.StatusCode}");
+                        return RecordDownloadFailure(requestTarget, source, $"HTTP {(int)response.StatusCode}", (int)response.StatusCode);
                     }
 
                     await DelayBeforeRetryAsync(attempt, retryBaseDelay, cancellationToken);
@@ -328,7 +398,7 @@ public sealed class ImageAssetLocalizer : IImageAssetLocalizer, IDisposable
                 {
                     _logger?.Warn(
                         $"event=media.content_type_rejected type={headerContentType ?? "(null)"} source={UrlRedactor.Redact(source)}");
-                    return RecordDownloadFailure(normalizedKey, source, $"Content-Type rejected: {headerContentType ?? "(null)"}");
+                    return RecordDownloadFailure(requestTarget, source, $"Content-Type rejected: {headerContentType ?? "(null)"}");
                 }
 
                 var tempPath = BuildTempFilePath(root, BuildFileIdentity(normalizedKey));
@@ -341,7 +411,7 @@ public sealed class ImageAssetLocalizer : IImageAssetLocalizer, IDisposable
                 if (write.Status == WriteStatus.TooLarge)
                 {
                     _logger?.Warn($"event=media.download_too_large limit={maxFileSize} source={UrlRedactor.Redact(source)}");
-                    return RecordDownloadFailure(normalizedKey, source, $"File too large (limit: {maxFileSize} bytes)");
+                    return RecordDownloadFailure(requestTarget, source, $"File too large (limit: {maxFileSize} bytes)");
                 }
 
                 if (write.Status == WriteStatus.SignatureRejected)
@@ -349,7 +419,7 @@ public sealed class ImageAssetLocalizer : IImageAssetLocalizer, IDisposable
                     _logger?.Warn(
                         $"event=media.content_type_rejected type={headerContentType ?? "(null)"} signature=unrecognized source={UrlRedactor.Redact(source)}");
                     return RecordDownloadFailure(
-                        normalizedKey,
+                        requestTarget,
                         source,
                         $"Content-Type rejected: {headerContentType ?? "(null)"} (image signature not recognized)");
                 }
@@ -360,7 +430,7 @@ public sealed class ImageAssetLocalizer : IImageAssetLocalizer, IDisposable
                     if (attempt >= maxRetries)
                     {
                         _logger?.Warn($"event=media.download_empty source={UrlRedactor.Redact(source)}");
-                        return RecordDownloadFailure(normalizedKey, source, "Empty response body");
+                        return RecordDownloadFailure(requestTarget, source, "Empty response body");
                     }
 
                     await DelayBeforeRetryAsync(attempt, retryBaseDelay, cancellationToken);
@@ -392,7 +462,7 @@ public sealed class ImageAssetLocalizer : IImageAssetLocalizer, IDisposable
                     _logger?.Warn(
                         $"event=media.signature_rejected type={contentType} source={UrlRedactor.Redact(source)}");
                     return RecordDownloadFailure(
-                        normalizedKey,
+                        requestTarget,
                         source,
                         "Image content signature does not match Content-Type or is not decodable.");
                 }
@@ -415,7 +485,7 @@ public sealed class ImageAssetLocalizer : IImageAssetLocalizer, IDisposable
                     DeleteFileBestEffort(tempPath);
                     _logger?.Warn(
                         $"event=media.move_conflict_unverified source={UrlRedactor.Redact(source)}");
-                    return RecordDownloadFailure(normalizedKey, source, "Media file move conflicted with an unverifiable winner.");
+                    return RecordDownloadFailure(requestTarget, source, "Media file move conflicted with an unverifiable winner.");
                 }
 
                 if (!winnerIsTrusted)
@@ -443,7 +513,7 @@ public sealed class ImageAssetLocalizer : IImageAssetLocalizer, IDisposable
                     {
                         _logger?.Warn(
                             $"event=media.winner_rejected type={contentType} source={UrlRedactor.Redact(source)}");
-                        return RecordDownloadFailure(normalizedKey, source, "Media winner file failed content validation.");
+                        return RecordDownloadFailure(requestTarget, source, "Media winner file failed content validation.");
                     }
 
                     bool winnerIdentityMatches;
@@ -469,7 +539,7 @@ public sealed class ImageAssetLocalizer : IImageAssetLocalizer, IDisposable
                         _logger?.Warn(
                             $"event=media.winner_identity_rejected source={UrlRedactor.Redact(source)}");
                         return RecordDownloadFailure(
-                            normalizedKey,
+                            requestTarget,
                             source,
                             "Media winner file did not match downloaded content identity.");
                     }
@@ -478,13 +548,13 @@ public sealed class ImageAssetLocalizer : IImageAssetLocalizer, IDisposable
                 var publicUrl = _indexManager.CombineUrl(fileName);
                 _indexManager.RememberIndex(normalizedKey, fileName);
                 _cache.TryAdd(normalizedKey, fileName);
-                return new DownloadOutcome(publicUrl);
+                return new DownloadOutcome(publicUrl, requestTarget, null, null);
             }
             catch (UnsafeMediaTargetException ex)
             {
                 _logger?.Warn(
                     $"event=media.ssrf_blocked source={UrlRedactor.Redact(source)} error={ex.GetType().Name}");
-                return RecordDownloadFailure(normalizedKey, source, "SSRF blocked (unsafe or unverifiable target)");
+                return RecordDownloadFailure(requestTarget, source, "SSRF blocked (unsafe or unverifiable target)");
             }
             catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
             {
@@ -496,7 +566,7 @@ public sealed class ImageAssetLocalizer : IImageAssetLocalizer, IDisposable
                 {
                     _logger?.Warn(
                         $"event=media.download_error source={UrlRedactor.Redact(source)} {BuildDownloadErrorDiagnostic(ex)}");
-                    return RecordDownloadFailure(normalizedKey, source, $"{ex.GetType().Name}: {ex.Message}");
+                    return RecordDownloadFailure(requestTarget, source, $"{ex.GetType().Name}: {ex.Message}");
                 }
 
                 await DelayBeforeRetryAsync(attempt, retryBaseDelay, cancellationToken);
@@ -649,20 +719,30 @@ public sealed class ImageAssetLocalizer : IImageAssetLocalizer, IDisposable
         }
     }
 
-    // Inside the shared download: record once, remember the key, and let each waiting caller
-    // map the failure to its own result.
-    private DownloadOutcome RecordDownloadFailure(string normalizedKey, string sourceUrl, string reason)
+    // Inside the shared download: remember the target, and let each waiting caller map the
+    // failure to its own result.
+    private DownloadOutcome RecordDownloadFailure(string requestTarget, string sourceUrl, string reason, int? statusCode = null)
     {
-        AddFailure(sourceUrl, reason);
-        _failedKeys.TryAdd(normalizedKey, 0);
-        return DownloadOutcome.Failed;
+        RecordFailedTarget(requestTarget, sourceUrl, reason);
+        return new DownloadOutcome(null, requestTarget, statusCode, reason);
     }
 
-    /// <summary>Result of a shared download: the local URL, or null when it failed.</summary>
-    private readonly record struct DownloadOutcome(string? LocalUrl)
+    // Only the caller that first records a target reports it, so concurrent callers never
+    // report the same target twice.
+    private void RecordFailedTarget(string requestTarget, string sourceUrl, string? reason)
     {
-        public static DownloadOutcome Failed => default;
+        if (_failedTargets.TryAdd(requestTarget, 0))
+        {
+            AddFailure(sourceUrl, reason ?? "Download failed.");
+        }
     }
+
+    /// <summary>
+    /// Result of a download: the local URL, or null when it failed. <paramref name="RequestTarget"/>
+    /// is the target that was requested, and <paramref name="StatusCode"/> the final HTTP status
+    /// when the failure was an HTTP error.
+    /// </summary>
+    private readonly record struct DownloadOutcome(string? LocalUrl, string RequestTarget, int? StatusCode, string? Reason);
 
     private string FailureResult(string sourceUrl)
         => _keepOriginalOnFailure ? sourceUrl : _config.DefaultImageUrl;
@@ -780,13 +860,43 @@ public sealed class ImageAssetLocalizer : IImageAssetLocalizer, IDisposable
         return Convert.ToHexStringLower(hash);
     }
 
-    private static string NormalizeSourceUrlForKey(Uri uri)
+    private static string NormalizeSourceUrlForKey(Uri uri) =>
+        // Signature parameters do not change which object is fetched; unsigned URLs hash exactly as before.
+        KeyForTarget(SignedUrlIdentity.IdentityTarget(uri));
+
+    private static string KeyForTarget(string target)
     {
-        var requestTarget = uri.GetComponents(
-            UriComponents.HttpRequestUrl,
-            UriFormat.UriEscaped);
-        var hash = SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(requestTarget));
+        var hash = SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(target));
         return $"v3:{Convert.ToHexStringLower(hash)}";
+    }
+
+    /// <summary>
+    /// Earlier versions keyed a signed URL by its full request target, signature included. A file
+    /// stored that way is reused for the same signed URL, so a readonly cache whose links have
+    /// expired keeps its local images after an upgrade. Untrusted files are left alone here.
+    /// </summary>
+    private async Task<string?> FindLegacySignedFileAsync(
+        string root,
+        Uri uri,
+        string requestTarget,
+        CancellationToken cancellationToken)
+    {
+        if (string.Equals(SignedUrlIdentity.IdentityTarget(uri), requestTarget, StringComparison.Ordinal))
+        {
+            return null;
+        }
+
+        var legacyKey = KeyForTarget(requestTarget);
+        if (_indexManager.TryGetFileNameFromIndex(root, legacyKey, out var indexed) &&
+            await IsTrustedCachedFileAsync(root, indexed, cancellationToken))
+        {
+            return indexed;
+        }
+
+        var existing = _indexManager.FindExistingFileByIdentity(root, BuildFileIdentity(legacyKey));
+        return existing is not null && await IsTrustedCachedFileAsync(root, existing, cancellationToken)
+            ? existing
+            : null;
     }
 
     public void Dispose()

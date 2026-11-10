@@ -1,4 +1,5 @@
 using System.Collections.Concurrent;
+using System.Diagnostics;
 
 namespace Bukit.Engine;
 
@@ -45,10 +46,21 @@ internal sealed class BuildStageMetricsCollector
 {
     private readonly ConcurrentDictionary<string, long> _durationsMs = new(StringComparer.OrdinalIgnoreCase);
     private readonly ConcurrentDictionary<string, int> _counts = new(StringComparer.OrdinalIgnoreCase);
+    private readonly ConcurrentDictionary<string, long> _elapsedTicks = new(StringComparer.OrdinalIgnoreCase);
 
     internal void AddDuration(string stage, long durationMs)
     {
         _durationsMs.AddOrUpdate(stage, durationMs, (_, current) => current + durationMs);
+    }
+
+    /// <summary>
+    /// Adds a duration in <see cref="Stopwatch"/> ticks. Ticks are summed first and converted
+    /// to milliseconds once in <see cref="Snapshot"/>, so many sub-millisecond durations are
+    /// not each truncated to zero.
+    /// </summary>
+    internal void AddElapsedTicks(string stage, long ticks)
+    {
+        _elapsedTicks.AddOrUpdate(stage, ticks, (_, current) => current + ticks);
     }
 
     internal void Increment(string stage, int delta = 1)
@@ -58,8 +70,17 @@ internal sealed class BuildStageMetricsCollector
 
     internal BuildStageMetrics Snapshot()
     {
+        var durations = new Dictionary<string, long>(_durationsMs, StringComparer.OrdinalIgnoreCase);
+        foreach (var kv in _elapsedTicks)
+        {
+            var milliseconds = (long)(kv.Value * 1000.0 / Stopwatch.Frequency);
+            durations[kv.Key] = durations.TryGetValue(kv.Key, out var existing)
+                ? existing + milliseconds
+                : milliseconds;
+        }
+
         return new BuildStageMetrics(
-            new Dictionary<string, long>(_durationsMs, StringComparer.OrdinalIgnoreCase),
+            durations,
             new Dictionary<string, int>(_counts, StringComparer.OrdinalIgnoreCase));
     }
 

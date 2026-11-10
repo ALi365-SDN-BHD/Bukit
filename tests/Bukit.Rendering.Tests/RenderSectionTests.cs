@@ -294,8 +294,16 @@ public sealed class RenderSectionTests : IDisposable
             Page = new PageInfo { Title = "Test", Content = "", Url = "/test/" }
         };
 
-        var result = renderer.RenderPage("pages/page.html", model);
+        string result;
+        string[] reads;
+        using (var scope = RenderReadRecorder.Begin())
+        {
+            result = renderer.RenderPage("pages/page.html", model);
+            reads = scope.Recorder.Complete();
+        }
 
+        // Section items come from the page list, so the page depends on it.
+        Assert.Equal([RenderReadRecorder.Pages], reads);
         Assert.Contains("First Post", result);
         Assert.Contains("Second Post", result);
         Assert.DoesNotContain("Other Page", result);

@@ -40,7 +40,7 @@ internal sealed class ComponentRenderFunction : IScriptCustomFunction
             var resolveCtx = new TemplateContext { TemplateLoader = _templateLoader };
             var resolvedPath = _templateLoader.GetPath(resolveCtx, default, compDef.Template);
 
-            var compContext = new TemplateContext
+            var compContext = new BukitTemplateContext
             {
                 TemplateLoader = _templateLoader,
                 EnableRelaxedMemberAccess = true,
@@ -67,6 +67,7 @@ internal sealed class ComponentRenderFunction : IScriptCustomFunction
                 {
                     var val = propIndex < props.Count ? props[propIndex] : compDef.Props[propName];
                     componentGlobals.SetValue(propName, val, readOnly: true);
+                    RenderReadRecorder.Current?.Declare(propName);
                     propIndex++;
                 }
             }
@@ -193,7 +194,7 @@ internal sealed class ThemeComponentRenderFunction : IScriptCustomFunction
                 return Diagnostic("theme.component.template_not_found", $"component template not found: {compDef.Template}");
             }
 
-            var compContext = new TemplateContext
+            var compContext = new BukitTemplateContext
             {
                 TemplateLoader = _templateLoader,
                 EnableRelaxedMemberAccess = true,
@@ -211,9 +212,17 @@ internal sealed class ThemeComponentRenderFunction : IScriptCustomFunction
                 return Diagnostic("theme.component.template_parse_failed", $"component error: {compTemplate.Messages}");
             }
 
+            ScribanTemplateReadAnalyzer.Record(compTemplate);
             if (data is ScriptObject so)
             {
                 compContext.PushGlobal(so);
+                if (RenderReadRecorder.Current is { } recorder)
+                {
+                    foreach (var propName in so.Keys)
+                    {
+                        recorder.Declare(propName);
+                    }
+                }
             }
 
             compContext.PushGlobal(_parentGlobals);

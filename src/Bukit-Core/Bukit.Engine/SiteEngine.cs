@@ -184,9 +184,13 @@ public sealed partial class SiteEngine
 
                     buildLogger.Info($"event=build.variant.done language={effectiveConfig.Site.Language} baseUrl={BuildPathUtils.NormalizeBaseUrl(effectiveConfig.Site.BaseUrl)}");
                     bodyCacheMetrics = RefreshBodyCacheMetrics(bodyStore) ?? bodyCacheMetrics;
-                    MetricsWriter.WriteIfRequested(rootDir, overrides.MetricsPath, effectiveConfig, plan.OutputDir, documents.Count, new[] { result }, bodyCacheMetrics);
-                    completedManifest = PublicOutputLifecycle.CollectAndClean(rootDir, overrides, plan.OutputDir, [result], buildLogger);
-                    var generatedFiles = BuildOutputInventory.Create(plan.OutputDir);
+                    var reportTimer = new ReportStageTimer(buildLogger, ReportStageTimer.FinalizeScope);
+                    if (!string.IsNullOrWhiteSpace(overrides.MetricsPath))
+                    {
+                        reportTimer.Step("metrics-write", () => MetricsWriter.WriteIfRequested(rootDir, overrides.MetricsPath, effectiveConfig, plan.OutputDir, documents.Count, new[] { result }, bodyCacheMetrics));
+                    }
+                    completedManifest = reportTimer.Step("collect-and-clean", () => PublicOutputLifecycle.CollectAndClean(rootDir, overrides, plan.OutputDir, [result], buildLogger));
+                    var generatedFiles = reportTimer.Step("output-inventory", () => BuildOutputInventory.Create(plan.OutputDir));
                     plan.Stopwatch.Stop();
                     var singleLanguageBuildResult = BuildResultFactory.Create(
                         effectiveConfig,
@@ -201,9 +205,10 @@ public sealed partial class SiteEngine
                         generatedFiles,
                         warningCount: buildLogger.WarningCount,
                         errorCount: buildLogger.ErrorCount);
-                    var securityData = BuildReporter.CreateSecurityReportData(effectiveConfig, rootDir, plan.OutputDir, new[] { result });
-                    await BuildReporter.WriteIfEnabledAsync(effectiveConfig, rootDir, plan.OutputDir, singleLanguageBuildResult, new[] { result }, _logger, securityData, cancellationToken).ConfigureAwait(false);
-                    BuildReporter.EnforceSecurityGate(effectiveConfig, securityData, overrides.IsCI, _logger);
+                    var securityData = reportTimer.Step("security-data", () => BuildReporter.CreateSecurityReportData(effectiveConfig, rootDir, plan.OutputDir, new[] { result }));
+                    await BuildReporter.WriteIfEnabledAsync(effectiveConfig, rootDir, plan.OutputDir, singleLanguageBuildResult, new[] { result }, _logger, securityData, reportTimer, cancellationToken).ConfigureAwait(false);
+                    reportTimer.Step("security-gate", () => BuildReporter.EnforceSecurityGate(effectiveConfig, securityData, overrides.IsCI, _logger));
+                    reportTimer.Complete();
                     completedResult = singleLanguageBuildResult;
                     completedVariants = [result];
                 }

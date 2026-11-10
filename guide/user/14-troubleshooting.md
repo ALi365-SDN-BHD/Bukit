@@ -149,6 +149,29 @@ normal incremental reuse can resume on subsequent builds once the directories
 fit the budgets. Ordinary read/permission failures are not treated as this
 budget fallback. Use `--no-incremental` to request full rendering explicitly.
 
+With `--no-clean` and incremental mode, a page is rendered again when its
+content, route, templates or a config value that reaches templates changes. In
+addition:
+
+- After upgrading Bukit, the first build renders every page once, and the
+  incremental report lists them as `template_changed` (lists as `list_render`).
+  This is expected. A Bukit binary built without git metadata, or with
+  uncommitted changes, is not told apart from the release it is based on; use
+  `--clean` with such builds.
+- Changing any option of an enabled built-in plugin renders every page again,
+  even options that do not change HTML (such as an IndexNow key).
+- Shared data is tracked per page. Bukit records which collections each page's
+  templates (layout, includes, components and sections) read: a `site.data`,
+  `site.modules` or `site.data_index` key, `site.related_pages`,
+  `site.data_files`, or the `pages` list (also read by sections with a
+  `source`). When one of those changes, only the pages that read it render
+  again, reported as `data_dependency_changed`; a change to a site-wide setting
+  is still `render_dependency_changed` for every page. A template that uses
+  `site` or `site.data` as a whole, an unknown global, `this` or a section
+  plugin counts as reading everything, and so does a custom renderer.
+- With `theme.images` enabled, any image change renders every page again; that
+  costs time but leaves nothing stale.
+
 Use `--metrics` to inspect stage timing, `--jobs` to limit or increase render
 parallelism, and `--incremental` to reuse unchanged render results. For an
 explicit multilingual build, tune `build.languageJobs` separately to control

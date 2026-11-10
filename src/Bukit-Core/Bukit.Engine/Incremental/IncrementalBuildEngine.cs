@@ -199,7 +199,7 @@ internal static class IncrementalBuildEngine
             return ComputeContentHash(document, metadataHash, html);
         }
 
-        return metadataHash;
+        return WithBodyFingerprint(document, metadataHash);
     }
 
     [Obsolete("Blocking. Use ComputeListDocumentHashAsync instead to avoid sync-over-async deadlocks.")]
@@ -219,7 +219,17 @@ internal static class IncrementalBuildEngine
             return ComputeContentHash(document, metadataHash, html);
         }
 
-        return metadataHash;
+        return WithBodyFingerprint(document, metadataHash);
+    }
+
+    // Lists without content still change when a declared body fingerprint changes,
+    // as they did when the fingerprint was part of the metadata hash.
+    private static string WithBodyFingerprint(ContentDocument document, string metadataHash)
+    {
+        var bodyFingerprint = ContentFieldReader.GetText(document.CustomFields, BodyFingerprintKey);
+        return string.IsNullOrWhiteSpace(bodyFingerprint)
+            ? metadataHash
+            : HashUtil.Sha256Hex(string.Join("\n", metadataHash, bodyFingerprint));
     }
 
     private static bool TryGetBodyFingerprint(ContentDocument document, out string bodyFingerprint)
@@ -392,8 +402,14 @@ internal static class IncrementalBuildEngine
             return;
         }
 
-        writer.BeginMap(fields.Count);
-        foreach (var field in fields.OrderBy(static pair => pair.Key, StringComparer.Ordinal))
+        // The body fingerprint is body identity, not metadata: it enters the content hash
+        // (and the list hash below), so a body edit reports content_changed.
+        var metadataFields = fields
+            .Where(static pair => !string.Equals(pair.Key, BodyFingerprintKey, StringComparison.OrdinalIgnoreCase))
+            .OrderBy(static pair => pair.Key, StringComparer.Ordinal)
+            .ToArray();
+        writer.BeginMap(metadataFields.Length);
+        foreach (var field in metadataFields)
         {
             writer.WriteString(field.Key);
             writer.BeginRecord("ContentField", 2);

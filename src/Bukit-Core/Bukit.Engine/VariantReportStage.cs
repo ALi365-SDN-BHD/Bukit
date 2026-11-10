@@ -16,7 +16,8 @@ internal static class VariantReportStage
         ThemeTemplateResolver templateResolver,
         AnalyticsBuildState analyticsBuildState,
         ILogger logger,
-        IReadOnlyList<PublishProjectionResult> projectionResults)
+        IReadOnlyList<PublishProjectionResult> projectionResults,
+        ReportStageTimer? reportTimer = null)
     {
         var searchSnippetsEnabled = templateResolver.TryResolveKindTemplate(
                 "search",
@@ -25,7 +26,7 @@ internal static class VariantReportStage
                 searchTemplate,
                 context.LayoutsDir);
         var pluginContext = routePipelineResult.PluginContext;
-        var result = new BuildReportPipeline().Execute(new BuildReportPipelineContext(
+        var result = new BuildReportPipeline().Execute(reportTimer, new BuildReportPipelineContext(
             Config: context.Config,
             Language: context.Config.Site.Language,
             OutputDir: context.OutputDir,
@@ -54,11 +55,23 @@ internal static class VariantReportStage
         analyticsBuildState.RecordRenderOutcome(
             renderPipelineResult.RenderedCount,
             renderPipelineResult.SkippedCount);
-        AnalyticsReportWriter.WriteIfEnabled(
+        var analyticsSnapshot = analyticsBuildState.Snapshot();
+        Time(reportTimer, "analytics-report", () => AnalyticsReportWriter.WriteIfEnabled(
             context.Config,
             context.OutputDir,
-            analyticsBuildState.Snapshot());
+            analyticsSnapshot));
         return Task.FromResult(result);
+    }
+
+    private static void Time(ReportStageTimer? timer, string step, Action action)
+    {
+        if (timer is null)
+        {
+            action();
+            return;
+        }
+
+        timer.Step(step, action);
     }
 
     internal static IReadOnlyList<PluginOutputTrackingInfo> GetPluginOutputs(

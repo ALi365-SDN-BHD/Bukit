@@ -7,6 +7,7 @@ using Bukit.Engine.Abstractions.Routing;
 using Bukit.Shared;
 using Bukit.Theme;
 using System.Collections.Concurrent;
+using System.Diagnostics;
 using System.Security.Cryptography;
 using System.Text;
 
@@ -29,6 +30,8 @@ public sealed class ScribanTemplateRenderer
     private readonly ConcurrentDictionary<string, CachedSectionTemplate> _sectionTemplateCache = new(StringComparer.OrdinalIgnoreCase);
     private readonly TemplateContextBuilder _contextBuilder;
     private readonly IReadOnlyList<ITemplateContextContributor>? _contributors;
+    private readonly SharedModelCache _sharedModels = new();
+    private long _modelBindTicks;
 
     public ScribanTemplateRenderer(string layoutsDir, string? parentLayoutsDir = null, IReadOnlyDictionary<string, string>? shortcodes = null, IReadOnlyDictionary<string, ComponentDefinition>? components = null, string? userLayoutsDir = null)
         : this(layoutsDir, parentLayoutsDir, shortcodes, components, userLayoutsDir, null)
@@ -67,14 +70,45 @@ public sealed class ScribanTemplateRenderer
 
     public string RenderPage(string templateRelativePath, PageModel model)
     {
-        var globals = ScribanModelBinder.ToScriptObject(model);
+        RenderReadRecorder.Current?.MarkTracked();
+        var started = Stopwatch.GetTimestamp();
+        ScriptObject globals;
+        using (_sharedModels.Activate())
+        {
+            globals = ScribanModelBinder.ToScriptObject(model);
+        }
+
+        Interlocked.Add(ref _modelBindTicks, Stopwatch.GetTimestamp() - started);
         return Render(templateRelativePath, globals, 0);
     }
 
     public string RenderList(string templateRelativePath, ListPageModel model)
     {
-        var globals = ScribanModelBinder.ToScriptObject(model);
+        if (RenderReadRecorder.Current is { } recorder)
+        {
+            recorder.MarkTracked();
+            recorder.MarkPagesAsListItems();
+        }
+
+        var started = Stopwatch.GetTimestamp();
+        ScriptObject globals;
+        using (_sharedModels.Activate())
+        {
+            globals = ScribanModelBinder.ToScriptObject(model);
+        }
+
+        Interlocked.Add(ref _modelBindTicks, Stopwatch.GetTimestamp() - started);
         return Render(templateRelativePath, globals, 0);
+    }
+
+    /// <summary>
+    /// Ends a render pass: releases the shared <c>pages</c>/<c>site</c> values and returns the
+    /// model conversion time accumulated since the previous call, in <see cref="Stopwatch"/> ticks.
+    /// </summary>
+    internal long CompleteRenderPass()
+    {
+        _sharedModels.Clear();
+        return Interlocked.Exchange(ref _modelBindTicks, 0);
     }
 
     private string Render(string templateRelativePath, ScriptObject globals, int depth)
@@ -97,6 +131,7 @@ public sealed class ScribanTemplateRenderer
 
     private string RenderTemplate(Template template, string templateRelativePath, ScriptObject globals)
     {
+        ScribanTemplateReadAnalyzer.Record(template);
         var context = _contextBuilder.BuildContext(globals);
 
         try

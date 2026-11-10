@@ -345,6 +345,45 @@ public sealed class RenderDependencyContributorInvalidationTests
     }
 
     [Fact]
+    public void NonAnalyticsPluginEnablement_HashesEnabledPluginOptions()
+    {
+        var contributor = new NonAnalyticsPluginEnablementContributor();
+        AppConfig WithPlugin(bool enabled, IReadOnlyDictionary<string, object>? options) => Config() with
+        {
+            Site = Config().Site with
+            {
+                Plugins = new Dictionary<string, PluginToggleConfig> { ["toc"] = new() { Enabled = enabled, Options = options } }
+            }
+        };
+        IReadOnlyDictionary<string, object> Options(params (string Key, object Value)[] entries)
+        {
+            var map = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase);
+            foreach (var (key, value) in entries)
+            {
+                map[key] = value;
+            }
+
+            return map;
+        }
+
+        var nested = Options(("levels", new List<object> { "2", "3" }), ("labels", Options(("title", "目录"), ("hide", false))));
+        var baseline = Hash(contributor, WithPlugin(true, Options(("minHeadings", "3"), ("style", nested))));
+
+        // Key order does not matter; nested lists and maps hash.
+        Assert.Equal(baseline, Hash(contributor, WithPlugin(true, Options(("style", nested), ("minHeadings", "3")))));
+        Assert.NotEqual(baseline, Hash(contributor, WithPlugin(true, Options(("minHeadings", "4"), ("style", nested)))));
+        Assert.NotEqual(baseline, Hash(contributor, WithPlugin(true, Options(("minHeadings", "3"),
+            ("style", Options(("levels", new List<object> { "2" }), ("labels", Options(("title", "目录"), ("hide", false)))))))));
+
+        // Options of a disabled plugin cannot reach the HTML.
+        Assert.Equal(
+            Hash(contributor, WithPlugin(false, null)),
+            Hash(contributor, WithPlugin(false, Options(("minHeadings", "3")))));
+        // An enabled plugin without options hashes as before.
+        Assert.Equal(Hash(contributor, WithPlugin(true, null)), Hash(contributor, WithPlugin(true, Options())));
+    }
+
+    [Fact]
     public void SiteModelData_ChangesPublicDataButIgnoresInternalKeys()
     {
         var contributor = new SiteModelDataContributor();

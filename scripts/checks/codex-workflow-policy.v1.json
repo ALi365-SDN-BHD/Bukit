@@ -173,6 +173,7 @@
         "guide/dev/architecture.md",
         "guide/dev/content.md",
         "guide/dev/public-api-governance.md",
+        "guide/skills/bukit-content-model/SKILL.md",
         "guide/skills/bukit-content/SKILL.md",
         "openspec/changes/migrate-notion-compatibility/design.md",
         "openspec/changes/migrate-notion-compatibility/proposal.md",
@@ -1607,6 +1608,39 @@
       "resource": "dotnet-serial"
     },
     {
+      "id": "fix-render-shared-model-cost-contract",
+      "matches": [
+        "openspec/changes/fix-render-shared-model-cost/proposal.md",
+        "openspec/changes/fix-render-shared-model-cost/tasks.md",
+        "openspec/changes/fix-render-shared-model-cost/specs/static-rendering/spec.md",
+        "guide/dev/rendering-scriban.md"
+      ],
+      "specialtyTests": [
+        "openspec validate fix-render-shared-model-cost --type change --strict --no-interactive",
+        "dotnet test tests/Bukit.Rendering.Tests/Bukit.Rendering.Tests.csproj",
+        "dotnet test tests/Bukit.Engine.Tests/Bukit.Engine.Tests.csproj"
+      ],
+      "contractConsumerGlobs": [],
+      "publicContract": false,
+      "resource": "dotnet-serial"
+    },
+    {
+      "id": "observe-report-stage-timing-contract",
+      "matches": [
+        "openspec/changes/observe-report-stage-timing/proposal.md",
+        "openspec/changes/observe-report-stage-timing/tasks.md",
+        "openspec/changes/observe-report-stage-timing/specs/library-logging/spec.md",
+        "guide/dev/observability.md"
+      ],
+      "specialtyTests": [
+        "openspec validate observe-report-stage-timing --type change --strict --no-interactive",
+        "dotnet test tests/Bukit.Engine.Tests/Bukit.Engine.Tests.csproj"
+      ],
+      "contractConsumerGlobs": [],
+      "publicContract": false,
+      "resource": "dotnet-serial"
+    },
+    {
       "id": "fix-core-five-findings-contract",
       "matches": [
         "openspec/changes/fix-core-five-findings/proposal.md",
@@ -1921,9 +1955,28 @@
       ]
     },
     {
-      "id": "deploy-skill-token-repo",
+      "id": "core-skill-pack",
       "matches": [
-        "guide/skills/bukit-deploy/SKILL.md"
+        "guide/skills/bukit-analytics/SKILL.md",
+        "guide/skills/bukit-build/SKILL.md",
+        "guide/skills/bukit-config/SKILL.md",
+        "guide/skills/bukit-content-model/SKILL.md",
+        "guide/skills/bukit-geo/SKILL.md",
+        "guide/skills/bukit-i18n/SKILL.md",
+        "guide/skills/bukit-local-server/SKILL.md",
+        "guide/skills/bukit-outputs/SKILL.md",
+        "guide/skills/bukit-publish-deploy/SKILL.md",
+        "guide/skills/bukit-routing/SKILL.md",
+        "guide/skills/bukit-seo-insights/SKILL.md",
+        "guide/skills/bukit-seo/SKILL.md",
+        "guide/skills/bukit-templating/SKILL.md",
+        "guide/skills/bukit-theme/SKILL.md",
+        "guide/skills/bukit-troubleshooting/SKILL.md",
+        "guide/skills/using-bukit/SKILL.md",
+        "guide/skills/MAINTENANCE.md",
+        "guide/skills/README.md",
+        "guide/skills/skills-index.json",
+        "guide/skills/skills-index.yaml"
       ],
       "specialtyTests": [
         "bash guide/skills/scripts/validate-skills-strict.sh"

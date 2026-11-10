@@ -6,6 +6,13 @@ internal static class RepresentationAuditRules
 {
     internal static void Analyze(PublishDocument document, string outputDir, List<PublishAuditIssue> issues)
     {
+        using var agentManifest = new AgentManifestSnapshot(outputDir);
+        Analyze(document, outputDir, issues, agentManifest);
+    }
+
+    /// <param name="agentManifest">Shared by every document of one audit run, so the manifest is parsed once.</param>
+    internal static void Analyze(PublishDocument document, string outputDir, List<PublishAuditIssue> issues, AgentManifestSnapshot agentManifest)
+    {
         var requiredKinds = PublishRepresentationRegistry.DocumentKinds();
         if (requiredKinds.Any(kind => !document.RepresentationKinds.Contains(kind, StringComparer.OrdinalIgnoreCase)))
         {
@@ -21,7 +28,7 @@ internal static class RepresentationAuditRules
         AnalyzeProjectionFile(document, outputDir, "markdown", ".md", issues);
         AnalyzeJsonProjection(document, outputDir, issues);
         AnalyzeMarkdownProjection(document, outputDir, issues);
-        AnalyzeAgentManifest(document, outputDir, issues);
+        AnalyzeAgentManifest(document, agentManifest, issues);
     }
 
     private static void AnalyzeProjectionFile(
@@ -111,89 +118,81 @@ internal static class RepresentationAuditRules
         }
     }
 
-    private static void AnalyzeAgentManifest(PublishDocument document, string outputDir, List<PublishAuditIssue> issues)
+    private static void AnalyzeAgentManifest(PublishDocument document, AgentManifestSnapshot manifest, List<PublishAuditIssue> issues)
     {
-        if (!document.Indexable)
+        if (!document.Indexable || !manifest.Exists)
         {
             return;
         }
 
-        var path = Path.Combine(outputDir, "agent-manifest.json");
-        if (!File.Exists(path))
+        if (manifest.InvalidJsonMessage is not null)
         {
+            issues.Add(new PublishAuditIssue("error", "publish.manifest_invalid", document.RouteUrl, $"Agent manifest is invalid JSON: {manifest.InvalidJsonMessage}"));
             return;
         }
 
-        try
+        var documents = manifest.Documents;
+        if (documents is null)
         {
-            using var json = JsonDocument.Parse(File.ReadAllText(path));
-            if (!json.RootElement.TryGetProperty("documents", out var documents) ||
-                documents.ValueKind != JsonValueKind.Array)
-            {
-                issues.Add(new PublishAuditIssue("error", "publish.manifest_invalid", document.RouteUrl, "Agent manifest is missing a documents array."));
-                return;
-            }
+            issues.Add(new PublishAuditIssue("error", "publish.manifest_invalid", document.RouteUrl, "Agent manifest is missing a documents array."));
+            return;
+        }
 
-            JsonElement? manifestDocument = null;
-            foreach (var item in documents.EnumerateArray())
+        JsonElement? manifestDocument = null;
+        for (var i = 0; i < documents.Length; i++)
+        {
+            if (RouteEquals(manifest.Route(i), document))
             {
-                if (RouteEquals(ReadString(item, "route"), document))
-                {
-                    manifestDocument = item;
-                    break;
-                }
+                manifestDocument = documents[i];
+                break;
             }
+        }
 
-            if (manifestDocument is null)
+        if (manifestDocument is null)
+        {
+            for (var i = 0; i < documents.Length; i++)
             {
-                foreach (var item in documents.EnumerateArray())
+                if (StringEquals(manifest.Id(i), document.SourceItemId) ||
+                    StringEquals(manifest.CanonicalId(i), document.ContentRecord?.Identity.CanonicalUrlKey))
                 {
-                    if (StringEquals(ReadString(item, "id"), document.SourceItemId) ||
-                        StringEquals(ReadString(item, "canonicalId"), document.ContentRecord?.Identity.CanonicalUrlKey))
+                    if (ManifestLanguageMatches(manifest.Language(i), document))
                     {
-                        if (ManifestLanguageMatches(item, document))
-                        {
-                            manifestDocument = item;
-                            break;
-                        }
+                        manifestDocument = documents[i];
+                        break;
                     }
                 }
             }
-
-            if (manifestDocument is null)
-            {
-                return;
-            }
-
-            var value = manifestDocument.Value;
-            var publicId = document.ContentRecord is null
-                ? null
-                : PublicContentProjectionPolicy.ResolvePublicId(document.ContentRecord, document.RouteUrl);
-            var publicEntities = document.ContentRecord is null
-                ? document.EntityNames
-                : PublicContentProjectionPolicy.SanitizeEntities(document.ContentRecord).Select(entity => entity.Name).ToArray();
-            var mismatch = !RouteEquals(ReadString(value, "route"), document) ||
-                           (publicId is not null && !StringEquals(ReadString(value, "id"), publicId)) ||
-                           (publicId is not null && !StringEquals(ReadString(value, "canonicalId"), publicId)) ||
-                           !StringEquals(ReadString(value, "language"), document.Language) ||
-                           !StringEquals(ReadString(value, "reviewStatus"), document.ReviewStatus) ||
-                           value.TryGetProperty("source", out _) ||
-                           !ContainsManifestEntities(value, publicEntities);
-            if (mismatch)
-            {
-                issues.Add(new PublishAuditIssue("error", "publish.manifest_mismatch", document.RouteUrl, BuildManifestMismatchMessage(value, document)));
-            }
         }
-        catch (JsonException ex)
+
+        if (manifestDocument is null)
         {
-            issues.Add(new PublishAuditIssue("error", "publish.manifest_invalid", document.RouteUrl, $"Agent manifest is invalid JSON: {ex.Message}"));
+            return;
+        }
+
+        var value = manifestDocument.Value;
+        var publicId = document.ContentRecord is null
+            ? null
+            : PublicContentProjectionPolicy.ResolvePublicId(document.ContentRecord, document.RouteUrl);
+        var publicEntities = document.ContentRecord is null
+            ? document.EntityNames
+            : PublicContentProjectionPolicy.SanitizeEntities(document.ContentRecord).Select(entity => entity.Name).ToArray();
+        var mismatch = !RouteEquals(ReadString(value, "route"), document) ||
+                       (publicId is not null && !StringEquals(ReadString(value, "id"), publicId)) ||
+                       (publicId is not null && !StringEquals(ReadString(value, "canonicalId"), publicId)) ||
+                       !StringEquals(ReadString(value, "language"), document.Language) ||
+                       !StringEquals(ReadString(value, "reviewStatus"), document.ReviewStatus) ||
+                       value.TryGetProperty("source", out _) ||
+                       !ContainsManifestEntities(value, publicEntities);
+        if (mismatch)
+        {
+            issues.Add(new PublishAuditIssue("error", "publish.manifest_mismatch", document.RouteUrl, BuildManifestMismatchMessage(value, document)));
         }
     }
 
     private static string? FindProjectionPath(PublishDocument document, string outputDir, string extension)
         => BuildProjectionPathCandidates(document, outputDir, extension).FirstOrDefault(File.Exists);
 
-    private static string? ReadString(JsonElement element, string property)
+    internal static string? ReadString(JsonElement element, string property)
         => element.TryGetProperty(property, out var value) && value.ValueKind != JsonValueKind.Null
             ? value.GetString()
             : null;
@@ -208,9 +207,8 @@ internal static class RepresentationAuditRules
         return string.Equals(left, right, StringComparison.OrdinalIgnoreCase);
     }
 
-    private static bool ManifestLanguageMatches(JsonElement element, PublishDocument document)
+    private static bool ManifestLanguageMatches(string? language, PublishDocument document)
     {
-        var language = ReadString(element, "language");
         if (string.IsNullOrWhiteSpace(document.Language))
         {
             return true;
@@ -317,5 +315,89 @@ internal static class RepresentationAuditRules
             .Where(name => !string.IsNullOrWhiteSpace(name))
             .ToHashSet(StringComparer.OrdinalIgnoreCase);
         return expectedEntities.All(entity => names.Contains(entity));
+    }
+}
+
+/// <summary>
+/// <c>agent-manifest.json</c> read and parsed once for a whole audit run. The file is loaded
+/// on first use, and the strings the per-document lookup compares are read once per entry,
+/// in the same order the per-document scan first needs them, so failures surface at the
+/// same point as before.
+/// </summary>
+internal sealed class AgentManifestSnapshot(string outputDir) : IDisposable
+{
+    private bool _loaded;
+    private bool _exists;
+    private string? _invalidJsonMessage;
+    private JsonDocument? _json;
+    private JsonElement[]? _documents;
+    private Field _route;
+    private Field _id;
+    private Field _canonicalId;
+    private Field _language;
+
+    internal bool Exists { get { Load(); return _exists; } }
+
+    internal string? InvalidJsonMessage { get { Load(); return _invalidJsonMessage; } }
+
+    /// <summary>The <c>documents</c> array entries, or null when the array is missing.</summary>
+    internal JsonElement[]? Documents { get { Load(); return _documents; } }
+
+    internal string? Route(int index) => _route.Get(_documents!, index, "route");
+
+    internal string? Id(int index) => _id.Get(_documents!, index, "id");
+
+    internal string? CanonicalId(int index) => _canonicalId.Get(_documents!, index, "canonicalId");
+
+    internal string? Language(int index) => _language.Get(_documents!, index, "language");
+
+    public void Dispose() => _json?.Dispose();
+
+    private void Load()
+    {
+        if (_loaded)
+        {
+            return;
+        }
+
+        var path = Path.Combine(outputDir, "agent-manifest.json");
+        _exists = File.Exists(path);
+        if (_exists)
+        {
+            try
+            {
+                _json = JsonDocument.Parse(File.ReadAllText(path));
+                if (_json.RootElement.TryGetProperty("documents", out var documents) &&
+                    documents.ValueKind == JsonValueKind.Array)
+                {
+                    _documents = [.. documents.EnumerateArray()];
+                }
+            }
+            catch (JsonException ex)
+            {
+                _invalidJsonMessage = ex.Message;
+            }
+        }
+
+        _loaded = true;
+    }
+
+    private struct Field
+    {
+        private string?[]? _values;
+        private bool[]? _read;
+
+        internal string? Get(JsonElement[] documents, int index, string property)
+        {
+            _values ??= new string?[documents.Length];
+            _read ??= new bool[documents.Length];
+            if (!_read[index])
+            {
+                _values[index] = RepresentationAuditRules.ReadString(documents[index], property);
+                _read[index] = true;
+            }
+
+            return _values[index];
+        }
     }
 }
