@@ -4,6 +4,8 @@ All notable changes to Bukit will be documented in this file.
 
 ## [Unreleased]
 
+- **Warning for signed links in shared data**: with incremental builds, Bukit now logs one `event=incremental.signed_links` warning when `site.modules`, `site.data`, `site.data_index`, `site.related_pages` or `site.data_files` still holds links of a recognized signing scheme (AWS SigV4, Google Cloud Storage V4, AWS SigV2/CloudFront, Notion file proxy). It names each read key and its link count. These links change on every fetch, so the pages that read them render again on every build; localize the files with `content.media` to avoid that. Hashing and output are unchanged.
+
 ## [2.0.14] - 2026-11-10
 
 - **Notion bodies follow renderer changes and same-minute edits**: the Notion body cache (format 2) records the renderer version and the fetch time from Notion's `Date` header. In `readwrite` mode a cached body is reused only for the same renderer version and `last_edited_time`, with unexpired links, and only if it was fetched at least 5 seconds after the edit minute ended, so an edit made later in the same minute as a fetch is no longer lost. The incremental body fingerprint becomes `{last_edited_time}:renderer={version}[:unsettled]:content={on|off}`; pages without `last_edited_time` get their content hash from the body. The first `readwrite` build after upgrading fetches every Notion body again, which can take a long time on large databases. `readonly` still reuses matching entries and reports older ones in one `notion.cache.renderer_mismatch` warning; build with `--clean` when switching back to `readwrite`.
