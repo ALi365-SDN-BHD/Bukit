@@ -65,6 +65,11 @@ Add `logging.level: debug` in `site.yaml` for more detail (`--ci` forces `warn`)
 | Build failed mid-way | Transaction rolled back | Previous output is intact; fix and rebuild. Keep any backup named in `Rollback failed; preserve backup`. |
 | Every build re-renders all pages | Default `build.clean: true` | `bukit build --no-clean` for incremental reuse, for local speed only; it can keep stale pages after a Bukit upgrade or when other pages a template lists change (`bukit-build`). |
 | Media downloads fail or rate-limit | `media.download_failed`, `media.ssrf_blocked` events | Lower `content.media.maxConcurrency`; check `skipHosts`; private hosts are blocked (`bukit-content-model`). |
+| Remote image not localized | `media.download_too_large limit=...`, `media.download_empty`, `media.failed_reference` | Raise `content.media.maxFileSizeBytes` or fix the source URL (`bukit-content-model`). |
+| No `-<width>w` / `.webp` / AVIF image variants | `image_resize.error`, `image_webp.error`, `image_optimize.error`, `image_processing.skip reason=invalid_source`; `image_optimize.skip reason=no_tool` (AVIF needs ImageMagick `magick`); `*.skip reason=unowned_existing_output` (a file with the variant's name already exists) | Fix or replace the source image, install the tool, or rename the clashing file (`bukit-theme`). |
+| SCSS not compiled, Sass installed | `event=scss.error file=... reason=...` | Fix the Sass error in `detail`. |
+| `event=taxonomy.term.decoded` | Percent-encoded tag or category value | Write the decoded text in the source (`hint=fix_option_in_notion`: fix the Notion option). |
+| `event=notion.relation.resolve_failed` / `notion.cache.read_failed` | A Notion relation target or cached page could not be read | Read the `message`; check the integration's access to the related database. |
 | `NOTION_TOKEN is required ...` | Env var missing | Export `NOTION_TOKEN` (`bukit-content-model`). |
 | `SEO report not found under ... Run a full build first.` | Audit `--dir` defaults to `dist` | Pass `--dir <build.output>`. |
 | Links 404 in `preview`/`dev` | Servers ignore `baseUrl` | `bukit build --base-url /` then `bukit preview`; for dev use `BUKIT_SITE__BASE_URL=/ bukit dev`. |

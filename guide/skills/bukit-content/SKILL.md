@@ -98,7 +98,8 @@ image_alt: A cup of green tea   # required with image (requireMediaAlt default)
 | `draft: true` | Dropped unless `--draft` / `build.draft: true`. |
 | `image`, `cover` (+ `image_alt` / `cover_alt`) | Page image. Without the `_alt` key the build logs `canonical_media_alt_missing` (fails under `schemaFailMode: strict`; see `bukit-content-model`). Optional `_caption`, `_description`, `_license`. |
 | `noindex`, `canonical`, `seo_title`, `seo_desc`, `geo:` ... | `bukit-seo`, `bukit-geo`. |
-| `sitemapexclude`, `searchexclude`, `feedexclude` | Output exclusions. |
+| `sitemapexclude`, `searchexclude`, `feedexclude` | Output exclusions (key case is ignored; `excludeFromSitemap`, `excludeFromSearch`, `excludeFromFeed` also work). |
+| `author`, `organization`, `reviewer`, `people`, `source_url`, ... | Ownership, trust, and entity fields (`bukit-content-model`). |
 
 `weight` does not affect ordering and `layout` does not select a template; use
 `content.ordering.tieBreakField` and `template:`. All other keys become custom fields,

@@ -124,6 +124,22 @@ build:
   effect; use the top-level `requireMediaAlt|requireMediaDescription|requireMediaLicense`.
   `media.allowedKinds` works.
 
+### Front matter read into the model
+
+These keys fill the record that the `require*` checks, structured data, and audits use
+(key case is ignored; the first key present wins):
+
+| Record part | Front matter keys |
+|---|---|
+| Summary | `summary`, `description`, `excerpt` |
+| Author, organization | `author` / `authors`; `authorType` (`Person` or `Organization`); `organization` / `org` / `company` |
+| Owner, reviewer | `owner` / `owners`; `reviewer` / `reviewers` |
+| Status | `status` (default `published`), `review_status`, `sync_status`, `evergreen: true` |
+| Provenance | `source`; `original_url` / `source_url`; `references` (list) |
+| Trust | `credibility_score` / `trust_score` (number), `quality_flags` (list) |
+| Entities | `people`, `companies`, `products`, `services`, `places` (name lists) |
+| Relations | `related_to` (list) |
+
 ## Route metadata
 
 `content.routeMetadata` sets titles and summaries for list pages, static-template

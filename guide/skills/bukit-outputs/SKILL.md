@@ -26,6 +26,8 @@ under `site.seo.diagnostics: strict` that fails the build.
 | `rss.xml` | `site.url` and `rss` in `site.feed.formats` (default `[rss]`) | root `/rss.xml` |
 | `atom.xml`, `feed.json` | `atom` / `json` in formats and `site.url` | `<site.feed.path>/` (default `feed/`) |
 | Collection feeds | On by default (`output.rss: false` disables); one per enabled format; needs `site.url` | `<output.feedPath or feed.path/<c>>/` |
+| `taxonomy.json` | `taxonomy.outputMode` `both` (default) or `data` | root |
+| Term feeds | Same modes; one RSS file per term that has pages (latest 20) | `<kind route>/<term>/feed.xml` (e.g. `tags/tea/feed.xml`) |
 | `llms.txt`, `llms-full.txt` | See `bukit-geo` | root |
 | `404.html` | A `404.html` in the active static directory (see "404 page") | root |
 | Alias redirects | Front matter `aliases` (currently breaks the build; see below) | `<alias>/index.html` |
