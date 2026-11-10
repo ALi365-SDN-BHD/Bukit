@@ -860,8 +860,8 @@ public sealed class ImageAssetLocalizer : IImageAssetLocalizer, IDisposable
         return Convert.ToHexStringLower(hash);
     }
 
+    // Signature parameters do not change which object is fetched; unsigned URLs hash exactly as before.
     private static string NormalizeSourceUrlForKey(Uri uri) =>
-        // Signature parameters do not change which object is fetched; unsigned URLs hash exactly as before.
         KeyForTarget(SignedUrlIdentity.IdentityTarget(uri));
 
     private static string KeyForTarget(string target)
