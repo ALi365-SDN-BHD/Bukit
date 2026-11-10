@@ -67,11 +67,13 @@ geo:
 ```
 
 Only these three keys are allowed, and `priority` must be a YAML integer. Invalid
-curation (unknown key, bad value, `llms: false`) excludes the page from llms output and
-logs `geo.llms_field_unknown`, `geo.llms_visibility_invalid`, `geo.llms_tier_invalid`,
-or `geo.llms_priority_invalid route=<output path>`. These follow `site.seo.diagnostics`:
-a warning by default, a build failure under `strict`, silent under `off`. Use
-`visibility: exclude` to remove a page.
+curation (unknown key, bad value, `llms: false`) silently excludes the page from llms
+output. The build logs no curation diagnostic: the `geo.llms_*_invalid` /
+`geo.llms_field_unknown` checks exist in Core but are not wired into the build
+(Core defect), so `site.seo.diagnostics: strict` does not catch them either. The only
+signal is the publish audit warning `publish.llms_missing_route route=<url>` (and
+`publish.llms_full_missing_route`). Use `visibility: exclude` to remove a page on
+purpose.
 
 ## Structured data front matter
 
