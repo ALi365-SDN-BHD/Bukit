@@ -381,9 +381,13 @@ public sealed class ImageAssetLocalizer : IImageAssetLocalizer, IDisposable
 
                 if (!response.IsSuccessStatusCode)
                 {
-                    if (attempt >= maxRetries)
+                    // A refused URL whose own signature has expired can never succeed, so it is
+                    // not retried (for example expired links kept by a readonly Notion cache).
+                    var expiredSignature = IsExpiredSignatureRefusal((int)response.StatusCode, uri);
+                    if (attempt >= maxRetries || expiredSignature)
                     {
-                        _logger?.Warn($"event=media.download_failed status={(int)response.StatusCode} source={UrlRedactor.Redact(source)}");
+                        var expiredNote = expiredSignature ? " signature=expired" : string.Empty;
+                        _logger?.Warn($"event=media.download_failed status={(int)response.StatusCode}{expiredNote} source={UrlRedactor.Redact(source)}");
                         return RecordDownloadFailure(requestTarget, source, $"HTTP {(int)response.StatusCode}", (int)response.StatusCode);
                     }
 
@@ -573,6 +577,10 @@ public sealed class ImageAssetLocalizer : IImageAssetLocalizer, IDisposable
             }
         }
     }
+
+    private static bool IsExpiredSignatureRefusal(int statusCode, Uri uri)
+        => statusCode is 400 or 401 or 403 &&
+           SignedUrlIdentity.IsSignatureExpired(uri, DateTimeOffset.UtcNow);
 
     private async Task<MediaSendResult> SendWithRedirectsAsync(
         Uri initialUri,

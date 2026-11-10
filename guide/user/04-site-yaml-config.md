@@ -346,7 +346,7 @@ content:
 | `content.media.defaultImageUrl` | `/assets/images/noneimg-news.jpg` | Fallback image URL. |
 | `content.media.fieldKeys` | `cover`, `image`, `thumbnail`, `og_image`, `seo_image`, `icon` | Fields scanned for media URLs. |
 | `content.media.maxConcurrency` | `4` | Positive maximum for active localization downloads. Each rewrite operation has its own gate shared across documents, HTML, and media fields; each localized body store has a separate gate shared across its concurrent reads. It is not a process-wide network limit. |
-| `content.media.maxRetries` | `3` | Non-negative retry count. |
+| `content.media.maxRetries` | `3` | Non-negative retry count. A refused (400/401/403) URL whose own signature has expired is not retried. |
 | `content.media.timeoutMs` | `10000` | Positive timeout. |
 | `content.media.maxFileSizeBytes` | `52428800` | Positive maximum file size. |
 | `content.media.blockPrivateNetworks` | `true` | SSRF guard for private networks. |

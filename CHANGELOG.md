@@ -4,6 +4,8 @@ All notable changes to Bukit will be documented in this file.
 
 ## [Unreleased]
 
+- **Expired image links fail fast**: when an image download is refused (HTTP 400, 401 or 403) and the URL's own signature has expired (AWS SigV4, Google Cloud Storage V4, AWS SigV2/CloudFront, or the Notion file proxy), it is no longer retried `content.media.maxRetries` times, since an expired signature can never succeed. This mostly speeds up builds from a `readonly` Notion cache that still holds expired links. The failure, `onFailure` result and reuse of already saved images are unchanged, and the warning gains `signature=expired`. Other failures keep their retries.
+
 ## [2.0.14] - 2026-11-10
 
 - **Notion bodies follow renderer changes and same-minute edits**: the Notion body cache (format 2) records the renderer version and the fetch time from Notion's `Date` header. In `readwrite` mode a cached body is reused only for the same renderer version and `last_edited_time`, with unexpired links, and only if it was fetched at least 5 seconds after the edit minute ended, so an edit made later in the same minute as a fetch is no longer lost. The incremental body fingerprint becomes `{last_edited_time}:renderer={version}[:unsettled]:content={on|off}`; pages without `last_edited_time` get their content hash from the body. The first `readwrite` build after upgrading fetches every Notion body again, which can take a long time on large databases. `readonly` still reuses matching entries and reports older ones in one `notion.cache.renderer_mismatch` warning; build with `--clean` when switching back to `readwrite`.
