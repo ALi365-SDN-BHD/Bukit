@@ -4,6 +4,10 @@ Semua perubahan penting kepada Bukit akan didokumenkan dalam fail ini.
 
 ## [Belum Dikeluarkan]
 
+## [2.0.14] - 2026-11-10
+
+- **Badan Notion mengikut perubahan pemapar dan suntingan dalam minit yang sama**: cache badan Notion (format 2) merekodkan versi pemapar dan masa pengambilan daripada pengepala `Date` Notion. Dalam mod `readwrite`, badan dalam cache hanya digunakan semula bagi versi pemapar dan `last_edited_time` yang sama, dengan pautan yang belum tamat tempoh, dan hanya jika ia diambil sekurang-kurangnya 5 saat selepas minit suntingan berakhir, jadi suntingan kemudian dalam minit yang sama dengan pengambilan tidak lagi hilang. Cap jari badan tokokan menjadi `{last_edited_time}:renderer={versi}[:unsettled]:content={on|off}`; halaman tanpa `last_edited_time` mendapat cincang kandungan daripada badannya. Binaan `readwrite` pertama selepas naik taraf mengambil semula semua badan Notion, yang boleh mengambil masa lama bagi pangkalan data besar. `readonly` masih menggunakan semula entri yang sepadan dan melaporkan entri lama dalam satu amaran `notion.cache.renderer_mismatch`; bina dengan `--clean` apabila bertukar semula kepada `readwrite`.
+
 ## [2.0.13] - 2026-11-10
 
 - **Pemaparan lebih pantas untuk tapak besar**: sebelum ini setiap halaman menukar semula keseluruhan indeks halaman tapak (`pages`) dan model tapak (`site`, termasuk `site.data.pages_by_id`), jadi masa pemaparan meningkat mengikut kuasa dua bilangan halaman. Kini kedua-duanya ditukar sekali bagi setiap pusingan pemaparan dan dikongsi. Output tidak berubah untuk templat yang hanya membacanya. Perubahan tingkah laku: `site`, `pages`, `items` halaman senarai dan semua kandungannya kini baca sahaja pada setiap peringkat, jadi templat yang menambah kunci baharu atau menetapkan elemen tatasusunan (seperti `pages[0] = x`) gagal dengan ralat baca sahaja; dalam komponen dan seksyen, ralat itu mengikut `theme.componentValidation`.

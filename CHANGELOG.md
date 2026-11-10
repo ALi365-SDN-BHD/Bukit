@@ -4,6 +4,10 @@ All notable changes to Bukit will be documented in this file.
 
 ## [Unreleased]
 
+## [2.0.14] - 2026-11-10
+
+- **Notion bodies follow renderer changes and same-minute edits**: the Notion body cache (format 2) records the renderer version and the fetch time from Notion's `Date` header. In `readwrite` mode a cached body is reused only for the same renderer version and `last_edited_time`, with unexpired links, and only if it was fetched at least 5 seconds after the edit minute ended, so an edit made later in the same minute as a fetch is no longer lost. The incremental body fingerprint becomes `{last_edited_time}:renderer={version}[:unsettled]:content={on|off}`; pages without `last_edited_time` get their content hash from the body. The first `readwrite` build after upgrading fetches every Notion body again, which can take a long time on large databases. `readonly` still reuses matching entries and reports older ones in one `notion.cache.renderer_mismatch` warning; build with `--clean` when switching back to `readwrite`.
+
 ## [2.0.13] - 2026-11-10
 
 - **Faster rendering on large sites**: each page used to convert the whole site page index (`pages`) and the site model (`site`, including `site.data.pages_by_id`) again, so render time grew with the square of the page count. They are now converted once per render pass and shared. Output is unchanged for templates that only read them. Behavior change: `site`, `pages`, list-page `items` and everything inside them are now read-only at every level, so a template that adds a new key to them or assigns an array element (such as `pages[0] = x`) fails with a read-only error; inside components and sections the error follows `theme.componentValidation`.

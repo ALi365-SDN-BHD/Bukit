@@ -5632,6 +5632,133 @@ public sealed partial class SiteEngineIntegrationTests
         }
     }
 
+    // fix-notion-body-cache-contract: Notion records edits to the minute. A build that read
+    // the database before the edit minute settled renders the page again once it settles,
+    // judged by Notion's Date header even when the local clock runs ahead.
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task BuildAsync_NotionEditWithinFetchMinute_RendersAgainAfterTheMinuteSettles(bool localClockAhead)
+    {
+        const string notionId = "39bfa39a-5013-81ae-9516-fbd448f3bd47";
+        var (root, baseConfig) = CreateBuildReportHealthSite();
+        var originalToken = Environment.GetEnvironmentVariable(EnvironmentHelper.NotionTokenKey);
+        try
+        {
+            Environment.SetEnvironmentVariable(EnvironmentHelper.NotionTokenKey, "minute-token");
+            var config = baseConfig with
+            {
+                Content = TestContent.Notion(notionId) with { Media = new MediaConfig { DownloadToLocal = false } },
+                Build = baseConfig.Build with { Clean = true, Report = new BuildReportConfig { Enabled = false } }
+            };
+            File.WriteAllText(Path.Combine(root, "layouts", "pages", "page.html"), "<html><body>{{ page.content }}</body></html>");
+            WriteTestThemeTemplates(root);
+            var pagePath = Path.Combine(root, "dist", "pages", "notion-page", "index.html");
+            var minute = new DateTimeOffset(2026, 11, 10, 10, 0, 0, TimeSpan.Zero);
+            var handler = new MinuteEditNotionHandler("2026-11-10T10:00:00.000Z");
+            var localSkew = localClockAhead ? TimeSpan.FromSeconds(30) : TimeSpan.Zero;
+
+            var pageRenders = new List<int>();
+            async Task<BuildResult> BuildAsync(bool clean)
+            {
+                var options = new NotionContentSourceOptions
+                {
+                    DatabaseId = "db-minute",
+                    Token = "token",
+                    FilterType = "none",
+                    FieldPolicyMode = "all",
+                    RenderContent = true,
+                    MaxRps = 1000,
+                    MaxRetries = 0
+                };
+                var serverTime = handler.ServerTime;
+                var source = new NotionContentSource(options, logger: null,
+                    () => new NotionContentClient(options, handler, static (_, _) => Task.CompletedTask, () => serverTime + localSkew));
+                var counter = new CountingPageRenderer(new ScribanTemplateRendererAdapter(Path.Combine(root, "layouts")), "/pages/notion-page/");
+                var engine = new SiteEngine(new TestLogger(), new SingleProviderFactory(source), new DefaultSearchIndexBuilder(), _ => counter);
+                var built = await engine.BuildAsync(config, root, new ConfigOverrides { Clean = clean, Incremental = true });
+                pageRenders.Add(counter.PageRenders);
+                return built;
+            }
+
+            // Edited at 10:00:10, read at 10:00:30 (or 10:00:55 with the local clock 30 s ahead).
+            handler.ServerTime = minute.AddSeconds(localClockAhead ? 55 : 30);
+            handler.Body = "first edit";
+            await BuildAsync(clean: true);
+            Assert.Contains("first edit", File.ReadAllText(pagePath), StringComparison.Ordinal);
+
+            // Edited again at 10:00:50: last_edited_time is still 10:00.
+            handler.Body = "second edit";
+            handler.ServerTime = minute.AddSeconds(66);
+            await BuildAsync(clean: false);
+            Assert.Equal(1, pageRenders[^1]);
+            Assert.Contains("second edit", File.ReadAllText(pagePath), StringComparison.Ordinal);
+
+            // Settled: the next build reuses the page.
+            handler.ServerTime = minute.AddMinutes(5);
+            var stable = await BuildAsync(clean: false);
+            Assert.Equal(0, pageRenders[^1]);
+            Assert.True(stable.Incremental.CacheHitCount >= 1);
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable(EnvironmentHelper.NotionTokenKey, originalToken);
+            CleanupDir(root);
+        }
+    }
+
+    private sealed class MinuteEditNotionHandler(string lastEditedTime) : HttpMessageHandler
+    {
+        public DateTimeOffset ServerTime { get; set; }
+
+        public string Body { get; set; } = string.Empty;
+
+        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+        {
+            var url = request.RequestUri!.AbsoluteUri;
+            string body;
+            if (request.Method == HttpMethod.Get && url == "https://api.notion.com/v1/databases/db-minute")
+            {
+                body = """{"properties":{"Title":{},"Slug":{},"Type":{},"PublishAt":{},"Collection":{}}}""";
+            }
+            else if (request.Method == HttpMethod.Post && url == "https://api.notion.com/v1/databases/db-minute/query")
+            {
+                body = $$"""
+                {
+                  "has_more": false,
+                  "results": [{
+                    "id": "notion-page-id",
+                    "created_time": "2026-01-02T03:04:05.000Z",
+                    "last_edited_time": "{{lastEditedTime}}",
+                    "properties": {
+                      "Title": { "type": "title", "title": [{ "plain_text": "Notion Page" }] },
+                      "Slug": { "type": "rich_text", "rich_text": [{ "plain_text": "notion-page" }] },
+                      "Type": { "type": "select", "select": { "name": "page" } },
+                      "PublishAt": { "type": "date", "date": { "start": "2026-05-15T10:30:00+00:00" } },
+                      "Collection": { "type": "select", "select": { "name": "page" } }
+                    }
+                  }]
+                }
+                """;
+            }
+            else if (request.Method == HttpMethod.Get && url.Contains("/v1/blocks/", StringComparison.Ordinal))
+            {
+                body = $$$"""{"results":[{"type":"paragraph","paragraph":{"rich_text":[{"plain_text":"{{{Body}}}"}]}}],"has_more":false}""";
+            }
+            else
+            {
+                body = "{}";
+            }
+
+            var response = new HttpResponseMessage(System.Net.HttpStatusCode.OK)
+            {
+                Content = new StringContent(body, Encoding.UTF8, "application/json")
+            };
+            response.Headers.Date = ServerTime;
+            return Task.FromResult(response);
+        }
+    }
+
     private sealed class CountingPageRenderer(ITemplateRenderer inner, string pageUrl) : ITemplateRenderer
     {
         public int PageRenders { get; private set; }

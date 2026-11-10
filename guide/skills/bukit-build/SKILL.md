@@ -83,6 +83,12 @@ relocates `.cache/` for `bukit build`; it is relative to the current directory, 
 `bukit dev` and `bukit clean` still use `<root>/.cache`. Keep `dist/`, `.cache/`, and
 the project `.bukit/` (metrics files) out of Git.
 
+A Notion body cache entry is reused in `readwrite` only for the same renderer version
+and `last_edited_time`, with unexpired links, fetched (by Notion's clock) at least 5 s
+after the edit minute ended. A Bukit release that bumps the Notion renderer version
+fetches every Notion body again on its first `readwrite` build. After switching a site
+from `readonly` back to `readwrite`, build once with `--clean`.
+
 Unless it refuses the output, `bukit clean` deletes `<root>/.cache` without checking
 what is in it. Run it only
 for a Bukit project root, never where `.cache` is shared with other tools.

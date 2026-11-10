@@ -45,6 +45,24 @@ Body stores avoid rendering every body up front. Markdown uses
 `CompositeContentBodyStore`; media localization can wrap stores with
 `LocalizedContentBodyStore`.
 
+## Notion Renderer Contract
+
+`NotionBlocksRenderer.ContractVersion` names the HTML contract of the Notion block
+renderer. Cached Notion bodies (cache format 2) and the stable Notion body
+fingerprint include it, so bumping it fetches and renders every Notion body again.
+
+Bump it whenever the HTML for the same blocks changes, including a new block type,
+an attribute or markup change, or escaping changes. `NotionRendererContractTests`
+renders a fixed corpus that covers every built-in block type, list grouping, rich
+text annotations and the unknown-block fallback, and compares the output hash with an
+append-only record:
+
+1. A renderer change makes the contract test fail and print the new hash.
+2. Increment `ContractVersion` by one.
+3. Append `(newVersion, "sha256:...")` to `s_contractHashes`. Never edit older rows.
+4. A new built-in block type also needs a corpus entry; the coverage test lists any
+   missing type.
+
 ## Media
 
 `ContentImageRewritePipeline` scans HTML image references, downloads remote

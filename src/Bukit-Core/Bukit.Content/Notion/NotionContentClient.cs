@@ -62,12 +62,29 @@ internal sealed class NotionContentClient : IDisposable
         string url,
         string json,
         CancellationToken cancellationToken)
+        => (await PostWithServerTimeAsync(url, json, cancellationToken)).Document;
+
+    /// <summary>Posts a read query and returns the body with Notion's response time.</summary>
+    internal async Task<NotionResponse> PostWithServerTimeAsync(
+        string url,
+        string json,
+        CancellationToken cancellationToken)
     {
         using var request = new HttpRequestMessage(HttpMethod.Post, url)
         {
             Content = new StringContent(json, Encoding.UTF8, "application/json")
         };
-        return await SendAsync(request, cancellationToken);
+        try
+        {
+            return await _client.SendWithServerTimeAsync(
+                request,
+                NotionRequestSemantics.IdempotentRead,
+                cancellationToken);
+        }
+        catch (NotionApiException exception)
+        {
+            throw new ContentException(exception.Message, exception);
+        }
     }
 
     internal async Task<JsonDocument> GetAsync(string url, CancellationToken cancellationToken)
@@ -85,23 +102,6 @@ internal sealed class NotionContentClient : IDisposable
     internal NotionClientStats GetStats() => _client.GetStats();
 
     public void Dispose() => _client.Dispose();
-
-    private async Task<JsonDocument> SendAsync(
-        HttpRequestMessage request,
-        CancellationToken cancellationToken)
-    {
-        try
-        {
-            return await _client.SendAsync(
-                request,
-                NotionRequestSemantics.IdempotentRead,
-                cancellationToken);
-        }
-        catch (NotionApiException exception)
-        {
-            throw new ContentException(exception.Message, exception);
-        }
-    }
 
     private static NotionClientOptions MapOptions(NotionContentSourceOptions options)
     {

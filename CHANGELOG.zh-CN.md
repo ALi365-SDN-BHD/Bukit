@@ -4,6 +4,10 @@ Bukit 所有重要变更都将记录在此文件中。
 
 ## [Unreleased]
 
+## [2.0.14] - 2026-11-10
+
+- **Notion 正文跟随渲染器变化与同一分钟内的编辑**：Notion 正文缓存（格式 2）记录渲染器版本，以及取自 Notion `Date` 响应头的抓取时间。`readwrite` 模式下，只有渲染器版本和 `last_edited_time` 相同、链接未过期、且抓取时间不早于编辑所在分钟结束后 5 秒时才复用缓存，因此抓取后同一分钟内的再次编辑不再丢失。增量正文指纹改为 `{last_edited_time}:renderer={版本}[:unsettled]:content={on|off}`；没有 `last_edited_time` 的页面改为根据正文计算内容哈希。升级后第一次 `readwrite` 构建会重新拉取全部 Notion 正文，大型数据库耗时较长。`readonly` 仍复用匹配的条目，旧版本条目汇总为一条 `notion.cache.renderer_mismatch` 警告；切回 `readwrite` 时请用 `--clean` 构建一次。
+
 ## [2.0.13] - 2026-11-10
 
 - **大型站点渲染提速**：以前每渲染一页，都要把全站页面索引（`pages`）和站点模型（`site`，含 `site.data.pages_by_id`）重新转换一遍，渲染耗时随页数平方增长。现在每次渲染只转换一次并共享。只读取这些值的模板输出不变。行为变化：`site`、`pages`、列表页的 `items` 及其内部所有层级现在都是只读的，模板给它们添加新键或按下标给数组赋值（如 `pages[0] = x`）会报只读错误；在组件和区块内，该错误按 `theme.componentValidation` 处理。
