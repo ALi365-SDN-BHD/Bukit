@@ -4,6 +4,8 @@ Bukit 所有重要变更都将记录在此文件中。
 
 ## [Unreleased]
 
+## [2.0.13] - 2026-11-10
+
 - **大型站点渲染提速**：以前每渲染一页，都要把全站页面索引（`pages`）和站点模型（`site`，含 `site.data.pages_by_id`）重新转换一遍，渲染耗时随页数平方增长。现在每次渲染只转换一次并共享。只读取这些值的模板输出不变。行为变化：`site`、`pages`、列表页的 `items` 及其内部所有层级现在都是只读的，模板给它们添加新键或按下标给数组赋值（如 `pages[0] = x`）会报只读错误；在组件和区块内，该错误按 `theme.componentValidation` 处理。
 - **渲染与报告计时**：`--metrics` 现在记录真实的 `pageRender`、`listBuild`、`staticRender` 耗时（以前一直为 0），并新增 `renderCall`、`htmlTransform`、`renderWrite`、`renderModelBind`、`renderDispatch`，以及渲染前的变体步骤 `variantSetup`、`mediaResolve`、`renderPlan`、`assetPrepare`、`seoPrepare`。渲染之后的每个报告步骤输出一条带耗时的 `event=build.report.timing` 日志，每个范围以 `step=total` 结尾。报告文件与 `metrics.json` 结构不变。
 - **大型站点报告阶段提速**：判断每个路由是否出现在 `sitemap.xml`、`search.json`、`agent-manifest.json`、`llms.txt` 等汇总文件里时，现在每个文件只扫描一遍，不再每个路由扫描一遍；发布审计只读取、解析一次 `agent-manifest.json`，不再每篇文档一次；媒体输出校验只计算一次生效的媒体配置，不再每个链接一次。在 4651 页的站点上，这三步占了构建的大部分时间。输出、报告文件和审计问题都不变。
@@ -13,6 +15,8 @@ Bukit 所有重要变更都将记录在此文件中。
 - **改一篇页面不再重渲染全站**：`--no-clean` 构建现在按页面追踪共享数据。Bukit 记录每个页面的模板（布局、`include`、组件和区块）读取了哪些集合：某个 `site.data`、`site.modules` 或 `site.data_index` 键，`site.related_pages`、`site.data_files`，或 `pages`（带 `source` 的区块也读取它）。修改一篇文章时，只重渲染这篇文章和读取了它所改变数据的页面（例如 `site.data.pages_by_id`、列表、遍历 `pages` 的页面），这些页面计为新的渲染原因 `data_dependency_changed`；全站设置变化仍计为 `render_dependency_changed`。模板整体使用 `site` 或 `site.data`、使用未知全局变量、`this` 或区块插件时，按读取全部集合处理，自定义渲染器也是如此。遍历 `pages` 的页面现在也会在其他页面变化时重渲染，以前会保留过时的 HTML。`build-manifest.json` 的条目新增可选字段 `renderReads` 和 `renderBaseHash`；升级后第一次 `--no-clean` 构建会渲染全部页面。
 
 - **robots.txt 支持 Content Signals**：新增 `site.seo.robotsTxt.contentSignal`（`search`、`aiInput`、`aiTrain`，各为 `true` 或 `false`），在 `User-agent: *` 组写入一行 `Content-Signal:`，例如 `Content-Signal: search=yes, ai-input=yes, ai-train=no`，用来声明 AI 公司可以如何使用网站内容。只列出设置了的项。不配置时 `robots.txt` 不变。
+
+## [2.0.12] - 2026-11-10
 
 - **百分号编码的网址**：`url`、`route.url` 字段或 `aliases` 里填入已编码的网址（如 `/%e8%81%94%e7%b3%bb%e6%96%b9%e5%bc%8f/`）时，现在会解码一次（此例为 `/联系方式/`），输出目录与浏览器请求的地址一致，不再 404。会改变路径的编码（`/`、`\`、`.`、`%`）、控制字符、不可见或易混淆字符（零宽字符、方向控制符、不换行空格）和不合法的 UTF-8 保持原样。构建会输出 `event=route.url.decoded` 或 `event=route.alias.decoded` 并附原值，便于回到内容源修正。不含 `%` 的网址不受影响。
 
