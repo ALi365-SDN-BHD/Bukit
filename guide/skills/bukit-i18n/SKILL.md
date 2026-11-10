@@ -81,6 +81,7 @@ from `data/<lang>/*.yaml`, exposed as `site.data_files.<lang>.<file>`:
 
 With two or more languages, `bukit build` builds each language in a Git worktree
 worker: the project must be a Git repository with committed inputs
-(`i18n-worktree-git-required`, `-dirty`, `-input-untracked` errors otherwise). Keep
-`dist/` and `.cache/` ignored. `build.languageJobs` sets parallel workers (default 1).
+(`i18n-worktree-git-required`, `-dirty`, `-input-untracked` errors otherwise). Any
+untracked file under the site root counts, so keep `dist/`, `.cache/`, and the project
+`.bukit/` (`--metrics` output) git-ignored. `build.languageJobs` sets parallel workers (default 1).
 `bukit dev` and `bukit deploy` build in-process without that requirement.

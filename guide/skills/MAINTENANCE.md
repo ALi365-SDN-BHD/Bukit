@@ -24,6 +24,10 @@ user and developer guides (see `guide/dev/documentation-governance.md`).
 1. Create `<name>/SKILL.md`.
 2. Add it to `skills-index.yaml`, `skills-index.json`, the table in `README.md`, and
    the skill map in `using-bukit`.
+3. Add its path to the `core-skill-pack` entry in
+   `scripts/checks/codex-workflow-policy.v1.json` (remove the old path on a rename),
+   then run `bash scripts/checks/codex-workflow-self-test.sh`. Unmapped skills show up
+   under `unmappedFiles` in `python3 scripts/checks/codex-workflow.py closure`.
 
 `bukit-cli-reference` must keep its path and name every command, subcommand, and
 option in backticks; `scripts/checks/cli-docs/validate_docs.py` enforces this.

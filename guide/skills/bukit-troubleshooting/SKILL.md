@@ -51,6 +51,7 @@ Add `logging.level: debug` in `site.yaml` for more detail (`--ci` forces `warn`)
 | `Template path is invalid:` with an empty path (exit 3) | A page has front matter `aliases` (Core defect in 2.0.10/2.0.11) | Remove `aliases`; redirect at the host or CDN (`bukit-outputs`). |
 | `Exceeding number of iteration limit 1000` | Scriban loop limit | Use `limit:` or pagination. |
 | `Template not found` / `Render failed` (exit 3) | Wrong path or template bug | Check lookup order: site `layouts/`, theme, parent. |
+| `event=canonical.validation code=canonical_media_alt_missing` / `Canonical content validation failed with N error(s).` | `image` or `cover` without alt text (`requireMediaAlt` default); fails under `schemaFailMode: strict` | Add `image_alt` / `cover_alt` to the front matter (`bukit-content`, `bukit-content-model`). |
 | No CSS from SCSS | Dart Sass missing (`event=scss.skip reason=sass_cli_not_found`) | Install `sass` on PATH. |
 | Theme CSS or tokens not applied | Never auto-linked | Add `<link>` tags in the layout. |
 | No sitemap, feed, or robots.txt | `site.url` missing; robots off by default | Set `site.url`; `site.seo.robotsTxt.enabled: true`. |

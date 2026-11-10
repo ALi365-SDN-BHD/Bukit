@@ -57,6 +57,11 @@ unbalanced braces, or empty templates fail config validation.
 | `theme` | No HTML changes. The theme renders the head from `page.seo.*` (for example `page.seo.document_title` and the JSON-LD). Audits still run. |
 | `off` | No injection; model still exposed; diagnostics still run. |
 
+The per-page HTML checks (see "Build-time diagnostics") read the final HTML in every
+mode, including pages with `seo_inject: false`. In `theme` or `off` mode the theme must
+write the canonical, robots, hreflang, and JSON-LD tags itself, or each page warns and
+`diagnostics: strict` fails the build.
+
 `page.seo.title` is the semantic page title; `page.seo.document_title` is the final
 `<title>` text. A single page can opt out of injection with `seo_inject: false`.
 

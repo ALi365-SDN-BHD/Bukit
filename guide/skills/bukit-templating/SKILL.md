@@ -58,6 +58,8 @@ string silently; `bukit doctor` reports it. In SEO `inject` mode Core rewrites t
 
 Keys are snake_case. User data keys (`page.fields`, `site.data`, `site.params`) keep
 the author's spelling and are case-sensitive. Missing members return null (no error).
+Treat `site`, `pages`, and `items` as read-only: copy a value into a local variable
+before changing it, because writing to the shared model can fail the render.
 
 | Root | Available on |
 |---|---|

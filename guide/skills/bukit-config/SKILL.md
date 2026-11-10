@@ -38,7 +38,7 @@ theme:
 | Section | Contents | Skill |
 |---|---|---|
 | `site` | Identity, URLs, language, collections, permalinks, SEO, analytics, feeds, search, plugins | below, `bukit-routing`, `bukit-seo`, `bukit-outputs`, `bukit-analytics`, `bukit-i18n` |
-| `content` | `sources`, `media`, `modelSchema`, `routeMetadata`, `ordering` | `bukit-content` |
+| `content` | `sources`, `media`, `modelSchema`, `routeMetadata`, `ordering` | `bukit-content`, `bukit-content-model` |
 | `build` | Output and build behavior | below, `bukit-build` |
 | `theme` | Theme name, directories, params, SCSS, images, components | `bukit-theme` |
 | `taxonomy` | Tag/category pages | `bukit-routing` |
@@ -83,7 +83,7 @@ en`, or those pages silently disappear.
 | `output` | `dist` | Relative, no `..`; must be a dedicated directory. |
 | `clean` | `true` | |
 | `draft` | `false` | Same as `--draft`; also makes `bukit dev` show drafts. |
-| `schemaFailMode` | `warn` | `off\|warn\|strict` for content model validation (`bukit-content`). Not range-checked: a typo acts like `warn`. |
+| `schemaFailMode` | `warn` | `off\|warn\|strict` for content model validation (`bukit-content-model`). Not range-checked: a typo acts like `warn`. |
 | `listPageContentMode` | `auto` | `auto\|always\|never`: whether list items get `page.content`. |
 | `fingerprintMode` | `size-time` | `size-time\|sha256` change detection (not URL fingerprinting). |
 | `publishDotFiles` | `false` | |
@@ -132,6 +132,10 @@ bukit config check            # exit 0 ok, 1 on any config error
 bukit config schema --output site.schema.json
 bukit doctor                  # adds theme, template, content, route checks
 ```
+
+On a multilingual site, commit or git-ignore the generated schema file (or write it
+outside the site root): an untracked file there fails the next `bukit build` with
+`i18n-worktree-dirty` (`bukit-build`).
 
 `config check` runs all `site.yaml` validators, including collection rules (`{slug}`
 in permalinks, pagination and filteredLists patterns, source `collection`

@@ -1926,6 +1926,7 @@
         "guide/skills/bukit-analytics/SKILL.md",
         "guide/skills/bukit-build/SKILL.md",
         "guide/skills/bukit-config/SKILL.md",
+        "guide/skills/bukit-content-model/SKILL.md",
         "guide/skills/bukit-geo/SKILL.md",
         "guide/skills/bukit-i18n/SKILL.md",
         "guide/skills/bukit-local-server/SKILL.md",
@@ -1937,7 +1938,11 @@
         "guide/skills/bukit-templating/SKILL.md",
         "guide/skills/bukit-theme/SKILL.md",
         "guide/skills/bukit-troubleshooting/SKILL.md",
-        "guide/skills/using-bukit/SKILL.md"
+        "guide/skills/using-bukit/SKILL.md",
+        "guide/skills/MAINTENANCE.md",
+        "guide/skills/README.md",
+        "guide/skills/skills-index.json",
+        "guide/skills/skills-index.yaml"
       ],
       "specialtyTests": [
         "bash guide/skills/scripts/validate-skills-strict.sh"

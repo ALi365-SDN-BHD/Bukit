@@ -83,7 +83,7 @@ geo:
   author: { name: Jane Doe, url: https://example.com/jane/, same_as: [https://x.com/jane] }
   same_as: [https://en.wikipedia.org/wiki/Tea]
   citations:
-    - { title: Study, url: https://example.org/study, relation: citation }
+    - { title: Study, url: https://example.org/study, relation: citation }   # citation (default) | based-on
   faq:
     - { question: How hot?, answer: 80-85 °C. }
   steps:                       # for HowTo
@@ -91,9 +91,12 @@ geo:
   speakable_xpath: /html/body/main/h1
 ```
 
-Build diagnostics such as `geo.faq_items_missing`, `geo.howto_steps_missing`,
-`geo.citation_url_invalid`, `geo.author_no_sameas`, and `geo.schema_type_missing` follow
-`site.seo.diagnostics` (warn by default, strict fails the build).
+Build diagnostics follow `site.seo.diagnostics` (warn by default, strict fails the
+build): `geo.faq_items_missing` / `geo.howto_steps_missing` (schema type without
+items), `geo.faq_empty_question`, `geo.faq_empty_answer`, `geo.howto_step_empty_name`,
+`geo.howto_step_empty_text`, `geo.citation_url_invalid` (not absolute),
+`geo.citation_relation_invalid` (not `citation` or `based-on`), `geo.author_no_sameas`,
+and `geo.speakable_path_invalid` (must start with `/`).
 
 ## AI crawler policy
 

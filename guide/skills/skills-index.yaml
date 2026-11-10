@@ -7,6 +7,8 @@ skills:
     path: guide/skills/bukit-config/SKILL.md
   - name: bukit-content
     path: guide/skills/bukit-content/SKILL.md
+  - name: bukit-content-model
+    path: guide/skills/bukit-content-model/SKILL.md
   - name: bukit-routing
     path: guide/skills/bukit-routing/SKILL.md
   - name: bukit-templating

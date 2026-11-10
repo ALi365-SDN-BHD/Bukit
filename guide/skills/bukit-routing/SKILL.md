@@ -46,7 +46,7 @@ Other collection keys:
   `noindex,follow`. `noindexWhenEmpty: true` equals `{minimumItems: 1, belowMinimum:
   noindex-follow}`; declaring both fails.
 - `schemaFailMode: off|warn|strict` overrides `build.schemaFailMode` for documents in
-  this collection (`bukit-content`, "Model schema").
+  this collection (`bukit-content-model`).
 - `output.rss` (default `true`), `output.feedTitle` / `output.feedDescription`
   (default `site.title` / `site.description`) configure the collection feed
   (`bukit-outputs`).
@@ -126,9 +126,8 @@ site:
 
 Matching is case-insensitive and also compares slugs (`Release Notes` =
 `release-notes`); list fields match if any element matches. A wrong `field` name with
-`emptyBehavior: skip` builds no page and logs nothing. Filtered lists are always
-paginated using `pageSize` from the filter or the collection, even when collection
-pagination is disabled. Templates receive `filter`, `collection`, and `pagination`.
+`emptyBehavior: skip` builds no page and logs nothing. Filtered lists always paginate
+with `pageSize` from the filter or the collection, even without collection pagination. Templates receive `filter`, `collection`, and `pagination`.
 
 ## Taxonomy pages
 

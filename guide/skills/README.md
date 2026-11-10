@@ -14,7 +14,8 @@ task.
 | [`using-bukit`](using-bukit/SKILL.md) | Gateway: ground rules, project layout, standard loop, skill map. |
 | [`bukit-cli-reference`](bukit-cli-reference/SKILL.md) | Commands, options, exit codes, environment variables. |
 | [`bukit-config`](bukit-config/SKILL.md) | `site.yaml` structure, defaults, validation, plugin toggles. |
-| [`bukit-content`](bukit-content/SKILL.md) | Markdown, Notion, front matter, data, media. |
+| [`bukit-content`](bukit-content/SKILL.md) | Content sources, Markdown, front matter, data. |
+| [`bukit-content-model`](bukit-content-model/SKILL.md) | Notion sources, remote media, model schema, route metadata. |
 | [`bukit-routing`](bukit-routing/SKILL.md) | Collections, permalinks, lists, pagination, taxonomy, conflicts. |
 | [`bukit-templating`](bukit-templating/SKILL.md) | Scriban templates, model, helpers, limits. |
 | [`bukit-theme`](bukit-theme/SKILL.md) | Theme layout, theme.yaml, assets, SCSS, images, components. |

@@ -62,7 +62,8 @@ the next step.
 |---|---|
 | Exact commands, options, exit codes, env vars | `bukit-cli-reference` |
 | `site.yaml` structure, defaults, plugin toggles | `bukit-config` |
-| Markdown, Notion, front matter, data, media | `bukit-content` |
+| Content sources, Markdown, front matter, data | `bukit-content` |
+| Notion, remote media, model schema, route metadata | `bukit-content-model` |
 | URLs, collections, lists, pagination, taxonomy | `bukit-routing` |
 | Scriban templates and the page model | `bukit-templating` |
 | Theme folders, theme.yaml, assets, SCSS, images | `bukit-theme` |
