@@ -127,6 +127,17 @@ stop_owned_child_job() {
   wait "$SERVER_PID" 2>/dev/null || true
 }
 
+# A direct child that already exited but was not reaped yet is a zombie: reap it.
+reap_ended_child() {
+  local parent process_state
+  [[ "$SERVER_PID" =~ ^[0-9]+$ ]] || return 1
+  parent="$(ps -o ppid= -p "$SERVER_PID" 2>/dev/null | tr -d ' ' || true)"
+  [[ "$parent" == "$$" ]] || return 1
+  process_state="$(ps -o stat= -p "$SERVER_PID" 2>/dev/null | tr -d ' ' || true)"
+  [[ "$process_state" == Z* ]] || return 1
+  wait "$SERVER_PID" 2>/dev/null || true
+}
+
 cleanup_failed_start() {
   local status=$?
   trap - EXIT INT TERM
@@ -135,7 +146,11 @@ cleanup_failed_start() {
       remove_identity_state
     elif bash "$SCRIPT_DIR/stop-server.sh" "$SESSION_DIR" >/dev/null 2>&1; then
       # stop-server accepts a zombie as ended; reap our own child so no PID outlives this script.
-      [[ "$FOREGROUND" == true ]] || wait "$SERVER_PID" 2>/dev/null || true
+      wait "$SERVER_PID" 2>/dev/null || true
+    elif stop_owned_child_job || reap_ended_child; then
+      # stop-server gave up (for example the child was still dying after SIGKILL), but the
+      # server is our own direct child, so stop and reap it here.
+      remove_identity_state
     elif ! kill -0 "$SERVER_PID" 2>/dev/null; then
       remove_identity_state
     fi
