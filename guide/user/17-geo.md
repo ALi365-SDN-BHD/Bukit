@@ -224,7 +224,7 @@ Rules and precedence:
 - The diagnostic codes are `geo.llms_field_unknown`,
   `geo.llms_visibility_invalid`, `geo.llms_tier_invalid`,
   `geo.llms_priority_invalid`, and `geo.llms_shape_invalid`. The last one
-  means `geo` or `geo.llms` is present but is not a mapping, for example
+  means the `geo` value, or the `llms` value under it, is present but is not a mapping, for example
   `llms: false` or `geo: invalid`. An empty `geo:` or `llms:` key is treated
   as absent and reports nothing.
 
