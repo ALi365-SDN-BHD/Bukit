@@ -6,8 +6,6 @@ Bukit 所有重要变更都将记录在此文件中。
 
 - **llms curation 诊断恢复生效**：页面级 `geo.llms` curation 写错时（未知键、`visibility` 或 `tier` 取值错误、`priority` 不是整数（如 `"10"`）、`llms: false`，或非空的 `geo:` 不是映射），构建现在会对每个路由页面（包括 noindex 页面）输出 `geo.llms_field_unknown`、`geo.llms_visibility_invalid`、`geo.llms_tier_invalid`、`geo.llms_priority_invalid` 或 `geo.llms_shape_invalid`（`geo` 或 `llms` 的值不是映射），均附带 `route=<输出路径>`，在 `site.seo.diagnostics: strict` 下构建失败。自发布投影重构以来这些检查一直没有执行，这类页面会在没有任何警告的情况下从 `llms.txt` 和 `llms-full.txt` 中消失。使用 `strict` 且存在错误 curation 的站点现在会构建失败，请修正 front matter 或改用 `visibility: exclude`。正确的 curation 和输出不变。空的 `geo:` 或 `llms:` 键现在视为不存在：这类页面会进入 `llms.txt` 和 `llms-full.txt`，并且不再导致 `strict` 构建失败（之前是静默排除）。
 
-- **robots.txt 支持 Content Signals**：新增 `site.seo.robotsTxt.contentSignal`（`search`、`aiInput`、`aiTrain`，各为 `true` 或 `false`），在 `User-agent: *` 组写入一行 `Content-Signal:`，例如 `Content-Signal: search=yes, ai-input=yes, ai-train=no`，用来声明 AI 公司可以如何使用网站内容。只列出设置了的项。不配置时 `robots.txt` 不变。
-
 ## [2.0.15] - 2026-11-11
 
 - **过期图片链接立即失败**：图片下载被拒绝（HTTP 400、401 或 403），且网址自身的签名已过期（AWS SigV4、Google Cloud Storage V4、AWS SigV2/CloudFront 或 Notion 文件代理）时，不再按 `content.media.maxRetries` 重试，因为过期签名不可能成功。主要加快仍含过期链接的 `readonly` Notion 缓存构建。失败记录、`onFailure` 结果和已保存图片的复用不变，警告增加 `signature=expired`。其他失败照常重试。
@@ -28,6 +26,8 @@ Bukit 所有重要变更都将记录在此文件中。
 - **增量构建识别引擎与插件变化**：模板哈希现在包含 Bukit 引擎的版本和源码提交，升级后第一次 `--no-clean` 构建会重新渲染全部页面（报告中页面显示 `template_changed`，列表显示 `list_render`），不再保留旧引擎渲染的页面。启用的内置插件的选项现在也计入渲染输入，改动后全站重新渲染；键的顺序不影响结果。没有 git 信息或含未提交修改的构建与其所基于的版本身份相同，需要使用 `--clean`。
 - **渲染原因 `metadata_changed`**：页面因记录或自定义字段变化而重新渲染时，`.bukit/incremental-manifest.json` 的 `renderReasons` 现在计为 `metadata_changed`；`content_changed` 只表示正文变化，包括 `bodyFingerprint` 变化（例如修改 Markdown 正文）。编辑 Notion 页面时其 `last_edited_time` 字段也会变化，因此 Notion 的编辑显示为 `metadata_changed`。读取 `content_changed` 的脚本需要同时读取 `metadata_changed`。
 - **改一篇页面不再重渲染全站**：`--no-clean` 构建现在按页面追踪共享数据。Bukit 记录每个页面的模板（布局、`include`、组件和区块）读取了哪些集合：某个 `site.data`、`site.modules` 或 `site.data_index` 键，`site.related_pages`、`site.data_files`，或 `pages`（带 `source` 的区块也读取它）。修改一篇文章时，只重渲染这篇文章和读取了它所改变数据的页面（例如 `site.data.pages_by_id`、列表、遍历 `pages` 的页面），这些页面计为新的渲染原因 `data_dependency_changed`；全站设置变化仍计为 `render_dependency_changed`。模板整体使用 `site` 或 `site.data`、使用未知全局变量、`this` 或区块插件时，按读取全部集合处理，自定义渲染器也是如此。遍历 `pages` 的页面现在也会在其他页面变化时重渲染，以前会保留过时的 HTML。`build-manifest.json` 的条目新增可选字段 `renderReads` 和 `renderBaseHash`；升级后第一次 `--no-clean` 构建会渲染全部页面。
+
+- **robots.txt 支持 Content Signals**：新增 `site.seo.robotsTxt.contentSignal`（`search`、`aiInput`、`aiTrain`，各为 `true` 或 `false`），在 `User-agent: *` 组写入一行 `Content-Signal:`，例如 `Content-Signal: search=yes, ai-input=yes, ai-train=no`，用来声明 AI 公司可以如何使用网站内容。只列出设置了的项。不配置时 `robots.txt` 不变。
 
 ## [2.0.12] - 2026-11-10
 
