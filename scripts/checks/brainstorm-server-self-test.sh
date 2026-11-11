@@ -96,7 +96,7 @@ pid="$(cat "$json_pid_file")"; token="$(cat "$json_token_file")"; wait_for_proce
 assert_no_identity_or_temp "$json_project"
 echo "brainstorm server self-test: JSON mismatch stopped server and cleaned identity"
 
-if ! env PATH="$fake_bin:$PATH" NODE_OPTIONS="$node_options" BRAINSTORM_TERM_MODE=ps-fail bash "$start_script" --background >"$output" 2>&1; then fail "ephemeral start failed"; fi
+if ! env PATH="$fake_bin:$PATH" NODE_OPTIONS="$node_options" BRAINSTORM_TERM_MODE=ps-fail bash "$start_script" --background >"$output" 2>&1; then fail "ephemeral start failed: $(tr "\n" " " < "$output")"; fi
 ephemeral_state="$(sed -n 's/.*"state_dir":"\([^"]*\)".*/\1/p' "$output" | head -1)"
 ephemeral_dir="${ephemeral_state%/state}"; cleanup_dirs+=("$ephemeral_dir"); ephemeral_pid="$(cat "$ephemeral_state/server.pid")"
 assert_live_tamper_refused() {
