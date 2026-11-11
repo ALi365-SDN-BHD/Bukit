@@ -1961,7 +1961,8 @@ public sealed class GitHubPagesDeployProviderTests
                         exit 1
                     }
                     if ($mode -eq 'flood-over-limit') {
-                        [Console]::Out.Write(('x' * 5242880))
+                        # Rust coreutils can buffer 1 MB, so exceed the 4 MB cap by far more than that.
+                        [Console]::Out.Write(('x' * 16777216))
                         Set-Content -LiteralPath (Join-Path $env:BUKIT_FAKE_GIT_STATE 'push-flood-overflow-completed.marker') -Value 'completed'
                         exit 0
                     }
@@ -2114,7 +2115,8 @@ public sealed class GitHubPagesDeployProviderTests
                 exit 1
               fi
               if [ "$mode" = "flood-over-limit" ]; then
-                head -c 5242880 /dev/zero
+                # Rust coreutils can buffer 1 MB, so exceed the 4 MB cap by far more than that.
+                head -c 16777216 /dev/zero
                 printf 'completed\n' > "$BUKIT_FAKE_GIT_STATE/push-flood-overflow-completed.marker"
                 exit 0
               fi
