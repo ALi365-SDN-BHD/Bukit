@@ -279,6 +279,24 @@ public sealed partial class SiteEngine
         return result;
     }
 
+    // Language variants leave these diagnostics to the parent, which logs each distinct one once.
+    private static void LogMergedDiagnostics(
+        AppConfig config,
+        string outputDir,
+        IReadOnlyList<BuildVariantResult> variantResults,
+        BuildDiagnosticLogger buildLogger,
+        IReadOnlyList<PublishProjectionResult> projectionResults)
+    {
+        SignedLinkDiagnostics.ReportMerged(variantResults, buildLogger);
+        SeoAuditReportWriter.WriteMerged(
+            config,
+            outputDir,
+            [.. variantResults.Select(variant => variant.ToPublishedVariant())],
+            buildLogger,
+            projectionResults,
+            [.. variantResults.Select(variant => new VariantAuditIssues(variant.Language, variant.BaseUrl, variant.AuditIssues))]);
+    }
+
     private async Task<(BuildResult Result, BuildManifest Manifest)> FinalizeMultiLanguageOutputsAsync(
         AppConfig config,
         string rootDir,
@@ -309,12 +327,7 @@ public sealed partial class SiteEngine
             PublicOutputLifecycle.DeleteOwnedFile(outputDir, "robots.txt");
         }
         var projectionResults = reportTimer.Step("root-outputs", () => I18nOutputMerger.GenerateRootOutputs(config, outputDir, rootBaseUrl, variantResults, buildLogger, _searchIndexBuilder));
-        reportTimer.Step("seo-audit-merged", () => SeoAuditReportWriter.WriteMerged(
-            config,
-            outputDir,
-            [.. variantResults.Select(variant => variant.ToPublishedVariant())],
-            buildLogger,
-            projectionResults));
+        reportTimer.Step("seo-audit-merged", () => LogMergedDiagnostics(config, outputDir, variantResults, buildLogger, projectionResults));
         var reportVariants = reportedOutputDir is null
             ? variantResults
             : [.. variantResults.Select(variant => variant with

@@ -57,13 +57,20 @@ internal static class VariantRenderStage
         metrics.AddDuration(
             "renderDependencyHash",
             renderDependencyHashStopwatch.ElapsedMilliseconds);
+        IReadOnlyList<SignedLinkFinding> signedLinks = [];
         if (dependencySnapshot is not null)
         {
-            SignedLinkDiagnostics.Report(
-                new RenderDependencyContext(context.Config, siteModel, context.Overrides.ExecutionMode, AnalyticsRendererContract.Version),
-                renderAssetPlan.RenderDocuments.Select(document => document.Document),
-                context.DefaultLanguage is null ? null : context.Config.Site.Language,
-                logger);
+            var signedLinkContext = new RenderDependencyContext(context.Config, siteModel, context.Overrides.ExecutionMode, AnalyticsRendererContract.Version);
+            var pageDocuments = renderAssetPlan.RenderDocuments.Select(document => document.Document);
+            if (context.DefaultLanguage is null)
+            {
+                SignedLinkDiagnostics.Report(signedLinkContext, pageDocuments, language: null, logger);
+            }
+            else
+            {
+                // Language variants usually read the same shared data; the parent logs them once.
+                signedLinks = SignedLinkDiagnostics.FindFindings(signedLinkContext, pageDocuments);
+            }
         }
         var renderDependencyHashResolver = BuildRenderDependencyHashResolver(
             renderAssetPlan.RenderDocuments,
@@ -110,7 +117,7 @@ internal static class VariantRenderStage
             DependencySnapshot: dependencySnapshot),
             cancellationToken);
         metrics.Merge(result.StageMetrics);
-        return result;
+        return result with { SignedLinks = signedLinks };
     }
 
     /// <summary>

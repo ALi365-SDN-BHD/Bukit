@@ -49,7 +49,11 @@ internal sealed record RenderPipelineResult(
     int SkippedCount,
     IReadOnlyDictionary<string, int> RenderReasons,
     ConcurrentDictionary<string, byte> CurrentKeys,
-    BuildStageMetrics StageMetrics);
+    BuildStageMetrics StageMetrics)
+{
+    /// <summary>Signed-link findings a multi-language variant hands to the parent to log once.</summary>
+    internal IReadOnlyList<Incremental.SignedLinkFinding> SignedLinks { get; init; } = [];
+}
 
 internal sealed class RenderPipeline
 {

@@ -1,3 +1,5 @@
+using System.Text.Json;
+using System.Text.Json.Nodes;
 using Bukit.Config;
 using Bukit.Content;
 using Bukit.Engine.Abstractions.Content;
@@ -335,6 +337,33 @@ public sealed class I18nWorktreeProtocolTests : IDisposable
                 return inner.LoadRawAsync(cancellationToken);
             }
         }
+    }
+
+    [Fact]
+    public void VariantResult_CarriesDiagnostics_AndReadsResultsWithoutThem()
+    {
+        var output = Path.Combine(_root, "output");
+        var snapshot = CreateVariantSnapshot(output) with
+        {
+            SignedLinks = [new SignedLinkFinding("site.data_files", 2)],
+            AuditIssues = [new SeoAuditIssue("error", "seo.noindex_in_sitemap", "/a/", "Noindex route is in the sitemap.")]
+        };
+        var json = JsonSerializer.Serialize(snapshot, I18nWorktreeJsonContext.Default.I18nVariantSnapshot);
+        var withoutField = JsonNode.Parse(json)!.AsObject();
+        Assert.True(withoutField.Remove("signedLinks"));
+        Assert.True(withoutField.Remove("auditIssues"));
+
+        var restored = Restore(JsonSerializer.Deserialize(json, I18nWorktreeJsonContext.Default.I18nVariantSnapshot)!);
+        var older = Restore(JsonSerializer.Deserialize(withoutField.ToJsonString(), I18nWorktreeJsonContext.Default.I18nVariantSnapshot)!);
+
+        Assert.Equal([new SignedLinkFinding("site.data_files", 2)], restored.SignedLinks);
+        Assert.Equal(snapshot.AuditIssues, restored.AuditIssues);
+        Assert.Empty(older.SignedLinks);
+        Assert.Empty(older.AuditIssues);
+
+        BuildVariantResult Restore(I18nVariantSnapshot value) => I18nWorktreeProtocol.RestoreVariant(
+            value, CanonicalContentGraph.Empty, "head", "config-hash", "hash", "en", output,
+            Path.Combine(_root, "manifest.json"));
     }
 
     private static I18nVariantSnapshot CreateVariantSnapshot(string output)

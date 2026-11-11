@@ -82,6 +82,20 @@ public sealed class SignedLinkDiagnosticsTests
         Assert.Contains("may change on every fetch", warning, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public async Task MultiLanguageBuild_ReportsSharedSignedLinksOnceForAllLanguages()
+    {
+        using var site = new SiteBuilder("i18n-site");
+        site.Sandbox.Write("data/menu.json", JsonSerializer.Serialize(new { image = AwsSigned + "shared" }));
+        var logger = new RecordingLogger();
+
+        await BuildAsync(site, logger);
+
+        var warning = Assert.Single(logger.Warnings, message => message.Contains("event=incremental.signed_links", StringComparison.Ordinal));
+        Assert.Contains(" language=en,zh-CN ", warning, StringComparison.Ordinal);
+        Assert.Contains("keys=site.data_files:1", warning, StringComparison.Ordinal);
+    }
+
     private static SiteBuilder CreateSite(string image)
     {
         var site = new SiteBuilder();

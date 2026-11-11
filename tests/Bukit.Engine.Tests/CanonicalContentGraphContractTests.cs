@@ -17,7 +17,7 @@ public sealed class CanonicalContentGraphContractTests
         Assert.Equal(2, graph.Records.Count);
         Assert.Equal(2, graph.Documents.Count);
         Assert.Contains(
-            CanonicalContentValidator.Validate(graph),
+            CanonicalContentValidator.Validate(graph, [], "en"),
             error => error.Code == "canonical_duplicate_id");
     }
 
@@ -76,7 +76,7 @@ public sealed class CanonicalContentGraphContractTests
             Document("duplicate")
         ]);
 
-        var issues = CanonicalContentValidator.Validate(graph)
+        var issues = CanonicalContentValidator.Validate(graph, [], "en")
             .Concat(ContentModelSchemaValidator.Validate(graph))
             .ToArray();
 

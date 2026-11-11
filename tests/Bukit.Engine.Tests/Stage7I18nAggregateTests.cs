@@ -1,6 +1,8 @@
+using System.Collections.Concurrent;
 using System.Text.Json;
 using System.Xml.Linq;
 using Bukit.Engine.Tests.Infrastructure;
+using Bukit.Shared;
 using Xunit;
 
 namespace Bukit.Engine.Tests;
@@ -70,5 +72,36 @@ public sealed class Stage7I18nAggregateTests
         foreach (var (route, language) in new[] { (relative[0], "en"), (relative[1], "zh-CN") })
             Assert.Equal(language, Assert.Single(documents, item => item.GetProperty("route").GetString() == route).GetProperty("language").GetString());
         ReportAssertions.Generated(site, result, started, ended);
+    }
+
+    [Fact, Trait("Category", "Integration")]
+    public async Task Translations_SharingASlug_PassStrictSchemaAndLogEachAuditIssueOnce()
+    {
+        using var site = new SiteBuilder("i18n-site");
+        var yaml = File.ReadAllText(site.Sandbox.PathFor("site.yaml"));
+        Assert.Contains("  clean: false", yaml, StringComparison.Ordinal);
+        site.Sandbox.Write("site.yaml", yaml.Replace("  clean: false", "  clean: false\n  schemaFailMode: strict", StringComparison.Ordinal));
+        var logger = new RecordingLogger();
+
+        await site.BuildAsync(logger: logger);
+
+        // content/en/index.md and content/zh/index.md share the id "pages:index".
+        Assert.DoesNotContain(logger.Warnings, line => line.Contains("canonical_duplicate_id", StringComparison.Ordinal));
+        var auditLines = logger.Warnings
+            .Where(line => line.StartsWith("seo.audit ", StringComparison.Ordinal) ||
+                           line.StartsWith("publish.audit ", StringComparison.Ordinal))
+            .ToArray();
+        Assert.NotEmpty(auditLines);
+        Assert.Equal(auditLines.Length, auditLines.Distinct(StringComparer.Ordinal).Count());
+        Assert.All(auditLines, line => Assert.Matches(@" route=(-|/(en|zh-CN)(/|\s))", line));
+    }
+
+    private sealed class RecordingLogger : ILogger
+    {
+        internal ConcurrentQueue<string> Warnings { get; } = new();
+        public void Debug(string message) { }
+        public void Info(string message) { }
+        public void Warn(string message) => Warnings.Enqueue(message);
+        public void Error(string message) => Warnings.Enqueue(message);
     }
 }

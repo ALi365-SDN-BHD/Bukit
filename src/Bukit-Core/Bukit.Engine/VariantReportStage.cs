@@ -60,7 +60,7 @@ internal static class VariantReportStage
             context.Config,
             context.OutputDir,
             analyticsSnapshot));
-        return Task.FromResult(result);
+        return Task.FromResult(result with { SignedLinks = renderPipelineResult.SignedLinks });
     }
 
     private static void Time(ReportStageTimer? timer, string step, Action action)

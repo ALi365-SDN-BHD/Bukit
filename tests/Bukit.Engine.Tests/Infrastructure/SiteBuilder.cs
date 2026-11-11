@@ -91,14 +91,14 @@ internal sealed class SiteBuilder : IDisposable
         => Sandbox.Write($"content/{slug}.md", $"---\nslug: {slug}\ntitle: {title}\npublishAt: 2024-06-01T00:00:00Z\ncollection: page\n---\n{body}\n");
 
     public Task<BuildResult> BuildAsync(bool clean = true, bool incremental = false, int jobs = 1,
-        Func<string, ITemplateRenderer>? rendererFactory = null)
+        Func<string, ITemplateRenderer>? rendererFactory = null, ILogger? logger = null)
     {
         var config = Config;
         if (Path.GetFullPath(config.Build.Output, Root) != Output || config.Content.Sources is not { Count: > 0 } sources ||
             sources.Any(source => source.Type != "markdown" || Path.GetFullPath(source.Markdown?.Dir ?? "content", Root) != Sandbox.PathFor("content")) ||
             config.Content.Media.DownloadToLocal || config.Content.Media.DownloadDir != "assets/uploads")
             throw new InvalidOperationException("Phase 0 build must keep output/cache and content in its sandbox.");
-        var engine = new SiteEngine(new ConsoleLogger(LogLevel.Error), new DefaultContentProviderFactory(),
+        var engine = new SiteEngine(logger ?? new ConsoleLogger(LogLevel.Error), new DefaultContentProviderFactory(),
             new DefaultSearchIndexBuilder(), rendererFactory, new FixedClock());
         return engine.BuildAsync(config, Root, new ConfigOverrides { Clean = clean, Incremental = incremental, Jobs = jobs });
     }
