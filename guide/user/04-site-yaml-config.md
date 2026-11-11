@@ -66,7 +66,7 @@ content:
 | `site.feed.mode` | `split` | `split` or `merged`. |
 | `site.feed.formats` | `rss` | Feed formats list. |
 | `site.feed.limit` | `20` | Positive item limit; non-positive values use `20`. All enabled feed formats and publish-audit expectations use the same newest-item window, ordered by canonical publish time and then canonical URL. |
-| `site.feed.path` | `feed` | Feed output path prefix. |
+| `site.feed.path` | `feed` | Atom and JSON Feed output path prefix. RSS is always `/rss.xml`. |
 | `site.sitemapDetail.defaultPriority` | `0.5` | Number from 0 to 1. |
 | `site.sitemapDetail.defaultChangefreq` | `weekly` | Change frequency string written into sitemap metadata. |
 | `site.sitemapDetail.imageEnabled` | `false` | Enables image sitemap detail. |

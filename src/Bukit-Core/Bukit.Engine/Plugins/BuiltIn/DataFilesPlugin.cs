@@ -95,8 +95,8 @@ internal sealed class DataFilesPlugin : IBukitPlugin, IDerivePagesPlugin, IDeriv
         var languageDirectories = new HashSet<string>(
             OperatingSystem.IsWindows() ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal);
 
-        var languages = _config.Site.Languages;
-        if (languages is { Count: > 0 })
+        var languages = I18nOutputMerger.GetLanguages(_config.Site);
+        if (languages.Count > 0)
         {
             foreach (var lang in languages)
             {

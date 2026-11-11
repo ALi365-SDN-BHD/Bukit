@@ -326,6 +326,7 @@ internal sealed class WorktreeBuildRun
                 _prepared.AssetsDir,
                 _prepared.ScssOutputDir,
                 _stagedMediaDir ?? _prepared.Plan.MediaCacheDir,
+                _prepared.SeoAlternates,
                 snapshotPath,
                 resultPath);
             await I18nWorktreeProtocolStore.WriteRequestAsync(requestPath, request, cancellationToken).ConfigureAwait(false);

@@ -45,6 +45,9 @@ public static class ContentFieldReader
         return true;
     }
 
+    internal static string GetI18nKeyOrDefault(IReadOnlyDictionary<string, ContentField>? fields, string fallback)
+        => TryGetI18nKey(fields, out var key) ? key : fallback;
+
     public static string? GetText(IReadOnlyDictionary<string, ContentField>? fields, string key)
     {
         if (!TryGetField(fields, key, out var field) || field.Value is null)

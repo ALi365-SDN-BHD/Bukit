@@ -68,6 +68,64 @@ internal static class I18nLanguagePolicy
         return normalizedBaseUrl.TrimEnd('/') + "/" + normalizedLanguage;
     }
 
+    internal static void WarnDocumentLanguageIssues(
+        IReadOnlyList<ContentDocument> documents,
+        SiteConfig site,
+        ILogger logger)
+    {
+        var languages = GetLanguages(site);
+        if (languages.Count == 0 && !string.IsNullOrWhiteSpace(site.DefaultLanguage))
+        {
+            logger.Warn(
+                $"event=i18n.config.default_language_ignored defaultLanguage={site.DefaultLanguage.Trim()} language={site.Language}");
+        }
+
+        var configured = languages.Count > 0
+            ? languages
+            : [site.Language.Trim()];
+        var defaultLanguage = GetDefaultLanguage(site, languages);
+        var translations = new Dictionary<string, (string Language, string Key, List<string> Ids)>(
+            StringComparer.OrdinalIgnoreCase);
+
+        foreach (var document in documents.Where(document => !ContentFieldReader.IsDataItem(document)))
+        {
+            var language = document.Record.Presentation.Language;
+            if (string.IsNullOrWhiteSpace(language) ||
+                string.Equals(language, "und", StringComparison.OrdinalIgnoreCase))
+            {
+                language = ContentFieldReader.GetText(document, "language");
+            }
+
+            language = string.IsNullOrWhiteSpace(language) ? defaultLanguage : language.Trim();
+            if (!configured.Contains(language, StringComparer.OrdinalIgnoreCase))
+            {
+                logger.Warn(
+                    $"event=i18n.document.language_unknown id={document.Id} language={language} configured={string.Join(',', configured)}");
+                continue;
+            }
+
+            if (!ContentFieldReader.TryGetI18nKey(document.CustomFields, out var key))
+            {
+                continue;
+            }
+
+            var groupKey = language + "\n" + key;
+            if (!translations.TryGetValue(groupKey, out var group))
+            {
+                group = (language, key, []);
+                translations[groupKey] = group;
+            }
+
+            group.Ids.Add(document.Id);
+        }
+
+        foreach (var (_, group) in translations.Where(entry => entry.Value.Ids.Count > 1))
+        {
+            logger.Warn(
+                $"event=i18n.document.i18n_key_duplicate language={group.Language} key={group.Key} ids={string.Join(',', group.Ids)}");
+        }
+    }
+
     internal static IReadOnlyList<ContentDocument> FilterDocumentsByLanguage(
         IReadOnlyList<ContentDocument> documents,
         string language,

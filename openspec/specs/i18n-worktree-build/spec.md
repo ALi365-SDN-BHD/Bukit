@@ -7,10 +7,10 @@
 
 ### Requirement: 显式多语言 CLI 构建必须自动使用 Git Worktree
 
-系统 SHALL 在显式 `bukit build` 的规范化 `site.languages` 非空时，为每个语言使用同一 HEAD 的 detached Git Worktree 和独立 Worker 进程。`dev`、`deploy` 内部构建和直接 `SiteEngine` 调用 MUST 保持现有进程内行为。
+系统 SHALL 在显式 `bukit build` 的规范化 `site.languages` 至少包含两个语言时，为每个语言使用同一 HEAD 的 detached Git Worktree 和独立 Worker 进程。`dev`、`deploy` 内部构建和直接 `SiteEngine` 调用 MUST 保持现有进程内行为。
 
 #### Scenario: 显式多语言构建
-- **WHEN** 用户在干净 Git 站点执行 `bukit build` 且配置至少一个 `site.languages` 值
+- **WHEN** 用户在干净 Git 站点执行 `bukit build` 且配置至少两个 `site.languages` 值
 - **THEN** 每个语言由同一 HEAD 的独立 Worktree Worker 构建，并在父进程聚合
 
 #### Scenario: 非目标入口

@@ -20,8 +20,8 @@ internal sealed class RoutePipeline
 {
     public RoutePipelineResult Execute(AppConfig config, IReadOnlyList<ContentDocument> documents, ThemeTemplateResolver? templateResolver = null)
     {
-        var siteLanguages = config.Site.Languages;
-        if (siteLanguages is null or { Count: 0 })
+        var siteLanguages = I18nOutputMerger.GetLanguages(config.Site);
+        if (siteLanguages.Count == 0)
         {
             var siteLanguage = config.Site.Language;
             documents = I18nOutputMerger.FilterDocumentsByLanguage(documents, siteLanguage, siteLanguage);

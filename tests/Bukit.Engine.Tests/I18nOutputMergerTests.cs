@@ -283,6 +283,71 @@ public sealed class I18nOutputMergerTests
             fields: ContentFieldReader.ToFieldMap(meta));
     }
 
+    [Fact]
+    public void ContentDocumentCreate_UsesI18nKeyAliasForCanonicalUrlKey()
+    {
+        var document = CreateItemWithMeta("1", "en", new Dictionary<string, object> { ["i18n_key"] = "about" });
+
+        Assert.Equal("about", document.Record.Identity.CanonicalUrlKey);
+    }
+
+    [Fact]
+    public void WarnDocumentLanguageIssues_WarnsWhenDefaultLanguageHasNoLanguages()
+    {
+        var site = new SiteConfig { Name = "t", Title = "t", Language = "zh-CN", DefaultLanguage = "en" };
+        var logger = new ListLogger();
+
+        I18nLanguagePolicy.WarnDocumentLanguageIssues([], site, logger);
+
+        Assert.Contains(logger.Warnings, message =>
+            message.Contains("i18n.config.default_language_ignored", StringComparison.Ordinal) &&
+            message.Contains("defaultLanguage=en", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void WarnDocumentLanguageIssues_WarnsForUnknownLanguage()
+    {
+        var site = new SiteConfig { Name = "t", Title = "t", Languages = ["en", "zh-CN"], DefaultLanguage = "en" };
+        var logger = new ListLogger();
+        var item = CreateItemWithMeta("1", "zh", new Dictionary<string, object>());
+
+        I18nLanguagePolicy.WarnDocumentLanguageIssues([item], site, logger);
+
+        Assert.Contains(logger.Warnings, message =>
+            message.Contains("i18n.document.language_unknown", StringComparison.Ordinal) &&
+            message.Contains("language=zh", StringComparison.Ordinal) &&
+            message.Contains("configured=en,zh-CN", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void WarnDocumentLanguageIssues_WarnsForDuplicateI18nKey()
+    {
+        var site = new SiteConfig { Name = "t", Title = "t", Languages = ["en"], DefaultLanguage = "en" };
+        var logger = new ListLogger();
+        var first = CreateItemWithMeta("1", "en", new Dictionary<string, object> { ["i18nKey"] = "about" });
+        var second = CreateItemWithMeta("2", "en", new Dictionary<string, object> { ["i18nKey"] = "about" });
+
+        I18nLanguagePolicy.WarnDocumentLanguageIssues([first, second], site, logger);
+
+        Assert.Contains(logger.Warnings, message =>
+            message.Contains("i18n.document.i18n_key_duplicate", StringComparison.Ordinal) &&
+            message.Contains("key=about", StringComparison.Ordinal) &&
+            message.Contains("ids=1,2", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void WarnDocumentLanguageIssues_DoesNotWarnForKnownTranslations()
+    {
+        var site = new SiteConfig { Name = "t", Title = "t", Languages = ["en", "zh-CN"], DefaultLanguage = "en" };
+        var logger = new ListLogger();
+        var enItem = CreateItemWithMeta("1", "en", new Dictionary<string, object> { ["i18nKey"] = "about" });
+        var zhItem = CreateItemWithMeta("2", "zh-CN", new Dictionary<string, object> { ["i18nKey"] = "about" });
+
+        I18nLanguagePolicy.WarnDocumentLanguageIssues([enItem, zhItem], site, logger);
+
+        Assert.Empty(logger.Warnings);
+    }
+
     private static ContentDocument CreateItemWithMeta(string id, string? language, Dictionary<string, object> extraMeta)
     {
         var meta = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase);
@@ -303,5 +368,15 @@ public sealed class I18nOutputMergerTests
             publishAt: DateTimeOffset.UtcNow,
             contentHtml: "<p>hi</p>",
             fields: ContentFieldReader.ToFieldMap(meta));
+    }
+
+    private sealed class ListLogger : ILogger
+    {
+        internal List<string> Warnings { get; } = [];
+
+        public void Debug(string message) { }
+        public void Info(string message) { }
+        public void Warn(string message) => Warnings.Add(message);
+        public void Error(string message) { }
     }
 }

@@ -13,13 +13,13 @@ public sealed class GeoAiBotModeValidationTests
     [InlineData("selective")]
     public void ValidateSite_AcceptsKnownAiBotModes(string mode)
     {
-        I18nValidator.ValidateSite(Site(mode));
+        SiteConfigValidator.ValidateSite(Site(mode));
     }
 
     [Fact]
     public void ValidateSite_RejectsUnknownAiBotMode()
     {
-        var ex = Assert.Throws<ConfigException>(() => I18nValidator.ValidateSite(Site("training-only")));
+        var ex = Assert.Throws<ConfigException>(() => SiteConfigValidator.ValidateSite(Site("training-only")));
 
         Assert.Equal("site.seo.geo.aiBotMode must be allow|block-training|block|selective.", ex.Message);
     }
@@ -27,7 +27,7 @@ public sealed class GeoAiBotModeValidationTests
     [Fact]
     public void ValidateSite_AcceptsCrawlerTokens()
     {
-        I18nValidator.ValidateSite(Site("selective", allow: ["OAI-SearchBot", " Claude_User ", "bot.v2"], block: ["GPTBot"]));
+        SiteConfigValidator.ValidateSite(Site("selective", allow: ["OAI-SearchBot", " Claude_User ", "bot.v2"], block: ["GPTBot"]));
     }
 
     [Theory]
@@ -38,10 +38,10 @@ public sealed class GeoAiBotModeValidationTests
     [InlineData("  ")]
     public void ValidateSite_RejectsNamesThatWouldBreakRobotsTxt(string name)
     {
-        var allowEx = Assert.Throws<ConfigException>(() => I18nValidator.ValidateSite(Site("allow", allow: ["GPTBot", name])));
+        var allowEx = Assert.Throws<ConfigException>(() => SiteConfigValidator.ValidateSite(Site("allow", allow: ["GPTBot", name])));
         Assert.StartsWith("site.seo.geo.aiBotAllowList[1] must be a crawler user-agent token", allowEx.Message, StringComparison.Ordinal);
 
-        var blockEx = Assert.Throws<ConfigException>(() => I18nValidator.ValidateSite(Site("allow", block: [name])));
+        var blockEx = Assert.Throws<ConfigException>(() => SiteConfigValidator.ValidateSite(Site("allow", block: [name])));
         Assert.StartsWith("site.seo.geo.aiBotBlockList[0] must be a crawler user-agent token", blockEx.Message, StringComparison.Ordinal);
     }
 

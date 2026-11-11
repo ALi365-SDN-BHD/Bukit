@@ -41,7 +41,7 @@ validator, schema generator, user docs, and tests:
 
 | Family | Primary model | Notes |
 |---|---|---|
-| Site identity and i18n | `SiteConfig`, `I18nValidator` | Includes `baseUrl`, language variants, timezone, output path encoding, sitemap mode, and plugin failure policies. |
+| Site identity and i18n | `SiteConfig`, `SiteConfigValidator` | Includes `baseUrl`, language variants, timezone, output path encoding, sitemap mode, and plugin failure policies. |
 | SEO/GEO | `SeoConfig` | Includes schema switches, robots, organization metadata, the default SEO author, llms outputs, and AI bot mode. |
 | Analytics | `AnalyticsConfig`, consent/CSP config records, `AnalyticsProviderConfig` | Core built-in plugin output policy, explicit Google Consent Mode v2 policy, CSP requirements reporting, and an ordered list of GA4, GTM, Plausible, or Umami providers. |
 | Collections and list routes | `CollectionConfig`, `CollectionsValidator` | Includes collection permalink, list route, pagination, output, archive detail, and filtered lists. |

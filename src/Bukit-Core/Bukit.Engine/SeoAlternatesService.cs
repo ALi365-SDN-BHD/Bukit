@@ -100,25 +100,6 @@ internal static class SeoAlternatesService
         return result;
     }
 
-    internal static IReadOnlyDictionary<string, IReadOnlyList<SeoAlternateModel>> AddVariantRouteAlternates(
-        AppConfig config,
-        IReadOnlyDictionary<string, IReadOnlyList<SeoAlternateModel>> existing,
-        ListRouteGraph listRouteGraph,
-        string? rootBaseUrl,
-        string? defaultLanguage)
-    {
-        var languages = I18nOutputMerger.GetLanguages(config.Site);
-        if (string.IsNullOrWhiteSpace(config.Site.Url) ||
-            string.IsNullOrWhiteSpace(rootBaseUrl) ||
-            string.IsNullOrWhiteSpace(defaultLanguage) ||
-            languages.Count < 2)
-        {
-            return existing;
-        }
-
-        return existing;
-    }
-
     private static ListRouteGraph AddTaxonomyRoutesForAlternates(
         AppConfig config,
         string baseUrl,

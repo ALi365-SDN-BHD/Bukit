@@ -323,6 +323,20 @@ public sealed class ConfigValidatorTests
     }
 
     [Fact]
+    public void Validate_DefaultLanguageWithoutLanguages_Passes()
+    {
+        var config = ConfigWithSite(s => s with
+        {
+            Languages = null,
+            DefaultLanguage = "en"
+        });
+
+        var ex = Record.Exception(() => ConfigValidator.Validate(config));
+
+        Assert.Null(ex);
+    }
+
+    [Fact]
     public void Validate_LanguagesValid_Passes()
     {
         var config = ConfigWithSite(s => s with

@@ -42,6 +42,7 @@ internal sealed record I18nWorkerRequest(
     string AssetsDir,
     string? ScssOutputDir,
     string MediaDownloadDir,
+    IReadOnlyDictionary<string, IReadOnlyList<SeoAlternateModel>> SeoAlternates,
     string SnapshotPath,
     string ResultPath);
 

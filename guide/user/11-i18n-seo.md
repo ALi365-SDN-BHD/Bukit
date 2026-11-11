@@ -22,6 +22,21 @@ build:
 Each language builds into `dist/<language>/`. Content without a language value
 belongs to `defaultLanguage`.
 
+## Language Diagnostics
+
+The build reports these warnings:
+
+| Event | Meaning |
+|---|---|
+| `i18n.document.language_unknown` | A page `language` is not in `site.languages` (or is not `site.language` in a single-language build), so the page is dropped. |
+| `i18n.document.i18n_key_duplicate` | Two pages in the same language use the same `i18nKey`; hreflang and merged sitemap alternates can point to only one of them. |
+| `i18n.config.default_language_ignored` | `site.defaultLanguage` is set but `site.languages` is empty, so the single-language build uses `site.language`. |
+
+Warnings are capped at five per kind, followed by one summary line. A single-language
+site that intentionally selects one language from a mixed-language source will warn
+about the other languages on every build; this is expected unless those sources are
+split or filtered.
+
 An explicit `bukit build` with two or more configured languages automatically
 isolates each language in a detached Git Worktree and a separate Bukit process.
 A single configured language stays in the normal in-process build and does not

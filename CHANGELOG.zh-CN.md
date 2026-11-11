@@ -4,6 +4,9 @@ Bukit 所有重要变更都将记录在此文件中。
 
 ## [Unreleased]
 
+- **i18n 丢弃与重复内容诊断**：构建现在会输出 `i18n.document.language_unknown`（页面 `language` 不在 `site.languages` 中；单语言构建中不等于 `site.language`）、`i18n.document.i18n_key_duplicate`（同一语言内两个页面使用相同 `i18nKey`）和 `i18n.config.default_language_ignored`（设置了 `site.defaultLanguage` 但未配置 `site.languages`）。这些页面或配置以前会被静默丢弃、覆盖或忽略。故意从混合语言内容源中只挑一种语言的单语言站点，现在每次构建都会为其他语言输出 `language_unknown` 警告；每类警告最多显示 5 条并附一行汇总，构建报告的警告数可能上升。除下文 `i18n_key` public ID 变化外，其他有效站点的输出不变。
+- **doctor 检查所有已配置语言**：`bukit doctor` 现在会为 `site.languages` 中的每种语言构建并校验路由，不再只检查默认语言；只存在于非默认语言的路由冲突或缺失模板会在 doctor 阶段失败，而不是拖到构建阶段。
+- **`i18n_key` 现在决定 public ID**：使用 `i18n_key` 别名的页面，其 `agent-manifest.json` 和公开内容投影中的 `id`、`canonicalId` 现在使用该值，与 `i18nKey` 一致。以前该别名会回退到 slug，导致同一翻译组在不同语言下得到不同的 public ID。使用 `i18nKey` 或 slug 回退的站点输出不变。
 - **llms curation 诊断恢复生效**：页面级 `geo.llms` curation 写错时（未知键、`visibility` 或 `tier` 取值错误、`priority` 不是整数（如 `"10"`）或超出 -100 到 100、`llms: false`，或非空的 `geo:` 不是映射），构建现在会对每个路由页面（包括 noindex 页面）输出 `geo.llms_field_unknown`、`geo.llms_visibility_invalid`、`geo.llms_tier_invalid`、`geo.llms_priority_invalid` 或 `geo.llms_shape_invalid`（`geo` 或 `llms` 的值不是映射），均附带 `route=<输出路径>`，在 `site.seo.diagnostics: strict` 下构建失败。自发布投影重构以来这些检查一直没有执行，这类页面会在没有任何警告的情况下从 `llms.txt` 和 `llms-full.txt` 中消失。使用 `strict` 且存在错误 curation 的站点现在会构建失败，请修正 front matter 或改用 `visibility: exclude`。正确的 curation 和输出不变。空的（或只含空白的）`geo:` 或 `llms:` 键现在视为不存在：这类页面会进入 `llms.txt` 和 `llms-full.txt`，并且不再导致 `strict` 构建失败（之前是静默排除）。
 
 ## [2.0.15] - 2026-11-11

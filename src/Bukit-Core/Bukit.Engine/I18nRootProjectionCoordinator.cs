@@ -12,9 +12,11 @@ internal sealed record I18nRootProjectionWriterContext(
     string OutputDir,
     string RootBaseUrl,
     IReadOnlyList<BuildVariantResult> Results,
-    ILogger Logger)
+    ILogger Logger,
+    ISearchIndexBuilder? SearchIndexBuilder = null)
 {
     internal Dictionary<string, IReadOnlySet<string>> PublishedUrls { get; } = new(StringComparer.Ordinal);
+    internal I18nMergedVariantState? MergedState { get; set; }
 }
 
 internal static class I18nRootProjectionCoordinator
@@ -27,7 +29,8 @@ internal static class I18nRootProjectionCoordinator
         string outputDir,
         string rootBaseUrl,
         IReadOnlyList<BuildVariantResult> results,
-        ILogger logger)
+        ILogger logger,
+        ISearchIndexBuilder? searchIndexBuilder = null)
     {
         var projectionContext = new PublishProjectionContext(
             Config: config,
@@ -40,7 +43,7 @@ internal static class I18nRootProjectionCoordinator
             Logger: logger,
             VariantResults: results,
             DerivedDocuments: Array.Empty<RoutedContentDocument>());
-        var writerContext = ToWriterContext(projectionContext);
+        var writerContext = ToWriterContext(projectionContext, searchIndexBuilder);
 
         return WriterRegistry.BuildPlan(PublishRepresentationRegistry.AggregateRepresentations())
             .Select(entry => Project(writerContext, entry.Representation, entry.Writer))
@@ -91,11 +94,14 @@ internal static class I18nRootProjectionCoordinator
             }
         };
 
-    private static I18nRootProjectionWriterContext ToWriterContext(PublishProjectionContext context)
+    private static I18nRootProjectionWriterContext ToWriterContext(
+        PublishProjectionContext context,
+        ISearchIndexBuilder? searchIndexBuilder = null)
         => new(
             context.Config,
             context.OutputDir,
             context.BaseUrl,
             context.VariantResults ?? Array.Empty<BuildVariantResult>(),
-            context.Logger ?? new ConsoleLogger(LogLevel.Error));
+            context.Logger ?? new ConsoleLogger(LogLevel.Error),
+            searchIndexBuilder);
 }

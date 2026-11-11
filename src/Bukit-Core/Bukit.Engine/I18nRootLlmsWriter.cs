@@ -29,7 +29,7 @@ internal sealed class I18nRootLlmsWriter : II18nRootProjectionWriter
             return;
         }
 
-        var state = I18nMergedVariantState.Create(context.Results);
+        var state = context.MergedState ??= I18nMergedVariantState.Create(context.Results);
         var urls = new HashSet<string>(StringComparer.Ordinal);
         LlmsTxtPlugin.WriteLlmsTxt(
             context.Config,
@@ -52,7 +52,7 @@ internal sealed class I18nRootLlmsWriter : II18nRootProjectionWriter
             return;
         }
 
-        var state = I18nMergedVariantState.Create(context.Results);
+        var state = context.MergedState ??= I18nMergedVariantState.Create(context.Results);
         var urls = new HashSet<string>(StringComparer.Ordinal);
         LlmsTxtPlugin.WriteLlmsFullTxt(
             context.Config,

@@ -5,7 +5,7 @@ using System.Text.RegularExpressions;
 
 namespace Bukit.Config;
 
-internal static class I18nValidator
+internal static class SiteConfigValidator
 {
     internal static void ValidateSite(SiteConfig site)
     {

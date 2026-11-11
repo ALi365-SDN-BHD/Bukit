@@ -25,12 +25,7 @@ internal static class VariantSeoStage
     {
         var routeResult = routePipelineResult.RouteResult;
         var pluginContext = routePipelineResult.PluginContext;
-        var seoAlternates = SeoAlternatesService.AddVariantRouteAlternates(
-            context.Config,
-            context.SeoAlternates,
-            routeResult.ListRouteGraph,
-            context.RootBaseUrl,
-            context.DefaultLanguage);
+        var seoAlternates = context.SeoAlternates;
         var maxDegreeOfParallelism = Math.Clamp(
             context.Overrides.Jobs ?? Environment.ProcessorCount,
             1,
