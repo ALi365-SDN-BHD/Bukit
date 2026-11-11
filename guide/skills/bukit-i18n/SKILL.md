@@ -13,8 +13,10 @@ site:
 ```
 
 Documents whose front matter `language` differs from `site.language` are dropped
-silently; untagged documents are kept. Always set `site.language` for non-Chinese
-sites.
+with an `i18n.document.language_unknown` warning; untagged documents are kept.
+Always set `site.language` for non-Chinese sites. A site that intentionally picks
+one language from a mixed-language source will warn about the other languages on
+every build; warnings are capped at five per kind plus one summary line.
 
 ## Multiple languages
 
@@ -45,6 +47,8 @@ collection: page
 - `i18nKey` groups translations for hreflang; pages with the same URL in different
   languages are grouped automatically.
 - There is no fallback: a page missing in one language does not exist there.
+- A page `language` outside `site.languages` is dropped with `i18n.document.language_unknown`.
+  Duplicate `i18nKey` values inside one language warn with `i18n.document.i18n_key_duplicate`.
 - Data items are filtered by a `locale` field (missing = all languages).
 - There are no per-language titles, base URLs, or sources.
 

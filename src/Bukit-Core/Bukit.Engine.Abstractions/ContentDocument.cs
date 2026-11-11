@@ -69,7 +69,7 @@ public sealed record ContentDocument
         var authorProjection = ContentAuthorProfileProjectionReader.Read(fields);
 
         var record = new ContentRecord(
-            new ContentIdentity(id, slug, ContentFieldReader.GetText(fields, "i18nKey") ?? slug, type, status),
+            new ContentIdentity(id, slug, ContentFieldReader.GetI18nKeyOrDefault(fields, slug), type, status),
             new ContentPresentation(title, summary, contentHtml, ContentFieldReader.GetText(fields, "language") ?? "und", translations),
             new ContentClassification(type, collection, sections, tags),
             new ContentOwnership(ContentFieldReader.GetText(fields, "author"), ContentFieldReader.GetText(fields, "organization"), ContentFieldReader.GetText(fields, "owner"), ContentFieldReader.GetText(fields, "reviewer"))

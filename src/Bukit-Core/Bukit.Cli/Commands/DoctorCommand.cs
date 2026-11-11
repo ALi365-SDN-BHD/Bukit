@@ -369,13 +369,18 @@ public static class DoctorCommand
         IReadOnlyList<Bukit.Engine.Abstractions.Content.RoutedContentDocument> routedDocuments;
         try
         {
-            routedDocuments = await RouteInventoryValidator.BuildContentRoutesAsync(
+            var routesByLanguage = await RouteInventoryValidator.BuildContentRoutesByLanguageAsync(
                 config,
                 rootDir,
                 isCi: false,
                 new ConsoleLogger(LogLevel.Error, logFormat),
                 templateResolver);
-            RouteInventoryValidator.ValidateContentRoutes(routedDocuments);
+            foreach (var (language, routes) in routesByLanguage)
+            {
+                RouteInventoryValidator.ValidateContentRoutes(routes, $"content:{language}");
+            }
+
+            routedDocuments = [.. routesByLanguage.Values.SelectMany(routes => routes)];
             Console.WriteLine("✔ Routes valid");
         }
         catch (Exception ex) when (ex is ConfigException or ContentException)

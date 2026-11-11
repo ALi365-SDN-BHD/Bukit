@@ -28,7 +28,8 @@ validates application theme options; only manifest validation moved to Theme.
 ## Manifest Areas
 
 `theme.yaml` can define capabilities, layouts, templates, page templates,
-sections, components, assets, tokens, and `extends`.
+sections, components, assets, tokens, and `extends`. `capabilities` is
+validated manifest metadata; it does not enable or disable engine behavior.
 
 ## Asset Flow
 

@@ -157,6 +157,7 @@ public sealed partial class SiteEngine
             var contentGraph = contentResult.ContentGraph ?? CanonicalContentGraph.Empty;
             var bodyStore = contentResult.BodyStore;
             var bodyCacheMetrics = contentResult.BodyCacheMetrics;
+            I18nLanguagePolicy.WarnDocumentLanguageIssues(documents, effectiveConfig.Site, buildLogger);
 
             BuildResult completedResult;
             IReadOnlyList<BuildVariantResult> completedVariants;

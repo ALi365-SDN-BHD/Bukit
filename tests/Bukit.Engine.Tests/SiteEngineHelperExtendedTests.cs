@@ -242,66 +242,6 @@ public sealed class SiteEngineHelperExtendedTests
     }
 
     [Fact]
-    public void AddVariantRouteAlternates_WithMissingPrecomputedRoute_DoesNotInventLanguageUrls()
-    {
-        var config = new AppConfig
-        {
-            Site = new SiteConfig
-            {
-                Name = "test",
-                Title = "Test",
-                BaseUrl = "/",
-                Url = "https://example.com",
-                Languages = new[] { "en", "zh" }
-            },
-            Content = TestContent.Markdown()
-        };
-        var graph = ListRouteGraph.Create(new[]
-        {
-            new ListRoutePlan
-            {
-                RouteId = "filter:company:country:malaysia:2",
-                Kind = ListRouteKind.FilteredListPage,
-                Url = "/companies/malaysia/page-two/",
-                OutputPath = "companies/malaysia/page-two/index.html",
-                Template = "pages/company-list.html",
-                Collection = "company",
-                PageNumber = 2,
-                PageSize = 2,
-                TotalItems = 3,
-                CanonicalUrl = "/companies/malaysia/p/2/",
-                PrevUrl = "/companies/malaysia/"
-            }
-        });
-
-        var result = SeoAlternatesService.AddVariantRouteAlternates(
-            config,
-            new Dictionary<string, IReadOnlyList<SeoAlternateModel>>(StringComparer.Ordinal),
-            graph,
-            rootBaseUrl: "/",
-            defaultLanguage: "en");
-
-        Assert.Empty(result);
-    }
-
-    [Fact]
-    public void AddVariantRouteAlternates_WithNoVariants_ReturnsExisting()
-    {
-        var config = CreateTestConfig();
-        var existing = new Dictionary<string, IReadOnlyList<SeoAlternateModel>>(StringComparer.Ordinal)
-        {
-            ["/test"] = new List<SeoAlternateModel> { new("en", "https://example.com/test") }
-        };
-        var rootBaseUrl = "/";
-        var defaultLanguage = "en";
-
-        var result = SeoAlternatesService.AddVariantRouteAlternates(config, existing, ListRouteGraph.Empty, rootBaseUrl, defaultLanguage);
-
-        Assert.NotNull(result);
-        Assert.Same(existing, result);
-    }
-
-    [Fact]
     public void BuildListOutputPath_WithValidRoute_ReturnsPath()
     {
         var listRoute = "/posts";

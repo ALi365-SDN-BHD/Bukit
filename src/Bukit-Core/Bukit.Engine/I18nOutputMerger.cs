@@ -32,8 +32,13 @@ internal static class I18nOutputMerger
         ILogger logger,
         ISearchIndexBuilder searchIndexBuilder)
     {
-        _ = searchIndexBuilder;
-        return I18nRootProjectionCoordinator.GenerateRootOutputs(config, outputDir, rootBaseUrl, results, logger);
+        return I18nRootProjectionCoordinator.GenerateRootOutputs(
+            config,
+            outputDir,
+            rootBaseUrl,
+            results,
+            logger,
+            searchIndexBuilder);
     }
 
     internal static PublishProjectionResult ProjectRootAggregate(
@@ -41,32 +46,4 @@ internal static class I18nOutputMerger
         PublishRepresentation representation)
         => I18nRootProjectionCoordinator.Project(context, representation);
 
-    private static IReadOnlyList<RouteInfo> BuildCollectionListRoutes(
-        IReadOnlyDictionary<string, CollectionConfig>? collections)
-    {
-        if (collections is null || collections.Count == 0)
-        {
-            return Array.Empty<RouteInfo>();
-        }
-
-        var routes = new List<RouteInfo>();
-        foreach (var (_, cfg) in collections)
-        {
-            if (!cfg.Output.Sitemap || string.IsNullOrWhiteSpace(cfg.ListRoute))
-            {
-                continue;
-            }
-
-            if (string.IsNullOrWhiteSpace(cfg.ListTemplate))
-            {
-                continue;
-            }
-
-            var url = RoutePathBuilder.NormalizeListRoute(cfg.ListRoute);
-            var template = cfg.ListTemplate.Trim();
-            routes.Add(new RouteInfo(url, RoutePathBuilder.BuildOutputPathFromUrl(url), template));
-        }
-
-        return routes;
-    }
 }

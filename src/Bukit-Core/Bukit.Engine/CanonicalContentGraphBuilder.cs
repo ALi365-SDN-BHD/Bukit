@@ -78,7 +78,7 @@ internal static partial class CanonicalContentGraphBuilder
             new ContentIdentity(
                 source.Id,
                 source.Slug,
-                FirstText(source, "i18nKey") ?? source.Slug,
+                ContentFieldReader.GetI18nKeyOrDefault(source.Fields, source.Slug),
                 type,
                 status),
             new ContentPresentation(

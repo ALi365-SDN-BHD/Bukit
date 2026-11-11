@@ -3,6 +3,7 @@ using Bukit.Config;
 using Bukit.Content;
 using Bukit.Engine.Abstractions.Content;
 using Bukit.Engine.Incremental;
+using Bukit.Rendering;
 using Bukit.Shared;
 using Bukit.Theme;
 
@@ -18,7 +19,8 @@ internal sealed class I18nPreparedBuild : IAsyncDisposable
         BuildPlan plan,
         ContentPipelineResult content,
         AssetSourceWorkspace assets,
-        BuildDiagnosticLogger logger)
+        BuildDiagnosticLogger logger,
+        IReadOnlyDictionary<string, IReadOnlyList<SeoAlternateModel>> seoAlternates)
     {
         RootDir = rootDir;
         ProjectRootDir = projectRootDir;
@@ -28,6 +30,7 @@ internal sealed class I18nPreparedBuild : IAsyncDisposable
         Content = content;
         Assets = assets;
         Logger = logger;
+        SeoAlternates = seoAlternates;
     }
 
     internal string RootDir { get; }
@@ -38,6 +41,7 @@ internal sealed class I18nPreparedBuild : IAsyncDisposable
     internal ContentPipelineResult Content { get; }
     internal AssetSourceWorkspace Assets { get; }
     internal BuildDiagnosticLogger Logger { get; }
+    internal IReadOnlyDictionary<string, IReadOnlyList<SeoAlternateModel>> SeoAlternates { get; }
     internal string AssetsDir => Assets.AssetsDir;
     internal string? ScssOutputDir => Assets.ScssOutputDir;
 
@@ -81,9 +85,11 @@ public sealed partial class SiteEngine
             overrides,
             stagedMediaDir ?? plan.MediaCacheDir,
             cancellationToken).ConfigureAwait(false);
+        I18nLanguagePolicy.WarnDocumentLanguageIssues(content.Documents, config.Site, buildLogger);
 
         try
         {
+            var seoAlternates = BuildWorktreeSeoAlternates(config, rootDir, content.Documents, buildLogger);
             var assets = await AssetSourceWorkspace.PrepareAsync(
                 plan.AssetsDir,
                 plan.EffectiveConfig.Theme.Scss,
@@ -92,13 +98,45 @@ public sealed partial class SiteEngine
                 plan.EffectiveConfig.Build.PublishDotFiles,
                 plan.EffectiveConfig.Build.FollowSymlinks,
                 cancellationToken).ConfigureAwait(false);
-            return new I18nPreparedBuild(rootDir, projectRootDir, finalOutputDir, overrides, plan, content, assets, buildLogger);
+            return new I18nPreparedBuild(
+                rootDir,
+                projectRootDir,
+                finalOutputDir,
+                overrides,
+                plan,
+                content,
+                assets,
+                buildLogger,
+                seoAlternates);
         }
         catch
         {
             await DisposeContentBodyStoreAsync(content.BodyStore).ConfigureAwait(false);
             throw;
         }
+    }
+
+    // Computed once in the parent so every language worker reuses the same hreflang groups.
+    private static IReadOnlyDictionary<string, IReadOnlyList<SeoAlternateModel>> BuildWorktreeSeoAlternates(
+        AppConfig config,
+        string rootDir,
+        IReadOnlyList<ContentDocument> documents,
+        BuildDiagnosticLogger logger)
+    {
+        var languages = I18nOutputMerger.GetLanguages(config.Site);
+        var defaultLanguage = I18nOutputMerger.GetDefaultLanguage(config.Site, languages);
+        var resolvedTheme = ThemePathResolver.Resolve(rootDir, config.Theme, logger);
+        var templateResolver = new ThemeTemplateResolver(
+            ThemeBootstrapper.BootstrapRequired(config, rootDir, logger).Manifest);
+        return SeoAlternatesService.BuildSeoAlternates(
+            config,
+            documents,
+            languages,
+            defaultLanguage,
+            BuildPathUtils.NormalizeBaseUrl(config.Site.BaseUrl),
+            templateResolver,
+            rootDir,
+            resolvedTheme.LayoutsDir);
     }
 
     internal async Task<(BuildVariantResult Result, int WarningCount, int ErrorCount)> ExecuteI18nWorktreeVariantAsync(
@@ -142,19 +180,9 @@ public sealed partial class SiteEngine
         BuildDiagnosticLogger buildLogger)
     {
         var resolved = ThemePathResolver.Resolve(request.RootDir, request.Config.Theme, buildLogger);
-        var bootstrap = ThemeBootstrapper.BootstrapRequired(request.Config, request.RootDir, buildLogger);
-        var templateResolver = new ThemeTemplateResolver(bootstrap.Manifest);
         var defaultLanguage = I18nOutputMerger.GetDefaultLanguage(request.Config.Site, languages);
         var rootBaseUrl = BuildPathUtils.NormalizeBaseUrl(request.Config.Site.BaseUrl);
-        var seoAlternates = SeoAlternatesService.BuildSeoAlternates(
-            request.Config,
-            snapshot.Documents,
-            languages,
-            defaultLanguage,
-            rootBaseUrl,
-            templateResolver,
-            request.RootDir,
-            resolved.LayoutsDir);
+        var seoAlternates = request.SeoAlternates;
         var baseUrl = I18nOutputMerger.CombineBaseUrlWithLanguage(rootBaseUrl, request.Language);
         var variantConfig = request.Config with
         {

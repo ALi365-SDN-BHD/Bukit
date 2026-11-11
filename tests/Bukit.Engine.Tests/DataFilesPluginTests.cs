@@ -77,6 +77,34 @@ public sealed class DataFilesPluginTests
     }
 
     [Fact]
+    public void DerivePages_TrimsLanguagesBeforeReadingDataDirectories()
+    {
+        var root = GetTempDir();
+        try
+        {
+            var dataDir = Path.Combine(root, "data");
+            Directory.CreateDirectory(Path.Combine(dataDir, "en"));
+            File.WriteAllText(Path.Combine(dataDir, "en", "strings.json"), """{"hello":"world"}""");
+            var config = CreateConfig() with { Site = CreateConfig().Site with { Languages = [" en"] } };
+            var plugin = new DataFilesPlugin(config);
+            var context = CreateContext(root);
+
+            Assert.Empty(plugin.DerivePages(context));
+
+            var data = Assert.IsType<Dictionary<string, object>>(context.Get(BuildDataKeys.DataFiles));
+            var language = Assert.IsType<Dictionary<string, object>>(data["en"]);
+            Assert.True(language.ContainsKey("strings"));
+        }
+        finally
+        {
+            if (Directory.Exists(root))
+            {
+                Directory.Delete(root, recursive: true);
+            }
+        }
+    }
+
+    [Fact]
     public void DerivePages_MixedGraphSharesBudgetsAndResetsThemPerCall()
     {
         var root = GetTempDir();

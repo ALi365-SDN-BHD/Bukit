@@ -784,6 +784,52 @@ public sealed class DoctorCommandTests : IDisposable
         Assert.Contains("pages/missing-post.html", output, StringComparison.OrdinalIgnoreCase);
     }
 
+    [Fact]
+    public async Task RunAsync_DetectsRouteConflictOnlyInNonDefaultLanguage()
+    {
+        File.WriteAllText(Path.Combine(_rootDir, "content", "a.md"), """
+            ---
+            title: A
+            slug: same
+            language: zh
+            ---
+            body
+            """);
+        File.WriteAllText(Path.Combine(_rootDir, "content", "b.md"), """
+            ---
+            title: B
+            slug: same
+            language: zh
+            ---
+            body
+            """);
+        File.WriteAllText(_configPath, """
+            site:
+              name: test
+              title: Test
+              language: en
+              languages: [en, zh]
+              defaultLanguage: en
+              collections:
+                post:
+                  permalink: /blog/{slug}/
+                  template: pages/post.html
+            content:
+              sources:
+                - type: markdown
+                  name: post
+                  collection: post
+                  markdown:
+                    dir: content
+            """);
+
+        var (exitCode, output) = await RunDoctorAsync();
+
+        Assert.Equal(1, exitCode);
+        Assert.Contains("Route conflict", output, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("content:zh", output, StringComparison.OrdinalIgnoreCase);
+    }
+
     private async Task<(int ExitCode, string Output)> RunDoctorAsync()
     {
         using var writer = new StringWriter(new StringBuilder());

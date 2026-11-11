@@ -46,36 +46,115 @@ public static class RouteInventoryValidator
         var loadResult = await provider.LoadRawAsync(cancellationToken);
         try
         {
-            ContentCollectionContractValidator.Validate(loadResult.Documents);
-            var documents = ContentDocumentNormalizer.ToDocuments(loadResult.Documents);
-            if (!config.Build.Draft)
-            {
-                documents = documents.Where(i => ContentFieldReader.GetBool(i.CustomFields, "draft") is not true).ToList();
-            }
-
-            var siteLanguages = config.Site.Languages;
-            if (siteLanguages is null or { Count: 0 })
-            {
-                var siteLanguage = config.Site.Language;
-                documents = I18nOutputMerger.FilterDocumentsByLanguage(documents, siteLanguage, siteLanguage);
-            }
-            else
-            {
-                var defaultLang = I18nOutputMerger.GetDefaultLanguage(config.Site, siteLanguages);
-                documents = I18nOutputMerger.FilterDocumentsByLanguage(documents, defaultLang, defaultLang);
-            }
-
-            var contentDocuments = documents.Where(i => !ContentFieldReader.IsDataItem(i)).ToList();
-            var collectionRules = BuildCollectionRules(config.Site);
-            return contentDocuments
-                .Select(i => new RoutedContentDocument(i, RouteGenerator.Generate(i, config.Site.OutputPathEncoding, config.Site.Permalinks, collectionRules)))
-                .Select(x => x with { Route = ResolveRouteTemplate(x.Document, x.Route, templateResolver) })
-                .ToList();
+            var documents = LoadDocuments(config, loadResult);
+            var languages = I18nOutputMerger.GetLanguages(config.Site);
+            var defaultLanguage = languages.Count == 0
+                ? config.Site.Language
+                : I18nOutputMerger.GetDefaultLanguage(config.Site, languages);
+            return BuildRoutes(
+                documents,
+                config,
+                defaultLanguage,
+                defaultLanguage,
+                BuildCollectionRules(config.Site),
+                templateResolver);
         }
         finally
         {
             await DisposeBodyStoreAsync(loadResult.BodyStore);
         }
+    }
+
+    internal static async Task<IReadOnlyDictionary<string, IReadOnlyList<RoutedContentDocument>>> BuildContentRoutesByLanguageAsync(
+        AppConfig config,
+        string rootDir,
+        bool isCi,
+        ILogger logger,
+        ThemeTemplateResolver? templateResolver = null,
+        CancellationToken cancellationToken = default)
+    {
+        var provider = ContentProviderFactory.Create(config, rootDir, isCi, logger);
+        return await BuildContentRoutesByLanguageAsync(
+            config,
+            rootDir,
+            logger,
+            provider,
+            templateResolver,
+            cancellationToken);
+    }
+
+    internal static async Task<IReadOnlyDictionary<string, IReadOnlyList<RoutedContentDocument>>> BuildContentRoutesByLanguageAsync(
+        AppConfig config,
+        string rootDir,
+        ILogger logger,
+        IContentProvider provider,
+        ThemeTemplateResolver? templateResolver = null,
+        CancellationToken cancellationToken = default)
+    {
+        var loadResult = await provider.LoadRawAsync(cancellationToken);
+        try
+        {
+            var documents = LoadDocuments(config, loadResult);
+            var languages = I18nOutputMerger.GetLanguages(config.Site);
+            var collectionRules = BuildCollectionRules(config.Site);
+            if (languages.Count == 0)
+            {
+                var siteLanguage = config.Site.Language;
+                return new Dictionary<string, IReadOnlyList<RoutedContentDocument>>(StringComparer.OrdinalIgnoreCase)
+                {
+                    [siteLanguage] = BuildRoutes(
+                        documents,
+                        config,
+                        siteLanguage,
+                        siteLanguage,
+                        collectionRules,
+                        templateResolver)
+                };
+            }
+
+            var defaultLanguage = I18nOutputMerger.GetDefaultLanguage(config.Site, languages);
+            var result = new Dictionary<string, IReadOnlyList<RoutedContentDocument>>(StringComparer.OrdinalIgnoreCase);
+            foreach (var language in languages)
+            {
+                result[language] = BuildRoutes(
+                    documents,
+                    config,
+                    language,
+                    defaultLanguage,
+                    collectionRules,
+                    templateResolver);
+            }
+
+            return result;
+        }
+        finally
+        {
+            await DisposeBodyStoreAsync(loadResult.BodyStore);
+        }
+    }
+
+    private static IReadOnlyList<ContentDocument> LoadDocuments(AppConfig config, RawContentLoadResult loadResult)
+    {
+        ContentCollectionContractValidator.Validate(loadResult.Documents);
+        var documents = ContentDocumentNormalizer.ToDocuments(loadResult.Documents);
+        return config.Build.Draft
+            ? documents
+            : documents.Where(i => ContentFieldReader.GetBool(i.CustomFields, "draft") is not true).ToList();
+    }
+
+    private static List<RoutedContentDocument> BuildRoutes(
+        IReadOnlyList<ContentDocument> documents,
+        AppConfig config,
+        string language,
+        string defaultLanguage,
+        IReadOnlyDictionary<string, RouteGenerator.CollectionRouteRule>? collectionRules,
+        ThemeTemplateResolver? templateResolver)
+    {
+        return I18nOutputMerger.FilterDocumentsByLanguage(documents, language, defaultLanguage)
+            .Where(i => !ContentFieldReader.IsDataItem(i))
+            .Select(i => new RoutedContentDocument(i, RouteGenerator.Generate(i, config.Site.OutputPathEncoding, config.Site.Permalinks, collectionRules)))
+            .Select(x => x with { Route = ResolveRouteTemplate(x.Document, x.Route, templateResolver) })
+            .ToList();
     }
 
     private static async ValueTask DisposeBodyStoreAsync(IContentBodyStore bodyStore)

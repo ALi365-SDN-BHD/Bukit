@@ -89,7 +89,7 @@ internal static class ContentDocumentFactory
 
         var authorProjection = ContentAuthorProfileProjectionReader.Read(fields);
         return new ContentRecord(
-            new ContentIdentity(id, slug, ContentFieldReader.GetText(fields, "i18nKey") ?? slug, type, status),
+            new ContentIdentity(id, slug, ContentFieldReader.GetI18nKeyOrDefault(fields, slug), type, status),
             new ContentPresentation(title, GetSummary(fields), contentHtml, ContentFieldReader.GetText(fields, "language") ?? "und", Array.Empty<string>()),
             new ContentClassification(type, collection, Array.Empty<string>(), ContentFieldReader.GetTextList(fields, "tags") ?? Array.Empty<string>()),
             new ContentOwnership(ContentFieldReader.GetText(fields, "author"), ContentFieldReader.GetText(fields, "organization"), ContentFieldReader.GetText(fields, "owner"), ContentFieldReader.GetText(fields, "reviewer"))

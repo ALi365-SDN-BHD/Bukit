@@ -14,7 +14,7 @@ public static class ConfigValidator
 
     public static void Validate(AppConfig config, ConfigValidationOptions options)
     {
-        I18nValidator.ValidateSite(config.Site);
+        SiteConfigValidator.ValidateSite(config.Site);
         ValidateBreadcrumbParent(config);
 
         if (config.Site.Analytics.Csp is not null && !config.Build.Report.Enabled)

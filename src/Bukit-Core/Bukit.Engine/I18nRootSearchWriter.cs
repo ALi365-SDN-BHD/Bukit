@@ -10,9 +10,10 @@ internal sealed class I18nRootSearchWriter : II18nRootProjectionWriter
     {
         _ = representation;
         var searchMode = SiteModeResolver.ResolveSearchMode(context.Config.Site);
+        var builder = context.SearchIndexBuilder ?? new DefaultSearchIndexBuilder();
         if (searchMode == "merged")
         {
-            SearchIndexBuilder.GenerateMergedSearchIndex(
+            builder.GenerateMergedSearchIndex(
                 context.OutputDir,
                 context.Results,
                 context.Config.Site.SearchIncludeDerived,
@@ -20,7 +21,7 @@ internal sealed class I18nRootSearchWriter : II18nRootProjectionWriter
         }
         else if (searchMode == "index")
         {
-            SearchIndexBuilder.GenerateSearchIndexIndex(context.OutputDir, context.Results);
+            builder.GenerateSearchIndexIndex(context.OutputDir, context.Results);
         }
     }
 }

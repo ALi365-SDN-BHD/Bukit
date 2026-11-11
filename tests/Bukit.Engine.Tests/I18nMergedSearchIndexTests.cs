@@ -124,6 +124,22 @@ public sealed class I18nMergedSearchIndexTests
         }
     }
 
+    [Fact]
+    public void MergedVariantState_DeduplicatesRecordsSharedAcrossVariantGraphs()
+    {
+        var en = CreateVariant("en", "/en", "en-post", "body");
+        var zh = CreateVariant("zh", "/zh", "zh-post", "body");
+        var sharedGraph = CanonicalContentGraphBuilder.BuildFromDocuments([en.RoutedDocuments[0].Document]);
+
+        var state = I18nMergedVariantState.Create([
+            en with { ContentGraph = sharedGraph },
+            zh with { ContentGraph = sharedGraph }
+        ]);
+
+        var record = Assert.Single(state.ContentGraph.Records);
+        Assert.Equal("en-post", record.Identity.Id);
+    }
+
     private static BuildVariantResult CreateVariant(
         string language,
         string baseUrl,

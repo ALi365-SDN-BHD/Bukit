@@ -48,6 +48,27 @@ public sealed class CanonicalContentGraphContractTests
     }
 
     [Fact]
+    public void CanonicalRecord_UsesI18nKeyAliasForCanonicalUrlKey()
+    {
+        var fields = ContentFieldReader.ToFieldMap(new Dictionary<string, object>
+        {
+            ["i18n_key"] = "about"
+        });
+        var raw = new RawContentDocument(
+            "page-1",
+            "markdown",
+            "About",
+            "page-1",
+            DateTimeOffset.UnixEpoch,
+            new RawBody(),
+            CustomFields: fields);
+
+        var document = ContentDocumentNormalizer.ToDocument(raw);
+
+        Assert.Equal("about", document.Record.Identity.CanonicalUrlKey);
+    }
+
+    [Fact]
     public void CanonicalContentValidator_DuplicateIdsAndDanglingTargets_AreReported()
     {
         var graph = CanonicalContentGraphBuilder.BuildFromDocuments([

@@ -40,10 +40,18 @@ internal sealed record I18nMergedVariantState(
             }
         }
 
+        var uniqueRecords = records
+            .DistinctBy(
+                record => record.Identity.Id + "\n" + record.Presentation.Language,
+                StringComparer.OrdinalIgnoreCase)
+            .ToList();
+        var uniqueEntities = entities
+            .DistinctBy(entity => entity.Type + "\n" + entity.Name, StringComparer.OrdinalIgnoreCase)
+            .ToList();
         return new I18nMergedVariantState(
             routedDocuments,
             derivedDocuments,
-            new CanonicalContentGraph(records, entities),
+            new CanonicalContentGraph(uniqueRecords, uniqueEntities),
             new MergedVariantContentBodyStore(bodySources),
             BuildSeoIndex(results),
             seoModels);

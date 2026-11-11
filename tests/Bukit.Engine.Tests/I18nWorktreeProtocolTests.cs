@@ -151,6 +151,7 @@ public sealed class I18nWorktreeProtocolTests : IDisposable
         var engine = new SiteEngine(logger, factory, new DefaultSearchIndexBuilder());
         await using var prepared = await engine.PrepareI18nWorktreeBuildAsync(
             config, root, root, finalOutput, overrides, CancellationToken.None);
+        Assert.Contains("i18n:home", prepared.SeoAlternates.Keys);
         var snapshot = await I18nWorktreeProtocol.CaptureContentAsync(
             "head", prepared.Plan.StartedAt, prepared.Content, root, root, CancellationToken.None);
         var snapshotPath = Path.Combine(_root, "content-snapshot.json");
@@ -167,8 +168,8 @@ public sealed class I18nWorktreeProtocolTests : IDisposable
             var request = new I18nWorkerRequest(
                 I18nWorktreeProtocol.RequestSchema, "head", configHash, contentHash, language, "text",
                 configPath, root, root, config, overrides, output, Path.Combine(_root, "worker-cache", language),
-                prepared.AssetsDir, prepared.ScssOutputDir, prepared.Plan.MediaCacheDir, snapshotPath,
-                Path.Combine(_root, "result-" + language + ".json"));
+                prepared.AssetsDir, prepared.ScssOutputDir, prepared.Plan.MediaCacheDir, prepared.SeoAlternates,
+                snapshotPath, Path.Combine(_root, "result-" + language + ".json"));
             var (result, warnings, errors) = await engine.ExecuteI18nWorktreeVariantAsync(
                 request, snapshot, logger, CancellationToken.None);
             var captured = await I18nWorktreeProtocol.CaptureVariantAsync(
