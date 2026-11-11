@@ -77,9 +77,9 @@ public sealed class LlmsProjectionIntegrationTests
     [Theory]
     [InlineData("geo:")]
     [InlineData("geo:\n  llms:\n    visibility: include")]
-    public async Task BuildAsync_EmptyOrValidCurationStrict_BuildsAndIncludesPages(string brokenFrontMatter)
+    public async Task BuildAsync_EmptyOrValidCurationStrict_BuildsAndIncludesPages(string frontMatter)
     {
-        var root = CreateCurationSite("strict", brokenFrontMatter);
+        var root = CreateCurationSite("strict", frontMatter);
         try
         {
             var config = ConfigLoader.Load(Path.Combine(root, "site.yaml"));
@@ -89,6 +89,9 @@ public sealed class LlmsProjectionIntegrationTests
             var llms = File.ReadAllText(Path.Combine(root, "dist", "llms.txt"));
             Assert.Contains("https://example.com/blog/visible/", llms, StringComparison.Ordinal);
             Assert.Contains("https://example.com/blog/broken/", llms, StringComparison.Ordinal);
+            var llmsFull = File.ReadAllText(Path.Combine(root, "dist", "llms-full.txt"));
+            Assert.Contains("https://example.com/blog/visible/", llmsFull, StringComparison.Ordinal);
+            Assert.Contains("https://example.com/blog/broken/", llmsFull, StringComparison.Ordinal);
         }
         finally
         {
@@ -118,6 +121,7 @@ public sealed class LlmsProjectionIntegrationTests
                 geo:
                   enabled: true
                   llmsTxt: true
+                  llmsFullTxt: true
             content:
               sources:
                 - type: markdown
