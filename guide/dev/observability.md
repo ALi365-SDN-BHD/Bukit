@@ -60,7 +60,9 @@ of that scope:
 - Multi-language finalize: `collect-and-clean`, `root-outputs`,
   `seo-audit-merged`, `metrics-write` (only with `--metrics`),
   `output-inventory`, `security-data`, `security-report`, the writer lines,
-  `security-gate`.
+  `security-gate`. `seo-audit-merged` also logs the diagnostics the language
+  variants hand back: their audit issues and the merged
+  `incremental.signed_links` warning.
 
 A step that throws is not logged, and neither is its scope's `total`.
 

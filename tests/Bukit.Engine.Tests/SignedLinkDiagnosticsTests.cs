@@ -96,6 +96,23 @@ public sealed class SignedLinkDiagnosticsTests
         Assert.Contains("keys=site.data_files:1", warning, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public async Task MultiLanguageBuild_ReportsLanguagesWithDifferentFindingsOnSeparateLines()
+    {
+        using var site = new SiteBuilder("i18n-site");
+        site.Sandbox.Write("data/menu.json", JsonSerializer.Serialize(new { image = AwsSigned + "shared" }));
+        var english = File.ReadAllText(site.Sandbox.PathFor("content/en/index.md"));
+        site.Sandbox.Write("content/en/index.md", english.Replace("language: en\n", $"language: en\ncover: \"{AwsSigned}en\"\n", StringComparison.Ordinal));
+        var logger = new RecordingLogger();
+
+        await BuildAsync(site, logger);
+
+        var warnings = logger.Warnings.Where(message => message.Contains("event=incremental.signed_links", StringComparison.Ordinal)).ToArray();
+        Assert.Equal(2, warnings.Length);
+        Assert.Single(warnings, warning => warning.Contains(" language=en keys=", StringComparison.Ordinal) && warning.Contains("pages:1", StringComparison.Ordinal));
+        Assert.Single(warnings, warning => warning.Contains(" language=zh-CN keys=site.data_files:1 ", StringComparison.Ordinal));
+    }
+
     private static SiteBuilder CreateSite(string image)
     {
         var site = new SiteBuilder();

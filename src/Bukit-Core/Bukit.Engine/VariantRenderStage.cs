@@ -64,7 +64,7 @@ internal static class VariantRenderStage
             var pageDocuments = renderAssetPlan.RenderDocuments.Select(document => document.Document);
             if (context.DefaultLanguage is null)
             {
-                SignedLinkDiagnostics.Report(signedLinkContext, pageDocuments, language: null, logger);
+                SignedLinkDiagnostics.Report(signedLinkContext, pageDocuments, logger);
             }
             else
             {

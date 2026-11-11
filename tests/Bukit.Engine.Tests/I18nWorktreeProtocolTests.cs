@@ -154,6 +154,59 @@ public sealed class I18nWorktreeProtocolTests : IDisposable
         await using var prepared = await engine.PrepareI18nWorktreeBuildAsync(
             config, root, root, finalOutput, overrides, CancellationToken.None);
         Assert.Contains("i18n:home", prepared.SeoAlternates.Keys);
+        var variants = await RunWorkerVariantsAsync(engine, prepared, config, configPath, root, overrides, logger);
+        Assert.Equal(1, factory.LoadCount);
+        Assert.Equal(new[] { "en", "zh-CN" }, variants.Select(x => x.Language));
+
+        var error = await Assert.ThrowsAsync<InvalidDataException>(() => engine.FinalizeI18nWorktreeBuildAsync(
+            prepared, duplicate ? [variants[0], variants[0]] : [variants[0]], 0, 0, CancellationToken.None));
+
+        Assert.Contains("complete configured language set", error.Message, StringComparison.Ordinal);
+        Assert.Equal(oldOutput, await File.ReadAllBytesAsync(outputSentinel));
+        Assert.Equal(oldCache, await File.ReadAllBytesAsync(cacheSentinel));
+        Assert.Equal(1, factory.LoadCount);
+    }
+
+    [Fact]
+    public async Task WorktreeBuild_ReportsSharedSignedLinksOnceAfterTheWorkerRoundTrip()
+    {
+        var root = Path.Combine(_root, "project");
+        var configPath = CreateSite(root);
+        Directory.CreateDirectory(Path.Combine(root, "data"));
+        File.WriteAllText(Path.Combine(root, "data", "menu.json"),
+            "{\"image\":\"https://bucket.s3.amazonaws.com/a.png?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Signature=abc\"}");
+        var config = ConfigLoader.Load(configPath);
+        var overrides = new ConfigOverrides
+        {
+            Output = Path.Combine(_root, "staging-output"),
+            CacheDir = Path.Combine(_root, "staging-cache"),
+            Clean = false,
+            Incremental = true,
+            Jobs = 1
+        };
+        var logger = new WarningLogger();
+        var engine = new SiteEngine(logger, new CountingContentProviderFactory(), new DefaultSearchIndexBuilder());
+        await using var prepared = await engine.PrepareI18nWorktreeBuildAsync(
+            config, root, root, Path.Combine(root, "dist"), overrides, CancellationToken.None);
+        var variants = await RunWorkerVariantsAsync(engine, prepared, config, configPath, root, overrides, logger);
+        Assert.All(variants, variant => Assert.Equal([new SignedLinkFinding("site.data_files", 1)], variant.SignedLinks));
+
+        await engine.FinalizeI18nWorktreeBuildAsync(prepared, variants, 0, 0, CancellationToken.None);
+
+        var warning = Assert.Single(logger.Warnings, message => message.Contains("event=incremental.signed_links", StringComparison.Ordinal));
+        Assert.Contains(" language=en,zh-CN keys=site.data_files:1 ", warning, StringComparison.Ordinal);
+    }
+
+    // Runs each language the way a worktree worker does, through the content and result files.
+    private async Task<List<BuildVariantResult>> RunWorkerVariantsAsync(
+        SiteEngine engine,
+        I18nPreparedBuild prepared,
+        AppConfig config,
+        string configPath,
+        string root,
+        ConfigOverrides overrides,
+        ILogger logger)
+    {
         var snapshot = await I18nWorktreeProtocol.CaptureContentAsync(
             "head", prepared.Plan.StartedAt, prepared.Content, root, root, CancellationToken.None);
         var snapshotPath = Path.Combine(_root, "content-snapshot.json");
@@ -166,7 +219,7 @@ public sealed class I18nWorktreeProtocolTests : IDisposable
         var variants = new List<BuildVariantResult>();
         foreach (var language in new[] { "en", "zh-CN" })
         {
-            var output = Path.Combine(overrides.Output, language);
+            var output = Path.Combine(overrides.Output!, language);
             var request = new I18nWorkerRequest(
                 I18nWorktreeProtocol.RequestSchema, "head", configHash, contentHash, language, "text",
                 configPath, root, root, config, overrides, output, Path.Combine(_root, "worker-cache", language),
@@ -176,28 +229,21 @@ public sealed class I18nWorktreeProtocolTests : IDisposable
                 request, snapshot, logger, CancellationToken.None);
             var captured = await I18nWorktreeProtocol.CaptureVariantAsync(
                 request.Head, request.ConfigHash, request.ContentHash, result, warnings, errors, CancellationToken.None);
+            await I18nWorktreeProtocolStore.WriteResultAsync(request.ResultPath, captured, CancellationToken.None);
+            captured = await I18nWorktreeProtocolStore.ReadResultAsync(request.ResultPath, CancellationToken.None);
             Assert.Equal(snapshot.Head, captured.Head);
             Assert.Equal(configHash, captured.ConfigHash);
             Assert.Equal(contentHash, captured.ContentHash);
             Assert.True(captured.Completed);
             var restored = I18nWorktreeProtocol.RestoreVariant(
                 captured, prepared.Content.ContentGraph!, "head", configHash, contentHash, language, output,
-                Path.Combine(overrides.CacheDir, "build-manifest." + language + ".json"));
+                Path.Combine(overrides.CacheDir!, "build-manifest." + language + ".json"));
             var page = Assert.Single(restored.RoutedDocuments);
             Assert.Contains(language == "en" ? "English body" : "Chinese body",
                 await File.ReadAllTextAsync(Path.Combine(output, page.Route.OutputPath)), StringComparison.Ordinal);
             variants.Add(restored);
         }
-        Assert.Equal(1, factory.LoadCount);
-        Assert.Equal(new[] { "en", "zh-CN" }, variants.Select(x => x.Language));
-
-        var error = await Assert.ThrowsAsync<InvalidDataException>(() => engine.FinalizeI18nWorktreeBuildAsync(
-            prepared, duplicate ? [variants[0], variants[0]] : [variants[0]], 0, 0, CancellationToken.None));
-
-        Assert.Contains("complete configured language set", error.Message, StringComparison.Ordinal);
-        Assert.Equal(oldOutput, await File.ReadAllBytesAsync(outputSentinel));
-        Assert.Equal(oldCache, await File.ReadAllBytesAsync(cacheSentinel));
-        Assert.Equal(1, factory.LoadCount);
+        return variants;
     }
 
     [Fact]
@@ -314,6 +360,21 @@ public sealed class I18nWorktreeProtocolTests : IDisposable
         File.WriteAllText(Path.Combine(root, "layouts", "pages", "page.html"), "{{ page.content }}");
         File.WriteAllText(Path.Combine(root, "layouts", "pages", "index.html"), "{{ content }}");
         return path;
+    }
+
+    private sealed class WarningLogger : ILogger
+    {
+        private readonly System.Collections.Concurrent.ConcurrentQueue<string> _warnings = new();
+
+        public IReadOnlyCollection<string> Warnings => _warnings;
+
+        public void Debug(string message) { }
+
+        public void Info(string message) { }
+
+        public void Warn(string message) => _warnings.Enqueue(message);
+
+        public void Error(string message) { }
     }
 
     private sealed class CountingContentProviderFactory : IContentProviderFactory

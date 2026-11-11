@@ -19,13 +19,13 @@ internal sealed record SignedLinkFinding(string Key, int Count);
 /// </summary>
 internal static partial class SignedLinkDiagnostics
 {
+    /// <summary>Logs the findings of a single-language build; language variants use <see cref="ReportMerged"/>.</summary>
     internal static void Report(
         RenderDependencyContext context,
         IEnumerable<ContentDocument>? pageDocuments,
-        string? language,
         ILogger logger)
     {
-        Log(FindFindings(context, pageDocuments), language, logger);
+        Log(FindFindings(context, pageDocuments), language: null, logger);
     }
 
     internal static IReadOnlyList<SignedLinkFinding> FindFindings(
