@@ -111,12 +111,25 @@ public sealed class NotionClient : IDisposable
     }
 
     public async Task<JsonDocument> GetAsync(string url, CancellationToken cancellationToken = default)
-    {
-        using var request = new HttpRequestMessage(HttpMethod.Get, url);
-        return await SendAsync(request, NotionRequestSemantics.IdempotentRead, cancellationToken);
-    }
+        => (await GetWithServerTimeAsync(url, cancellationToken)).Document;
 
     public async Task<JsonDocument> SendAsync(
+        HttpRequestMessage request,
+        NotionRequestSemantics semantics,
+        CancellationToken cancellationToken = default)
+        => (await SendWithServerTimeAsync(request, semantics, cancellationToken)).Document;
+
+    internal async Task<NotionResponse> GetWithServerTimeAsync(string url, CancellationToken cancellationToken = default)
+    {
+        using var request = new HttpRequestMessage(HttpMethod.Get, url);
+        return await SendWithServerTimeAsync(request, NotionRequestSemantics.IdempotentRead, cancellationToken);
+    }
+
+    /// <summary>
+    /// Sends a request and returns the parsed body with Notion's clock reading: the
+    /// response <c>Date</c> header, or the local UTC clock when the header is missing.
+    /// </summary>
+    internal async Task<NotionResponse> SendWithServerTimeAsync(
         HttpRequestMessage request,
         NotionRequestSemantics semantics,
         CancellationToken cancellationToken = default)
@@ -197,7 +210,7 @@ public sealed class NotionClient : IDisposable
 
                 try
                 {
-                    return JsonDocument.Parse(body);
+                    return new NotionResponse(JsonDocument.Parse(body), response.Headers.Date ?? _utcNow());
                 }
                 catch (JsonException exception)
                 {
@@ -554,3 +567,6 @@ public sealed class NotionClient : IDisposable
         }
     }
 }
+
+/// <summary>A parsed Notion response and the server time it was produced at.</summary>
+internal readonly record struct NotionResponse(JsonDocument Document, DateTimeOffset ServerTime);

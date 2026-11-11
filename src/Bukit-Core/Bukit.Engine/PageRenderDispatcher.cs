@@ -3,6 +3,7 @@ using System.Collections.Concurrent;
 using System.Diagnostics;
 using Bukit.Config;
 using Bukit.Content;
+using Bukit.Engine.Abstractions;
 using Bukit.Engine.Abstractions.Content;
 using Bukit.Engine.Incremental;
 using Bukit.Rendering;
@@ -52,12 +53,14 @@ internal static class PageRenderDispatcher
         Func<RouteInfo, PageInfo, SeoModel>? listSeoBuilder = null,
         Func<RouteInfo, string>? renderDependencyHashResolver = null,
         IReadOnlyDictionary<string, RouteMetadataEntry>? routeMetadata = null,
-        HtmlTransformPipeline? htmlTransformPipeline = null)
+        HtmlTransformPipeline? htmlTransformPipeline = null,
+        RenderDependencySnapshot? dependencySnapshot = null)
     {
         var renderedCount = 0;
         var skippedCount = 0;
         var renderReasons = new ConcurrentDictionary<string, int>(StringComparer.OrdinalIgnoreCase);
         var stageMetrics = new BuildStageMetricsCollector();
+        var dispatchStarted = Stopwatch.GetTimestamp();
 
         var effectiveParallelism = ComputeOptimalParallelism(entries.Count, maxDegreeOfParallelism);
         var parallelOptions = new ParallelOptions { MaxDegreeOfParallelism = effectiveParallelism, CancellationToken = cancellationToken };
@@ -83,7 +86,7 @@ internal static class PageRenderDispatcher
                     Summary = document.Record.Presentation.Summary ?? ContentFieldReader.GetSummary(document),
                     PublishDate = document.PublishAt,
                     UpdatedAt = document.Record.Lifecycle.UpdatedAt,
-                    Fields = document.CustomFields,
+                    Fields = CrossPageFields.Visible(document.CustomFields),
                     ContentRecord = document.Record,
                     Entities = document.Record.Entities,
                     Provenance = document.Record.Provenance,
@@ -96,9 +99,10 @@ internal static class PageRenderDispatcher
             })
             .ToArray();
 
-        await Parallel.ForEachAsync(entries, parallelOptions, async (entry, ct) =>
+        var dispatchTask = Parallel.ForEachAsync(entries, parallelOptions, async (entry, ct) =>
         {
-            var entryRenderDependencyHash = renderDependencyHashResolver?.Invoke(entry.Route) ?? renderDependencyHash;
+            // Site-wide inputs plus this route's metadata and breadcrumb; shared collections are added per route.
+            var routeBaseHash = renderDependencyHashResolver?.Invoke(entry.Route) ?? renderDependencyHash;
             switch (entry.Kind)
             {
                 case RenderEntryKind.Page:
@@ -117,6 +121,8 @@ internal static class PageRenderDispatcher
 
                         BuildManifestEntry? existing = null;
                         var hasExisting = needsIncrementalMode && manifestEntries!.TryGetValue(key, out existing) && existing is not null;
+                        // Compare against the collections the previous render read.
+                        var entryRenderDependencyHash = RenderReadTracking.HashFor(dependencySnapshot, routeBaseHash, existing?.RenderReads);
 
                         var canEvaluateSkip = incrementalEnabled && hasExisting && outputExists &&
                             existing!.TemplateHash == templateHash && existing.MetadataHash == mh &&
@@ -142,11 +148,12 @@ internal static class PageRenderDispatcher
 
                         if (incrementalEnabled)
                         {
+                            // "metadata_changed" covers record and custom-field changes; "content_changed" is the body alone.
                             var reason = !hasExisting ? "new_page" : !outputExists ? "output_missing"
                                 : existing!.TemplateHash != templateHash ? "template_changed"
-                                : existing.MetadataHash != mh ? "content_changed"
+                                : existing.MetadataHash != mh ? "metadata_changed"
                                 : existing.RouteHash != rh ? "route_changed"
-                                : existing.RenderDependencyHash != entryRenderDependencyHash ? "render_dependency_changed"
+                                : existing.RenderDependencyHash != entryRenderDependencyHash ? RenderReadTracking.ChangeReason(dependencySnapshot, existing, routeBaseHash)
                                 : contentHash is not null && existing.ContentHash != contentHash ? "content_changed" : "render";
                             renderReasons.AddOrUpdate(reason, 1, (_, v) => v + 1);
                         }
@@ -161,6 +168,7 @@ internal static class PageRenderDispatcher
                         bodyLoadSw.Stop();
                         stageMetrics.Increment("bodyLoad");
                         stageMetrics.AddDuration("bodyLoad", bodyLoadSw.ElapsedMilliseconds);
+                        var pageRenderStarted = Stopwatch.GetTimestamp();
                         var seo = seoBuilder?.Invoke(document, route);
                         var pageInfo = new PageInfo
                         {
@@ -197,17 +205,23 @@ internal static class PageRenderDispatcher
                                 pageInfo, route.Url, routeMetadata, document);
                         }
                         var pageModel = new PageModel { Site = siteModel, Page = pageInfo, Pages = pageIndex };
-                        var html = renderer.RenderPage(route.Template, pageModel);
+                        var renderCallStarted = Stopwatch.GetTimestamp();
+                        var html = RenderReadTracking.Render(dependencySnapshot, () => renderer.RenderPage(route.Template, pageModel), out var pageReads);
+                        stageMetrics.AddElapsedTicks("renderCall", Stopwatch.GetTimestamp() - renderCallStarted);
                         if (htmlTransformPipeline is not null)
                         {
+                            var transformStarted = Stopwatch.GetTimestamp();
                             html = htmlTransformPipeline.Transform(
                                 route, HtmlDocumentKind.Content, pageInfo, document, logger, html);
+                            stageMetrics.AddElapsedTicks("htmlTransform", Stopwatch.GetTimestamp() - transformStarted);
                         }
+                        var writeStarted = Stopwatch.GetTimestamp();
                         await WriteUtf8LockedAsync(outputDir, route.OutputPath, html, writeLocks, ct);
+                        stageMetrics.AddElapsedTicks("renderWrite", Stopwatch.GetTimestamp() - writeStarted);
                         Interlocked.Increment(ref renderedCount);
                         stageMetrics.Increment("pageRender");
-                        stageMetrics.AddDuration("pageRender", 0);
-                        if (needsIncrementalMode) manifestEntries![key] = new BuildManifestEntry { OutputPath = key, Url = route.Url, Template = route.Template, MetadataHash = mh, ContentHash = contentHash ?? IncrementalBuildEngine.ComputeContentHash(document, mh, content), RouteHash = rh, TemplateHash = templateHash, RenderDependencyHash = entryRenderDependencyHash };
+                        stageMetrics.AddElapsedTicks("pageRender", Stopwatch.GetTimestamp() - pageRenderStarted);
+                        if (needsIncrementalMode) manifestEntries![key] = new BuildManifestEntry { OutputPath = key, Url = route.Url, Template = route.Template, MetadataHash = mh, ContentHash = contentHash ?? IncrementalBuildEngine.ComputeContentHash(document, mh, content), RouteHash = rh, TemplateHash = templateHash, RenderDependencyHash = RenderReadTracking.HashFor(dependencySnapshot, routeBaseHash, pageReads), RenderBaseHash = dependencySnapshot is null ? null : routeBaseHash, RenderReads = pageReads };
                         break;
                     }
 
@@ -223,6 +237,7 @@ internal static class PageRenderDispatcher
                         var outputExists = File.Exists(outputPath);
                         manifest.Entries.TryGetValue(key, out var le);
                         var hasExisting = incrementalEnabled && le is not null;
+                        var entryRenderDependencyHash = RenderReadTracking.HashFor(dependencySnapshot, routeBaseHash, le?.RenderReads);
 
                         var canSkip = incrementalEnabled && hasExisting && outputExists &&
                             le!.TemplateHash == templateHash && le.ContentHash == ch &&
@@ -236,6 +251,7 @@ internal static class PageRenderDispatcher
                         }
 
                         var pageInfos = await SpecialListRenderer.BuildPageInfosAsync(source, bodyStore, includeContent, maxDegreeOfParallelism, entries.Count, ct, stageMetrics, "listBodyLoad", seoBuilder);
+                        var listRenderStarted = Stopwatch.GetTimestamp();
                         var listPage = SpecialListRenderer.CreateListPageInfo(siteModel, listRoute, entry.ListPageContext);
                         if (entry.ListPageFields is not null)
                         {
@@ -245,27 +261,34 @@ internal static class PageRenderDispatcher
 
                         listPage = listPage with { Seo = listSeoBuilder?.Invoke(listRoute, listPage) };
                         var listModel = SpecialListRenderer.CreateListPageModel(siteModel, listPage, pageInfos, entry.ListPageContext);
-                        var listHtml = renderer.RenderList(listRoute.Template, listModel);
+                        var listCallStarted = Stopwatch.GetTimestamp();
+                        var listHtml = RenderReadTracking.Render(dependencySnapshot, () => renderer.RenderList(listRoute.Template, listModel), out var listReads);
+                        stageMetrics.AddElapsedTicks("renderCall", Stopwatch.GetTimestamp() - listCallStarted);
                         if (htmlTransformPipeline is not null)
                         {
+                            var transformStarted = Stopwatch.GetTimestamp();
                             listHtml = htmlTransformPipeline.Transform(
                                 listRoute, HtmlDocumentKind.List, listPage, null, logger, listHtml);
+                            stageMetrics.AddElapsedTicks("htmlTransform", Stopwatch.GetTimestamp() - transformStarted);
                         }
+                        var listWriteStarted = Stopwatch.GetTimestamp();
                         await WriteUtf8LockedAsync(outputDir, listRoute.OutputPath, listHtml, writeLocks, ct);
+                        stageMetrics.AddElapsedTicks("renderWrite", Stopwatch.GetTimestamp() - listWriteStarted);
                         Interlocked.Increment(ref renderedCount);
                         renderReasons.AddOrUpdate("list_render", 1, (_, v) => v + 1);
                         stageMetrics.Increment("listBuild");
-                        stageMetrics.AddDuration("listBuild", 0);
+                        stageMetrics.AddElapsedTicks("listBuild", Stopwatch.GetTimestamp() - listRenderStarted);
 
                         if (needsIncrementalMode)
                         {
-                            manifestEntries![key] = new BuildManifestEntry { OutputPath = key, Url = listRoute.Url, Template = listRoute.Template, ContentHash = ch, RouteHash = rh, TemplateHash = templateHash, RenderDependencyHash = entryRenderDependencyHash };
+                            manifestEntries![key] = new BuildManifestEntry { OutputPath = key, Url = listRoute.Url, Template = listRoute.Template, ContentHash = ch, RouteHash = rh, TemplateHash = templateHash, RenderDependencyHash = RenderReadTracking.HashFor(dependencySnapshot, routeBaseHash, listReads), RenderBaseHash = dependencySnapshot is null ? null : routeBaseHash, RenderReads = listReads };
                         }
                         break;
                     }
 
                 case RenderEntryKind.Static:
                     {
+                        var staticRenderStarted = Stopwatch.GetTimestamp();
                         var route = entry.Route;
                         var pageInfo = new PageInfo
                         {
@@ -277,20 +300,41 @@ internal static class PageRenderDispatcher
                         };
                         pageInfo = RouteMetadataApplicator.ApplyToPage(pageInfo, route.Url, routeMetadata);
                         var pageModel = new PageModel { Site = siteModel, Page = pageInfo, Pages = pageIndex };
+                        var staticCallStarted = Stopwatch.GetTimestamp();
                         var staticHtml = renderer.RenderPage(route.Template, pageModel);
+                        stageMetrics.AddElapsedTicks("renderCall", Stopwatch.GetTimestamp() - staticCallStarted);
                         if (htmlTransformPipeline is not null)
                         {
+                            var transformStarted = Stopwatch.GetTimestamp();
                             staticHtml = htmlTransformPipeline.Transform(
                                 route, HtmlDocumentKind.Static, pageInfo, null, logger, staticHtml);
+                            stageMetrics.AddElapsedTicks("htmlTransform", Stopwatch.GetTimestamp() - transformStarted);
                         }
+                        var staticWriteStarted = Stopwatch.GetTimestamp();
                         await WriteUtf8LockedAsync(outputDir, route.OutputPath, staticHtml, writeLocks, ct);
+                        stageMetrics.AddElapsedTicks("renderWrite", Stopwatch.GetTimestamp() - staticWriteStarted);
                         Interlocked.Increment(ref renderedCount);
                         stageMetrics.Increment("staticRender");
-                        stageMetrics.AddDuration("staticRender", 0);
+                        stageMetrics.AddElapsedTicks("staticRender", Stopwatch.GetTimestamp() - staticRenderStarted);
                         break;
                     }
             }
         });
+
+        try
+        {
+            await dispatchTask.ConfigureAwait(false);
+        }
+        finally
+        {
+            // Release shared template models and collect their conversion time, even when a page fails.
+            if (renderer is IRenderPassCompletion completion)
+            {
+                stageMetrics.AddElapsedTicks("renderModelBind", completion.CompleteRenderPass());
+            }
+
+            stageMetrics.AddElapsedTicks("renderDispatch", Stopwatch.GetTimestamp() - dispatchStarted);
+        }
 
         return new DispatchResult(renderedCount, skippedCount,
             new Dictionary<string, int>(renderReasons, StringComparer.OrdinalIgnoreCase),
@@ -320,7 +364,8 @@ internal static class PageRenderDispatcher
         Func<RouteInfo, PageInfo, SeoModel>? listSeoBuilder = null,
         HtmlTransformPipeline? htmlTransformPipeline = null,
         ThemeTemplateResolver? templateResolver = null,
-        ILogger? logger = null)
+        ILogger? logger = null,
+        RenderDependencySnapshot? dependencySnapshot = null)
     {
         var stageMetrics = new BuildStageMetricsCollector();
         var specialLists = SpecialListRouteBuilder.Build(routed, collections, layoutsDir, listPageContentMode, outputPathEncoding, tieBreak, templateResolver);
@@ -348,7 +393,7 @@ internal static class PageRenderDispatcher
             var updates = new ConcurrentDictionary<string, BuildManifestEntry>(StringComparer.Ordinal);
             await Parallel.ForEachAsync(specialLists, parallelOptions, async (x, ct) =>
             {
-                var result = await SpecialListRenderer.RenderSpecialListIfNeededAsync(x.Route, x.Items, bodyStore, renderer, siteModel, outputDir, templateHash, renderDependencyHash, baselineEntries, updates, renderReasons, maxDegreeOfParallelism, specialLists.Count, x.IncludeContent, x.PageFields, x.PageContext, ct, transformLogger, seoBuilder, listSeoBuilder, htmlTransformPipeline);
+                var result = await SpecialListRenderer.RenderSpecialListIfNeededAsync(x.Route, x.Items, bodyStore, renderer, siteModel, outputDir, templateHash, renderDependencyHash, baselineEntries, updates, renderReasons, maxDegreeOfParallelism, specialLists.Count, x.IncludeContent, x.PageFields, x.PageContext, ct, transformLogger, seoBuilder, listSeoBuilder, htmlTransformPipeline, dependencySnapshot);
                 Interlocked.Add(ref rendered, result.RenderedCount);
                 Interlocked.Add(ref skipped, result.SkippedCount);
                 stageMetrics.Merge(result.StageMetrics);

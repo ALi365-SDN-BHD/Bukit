@@ -14,6 +14,7 @@ internal sealed class FileTemplateLoader : ITemplateLoader
     private readonly string? _fallbackDir;
     private readonly ConcurrentDictionary<string, CachedText> _cache = new(StringComparer.OrdinalIgnoreCase);
     private readonly ISafeSourceFileOpener _opener = new PlatformSafeSourceFileOpener();
+    private readonly ConcurrentDictionary<string, (string Text, TemplateReadSet Reads)> _reads = new(StringComparer.OrdinalIgnoreCase);
 
     public FileTemplateLoader(string rootDir, string? fallbackDir = null, string? overrideDir = null)
     {
@@ -87,7 +88,22 @@ internal sealed class FileTemplateLoader : ITemplateLoader
     public string Load(TemplateContext context, SourceSpan callerSpan, string templatePath)
     {
         var (fullPath, root) = ResolvePathInsideAnyRoot(templatePath);
-        return LoadCached(fullPath, root);
+        var text = LoadCached(fullPath, root);
+        RenderReadRecorder.Current?.AddTemplate(GetReads(fullPath, text));
+        return text;
+    }
+
+    /// <summary>What an included template reads, cached per file until its text changes.</summary>
+    private TemplateReadSet GetReads(string fullPath, string text)
+    {
+        if (_reads.TryGetValue(fullPath, out var cached) && string.Equals(cached.Text, text, StringComparison.Ordinal))
+        {
+            return cached.Reads;
+        }
+
+        var reads = ScribanTemplateReadAnalyzer.Analyze(text, fullPath);
+        _reads[fullPath] = (text, reads);
+        return reads;
     }
 
     internal VerifiedTemplateSource LoadVerifiedSource(string templatePath)
@@ -112,6 +128,8 @@ internal sealed class FileTemplateLoader : ITemplateLoader
 
     public async ValueTask<string?> LoadAsync(TemplateContext context, SourceSpan callerSpan, string templatePath)
     {
+        // Async includes are not followed by read recording.
+        RenderReadRecorder.Current?.RecordAll();
         var (fullPath, root) = ResolvePathInsideAnyRoot(templatePath);
         var fileInfo = new FileInfo(fullPath);
         if (!fileInfo.Exists)

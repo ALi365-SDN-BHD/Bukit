@@ -11,12 +11,27 @@ public sealed class NotionBlocksRenderer
     private readonly NotionBlockRendererRegistry _registry;
     private readonly NotionRenderContext _context;
     private DateTimeOffset? _lastFileLinkExpiresAt;
+    private DateTimeOffset? _lastPageFetchedAt;
+
+    /// <summary>
+    /// Version of the rendered HTML contract. Bump it whenever the HTML produced for the
+    /// same blocks changes, and append the new corpus hash to the contract test record;
+    /// cached Notion bodies from another version are fetched and rendered again.
+    /// </summary>
+    internal const int ContractVersion = 1;
 
     /// <summary>
     /// Earliest <c>expiry_time</c> observed while rendering the last page, when the
     /// Notion payload exposes signed file link lifetimes.
     /// </summary>
     internal DateTimeOffset? LastFileLinkExpiresAt => _lastFileLinkExpiresAt;
+
+    /// <summary>
+    /// Earliest Notion server time among the block requests of the last page. The first
+    /// request of a page always comes from this renderer, so later requests made by block
+    /// renderers (table rows) cannot be earlier.
+    /// </summary>
+    internal DateTimeOffset? LastPageFetchedAt => _lastPageFetchedAt;
 
     public NotionBlocksRenderer(NotionClient client)
         : this(client, NotionBlockRendererRegistry.CreateDefault())
@@ -41,6 +56,7 @@ public sealed class NotionBlocksRenderer
     public async Task<string> RenderPageAsync(string pageId, CancellationToken cancellationToken)
     {
         _lastFileLinkExpiresAt = null;
+        _lastPageFetchedAt = null;
         var sb = new StringBuilder();
         await RenderChildrenToBuilderAsync(pageId, sb, cancellationToken);
         return sb.ToString();
@@ -65,7 +81,13 @@ public sealed class NotionBlocksRenderer
                 url += $"&start_cursor={WebUtility.UrlEncode(startCursor)}";
             }
 
-            using var doc = await _client.GetAsync(url, cancellationToken);
+            var response = await _client.GetWithServerTimeAsync(url, cancellationToken);
+            using var doc = response.Document;
+            if (_lastPageFetchedAt is null || response.ServerTime < _lastPageFetchedAt.Value)
+            {
+                _lastPageFetchedAt = response.ServerTime;
+            }
+
             var root = doc.RootElement;
 
             if (!root.TryGetProperty("results", out var results) || results.ValueKind != JsonValueKind.Array)

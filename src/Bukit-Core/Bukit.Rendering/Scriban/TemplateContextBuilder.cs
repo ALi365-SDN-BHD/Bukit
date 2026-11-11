@@ -48,7 +48,7 @@ internal sealed class TemplateContextBuilder
 
     public TemplateContext BuildContext(ScriptObject globals)
     {
-        var context = new TemplateContext
+        var context = new BukitTemplateContext
         {
             TemplateLoader = _templateLoader,
             EnableRelaxedMemberAccess = true,

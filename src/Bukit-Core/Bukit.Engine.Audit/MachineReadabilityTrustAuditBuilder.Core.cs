@@ -31,6 +31,7 @@ internal static partial class MachineReadabilityTrustAuditBuilder
         var robotsText = ReadOptional(Path.Combine(outputDir, "robots.txt"));
         var llmsText = ReadOptional(Path.Combine(outputDir, "llms.txt"));
         var llmsFullText = ReadOptional(Path.Combine(outputDir, "llms-full.txt"));
+        using var agentManifest = new AgentManifestSnapshot(outputDir);
 
         var seoIssues = new List<SeoAuditIssue>();
         var publishIssues = new List<PublishAuditIssue>();
@@ -198,7 +199,7 @@ internal static partial class MachineReadabilityTrustAuditBuilder
                 modelByCanonical[model.Canonical] = (entry, model);
             }
 
-            AnalyzePublishDocument(document, trustRequirements, outputDir, publishIssues);
+            AnalyzePublishDocument(document, trustRequirements, outputDir, agentManifest, publishIssues);
             SeoCompatibilityAuditRules.Analyze(document, sitemapIncluded, sitemapExpected, searchIncluded, searchExpected, rssIncluded, rssExpected, atomFeedIncluded, atomFeedExpected, jsonFeedIncluded, jsonFeedExpected, llmsIncluded, llmsExpected, llmsFullIncluded, llmsFullExpected, manifestIncluded, robotsText, publishIssues);
             publishDocuments.Add(document);
 

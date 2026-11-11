@@ -173,6 +173,7 @@
         "guide/dev/architecture.md",
         "guide/dev/content.md",
         "guide/dev/public-api-governance.md",
+        "guide/skills/bukit-content-model/SKILL.md",
         "guide/skills/bukit-content/SKILL.md",
         "openspec/changes/migrate-notion-compatibility/design.md",
         "openspec/changes/migrate-notion-compatibility/proposal.md",
@@ -1607,6 +1608,91 @@
       "resource": "dotnet-serial"
     },
     {
+      "id": "fix-render-shared-model-cost-contract",
+      "matches": [
+        "openspec/changes/fix-render-shared-model-cost/proposal.md",
+        "openspec/changes/fix-render-shared-model-cost/tasks.md",
+        "openspec/changes/fix-render-shared-model-cost/specs/static-rendering/spec.md",
+        "openspec/changes/archive/*-fix-render-shared-model-cost/*.md",
+        "openspec/changes/archive/*-fix-render-shared-model-cost/specs/static-rendering/spec.md",
+        "openspec/specs/static-rendering/spec.md",
+        "guide/dev/rendering-scriban.md"
+      ],
+      "specialtyTests": [
+        "openspec validate static-rendering --type spec --strict --no-interactive",
+        "dotnet test tests/Bukit.Rendering.Tests/Bukit.Rendering.Tests.csproj",
+        "dotnet test tests/Bukit.Engine.Tests/Bukit.Engine.Tests.csproj"
+      ],
+      "contractConsumerGlobs": [],
+      "publicContract": false,
+      "resource": "dotnet-serial"
+    },
+    {
+      "id": "observe-report-stage-timing-contract",
+      "matches": [
+        "openspec/changes/observe-report-stage-timing/proposal.md",
+        "openspec/changes/observe-report-stage-timing/tasks.md",
+        "openspec/changes/observe-report-stage-timing/specs/library-logging/spec.md",
+        "openspec/changes/archive/*-observe-report-stage-timing/*.md",
+        "openspec/changes/archive/*-observe-report-stage-timing/specs/library-logging/spec.md",
+        "guide/dev/observability.md"
+      ],
+      "specialtyTests": [
+        "openspec validate library-logging --type spec --strict --no-interactive",
+        "dotnet test tests/Bukit.Engine.Tests/Bukit.Engine.Tests.csproj"
+      ],
+      "contractConsumerGlobs": [],
+      "publicContract": false,
+      "resource": "dotnet-serial"
+    },
+    {
+      "id": "release-version-bump",
+      "matches": [
+        "Directory.Build.props"
+      ],
+      "specialtyTests": [
+        "dotnet test tests/Bukit.Architecture.Tests/Bukit.Architecture.Tests.csproj"
+      ],
+      "contractConsumerGlobs": [],
+      "publicContract": false,
+      "resource": "dotnet-serial"
+    },
+    {
+      "id": "build-time-remediation-archive",
+      "matches": [
+        "docs/plans/2026-11-10-build-time-incremental-remediation-plan.zh-CN.md",
+        "openspec/changes/archive/*-optimize-report-stage-hotspots/*.md",
+        "openspec/changes/archive/*-optimize-report-stage-hotspots/specs/*/spec.md",
+        "openspec/changes/archive/*-fix-media-signed-url-identity/*.md",
+        "openspec/changes/archive/*-fix-media-signed-url-identity/specs/*/spec.md",
+        "openspec/changes/archive/*-harden-incremental-invalidation/*.md",
+        "openspec/changes/archive/*-harden-incremental-invalidation/specs/*/spec.md",
+        "openspec/changes/archive/*-add-per-page-render-dependencies/*.md",
+        "openspec/changes/archive/*-add-per-page-render-dependencies/specs/*/spec.md",
+        "openspec/changes/archive/*-fix-notion-body-cache-contract/*.md",
+        "openspec/changes/archive/*-fix-notion-body-cache-contract/specs/*/spec.md",
+        "openspec/changes/fix-media-expired-signature-fail-fast/*.md",
+        "openspec/changes/fix-media-expired-signature-fail-fast/specs/*/spec.md",
+        "openspec/changes/stabilize-render-dependency-inputs/*.md",
+        "openspec/changes/stabilize-render-dependency-inputs/specs/*/spec.md",
+        "openspec/changes/archive/*-fix-media-expired-signature-fail-fast/*.md",
+        "openspec/changes/archive/*-fix-media-expired-signature-fail-fast/specs/*/spec.md",
+        "openspec/changes/archive/*-stabilize-render-dependency-inputs/*.md",
+        "openspec/changes/archive/*-stabilize-render-dependency-inputs/specs/*/spec.md",
+        "openspec/specs/incremental-invalidation/spec.md",
+        "openspec/specs/notion-body-cache/spec.md",
+        "openspec/specs/per-page-render-dependencies/spec.md"
+      ],
+      "specialtyTests": [
+        "openspec validate --specs --strict --no-interactive",
+        "bash scripts/checks/docs/size-policy.sh",
+        "bash scripts/checks/docs/active-links.sh"
+      ],
+      "contractConsumerGlobs": [],
+      "publicContract": false,
+      "resource": "static-parallel"
+    },
+    {
       "id": "fix-core-five-findings-contract",
       "matches": [
         "openspec/changes/fix-core-five-findings/proposal.md",
@@ -1921,9 +2007,28 @@
       ]
     },
     {
-      "id": "deploy-skill-token-repo",
+      "id": "core-skill-pack",
       "matches": [
-        "guide/skills/bukit-deploy/SKILL.md"
+        "guide/skills/bukit-analytics/SKILL.md",
+        "guide/skills/bukit-build/SKILL.md",
+        "guide/skills/bukit-config/SKILL.md",
+        "guide/skills/bukit-content-model/SKILL.md",
+        "guide/skills/bukit-geo/SKILL.md",
+        "guide/skills/bukit-i18n/SKILL.md",
+        "guide/skills/bukit-local-server/SKILL.md",
+        "guide/skills/bukit-outputs/SKILL.md",
+        "guide/skills/bukit-publish-deploy/SKILL.md",
+        "guide/skills/bukit-routing/SKILL.md",
+        "guide/skills/bukit-seo-insights/SKILL.md",
+        "guide/skills/bukit-seo/SKILL.md",
+        "guide/skills/bukit-templating/SKILL.md",
+        "guide/skills/bukit-theme/SKILL.md",
+        "guide/skills/bukit-troubleshooting/SKILL.md",
+        "guide/skills/using-bukit/SKILL.md",
+        "guide/skills/MAINTENANCE.md",
+        "guide/skills/README.md",
+        "guide/skills/skills-index.json",
+        "guide/skills/skills-index.yaml"
       ],
       "specialtyTests": [
         "bash guide/skills/scripts/validate-skills-strict.sh"

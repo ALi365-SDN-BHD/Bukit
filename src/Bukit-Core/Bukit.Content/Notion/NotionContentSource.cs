@@ -124,7 +124,8 @@ public sealed class NotionContentSource : IContentProvider, INotionRelationFallb
                     resolvedProperties.FilterProperty,
                     resolvedProperties.SortProperty,
                     resolvedProperties.IncludeSlugProperty);
-                using var doc = await client.PostAsync(NotionApiUrls.DatabaseQuery(_options.DatabaseId), query, cancellationToken);
+                var response = await client.PostWithServerTimeAsync(NotionApiUrls.DatabaseQuery(_options.DatabaseId), query, cancellationToken);
+                using var doc = response.Document;
                 var root = doc.RootElement;
 
                 if (!root.TryGetProperty("results", out var results) || results.ValueKind != JsonValueKind.Array)
@@ -159,16 +160,15 @@ public sealed class NotionContentSource : IContentProvider, INotionRelationFallb
                     var publishAt = ResolvePublishAt(page, props, pm, pageId);
 
                     var lastEditedTime = GetString(page, "last_edited_time");
-                    // The effective content mode changes the rendered body, so it must be
-                    // part of the stable fingerprint that decides incremental reuse.
-                    var bodyFingerprintBase = string.IsNullOrWhiteSpace(lastEditedTime) ? pageId : lastEditedTime;
-
                     var projectedValues = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
                     {
                         ["source"] = "notion",
-                        ["notionPageId"] = pageId,
-                        ["bodyFingerprint"] = $"{bodyFingerprintBase}:content={(_options.RenderContent ? "on" : "off")}"
+                        ["notionPageId"] = pageId
                     };
+                    if (BuildBodyFingerprint(lastEditedTime, response.ServerTime, _options.RenderContent) is { } bodyFingerprint)
+                    {
+                        projectedValues["bodyFingerprint"] = bodyFingerprint;
+                    }
                     if (DateTimeOffset.TryParse(
                             lastEditedTime,
                             CultureInfo.InvariantCulture,
@@ -362,13 +362,33 @@ public sealed class NotionContentSource : IContentProvider, INotionRelationFallb
 
             return html;
         }, onCacheEntryPublished: null, ownedClient: client, ownedGate: bodyGate,
-            relationFallbackResolver: relationResolver, lifetimeToken: CancellationToken.None);
+            relationFallbackResolver: relationResolver, lifetimeToken: CancellationToken.None)
+        {
+            OnDrained = pageHtmlCache is null ? null : () => pageHtmlCache.ReportStaleContracts(_logger)
+        };
         foreach (var (pageId, body) in prefetchedBodies)
         {
             bodyStore.Seed(pageId, body);
         }
 
         return new RawContentLoadResult(items, bodyStore);
+    }
+
+    /// <summary>
+    /// Stable body fingerprint: the edit time, the renderer contract and the effective
+    /// content mode. A query answered before the edit minute settled is marked, so the page
+    /// renders once more after it settles. Without an edit time there is no stable
+    /// fingerprint and the page content hash comes from the body.
+    /// </summary>
+    internal static string? BuildBodyFingerprint(string? lastEditedTime, DateTimeOffset queriedAt, bool renderContent)
+    {
+        if (string.IsNullOrWhiteSpace(lastEditedTime))
+        {
+            return null;
+        }
+
+        var unsettled = NotionCacheManager.IsSettled(lastEditedTime, queriedAt) ? string.Empty : ":unsettled";
+        return $"{lastEditedTime}:renderer={NotionBlocksRenderer.ContractVersion}{unsettled}:content={(renderContent ? "on" : "off")}";
     }
 
     private static DateTimeOffset ResolvePublishAt(

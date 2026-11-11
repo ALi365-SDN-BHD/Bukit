@@ -128,6 +128,35 @@ fails on a miss; `off` does not read or create the cache. The effective
 in either direction invalidates the affected pages once; after the switch is
 stable, the next build reuses them again.
 
+A cached page body is tied to the Notion renderer version and to the time it was
+fetched, read from Notion's `Date` response header (the local clock is used only
+when the header is missing). In `readwrite` mode a cached body is reused only when
+the renderer version and `last_edited_time` match, its signed links have not
+expired, and it was fetched at least 5 seconds after the minute of
+`last_edited_time` ended. Notion records edit times to the minute, so a body
+fetched in the same minute as an edit is fetched again on the next build, and an
+edit made later in that minute is not lost. Pages without `last_edited_time` are
+never reused from the cache in `readwrite` mode.
+
+The incremental body fingerprint is
+`{last_edited_time}:renderer={version}[:unsettled]:content={on|off}`.
+`:unsettled` marks a page whose database query was answered before its edit minute
+settled; the page renders once more after it settles and is then reused. Pages
+without `last_edited_time` have no stable fingerprint, so their content hash is
+computed from the body.
+
+After upgrading to a Bukit release with a new Notion renderer version, the first
+`readwrite` build fetches every Notion page body again. On a large database this
+can take a long time: each page needs at least one block request, and Notion
+allows about 3 requests per second per integration.
+
+`readonly` keeps its offline behavior: it reuses any cached body whose
+`last_edited_time` matches, even one rendered by another renderer version or
+with expired links, and reports such entries in one
+`event=notion.cache.renderer_mismatch` warning. When you switch a site from
+`readonly` back to `readwrite`, build once with `--clean`: pages built from those
+older bodies already carry the current fingerprint and would otherwise be kept.
+
 A `readwrite` cache directory must not equal, contain, or sit inside a configured
 Markdown content source (or the reverse). Create writable Notion caches in a
 dedicated directory such as `.cache/notion`.

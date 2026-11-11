@@ -8,6 +8,9 @@ namespace Bukit.Engine.Incremental;
 
 internal static class RenderDependencyHasher
 {
+    /// <summary>
+    /// The hash of every render dependency: the base part and every shared collection.
+    /// </summary>
     internal static string Compute(
         AppConfig config,
         SiteModel siteModel,
@@ -15,6 +18,30 @@ internal static class RenderDependencyHasher
         string analyticsRendererContractVersion = AnalyticsRendererContract.Version,
         IReadOnlyDictionary<string, IReadOnlyList<SeoAlternateModel>>? seoAlternates = null,
         string? imageSourceFingerprint = null)
+    {
+        var snapshot = ComputeSnapshot(
+            config,
+            siteModel,
+            executionMode,
+            analyticsRendererContractVersion,
+            seoAlternates,
+            imageSourceFingerprint);
+        return snapshot.Combine(snapshot.BaseHash, reads: null);
+    }
+
+    /// <summary>
+    /// Splits render dependencies into the base hash (every contributor and the SEO alternates)
+    /// and lazily computed fingerprints of the shared collections, including <c>pages</c> when
+    /// <paramref name="pagesFingerprint"/> is given.
+    /// </summary>
+    internal static RenderDependencySnapshot ComputeSnapshot(
+        AppConfig config,
+        SiteModel siteModel,
+        BuildExecutionMode executionMode = BuildExecutionMode.Production,
+        string analyticsRendererContractVersion = AnalyticsRendererContract.Version,
+        IReadOnlyDictionary<string, IReadOnlyList<SeoAlternateModel>>? seoAlternates = null,
+        string? imageSourceFingerprint = null,
+        Func<string>? pagesFingerprint = null)
     {
         var context = new RenderDependencyContext(
             config,
@@ -41,6 +68,33 @@ internal static class RenderDependencyHasher
                     writer.AppendFramedValue("href", alternate.Href);
                 }
             }
+        }
+
+        var baseHash = HashUtil.ToHexLower(hasher.GetHashAndReset());
+        var collections = new Dictionary<string, Lazy<string>>(StringComparer.Ordinal);
+        var sharedCollections = SiteModelDataContributor.EnumerateCollections(context)
+            .Concat(SiteModelDataContributor.EnumerateRouteMetadataSourceCollections(context));
+        foreach (var group in sharedCollections.GroupBy(item => item.Key, StringComparer.Ordinal))
+        {
+            var writes = group.Select(item => item.Write).ToArray();
+            collections[group.Key] = new Lazy<string>(() => HashCollection(writes));
+        }
+
+        if (pagesFingerprint is not null)
+        {
+            collections[RenderReadRecorder.Pages] = new Lazy<string>(pagesFingerprint);
+        }
+
+        return new RenderDependencySnapshot(baseHash, collections);
+    }
+
+    private static string HashCollection(IReadOnlyList<Action<RenderDependencyHashWriter>> writes)
+    {
+        using var hasher = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
+        var writer = new RenderDependencyHashWriter(hasher);
+        foreach (var write in writes)
+        {
+            write(writer);
         }
 
         return HashUtil.ToHexLower(hasher.GetHashAndReset());

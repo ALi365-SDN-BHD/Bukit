@@ -277,8 +277,7 @@ public sealed class RenderDependencyHasherTests
                 "collections-and-field-scopes",
                 "taxonomy",
                 "route-metadata-configuration",
-                "non-analytics-plugin-enablement",
-                "site-model-data"
+                "non-analytics-plugin-enablement"
             },
             RenderDependencyContributorPlan.Contributors.Select(contributor => contributor.Name));
     }
@@ -308,16 +307,17 @@ public sealed class RenderDependencyHasherTests
     public void Compute_BaseConfiguration_MatchesGoldenHash()
     {
         Assert.Equal(
-            "7e4d81917294b6be7cb15aa342521b1738e023423c185eac224fe0c494b5fcd0",
+            "61ed3f3595c94caf7274a9d59aed1c9f8ed377e6aeee03d2a5a90abadc285a31",
             RenderDependencyHasher.Compute(CreateBaseConfig(), s_emptySiteModel));
     }
 
     [Fact]
     public void Compute_RepresentativeConfiguration_MatchesGoldenHash()
     {
-        // Golden hash for the canonical framed/type-tagged render dependency encoding.
+        // Golden hash for the canonical framed/type-tagged render dependency encoding
+        // (base hash combined with every shared collection fingerprint).
         Assert.Equal(
-            "9ffd28e24198d2b737344ea6d72f0f83f75f1ba946292bb669df3911f27ed517",
+            "60f80c7b198523da7fc39d9ab5423ba247384f7dfe28816b5177f4681a34bf31",
             RenderDependencyHasher.Compute(
                 CreateRepresentativeGoldenConfig(),
                 CreateRepresentativeGoldenSiteModel(),

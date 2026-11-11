@@ -8,6 +8,29 @@ Bukit 所有重要变更都将记录在此文件中。
 
 - **robots.txt 支持 Content Signals**：新增 `site.seo.robotsTxt.contentSignal`（`search`、`aiInput`、`aiTrain`，各为 `true` 或 `false`），在 `User-agent: *` 组写入一行 `Content-Signal:`，例如 `Content-Signal: search=yes, ai-input=yes, ai-train=no`，用来声明 AI 公司可以如何使用网站内容。只列出设置了的项。不配置时 `robots.txt` 不变。
 
+## [2.0.15] - 2026-11-11
+
+- **过期图片链接立即失败**：图片下载被拒绝（HTTP 400、401 或 403），且网址自身的签名已过期（AWS SigV4、Google Cloud Storage V4、AWS SigV2/CloudFront 或 Notion 文件代理）时，不再按 `content.media.maxRetries` 重试，因为过期签名不可能成功。主要加快仍含过期链接的 `readonly` Notion 缓存构建。失败记录、`onFailure` 结果和已保存图片的复用不变，警告增加 `signature=expired`。其他失败照常重试。
+- **共享数据中的签名链接会给出警告**：增量构建时，如果 `site.modules`、`site.data`、`site.data_index`、`site.related_pages`、`site.data_files`、路由元数据源或页面字段（键 `pages`）里还有已识别签名方案的链接（AWS SigV4、Google Cloud Storage V4、AWS SigV2/CloudFront、Notion 文件代理），Bukit 会输出一条 `event=incremental.signed_links` 警告，列出每个读取键及其链接数，多语言构建时还带 `language=`。这些链接每次拉取都可能变，读取它们的页面每次构建都可能重渲染；用 `content.media` 把文件本地化即可避免。哈希与输出不变。
+- **不再显示其他页面的 `bodyFingerprint`**：`pages` 列表和 section `source` 条目的 `fields` 不再包含内部字段 `bodyFingerprint`。它标识正文，而这些列表并不跟踪正文，打印它的页面可能在其他页面正文修改后保留旧文本。页面自身的 `page.fields` 不变。
+- **插件名与选项名的大小写不再触发全站重渲染**：插件名和顶层选项名本就不区分大小写，增量哈希现在也一样处理，只改大小写不再重渲染每个页面。
+
+## [2.0.14] - 2026-11-10
+
+- **Notion 正文跟随渲染器变化与同一分钟内的编辑**：Notion 正文缓存（格式 2）记录渲染器版本，以及取自 Notion `Date` 响应头的抓取时间。`readwrite` 模式下，只有渲染器版本和 `last_edited_time` 相同、链接未过期、且抓取时间不早于编辑所在分钟结束后 5 秒时才复用缓存，因此抓取后同一分钟内的再次编辑不再丢失。增量正文指纹改为 `{last_edited_time}:renderer={版本}[:unsettled]:content={on|off}`；没有 `last_edited_time` 的页面改为根据正文计算内容哈希。升级后第一次 `readwrite` 构建会重新拉取全部 Notion 正文，大型数据库耗时较长。`readonly` 仍复用匹配的条目，旧版本条目汇总为一条 `notion.cache.renderer_mismatch` 警告；切回 `readwrite` 时请用 `--clean` 构建一次。
+
+## [2.0.13] - 2026-11-10
+
+- **大型站点渲染提速**：以前每渲染一页，都要把全站页面索引（`pages`）和站点模型（`site`，含 `site.data.pages_by_id`）重新转换一遍，渲染耗时随页数平方增长。现在每次渲染只转换一次并共享。只读取这些值的模板输出不变。行为变化：`site`、`pages`、列表页的 `items` 及其内部所有层级现在都是只读的，模板给它们添加新键或按下标给数组赋值（如 `pages[0] = x`）会报只读错误；在组件和区块内，该错误按 `theme.componentValidation` 处理。
+- **渲染与报告计时**：`--metrics` 现在记录真实的 `pageRender`、`listBuild`、`staticRender` 耗时（以前一直为 0），并新增 `renderCall`、`htmlTransform`、`renderWrite`、`renderModelBind`、`renderDispatch`，以及渲染前的变体步骤 `variantSetup`、`mediaResolve`、`renderPlan`、`assetPrepare`、`seoPrepare`。渲染之后的每个报告步骤输出一条带耗时的 `event=build.report.timing` 日志，每个范围以 `step=total` 结尾。报告文件与 `metrics.json` 结构不变。
+- **大型站点报告阶段提速**：判断每个路由是否出现在 `sitemap.xml`、`search.json`、`agent-manifest.json`、`llms.txt` 等汇总文件里时，现在每个文件只扫描一遍，不再每个路由扫描一遍；发布审计只读取、解析一次 `agent-manifest.json`，不再每篇文档一次；媒体输出校验只计算一次生效的媒体配置，不再每个链接一次。在 4651 页的站点上，这三步占了构建的大部分时间。输出、报告文件和审计问题都不变。
+- **重新签名的图片沿用原文件**：本地化图片的文件名不再随签名变化。使用 AWS SigV4、Google Cloud Storage V4、AWS SigV2/CloudFront（`Signature` 加 `AWSAccessKeyId`、`GoogleAccessId` 或 `Key-Pair-Id`）签名的网址，以及 Notion 文件代理（`notion.so`、`*.notion.so`、`*.notion.site`）的网址，签名和过期参数不再参与文件身份；其余参数照常参与，下载仍使用完整的签名网址。因此 Notion 图片只下载一次，不再在链接过期后每次构建都重新下载。同一张图有一处链接已过期、另一处是新签名时，使用新签名下载。升级后带签名的图片会以新的稳定文件名再下载一次；但旧版本已保存的文件仍用于它来源的那个完整签名网址，因此链接已过期的 `readonly` Notion 缓存仍能使用本地图片；未签名的图片文件名不变。
+- **增量构建识别引擎与插件变化**：模板哈希现在包含 Bukit 引擎的版本和源码提交，升级后第一次 `--no-clean` 构建会重新渲染全部页面（报告中页面显示 `template_changed`，列表显示 `list_render`），不再保留旧引擎渲染的页面。启用的内置插件的选项现在也计入渲染输入，改动后全站重新渲染；键的顺序不影响结果。没有 git 信息或含未提交修改的构建与其所基于的版本身份相同，需要使用 `--clean`。
+- **渲染原因 `metadata_changed`**：页面因记录或自定义字段变化而重新渲染时，`.bukit/incremental-manifest.json` 的 `renderReasons` 现在计为 `metadata_changed`；`content_changed` 只表示正文变化，包括 `bodyFingerprint` 变化（例如修改 Markdown 正文）。编辑 Notion 页面时其 `last_edited_time` 字段也会变化，因此 Notion 的编辑显示为 `metadata_changed`。读取 `content_changed` 的脚本需要同时读取 `metadata_changed`。
+- **改一篇页面不再重渲染全站**：`--no-clean` 构建现在按页面追踪共享数据。Bukit 记录每个页面的模板（布局、`include`、组件和区块）读取了哪些集合：某个 `site.data`、`site.modules` 或 `site.data_index` 键，`site.related_pages`、`site.data_files`，或 `pages`（带 `source` 的区块也读取它）。修改一篇文章时，只重渲染这篇文章和读取了它所改变数据的页面（例如 `site.data.pages_by_id`、列表、遍历 `pages` 的页面），这些页面计为新的渲染原因 `data_dependency_changed`；全站设置变化仍计为 `render_dependency_changed`。模板整体使用 `site` 或 `site.data`、使用未知全局变量、`this` 或区块插件时，按读取全部集合处理，自定义渲染器也是如此。遍历 `pages` 的页面现在也会在其他页面变化时重渲染，以前会保留过时的 HTML。`build-manifest.json` 的条目新增可选字段 `renderReads` 和 `renderBaseHash`；升级后第一次 `--no-clean` 构建会渲染全部页面。
+
+## [2.0.12] - 2026-11-10
+
 - **百分号编码的网址**：`url`、`route.url` 字段或 `aliases` 里填入已编码的网址（如 `/%e8%81%94%e7%b3%bb%e6%96%b9%e5%bc%8f/`）时，现在会解码一次（此例为 `/联系方式/`），输出目录与浏览器请求的地址一致，不再 404。会改变路径的编码（`/`、`\`、`.`、`%`）、控制字符、不可见或易混淆字符（零宽字符、方向控制符、不换行空格）和不合法的 UTF-8 保持原样。构建会输出 `event=route.url.decoded` 或 `event=route.alias.decoded` 并附原值，便于回到内容源修正。不含 `%` 的网址不受影响。
 
 ## [2.0.11] - 2026-11-09

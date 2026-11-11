@@ -5570,7 +5570,7 @@ public sealed partial class SiteEngineIntegrationTests
                 return built;
             }
 
-            async Task<string> BuildFullHtmlAsync(bool renderContent)
+            async Task<string> BuildFullHtmlAsync(bool renderContent, string relativePath = "pages/notion-page/index.html")
             {
                 var (fullRoot, fullBase) = CreateBuildReportHealthSite();
                 try
@@ -5584,7 +5584,7 @@ public sealed partial class SiteEngineIntegrationTests
                     WriteTestThemeTemplates(fullRoot);
                     var engine = new SiteEngine(new TestLogger(), new SingleProviderFactory(CreateSource(renderContent)), new DefaultSearchIndexBuilder());
                     await engine.BuildAsync(fullConfig, fullRoot, new ConfigOverrides { Clean = true, Incremental = false });
-                    return File.ReadAllText(Path.Combine(fullRoot, "dist", "pages", "notion-page", "index.html"));
+                    return File.ReadAllText(Path.Combine(fullRoot, "dist", relativePath));
                 }
                 finally
                 {
@@ -5598,9 +5598,12 @@ public sealed partial class SiteEngineIntegrationTests
             Assert.Contains("Notion body", File.ReadAllText(pagePath), StringComparison.Ordinal);
 
             var disabled = await BuildAsync(renderContent: false, clean: false);
-            Assert.Equal(0, disabled.Incremental.CacheHitCount);
+            // The blog list reads no collection that depends on the content mode, so it may be reused;
+            // its HTML must still match a full build.
+            Assert.True(disabled.Incremental.CacheHitCount <= 1);
             Assert.Equal(1, pageRenders[^1]);
             Assert.DoesNotContain("Notion body", File.ReadAllText(pagePath), StringComparison.Ordinal);
+            Assert.Equal(await BuildFullHtmlAsync(false, "blog/index.html"), File.ReadAllText(Path.Combine(root, "dist", "blog", "index.html")));
 
             var stableDisabled = await BuildAsync(renderContent: false, clean: false);
             Assert.True(stableDisabled.Incremental.CacheHitCount >= 1);
@@ -5610,9 +5613,10 @@ public sealed partial class SiteEngineIntegrationTests
             Assert.Equal(await BuildFullHtmlAsync(false), disabledHtml);
 
             var enabled = await BuildAsync(renderContent: true, clean: false);
-            Assert.Equal(0, enabled.Incremental.CacheHitCount);
+            Assert.True(enabled.Incremental.CacheHitCount <= 1);
             Assert.Equal(1, pageRenders[^1]);
             Assert.Contains("Notion body", File.ReadAllText(pagePath), StringComparison.Ordinal);
+            Assert.Equal(await BuildFullHtmlAsync(true, "blog/index.html"), File.ReadAllText(Path.Combine(root, "dist", "blog", "index.html")));
 
             var stableEnabled = await BuildAsync(renderContent: true, clean: false);
             Assert.True(stableEnabled.Incremental.CacheHitCount >= 1);
@@ -5625,6 +5629,226 @@ public sealed partial class SiteEngineIntegrationTests
         {
             Environment.SetEnvironmentVariable(EnvironmentHelper.NotionTokenKey, originalToken);
             CleanupDir(root);
+        }
+    }
+
+    // fix-notion-body-cache-contract: Notion records edits to the minute. A build that read
+    // the database before the edit minute settled renders the page again once it settles,
+    // judged by Notion's Date header even when the local clock runs ahead.
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task BuildAsync_NotionEditWithinFetchMinute_RendersAgainAfterTheMinuteSettles(bool localClockAhead)
+    {
+        const string notionId = "39bfa39a-5013-81ae-9516-fbd448f3bd47";
+        var (root, baseConfig) = CreateBuildReportHealthSite();
+        var originalToken = Environment.GetEnvironmentVariable(EnvironmentHelper.NotionTokenKey);
+        try
+        {
+            Environment.SetEnvironmentVariable(EnvironmentHelper.NotionTokenKey, "minute-token");
+            var config = baseConfig with
+            {
+                Content = TestContent.Notion(notionId) with { Media = new MediaConfig { DownloadToLocal = false } },
+                Build = baseConfig.Build with { Clean = true, Report = new BuildReportConfig { Enabled = false } }
+            };
+            File.WriteAllText(Path.Combine(root, "layouts", "pages", "page.html"), "<html><body>{{ page.content }}</body></html>");
+            WriteTestThemeTemplates(root);
+            var pagePath = Path.Combine(root, "dist", "pages", "notion-page", "index.html");
+            var minute = new DateTimeOffset(2026, 11, 10, 10, 0, 0, TimeSpan.Zero);
+            var handler = new MinuteEditNotionHandler("2026-11-10T10:00:00.000Z");
+            var localSkew = localClockAhead ? TimeSpan.FromSeconds(30) : TimeSpan.Zero;
+
+            var pageRenders = new List<int>();
+            async Task<BuildResult> BuildAsync(bool clean)
+            {
+                var options = new NotionContentSourceOptions
+                {
+                    DatabaseId = "db-minute",
+                    Token = "token",
+                    FilterType = "none",
+                    FieldPolicyMode = "all",
+                    RenderContent = true,
+                    MaxRps = 1000,
+                    MaxRetries = 0
+                };
+                var serverTime = handler.ServerTime;
+                var source = new NotionContentSource(options, logger: null,
+                    () => new NotionContentClient(options, handler, static (_, _) => Task.CompletedTask, () => serverTime + localSkew));
+                var counter = new CountingPageRenderer(new ScribanTemplateRendererAdapter(Path.Combine(root, "layouts")), "/pages/notion-page/");
+                var engine = new SiteEngine(new TestLogger(), new SingleProviderFactory(source), new DefaultSearchIndexBuilder(), _ => counter);
+                var built = await engine.BuildAsync(config, root, new ConfigOverrides { Clean = clean, Incremental = true });
+                pageRenders.Add(counter.PageRenders);
+                return built;
+            }
+
+            // Edited at 10:00:10, read at 10:00:30 (or 10:00:55 with the local clock 30 s ahead).
+            handler.ServerTime = minute.AddSeconds(localClockAhead ? 55 : 30);
+            handler.Body = "first edit";
+            await BuildAsync(clean: true);
+            Assert.Contains("first edit", File.ReadAllText(pagePath), StringComparison.Ordinal);
+
+            // Edited again at 10:00:50: last_edited_time is still 10:00.
+            handler.Body = "second edit";
+            handler.ServerTime = minute.AddSeconds(66);
+            await BuildAsync(clean: false);
+            Assert.Equal(1, pageRenders[^1]);
+            Assert.Contains("second edit", File.ReadAllText(pagePath), StringComparison.Ordinal);
+
+            // Settled: the next build reuses the page.
+            handler.ServerTime = minute.AddMinutes(5);
+            var stable = await BuildAsync(clean: false);
+            Assert.Equal(0, pageRenders[^1]);
+            Assert.True(stable.Incremental.CacheHitCount >= 1);
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable(EnvironmentHelper.NotionTokenKey, originalToken);
+            CleanupDir(root);
+        }
+    }
+
+    // fix-notion-body-cache-contract: ContractVersion is a constant, so a bump is simulated by
+    // rewriting what the previous build recorded (the cached body and the page fingerprint) to
+    // an older contract. The next --no-clean build must refetch the body and render the page,
+    // and the build after that reuses both again.
+    [Fact]
+    public async Task BuildAsync_NotionRendererContractBump_RefetchesBodyAndRendersAgain()
+    {
+        const string notionId = "39bfa39a-5013-81ae-9516-fbd448f3bd47";
+        var (root, baseConfig) = CreateBuildReportHealthSite();
+        var originalToken = Environment.GetEnvironmentVariable(EnvironmentHelper.NotionTokenKey);
+        try
+        {
+            Environment.SetEnvironmentVariable(EnvironmentHelper.NotionTokenKey, "contract-token");
+            var config = baseConfig with
+            {
+                Content = TestContent.Notion(notionId) with { Media = new MediaConfig { DownloadToLocal = false } },
+                Build = baseConfig.Build with { Clean = true, Report = new BuildReportConfig { Enabled = false } }
+            };
+            File.WriteAllText(Path.Combine(root, "layouts", "pages", "page.html"), "<html><body>{{ page.content }}</body></html>");
+            WriteTestThemeTemplates(root);
+            var pagePath = Path.Combine(root, "dist", "pages", "notion-page", "index.html");
+            var cacheDir = Path.Combine(root, ".notion-body-cache");
+            var manifestPath = Path.Combine(root, ".cache", "build-manifest.json");
+            var handler = new MinuteEditNotionHandler("2026-11-10T10:00:00.000Z")
+            {
+                ServerTime = new DateTimeOffset(2026, 11, 10, 10, 5, 0, TimeSpan.Zero),
+                Body = "current render"
+            };
+
+            var pageRenders = new List<int>();
+            async Task BuildAsync(bool clean)
+            {
+                var options = new NotionContentSourceOptions
+                {
+                    DatabaseId = "db-minute",
+                    Token = "token",
+                    FilterType = "none",
+                    FieldPolicyMode = "all",
+                    RenderContent = true,
+                    CacheMode = "readwrite",
+                    CacheDir = cacheDir,
+                    MaxRps = 1000,
+                    MaxRetries = 0
+                };
+                var serverTime = handler.ServerTime;
+                var source = new NotionContentSource(options, logger: null,
+                    () => new NotionContentClient(options, handler, static (_, _) => Task.CompletedTask, () => serverTime));
+                var counter = new CountingPageRenderer(new ScribanTemplateRendererAdapter(Path.Combine(root, "layouts")), "/pages/notion-page/");
+                var engine = new SiteEngine(new TestLogger(), new SingleProviderFactory(source), new DefaultSearchIndexBuilder(), _ => counter);
+                await engine.BuildAsync(config, root, new ConfigOverrides { Clean = clean, Incremental = true });
+                pageRenders.Add(counter.PageRenders);
+            }
+
+            await BuildAsync(clean: true);
+            Assert.Contains("current render", File.ReadAllText(pagePath), StringComparison.Ordinal);
+            await BuildAsync(clean: false);
+            Assert.Equal(0, pageRenders[^1]);
+            var blocksBeforeBump = handler.BlockRequests;
+
+            var cacheFile = Assert.Single(Directory.GetFiles(Path.Combine(cacheDir, "pages"), "*.json"));
+            var cached = System.Text.Json.Nodes.JsonNode.Parse(File.ReadAllText(cacheFile))!.AsObject();
+            // The fingerprint embeds the contract version, so a page built under the older
+            // contract carries a different content hash.
+            var manifest = BuildManifest.Load(manifestPath);
+            var entry = Assert.Single(manifest.Entries.Values, e => e.Url == "/pages/notion-page/");
+            entry.ContentHash = "built-under-older-renderer-contract";
+            manifest.Save(manifestPath);
+            cached["renderer"] = cached["renderer"]!.GetValue<int>() - 1;
+            cached["html"] = "<p>old render</p>";
+            File.WriteAllText(cacheFile, cached.ToJsonString());
+
+            await BuildAsync(clean: false);
+            Assert.Equal(1, pageRenders[^1]);
+            Assert.True(handler.BlockRequests > blocksBeforeBump);
+            var html = File.ReadAllText(pagePath);
+            Assert.Contains("current render", html, StringComparison.Ordinal);
+            Assert.DoesNotContain("old render", html, StringComparison.Ordinal);
+
+            var blocksAfterBump = handler.BlockRequests;
+            await BuildAsync(clean: false);
+            Assert.Equal(0, pageRenders[^1]);
+            Assert.Equal(blocksAfterBump, handler.BlockRequests);
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable(EnvironmentHelper.NotionTokenKey, originalToken);
+            CleanupDir(root);
+        }
+    }
+
+    private sealed class MinuteEditNotionHandler(string lastEditedTime) : HttpMessageHandler
+    {
+        public DateTimeOffset ServerTime { get; set; }
+
+        public string Body { get; set; } = string.Empty;
+
+        public int BlockRequests { get; private set; }
+
+        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+        {
+            var url = request.RequestUri!.AbsoluteUri;
+            string body;
+            if (request.Method == HttpMethod.Get && url == "https://api.notion.com/v1/databases/db-minute")
+            {
+                body = """{"properties":{"Title":{},"Slug":{},"Type":{},"PublishAt":{},"Collection":{}}}""";
+            }
+            else if (request.Method == HttpMethod.Post && url == "https://api.notion.com/v1/databases/db-minute/query")
+            {
+                body = $$"""
+                {
+                  "has_more": false,
+                  "results": [{
+                    "id": "notion-page-id",
+                    "created_time": "2026-01-02T03:04:05.000Z",
+                    "last_edited_time": "{{lastEditedTime}}",
+                    "properties": {
+                      "Title": { "type": "title", "title": [{ "plain_text": "Notion Page" }] },
+                      "Slug": { "type": "rich_text", "rich_text": [{ "plain_text": "notion-page" }] },
+                      "Type": { "type": "select", "select": { "name": "page" } },
+                      "PublishAt": { "type": "date", "date": { "start": "2026-05-15T10:30:00+00:00" } },
+                      "Collection": { "type": "select", "select": { "name": "page" } }
+                    }
+                  }]
+                }
+                """;
+            }
+            else if (request.Method == HttpMethod.Get && url.Contains("/v1/blocks/", StringComparison.Ordinal))
+            {
+                BlockRequests++;
+                body = $$$"""{"results":[{"type":"paragraph","paragraph":{"rich_text":[{"plain_text":"{{{Body}}}"}]}}],"has_more":false}""";
+            }
+            else
+            {
+                body = "{}";
+            }
+
+            var response = new HttpResponseMessage(System.Net.HttpStatusCode.OK)
+            {
+                Content = new StringContent(body, Encoding.UTF8, "application/json")
+            };
+            response.Headers.Date = ServerTime;
+            return Task.FromResult(response);
         }
     }
 

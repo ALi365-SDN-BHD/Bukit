@@ -10,7 +10,17 @@ using Bukit.Theme;
 
 namespace Bukit.Engine;
 
-internal sealed class ScribanTemplateRendererAdapter : ITemplateRenderer
+/// <summary>
+/// Lets the render dispatcher end a render pass on renderers that keep per-pass state.
+/// Internal so the public <see cref="ITemplateRenderer"/> contract stays unchanged.
+/// </summary>
+internal interface IRenderPassCompletion
+{
+    /// <summary>Releases per-pass state and returns template model conversion time in Stopwatch ticks.</summary>
+    long CompleteRenderPass();
+}
+
+internal sealed class ScribanTemplateRendererAdapter : ITemplateRenderer, IRenderPassCompletion
 {
     private readonly ScribanTemplateRenderer _inner;
 
@@ -26,4 +36,5 @@ internal sealed class ScribanTemplateRendererAdapter : ITemplateRenderer
 
     public string RenderPage(string templateRelativePath, PageModel model) => _inner.RenderPage(templateRelativePath, model);
     public string RenderList(string templateRelativePath, ListPageModel model) => _inner.RenderList(templateRelativePath, model);
+    public long CompleteRenderPass() => _inner.CompleteRenderPass();
 }

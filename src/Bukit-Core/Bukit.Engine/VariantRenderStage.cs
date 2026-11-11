@@ -1,9 +1,11 @@
 using Bukit.Theme;
 using System.Diagnostics;
+using System.Security.Cryptography;
 using Bukit.Config;
 using Bukit.Content;
 using Bukit.Engine.Abstractions.Content;
 using Bukit.Engine.Abstractions.Routing;
+using Bukit.Engine.Analytics;
 using Bukit.Engine.Incremental;
 using Bukit.Engine.RouteMetadata;
 using Bukit.Rendering;
@@ -41,18 +43,28 @@ internal static class VariantRenderStage
                 context.ParentStaticDir,
                 logger)
             : null;
-        var renderDependencyHash = manifestSetup.IncrementalEnabled
-            ? RenderDependencyHasher.Compute(
+        var dependencySnapshot = manifestSetup.IncrementalEnabled
+            ? RenderDependencyHasher.ComputeSnapshot(
                 context.Config,
                 siteModel,
                 context.Overrides.ExecutionMode,
                 seoAlternates: seoStage.SeoAlternates,
-                imageSourceFingerprint: imageSourceFingerprint)
-            : string.Empty;
+                imageSourceFingerprint: imageSourceFingerprint,
+                pagesFingerprint: () => ComputePagesFingerprint(renderAssetPlan.RenderDocuments, routeMetadata))
+            : null;
+        var renderDependencyHash = dependencySnapshot?.BaseHash ?? string.Empty;
         renderDependencyHashStopwatch.Stop();
         metrics.AddDuration(
             "renderDependencyHash",
             renderDependencyHashStopwatch.ElapsedMilliseconds);
+        if (dependencySnapshot is not null)
+        {
+            SignedLinkDiagnostics.Report(
+                new RenderDependencyContext(context.Config, siteModel, context.Overrides.ExecutionMode, AnalyticsRendererContract.Version),
+                renderAssetPlan.RenderDocuments.Select(document => document.Document),
+                context.DefaultLanguage is null ? null : context.Config.Site.Language,
+                logger);
+        }
         var renderDependencyHashResolver = BuildRenderDependencyHashResolver(
             renderAssetPlan.RenderDocuments,
             routeResult.ListRouteGraph,
@@ -94,10 +106,46 @@ internal static class VariantRenderStage
             RoutedDocuments: routeResult.RoutedDocuments,
             RenderDependencyHashResolver: renderDependencyHashResolver,
             RouteMetadata: routeMetadata,
-            PrecomputedEntries: renderAssetPlan.RenderEntries),
+            PrecomputedEntries: renderAssetPlan.RenderEntries,
+            DependencySnapshot: dependencySnapshot),
             cancellationToken);
         metrics.Merge(result.StageMetrics);
         return result;
+    }
+
+    /// <summary>
+    /// Fingerprint of the <c>pages</c> collection: the all-pages list of page models and the pages
+    /// section sources read. Covers each document's route, template and metadata (titles, fields,
+    /// record) in list order, and the route metadata that can override titles and summaries.
+    /// </summary>
+    internal static string ComputePagesFingerprint(
+        IReadOnlyList<RoutedContentDocument> documents,
+        IReadOnlyDictionary<string, RouteMetadataEntry>? routeMetadata)
+    {
+        using var hasher = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
+        var writer = new RenderDependencyHashWriter(hasher);
+        foreach (var document in documents)
+        {
+            writer.AppendFramedValue("url", document.Route.Url);
+            writer.AppendFramedValue("outputPath", document.Route.OutputPath);
+            writer.AppendFramedValue("template", document.Route.Template);
+            writer.AppendFramedValue("metadata", IncrementalBuildEngine.ComputeMetadataHash(document.Document));
+        }
+
+        if (routeMetadata is not null)
+        {
+            foreach (var (url, entry) in routeMetadata.OrderBy(item => item.Key, StringComparer.Ordinal))
+            {
+                writer.AppendFramedValue("routeMetadata", url);
+                writer.AppendFramedValue("route", entry.Route);
+                writer.AppendFramedValue("title", entry.Title);
+                writer.AppendFramedValue("summary", entry.Summary);
+                writer.AppendFramedValue("seoTitle", entry.SeoTitle);
+                writer.AppendFramedValue("seoDescription", entry.SeoDescription);
+            }
+        }
+
+        return HashUtil.ToHexLower(hasher.GetHashAndReset());
     }
 
     /// <summary>

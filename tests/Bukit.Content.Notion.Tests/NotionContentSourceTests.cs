@@ -291,7 +291,7 @@ public sealed class NotionContentSourceTests
         var cachePath = Path.Combine(pagesDir, "page-x.json");
         var existing = """{"version":1,"lastEditedTime":"t0","html":"<p>old</p>"}""";
         await File.WriteAllTextAsync(cachePath, existing);
-        AtomicNotionCacheWriter.BeforeReplaceHook = _ => throw new OperationCanceledException();
+        AtomicNotionCacheWriter.BeforeReplaceHook = path => ThrowFor(path, cachePath, new OperationCanceledException());
         try
         {
             await Assert.ThrowsAsync<OperationCanceledException>(() =>
@@ -319,7 +319,7 @@ public sealed class NotionContentSourceTests
         var pagesDir = Path.Combine(root, "pages");
         Directory.CreateDirectory(pagesDir);
         var cachePath = Path.Combine(pagesDir, "page-y.json");
-        AtomicNotionCacheWriter.BeforeReplaceHook = _ => throw new InvalidOperationException("simulated crash");
+        AtomicNotionCacheWriter.BeforeReplaceHook = path => ThrowFor(path, cachePath, new InvalidOperationException("simulated crash"));
         try
         {
             await Assert.ThrowsAsync<InvalidOperationException>(() =>
@@ -383,6 +383,16 @@ public sealed class NotionContentSourceTests
         AutoSummary = true,
         AutoSummaryMaxLength = 42
     };
+
+    // The hook is process-wide and other test classes write caches in parallel,
+    // so it must fire only for this test's own file.
+    private static void ThrowFor(string path, string target, Exception exception)
+    {
+        if (string.Equals(path, target, StringComparison.Ordinal))
+        {
+            throw exception;
+        }
+    }
 
     private sealed class RepeatingCursorQueryHandler : HttpMessageHandler
     {

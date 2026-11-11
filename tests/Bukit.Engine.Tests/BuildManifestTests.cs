@@ -36,6 +36,64 @@ public sealed class BuildManifestTests
         finally { File.Delete(path); }
     }
 
+    // add-per-page-render-dependencies: read records round-trip; missing or malformed lists read as null.
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    [InlineData("pages,site.data.menu")]
+    public void SaveAndLoad_RenderReadRecord(string? readsJson)
+    {
+        var path = Path.GetTempFileName();
+        try
+        {
+            string[]? reads = readsJson?.Split(',', StringSplitOptions.RemoveEmptyEntries);
+            var manifest = new BuildManifest();
+            manifest.Entries["a/index.html"] = new BuildManifestEntry
+            {
+                OutputPath = "a/index.html",
+                RenderBaseHash = readsJson is null ? null : "base",
+                RenderReads = reads
+            };
+            manifest.Save(path);
+
+            var loaded = BuildManifest.Load(path).Entries["a/index.html"];
+            Assert.Equal(reads, loaded.RenderReads);
+            Assert.Equal(readsJson is null ? null : "base", loaded.RenderBaseHash);
+            Assert.Equal(readsJson is not null, File.ReadAllText(path).Contains("renderReads", StringComparison.Ordinal));
+        }
+        finally { File.Delete(path); }
+    }
+
+    [Fact]
+    public void WorktreeSnapshotJson_KeepsRenderReadRecord()
+    {
+        // Multilingual worktree builds pass manifest entries from worker to parent as JSON.
+        var typeInfo = (System.Text.Json.Serialization.Metadata.JsonTypeInfo<BuildManifestEntry>)
+            I18nWorktreeJsonContext.Default.GetTypeInfo(typeof(BuildManifestEntry))!;
+        var entry = new BuildManifestEntry { OutputPath = "a/index.html", RenderBaseHash = "base", RenderReads = ["pages", "site.data.menu"] };
+
+        var json = System.Text.Json.JsonSerializer.Serialize(entry, typeInfo);
+        var restored = System.Text.Json.JsonSerializer.Deserialize(json, typeInfo)!;
+
+        Assert.Equal("base", restored.RenderBaseHash);
+        Assert.Equal(["pages", "site.data.menu"], restored.RenderReads);
+        Assert.Contains("\"renderReads\"", json, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Load_MalformedRenderReadsMeansEveryCollection()
+    {
+        var path = Path.GetTempFileName();
+        try
+        {
+            File.WriteAllText(path, "{\"version\":3,\"entries\":{\"a\":{\"renderReads\":[\"pages\",3]},\"b\":{\"renderReads\":\"pages\"}}}");
+            var loaded = BuildManifest.Load(path);
+            Assert.Null(loaded.Entries["a"].RenderReads);
+            Assert.Null(loaded.Entries["b"].RenderReads);
+        }
+        finally { File.Delete(path); }
+    }
+
     [Fact]
     public void TrackAssetPlanOutputs_Sha256LargeFile_UsesBoundedAllocation()
     {

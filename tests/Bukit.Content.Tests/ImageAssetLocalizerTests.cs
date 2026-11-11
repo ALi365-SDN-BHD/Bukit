@@ -13,7 +13,7 @@ using Xunit;
 
 namespace Bukit.Content.Tests;
 
-public sealed class ImageAssetLocalizerTests
+public sealed partial class ImageAssetLocalizerTests
 {
     [Fact]
     public void CreateDefaultHandler_DisablesAutomaticRedirects()
@@ -277,6 +277,9 @@ public sealed class ImageAssetLocalizerTests
     }
 
     [Fact]
+    // Business parameters still select distinct files. Since fix-media-signed-url-identity,
+    // URLs that differ only by signature parameters share one file (see the SignedUrls tests);
+    // this deliberately revises the 4de531d9 contract, which used X-Amz-Expires here.
     public async Task LocalizeAsync_SamePathDifferentQuery_UsesDistinctStoredFilesWithoutPersistingSecrets()
     {
         var dir = Path.Combine(Path.GetTempPath(), $"bukit-media-{Guid.NewGuid():N}");
@@ -296,17 +299,17 @@ public sealed class ImageAssetLocalizerTests
             string b;
             using (var localizer = CreateLocalizer(cfg, handler))
             {
-                a = await localizer.LocalizeAsync("https://img.example/path/a.jpg?X-Amz-Expires=100", CancellationToken.None);
-                b = await localizer.LocalizeAsync("https://img.example/path/a.jpg?X-Amz-Expires=200", CancellationToken.None);
+                a = await localizer.LocalizeAsync("https://img.example/path/a.jpg?w=100", CancellationToken.None);
+                b = await localizer.LocalizeAsync("https://img.example/path/a.jpg?w=200", CancellationToken.None);
                 Assert.NotEqual(a, b);
                 Assert.Equal(2, handler.RequestCount);
             }
 
             Assert.Equal(3, Directory.GetFiles(dir).Length); // two images + .media-index.json
             var index = File.ReadAllText(Path.Combine(dir, ".media-index.json"));
-            Assert.DoesNotContain("X-Amz-Expires", index, StringComparison.Ordinal);
-            Assert.DoesNotContain("X-Amz-Expires=100", index, StringComparison.Ordinal);
-            Assert.DoesNotContain("X-Amz-Expires=200", index, StringComparison.Ordinal);
+            Assert.DoesNotContain("w=100", index, StringComparison.Ordinal);
+            Assert.DoesNotContain("w=200", index, StringComparison.Ordinal);
+            Assert.DoesNotContain("img.example", index, StringComparison.Ordinal);
         }
         finally
         {

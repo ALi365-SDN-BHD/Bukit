@@ -89,7 +89,8 @@ internal static class SpecialListRenderer
         ILogger logger,
         Func<ContentDocument, RouteInfo, SeoModel>? seoBuilder,
         Func<RouteInfo, PageInfo, SeoModel>? listSeoBuilder,
-        HtmlTransformPipeline? htmlTransformPipeline)
+        HtmlTransformPipeline? htmlTransformPipeline,
+        RenderDependencySnapshot? dependencySnapshot = null)
     {
         var stageMetrics = new BuildStageMetricsCollector();
         var key = BuildPathUtils.NormalizeRelPath(listRoute.OutputPath);
@@ -108,7 +109,7 @@ internal static class SpecialListRenderer
             existing!.TemplateHash == templateHash &&
             existing.ContentHash == contentHash &&
             existing.RouteHash == routeHash &&
-            existing.RenderDependencyHash == renderDependencyHash;
+            existing.RenderDependencyHash == RenderReadTracking.HashFor(dependencySnapshot, renderDependencyHash, existing.RenderReads);
 
         if (canSkip)
         {
@@ -127,7 +128,8 @@ internal static class SpecialListRenderer
 
         listPage = listPage with { Seo = listSeoBuilder?.Invoke(listRoute, listPage) };
 
-        var html = renderer.RenderList(listRoute.Template, CreateListPageModel(siteModel, listPage, pageInfos, pageContext));
+        var listModel = CreateListPageModel(siteModel, listPage, pageInfos, pageContext);
+        var html = RenderReadTracking.Render(dependencySnapshot, () => renderer.RenderList(listRoute.Template, listModel), out var reads);
         if (htmlTransformPipeline is not null)
         {
             html = htmlTransformPipeline.Transform(
@@ -153,7 +155,9 @@ internal static class SpecialListRenderer
             ContentHash = contentHash,
             RouteHash = routeHash,
             TemplateHash = templateHash,
-            RenderDependencyHash = renderDependencyHash
+            RenderDependencyHash = RenderReadTracking.HashFor(dependencySnapshot, renderDependencyHash, reads),
+            RenderBaseHash = dependencySnapshot is null ? null : renderDependencyHash,
+            RenderReads = reads
         };
 
         return new PageRenderDispatcher.SpecialListRenderResult(1, 0, stageMetrics.Snapshot());

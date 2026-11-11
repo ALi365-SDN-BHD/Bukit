@@ -2,68 +2,55 @@ using Bukit.Rendering;
 
 namespace Bukit.Engine.Incremental;
 
+/// <summary>
+/// The shared data collections of the site model (<c>site.modules</c>, <c>site.data</c>,
+/// <c>site.data_index</c>, <c>site.related_pages</c>, <c>site.data_files</c>). They are not part
+/// of the base render hash: each route depends only on the collections its last render read
+/// (see <see cref="RenderDependencySnapshot"/>).
+/// </summary>
 internal sealed class SiteModelDataContributor : IRenderDependencyContributor
 {
     public string Name => "site-model-data";
 
     public void Contribute(RenderDependencyContext context, RenderDependencyHashWriter writer)
     {
+        foreach (var (_, write) in EnumerateCollections(context))
+        {
+            write(writer);
+        }
+    }
+
+    /// <summary>
+    /// Each collection under its read key (see <see cref="RenderReadRecorder"/>), in a stable
+    /// order. Keys are lower case, so names differing only in case share one key.
+    /// </summary>
+    internal static IEnumerable<(string Key, Action<RenderDependencyHashWriter> Write)> EnumerateCollections(
+        RenderDependencyContext context)
+    {
+        foreach (var (key, label, value, isModule) in EnumerateCollectionValues(context))
+        {
+            yield return isModule
+                ? (key, writer => AppendModule(writer, label, (IReadOnlyList<ModuleInfo>)value!))
+                : (key, writer => writer.AppendLabeledCanonicalValue(label, value));
+        }
+    }
+
+    /// <summary>
+    /// The values behind <see cref="EnumerateCollections"/>: each collection's read key, the
+    /// label it is hashed under (the module key for modules), its value, and whether it is a module list.
+    /// </summary>
+    internal static IEnumerable<(string Key, string Label, object? Value, bool IsModule)> EnumerateCollectionValues(
+        RenderDependencyContext context)
+    {
         var excludedSource = context.Config.Content.RouteMetadata?.Source;
-        AppendModules(writer, context.SiteModel.Modules, excludedSource);
-        AppendData(writer, context.SiteModel.Data, excludedSource);
-        AppendDataIndex(writer, context.SiteModel.DataIndex, excludedSource);
-    }
-
-    private static void AppendModules(
-        RenderDependencyHashWriter writer,
-        IReadOnlyDictionary<string, IReadOnlyList<ModuleInfo>>? modules,
-        string? excludedSource)
-    {
-        if (modules is null || modules.Count == 0)
+        var siteModel = context.SiteModel;
+        foreach (var module in Ordered(siteModel.Modules, excludedSource))
         {
-            return;
+            yield return (CollectionKey("site.modules.", module.Key), module.Key, module.Value, true);
         }
 
-        foreach (var module in modules.OrderBy(x => x.Key, StringComparer.Ordinal))
+        foreach (var entry in Ordered(siteModel.Data, excludedSource))
         {
-            if (string.Equals(module.Key, excludedSource, StringComparison.OrdinalIgnoreCase))
-            {
-                continue;
-            }
-
-            writer.AppendLabeledCanonicalValue("site.modules.key", module.Key);
-            writer.AppendLabeledCanonicalValue("site.modules.count", module.Value.Count);
-            foreach (var item in module.Value.OrderBy(x => x.Id, StringComparer.Ordinal))
-            {
-                writer.AppendLabeledCanonicalValue("site.modules.item", new Dictionary<string, object?>
-                {
-                    ["id"] = item.Id,
-                    ["title"] = item.Title,
-                    ["slug"] = item.Slug,
-                    ["content"] = item.Content,
-                    ["fields"] = item.Fields
-                });
-            }
-        }
-    }
-
-    private static void AppendData(
-        RenderDependencyHashWriter writer,
-        IReadOnlyDictionary<string, object>? data,
-        string? excludedSource)
-    {
-        if (data is null || data.Count == 0)
-        {
-            return;
-        }
-
-        foreach (var entry in data.OrderBy(x => x.Key, StringComparer.Ordinal))
-        {
-            if (string.Equals(entry.Key, excludedSource, StringComparison.OrdinalIgnoreCase))
-            {
-                continue;
-            }
-
             if (entry.Key.StartsWith("__", StringComparison.Ordinal))
             {
                 var publicAlias = entry.Key switch
@@ -74,34 +61,106 @@ internal sealed class SiteModelDataContributor : IRenderDependencyContributor
                 };
                 if (publicAlias is not null)
                 {
-                    writer.AppendLabeledCanonicalValue($"site.{publicAlias}", entry.Value);
+                    yield return ($"site.{publicAlias}", $"site.{publicAlias}", entry.Value, false);
                 }
 
                 continue;
             }
 
-            writer.AppendLabeledCanonicalValue($"site.data.{entry.Key}", entry.Value);
+            yield return (CollectionKey("site.data.", entry.Key), $"site.data.{entry.Key}", entry.Value, false);
+        }
+
+        foreach (var entry in Ordered(siteModel.DataIndex, excludedSource))
+        {
+            yield return (CollectionKey("site.data_index.", entry.Key), $"site.data_index.{entry.Key}", entry.Value, false);
         }
     }
 
-    private static void AppendDataIndex(
-        RenderDependencyHashWriter writer,
-        IReadOnlyDictionary<string, object>? dataIndex,
-        string? excludedSource)
+    /// <summary>
+    /// The route metadata source under its read keys. It stays out of the base hash and of
+    /// <see cref="EnumerateCollections"/> (route metadata is folded in per route), but a template
+    /// can still read it as <c>site.data.&lt;source&gt;</c>, and routes that read it depend on it.
+    /// </summary>
+    internal static IEnumerable<(string Key, Action<RenderDependencyHashWriter> Write)> EnumerateRouteMetadataSourceCollections(
+        RenderDependencyContext context)
     {
-        if (dataIndex is null || dataIndex.Count == 0)
+        foreach (var (key, label, value, isModule) in EnumerateRouteMetadataSourceValues(context))
         {
-            return;
+            yield return isModule
+                ? (key, writer => AppendModule(writer, label, (IReadOnlyList<ModuleInfo>)value!))
+                : (key, writer => writer.AppendLabeledCanonicalValue(label, value));
+        }
+    }
+
+    /// <summary>
+    /// The values behind <see cref="EnumerateRouteMetadataSourceCollections"/>, in the same shape
+    /// as <see cref="EnumerateCollectionValues"/>.
+    /// </summary>
+    internal static IEnumerable<(string Key, string Label, object? Value, bool IsModule)> EnumerateRouteMetadataSourceValues(
+        RenderDependencyContext context)
+    {
+        var source = context.Config.Content.RouteMetadata?.Source;
+        if (string.IsNullOrWhiteSpace(source))
+        {
+            yield break;
         }
 
-        foreach (var entry in dataIndex.OrderBy(x => x.Key, StringComparer.Ordinal))
+        var siteModel = context.SiteModel;
+        foreach (var module in Matching(siteModel.Modules, source))
         {
-            if (string.Equals(entry.Key, excludedSource, StringComparison.OrdinalIgnoreCase))
-            {
-                continue;
-            }
+            yield return (CollectionKey("site.modules.", module.Key), module.Key, module.Value, true);
+        }
 
-            writer.AppendLabeledCanonicalValue($"site.data_index.{entry.Key}", entry.Value);
+        foreach (var entry in Matching(siteModel.Data, source))
+        {
+            yield return (CollectionKey("site.data.", entry.Key), $"site.data.{entry.Key}", entry.Value, false);
+        }
+
+        foreach (var entry in Matching(siteModel.DataIndex, source))
+        {
+            yield return (CollectionKey("site.data_index.", entry.Key), $"site.data_index.{entry.Key}", entry.Value, false);
+        }
+    }
+
+    private static IEnumerable<KeyValuePair<string, TValue>> Matching<TValue>(
+        IReadOnlyDictionary<string, TValue>? values,
+        string source) =>
+        values is null
+            ? []
+            : values
+                .Where(entry => string.Equals(entry.Key, source, StringComparison.OrdinalIgnoreCase))
+                .OrderBy(entry => entry.Key, StringComparer.Ordinal);
+
+    private static string CollectionKey(string scope, string key) => scope + key.ToLowerInvariant();
+
+    private static IEnumerable<KeyValuePair<string, TValue>> Ordered<TValue>(
+        IReadOnlyDictionary<string, TValue>? values,
+        string? excludedSource)
+    {
+        if (values is null || values.Count == 0)
+        {
+            return [];
+        }
+
+        return values
+            .Where(entry => !string.Equals(entry.Key, excludedSource, StringComparison.OrdinalIgnoreCase))
+            .OrderBy(entry => entry.Key, StringComparer.Ordinal);
+    }
+
+    private static void AppendModule(RenderDependencyHashWriter writer, string key, IReadOnlyList<ModuleInfo> items)
+    {
+        writer.AppendLabeledCanonicalValue("site.modules.key", key);
+        writer.AppendLabeledCanonicalValue("site.modules.count", items.Count);
+        foreach (var item in items.OrderBy(x => x.Id, StringComparer.Ordinal))
+        {
+            writer.AppendLabeledCanonicalValue("site.modules.item", new Dictionary<string, object?>
+            {
+                ["id"] = item.Id,
+                ["title"] = item.Title,
+                ["slug"] = item.Slug,
+                ["content"] = item.Content,
+                ["fields"] = item.Fields
+            });
         }
     }
 }

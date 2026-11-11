@@ -35,6 +35,34 @@ page content requirements. The resolver fingerprints current manifest text;
 static root/include/layout analysis is local to the current call. Returned
 capability field collections are snapshots rather than mutable cache entries.
 
+## Shared Models
+
+Within one render pass, the renderer converts the site page index (`pages`)
+and the site model (`site`) once per instance, matched by reference, and
+reuses the result for every page. Per-page values (`page`, `seo`, `content`)
+are still built for each page. On list pages, `pages` and `items` share one
+converted array when they come from the same list.
+
+Shared values are read-only at every level, and so are list-page `items`
+when they share the `pages` array. Assigning an existing member already
+failed; a template that adds a new key to `site`, `pages[i]`, a list item or
+any nested object (including assignments inside `with site.params ... end`),
+or assigns an array element such as `pages[0] = x`, now fails with a
+read-only error. Inside a component or section, the error follows
+`theme.componentValidation`: it fails the build in `strict` mode and is
+otherwise written as a component diagnostic comment. Scriban assigns array elements through the
+non-generic `IList` indexer, which ignores `IsReadOnly`, so page, component
+and section contexts use `BukitTemplateContext` to enforce it. The dispatcher
+releases the shared values when the render pass ends.
+
+Callers of the public `ScribanTemplateRenderer` that reuse one `SiteModel` or
+page list instance while changing the data behind it get the values converted
+the first time; pass new instances after changing data. Such callers also keep
+the last converted values alive until the renderer is released. Code that
+writes into template globals from C# (for example an
+`ITemplateContextContributor`) must not change `site` or `pages`: C# writes
+bypass the read-only flag and would leak across pages.
+
 ## Rendering Flow
 
 `RenderPipeline` renders content pages, list routes, and optional static HTML
@@ -45,7 +73,10 @@ Analytics. Analytics remains active when SEO rendering is disabled or uses
 `theme`/`off` mode.
 
 Incremental rendering compares content, route, template, SEO, Analytics, and
-model dependency hashes. Analytics dependencies include both switches,
+model dependency hashes. Shared data collections are tracked per route: the
+renderer reports the templates each render used to `RenderReadRecorder`, and
+`ScribanTemplateReadAnalyzer` maps their `site` and `pages` references to
+collection keys (see [incremental-build.md](incremental-build.md)). Analytics dependencies include both switches,
 execution mode, provider order, provider type, unique key, and normalized
 options, so an output-affecting config change forces re-rendering. The render
 dependency hash also includes all three document title config values.

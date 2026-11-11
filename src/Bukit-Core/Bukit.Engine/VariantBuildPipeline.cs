@@ -19,6 +19,7 @@ internal sealed partial class VariantBuildPipeline
     {
         var variantTotalStopwatch = Stopwatch.StartNew();
         var variantStageMetrics = new BuildStageMetricsCollector();
+        var stageStarted = Stopwatch.GetTimestamp();
 
         var media = context.Config.Content.Media.DownloadToLocal ? new ContentMediaOutput(context) : null;
         if (media is not null)
@@ -31,6 +32,7 @@ internal sealed partial class VariantBuildPipeline
             logger);
         var templateResolver = new ThemeTemplateResolver(bootstrap.Manifest);
         templateResolver.ValidateRequiredTemplates();
+        RecordStage("variantSetup");
 
         var dataModules = await VariantDataSitePlanner.PrepareDataModulesStageAsync(
             context,
@@ -60,6 +62,7 @@ internal sealed partial class VariantBuildPipeline
                 dataModules.RouteMetadata)
         };
         ValidatePostDeriveRoutes(routePipelineResult);
+        stageStarted = Stopwatch.GetTimestamp();
         if (media is not null)
         {
             if (routePipelineResult.PluginContext.TryGet(BuildDataKeys.PagesById, out var indexedPages))
@@ -72,6 +75,7 @@ internal sealed partial class VariantBuildPipeline
             foreach (var document in dataModules.DataDocuments) media.NormalizeDocument(document, collect: true);
             await media.ResolveAsync(routePipelineResult.RouteResult.RoutedDocuments
                 .Concat(routePipelineResult.PluginContext.DerivedDocuments).Select(document => document.Document), cancellationToken);
+            RecordStage("mediaResolve");
         }
 
         var rendererThemePlan = VariantRendererThemePlanner.Create(
@@ -107,12 +111,14 @@ internal sealed partial class VariantBuildPipeline
         {
             AssetPipelineContext = renderAssetPlan.AssetPipelineContext with { MediaOutputs = media?.Plan(logger, cancellationToken) }
         };
+        RecordStage("renderPlan");
         var assetPipelinePreparation = await AssetPipeline.PrepareAsync(
             renderAssetPlan.AssetPipelineContext,
             cancellationToken);
 
         // Remove only prior owned destinations before aggregate writers inspect existing files.
         PublicOutputLifecycle.PrepareProjectionWrites(context.OutputDir, manifestSetup.Manifest, assetPipelinePreparation.OutputPlan.Items);
+        RecordStage("assetPrepare");
 
         var seoStage = await VariantSeoStage.ExecuteAsync(
             context,
@@ -125,6 +131,7 @@ internal sealed partial class VariantBuildPipeline
             routePipelineResult.PluginContext,
             pluginSession,
             seoStage.SeoResult);
+        RecordStage("seoPrepare");
 
         try
         {
@@ -171,24 +178,22 @@ internal sealed partial class VariantBuildPipeline
                 VariantReportStage.GetPluginOutputs(routePipelineResult.PluginContext).Select(output =>
                     new AssetOutputItem(output.Plugin, output.Path, AssetOutputCategory.Plugin, Operation: AssetOutputOperation.Generate))).ToArray();
             AssetOutputPlan.Validate(plannedOutputs, assetPipelinePreparation.OutputPlan.DestinationComparer);
-            var searchSnippets = templateResolver.TryResolveKindTemplate("search", out var searchTemplate) &&
-                TemplateCapabilitiesResolver.SupportsSearchSnippets(searchTemplate, context.LayoutsDir);
-            var projectionResults = await new DefaultContentProjectionWriter().WriteAsync(new PublishProjectionContext(
-                context.Config, context.OutputDir, context.ContentGraph, seoStage.SeoResult.SeoIndex.Entries,
-                seoStage.SeoResult.SeoIndex.Models, routePipelineResult.PluginContext.RoutedDocuments,
-                context.BodyStore, context.BaseUrl, searchSnippets, logger,
-                routePipelineResult.RouteResult.ListRouteGraph,
-                DerivedDocuments: routePipelineResult.PluginContext.DerivedDocuments), cancellationToken);
-            media?.ValidateOutputs(plannedOutputs);
-            PublicOutputLifecycle.Record(manifestSetup.Manifest, context.OutputDir, plannedOutputs);
-            var result = await VariantReportStage.ExecuteAsync(
-                context, routePipelineResult, seoStage.SeoResult, renderPipelineResult,
-                variantStageMetrics, templateResolver, analyticsTransformPlan.AnalyticsBuildState, logger, projectionResults);
+            var result = await VariantReportRunner.RunAsync(
+                context, routePipelineResult, seoStage, renderPipelineResult, variantStageMetrics, templateResolver,
+                analyticsTransformPlan.AnalyticsBuildState, manifestSetup, media, plannedOutputs, logger, cancellationToken);
             return result with { PendingManifest = manifestSetup, PlannedOutputs = plannedOutputs };
         }
         finally
         {
             analyticsTransformPlan.PluginHtmlTransforms.RecordExecutions();
+        }
+
+        // Records the wall-clock time since the previous mark and starts the next one.
+        void RecordStage(string stage)
+        {
+            var now = Stopwatch.GetTimestamp();
+            variantStageMetrics.AddElapsedTicks(stage, now - stageStarted);
+            stageStarted = now;
         }
     }
 
