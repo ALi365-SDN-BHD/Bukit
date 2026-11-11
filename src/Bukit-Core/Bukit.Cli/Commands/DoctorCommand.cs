@@ -380,7 +380,7 @@ public static class DoctorCommand
                 RouteInventoryValidator.ValidateContentRoutes(routes, $"content:{language}");
             }
 
-            routedDocuments = routesByLanguage.Values.SelectMany(routes => routes).ToList();
+            routedDocuments = [.. routesByLanguage.Values.SelectMany(routes => routes)];
             Console.WriteLine("✔ Routes valid");
         }
         catch (Exception ex) when (ex is ConfigException or ContentException)

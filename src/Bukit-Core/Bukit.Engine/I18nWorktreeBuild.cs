@@ -89,20 +89,7 @@ public sealed partial class SiteEngine
 
         try
         {
-            var languages = I18nOutputMerger.GetLanguages(config.Site);
-            var defaultLanguage = I18nOutputMerger.GetDefaultLanguage(config.Site, languages);
-            var resolvedTheme = ThemePathResolver.Resolve(rootDir, config.Theme, buildLogger);
-            var templateResolver = new ThemeTemplateResolver(
-                ThemeBootstrapper.BootstrapRequired(config, rootDir, buildLogger).Manifest);
-            var seoAlternates = SeoAlternatesService.BuildSeoAlternates(
-                config,
-                content.Documents,
-                languages,
-                defaultLanguage,
-                BuildPathUtils.NormalizeBaseUrl(config.Site.BaseUrl),
-                templateResolver,
-                rootDir,
-                resolvedTheme.LayoutsDir);
+            var seoAlternates = BuildWorktreeSeoAlternates(config, rootDir, content.Documents, buildLogger);
             var assets = await AssetSourceWorkspace.PrepareAsync(
                 plan.AssetsDir,
                 plan.EffectiveConfig.Theme.Scss,
@@ -127,6 +114,29 @@ public sealed partial class SiteEngine
             await DisposeContentBodyStoreAsync(content.BodyStore).ConfigureAwait(false);
             throw;
         }
+    }
+
+    // Computed once in the parent so every language worker reuses the same hreflang groups.
+    private static IReadOnlyDictionary<string, IReadOnlyList<SeoAlternateModel>> BuildWorktreeSeoAlternates(
+        AppConfig config,
+        string rootDir,
+        IReadOnlyList<ContentDocument> documents,
+        BuildDiagnosticLogger logger)
+    {
+        var languages = I18nOutputMerger.GetLanguages(config.Site);
+        var defaultLanguage = I18nOutputMerger.GetDefaultLanguage(config.Site, languages);
+        var resolvedTheme = ThemePathResolver.Resolve(rootDir, config.Theme, logger);
+        var templateResolver = new ThemeTemplateResolver(
+            ThemeBootstrapper.BootstrapRequired(config, rootDir, logger).Manifest);
+        return SeoAlternatesService.BuildSeoAlternates(
+            config,
+            documents,
+            languages,
+            defaultLanguage,
+            BuildPathUtils.NormalizeBaseUrl(config.Site.BaseUrl),
+            templateResolver,
+            rootDir,
+            resolvedTheme.LayoutsDir);
     }
 
     internal async Task<(BuildVariantResult Result, int WarningCount, int ErrorCount)> ExecuteI18nWorktreeVariantAsync(

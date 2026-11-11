@@ -142,7 +142,7 @@ public static class RouteInventoryValidator
             : documents.Where(i => ContentFieldReader.GetBool(i.CustomFields, "draft") is not true).ToList();
     }
 
-    private static IReadOnlyList<RoutedContentDocument> BuildRoutes(
+    private static List<RoutedContentDocument> BuildRoutes(
         IReadOnlyList<ContentDocument> documents,
         AppConfig config,
         string language,

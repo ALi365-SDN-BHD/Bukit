@@ -291,7 +291,15 @@ internal sealed class WorktreeBuildRun
         var snapshotPath = Path.Combine(_runRoot, "content-snapshot.v1.json");
         await I18nWorktreeProtocolStore.WriteContentAsync(snapshotPath, contentSnapshot, cancellationToken).ConfigureAwait(false);
         _contentHash = await I18nWorktreeProtocolStore.Sha256Async(snapshotPath, cancellationToken).ConfigureAwait(false);
+        await CreateWorkerPlansAsync(_prepared, snapshotPath, _contentHash, cancellationToken).ConfigureAwait(false);
+    }
 
+    private async Task CreateWorkerPlansAsync(
+        I18nPreparedBuild prepared,
+        string snapshotPath,
+        string contentHash,
+        CancellationToken cancellationToken)
+    {
         _workerPlans = new List<WorkerPlan>(_languages.Count);
         foreach (var language in _languages)
         {
@@ -313,7 +321,7 @@ internal sealed class WorktreeBuildRun
                 I18nWorktreeProtocol.RequestSchema,
                 _repository.Head,
                 _configHash,
-                _contentHash,
+                contentHash,
                 language,
                 _logFormat,
                 workerConfigPath,
@@ -323,10 +331,10 @@ internal sealed class WorktreeBuildRun
                 _overrides with { Output = outputDir, CacheDir = workerCache, Clean = false, MetricsPath = null },
                 outputDir,
                 workerCache,
-                _prepared.AssetsDir,
-                _prepared.ScssOutputDir,
-                _stagedMediaDir ?? _prepared.Plan.MediaCacheDir,
-                _prepared.SeoAlternates,
+                prepared.AssetsDir,
+                prepared.ScssOutputDir,
+                _stagedMediaDir ?? prepared.Plan.MediaCacheDir,
+                prepared.SeoAlternates,
                 snapshotPath,
                 resultPath);
             await I18nWorktreeProtocolStore.WriteRequestAsync(requestPath, request, cancellationToken).ConfigureAwait(false);
