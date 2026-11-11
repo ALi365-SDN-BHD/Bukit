@@ -108,6 +108,7 @@ geo.llms_visibility_invalid
 geo.llms_tier_invalid
 geo.llms_priority_invalid
 geo.llms_field_unknown
+geo.llms_shape_invalid
 ```
 
 Run Engine tests to GREEN.
@@ -214,3 +215,13 @@ Review indexability precedence, three writer paths, cap semantics and output det
 ```bash
 git commit -m "feat(geo): add page-level llms curation"
 ```
+
+## Known follow-up: duplicate curation warnings in i18n builds
+
+Status: accepted for now; revisit the next time i18n build code is changed.
+
+`SeoDiagnostics.AnalyzeLlmsCuration` runs inside `SeoPipeline.Execute`, which `VariantSeoStage` calls once per language variant. An invalid `geo.llms` value on a page is therefore reported once per language build. In strict mode the build fails on the first variant that hits it.
+
+- Current behaviour is intentional for this change: each variant's warnings name its own `route=`, and the llms output for each language is correct.
+- Open question: whether the root i18n build should report curation once (for example, from the root writer) and suppress per-variant repeats. Decide this together with the i18n diagnostics work, not in the llms fix.
+- Before changing it, add an i18n fixture with one invalid page and assert the number of warnings per route.

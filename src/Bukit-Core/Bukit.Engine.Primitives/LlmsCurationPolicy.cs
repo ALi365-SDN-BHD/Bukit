@@ -45,7 +45,7 @@ internal static class LlmsCurationPolicyParser
 
     internal static LlmsCurationParseResult Parse(IReadOnlyDictionary<string, ContentField>? fields)
     {
-        if (!ContentFieldReader.TryGetField(fields, "geo", out var geoField))
+        if (!ContentFieldReader.TryGetField(fields, "geo", out var geoField) || geoField.Value is null)
         {
             return new LlmsCurationParseResult(true, LlmsCurationPolicy.Default, Array.Empty<string>());
         }
@@ -55,7 +55,7 @@ internal static class LlmsCurationPolicyParser
             return InvalidShape();
         }
 
-        if (!geo.TryGetValue("llms", out var llmsValue))
+        if (!geo.TryGetValue("llms", out var llmsValue) || llmsValue is null)
         {
             return new LlmsCurationParseResult(true, LlmsCurationPolicy.Default, Array.Empty<string>());
         }
@@ -149,7 +149,7 @@ internal static class LlmsCurationPolicyParser
     }
 
     private static LlmsCurationParseResult InvalidShape()
-        => new(false, LlmsCurationPolicy.Default, ["geo.llms_field_unknown"]);
+        => new(false, LlmsCurationPolicy.Default, ["geo.llms_shape_invalid"]);
 
     private static bool TryReadPriority(object value, out int priority)
     {

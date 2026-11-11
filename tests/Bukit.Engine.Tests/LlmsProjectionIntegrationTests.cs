@@ -49,10 +49,16 @@ public sealed class LlmsProjectionIntegrationTests
         }
     }
 
-    [Fact]
-    public async Task BuildAsync_InvalidLlmsCurationStrict_FailsBuild()
+    [Theory]
+    [InlineData("geo:\n  llms:\n    priority: \"10\"", "geo.llms_priority_invalid")]
+    [InlineData("geo:\n  llms:\n    visibility: always", "geo.llms_visibility_invalid")]
+    [InlineData("geo:\n  llms:\n    tier: featured", "geo.llms_tier_invalid")]
+    [InlineData("geo:\n  llms:\n    weight: 5", "geo.llms_field_unknown")]
+    [InlineData("geo:\n  llms: false", "geo.llms_shape_invalid")]
+    [InlineData("geo: invalid", "geo.llms_shape_invalid")]
+    public async Task BuildAsync_InvalidLlmsCurationStrict_FailsBuild(string brokenFrontMatter, string expectedCode)
     {
-        var root = CreateCurationSite("strict");
+        var root = CreateCurationSite("strict", brokenFrontMatter);
         try
         {
             var config = ConfigLoader.Load(Path.Combine(root, "site.yaml"));
@@ -60,7 +66,7 @@ public sealed class LlmsProjectionIntegrationTests
             var exception = await Assert.ThrowsAsync<ConfigException>(() =>
                 new SiteEngine(new TestLogger()).BuildAsync(config, root, new ConfigOverrides(), CancellationToken.None));
 
-            Assert.Contains("geo.llms_priority_invalid route=blog/broken/index.html", exception.Message, StringComparison.Ordinal);
+            Assert.Contains($"{expectedCode} route=blog/broken/index.html", exception.Message, StringComparison.Ordinal);
         }
         finally
         {
@@ -68,7 +74,7 @@ public sealed class LlmsProjectionIntegrationTests
         }
     }
 
-    private static string CreateCurationSite(string diagnostics)
+    private static string CreateCurationSite(string diagnostics, string brokenFrontMatter = "geo:\n  llms:\n    priority: \"10\"")
     {
         var root = Path.Combine(Path.GetTempPath(), "bukit-llms-curation-" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(Path.Combine(root, "content"));
@@ -103,8 +109,7 @@ public sealed class LlmsProjectionIntegrationTests
               layouts: layouts
             """);
         WritePost(root, "visible.md", "Visible", "visible", extraFrontMatter: "");
-        // A quoted priority is a string, not a YAML integer: invalid curation.
-        WritePost(root, "broken.md", "Broken", "broken", extraFrontMatter: "geo:\n  llms:\n    priority: \"10\"");
+        WritePost(root, "broken.md", "Broken", "broken", extraFrontMatter: brokenFrontMatter);
         File.WriteAllText(Path.Combine(root, "layouts", "layouts", "base.html"), """
             <!doctype html>
             <html><head><title>{{ page.title }}</title></head><body>{{ content }}</body></html>

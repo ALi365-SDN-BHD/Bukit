@@ -660,10 +660,11 @@ public sealed class LlmsTxtPluginTests : IDisposable
         Assert.DoesNotContain("https://example.com/posts/broken/", full, StringComparison.Ordinal);
     }
 
-    // The writers only exclude invalid curation; reporting it (and failing under strict) is the
-    // build's job, covered end to end in LlmsProjectionIntegrationTests.
+    // The writer only excludes invalid curation; reporting it (and failing under strict) is the
+    // build's job, covered end to end in LlmsProjectionIntegrationTests. Call the writer directly:
+    // the AfterBuildAsync hook is not registered in a real build.
     [Fact]
-    public async Task Curation_InvalidMetadataStrictMode_WriterExcludesWithoutThrowing()
+    public void Curation_InvalidMetadata_WriterExcludesPageWithoutThrowing()
     {
         var outputDir = Path.Combine(_root, "dist-curation-invalid-strict");
         var articles = new[]
@@ -672,9 +673,9 @@ public sealed class LlmsTxtPluginTests : IDisposable
             new ArticleFixture("broken", "posts", DateTimeOffset.Parse("2026-01-02T00:00:00Z"), "/posts/broken/",
                 Llms: new Dictionary<string, object> { ["visibility"] = "always" })
         };
-        var (context, config) = CreateArticleContext(outputDir, articles, maxArticles: 0, diagnostics: "strict");
+        var (context, config) = CreateArticleContext(outputDir, articles, maxArticles: 0);
 
-        await new LlmsTxtPlugin(config).AfterBuildAsync(context);
+        LlmsTxtPlugin.WriteLlmsTxt(context, config, config.Site.Seo.Geo);
 
         var compact = File.ReadAllText(Path.Combine(outputDir, "llms.txt"), Encoding.UTF8);
         Assert.Contains("https://example.com/posts/kept/", compact, StringComparison.Ordinal);

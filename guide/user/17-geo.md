@@ -221,6 +221,12 @@ Rules and precedence:
   reported by `site.seo.diagnostics` (warning in `warn` mode, build failure
   in `strict` mode); invalid metadata is treated as excluded, never as
   auto-included.
+- The diagnostic codes are `geo.llms_field_unknown`,
+  `geo.llms_visibility_invalid`, `geo.llms_tier_invalid`,
+  `geo.llms_priority_invalid`, and `geo.llms_shape_invalid`. The last one
+  means `geo` or `geo.llms` is present but is not a mapping, for example
+  `llms: false` or `geo: invalid`. An empty `geo:` or `llms:` key is treated
+  as absent and reports nothing.
 
 Curation changes llms projections only. Sitemap, search, RSS, robots, and
 `SeoIndexEntry.Indexable` are not affected.
