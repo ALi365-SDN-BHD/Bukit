@@ -4,8 +4,12 @@ Bukit 所有重要变更都将记录在此文件中。
 
 ## [Unreleased]
 
+## [2.0.15] - 2026-11-11
+
 - **过期图片链接立即失败**：图片下载被拒绝（HTTP 400、401 或 403），且网址自身的签名已过期（AWS SigV4、Google Cloud Storage V4、AWS SigV2/CloudFront 或 Notion 文件代理）时，不再按 `content.media.maxRetries` 重试，因为过期签名不可能成功。主要加快仍含过期链接的 `readonly` Notion 缓存构建。失败记录、`onFailure` 结果和已保存图片的复用不变，警告增加 `signature=expired`。其他失败照常重试。
-- **共享数据中的签名链接会给出警告**：增量构建时，如果 `site.modules`、`site.data`、`site.data_index`、`site.related_pages` 或 `site.data_files` 里还有已识别签名方案的链接（AWS SigV4、Google Cloud Storage V4、AWS SigV2/CloudFront、Notion 文件代理），Bukit 会输出一条 `event=incremental.signed_links` 警告，列出每个读取键及其链接数。这些链接每次拉取都会变，读取它们的页面每次构建都会重渲染；用 `content.media` 把文件本地化即可避免。哈希与输出不变。
+- **共享数据中的签名链接会给出警告**：增量构建时，如果 `site.modules`、`site.data`、`site.data_index`、`site.related_pages`、`site.data_files`、路由元数据源或页面字段（键 `pages`）里还有已识别签名方案的链接（AWS SigV4、Google Cloud Storage V4、AWS SigV2/CloudFront、Notion 文件代理），Bukit 会输出一条 `event=incremental.signed_links` 警告，列出每个读取键及其链接数，多语言构建时还带 `language=`。这些链接每次拉取都可能变，读取它们的页面每次构建都可能重渲染；用 `content.media` 把文件本地化即可避免。哈希与输出不变。
+- **不再显示其他页面的 `bodyFingerprint`**：`pages` 列表和 section `source` 条目的 `fields` 不再包含内部字段 `bodyFingerprint`。它标识正文，而这些列表并不跟踪正文，打印它的页面可能在其他页面正文修改后保留旧文本。页面自身的 `page.fields` 不变。
+- **插件名与选项名的大小写不再触发全站重渲染**：插件名和顶层选项名本就不区分大小写，增量哈希现在也一样处理，只改大小写不再重渲染每个页面。
 
 ## [2.0.14] - 2026-11-10
 
