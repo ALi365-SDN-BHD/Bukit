@@ -1613,10 +1613,13 @@
         "openspec/changes/fix-render-shared-model-cost/proposal.md",
         "openspec/changes/fix-render-shared-model-cost/tasks.md",
         "openspec/changes/fix-render-shared-model-cost/specs/static-rendering/spec.md",
+        "openspec/changes/archive/*-fix-render-shared-model-cost/*.md",
+        "openspec/changes/archive/*-fix-render-shared-model-cost/specs/static-rendering/spec.md",
+        "openspec/specs/static-rendering/spec.md",
         "guide/dev/rendering-scriban.md"
       ],
       "specialtyTests": [
-        "openspec validate fix-render-shared-model-cost --type change --strict --no-interactive",
+        "openspec validate static-rendering --type spec --strict --no-interactive",
         "dotnet test tests/Bukit.Rendering.Tests/Bukit.Rendering.Tests.csproj",
         "dotnet test tests/Bukit.Engine.Tests/Bukit.Engine.Tests.csproj"
       ],
@@ -1630,15 +1633,44 @@
         "openspec/changes/observe-report-stage-timing/proposal.md",
         "openspec/changes/observe-report-stage-timing/tasks.md",
         "openspec/changes/observe-report-stage-timing/specs/library-logging/spec.md",
+        "openspec/changes/archive/*-observe-report-stage-timing/*.md",
+        "openspec/changes/archive/*-observe-report-stage-timing/specs/library-logging/spec.md",
         "guide/dev/observability.md"
       ],
       "specialtyTests": [
-        "openspec validate observe-report-stage-timing --type change --strict --no-interactive",
+        "openspec validate library-logging --type spec --strict --no-interactive",
         "dotnet test tests/Bukit.Engine.Tests/Bukit.Engine.Tests.csproj"
       ],
       "contractConsumerGlobs": [],
       "publicContract": false,
       "resource": "dotnet-serial"
+    },
+    {
+      "id": "build-time-remediation-archive",
+      "matches": [
+        "docs/plans/2026-11-10-build-time-incremental-remediation-plan.zh-CN.md",
+        "openspec/changes/archive/*-optimize-report-stage-hotspots/*.md",
+        "openspec/changes/archive/*-optimize-report-stage-hotspots/specs/*/spec.md",
+        "openspec/changes/archive/*-fix-media-signed-url-identity/*.md",
+        "openspec/changes/archive/*-fix-media-signed-url-identity/specs/*/spec.md",
+        "openspec/changes/archive/*-harden-incremental-invalidation/*.md",
+        "openspec/changes/archive/*-harden-incremental-invalidation/specs/*/spec.md",
+        "openspec/changes/archive/*-add-per-page-render-dependencies/*.md",
+        "openspec/changes/archive/*-add-per-page-render-dependencies/specs/*/spec.md",
+        "openspec/changes/archive/*-fix-notion-body-cache-contract/*.md",
+        "openspec/changes/archive/*-fix-notion-body-cache-contract/specs/*/spec.md",
+        "openspec/specs/incremental-invalidation/spec.md",
+        "openspec/specs/notion-body-cache/spec.md",
+        "openspec/specs/per-page-render-dependencies/spec.md"
+      ],
+      "specialtyTests": [
+        "openspec validate --specs --strict --no-interactive",
+        "bash scripts/checks/docs/size-policy.sh",
+        "bash scripts/checks/docs/active-links.sh"
+      ],
+      "contractConsumerGlobs": [],
+      "publicContract": false,
+      "resource": "static-parallel"
     },
     {
       "id": "fix-core-five-findings-contract",
