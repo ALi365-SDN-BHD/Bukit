@@ -35,6 +35,7 @@ internal sealed class SeoPipeline
     {
         var seoIndex = SeoIndexBuilder.Build(config, baseUrl, renderQueue, listRoutes, seoAlternates, listRouteGraph, routeMetadata, searchAction, breadcrumbs, now);
         SeoDiagnostics.AnalyzeIndex(config, seoIndex.Entries, seoIndex.Models, logger);
+        AnalyzeLlmsCuration(config, renderQueue, logger);
 
         var seoHtmlMode = (config.Site.Seo.RenderMode ?? "inject").Trim().ToLowerInvariant();
         var shouldProvideSeoModel = config.Site.Seo.Enabled;
@@ -110,6 +111,32 @@ internal sealed class SeoPipeline
         }
 
         return alternates.TryGetValue(key, out var list) ? list : null;
+    }
+
+    // Invalid page-level geo.llms curation removes the page from llms output, so report it
+    // here, where every other build-time SEO diagnostic runs (warn by default, fail under strict).
+    private static void AnalyzeLlmsCuration(
+        AppConfig config,
+        IReadOnlyList<RoutedContentDocument> documents,
+        ILogger logger)
+    {
+        var geo = config.Site.Seo.Geo;
+        if (!geo.Enabled || (!geo.LlmsTxt && !geo.LlmsFullTxt))
+        {
+            return;
+        }
+
+        var documentsByPath = new Dictionary<string, ContentDocument>(StringComparer.OrdinalIgnoreCase);
+        foreach (var routedDocument in documents)
+        {
+            var key = BuildPathUtils.NormalizeRelPath(routedDocument.Route.OutputPath);
+            if (key is not null)
+            {
+                documentsByPath[key] = routedDocument.Document;
+            }
+        }
+
+        SeoDiagnostics.AnalyzeLlmsCuration(config, documentsByPath, logger);
     }
 
     private static ListRoutePlan? FindGraphRoute(ListRouteGraph? graph, RouteInfo route)

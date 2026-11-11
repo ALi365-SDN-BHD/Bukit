@@ -24,6 +24,9 @@ internal sealed class LlmsTxtPlugin : IBukitPlugin, IAfterBuildAsyncPlugin
     public string Name => "llms-txt";
     public string Version => "1.0.0";
 
+    // Not registered in BuiltInPluginSource: the publish projection writes llms output through
+    // the static writers below, and SeoPipeline reports curation diagnostics. Keep build logic
+    // out of this hook; a real build never calls it.
     public async Task AfterBuildAsync(BuildContext context, CancellationToken cancellationToken = default)
     {
         var geo = _config.Site.Seo.Geo;
@@ -31,18 +34,6 @@ internal sealed class LlmsTxtPlugin : IBukitPlugin, IAfterBuildAsyncPlugin
         {
             return;
         }
-
-        var documentsByPath = new Dictionary<string, ContentDocument>(StringComparer.OrdinalIgnoreCase);
-        foreach (var routedDocument in context.RoutedDocuments.Concat(context.DerivedDocuments))
-        {
-            var key = BuildPathUtils.NormalizeRelPath(routedDocument.Route.OutputPath);
-            if (key is not null)
-            {
-                documentsByPath[key] = routedDocument.Document;
-            }
-        }
-
-        SeoDiagnostics.AnalyzeLlmsCuration(_config, documentsByPath, context.Logger);
 
         if (geo.LlmsTxt)
         {

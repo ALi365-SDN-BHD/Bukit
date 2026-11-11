@@ -18,11 +18,137 @@ public sealed class LlmsProjectionIntegrationTests
     private sealed class TestLogger : ILogger
     {
         public List<string> Errors { get; } = new();
+        public List<string> Warnings { get; } = new();
 
         public void Debug(string message) { }
         public void Info(string message) { }
-        public void Warn(string message) { }
+        public void Warn(string message) => Warnings.Add(message);
         public void Error(string message) => Errors.Add(message);
+    }
+
+    [Fact]
+    public async Task BuildAsync_InvalidLlmsCuration_WarnsAndExcludesPage()
+    {
+        var root = CreateCurationSite("warn");
+        try
+        {
+            var logger = new TestLogger();
+            var config = ConfigLoader.Load(Path.Combine(root, "site.yaml"));
+
+            await new SiteEngine(logger).BuildAsync(config, root, new ConfigOverrides(), CancellationToken.None);
+
+            Assert.Contains(logger.Warnings, warning =>
+                warning.Contains("geo.llms_priority_invalid route=blog/broken/index.html", StringComparison.Ordinal));
+            var llms = File.ReadAllText(Path.Combine(root, "dist", "llms.txt"));
+            Assert.Contains("https://example.com/blog/visible/", llms, StringComparison.Ordinal);
+            Assert.DoesNotContain("https://example.com/blog/broken/", llms, StringComparison.Ordinal);
+        }
+        finally
+        {
+            TestCleanup.DeleteDirectory(root, recursive: true);
+        }
+    }
+
+    [Theory]
+    [InlineData("geo:\n  llms:\n    priority: \"10\"", "geo.llms_priority_invalid")]
+    [InlineData("geo:\n  llms:\n    visibility: always", "geo.llms_visibility_invalid")]
+    [InlineData("geo:\n  llms:\n    tier: featured", "geo.llms_tier_invalid")]
+    [InlineData("geo:\n  llms:\n    weight: 5", "geo.llms_field_unknown")]
+    [InlineData("geo:\n  llms: false", "geo.llms_shape_invalid")]
+    [InlineData("geo: invalid", "geo.llms_shape_invalid")]
+    public async Task BuildAsync_InvalidLlmsCurationStrict_FailsBuild(string brokenFrontMatter, string expectedCode)
+    {
+        var root = CreateCurationSite("strict", brokenFrontMatter);
+        try
+        {
+            var config = ConfigLoader.Load(Path.Combine(root, "site.yaml"));
+
+            var exception = await Assert.ThrowsAsync<ConfigException>(() =>
+                new SiteEngine(new TestLogger()).BuildAsync(config, root, new ConfigOverrides(), CancellationToken.None));
+
+            Assert.Contains($"{expectedCode} route=blog/broken/index.html", exception.Message, StringComparison.Ordinal);
+        }
+        finally
+        {
+            TestCleanup.DeleteDirectory(root, recursive: true);
+        }
+    }
+
+    [Theory]
+    [InlineData("geo:")]
+    [InlineData("geo:\n  llms:\n    visibility: include")]
+    public async Task BuildAsync_EmptyOrValidCurationStrict_BuildsAndIncludesPages(string frontMatter)
+    {
+        var root = CreateCurationSite("strict", frontMatter);
+        try
+        {
+            var config = ConfigLoader.Load(Path.Combine(root, "site.yaml"));
+
+            await new SiteEngine(new TestLogger()).BuildAsync(config, root, new ConfigOverrides(), CancellationToken.None);
+
+            var llms = File.ReadAllText(Path.Combine(root, "dist", "llms.txt"));
+            Assert.Contains("https://example.com/blog/visible/", llms, StringComparison.Ordinal);
+            Assert.Contains("https://example.com/blog/broken/", llms, StringComparison.Ordinal);
+            var llmsFull = File.ReadAllText(Path.Combine(root, "dist", "llms-full.txt"));
+            Assert.Contains("https://example.com/blog/visible/", llmsFull, StringComparison.Ordinal);
+            Assert.Contains("https://example.com/blog/broken/", llmsFull, StringComparison.Ordinal);
+        }
+        finally
+        {
+            TestCleanup.DeleteDirectory(root, recursive: true);
+        }
+    }
+
+    private static string CreateCurationSite(string diagnostics, string brokenFrontMatter = "geo:\n  llms:\n    priority: \"10\"")
+    {
+        var root = Path.Combine(Path.GetTempPath(), "bukit-llms-curation-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(Path.Combine(root, "content"));
+        Directory.CreateDirectory(Path.Combine(root, "layouts", "layouts"));
+        Directory.CreateDirectory(Path.Combine(root, "layouts", "pages"));
+        File.WriteAllText(Path.Combine(root, "site.yaml"), $$"""
+            site:
+              name: llms-curation
+              title: Llms Curation
+              url: https://example.com
+              baseUrl: /
+              language: en
+              collections:
+                post:
+                  permalink: /blog/{slug}/
+                  template: pages/post.html
+              seo:
+                diagnostics: {{diagnostics}}
+                geo:
+                  enabled: true
+                  llmsTxt: true
+                  llmsFullTxt: true
+            content:
+              sources:
+                - type: markdown
+                  name: post
+                  collection: post
+                  markdown:
+                    dir: content
+            build:
+              output: dist
+            theme:
+              layouts: layouts
+            """);
+        WritePost(root, "visible.md", "Visible", "visible", extraFrontMatter: "");
+        WritePost(root, "broken.md", "Broken", "broken", extraFrontMatter: brokenFrontMatter);
+        File.WriteAllText(Path.Combine(root, "layouts", "layouts", "base.html"), """
+            <!doctype html>
+            <html><head><title>{{ page.title }}</title></head><body>{{ content }}</body></html>
+            """);
+        foreach (var name in new[] { "post", "page", "index", "list" })
+        {
+            File.WriteAllText(Path.Combine(root, "layouts", "pages", name + ".html"), """
+                {% layout "layouts/base.html" %}
+                {{ page.content }}
+                """);
+        }
+
+        return root;
     }
 
     [Fact]

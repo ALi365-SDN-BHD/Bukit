@@ -45,7 +45,7 @@ internal static class LlmsCurationPolicyParser
 
     internal static LlmsCurationParseResult Parse(IReadOnlyDictionary<string, ContentField>? fields)
     {
-        if (!ContentFieldReader.TryGetField(fields, "geo", out var geoField))
+        if (!ContentFieldReader.TryGetField(fields, "geo", out var geoField) || IsEmptyValue(geoField.Value))
         {
             return new LlmsCurationParseResult(true, LlmsCurationPolicy.Default, Array.Empty<string>());
         }
@@ -55,7 +55,7 @@ internal static class LlmsCurationPolicyParser
             return InvalidShape();
         }
 
-        if (!geo.TryGetValue("llms", out var llmsValue))
+        if (!geo.TryGetValue("llms", out var llmsValue) || IsEmptyValue(llmsValue))
         {
             return new LlmsCurationParseResult(true, LlmsCurationPolicy.Default, Array.Empty<string>());
         }
@@ -148,8 +148,13 @@ internal static class LlmsCurationPolicyParser
         return new LlmsCurationParseResult(true, new LlmsCurationPolicy(visibility, tier, priority), Array.Empty<string>());
     }
 
+    // A YAML key with no value reaches the parser as an empty string (or null in some callers);
+    // both mean the key is absent.
+    private static bool IsEmptyValue(object? value)
+        => value is null || (value is string text && string.IsNullOrWhiteSpace(text));
+
     private static LlmsCurationParseResult InvalidShape()
-        => new(false, LlmsCurationPolicy.Default, ["geo.llms_field_unknown"]);
+        => new(false, LlmsCurationPolicy.Default, ["geo.llms_shape_invalid"]);
 
     private static bool TryReadPriority(object value, out int priority)
     {

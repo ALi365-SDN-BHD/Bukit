@@ -31,7 +31,54 @@ public sealed class LlmsCurationPolicyTests
 
         Assert.False(result.Valid);
         Assert.Equal(LlmsCurationPolicy.Default, result.Policy);
-        Assert.Equal(["geo.llms_field_unknown"], result.ErrorCodes);
+        Assert.Equal(["geo.llms_shape_invalid"], result.ErrorCodes);
+    }
+
+    [Fact]
+    public void Parse_EmptyGeoValue_ReturnsValidDefault()
+    {
+        var result = LlmsCurationPolicyParser.Parse(CreateDocumentWithGeo(null!));
+
+        Assert.True(result.Valid);
+        Assert.Equal(LlmsCurationPolicy.Default, result.Policy);
+        Assert.Empty(result.ErrorCodes);
+    }
+
+    [Fact]
+    public void Parse_EmptyLlmsValue_ReturnsValidDefault()
+    {
+        var result = LlmsCurationPolicyParser.Parse(CreateDocumentWithGeo(new Dictionary<string, object>
+        {
+            ["llms"] = null!
+        }));
+
+        Assert.True(result.Valid);
+        Assert.Equal(LlmsCurationPolicy.Default, result.Policy);
+        Assert.Empty(result.ErrorCodes);
+    }
+
+    [Fact]
+    public void Parse_EmptyStringGeoValue_ReturnsValidDefault()
+    {
+        // The front matter parser turns a bare `geo:` key into an empty string, not null.
+        var result = LlmsCurationPolicyParser.Parse(CreateDocumentWithGeo(string.Empty));
+
+        Assert.True(result.Valid);
+        Assert.Equal(LlmsCurationPolicy.Default, result.Policy);
+        Assert.Empty(result.ErrorCodes);
+    }
+
+    [Fact]
+    public void Parse_EmptyStringLlmsValue_ReturnsValidDefault()
+    {
+        var result = LlmsCurationPolicyParser.Parse(CreateDocumentWithGeo(new Dictionary<string, object>
+        {
+            ["llms"] = string.Empty
+        }));
+
+        Assert.True(result.Valid);
+        Assert.Equal(LlmsCurationPolicy.Default, result.Policy);
+        Assert.Empty(result.ErrorCodes);
     }
 
     [Fact]
@@ -44,7 +91,7 @@ public sealed class LlmsCurationPolicyTests
 
         Assert.False(result.Valid);
         Assert.Equal(LlmsCurationPolicy.Default, result.Policy);
-        Assert.Equal(["geo.llms_field_unknown"], result.ErrorCodes);
+        Assert.Equal(["geo.llms_shape_invalid"], result.ErrorCodes);
     }
 
     [Theory]

@@ -4,6 +4,8 @@ Bukit 所有重要变更都将记录在此文件中。
 
 ## [Unreleased]
 
+- **llms curation 诊断恢复生效**：页面级 `geo.llms` curation 写错时（未知键、`visibility` 或 `tier` 取值错误、`priority` 不是整数（如 `"10"`）或超出 -100 到 100、`llms: false`，或非空的 `geo:` 不是映射），构建现在会对每个路由页面（包括 noindex 页面）输出 `geo.llms_field_unknown`、`geo.llms_visibility_invalid`、`geo.llms_tier_invalid`、`geo.llms_priority_invalid` 或 `geo.llms_shape_invalid`（`geo` 或 `llms` 的值不是映射），均附带 `route=<输出路径>`，在 `site.seo.diagnostics: strict` 下构建失败。自发布投影重构以来这些检查一直没有执行，这类页面会在没有任何警告的情况下从 `llms.txt` 和 `llms-full.txt` 中消失。使用 `strict` 且存在错误 curation 的站点现在会构建失败，请修正 front matter 或改用 `visibility: exclude`。正确的 curation 和输出不变。空的（或只含空白的）`geo:` 或 `llms:` 键现在视为不存在：这类页面会进入 `llms.txt` 和 `llms-full.txt`，并且不再导致 `strict` 构建失败（之前是静默排除）。
+
 ## [2.0.15] - 2026-11-11
 
 - **过期图片链接立即失败**：图片下载被拒绝（HTTP 400、401 或 403），且网址自身的签名已过期（AWS SigV4、Google Cloud Storage V4、AWS SigV2/CloudFront 或 Notion 文件代理）时，不再按 `content.media.maxRetries` 重试，因为过期签名不可能成功。主要加快仍含过期链接的 `readonly` Notion 缓存构建。失败记录、`onFailure` 结果和已保存图片的复用不变，警告增加 `signature=expired`。其他失败照常重试。
