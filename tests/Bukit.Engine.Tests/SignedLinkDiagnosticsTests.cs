@@ -101,8 +101,9 @@ public sealed class SignedLinkDiagnosticsTests
     {
         using var site = new SiteBuilder("i18n-site");
         site.Sandbox.Write("data/menu.json", JsonSerializer.Serialize(new { image = AwsSigned + "shared" }));
-        var english = File.ReadAllText(site.Sandbox.PathFor("content/en/index.md"));
-        site.Sandbox.Write("content/en/index.md", english.Replace("language: en\n", $"language: en\ncover: \"{AwsSigned}en\"\n", StringComparison.Ordinal));
+        // Only the English page reads a signed link of its own.
+        site.Sandbox.Write("content/en/index.md",
+            $"---\ntitle: English Page\ncollection: page\nlanguage: en\npublishAt: 2024-06-01T00:00:00Z\ncover: \"{AwsSigned}en\"\n---\nThis is the English version of the page.\n");
         var logger = new RecordingLogger();
 
         await BuildAsync(site, logger);

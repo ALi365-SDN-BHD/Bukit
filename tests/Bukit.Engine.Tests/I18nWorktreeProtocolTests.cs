@@ -167,8 +167,10 @@ public sealed class I18nWorktreeProtocolTests : IDisposable
         Assert.Equal(1, factory.LoadCount);
     }
 
-    [Fact]
-    public async Task WorktreeBuild_ReportsSharedSignedLinksOnceAfterTheWorkerRoundTrip()
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task WorktreeBuild_ReportsVariantDiagnosticsOnceAfterTheWorkerRoundTrip(bool rootOutputsFail)
     {
         var root = Path.Combine(_root, "project");
         var configPath = CreateSite(root);
@@ -190,11 +192,26 @@ public sealed class I18nWorktreeProtocolTests : IDisposable
             config, root, root, Path.Combine(root, "dist"), overrides, CancellationToken.None);
         var variants = await RunWorkerVariantsAsync(engine, prepared, config, configPath, root, overrides, logger);
         Assert.All(variants, variant => Assert.Equal([new SignedLinkFinding("site.data_files", 1)], variant.SignedLinks));
+        variants[0] = variants[0] with
+        {
+            AuditIssues = [.. variants[0].AuditIssues, new SeoAuditIssue("warning", "test.variant_only", "/a/", "Variant-only issue.")]
+        };
 
-        await engine.FinalizeI18nWorktreeBuildAsync(prepared, variants, 0, 0, CancellationToken.None);
+        if (rootOutputsFail)
+        {
+            // A directory where the root agent-manifest.json goes makes writing the root outputs fail.
+            Directory.CreateDirectory(Path.Combine(prepared.Plan.OutputDir, "agent-manifest.json"));
+            await Assert.ThrowsAnyAsync<Exception>(() => engine.FinalizeI18nWorktreeBuildAsync(prepared, variants, 0, 0, CancellationToken.None));
+        }
+        else
+        {
+            await engine.FinalizeI18nWorktreeBuildAsync(prepared, variants, 0, 0, CancellationToken.None);
+        }
 
         var warning = Assert.Single(logger.Warnings, message => message.Contains("event=incremental.signed_links", StringComparison.Ordinal));
         Assert.Contains(" language=en,zh-CN keys=site.data_files:1 ", warning, StringComparison.Ordinal);
+        var issue = Assert.Single(logger.Warnings, message => message.Contains("code=test.variant_only", StringComparison.Ordinal));
+        Assert.Contains("/en/a/", issue, StringComparison.Ordinal);
     }
 
     // Runs each language the way a worktree worker does, through the content and result files.

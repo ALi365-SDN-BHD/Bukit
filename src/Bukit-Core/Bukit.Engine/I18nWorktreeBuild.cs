@@ -294,8 +294,50 @@ public sealed partial class SiteEngine
             [.. variantResults.Select(variant => variant.ToPublishedVariant())],
             buildLogger,
             projectionResults,
-            [.. variantResults.Select(variant => new VariantAuditIssues(variant.Language, variant.BaseUrl, variant.AuditIssues))]);
+            ToVariantAuditIssues(variantResults));
     }
+
+    private (BuildManifest Manifest, IReadOnlyList<PublishProjectionResult> Projections) WriteRootOutputs(
+        AppConfig config,
+        string rootDir,
+        ConfigOverrides overrides,
+        string outputDir,
+        string rootBaseUrl,
+        IReadOnlyList<BuildVariantResult> variantResults,
+        BuildDiagnosticLogger buildLogger,
+        ReportStageTimer reportTimer)
+    {
+        try
+        {
+            var previous = BuildManifest.Load(PublicOutputLifecycle.ManifestPath(rootDir, overrides), buildLogger);
+            var rootOutputs = PublicOutputLifecycle.ProjectionPlan(config, [], root: true)
+                .Where(item => item.Destination != "robots.txt" || previous.OwnedOutputs.Contains("robots.txt") ||
+                    !File.Exists(Path.Combine(outputDir, "robots.txt"))).ToArray();
+            var completedManifest = reportTimer.Step("collect-and-clean", () => PublicOutputLifecycle.CollectAndClean(rootDir, overrides, outputDir, variantResults, buildLogger, rootOutputs));
+            if (rootOutputs.Any(x => x.Destination == "robots.txt") && PublicOutputLifecycle.SameRoot(previous, outputDir) && previous.OwnedOutputs.Contains("robots.txt"))
+            {
+                PublicOutputLifecycle.DeleteOwnedFile(outputDir, "robots.txt");
+            }
+
+            return (completedManifest, reportTimer.Step("root-outputs", () => I18nOutputMerger.GenerateRootOutputs(config, outputDir, rootBaseUrl, variantResults, buildLogger, _searchIndexBuilder)));
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            // The merged audit never runs, so log what the language variants handed back
+            // (worktree staging output, and with it their report files, is deleted on failure).
+            LogVariantDiagnostics(variantResults, buildLogger);
+            throw;
+        }
+    }
+
+    private static void LogVariantDiagnostics(IReadOnlyList<BuildVariantResult> variantResults, ILogger logger)
+    {
+        SignedLinkDiagnostics.ReportMerged(variantResults, logger);
+        SeoAuditReportWriter.LogVariantIssues(ToVariantAuditIssues(variantResults), logger);
+    }
+
+    private static VariantAuditIssues[] ToVariantAuditIssues(IReadOnlyList<BuildVariantResult> variantResults)
+        => [.. variantResults.Select(variant => new VariantAuditIssues(variant.Language, variant.BaseUrl, variant.AuditIssues))];
 
     private async Task<(BuildResult Result, BuildManifest Manifest)> FinalizeMultiLanguageOutputsAsync(
         AppConfig config,
@@ -316,17 +358,9 @@ public sealed partial class SiteEngine
         string? reportedOutputDir,
         CancellationToken cancellationToken)
     {
-        var previous = BuildManifest.Load(PublicOutputLifecycle.ManifestPath(rootDir, overrides), buildLogger);
-        var rootOutputs = PublicOutputLifecycle.ProjectionPlan(config, [], root: true)
-            .Where(item => item.Destination != "robots.txt" || previous.OwnedOutputs.Contains("robots.txt") ||
-                !File.Exists(Path.Combine(outputDir, "robots.txt"))).ToArray();
         var reportTimer = new ReportStageTimer(buildLogger, ReportStageTimer.FinalizeScope);
-        var completedManifest = reportTimer.Step("collect-and-clean", () => PublicOutputLifecycle.CollectAndClean(rootDir, overrides, outputDir, variantResults, buildLogger, rootOutputs));
-        if (rootOutputs.Any(x => x.Destination == "robots.txt") && PublicOutputLifecycle.SameRoot(previous, outputDir) && previous.OwnedOutputs.Contains("robots.txt"))
-        {
-            PublicOutputLifecycle.DeleteOwnedFile(outputDir, "robots.txt");
-        }
-        var projectionResults = reportTimer.Step("root-outputs", () => I18nOutputMerger.GenerateRootOutputs(config, outputDir, rootBaseUrl, variantResults, buildLogger, _searchIndexBuilder));
+        var (completedManifest, projectionResults) = WriteRootOutputs(
+            config, rootDir, overrides, outputDir, rootBaseUrl, variantResults, buildLogger, reportTimer);
         reportTimer.Step("seo-audit-merged", () => LogMergedDiagnostics(config, outputDir, variantResults, buildLogger, projectionResults));
         var reportVariants = reportedOutputDir is null
             ? variantResults

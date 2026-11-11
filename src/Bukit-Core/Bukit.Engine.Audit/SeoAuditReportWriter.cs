@@ -93,6 +93,10 @@ internal static partial class SeoAuditReportWriter
         return auditResult.SeoReport;
     }
 
+    /// <summary>Logs the language variants' own issues when the merged audit cannot run.</summary>
+    internal static void LogVariantIssues(IReadOnlyList<VariantAuditIssues> variantIssues, ILogger logger)
+        => LogIssues(WithVariantIssues([], variantIssues), logger);
+
     // Language variants write their reports without logging them. Some checks run only there
     // (for example on a per-language sitemap in split mode), so the merged log adds those issues,
     // with the language prefix on the route, and logs every distinct issue once.

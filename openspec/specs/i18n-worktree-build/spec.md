@@ -45,6 +45,10 @@
 - **WHEN** Worker 结果损坏、来自不同 HEAD/hash、遗漏或重复语言，或引用 staging 外路径
 - **THEN** 父进程拒绝聚合、取消其余 Worker，并保持正式输出不变
 
+#### Scenario: 结果携带语言诊断
+- **WHEN** Worker 完成一个语言变体
+- **THEN** 结果包含该语言的审计问题和签名链接检测结果（与该语言 `.bukit/seo-report.json` 中的问题重复，问题多时文件会相应变大），由父进程统一输出，每条不同的诊断只输出一次；即使根级输出失败，这些诊断也会在报错前输出；缺少这两个可选字段的旧结果按空列表还原
+
 ### Requirement: 根级输出必须保持现有语义
 
 父进程 SHALL 从验证后的 Worker 结果重建现有变体模型，并 MUST 复用现有 sitemap、feed、search、robots、agent manifest、llms、报告和安全门禁实现。split、index 和 merged 模式的公开输出除非本来包含非确定时间指标，否则 MUST 与同一输入的进程内构建等价。
