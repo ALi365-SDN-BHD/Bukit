@@ -1,5 +1,6 @@
 using Scriban;
 using Scriban.Runtime;
+using Bukit.Engine.Abstractions;
 using Bukit.Engine.Abstractions.Content;
 using Bukit.Engine.Abstractions.Plugins;
 using Bukit.Engine.Abstractions.Routing;
@@ -356,10 +357,10 @@ internal sealed class SectionRenderHelper
             obj.SetValue("summary", summary, readOnly: true);
         }
 
-        if (item.CustomFields is not null)
+        if (CrossPageFields.Visible(item.CustomFields) is { } customFields)
         {
             var fieldsObj = new ScriptObject();
-            foreach (var kv in item.CustomFields)
+            foreach (var kv in customFields)
             {
                 if (kv.Value.Value is not null) fieldsObj.SetValue(kv.Key, kv.Value.Value, readOnly: true);
             }

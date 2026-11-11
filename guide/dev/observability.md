@@ -28,6 +28,9 @@ Render metrics come from `PageRenderDispatcher`:
   `renderWrite` (output file write): the parts of those three, for all kinds.
 - `renderModelBind`: template model conversion inside `renderCall`. Only the
   built-in Scriban renderer reports it.
+- `bodyLoad`, `listBodyLoad`, `metadataHash` (incremental metadata hash per
+  content page) and `listHash` (incremental hash per special list): further
+  per-page values inside the render dispatch.
 - `renderDispatch`: wall-clock time of the whole render dispatch.
 - `variantSetup` (media normalization and theme loading), `mediaResolve`
   (only with media localization), `renderPlan` (renderer, site model,
@@ -47,7 +50,9 @@ of that scope:
 
 - Variant scope (`language=<code>` in multi-language builds): `projections`,
   `media-validate` (only with media localization; it rescans every rendered
-  HTML file), `output-record`, `seo-audit`, `analytics-report`.
+  HTML file), `output-record`, `seo-audit`, `analytics-report`. `seo-audit`
+  and `analytics-report` are logged even when reports are disabled: the audit
+  always runs, and `analytics-report` then removes a stale report file.
 - Single-language finalize: `metrics-write` (only with `--metrics`),
   `collect-and-clean`, `output-inventory`, `security-data`,
   `security-report`, one `writer:<type name>` per report writer that runs,

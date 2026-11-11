@@ -1,3 +1,4 @@
+using System.Text.Json;
 using Bukit.Config;
 using Bukit.Engine.Tests.Infrastructure;
 using Bukit.Shared;
@@ -23,9 +24,30 @@ public sealed class IncrementalEngineIdentityTests
         Assert.Equal(0, same.Incremental.CacheMissCount);
         Assert.Equal(first.Incremental.CacheMissCount, same.Incremental.CacheHitCount);
 
+        Assert.True(ListReasons(site, "list_unchanged") > 0);
+        Assert.Equal(0, ListReasons(site, "list_render"));
+
         var upgraded = await BuildAsync(config, site.Root, "2.0.12+bbb");
         Assert.Equal(0, upgraded.Incremental.CacheHitCount);
         Assert.Equal(first.Incremental.CacheMissCount, upgraded.Incremental.CacheMissCount);
+        // Special lists (taxonomy and pagination pages of the tagged content) render again too.
+        Assert.True(ListReasons(site, "list_render") > 0);
+        Assert.Equal(0, ListReasons(site, "list_unchanged"));
+    }
+
+    private static int ListReasons(SiteBuilder site, string reason)
+    {
+        var total = 0;
+        foreach (var path in Directory.EnumerateFiles(site.Output, "incremental-manifest.json", SearchOption.AllDirectories))
+        {
+            using var report = JsonDocument.Parse(File.ReadAllText(path));
+            if (report.RootElement.GetProperty("renderReasons").TryGetProperty(reason, out var count))
+            {
+                total += count.GetInt32();
+            }
+        }
+
+        return total;
     }
 
     private static async Task<BuildResult> BuildAsync(AppConfig config, string root, string engineIdentity)
@@ -45,8 +67,8 @@ public sealed class IncrementalEngineIdentityTests
     private static SiteBuilder CreateSite()
     {
         var site = new SiteBuilder();
-        site.Markdown("hello", "Hello", "Body");
-        site.Markdown("world", "World", "Body two");
+        site.Sandbox.Write("content/hello.md", "---\nslug: hello\ntitle: Hello\npublishAt: 2024-06-01T00:00:00Z\ncollection: page\ntags: [news]\n---\nBody\n");
+        site.Sandbox.Write("content/world.md", "---\nslug: world\ntitle: World\npublishAt: 2024-06-01T00:00:00Z\ncollection: page\ntags: [news]\n---\nBody two\n");
         site.Sandbox.Write("layouts/theme.yaml", """
             name: engine-identity-test
             version: 1.0.0
@@ -67,11 +89,11 @@ public sealed class IncrementalEngineIdentityTests
               taxonomyIndex:
                 template: pages/taxonomy-index.html
                 accepts:
-                  kind: taxonomy-index
+                  kind: taxonomy_index
               taxonomyTerm:
                 template: pages/taxonomy-term.html
                 accepts:
-                  kind: taxonomy-term
+                  kind: taxonomy_term
               pagination:
                 template: pages/pagination.html
                 accepts:

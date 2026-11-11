@@ -6,6 +6,7 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using Bukit.Content;
+using Bukit.Engine.Abstractions;
 using Bukit.Engine.Abstractions.Content;
 using Bukit.Content.Media;
 using Bukit.Routing;
@@ -14,7 +15,7 @@ namespace Bukit.Engine.Incremental;
 
 internal static class IncrementalBuildEngine
 {
-    private const string BodyFingerprintKey = "bodyFingerprint";
+    private const string BodyFingerprintKey = CrossPageFields.BodyFingerprintKey;
 
     internal static async Task<string> ComputeContentHashAsync(ContentDocument document, IContentBodyStore bodyStore, CancellationToken cancellationToken = default)
     {

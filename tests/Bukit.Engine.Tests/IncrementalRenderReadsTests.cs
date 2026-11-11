@@ -83,6 +83,43 @@ public sealed class IncrementalRenderReadsTests
     }
 
     [Fact]
+    public async Task PluginOptionChange_RendersEveryPageAsRenderDependencyChanged()
+    {
+        using var site = CreateSite();
+        AppConfig WithOption(AppConfig config, string value) => config with
+        {
+            Site = config.Site with
+            {
+                Plugins = new Dictionary<string, PluginToggleConfig>(StringComparer.OrdinalIgnoreCase)
+                {
+                    ["path-report"] = new() { Enabled = true, Options = new Dictionary<string, object> { ["mode"] = value } }
+                }
+            }
+        };
+
+        var first = await BuildAsync(site, configure: config => WithOption(config, "a"));
+        var same = await BuildAsync(site, configure: config => WithOption(config, "a"));
+        Assert.Equal(0, same.Incremental.CacheMissCount);
+
+        var changed = await BuildAsync(site, configure: config => WithOption(config, "b"));
+
+        Assert.Equal(first.Incremental.CacheMissCount, changed.Incremental.CacheMissCount);
+        Assert.Equal(4, RenderReasons(site)["render_dependency_changed"]);
+    }
+
+    [Fact]
+    public async Task PageList_DoesNotShowTheBodyFingerprintOfOtherPages()
+    {
+        using var site = CreateSite();
+        site.Sandbox.Write("layouts/partials/list.html", "<ul>{{ for p in pages }}<li>[{{ p.fields.bodyFingerprint }}]{{ p.fields.list }}</li>{{ end }}</ul>");
+        await BuildAsync(site);
+
+        var html = File.ReadAllText(OutputFor(site, multilingual: false, "l"));
+        Assert.Contains("<li>[]{type: \"bool\", value: true}</li>", html, StringComparison.Ordinal);
+        Assert.Equal(4, System.Text.RegularExpressions.Regex.Matches(html, @"<li>\[\]").Count);
+    }
+
+    [Fact]
     public async Task ManifestWithoutReadRecords_DependsOnEveryCollectionOnce()
     {
         using var site = CreateSite();
@@ -128,9 +165,9 @@ public sealed class IncrementalRenderReadsTests
     private static string Article(string slug, string title, string? extra = null) =>
         $"---\nslug: {slug}\ntitle: {title}\npublishAt: 2024-06-01T00:00:00Z\ncollection: page\n{(extra is null ? string.Empty : extra + "\n")}---\nBody {slug}\n";
 
-    private static async Task<BuildResult> BuildAsync(SiteBuilder site, bool multilingual = false)
+    private static async Task<BuildResult> BuildAsync(SiteBuilder site, bool multilingual = false, Func<AppConfig, AppConfig>? configure = null)
     {
-        var config = site.Config;
+        var config = configure is null ? site.Config : configure(site.Config);
         if (multilingual)
         {
             config = config with

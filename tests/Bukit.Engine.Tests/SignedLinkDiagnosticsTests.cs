@@ -19,6 +19,8 @@ public sealed class SignedLinkDiagnosticsTests
     [Theory]
     [InlineData(AwsSigned + "aaa", 1)]
     [InlineData("<img src=\"" + "https://bucket.s3.amazonaws.com/a.png?X-Amz-Algorithm=AWS4-HMAC-SHA256&amp;X-Amz-Signature=aaa" + "\">", 1)]
+    [InlineData("https://bucket.s3.amazonaws.com/a.png?X-Amz-Algorithm=AWS4-HMAC-SHA256&#38;X-Amz-Signature=aaa", 1)]
+    [InlineData("https://bucket.s3.amazonaws.com/a.png?X-Amz-Algorithm=AWS4-HMAC-SHA256&#x26;X-Amz-Signature=aaa", 1)]
     [InlineData("https://file.notion.so/f/x.png?expirationTimestamp=1&signature=abc and " + AwsSigned + "b", 2)]
     [InlineData("https://example.com/a.png?signature=abc", 0)]
     [InlineData("https://example.com/a.png?v=1", 0)]
@@ -64,6 +66,20 @@ public sealed class SignedLinkDiagnosticsTests
         Assert.Equal(1, reasons["unchanged"]);
         Assert.True(result.Incremental.CacheMissCount >= 1);
         Assert.Contains("X-Amz-Signature=second", File.ReadAllText(Path.Combine(site.Output, "m", "index.html")), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task SignedLinkInPageField_IsReportedUnderPages()
+    {
+        using var site = CreateSite("https://example.com/menu.png");
+        site.Sandbox.Write("content/c.md", Article("c", "C", $"cover: \"{AwsSigned}c\""));
+        var logger = new RecordingLogger();
+        await BuildAsync(site, logger);
+
+        var warning = Assert.Single(logger.Warnings, message => message.Contains("event=incremental.signed_links", StringComparison.Ordinal));
+        Assert.Contains("keys=pages:1", warning, StringComparison.Ordinal);
+        Assert.DoesNotContain("language=", warning, StringComparison.Ordinal);
+        Assert.Contains("may change on every fetch", warning, StringComparison.Ordinal);
     }
 
     private static SiteBuilder CreateSite(string image)
