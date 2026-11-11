@@ -101,6 +101,8 @@ public sealed class ScribanTemplateRenderer
         return Render(templateRelativePath, globals, 0);
     }
 
+    internal SharedModelCache SharedModels => _sharedModels;
+
     /// <summary>
     /// Ends a render pass: releases the shared <c>pages</c>/<c>site</c> values and returns the
     /// model conversion time accumulated since the previous call, in <see cref="Stopwatch"/> ticks.

@@ -1,6 +1,7 @@
 using Bukit.Engine.Abstractions.Content;
 using Bukit.Rendering.Scriban;
 using Bukit.Shared;
+using Bukit.Theme;
 using Scriban.Runtime;
 using Xunit;
 
@@ -44,6 +45,60 @@ public sealed class SharedModelTests : IDisposable
         var error = Assert.Throws<RenderException>(() => renderer.RenderPage("write.html", model));
         Assert.Contains("readonly", error.Message, StringComparison.OrdinalIgnoreCase);
         Assert.Equal("|||Original|safe", renderer.RenderPage("read.html", model));
+    }
+
+    // Components and sections render in their own template context. Assigning an element of a
+    // shared array there must fail too, or one page could change the array for every later page.
+    [Theory]
+    [InlineData("theme-component")]
+    [InlineData("config-component")]
+    [InlineData("section")]
+    public void SharedArrayAssignment_InComponentOrSection_FailsWithoutLeaking(string kind)
+    {
+        var layouts = Path.Combine(_dir, "layouts");
+        Directory.CreateDirectory(Path.Combine(layouts, "parts"));
+        File.WriteAllText(Path.Combine(layouts, "parts", "write.html"), "{{ site.data.values[0] = 'leaked' }}");
+        File.WriteAllText(Path.Combine(layouts, "write.html"), kind == "section"
+            ? "{{ render_section '[{\"type\":\"writer\"}]' }}"
+            : "{{ comp.render 'writer' }}");
+        File.WriteAllText(Path.Combine(layouts, "read.html"), "{{ site.data.values[0] }}");
+        var manifest = new ThemeManifestV2
+        {
+            Name = "test",
+            Version = "1.0.0",
+            Components = new() { ["writer"] = new() { Template = "parts/write.html" } },
+            Sections = new() { ["writer"] = new() { Template = "parts/write.html" } }
+        };
+        var renderer = new ScribanTemplateRenderer(
+            layouts,
+            parentLayoutsDir: null,
+            shortcodes: null,
+            components: kind == "config-component"
+                ? new Dictionary<string, Bukit.Config.ComponentDefinition> { ["writer"] = new() { Template = "parts/write.html" } }
+                : null,
+            userLayoutsDir: null,
+            themeRegistry: kind == "config-component" ? null : new ThemeComponentRegistry(_dir, manifest, null),
+            schemaValidator: null,
+            dataResolver: null,
+            componentValidation: "off");
+        var model = Model();
+
+        string? written = null;
+        try
+        {
+            written = renderer.RenderPage("write.html", model);
+        }
+        catch (RenderException error)
+        {
+            Assert.True(error.Message.Contains("readonly", StringComparison.OrdinalIgnoreCase), error.Message);
+        }
+
+        if (written is not null)
+        {
+            Assert.Contains("readonly", written, StringComparison.OrdinalIgnoreCase);
+        }
+
+        Assert.Equal("safe", renderer.RenderPage("read.html", model));
     }
 
     [Fact]
@@ -97,8 +152,10 @@ public sealed class SharedModelTests : IDisposable
         var renderer = new ScribanTemplateRenderer(_dir);
         var model = Model();
         renderer.RenderPage("read.html", model);
+        Assert.False(renderer.SharedModels.IsEmpty);
 
         Assert.True(renderer.CompleteRenderPass() > 0);
+        Assert.True(renderer.SharedModels.IsEmpty);
         Assert.Equal(0, renderer.CompleteRenderPass());
     }
 

@@ -42,6 +42,9 @@ internal sealed class SharedModelCache
         public void Dispose() => t_current = previous;
     }
 
+    /// <summary>True when no converted value is held (after <see cref="Clear"/>).</summary>
+    internal bool IsEmpty => Volatile.Read(ref _pages) is null && Volatile.Read(ref _site) is null;
+
     internal void Clear()
     {
         Volatile.Write(ref _pages, null);

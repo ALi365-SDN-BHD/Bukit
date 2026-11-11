@@ -3,6 +3,12 @@ using System.Text.RegularExpressions;
 
 namespace Bukit.Content.Notion;
 
+/// <summary>
+/// Earliest link expiry in a cached Notion body. This check is deliberately broad (a bare
+/// <c>Expires</c> counts): a false hit only costs one more fetch. The media download fail-fast
+/// uses <c>SignedUrlIdentity.TryGetSignatureExpiry</c> instead, which accepts only a recognized
+/// signing scheme, because a false hit there would drop retries.
+/// </summary>
 internal static partial class NotionHtmlLinkExpiry
 {
     [GeneratedRegex(@"https?://[^\s""'<>]+", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]

@@ -80,7 +80,7 @@ After rendering, the build MUST log one info line `event=build.report.timing sco
 - The variant scope MUST cover, in order, `projections`, `media-validate` (only when media localization is active), `output-record`, `seo-audit` and `analytics-report`, measured after the variant render timer stops; in multi-language builds each variant's lines MUST also carry `language=<code>`.
 - The single-language finalize scope MUST cover, in order, `metrics-write` (only when metrics are requested), `collect-and-clean`, `output-inventory`, `security-data`, `security-report`, `writer:<writer type name>` for each report writer that runs, and `security-gate`.
 - The multi-language finalize scope MUST cover, in order, `collect-and-clean`, `root-outputs`, `seo-audit-merged`, `metrics-write` (only when metrics are requested), `output-inventory`, `security-data`, `security-report`, `writer:<writer type name>` for each report writer that runs, and `security-gate`.
-- A step whose call returns without doing any work because its feature is disabled MUST NOT emit a line; `security-report` is always written and MUST always emit a line.
+- A step whose call returns without doing any work because its feature is disabled MUST NOT emit a line; `security-report` is always written and MUST always emit a line. `seo-audit` always runs the audit, and `analytics-report` removes a stale report file when reports are disabled, which counts as work, so the variant scope MUST always emit both.
 - When a step throws, the exception MUST propagate unchanged; that step and the scope's `total` MUST NOT be logged.
 
 Timing MUST NOT change any report file, the order in which steps run, their concurrency, error propagation, warning and error counts, or the structure of `metrics.json`.

@@ -1646,6 +1646,18 @@
       "resource": "dotnet-serial"
     },
     {
+      "id": "release-version-bump",
+      "matches": [
+        "Directory.Build.props"
+      ],
+      "specialtyTests": [
+        "dotnet test tests/Bukit.Architecture.Tests/Bukit.Architecture.Tests.csproj"
+      ],
+      "contractConsumerGlobs": [],
+      "publicContract": false,
+      "resource": "dotnet-serial"
+    },
+    {
       "id": "build-time-remediation-archive",
       "matches": [
         "docs/plans/2026-11-10-build-time-incremental-remediation-plan.zh-CN.md",
@@ -1659,6 +1671,14 @@
         "openspec/changes/archive/*-add-per-page-render-dependencies/specs/*/spec.md",
         "openspec/changes/archive/*-fix-notion-body-cache-contract/*.md",
         "openspec/changes/archive/*-fix-notion-body-cache-contract/specs/*/spec.md",
+        "openspec/changes/fix-media-expired-signature-fail-fast/*.md",
+        "openspec/changes/fix-media-expired-signature-fail-fast/specs/*/spec.md",
+        "openspec/changes/stabilize-render-dependency-inputs/*.md",
+        "openspec/changes/stabilize-render-dependency-inputs/specs/*/spec.md",
+        "openspec/changes/archive/*-fix-media-expired-signature-fail-fast/*.md",
+        "openspec/changes/archive/*-fix-media-expired-signature-fail-fast/specs/*/spec.md",
+        "openspec/changes/archive/*-stabilize-render-dependency-inputs/*.md",
+        "openspec/changes/archive/*-stabilize-render-dependency-inputs/specs/*/spec.md",
         "openspec/specs/incremental-invalidation/spec.md",
         "openspec/specs/notion-body-cache/spec.md",
         "openspec/specs/per-page-render-dependencies/spec.md"

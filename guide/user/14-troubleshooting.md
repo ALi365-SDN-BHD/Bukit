@@ -172,16 +172,22 @@ addition:
 - With `theme.images` enabled, any image change renders every page again; that
   costs time but leaves nothing stale.
 - A warning `event=incremental.signed_links keys=<key>:<count>` means shared
-  data (`site.modules`, `site.data`, `site.data_index`, `site.related_pages` or
-  `site.data_files`) still holds signed links, such as Notion file URLs that were
-  not downloaded. Their signature changes on every fetch, so every page that
-  reads those keys renders again on every build. Bukit does not skip them,
+  data (`site.modules`, `site.data`, `site.data_index`, `site.related_pages`,
+  `site.data_files`, the route metadata source, or page fields read through
+  `pages`) still holds signed links, such as Notion file URLs that were not
+  downloaded. Their signature may change on every fetch, so every page that
+  reads those keys may render again on every build. Bukit does not skip them,
   because the skipped page would keep an expired link. Download those files with
-  `content.media` to make the pages reusable.
+  `content.media`: list the page fields that hold them in
+  `content.media.fieldKeys`, and replace links written by hand in `data/*.json`
+  with local files. Multi-language builds log one warning per language, with
+  `language=<code>`.
 - `renderReasons` in `<output>/.bukit/incremental-manifest.json` counts each
   page under the first input that changed: `new_page`, `output_missing`,
   `template_changed`, `metadata_changed` (the page record or custom fields; a
-  Notion edit also changes `last_edited_time`, so it shows here),
+  Notion edit also changes `last_edited_time`, so it shows here, and so does a
+  body edit that changes a value derived from the body, such as an extracted
+  Markdown summary or the table of contents),
   `route_changed`, `render_dependency_changed`, `data_dependency_changed`,
   `content_changed` (the body alone) or `render` (none of these). Skipped pages
   count as `unchanged`. Lists count as `list_render` or `list_unchanged`. With

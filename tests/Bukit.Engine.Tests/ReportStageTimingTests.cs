@@ -130,7 +130,7 @@ public sealed partial class ReportStageTimingTests
             Assert.True(durations.ContainsKey(stage), $"{stage} should be recorded");
 
         // Worker-cumulative render stages run inside renderDispatch and are not added again.
-        string[] insideDispatch = ["pageRender", "listBuild", "staticRender", "renderCall", "htmlTransform", "renderWrite", "renderModelBind", "bodyLoad", "listBodyLoad"];
+        string[] insideDispatch = ["pageRender", "listBuild", "staticRender", "renderCall", "htmlTransform", "renderWrite", "renderModelBind", "bodyLoad", "listBodyLoad", "metadataHash", "listHash"];
         var total = durations["variantTotal"];
         var sum = durations.Where(x => x.Key != "variantTotal" && !insideDispatch.Contains(x.Key)).Sum(x => x.Value);
         var tolerance = total < 500 ? 50 : total / 10;

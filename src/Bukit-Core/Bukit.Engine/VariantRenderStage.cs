@@ -52,18 +52,19 @@ internal static class VariantRenderStage
                 imageSourceFingerprint: imageSourceFingerprint,
                 pagesFingerprint: () => ComputePagesFingerprint(renderAssetPlan.RenderDocuments, routeMetadata))
             : null;
-        if (dependencySnapshot is not null)
-        {
-            SignedLinkDiagnostics.Report(
-                new RenderDependencyContext(context.Config, siteModel, context.Overrides.ExecutionMode, AnalyticsRendererContract.Version),
-                logger);
-        }
-
         var renderDependencyHash = dependencySnapshot?.BaseHash ?? string.Empty;
         renderDependencyHashStopwatch.Stop();
         metrics.AddDuration(
             "renderDependencyHash",
             renderDependencyHashStopwatch.ElapsedMilliseconds);
+        if (dependencySnapshot is not null)
+        {
+            SignedLinkDiagnostics.Report(
+                new RenderDependencyContext(context.Config, siteModel, context.Overrides.ExecutionMode, AnalyticsRendererContract.Version),
+                renderAssetPlan.RenderDocuments.Select(document => document.Document),
+                context.DefaultLanguage is null ? null : context.Config.Site.Language,
+                logger);
+        }
         var renderDependencyHashResolver = BuildRenderDependencyHashResolver(
             renderAssetPlan.RenderDocuments,
             routeResult.ListRouteGraph,

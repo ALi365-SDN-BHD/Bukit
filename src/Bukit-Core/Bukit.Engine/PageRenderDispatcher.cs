@@ -3,6 +3,7 @@ using System.Collections.Concurrent;
 using System.Diagnostics;
 using Bukit.Config;
 using Bukit.Content;
+using Bukit.Engine.Abstractions;
 using Bukit.Engine.Abstractions.Content;
 using Bukit.Engine.Incremental;
 using Bukit.Rendering;
@@ -85,7 +86,7 @@ internal static class PageRenderDispatcher
                     Summary = document.Record.Presentation.Summary ?? ContentFieldReader.GetSummary(document),
                     PublishDate = document.PublishAt,
                     UpdatedAt = document.Record.Lifecycle.UpdatedAt,
-                    Fields = document.CustomFields,
+                    Fields = CrossPageFields.Visible(document.CustomFields),
                     ContentRecord = document.Record,
                     Entities = document.Record.Entities,
                     Provenance = document.Record.Provenance,

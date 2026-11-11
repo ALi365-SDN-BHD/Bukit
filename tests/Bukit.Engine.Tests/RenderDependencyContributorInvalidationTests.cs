@@ -381,6 +381,24 @@ public sealed class RenderDependencyContributorInvalidationTests
             Hash(contributor, WithPlugin(false, Options(("minHeadings", "3")))));
         // An enabled plugin without options hashes as before.
         Assert.Equal(Hash(contributor, WithPlugin(true, null)), Hash(contributor, WithPlugin(true, Options())));
+        // Option names are matched ignoring case, so their case does not change the hash.
+        Assert.Equal(baseline, Hash(contributor, WithPlugin(true, Options(("MINHEADINGS", "3"), ("Style", nested)))));
+    }
+
+    [Fact]
+    public void NonAnalyticsPluginEnablement_IgnoresPluginNameCase()
+    {
+        var contributor = new NonAnalyticsPluginEnablementContributor();
+        AppConfig WithPlugins(params string[] names) => Config() with
+        {
+            Site = Config().Site with
+            {
+                Plugins = names.ToDictionary(name => name, _ => new PluginToggleConfig { Enabled = true }, StringComparer.OrdinalIgnoreCase)
+            }
+        };
+
+        Assert.Equal(Hash(contributor, WithPlugins("toc", "seo")), Hash(contributor, WithPlugins("SEO", "Toc")));
+        Assert.Equal(Hash(contributor, WithPlugins("toc")), Hash(contributor, WithPlugins("toc", "Analytics")));
     }
 
     [Fact]
