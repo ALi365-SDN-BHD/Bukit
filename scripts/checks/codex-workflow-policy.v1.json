@@ -2162,6 +2162,20 @@
       ],
       "publicContract": false,
       "resource": "dotnet-serial"
+    },
+    {
+      "contractConsumerGlobs": [],
+      "id": "brainstorm-server-lifecycle",
+      "matches": [
+        ".trae/skills/brainstorming/scripts/*",
+        "scripts/checks/brainstorm-server-self-test.sh",
+        "scripts/checks/brainstorm-server-self-test-lib.sh"
+      ],
+      "publicContract": false,
+      "resource": "static-parallel",
+      "specialtyTests": [
+        "bash scripts/checks/brainstorm-server-self-test.sh"
+      ]
     }
   ],
   "resourceRules": [
