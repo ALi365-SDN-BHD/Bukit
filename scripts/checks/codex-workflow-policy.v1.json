@@ -2169,7 +2169,8 @@
       "matches": [
         ".trae/skills/brainstorming/scripts/*",
         "scripts/checks/brainstorm-server-self-test.sh",
-        "scripts/checks/brainstorm-server-self-test-lib.sh"
+        "scripts/checks/brainstorm-server-self-test-lib.sh",
+        "scripts/checks/brainstorm-server-self-test-process.sh"
       ],
       "publicContract": false,
       "resource": "static-parallel",
