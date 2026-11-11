@@ -74,6 +74,28 @@ public sealed class LlmsProjectionIntegrationTests
         }
     }
 
+    [Theory]
+    [InlineData("geo:")]
+    [InlineData("geo:\n  llms:\n    visibility: include")]
+    public async Task BuildAsync_EmptyOrValidCurationStrict_BuildsAndIncludesPages(string brokenFrontMatter)
+    {
+        var root = CreateCurationSite("strict", brokenFrontMatter);
+        try
+        {
+            var config = ConfigLoader.Load(Path.Combine(root, "site.yaml"));
+
+            await new SiteEngine(new TestLogger()).BuildAsync(config, root, new ConfigOverrides(), CancellationToken.None);
+
+            var llms = File.ReadAllText(Path.Combine(root, "dist", "llms.txt"));
+            Assert.Contains("https://example.com/blog/visible/", llms, StringComparison.Ordinal);
+            Assert.Contains("https://example.com/blog/broken/", llms, StringComparison.Ordinal);
+        }
+        finally
+        {
+            TestCleanup.DeleteDirectory(root, recursive: true);
+        }
+    }
+
     private static string CreateCurationSite(string diagnostics, string brokenFrontMatter = "geo:\n  llms:\n    priority: \"10\"")
     {
         var root = Path.Combine(Path.GetTempPath(), "bukit-llms-curation-" + Guid.NewGuid().ToString("N"));

@@ -58,6 +58,30 @@ public sealed class LlmsCurationPolicyTests
     }
 
     [Fact]
+    public void Parse_EmptyStringGeoValue_ReturnsValidDefault()
+    {
+        // The front matter parser turns a bare `geo:` key into an empty string, not null.
+        var result = LlmsCurationPolicyParser.Parse(CreateDocumentWithGeo(string.Empty));
+
+        Assert.True(result.Valid);
+        Assert.Equal(LlmsCurationPolicy.Default, result.Policy);
+        Assert.Empty(result.ErrorCodes);
+    }
+
+    [Fact]
+    public void Parse_EmptyStringLlmsValue_ReturnsValidDefault()
+    {
+        var result = LlmsCurationPolicyParser.Parse(CreateDocumentWithGeo(new Dictionary<string, object>
+        {
+            ["llms"] = string.Empty
+        }));
+
+        Assert.True(result.Valid);
+        Assert.Equal(LlmsCurationPolicy.Default, result.Policy);
+        Assert.Empty(result.ErrorCodes);
+    }
+
+    [Fact]
     public void Parse_DeclaredLlmsWithWrongShape_IsInvalid()
     {
         var result = LlmsCurationPolicyParser.Parse(CreateDocumentWithGeo(new Dictionary<string, object>
