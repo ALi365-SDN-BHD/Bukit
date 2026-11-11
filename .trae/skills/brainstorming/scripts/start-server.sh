@@ -133,8 +133,11 @@ cleanup_failed_start() {
   if session_state_matches "$STATE_DIR" "$SERVER_PID" "$TOKEN" "$SERVER_PATH"; then
     if [[ "$FOREGROUND" == true && "$SERVER_PID" == "$$" ]]; then
       remove_identity_state
-    elif ! bash "$SCRIPT_DIR/stop-server.sh" "$SESSION_DIR" >/dev/null 2>&1; then
-      if ! kill -0 "$SERVER_PID" 2>/dev/null; then remove_identity_state; fi
+    elif bash "$SCRIPT_DIR/stop-server.sh" "$SESSION_DIR" >/dev/null 2>&1; then
+      # stop-server accepts a zombie as ended; reap our own child so no PID outlives this script.
+      [[ "$FOREGROUND" == true ]] || wait "$SERVER_PID" 2>/dev/null || true
+    elif ! kill -0 "$SERVER_PID" 2>/dev/null; then
+      remove_identity_state
     fi
   elif [[ "$FOREGROUND" == true && "$SERVER_PID" == "$$" ]]; then
     remove_identity_state
