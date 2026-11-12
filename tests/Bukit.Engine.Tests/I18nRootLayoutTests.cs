@@ -42,7 +42,8 @@ public sealed class I18nRootLayoutTests
         Assert.Contains("lang=\"zh-CN\"", File.ReadAllText(Path.Combine(site.Output, "zh-CN", "index.html")), StringComparison.Ordinal);
         var legacy = Path.Combine(site.Output, "en", "index.html");
         Assert.True(File.Exists(legacy));
-        Assert.Contains("content=\"0; url=/\"", File.ReadAllText(legacy), StringComparison.Ordinal);
+        Assert.Contains("content=\"0; url=https://example.test/\"", File.ReadAllText(legacy), StringComparison.Ordinal);
+        Assert.Contains("rel=\"canonical\" href=\"https://example.test/\"", File.ReadAllText(legacy), StringComparison.Ordinal);
         Assert.Contains("noindex", File.ReadAllText(legacy), StringComparison.Ordinal);
 
         Assert.True(File.Exists(Path.Combine(site.Output, ".bukit", "seo-report.json")));
@@ -75,6 +76,22 @@ public sealed class I18nRootLayoutTests
         Assert.True(File.Exists(Path.Combine(site.Output, "index.html")));
         Assert.Contains("\"url\":\"/repo/\"", File.ReadAllText(Path.Combine(site.Output, "search.json")), StringComparison.Ordinal);
         Assert.Contains("\"url\":\"/repo/zh-CN/\"", File.ReadAllText(Path.Combine(site.Output, "zh-CN", "search.json")), StringComparison.Ordinal);
+        Assert.Contains("content=\"0; url=https://example.test/repo/\"",
+            File.ReadAllText(Path.Combine(site.Output, "en", "index.html")), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void RootLayout_GeneratedOutputLinkPathsCoverRootLanguageTargets()
+    {
+        using var site = RootSite();
+
+        var paths = BuildTransaction.GeneratedOutputLinkPaths(site.Config).Select(BuildPathUtils.NormalizeRelPath).ToArray();
+
+        Assert.Contains(".bukit/variants/en", paths);
+        Assert.Contains("en/index.html", paths);
+        Assert.Contains("zh-CN/.bukit", paths);
+        var disabled = site.Config with { Site = site.Config.Site with { DefaultLanguageRedirect = false } };
+        Assert.DoesNotContain("en/index.html", BuildTransaction.GeneratedOutputLinkPaths(disabled).Select(BuildPathUtils.NormalizeRelPath));
     }
 
     [Fact]
@@ -158,6 +175,11 @@ public sealed class I18nRootLayoutTests
         if (sitemapMode == "split")
         {
             Assert.Contains("Sitemap: https://example.test/zh-CN/sitemap.xml", robots, StringComparison.Ordinal);
+        }
+        else
+        {
+            Assert.Contains("Sitemap: https://example.test/en/sitemap.xml", robots, StringComparison.Ordinal);
+            Assert.DoesNotContain("Sitemap: https://example.test/zh-CN/sitemap.xml", robots, StringComparison.Ordinal);
         }
     }
 
@@ -419,7 +441,7 @@ public sealed class I18nRootLayoutTests
         var rootConfig = RootConfig(prefixed);
         await engine.BuildAsync(rootConfig, site.Root, new ConfigOverrides { Incremental = false });
         var legacy = File.ReadAllText(Path.Combine(site.Output, "en", "index.html"));
-        Assert.Contains("content=\"0; url=/\"", legacy, StringComparison.Ordinal);
+        Assert.Contains("content=\"0; url=https://example.test/\"", legacy, StringComparison.Ordinal);
         Assert.False(File.Exists(Path.Combine(site.Output, "en", "zh-CN", "index.html")));
         Assert.True(File.Exists(Path.Combine(site.Output, "index.html")));
         Assert.Contains("lang=\"en\"", File.ReadAllText(Path.Combine(site.Output, "index.html")), StringComparison.Ordinal);
