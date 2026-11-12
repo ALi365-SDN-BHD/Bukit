@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 
 fail() { echo "brainstorm server self-test failed: $*" >&2; exit 1; }
+source "$(dirname "${BASH_SOURCE[0]}")/brainstorm-server-self-test-process.sh"
 
 active_children=()
 active_servers=()
@@ -18,44 +19,6 @@ remove_server_record() {
   for index in "${!active_servers[@]}"; do
     [[ "${active_servers[$index]}" != "$needle" ]] || unset "active_servers[$index]"
   done
-}
-
-direct_child_is_current() {
-  local pid=$1 parent jobs_output
-  parent="$(ps -o ppid= -p "$pid" 2>/dev/null | tr -d ' ' || true)"
-  jobs_output="$(jobs -pr 2>/dev/null || true)"
-  [[ "$parent" == "$$" ]] || return 1
-  case $'\n'"$jobs_output"$'\n' in *$'\n'"$pid"$'\n'*) return 0 ;; esac
-  return 1
-}
-
-test_node_is_current() {
-  [[ "$(validate_process_identity "$1" "$(id -u)" "$server_script" "$2" 2>/dev/null || true)" == "$1" ]]
-}
-
-stop_direct_child() {
-  local pid=$1 i
-  direct_child_is_current "$pid" || return 1
-  kill "$pid" 2>/dev/null || true
-  for i in {1..20}; do kill -0 "$pid" 2>/dev/null || break; sleep 0.05; done
-  if kill -0 "$pid" 2>/dev/null; then
-    direct_child_is_current "$pid" || return 1
-    kill -9 "$pid" 2>/dev/null || true
-  fi
-  wait "$pid" 2>/dev/null || true
-  remove_child_pid "$pid"
-}
-
-stop_test_server() {
-  local pid=$1 token=$2 record="$1:$2" i
-  test_node_is_current "$pid" "$token" || return 1
-  kill "$pid" 2>/dev/null || true
-  for i in {1..20}; do kill -0 "$pid" 2>/dev/null || break; sleep 0.05; done
-  if kill -0 "$pid" 2>/dev/null; then
-    test_node_is_current "$pid" "$token" || return 1
-    kill -9 "$pid" 2>/dev/null || true
-  fi
-  remove_server_record "$record"
 }
 
 cleanup() {

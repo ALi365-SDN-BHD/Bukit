@@ -128,7 +128,13 @@ validate_process_identity() {
   [[ "$node_path" == "$node_command" ]] || return 1
   node_name="${node_path##*/}"
   [[ "$node_name" == node || "$node_name" == nodejs ]] || return 1
-  [[ "$live_comm" == "$node_name" ]] || return 1
+  # Linux: compare the real executable, because Node 24 renames its main thread to
+  # "MainThread" and so changes comm. Elsewhere (macOS) comm still names the binary.
+  if [[ -e "/proc/$pid/exe" ]]; then
+    [[ "$(readlink "/proc/$pid/exe" 2>/dev/null || true)" == "$node_path" ]] || return 1
+  else
+    [[ "$live_comm" == "$node_name" ]] || return 1
+  fi
   printf '%s\n' "$pid"
 }
 

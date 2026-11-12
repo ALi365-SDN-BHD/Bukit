@@ -2114,7 +2114,9 @@ public sealed class GitHubPagesDeployProviderTests
                 exit 1
               fi
               if [ "$mode" = "flood-over-limit" ]; then
-                head -c 5242880 /dev/zero
+                # Overshoot the 4 MiB cap by far more than a 1 MiB pipe buffer, so the
+                # flood cannot finish before Bukit kills it (uutils head grows the pipe).
+                head -c 16777216 /dev/zero
                 printf 'completed\n' > "$BUKIT_FAKE_GIT_STATE/push-flood-overflow-completed.marker"
                 exit 0
               fi

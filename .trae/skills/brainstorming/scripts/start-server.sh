@@ -6,6 +6,7 @@ umask 077
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)"
 SERVER_PATH="$SCRIPT_DIR/server.cjs"
 source "$SCRIPT_DIR/session-state.sh"
+source "$SCRIPT_DIR/child-job.sh"
 
 usage_error() {
   printf '{"error":"%s"}\n' "$1" >&2
@@ -105,36 +106,21 @@ remove_identity_state() {
 }
 SERVER_PID=""
 
-direct_child_job_is_current() {
-  local parent jobs_output
-  [[ "$SERVER_PID" =~ ^[0-9]+$ ]] || return 1
-  parent="$(ps -o ppid= -p "$SERVER_PID" 2>/dev/null | tr -d ' ' || true)"
-  jobs_output="$(jobs -pr 2>/dev/null || true)"
-  [[ "$parent" == "$$" ]] || return 1
-  case $'\n'"$jobs_output"$'\n' in *$'\n'"$SERVER_PID"$'\n'*) return 0 ;; esac
-  return 1
-}
-
-stop_owned_child_job() {
-  local i
-  direct_child_job_is_current || return 1
-  kill "$SERVER_PID" 2>/dev/null || true
-  for i in {1..20}; do kill -0 "$SERVER_PID" 2>/dev/null || break; sleep 0.05; done
-  if kill -0 "$SERVER_PID" 2>/dev/null; then
-    direct_child_job_is_current || return 1
-    kill -9 "$SERVER_PID" 2>/dev/null || true
-  fi
-  wait "$SERVER_PID" 2>/dev/null || true
-}
-
 cleanup_failed_start() {
   local status=$?
   trap - EXIT INT TERM
   if session_state_matches "$STATE_DIR" "$SERVER_PID" "$TOKEN" "$SERVER_PATH"; then
     if [[ "$FOREGROUND" == true && "$SERVER_PID" == "$$" ]]; then
       remove_identity_state
-    elif ! bash "$SCRIPT_DIR/stop-server.sh" "$SESSION_DIR" >/dev/null 2>&1; then
-      if ! kill -0 "$SERVER_PID" 2>/dev/null; then remove_identity_state; fi
+    elif bash "$SCRIPT_DIR/stop-server.sh" "$SESSION_DIR" >/dev/null 2>&1; then
+      # stop-server accepts a zombie as ended; reap our own child so no PID outlives this script.
+      wait "$SERVER_PID" 2>/dev/null || true
+    elif stop_owned_child_job || reap_ended_child; then
+      # stop-server gave up (for example the child was still dying after SIGKILL), but the
+      # server is our own direct child, so stop and reap it here.
+      remove_identity_state
+    elif ! kill -0 "$SERVER_PID" 2>/dev/null; then
+      remove_identity_state
     fi
   elif [[ "$FOREGROUND" == true && "$SERVER_PID" == "$$" ]]; then
     remove_identity_state

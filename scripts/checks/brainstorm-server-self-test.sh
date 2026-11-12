@@ -50,7 +50,7 @@ assert_publish_failure_safe() {
   [[ "$status" -ne 0 ]] || fail "$label injected state publication failure was accepted"
   wait_for_file "$pid_file" && wait_for_file "$token_file" || fail "$label did not expose server identity"
   pid="$(cat "$pid_file")"; token="$(cat "$token_file")"; record="$pid:$token"; active_servers+=("$record")
-  if kill -0 "$pid" 2>/dev/null; then stop_test_server "$pid" "$token" || true; fail "$label left a live spawned server"; fi
+  if ! wait_for_process_end "$pid"; then stop_test_server "$pid" "$token" || true; fail "$label left a live spawned server"; fi
   remove_server_record "$record"; assert_no_identity_or_temp "$project"
   echo "brainstorm server self-test: $label publication failure reaped server and rolled back state"
 }
@@ -92,11 +92,11 @@ json_project="$scratch/json-project"; json_pid_file="$scratch/json.pid"; json_to
 mkdir -p "$json_project"; cleanup_dirs+=("$json_project")
 if env PATH="$fake_bin:$PATH" NODE_OPTIONS="$node_options" BRAINSTORM_TERM_MODE=ignore BRAINSTORM_JSON_STATE_DIR=/wrong/state BRAINSTORM_FAKE_PID_FILE="$json_pid_file" BRAINSTORM_FAKE_TOKEN_FILE="$json_token_file" bash "$start_script" --project-dir "$json_project" --background >"$output" 2>&1; then status=0; else status=$?; fi
 [[ "$status" -ne 0 ]] || fail "JSON state_dir mismatch was accepted"
-pid="$(cat "$json_pid_file")"; token="$(cat "$json_token_file")"; kill -0 "$pid" 2>/dev/null && { active_servers+=("$pid:$token"); stop_test_server "$pid" "$token" || true; fail "JSON mismatch left an orphan"; }
+pid="$(cat "$json_pid_file")"; token="$(cat "$json_token_file")"; wait_for_process_end "$pid" || { active_servers+=("$pid:$token"); stop_test_server "$pid" "$token" || true; fail "JSON mismatch left an orphan"; }
 assert_no_identity_or_temp "$json_project"
 echo "brainstorm server self-test: JSON mismatch stopped server and cleaned identity"
 
-if ! env PATH="$fake_bin:$PATH" NODE_OPTIONS="$node_options" BRAINSTORM_TERM_MODE=ps-fail bash "$start_script" --background >"$output" 2>&1; then fail "ephemeral start failed"; fi
+if ! env PATH="$fake_bin:$PATH" NODE_OPTIONS="$node_options" BRAINSTORM_TERM_MODE=ps-fail bash "$start_script" --background >"$output" 2>&1; then fail "ephemeral start failed: $(tr "\n" " " < "$output")"; fi
 ephemeral_state="$(sed -n 's/.*"state_dir":"\([^"]*\)".*/\1/p' "$output" | head -1)"
 ephemeral_dir="${ephemeral_state%/state}"; cleanup_dirs+=("$ephemeral_dir"); ephemeral_pid="$(cat "$ephemeral_state/server.pid")"
 assert_live_tamper_refused() {
