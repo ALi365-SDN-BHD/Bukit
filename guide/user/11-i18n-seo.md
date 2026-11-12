@@ -230,6 +230,10 @@ Switching `defaultLanguageInSubdir` from `true` to `false` removes every old
 `/<language>/...` default-language URL. The generated `/<language>/index.html`
 redirect only covers the old home page. Before deploying:
 
+- For the first root-layout build, confirm `dist/.bukit-output-marker` exists. If
+  it does not, move the old output aside or point `build.output` at a dedicated
+  empty directory; the protected clean path refuses an unmarked output directory.
+
 - Add host redirects from `/<language>/*` to `/*` (for example a Netlify
   `_redirects` rule or a Cloudflare Pages redirect rule). GitHub Pages cannot issue
   a server 301; keep the redirect page or write aliases for important old URLs.
