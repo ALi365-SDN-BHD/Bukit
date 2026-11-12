@@ -956,6 +956,28 @@ public sealed class WorktreeBuildCoordinatorTests : IDisposable
     }
 
     [Fact]
+    public async Task WorktreeBuild_MarkerWithoutManifestCleansPreviousOutput()
+    {
+        var root = Path.Combine(_root, "root-layout-marker-only");
+        var site = CreateSite(root);
+        var path = Path.Combine(root, "site.yaml");
+        File.WriteAllText(path, File.ReadAllText(path)
+            .Replace("  defaultLanguage: en\n", "  defaultLanguage: en\n  defaultLanguageInSubdir: false\n", StringComparison.Ordinal)
+            .Replace("  sitemapMode: merged\n", "  sitemapMode: split\n", StringComparison.Ordinal)
+            .Replace("  search:\n    mode: merged\n", "  search:\n    mode: split\n", StringComparison.Ordinal));
+        await InitializeRepositoryAsync(root);
+        Directory.CreateDirectory(Path.Combine(root, "dist", "en", "stale"));
+        File.WriteAllText(Path.Combine(root, "dist", ".bukit-output-marker"), string.Empty);
+        File.WriteAllText(Path.Combine(root, "dist", "en", "stale", "index.html"), "old prefixed page");
+
+        var build = await RunProcessAsync("dotnet", [typeof(BuildCommand).Assembly.Location, "build", "--config", site], root);
+
+        Assert.True(build.ExitCode == 0, build.Output);
+        Assert.True(File.Exists(Path.Combine(root, "dist", "index.html")));
+        Assert.False(File.Exists(Path.Combine(root, "dist", "en", "stale", "index.html")));
+    }
+
+    [Fact]
     public async Task WorktreeBuild_SwitchesLayoutAndCleansPreviousOutput()
     {
         var root = Path.Combine(_root, "layout-switch");

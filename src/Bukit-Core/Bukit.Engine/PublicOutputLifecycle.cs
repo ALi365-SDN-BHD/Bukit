@@ -18,7 +18,7 @@ internal static class PublicOutputLifecycle
     {
         var items = new List<AssetOutputItem>();
         void Add(string path, string kind) => items.Add(new AssetOutputItem(kind, BuildPathUtils.NormalizeRelPath(path), AssetOutputCategory.Projection, Operation: AssetOutputOperation.Generate));
-        foreach (var route in routes)
+        foreach (var route in routes.Where(route => route.Template != RedirectPageHtml.RouteTemplate))
         {
             Add(ContentProjectionPaths.GetContentProjectionRelativePath(route, ".json"), "json " + route.Url);
             Add(ContentProjectionPaths.GetContentProjectionRelativePath(route, ".md"), "markdown " + route.Url);

@@ -84,7 +84,10 @@ internal sealed class DefaultContentProjectionWriter : IContentProjectionWriter
 
     internal static IReadOnlyList<ContentProjectionDocumentContext> BuildDocumentContexts(PublishProjectionContext context)
     {
-        var routedDocuments = context.RoutedDocuments.Concat(context.DerivedDocuments).ToList();
+        // Redirect pages (aliases, legacy language homes) are not content: no public projections.
+        var routedDocuments = context.RoutedDocuments.Concat(context.DerivedDocuments)
+            .Where(document => document.Route.Template != RedirectPageHtml.RouteTemplate)
+            .ToList();
         if (routedDocuments.Count > 0)
         {
             return routedDocuments
@@ -114,11 +117,6 @@ internal sealed class DefaultContentProjectionWriter : IContentProjectionWriter
         {
             var record = documentContext.Record;
             var route = documentContext.Route;
-            if (route.Template == RedirectPageHtml.RouteTemplate)
-            {
-                continue;
-            }
-
             var entry = documentContext.SeoIndexEntry;
             var model = documentContext.SeoModel;
             if (entry?.Indexable == false)

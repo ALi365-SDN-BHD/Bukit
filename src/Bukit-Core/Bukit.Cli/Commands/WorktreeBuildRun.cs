@@ -160,7 +160,7 @@ internal sealed class WorktreeBuildRun
             effectiveConfig, resolved.RootDir, overrides with { CacheDir = finalCacheDir }, finalOutputDir);
         OutputDirectoryCleaner.EnsureNoSourceOverlap(
             OutputDirectoryCleaner.GetConfiguredContentSources(effectiveConfig, resolved.RootDir), writeTargets);
-        var layoutChanged = LayoutChanged(finalCacheDir, effectiveConfig.Site, logger);
+        var layoutChanged = LayoutChanged(finalCacheDir, finalOutputDir, effectiveConfig.Site, logger);
         OutputDirectoryCleaner.EnsureCanClean(
             resolved.RootDir,
             finalOutputDir,
@@ -232,7 +232,7 @@ internal sealed class WorktreeBuildRun
             new(PathUtils.GetCanonicalFullPath(_finalOutputDir), PathUtils.GetCanonicalFullPath(_stagingOutputDir), PathUtils.GetCanonicalFullPath(_backupOutputDir), true),
             new(PathUtils.GetCanonicalFullPath(_finalCacheDir), PathUtils.GetCanonicalFullPath(_stagingCacheDir), PathUtils.GetCanonicalFullPath(_backupCacheDir), true)
         ]);
-        var preparedLayoutChanged = LayoutChanged(_finalCacheDir, _effectiveConfig.Site, _logger);
+        var preparedLayoutChanged = LayoutChanged(_finalCacheDir, _finalOutputDir, _effectiveConfig.Site, _logger);
         WorktreeBuildPaths.PrepareStaging(
             _finalOutputDir, _stagingOutputDir, copyExisting: !_effectiveConfig.Build.Clean && !preparedLayoutChanged);
         WorktreeBuildPaths.PrepareStaging(_finalCacheDir, _stagingCacheDir, copyExisting: true);
@@ -424,12 +424,14 @@ internal sealed class WorktreeBuildRun
     /// A layout switch is only known from a previous manifest; without one (fresh or cleared
     /// cache) the build is not a switch, matching the in-process migration check.
     /// </summary>
-    private static bool LayoutChanged(string cacheDir, SiteConfig site, ILogger logger)
+    // Mirrors BuildPlanner's migration rule: a Bukit-owned output (marker present) without a
+    // root manifest is treated like a layout switch, while unowned output is left alone.
+    private static bool LayoutChanged(string cacheDir, string outputDir, SiteConfig site, ILogger logger)
     {
         var manifestPath = Path.Combine(cacheDir, "build-manifest.json");
         if (!File.Exists(manifestPath))
         {
-            return false;
+            return File.Exists(Path.Combine(outputDir, ".bukit-output-marker"));
         }
 
         var prior = BuildManifest.Load(manifestPath, logger);

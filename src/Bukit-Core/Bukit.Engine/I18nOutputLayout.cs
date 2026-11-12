@@ -62,8 +62,11 @@ internal sealed class I18nOutputLayout
 
     internal bool IsMultilingual => _languages.Count > 0;
 
+    /// <summary>Whether the default language owns the output root.</summary>
+    internal bool IsRootLayout => IsMultilingual && !_defaultLanguageInSubdir;
+
     internal bool IsRootLanguage(string language)
-        => IsMultilingual && !_defaultLanguageInSubdir && IsDefaultLanguage(language);
+        => IsRootLayout && IsDefaultLanguage(language);
 
     internal string BaseUrl(string language)
         => _placementOnly
@@ -104,7 +107,7 @@ internal sealed class I18nOutputLayout
             : Path.Combine(variantOutputDir, ".bukit");
 
     internal IReadOnlyList<string> ReservedPrefixes
-        => IsMultilingual && !_defaultLanguageInSubdir
+        => IsRootLayout
             ? _languages.Where(language => !IsDefaultLanguage(language)).ToList()
             : Array.Empty<string>();
 
@@ -147,10 +150,7 @@ internal sealed class I18nOutputLayout
         => File.Exists(preferred) ? preferred : fallback;
 
     internal static string ManifestLayout(SiteConfig site)
-    {
-        var languages = I18nOutputMerger.GetLanguages(site);
-        return languages.Count > 0 && !site.DefaultLanguageInSubdir ? "root" : "subdir";
-    }
+        => For(site).IsRootLayout ? "root" : "subdir";
 
     /// <summary>Whether the variant built with <paramref name="variantConfig"/> owns the output root.</summary>
     internal static bool IsRootLanguageVariant(AppConfig variantConfig)
@@ -158,7 +158,7 @@ internal sealed class I18nOutputLayout
 
     /// <summary>Whether the site's default language owns the output root (root-level decisions).</summary>
     internal static bool IsDefaultLanguageAtRoot(AppConfig config)
-        => For(config.Site).IsMultilingual && !For(config.Site)._defaultLanguageInSubdir;
+        => For(config.Site).IsRootLayout;
 
     /// <summary>Sitemap path of the variant built with <paramref name="variantConfig"/>, relative to its output directory.</summary>
     internal static string VariantSitemapRelativePath(AppConfig variantConfig)

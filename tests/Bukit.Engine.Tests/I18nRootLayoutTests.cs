@@ -478,6 +478,9 @@ public sealed class I18nRootLayoutTests
         Assert.DoesNotContain("\"/en/\"", File.ReadAllText(Path.Combine(site.Output, "agent-manifest.json")), StringComparison.Ordinal);
         Assert.DoesNotContain("\"url\":\"/en/\"", File.ReadAllText(Path.Combine(site.Output, "search.json")), StringComparison.Ordinal);
         Assert.DoesNotContain("<loc>https://example.test/en/</loc>", File.ReadAllText(Path.Combine(site.Output, "sitemap.xml")), StringComparison.Ordinal);
+        Assert.NotEmpty(Directory.EnumerateFiles(Path.Combine(site.Output, "content"), "*.json", SearchOption.AllDirectories));
+        Assert.False(File.Exists(Path.Combine(site.Output, "content", "en", "index.html.json")));
+        Assert.False(File.Exists(Path.Combine(site.Output, "content", "en", "index.html.md")));
         foreach (var file in new[] { "llms.txt", "llms-full.txt", "rss.xml" })
         {
             var path = Path.Combine(site.Output, file);
