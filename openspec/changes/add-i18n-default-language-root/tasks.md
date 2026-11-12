@@ -26,10 +26,10 @@
 - [ ] `PublicOutputLifecycle.ProjectionPlan` 支持"根目录语言"：排除 agent-manifest、robots、llms、llms-full；index 模式下默认语言 sitemap 计划为 `<lang>/sitemap.xml`；所有语言的计划输出按 sitemap/feed mode 生成。
 - [ ] 确认计划输出清单变化不会误删文件，也不会触发带前缀站点全量重建。
 - [ ] `SitemapPlugin` 在 index 模式下为根目录默认语言写入 `<lang>/sitemap.xml`（地址不带前缀）；`I18nRootSitemapWriter` 的索引和 `I18nRootRobotsWriter` 引用实际地址。
-- [ ] 默认语言 `static/robots.txt` 作为整站 robots；其他根目录独占文件同名的 static 文件在复制前报 `i18n-root-output-conflict`。
+- [ ] 默认语言 `static/robots.txt` 作为整站 robots（`WriteRootOutputs` 按默认语言 static 计划判断，覆盖"生成 ↔ static"两个方向的过渡构建）；其他根目录独占文件同名的 static 文件在复制前报 `i18n-root-output-conflict`。
 - [ ] 默认语言 5 种报告写入 `.bukit/variants/<lang>/`（`SeoAuditReportWriter.Write`、`PublishAuditReportWriter`、`SeoRouteMapWriter`、geo 报告、`AnalyticsReportWriter`）。
 - [ ] `ArtifactManifestInventory.AddVariantAnalyticsReports`（`BuildReportInventories.cs`）按 `I18nOutputLayout` 的报告目录查找语言报告。
-- [ ] 根目录语言下 agent-manifest、robots、llms、llms-full 的语言级投影不写文件但仍产出"由根目录聚合提供"的结果，默认语言 publish-audit 的表示标记与带前缀布局一致，且不读取旧的根目录 robots。
+- [ ] 根目录语言下 agent-manifest、robots、llms、llms-full 的语言级投影不写文件，投影输出沿用现有字段（`Exists = false`）；语言级审计按布局解析读取路径，不读取根目录聚合文件（含上一次构建的 sitemap 索引、合并 sitemap 和 feed），结果与上一次构建无关。
 - [ ] 确认 `PublicOutputPrivacyCheck`、`AssetsReportInventory.Create`（资源清单）和 `ReleaseBundleInventory.Create`（release bundle 校验和清单）在两种布局下对语言报告的扫描和计入范围，并用测试固定。
 
 ## 4. 路由保留前缀

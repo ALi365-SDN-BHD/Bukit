@@ -87,6 +87,8 @@ Context 中列出的所有拼接点都改为调用该策略，包括读取语言
 
 做法：`PublicOutputLifecycle.ProjectionPlan` 新增参数，表示"当前语言是根目录语言"。为 true 时排除根目录独占的文件，并按 mode 处理 sitemap 文件名；同时让所有语言的计划输出按 sitemap/feed mode 生成，与插件的实际写出行为一致。`CollectAndClean` 保留现有重复检查作为最后防线。
 
+根目录语言的语言级投影（agent-manifest、robots、llms、llms-full）不写文件，投影输出沿用现有字段并标为 `Exists = false`，不新增字段。语言级审计在该语言那一轮直接读取其输出目录中的聚合文件；根目录语言的输出目录就是根目录，而根目录聚合在所有语言之后才写，因此审计改为按布局解析读取路径：index 模式的 sitemap 读 `<lang>/sitemap.xml`，根目录独占文件不读磁盘，避免读到上一次构建的根目录文件。由此，默认语言语言级 publish-audit 中这些表示标记为未包含，以根目录合并报告为准。
+
 **index 模式下默认语言 sitemap 放在 `/<lang>/sitemap.xml`。** 理由：与 Hugo 的做法一致；每种语言的 sitemap 都在 `/<lang>/sitemap.xml`，结构对称，根目录索引和 robots 的生成逻辑不需要为默认语言单独处理，Search Console 中各语言 sitemap 的地址也与带前缀布局下相同，切换布局时不用重新提交。该文件由默认语言那一轮写出，相对默认语言输出目录的路径为 `<lang>/sitemap.xml`；默认语言自身代码不保留（决策 5），所以不会触发保留前缀检查。曾考虑 `sitemap-<lang>.xml`，因需要特殊命名且与其他语言不对称而放弃。
 
 split 模式下没有根目录索引，默认语言的 sitemap 仍写在 `/sitemap.xml`。
@@ -97,7 +99,7 @@ split 模式下没有根目录索引，默认语言的 sitemap 仍写在 `/sitem
 
 默认语言放到根目录后，`static/` 里的文件会直接落到站点根目录，可能和根目录独占文件同名。规则：
 
-- `static/robots.txt`：沿用现有"static 覆盖优先"的约定，作为整站 robots，根目录不再生成 robots。构建记录一条 info 日志，并在文档中说明此时 robots 不会自动列出各语言 sitemap。
+- `static/robots.txt`：沿用现有"static 覆盖优先"的约定，作为整站 robots，根目录不再生成 robots。现有根目录 robots 处理（`WriteRootOutputs`）按"上次是否自有、磁盘上是否已有文件"判断，在"上次生成、这次改用 static"时会报重复或删掉刚复制的 static 文件；根目录布局下改为按默认语言计划中是否有 static `robots.txt` 判断。构建记录一条 info 日志，并在文档中说明此时 robots 不会自动列出各语言 sitemap。
 - `static/` 中名为 `agent-manifest.json`、`llms.txt`、`llms-full.txt`、根目录 sitemap 文件名（merged/index 模式下的 `sitemap.xml`）、merged feed 文件名的文件：构建失败，报 `i18n-root-output-conflict`，指出 static 源文件和对应设置。
 - 其他文件（`404.html`、`favicon.ico`、`CNAME` 等）正常落到根目录。这正是本变更想要的效果。
 
