@@ -165,8 +165,8 @@
 - 依赖：阶段 3 完成。
 
 **T04.2 调用点与根目录计划输出**
-- 改动：在 `I18nOutputMerger.GenerateRootOutputs` / `I18nRootProjectionCoordinator` 执行完 writer 计划后单独调用 `I18nRootRedirectWriter`，不产生 `PublishProjectionResult`；进程内与 Worktree 两条路径都经过这里。`PublicOutputLifecycle.ProjectionPlan(root: true)` 在相同条件下加入 `index.html`（kind `redirect`，只用于归属清单），使其进入受保护删除和重复检查。
-- 测试：`I18nRegressionTests` 或新增集成测试：默认配置的多语言构建生成 `dist/index.html`；关闭后上次生成的 `index.html` 被作为自有文件删除；`I18nRootProjectionWriterRegistryTests` 原样通过。
+- 改动：在 `I18nOutputMerger.GenerateRootOutputs` / `I18nRootProjectionCoordinator` 执行完 writer 计划后单独调用 `I18nRootRedirectWriter`，不产生 `PublishProjectionResult`；进程内与 Worktree 两条路径都经过这里。`PublicOutputLifecycle.ProjectionPlan(root: true)` 在相同条件下加入 `index.html`（kind `redirect`，只用于归属清单），使其进入受保护删除和重复检查。`BuildTransaction.RejectGeneratedOutputLinks` 的根目录清单来自非 root 计划且按 T02.6 保持不变，因此在相同条件下显式加入 `index.html`。
+- 测试：`I18nRegressionTests` 或新增集成测试：默认配置的多语言构建生成 `dist/index.html`；关闭后上次生成的 `index.html` 被作为自有文件删除；`dist/index.html` 是符号链接时构建被拒绝；`I18nRootProjectionWriterRegistryTests` 原样通过。
 - 依赖：T04.1。
 
 **T04.3 跳转页不进入索引和报告契约**
@@ -197,7 +197,7 @@
 **T05.2a 根目录语言的语言级聚合投影与审计读取**
 - 背景：语言级审计在该语言那一轮直接从其输出目录读取 `sitemap.xml`、`search.json`、`rss.xml`、atom、`feed.json`、`agent-manifest.json`、`robots.txt`、`llms.txt`、`llms-full.txt`，并构造 `AgentManifestSnapshot(outputDir)`（`MachineReadabilityTrustAuditBuilder.Core.cs:23-34`）。根目录语言的输出目录就是输出根目录，而根目录聚合在所有语言之后才写，因此会读到上一次构建留下的根目录 sitemap 索引或合并 sitemap、合并 feed、agent-manifest、robots、llms，结果随上一次构建而变。
 - 改动 1（投影）：写这些根目录独占文件的三处语言级投影——`AgentManifestProjection`（`ContentProjectionWriter.cs:313`）、`LlmsTxtPublishProjection` / `LlmsFullTxtPublishProjection`（`PublishProjectionContract.cs:280/293`，经 `LlmsAggregateProjectionWriter`）、robots（`PublishAggregateProjectionWriters.cs:201` 调用 `RobotsTxtWriter.WriteIfRequested`）——在根目录语言下不写文件。投影输出沿用现有 `PublishRepresentationOutput` 字段，不新增字段（新增会改变 build-report 契约）：`Exists = false`，`Path` 为根目录文件路径，与带前缀布局 merged 模式下语言不写 sitemap/feed 的现状同一语义。
-- 改动 2（审计读取）：为审计引入读取路径解析，由 `I18nOutputLayout` 提供：根目录语言下，index 模式的 sitemap 读 `<lang>/sitemap.xml`；split 模式的 sitemap、feed、search 读根目录（它们由默认语言本轮写出）；根目录独占文件（agent-manifest、robots、llms、llms-full，以及 merged 模式下的 sitemap 和 feed）不读磁盘，按"本轮不提供"处理，`AgentManifestSnapshot` 同样不从根目录构造。带前缀布局的读取位置不变。
+- 改动 2（审计读取）：为审计引入读取路径解析，由 `I18nOutputLayout` 提供：根目录语言下，index 模式的 sitemap 读 `<lang>/sitemap.xml`；split 模式的 sitemap、feed、search 读根目录（它们由默认语言本轮写出）；根目录独占文件（agent-manifest、robots、llms、llms-full，以及 merged 模式下的 sitemap 和 feed）不读磁盘，按"本轮不提供"处理，`AgentManifestSnapshot` 同样不从根目录构造。例外：默认语言计划中有 static `robots.txt` 时（T06.8），该文件由默认语言本轮复制，照常读取，与带前缀布局读取 `<lang>/robots.txt` 一致。带前缀布局的读取位置不变。
 - 已知差异：根目录布局下默认语言的语言级 publish-audit 中，agent-manifest、robots、llms、llms-full 的文档表示标记为未包含（这些文件由根目录合并报告覆盖），与带前缀布局不同；在 T11.5 迁移清单中说明，审计以根目录合并报告为准。
 - 测试：预先在输出根目录放上一轮的根目录聚合文件（sitemap 索引、合并 sitemap、合并 feed、agent-manifest、robots、llms、llms-full），默认语言审计结果与这些文件内容无关，连续两次构建结果相同；默认语言 publish-audit 与带前缀布局 merged 模式下同类表示的处理一致，无新增问题；带前缀布局的审计结果与 T00.1 对照一致；最小站点的根目录布局构建不再因重复输出失败。
 - 依赖：T05.2。
@@ -255,7 +255,7 @@
 
 **T06.8 默认语言 static：robots 覆盖与冲突**
 - 改动：在 static 资源计划确定后、复制前检查：默认语言 `static/robots.txt` 存在时作为整站 robots，根目录 robots writer 不生成。现有根目录 robots 处理在 `I18nWorktreeBuild.cs:313-319` 的 `WriteRootOutputs`（进程内与 Worktree 共用）：按"上次是否自有、磁盘上是否已有文件"决定是否计划和删除。根目录布局下改为按"默认语言计划中是否有 static `robots.txt`"判断：有则根目录计划不含 `robots.txt`、不删除、不生成，且上次自有记录随之移除；否则沿用现有逻辑。与 `agent-manifest.json`、`llms.txt`、`llms-full.txt`、merged/index 下的根 `sitemap.xml`、merged feed 文件同名时抛 `i18n-root-output-conflict`，信息含 static 源路径和对应设置。新增报错码到 `Bukit.Shared/DiagnosticCode.cs`（公共枚举）及 `DiagnosticCodeFormatter`，**同一任务内**更新公共 API 基线。
-- 测试：spec 场景 "Static robots override"、"Static llms conflict"；过渡构建两个方向：上一次生成了 robots、这一次新增 `static/robots.txt`，结果为 static 内容，不报重复、不被删除；上一次用 static robots、这一次删除它，结果恢复为生成的 robots，无残留；`404.html`、`CNAME` 正常落到根目录；`bash scripts/checks/public-api-drift.sh check`。
+- 测试：spec 场景 "Static robots override"、"Static llms conflict"；过渡构建两个方向：上一次生成了 robots、这一次新增 `static/robots.txt`，结果为 static 内容，不报重复、不被删除，默认语言审计读到的是 static 内容；上一次用 static robots、这一次删除它，结果恢复为生成的 robots，无残留；`404.html`、`CNAME` 正常落到根目录；`bash scripts/checks/public-api-drift.sh check`。
 - 依赖：T06.7。
 
 **T06.9 隐私扫描与两份清单的计入范围**
@@ -352,8 +352,8 @@
 - 依赖：阶段 9 完成。
 
 **T10.2 布局变化时受保护清理**
-- 改动：上次布局与本次不同时，走 `OutputDirectoryCleaner` 的受保护清理后再写。
-- 测试：spec 场景 "Switching to a root default language"：`dist/en/` 不再存在，`dist/index.html` 为英文首页；反向切换同样干净。
+- 改动：上次布局与本次不同时，走 `OutputDirectoryCleaner` 的受保护清理后再写。进程内在各语言构建开始前清理；Worktree 模式由协调器在派发 Worker 之前判断布局变化并完成清理（staging 也不得保留旧布局目录），不能在 Worker 写入之后清理。
+- 测试：spec 场景 "Switching to a root default language"：`dist/en/` 不再存在，`dist/index.html` 为英文首页；反向切换同样干净；进程内和 Worktree 两种模式各测一遍。
 - 依赖：T10.1。
 
 **T10.3 增量删除不越界**
@@ -457,3 +457,4 @@
 | 审计 1 | 2026-11-12 | 阶段 5、6 改为先归属与报告、后输出验收；公共 API 基线随引入公共成员的任务同步更新；补聚合表示 `redirect`（新增 T04.1，原 writer 任务改为 T04.1a）；T02.6 根目录清单本阶段不变；警告改由引擎日志记录；T08.5 不直接调用 deploy；T10.1 补缓存丢失边界 |
 | 审计 2 | 2026-11-12 | 撤回聚合表示 `redirect`，根目录跳转页在 writer 注册表之外单独写出（删除 T04.1a）；新增 T05.2a：根目录语言的语言级聚合投影仍产出结果，保证审计标记一致；补 T00.1 基线过滤、T01.4 schema 说明、T12.3 AOT 命令 |
 | 审计 3 | 2026-11-12 | T05.2a 改为覆盖语言级审计直接读取的全部聚合文件，投影沿用现有字段（`Exists = false`）；T06.8 改用默认语言 static 计划判断根目录 robots，补两个方向的过渡测试；T05.5 注明依赖 T05.2a |
+| 审计 4 | 2026-11-12 | T05.2a 补默认语言 static robots 照常读取的例外；T04.2 把根目录 `index.html` 加入链接检查清单；T10.2 写明 Worktree 在派发 Worker 前清理，两种模式各测一遍 |
