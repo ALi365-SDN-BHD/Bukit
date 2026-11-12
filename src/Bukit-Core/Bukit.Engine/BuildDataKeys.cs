@@ -32,6 +32,9 @@ internal static class BuildDataKeys
     /// <summary>Writers: ImageProcessingPlugin, TaxonomyPlugin (after-build). Readers: BuildManifestTracker, VariantReportStage.</summary>
     internal static readonly BuildDataKey<HashSet<PluginOutputTrackingInfo>> PluginOutputs = new("__plugin_outputs");
 
+    /// <summary>Writer: TaxonomyPlugin (derive). Reader: I18nLegacyRedirectDeriver.</summary>
+    internal static readonly BuildDataKey<HashSet<string>> TaxonomyRedirectPaths = new("__taxonomy_redirect_paths");
+
     /// <summary>Writer and reader: CollectionRouteIndex (per-build cache).</summary>
     internal static readonly BuildDataKey<CollectionRouteIndex> CollectionRouteIndex = new("__collection_route_index");
 

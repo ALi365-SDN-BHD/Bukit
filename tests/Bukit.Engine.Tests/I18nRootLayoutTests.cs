@@ -262,6 +262,8 @@ public sealed class I18nRootLayoutTests
         await engine.BuildAsync(config, site.Root, new ConfigOverrides { Incremental = false });
         var generated = File.ReadAllText(Path.Combine(site.Output, "robots.txt"));
         Assert.Contains("Sitemap: https://example.test/sitemap.xml", generated, StringComparison.Ordinal);
+        // The regenerated file is owned again, so disabling robots later removes it.
+        Assert.Contains("robots.txt", BuildManifest.Load(Path.Combine(site.Root, ".cache", "build-manifest.json")).OwnedOutputs);
     }
 
     [Fact]
@@ -313,6 +315,19 @@ public sealed class I18nRootLayoutTests
             Directory.CreateDirectory(Path.GetDirectoryName(target)!);
             File.Copy(file, target);
         }
+    }
+
+    [Fact]
+    public async Task StaticSitemap_WithoutSiteUrlIsNotARootConflict()
+    {
+        using var site = RootSite();
+        var config = site.Config with { Site = site.Config.Site with { Url = null, SitemapMode = "index" } };
+        site.Sandbox.Write("static/sitemap.xml", "<urlset/>");
+
+        await new SiteEngine(new ConsoleLogger(LogLevel.Error)).BuildAsync(config, site.Root,
+            new ConfigOverrides { Incremental = false });
+
+        Assert.Equal("<urlset/>", File.ReadAllText(Path.Combine(site.Output, "sitemap.xml")));
     }
 
     [Fact]

@@ -86,6 +86,12 @@ internal sealed class TaxonomyPlugin : IBukitPlugin, IDerivePagesPlugin, IAfterB
         var itemFields = NormalizeItemFields(_taxonomy.ItemFields);
         var pageSize = NormalizePageSize(_taxonomy.PageSize);
         TaxonomyDataWriter.SetTaxonomyData(context, itemFields, _taxonomy, _indexCache);
+        if (outputMode is ("both" or "data") &&
+            _config.Site.DefaultLanguageRedirect && I18nOutputLayout.IsRootLanguageVariant(_config))
+        {
+            RecordRedirectPaths(context);
+        }
+
         if (outputMode == "data")
         {
             return derived;
@@ -158,16 +164,25 @@ internal sealed class TaxonomyPlugin : IBukitPlugin, IDerivePagesPlugin, IAfterB
         return derived;
     }
 
-    public void AfterBuild(BuildContext context)
+    /// <summary>
+    /// Records where after-build alias redirects will be written, so derive-time writers
+    /// (the legacy language home redirect) can treat those paths as user output.
+    /// </summary>
+    private void RecordRedirectPaths(BuildContext context)
     {
-        var outputMode = NormalizeOutputMode(_taxonomy.OutputMode);
-        if (outputMode is not ("both" or "data"))
+        var paths = context.GetOrAdd(BuildDataKeys.TaxonomyRedirectPaths, static () => []);
+        foreach (var (_, kind, _, terms, routePrefix) in CollectKindTerms(context))
         {
-            return;
+            foreach (var (path, _) in TaxonomyRedirectWriter.PlanRedirects(kind, terms, routePrefix))
+            {
+                paths.Add(path);
+            }
         }
+    }
 
+    private List<(string Key, string Kind, string Title, Dictionary<string, TaxonomyTerm> Terms, string? RoutePrefix)> CollectKindTerms(BuildContext context)
+    {
         var itemFields = NormalizeItemFields(_taxonomy.ItemFields);
-
         var kindTerms = new List<(string Key, string Kind, string Title, Dictionary<string, TaxonomyTerm> Terms, string? RoutePrefix)>();
 
         if (_taxonomy.Kinds is { Count: > 0 } kinds)
@@ -213,6 +228,19 @@ internal sealed class TaxonomyPlugin : IBukitPlugin, IDerivePagesPlugin, IAfterB
                 kindTerms.Add(("categories", "categories", title, categories, null));
             }
         }
+
+        return kindTerms;
+    }
+
+    public void AfterBuild(BuildContext context)
+    {
+        var outputMode = NormalizeOutputMode(_taxonomy.OutputMode);
+        if (outputMode is not ("both" or "data"))
+        {
+            return;
+        }
+
+        var kindTerms = CollectKindTerms(context);
 
         var outPath = Path.Combine(context.OutputDir, "taxonomy.json");
         Directory.CreateDirectory(context.OutputDir);

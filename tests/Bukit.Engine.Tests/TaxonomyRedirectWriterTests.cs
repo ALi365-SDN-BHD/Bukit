@@ -53,6 +53,20 @@ public sealed class TaxonomyRedirectWriterTests : IDisposable
     }
 
     [Fact]
+    public void PlanRedirects_RootRoutePrefixReturnsRelativeOutputs()
+    {
+        var terms = new Dictionary<string, TaxonomyTerm>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["english"] = new TaxonomyTerm("English", "english") { Aliases = ["en", "english"] }
+        };
+
+        var plan = TaxonomyRedirectWriter.PlanRedirects("tags", terms, "/");
+
+        Assert.Equal([("en/index.html", "/english/")], plan);
+        Assert.Empty(Directory.EnumerateFileSystemEntries(_tempDir));
+    }
+
+    [Fact]
     public void WriteRedirects_NoAliases_DoesNotCreateFiles()
     {
         var terms = new Dictionary<string, TaxonomyTerm>(StringComparer.OrdinalIgnoreCase)
