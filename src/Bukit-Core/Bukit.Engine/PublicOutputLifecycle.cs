@@ -24,11 +24,8 @@ internal static class PublicOutputLifecycle
             Add(ContentProjectionPaths.GetContentProjectionRelativePath(route, ".md"), "markdown " + route.Url);
         }
 
-        var languages = I18nOutputMerger.GetLanguages(config.Site);
-        var layout = language is null
-            ? null
-            : I18nOutputLayout.Create(config.Site, languages, config.Site.BaseUrl);
-        var isRootLanguage = layout?.IsRootLanguage(language!) == true;
+        var layout = I18nOutputLayout.For(config.Site);
+        var isRootLanguage = language is not null && layout.IsRootLanguage(language);
         var sitemapMode = (config.Site.SitemapMode ?? "split").Trim().ToLowerInvariant();
         var feedMode = SiteModeResolver.ResolveFeedMode(config.Site);
         var searchMode = SiteModeResolver.ResolveSearchMode(config.Site);
@@ -47,7 +44,7 @@ internal static class PublicOutputLifecycle
 
         if (!string.IsNullOrWhiteSpace(config.Site.Url))
         {
-            var sitemapPath = SitemapPlanPath(root, isRootLanguage, sitemapMode, language);
+            var sitemapPath = SitemapPlanPath(root, isRootLanguage, sitemapMode, language is null ? null : layout.SitemapRelativePath(language));
             if (sitemapPath is not null) Add(sitemapPath, "sitemap");
 
             if (!isRootLanguage && config.Site.Seo.RobotsTxt.Enabled) Add("robots.txt", "robots");
@@ -74,17 +71,12 @@ internal static class PublicOutputLifecycle
         return searchMode == "index" ? "search.index.json" : null;
     }
 
-    private static string? SitemapPlanPath(bool root, bool isRootLanguage, string sitemapMode, string? language)
+    private static string? SitemapPlanPath(bool root, bool isRootLanguage, string sitemapMode, string? languageSitemapPath)
     {
         if (root) return sitemapMode is "merged" or "index" ? "sitemap.xml" : null;
         if (isRootLanguage)
         {
-            return sitemapMode switch
-            {
-                "split" => "sitemap.xml",
-                "index" => Path.Combine(language!, "sitemap.xml"),
-                _ => null,
-            };
+            return sitemapMode is "split" or "index" ? languageSitemapPath : null;
         }
 
         return sitemapMode != "merged" ? "sitemap.xml" : null;

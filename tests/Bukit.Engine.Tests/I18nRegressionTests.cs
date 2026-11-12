@@ -90,7 +90,7 @@ public sealed class I18nRegressionTests : IDisposable
     {
         var english = Document("shared", "en");
         var chinese = Document("shared", "zh");
-        var state = I18nMergedVariantState.Create([Variant("en", english), Variant("zh", chinese)]);
+        var state = I18nMergedVariantState.Create([Variant("en", english), Variant("zh", chinese)], PrefixedLayout("en", "zh"));
         if (asynchronous)
             await LlmsTxtPlugin.WriteLlmsFullTxtAsync(Config(), _root, "/docs", state.RoutedDocuments,
                 [], state.ContentGraph, state.SeoIndex, state.BodyStore);
@@ -245,7 +245,7 @@ public sealed class I18nRegressionTests : IDisposable
         }
         if (merged)
         {
-            SeoAuditReportWriter.WriteMerged(config, _root, variants.Select(variant => variant.ToPublishedVariant()).ToArray(), logger);
+            SeoAuditReportWriter.WriteMerged(config, _root, variants.Select(variant => variant.ToPublishedVariant()).ToArray(), logger, LanguagePrefixes);
             AssertExclusionReport(_root, "/docs/en/shared/", excluded: true);
             AssertExclusionReport(_root, "/docs/zh/shared/", excluded: false);
         }
@@ -303,7 +303,7 @@ public sealed class I18nRegressionTests : IDisposable
 
         Assert.Empty(logger.Lines);
         SeoAuditReportWriter.WriteMerged(config, _root, variants.Select(variant => variant.ToPublishedVariant()).ToArray(), logger,
-            variantIssues: variantIssues);
+            LanguagePrefixes, variantIssues: variantIssues);
 
         Assert.Equal(logger.Lines.Count, logger.Lines.Distinct(StringComparer.Ordinal).Count());
         foreach (var language in new[] { "en", "zh" })
@@ -369,6 +369,13 @@ public sealed class I18nRegressionTests : IDisposable
             new Dictionary<string, int>(), BuildStageMetrics.Empty, routed,
             new CanonicalContentGraph(documents.Select(document => document.Record).ToArray(), []));
     }
+
+    private static I18nOutputLayout PrefixedLayout(params string[] languages) => I18nOutputLayout.Create(
+        new SiteConfig { Name = "prefixed", Title = "Prefixed", Languages = languages, DefaultLanguage = languages[0] },
+        languages, "/", defaultLanguageInSubdir: true);
+
+    private static readonly IReadOnlyDictionary<string, string> LanguagePrefixes =
+        new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase) { ["en"] = "en", ["zh"] = "zh" };
 
     private static AppConfig Config() => new()
     {

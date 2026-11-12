@@ -17,7 +17,7 @@ internal sealed record I18nMergedVariantState(
 {
     internal static I18nMergedVariantState Create(
         IReadOnlyList<BuildVariantResult> results,
-        I18nOutputLayout? layout = null)
+        I18nOutputLayout layout)
     {
         var routedDocuments = new List<RoutedContentDocument>();
         var derivedDocuments = new List<RoutedContentDocument>();
@@ -61,7 +61,7 @@ internal sealed record I18nMergedVariantState(
 
     internal static IReadOnlyDictionary<string, SeoIndexEntry> BuildSeoIndex(
         IReadOnlyList<BuildVariantResult> results,
-        I18nOutputLayout? layout = null)
+        I18nOutputLayout layout)
     {
         var seoIndex = new Dictionary<string, SeoIndexEntry>(StringComparer.OrdinalIgnoreCase);
         foreach (var result in results)
@@ -78,11 +78,11 @@ internal sealed record I18nMergedVariantState(
         return seoIndex;
     }
 
-    private static RouteInfo MergeRoute(BuildVariantResult result, RouteInfo route, I18nOutputLayout? layout)
+    private static RouteInfo MergeRoute(BuildVariantResult result, RouteInfo route, I18nOutputLayout layout)
         => new(
             I18nRootProjectionPath.CombineBaseUrl(result.BaseUrl, route.Url),
             I18nOutputLayout.CombineRelative(
-                layout?.RelativeOutputPrefix(result.Language) ?? result.Language,
+                layout.RelativeOutputPrefix(result.Language),
                 route.OutputPath),
             route.Template);
 

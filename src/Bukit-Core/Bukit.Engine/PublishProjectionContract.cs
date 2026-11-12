@@ -290,21 +290,12 @@ internal sealed class SitemapPublishProjection : AggregatePublishProjectionBase
             filtered.Add((seo.Canonical, seo.LastModified));
         }
 
-        var outputDir = context.OutputDir;
-        if (I18nOutputLayout.IsRootLanguageVariant(context.Config) &&
-            (context.Config.Site.SitemapMode ?? "split").Trim().Equals("index", StringComparison.OrdinalIgnoreCase))
-        {
-            outputDir = Path.Combine(context.OutputDir, context.Config.Site.Language);
-        }
-
-        SitemapGenerator.GenerateAbsolute(outputDir, filtered);
+        var sitemapDir = Path.GetDirectoryName(I18nOutputLayout.VariantSitemapRelativePath(context.Config)) ?? string.Empty;
+        SitemapGenerator.GenerateAbsolute(Path.Combine(context.OutputDir, sitemapDir), filtered);
     }
 
     protected override string ResolveRelativePath(PublishProjectionContext context)
-        => I18nOutputLayout.IsRootLanguageVariant(context.Config) &&
-           (context.Config.Site.SitemapMode ?? "split").Trim().Equals("index", StringComparison.OrdinalIgnoreCase)
-            ? Path.Combine(context.Config.Site.Language, "sitemap.xml")
-            : base.ResolveRelativePath(context);
+        => I18nOutputLayout.VariantSitemapRelativePath(context.Config);
 }
 
 internal sealed class SearchIndexPublishProjection : AggregatePublishProjectionBase

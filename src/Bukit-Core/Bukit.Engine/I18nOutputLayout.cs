@@ -1,3 +1,4 @@
+using System.Runtime.CompilerServices;
 using Bukit.Config;
 using Bukit.Engine.Primitives;
 
@@ -10,6 +11,8 @@ namespace Bukit.Engine;
 /// </summary>
 internal sealed class I18nOutputLayout
 {
+    private static readonly ConditionalWeakTable<SiteConfig, I18nOutputLayout> PlacementCache = [];
+
     private readonly SiteConfig _site;
     private readonly List<string> _languages;
     private readonly string _rootBaseUrl;
@@ -42,6 +45,15 @@ internal sealed class I18nOutputLayout
         bool? defaultLanguageInSubdir = null)
         => new(site, languages, rootBaseUrl, defaultLanguageInSubdir ?? site.DefaultLanguageInSubdir);
 
+    /// <summary>
+    /// Cached layout for placement decisions (root language, prefixes, report and sitemap paths).
+    /// It is keyed by the immutable <see cref="SiteConfig"/> instance and built from
+    /// <c>site.BaseUrl</c>, which for a variant config is that variant's base URL, so callers that
+    /// need root-relative base URLs must use <see cref="Create"/> with the root base URL instead.
+    /// </summary>
+    internal static I18nOutputLayout For(SiteConfig site)
+        => PlacementCache.GetValue(site, key => Create(key, I18nOutputMerger.GetLanguages(key), key.BaseUrl));
+
     internal bool IsMultilingual => _languages.Count > 0;
 
     internal bool IsRootLanguage(string language)
@@ -60,6 +72,17 @@ internal sealed class I18nOutputLayout
         var prefix = RelativeOutputPrefix(language);
         return string.IsNullOrEmpty(prefix) ? root : Path.Combine(root, prefix);
     }
+
+    /// <summary>
+    /// Where <paramref name="language"/> writes its own sitemap, relative to that language's output
+    /// directory: <c>&lt;lang&gt;/sitemap.xml</c> for a root language in index mode, otherwise
+    /// <c>sitemap.xml</c>. Whether a sitemap is written at all is decided by the caller.
+    /// </summary>
+    internal string SitemapRelativePath(string language)
+        => IsRootLanguage(language) &&
+           string.Equals((_site.SitemapMode ?? "split").Trim(), "index", StringComparison.OrdinalIgnoreCase)
+            ? Path.Combine(language.Trim(), "sitemap.xml")
+            : "sitemap.xml";
 
     internal string ReportDir(string root, string language)
         => IsRootLanguage(language)
@@ -91,12 +114,9 @@ internal sealed class I18nOutputLayout
         var sitemapMode = (_site.SitemapMode ?? "split").Trim().ToLowerInvariant();
         var feedMode = SiteModeResolver.ResolveFeedMode(_site);
         var searchMode = SiteModeResolver.ResolveSearchMode(_site);
-        var sitemap = sitemapMode switch
-        {
-            "split" => Path.Combine(outputRoot, "sitemap.xml"),
-            "index" => Path.Combine(outputRoot, language, "sitemap.xml"),
-            _ => null
-        };
+        var sitemap = sitemapMode is "split" or "index"
+            ? Path.Combine(outputRoot, SitemapRelativePath(language))
+            : null;
         var feedRoot = feedMode == "split" ? outputRoot : null;
         var feedPath = (_site.Feed.Path ?? "feed").Trim('/');
         var robots = staticDir is not null && File.Exists(Path.Combine(staticDir, "robots.txt"))
@@ -120,36 +140,27 @@ internal sealed class I18nOutputLayout
         return languages.Count > 0 && !site.DefaultLanguageInSubdir ? "root" : "subdir";
     }
 
-    /// <summary>Whether <paramref name="language"/> builds into the output root.</summary>
-    internal static bool IsRootLanguageOutput(AppConfig config, string language)
-    {
-        var languages = I18nOutputMerger.GetLanguages(config.Site);
-        return languages.Count > 0 &&
-            I18nOutputLayout.Create(config.Site, languages, config.Site.BaseUrl).IsRootLanguage(language);
-    }
-
     /// <summary>Whether the variant built with <paramref name="variantConfig"/> owns the output root.</summary>
     internal static bool IsRootLanguageVariant(AppConfig variantConfig)
-        => IsRootLanguageOutput(variantConfig, variantConfig.Site.Language);
+        => For(variantConfig.Site).IsRootLanguage(variantConfig.Site.Language);
 
     /// <summary>Whether the site's default language owns the output root (root-level decisions).</summary>
     internal static bool IsDefaultLanguageAtRoot(AppConfig config)
-    {
-        var languages = I18nOutputMerger.GetLanguages(config.Site);
-        return languages.Count > 0 &&
-            IsRootLanguageOutput(config, I18nLanguagePolicy.GetDefaultLanguage(config.Site, languages));
-    }
+        => For(config.Site).IsMultilingual && !For(config.Site)._defaultLanguageInSubdir;
 
-    internal static string CombineRelative(string prefix, string path)
+    /// <summary>Sitemap path of the variant built with <paramref name="variantConfig"/>, relative to its output directory.</summary>
+    internal static string VariantSitemapRelativePath(AppConfig variantConfig)
+        => For(variantConfig.Site).SitemapRelativePath(variantConfig.Site.Language);
+
+    /// <summary>Prefixes a relative output path with a language directory; absolute roots use <see cref="OutputDir"/>.</summary>
+    internal static string CombineRelative(string prefix, string relativePath)
     {
-        if (string.IsNullOrEmpty(prefix))
+        if (Path.IsPathRooted(relativePath))
         {
-            return path;
+            throw new ArgumentException($"Expected a relative output path: {relativePath}", nameof(relativePath));
         }
 
-        return Path.IsPathRooted(path)
-            ? Path.Combine(path, prefix)
-            : Path.Combine(prefix, path);
+        return string.IsNullOrEmpty(prefix) ? relativePath : Path.Combine(prefix, relativePath);
     }
 
     private bool IsDefaultLanguage(string language)

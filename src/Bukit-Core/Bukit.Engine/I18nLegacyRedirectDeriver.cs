@@ -17,9 +17,7 @@ internal static class I18nLegacyRedirectDeriver
     internal static void Derive(BuildVariantContext context, BuildContext pluginContext)
     {
         var site = context.Config.Site;
-        var languages = I18nOutputMerger.GetLanguages(site);
-        var layout = I18nOutputLayout.Create(site, languages, site.BaseUrl);
-        if (!site.DefaultLanguageRedirect || !layout.IsRootLanguage(site.Language))
+        if (!site.DefaultLanguageRedirect || !I18nOutputLayout.IsRootLanguageVariant(context.Config))
         {
             return;
         }

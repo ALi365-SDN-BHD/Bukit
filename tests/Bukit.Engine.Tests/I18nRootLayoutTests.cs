@@ -80,6 +80,35 @@ public sealed class I18nRootLayoutTests
             File.ReadAllText(Path.Combine(site.Output, "en", "index.html")), StringComparison.Ordinal);
     }
 
+    [Theory]
+    [InlineData(false, "index", "en", "en/sitemap.xml")]
+    [InlineData(false, "split", "en", "sitemap.xml")]
+    [InlineData(false, "index", "zh-CN", "sitemap.xml")]
+    [InlineData(true, "index", "en", "sitemap.xml")]
+    public void SitemapRelativePath_MovesOnlyRootLanguageIndexSitemap(bool inSubdir, string mode, string language, string expected)
+    {
+        var site = new SiteConfig
+        {
+            Name = "layout",
+            Title = "Layout",
+            Languages = ["en", "zh-CN"],
+            DefaultLanguage = "en",
+            DefaultLanguageInSubdir = inSubdir,
+            SitemapMode = mode
+        };
+
+        Assert.Equal(expected, BuildPathUtils.NormalizeRelPath(I18nOutputLayout.For(site).SitemapRelativePath(language)));
+        Assert.Same(I18nOutputLayout.For(site), I18nOutputLayout.For(site));
+    }
+
+    [Fact]
+    public void CombineRelative_RejectsRootedPaths()
+    {
+        Assert.Equal(Path.Combine("zh-CN", "index.html"), I18nOutputLayout.CombineRelative("zh-CN", "index.html"));
+        Assert.Equal("index.html", I18nOutputLayout.CombineRelative(string.Empty, "index.html"));
+        Assert.Throws<ArgumentException>(() => I18nOutputLayout.CombineRelative("zh-CN", Path.GetFullPath("dist")));
+    }
+
     [Fact]
     public void RootLayout_GeneratedOutputLinkPathsCoverRootLanguageTargets()
     {

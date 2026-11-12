@@ -314,6 +314,7 @@ internal sealed class WorktreeBuildRun
         CancellationToken cancellationToken)
     {
         _workerPlans = new List<WorkerPlan>(_languages.Count);
+        var layout = I18nOutputLayout.For(_effectiveConfig.Site);
         foreach (var language in _languages)
         {
             cancellationToken.ThrowIfCancellationRequested();
@@ -323,7 +324,6 @@ internal sealed class WorktreeBuildRun
                 _repository, workerWorktree, _registryPath, _ownedWorktrees, _logger, cancellationToken).ConfigureAwait(false);
             var workerSiteRoot = WorktreeBuildPaths.MapIntoWorktree(_repository, _rootDir, workerWorktree);
             var workerConfigPath = WorktreeBuildPaths.MapIntoWorktree(_repository, _fullConfigPath, workerWorktree);
-            var layout = I18nOutputLayout.Create(_effectiveConfig.Site, _languages, _effectiveConfig.Site.BaseUrl);
             var outputDir = layout.OutputDir(_stagingOutputDir, language);
             var workerCache = Path.Combine(_runRoot, "worker-cache", segment);
             Directory.CreateDirectory(workerCache);

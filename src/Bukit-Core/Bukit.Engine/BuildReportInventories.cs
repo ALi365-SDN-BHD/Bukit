@@ -111,7 +111,7 @@ internal static class ArtifactManifestInventory
             : I18nOutputMerger.GetLanguages(config.Site);
         var layout = config is null || languages.Count == 0
             ? null
-            : I18nOutputLayout.Create(config.Site, languages, config.Site.BaseUrl);
+            : I18nOutputLayout.For(config.Site);
         var existingFiles = new HashSet<string>(
             artifactFiles.Select(Path.GetFullPath),
             StringComparer.OrdinalIgnoreCase);

@@ -68,20 +68,17 @@ internal static class WorktreeBuildPaths
         string oldOutputRoot,
         string newOutputRoot,
         IReadOnlyList<string> languages,
-        SiteConfig? site = null)
+        SiteConfig site)
     {
         RewriteManifest(Path.Combine(cacheDir, "build-manifest.json"), oldOutputRoot, newOutputRoot);
-        var layout = site is null
-            ? null
-            : I18nOutputLayout.Create(site, languages, site.BaseUrl);
+        var layout = I18nOutputLayout.Create(site, languages, site.BaseUrl);
         foreach (var language in languages)
         {
             var fileName = $"build-manifest.{BuildPathUtils.SanitizeFileSegment(language)}.json";
-            var prefix = layout?.RelativeOutputPrefix(language) ?? language;
             RewriteManifest(
                 Path.Combine(cacheDir, fileName),
-                I18nOutputLayout.CombineRelative(prefix, oldOutputRoot),
-                I18nOutputLayout.CombineRelative(prefix, newOutputRoot));
+                layout.OutputDir(oldOutputRoot, language),
+                layout.OutputDir(newOutputRoot, language));
         }
     }
 
