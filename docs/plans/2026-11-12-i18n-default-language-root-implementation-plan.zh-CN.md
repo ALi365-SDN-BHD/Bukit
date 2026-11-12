@@ -2,7 +2,7 @@
 
 - 状态：**已实施**（2026-11-12，Core 任务）。T00–T12 全部完成；专项测试、公共 API 漂移、格式、`openspec validate --strict` 与 osx-arm64 AOT 均已取得通过证据。
 - 日期：2026-11-12
-- 依据：`docs/analysis/bukit-core-i18n-default-language-root-proposal-2026-11-12.zh-CN.md`；规范性提案 `openspec/changes/add-i18n-default-language-root/`（proposal、design、specs、tasks）
+- 依据：`docs/analysis/bukit-core-i18n-default-language-root-proposal-2026-11-12.zh-CN.md`；规范性提案 `openspec/changes/archive/2026-11-12-add-i18n-default-language-root/`（proposal、design、specs、tasks）
 - 代码基线：`33c20cd7`（本计划写作时 Core 代码与之相同）
 - 范围：只覆盖 Core 实现、测试、文档和契约。commit、push、PR、发布、站点仓库改动、full/release gate 均需另行授权。
 
