@@ -163,7 +163,7 @@ Example operation shape:
 
 ## i18n output roots
 
-`context.OutputDir` is the current language's output directory, not necessarily the
+`BuildContext.OutputDir` is the current language's output directory, not necessarily the
 site root. With `site.defaultLanguageInSubdir: false` the default language's
 `OutputDir` is the output root, so root-level plugin files such as a service worker
 cover every language; other languages still write under their code directory.
