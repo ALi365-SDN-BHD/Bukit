@@ -91,11 +91,17 @@ When the default language is at the root, every per-language build report it
 writes, including `seo-report.json`, `publish-audit-report.json`,
 `seo-route-map.json`, `geo-report.json`, and `analytics-report.json`, SHALL be
 written under `<output>/.bukit/variants/<lang>/`. Merged root reports SHALL keep
-their existing paths under `<output>/.bukit/`.
+their existing paths under `<output>/.bukit/`. Every consumer that locates a
+per-language report, including the build report artifact inventory, SHALL
+resolve it from the language's actual report directory.
 
 #### Scenario: SEO reports
 - **WHEN** the default language `en` is at the root and the build completes
 - **THEN** `dist/.bukit/seo-report.json` is the merged report and the English report is `dist/.bukit/variants/en/seo-report.json`
+
+#### Scenario: Analytics report in the build report
+- **WHEN** analytics is enabled and the default language `en` is at the root
+- **THEN** the build report artifact inventory lists `.bukit/variants/en/analytics-report.json`
 
 ### Requirement: Other language codes are reserved route prefixes
 When the default language is at the root, the build SHALL fail with
@@ -104,7 +110,10 @@ language output equals another configured language code. The comparison SHALL
 be case-insensitive on every operating system. The check SHALL cover content
 routes, list and pagination routes, taxonomy routes, aliases, derived documents,
 static files, and plugin outputs. Route, static, and planned asset checks SHALL
-run before any file of that language is written. The error SHALL name the
+run before any file of that language is written. Plugin outputs SHALL be
+checked before the output is committed; when a default language plugin output
+violates the rule, the build SHALL report that violation as the primary
+failure even if another language also fails. The error SHALL name the
 offending document id or source path and the reserved language code. The
 default language's own code SHALL NOT be reserved.
 

@@ -6,7 +6,7 @@
 - 输出目录：`SiteEngine`（`Path.Combine(outputDir, lang)`）、`WorktreeBuildRun`（`Path.Combine(_stagingOutputDir, language)`）、`WorktreeBuildPaths.RewriteManifestRoots` / `CopyVariantManifest`。
 - 语言代码被当作输出子目录：`I18nMergedVariantState.MergeRoute`、`SeoAuditReportWriter`（两处）。
 - 根目录聚合：`PublicOutputLifecycle.CollectAndClean` 把各语言计划输出与根目录计划输出合并后，用 `AssetOutputPlan.Validate` 检查目标路径是否重复。这个检查只覆盖资源和插件输出，**不覆盖路由 HTML**。
-- 报告：每种语言在自己的输出目录调用 `SeoAuditReportWriter.Write`，写出 `.bukit/seo-report.json`、`publish-audit-report.json`、`seo-route-map.json`、`geo-report.json`；`VariantReportStage` 另写 `.bukit/analytics-report.json`。根目录的 `WriteMerged` 用同一套 writer 写出同名文件。
+- 报告：每种语言在自己的输出目录调用 `SeoAuditReportWriter.Write`，写出 `.bukit/seo-report.json`、`publish-audit-report.json`、`seo-route-map.json`、`geo-report.json`；`VariantReportStage` 另写 `.bukit/analytics-report.json`。根目录的 `WriteMerged` 通过同一个 `WriteReport` 写出前 4 种同名文件。`BuildReportInventories.AddVariantAnalyticsReports` 按 `variant.OutputDir/.bukit/analytics-report.json` 查找每种语言的 analytics 报告，登记进 build-report 产物清单。
 - Worktree：每个 Worker 直接写 `staging/<lang>/`，父进程在 `I18nWorktreeProtocol.ValidateOutputPaths` 中**事后**验证结果引用的所有路径（计划输出、插件输出、路由、列表、派生、投影、static、manifest 各项）都在该 Worker 的输出目录内。
 
 已核实、不需要改的部分：
@@ -67,7 +67,7 @@
 - `ReservedFirstSegments(site)`：默认语言在根目录时返回其他语言代码，否则返回空
 - `ResolveReportDirectory(site, language)`：根目录语言返回 `.bukit/variants/<lang>`，否则返回 `.bukit`
 
-Context 中列出的所有拼接点都改为调用该策略。`BuildTransaction.RejectGeneratedOutputLinks` 按布局生成路径清单，不能把空前缀当作语言目录加入。
+Context 中列出的所有拼接点都改为调用该策略，包括读取语言报告位置的 `BuildReportInventories`（不改的话，默认语言的 analytics 报告会悄悄从 build-report 产物清单中消失）。`BuildTransaction.RejectGeneratedOutputLinks` 按布局生成路径清单，不能把空前缀当作语言目录加入。
 
 ### 3. 根目录文件归属
 
@@ -108,7 +108,7 @@ split 模式下没有根目录索引，默认语言的 sitemap 仍写在 `/sitem
 默认语言在根目录时，以下所有输出路径的第一个路径段不得等于其他已配置语言代码：内容路由、列表和分页路由、分类路由、alias、派生文档、`static/` 文件、插件输出。报错码 `i18n-route-reserved-language-prefix`，报错信息包含来源文档 id 或文件路径。
 
 - **比较一律不区分大小写，与操作系统无关。** 否则在 macOS 开发机上会冲突（大小写不敏感的文件系统），在 Linux CI 上却通过，两边结果不一致。
-- **检查时机必须在写文件之前。** 路由类检查放在 `RoutePipeline` 完成路由后、渲染前；static 和插件输出检查放在资源计划确定后、复制前（插件输出在 AfterBuild 才确定，此时检查只能报错并阻止提交，因为输出在 staging 中，不会进入正式目录）。
+- **检查时机尽量在写文件之前。** 路由类检查放在 `RoutePipeline` 完成路由后、渲染前；static 和资源计划检查放在资源计划确定后、复制前。插件输出是例外：它在 AfterBuild 才确定，此时文件已写入 staging，检查只能报错并阻止提交，正式输出不受影响。根目录布局下，默认语言插件的越界输出可能已经写进 `staging/<其他语言>/`，并与该语言的 Worker 同时写入，导致其他语言先报出看似无关的错误。因此父进程汇总失败时，必须把默认语言的越界输出作为根因优先报告。
 - 父进程 `ValidateOutputPaths` 已经汇总了一个 Worker 的全部输出路径，在这里再加一道相同的检查，作为 Worktree 模式下的事后防线。
 - 默认语言自身的代码**不**保留。默认语言可以有 `/en/...` 输出：决策 8 的 `/en/` 跳转页、index 模式下的 `/en/sitemap.xml`，以及用户用 alias 为其他旧地址手动生成的跳转页（见风险 R1）。
 
@@ -182,7 +182,7 @@ split 模式下没有根目录索引，默认语言的 sitemap 仍写在 `/sitem
 
 ### 隐私与安全
 
-- 默认语言报告移到根目录 `.bukit/` 下之后，会被 `PublicOutputPrivacyCheck` 跳过（它只跳过根目录 `.bukit/`）。现状下 `<lang>/.bukit/` 会被扫描，两种布局下的扫描范围因此不同。实施时确认这是预期行为，并补一条测试固定下来。
+- 默认语言报告移到根目录 `.bukit/` 下之后，会被 `PublicOutputPrivacyCheck` 跳过，也不再计入 build-report 资源清单（`BuildReportInventories.Create`），因为两者都只跳过根目录 `.bukit/`。现状下 `<lang>/.bukit/` 会被扫描、也会计入资源清单，两种布局下的结果因此不同。实施时确认这是预期行为，并补测试固定下来。
 - `examples/github-pages-workflow.yml` 直接上传整个输出目录，包括 `.bukit/` 报告。这是现有问题，不是本变更引入的，记录为后续事项。
 
 ## Risks / Trade-offs

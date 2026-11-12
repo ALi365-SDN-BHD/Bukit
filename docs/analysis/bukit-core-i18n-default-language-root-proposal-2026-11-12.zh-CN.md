@@ -5,17 +5,18 @@
 - 范围：`site.languages` 多语言构建的输出目录结构、根目录聚合文件、Worktree 构建、跳转页
 - 规范性提案：`openspec/changes/add-i18n-default-language-root/`（proposal、design、specs、tasks；`openspec validate --strict` 通过）
 - 本轮性质：**只分析和提案，不实施**。未修改源码、测试、配置、CI/gate；未运行 `dotnet test`。全部设计决策已由用户确认；实施须作为单独的 Core 任务开展。
+- 修订：2026-11-12 经严格审计后修订，补充遗漏的报告消费方 `BuildReportInventories`、插件输出检查时机的例外、兼容性表述、聚合文件出现条件和调研证据强度及来源。
 
 ---
 
 ## 1. 问题
 
-配置 `site.languages` 后，Bukit 把每种语言（包括默认语言）都输出到 `dist/<lang>/`，baseUrl 为 `<baseUrl>/<lang>`。根目录只放聚合文件（sitemap、feed、search、`llms.txt`、`robots.txt`、`agent-manifest.json`），**没有 `index.html` 和 `404.html`**。现有文档的说法是"在主机或 CDN 上配重定向"。
+配置 `site.languages` 后，Bukit 把每种语言（包括默认语言）都输出到 `dist/<lang>/`，baseUrl 为 `<baseUrl>/<lang>`。根目录只放聚合文件（见第 2 节），**没有 `index.html` 和 `404.html`**。现有文档（i18n skill）的说法是"在主机或 CDN 上配重定向"。
 
 GitHub Pages 等纯静态托管不支持服务端重定向，因此：
 
 1. 站点首页 `/` 直接返回 404，即使配置了 `defaultLanguage` 也一样。
-2. 自定义 404 页不生效：`404.html` 被生成到 `dist/<lang>/404.html`，而 GitHub Pages 只使用根目录的 `404.html`。
+2. 自定义 404 页不生效：站点提供 404 页时，它被生成到 `dist/<lang>/404.html`，而 GitHub Pages 只使用根目录的 `404.html`。
 
 仓库自带的 `examples/github-pages-workflow.yml` 直接上传构建输出，按它部署的多语言站点打开就是坏的。Netlify、Cloudflare Pages、S3 等平台也必须另外配置规则才能用。
 
@@ -31,11 +32,22 @@ GitHub Pages 等纯静态托管不支持服务端重定向，因此：
 
 ```
 dist/
-├── en/            ← baseUrl = <url>/en，默认语言也带前缀
+├── en/            ← baseUrl = <baseUrl>/en，默认语言也带前缀
 ├── zh-CN/
-├── sitemap.xml / feed / search / llms.txt / robots.txt / agent-manifest.json  ← 根目录聚合
+├── （根目录聚合文件，按配置出现，见下表）
 └── （没有 index.html，也没有 404.html）
 ```
+
+根目录聚合文件并非总是全部存在：
+
+| 文件 | 出现条件 |
+|---|---|
+| `agent-manifest.json` | 总是 |
+| `sitemap.xml` | 配置了 `site.url`，且 `sitemapMode` 为 `merged`（合并 sitemap）或 `index`（sitemap 索引） |
+| feed | 配置了 `site.url`，且 `feed.mode: merged` |
+| `search.json` / `search.index.json` | `search.mode` 为 `merged` / `index` |
+| `robots.txt` | 配置了 `site.url` 且启用 robots |
+| `llms.txt` / `llms-full.txt` | 启用 GEO 及对应选项 |
 
 ## 3. 方案对比与选择
 
@@ -49,18 +61,31 @@ dist/
 
 ## 4. 主流工具的做法（2026-11 调研）
 
+证据强度标注：**文档** = 官方文档明确写明；**源码** = 官方仓库源码或测试；**推断** = 从官方示例推断，文档未明说；**社区** = 社区论坛帖子，可能与当前版本不符。
+
 | 产品 | 默认语言默认位置 | 跳转处理 | 与本设计相关的做法 |
 |---|---|---|---|
-| Hugo | 根目录（`defaultContentLanguageInSubdir: false`） | 带前缀时生成根目录跳转到 `/<lang>/`；放根目录时生成 `/<lang>/` 跳转到 `/`；均可关闭 | 放根目录时，根 `sitemap.xml` 是索引，默认语言 sitemap 仍在 `/<lang>/sitemap.xml`，地址不带前缀 |
-| Astro | 根目录（`prefixDefaultLocale: false`） | 开启前缀时根 `index` 页生成 meta refresh 跳转 | 根 `index` 页必需 |
-| Docusaurus | 根目录，其他语言 `/<locale>/` | 交给托管层 | 每种语言独立构建；GitHub Pages 上只能显示默认语言 404 |
-| VitePress / Starlight | `root` 语言键表示根目录 | VitePress 不自动跳转 `/` | — |
-| Zola | 根目录，其他语言 `/{code}/` | — | feed、搜索索引按语言分别开关 |
-| Jekyll Polyglot | 根目录，其他语言带前缀 | — | `exclude_from_localization` 指定只放根目录的文件；每种语言独立进程 |
-| Nuxt i18n | 多种策略可选 | — | `prefix_and_default` 让默认语言有两个地址，有重复内容风险 |
-| Eleventy | 无内置方案 | 文档给出 Netlify 跳转写法 | — |
+| Hugo | 根目录（`defaultContentLanguageInSubdir: false`）〔文档〕 | 带前缀时生成根目录跳转到 `/<lang>/`；放根目录时生成 `/<lang>/` 跳转到 `/`；均可关闭〔文档〕 | 放根目录时，根 `sitemap.xml` 是索引，默认语言 sitemap 仍在 `/<lang>/sitemap.xml`，地址不带前缀〔源码〕；带前缀时不生成根目录 404〔社区，约 v0.120〕 |
+| Astro | 根目录（`prefixDefaultLocale: false`）〔文档〕 | 开启前缀时自动开启 `redirectToDefaultLocale`，根 `index` 页跳转到默认语言〔文档〕；静态构建用 meta refresh 实现〔源码，来自镜像仓库的测试〕 | 根 `index` 页必需〔文档〕 |
+| Docusaurus | 根目录，其他语言 `/<locale>/`〔文档〕 | 交给托管层〔文档〕 | 每种语言独立构建；GitHub Pages 上只能显示默认语言 404〔文档〕 |
+| VitePress / Starlight | `root` 语言键表示根目录〔文档〕 | VitePress 不自动跳转 `/`〔文档〕 | — |
+| Zola | 根目录，其他语言 `/{code}/`〔推断〕 | — | feed、搜索索引按语言分别开关〔文档〕 |
+| Jekyll Polyglot | 根目录，其他语言带前缀〔推断〕 | — | `exclude_from_localization` 指定只放根目录的文件；每种语言独立进程〔文档〕 |
+| Nuxt i18n | 多种策略可选〔文档〕 | — | `prefix_and_default` 让默认语言有两个地址〔文档〕，存在重复内容风险〔推断〕 |
+| Eleventy | 无内置方案 | 文档给出 Netlify 跳转写法〔文档〕 | — |
 
-结论：多数工具默认把默认语言放在根目录，Bukit 现在"所有语言都带前缀"的做法是少数。各工具文档都没有提到路由与语言前缀冲突的校验，本设计的保留前缀检查更严格。
+结论：多数工具默认把默认语言放在根目录，Bukit 现在"所有语言都带前缀"的做法是少数。在本次查阅的文档页面中，没有看到路由与语言前缀冲突的校验说明；本设计的保留前缀检查至少不比它们宽松。
+
+来源：
+
+- Hugo：[配置参考](https://gohugo.io/configuration/all/)、[sitemap 模板](https://gohugo.io/templates/sitemap/)、[sitemap_test.go](https://github.com/gohugoio/hugo/blob/master/hugolib/sitemap_test.go)、[论坛：带前缀时根目录无 404](https://discourse.gohugo.io/t/404-html-not-generated-on-root-if-defaultcontentlanguageinsubdir-true/14048)
+- Astro：[国际化指南](https://docs.astro.build/en/guides/internationalization/)
+- Docusaurus：[i18n 教程](https://docusaurus.io/docs/i18n/tutorial)
+- VitePress：[i18n](https://vitepress.dev/guide/i18n)；Starlight：[i18n](https://starlight.astro.build/guides/i18n/)
+- Zola：[多语言](https://www.getzola.org/documentation/content/multilingual/)
+- Jekyll Polyglot：[README](https://github.com/untra/polyglot)
+- Nuxt i18n：[指南](https://i18n.nuxtjs.org/docs/guide)
+- Eleventy：[i18n](https://www.11ty.dev/docs/i18n/)
 
 ## 5. 已确认的设计决策
 
@@ -87,7 +112,7 @@ dist/
 
 ### 6.2 单一布局策略
 
-新增内部策略 `I18nOutputLayout`，统一计算每种语言的 baseUrl、输出目录、相对前缀、报告目录和保留前缀。当前散落的拼接点全部改为调用它：`CombineBaseUrlWithLanguage` 的 3 个调用点、`SiteEngine`/`WorktreeBuildRun` 的输出目录、`WorktreeBuildPaths` 的 manifest 路径，以及 `I18nMergedVariantState`、`SeoAuditReportWriter` 中把语言代码直接当输出子目录的 3 处（漏改会让默认语言的审计悄悄读错路径）。
+新增内部策略 `I18nOutputLayout`，统一计算每种语言的 baseUrl、输出目录、相对前缀、报告目录和保留前缀。当前散落的拼接点全部改为调用它：`CombineBaseUrlWithLanguage` 的 3 个调用点、`SiteEngine`/`WorktreeBuildRun` 的输出目录、`WorktreeBuildPaths` 的 manifest 路径、`BuildReportInventories` 的语言报告查找，以及 `I18nMergedVariantState`、`SeoAuditReportWriter` 中把语言代码直接当输出子目录的 3 处。漏改后者会让合并 SEO 审计去 `dist/<lang>/` 找默认语言页面，为每个默认语言页面误报 `seo.output_file_missing`，`--strict` 下直接失败。
 
 ### 6.3 根目录文件归属（根目录布局）
 
@@ -97,7 +122,7 @@ dist/
 | sitemap | split：默认语言写 `/sitemap.xml`；merged：只有根目录；index：根目录是索引，默认语言写 `/<lang>/sitemap.xml` |
 | feed | split：默认语言写在根目录；merged：只有根目录 |
 | search | split / index：默认语言写 `/search.json`；merged：不支持 |
-| `.bukit/` 报告 | 默认语言 5 种报告（seo、publish-audit、seo-route-map、geo、analytics）改写到 `.bukit/variants/<lang>/` |
+| `.bukit/` 报告 | 默认语言 5 种报告（seo、publish-audit、seo-route-map、geo、analytics）改写到 `.bukit/variants/<lang>/`。前 4 种和根目录合并报告共用 `SeoAuditReportWriter.WriteReport`、写到同一路径，不改会被合并版本悄悄覆盖；analytics 只在语言那一轮写，移动它是为了让默认语言报告集中在一处。读取报告位置的地方要一起改：`BuildReportInventories.AddVariantAnalyticsReports` 按 `variant.OutputDir/.bukit/analytics-report.json` 查找每种语言的报告，不改的话默认语言的 analytics 报告会悄悄从 build-report 产物清单中消失 |
 | 默认语言 `static/` | `robots.txt` 作为整站 robots；与其他根目录独占文件同名时报 `i18n-root-output-conflict`；`404.html`、`CNAME` 等正常落到根目录 |
 
 所有语言的计划输出清单按当前 sitemap/feed mode 生成，与插件实际写出行为一致。现有 `AssetOutputPlan.Validate` 重复检查保留为最后防线。
@@ -107,7 +132,8 @@ dist/
 根目录布局下，默认语言所有输出（内容、列表/分页、分类、alias、派生文档、static、插件输出）的第一个路径段不得等于其他语言代码，报 `i18n-route-reserved-language-prefix`。
 
 - 在任何平台上都不区分大小写，避免 macOS 与 Linux CI 结果不一致。
-- 写文件前检查：现有 `AssetOutputPlan.Validate` 不覆盖路由 HTML，Worktree 父进程的路径校验是事后的。
+- 检查时机：路由在渲染前检查，static 和资源计划在复制前检查。原因是现有 `AssetOutputPlan.Validate` 不覆盖路由 HTML，Worktree 父进程的路径校验是事后的。
+- 例外：插件输出要到 AfterBuild 才确定，此时文件已写入 staging，只能报错并阻止提交。正式输出不受影响，但在根目录布局下，默认语言插件的越界输出可能已写进 `staging/<其他语言>/`，并与该语言的 Worker 同时写入；这时其他语言可能先报出看似无关的错误。因此父进程必须把默认语言的越界输出作为根因优先报告。
 - 默认语言自身代码不保留：允许 `/en/` 跳转页、`/en/sitemap.xml` 和用户为旧地址写的 alias。
 
 ### 6.5 Worktree 构建
@@ -124,8 +150,8 @@ dist/
 
 - 现有多语言站点升级后，根目录新增跳转页 `index.html`。纯静态托管上首页从 404 变为跳转，这是想要的修复。
 - Netlify 等平台已配置未加 `force` 的 `/` → `/<lang>/` 301 时，新文件会盖过这条规则，跳转退化为 meta refresh；这类站点应设 `defaultLanguageRedirect: false`。CHANGELOG 标为行为变化。
-- alias 和分类跳转页新增 `<title>` 和 `noindex`。
-- 页面输出、URL、报告路径和增量哈希不变。
+- alias 和分类跳转页的 HTML 新增 `<title>` 和 `noindex`。派生跳转页的内容哈希包含页面 HTML，增量构建会自动重新生成，不会留下旧版本。
+- 除上述两点外，URL、已有输出路径、报告路径和增量站点哈希不变。
 
 ### 7.2 启用根目录布局后的站点侧影响
 
@@ -137,6 +163,9 @@ dist/
 - `feed.mode: merged` 时默认语言的 `/rss.xml` 变为多语言合并 feed。
 - 默认语言作者不能使用与其他语言代码相同的 slug、标签、分类；**以后新增语言可能让已有内容报错**。
 - 插件写到根目录的 service worker 作用范围会覆盖所有语言；插件不应把 `context.OutputDir` 当作站点根目录。
+- 主题如果手写 `/{{ site.language }}/` 前缀或用 `href="/"` 当首页链接，在根目录布局下会出错；内置主题已核实没有这类写法，第三方主题需要自查。
+- `--metrics` 输出里默认语言的 `variants[].outputDir` 等于输出根目录，外部工具若假设各语言目录互不重叠（如按目录统计大小）会重复计算。
+- 隐私扫描（`PublicOutputPrivacyCheck`）和 build-report 资源清单（`BuildReportInventories.Create`）都只跳过根目录 `.bukit/`。现状下 `<lang>/.bukit/` 里的语言报告会被扫描、也会计入资源清单；根目录布局下默认语言报告移到根目录 `.bukit/` 后不再被扫描和计入，两种布局结果不同。实施时要确认这是预期行为并用测试固定。
 
 ### 7.3 主要风险
 
@@ -152,7 +181,7 @@ dist/
 
 ## 8. 实施范围
 
-- 代码：约 20 个 Core 文件，涉及 `Bukit.Config`、`Bukit.Engine`、`Bukit.Engine.Audit`、`Bukit.Engine.Analytics`、`Bukit.Cli`；`SiteConfig` 新增两个属性（新增性变更，更新公共 API 基线）；新增两个报错码。
+- 代码：约 30 个已有 Core 文件，另新增 3 个左右（`I18nOutputLayout`、根目录跳转页 writer、共用跳转页生成代码），涉及 `Bukit.Config`、`Bukit.Engine`、`Bukit.Engine.Audit`、`Bukit.Engine.Analytics`、`Bukit.Cli`；完整清单见 proposal 的 Impact 一节。`SiteConfig` 新增两个属性（新增性变更，更新公共 API 基线）；新增两个报错码。
 - 测试：复核约 24 个 i18n 相关测试文件（默认值下保持通过作为对照），新增 Config、Engine、CLI（Worktree）专项用例。
 - 文档：i18n skill、用户指南、配置文档、站点迁移清单、插件和主题作者说明、中英马 CHANGELOG。
 - 详细清单见 `openspec/changes/add-i18n-default-language-root/tasks.md`。

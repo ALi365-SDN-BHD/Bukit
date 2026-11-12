@@ -28,12 +28,14 @@
 - [ ] `SitemapPlugin` 在 index 模式下为根目录默认语言写入 `<lang>/sitemap.xml`（地址不带前缀）；`I18nRootSitemapWriter` 的索引和 `I18nRootRobotsWriter` 引用实际地址。
 - [ ] 默认语言 `static/robots.txt` 作为整站 robots；其他根目录独占文件同名的 static 文件在复制前报 `i18n-root-output-conflict`。
 - [ ] 默认语言 5 种报告写入 `.bukit/variants/<lang>/`（`SeoAuditReportWriter.Write`、`PublishAuditReportWriter`、`SeoRouteMapWriter`、geo 报告、`AnalyticsReportWriter`）。
-- [ ] 确认 `PublicOutputPrivacyCheck` 在两种布局下对语言报告的扫描范围，并用测试固定。
+- [ ] `BuildReportInventories.AddVariantAnalyticsReports` 按 `I18nOutputLayout` 的报告目录查找语言报告。
+- [ ] 确认 `PublicOutputPrivacyCheck` 和 `BuildReportInventories.Create` 在两种布局下对语言报告的扫描和计入范围，并用测试固定。
 
 ## 4. 路由保留前缀
 
 - [ ] 共用实现：内容、列表/分页、分类、alias、派生文档、static、插件输出；任何平台都不区分大小写；默认语言自身代码不保留。
 - [ ] 检查时机：路由在 `RoutePipeline` 之后、渲染之前；static 和资源计划在复制之前；插件输出在 AfterBuild 之后、提交之前。
+- [ ] 默认语言插件输出越界时，父进程（进程内和 Worktree 两种模式）把它作为根因优先报告，即使其他语言同时失败。
 - [ ] 报错信息包含来源（文档 id 或文件路径）和被占用的语言代码。
 - [ ] Worktree：父进程 `I18nWorktreeProtocol.ValidateOutputPaths` 加同一检查。
 - [ ] 加测试或断言：禁止在语言输出目录上以裁剪模式调用 `DirectoryCopy.Sync`。
@@ -54,7 +56,7 @@
 ## 6. 测试
 
 - [ ] Config：读取、默认值、警告、`search: merged` 组合报错、Schema。
-- [ ] Engine（进程内）：根目录输出和 `404.html`；baseUrl、canonical、hreflang、x-default；`/repo` 项目站点 baseUrl；split/merged/index 三种 sitemap 模式；feed 两种模式；search split/index；根目录文件唯一归属；static robots 覆盖和 static 冲突报错；5 种报告路径；保留前缀（分类、permalink 大小写、static、插件输出、新增语言）；默认语言 alias `/en/...` 允许；布局切换清理；增量删除不影响其他语言目录；默认值哈希不变；带前缀布局根目录跳转页（绝对/相对地址、noindex、不进 sitemap 和搜索）；根目录布局 `/en/` 跳转页及用户 alias 优先；`defaultLanguageRedirect: false` 两种布局都不生成；alias 和分类跳转页新增标签后的回归。
+- [ ] Engine（进程内）：根目录输出和 `404.html`；baseUrl、canonical、hreflang、x-default；`/repo` 项目站点 baseUrl；split/merged/index 三种 sitemap 模式；feed 两种模式；search split/index；根目录文件唯一归属；static robots 覆盖和 static 冲突报错；5 种报告路径及 build-report 产物清单登记默认语言 analytics 报告；默认语言插件越界作为根因报告；保留前缀（分类、permalink 大小写、static、插件输出、新增语言）；默认语言 alias `/en/...` 允许；布局切换清理；增量删除不影响其他语言目录；默认值哈希不变；带前缀布局根目录跳转页（绝对/相对地址、noindex、不进 sitemap 和搜索）；根目录布局 `/en/` 跳转页及用户 alias 优先；`defaultLanguageRedirect: false` 两种布局都不生成；alias 和分类跳转页新增标签后的回归。
 - [ ] CLI（Worktree）：默认语言 Worker 输出到 staging 根目录；越界结果被拒绝；manifest 根路径改写；与进程内构建输出的文件路径一致。
 
 ## 7. 文档与契约
