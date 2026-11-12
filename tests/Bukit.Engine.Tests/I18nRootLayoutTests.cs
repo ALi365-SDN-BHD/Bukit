@@ -2,6 +2,8 @@ using System.Text.Json;
 using Bukit.Config;
 using Bukit.Content;
 using Bukit.Engine.Abstractions.Content;
+using Bukit.Engine.Abstractions.Plugins;
+using Bukit.Engine.Abstractions.Routing;
 using Bukit.Engine.Incremental;
 using Bukit.Engine.Tests.Infrastructure;
 using Bukit.Shared;
@@ -353,6 +355,41 @@ public sealed class I18nRootLayoutTests
 
         Assert.Equal(DiagnosticCode.I18nRootOutputConflict, ex.Code);
         Assert.Contains("static/llms.txt", ex.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task StaticLlms_ConflictIgnoresFileNameCase()
+    {
+        using var site = RootSite();
+        var config = site.Config with
+        {
+            Site = site.Config.Site with
+            {
+                Seo = site.Config.Site.Seo with { Geo = new SeoGeoConfig { Enabled = true, LlmsTxt = true } }
+            }
+        };
+        site.Sandbox.Write("static/LLMS.TXT", "static llms");
+
+        var ex = await Assert.ThrowsAsync<BukitException>(() =>
+            new SiteEngine(new ConsoleLogger(LogLevel.Error)).BuildAsync(config, site.Root,
+                new ConfigOverrides { Incremental = false }));
+
+        Assert.Equal(DiagnosticCode.I18nRootOutputConflict, ex.Code);
+        Assert.Contains("LLMS.TXT", ex.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void PluginOutputs_MayNotReplaceAPage()
+    {
+        RouteInfo[] pages = [new("/en/", "en/index.html", "__redirect__"), new("/about/", "about/index.html", "page")];
+
+        var ex = Assert.Throws<BukitException>(() => VariantBuildPipeline.ValidatePluginOutputsDoNotReplacePages(
+            pages, [new PluginOutputTrackingInfo("taxonomy", "after-build", "EN/index.html")], StringComparer.OrdinalIgnoreCase));
+        VariantBuildPipeline.ValidatePluginOutputsDoNotReplacePages(
+            pages, [new PluginOutputTrackingInfo("taxonomy", "after-build", "taxonomy.json")], StringComparer.OrdinalIgnoreCase);
+
+        Assert.Equal(DiagnosticCode.BuildAssetOutputCollision, ex.Code);
+        Assert.Contains("'/en/'", ex.Message, StringComparison.Ordinal);
     }
 
     [Fact]

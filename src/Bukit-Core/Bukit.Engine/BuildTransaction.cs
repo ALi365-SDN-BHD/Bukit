@@ -421,13 +421,9 @@ internal sealed class BuildTransaction : IDisposable
         var rootLanguage = languages.FirstOrDefault(layout.IsRootLanguage);
         paths.AddRange(PublicOutputLifecycle.ProjectionPlan(config, [], root: true)
             .Select(item => item.Destination));
-        if (rootLanguage is not null)
+        if (rootLanguage is null)
         {
-            paths.AddRange(PublicOutputLifecycle.ProjectionPlan(config, [], language: rootLanguage)
-                .Select(item => item.Destination));
-        }
-        else
-        {
+            // A root language's own outputs are added by the per-language loop below.
             paths.AddRange(PublicOutputLifecycle.ProjectionPlan(config, [])
                 .Select(item => item.Destination));
         }

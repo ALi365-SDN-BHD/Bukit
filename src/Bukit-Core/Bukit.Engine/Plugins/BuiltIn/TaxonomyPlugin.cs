@@ -86,14 +86,20 @@ internal sealed class TaxonomyPlugin : IBukitPlugin, IDerivePagesPlugin, IAfterB
         var itemFields = NormalizeItemFields(_taxonomy.ItemFields);
         var pageSize = NormalizePageSize(_taxonomy.PageSize);
         TaxonomyDataWriter.SetTaxonomyData(context, itemFields, _taxonomy, _indexCache);
-        if (outputMode is ("both" or "data") &&
-            _config.Site.DefaultLanguageRedirect && I18nOutputLayout.IsRootLanguageVariant(_config))
-        {
-            RecordRedirectPaths(context);
-        }
-
+        // AfterBuild writes alias redirects in these modes; the legacy language home redirect
+        // (derived right after this stage) must see those paths as user output.
+        var recordRedirects = outputMode is ("both" or "data") &&
+            _config.Site.DefaultLanguageRedirect && I18nOutputLayout.IsRootLanguageVariant(_config);
         if (outputMode == "data")
         {
+            if (recordRedirects)
+            {
+                foreach (var (_, kind, _, terms, routePrefix) in CollectKindTerms(context))
+                {
+                    RecordRedirectPaths(context, kind, terms, routePrefix);
+                }
+            }
+
             return derived;
         }
 
@@ -119,6 +125,11 @@ internal sealed class TaxonomyPlugin : IBukitPlugin, IDerivePagesPlugin, IAfterB
                     continue;
                 }
 
+                if (recordRedirects)
+                {
+                    RecordRedirectPaths(context, kind, terms, kindConfig.RoutePrefix);
+                }
+
                 var templates = TaxonomyTemplateResolver.ResolveTemplates(_taxonomy, context.LayoutsDir, kind, context.ResolveTemplateKind, kindConfig);
                 var title = string.IsNullOrWhiteSpace(kindConfig.Title) ? kind : kindConfig.Title.Trim();
                 var description = string.IsNullOrWhiteSpace(kindConfig.Description) ? null : kindConfig.Description.Trim();
@@ -139,6 +150,11 @@ internal sealed class TaxonomyPlugin : IBukitPlugin, IDerivePagesPlugin, IAfterB
         TaxonomyIndexBuilder.MergeEnsureTerms(context, "categories", categories);
         TaxonomyMetadataLoader.LoadAndEnrich(context, "tags", tags);
         TaxonomyMetadataLoader.LoadAndEnrich(context, "categories", categories);
+        if (recordRedirects)
+        {
+            RecordRedirectPaths(context, "tags", tags, null);
+            RecordRedirectPaths(context, "categories", categories, null);
+        }
 
         if (tags.Count == 0 && categories.Count == 0)
         {
@@ -164,19 +180,13 @@ internal sealed class TaxonomyPlugin : IBukitPlugin, IDerivePagesPlugin, IAfterB
         return derived;
     }
 
-    /// <summary>
-    /// Records where after-build alias redirects will be written, so derive-time writers
-    /// (the legacy language home redirect) can treat those paths as user output.
-    /// </summary>
-    private void RecordRedirectPaths(BuildContext context)
+    /// <summary>Records where after-build alias redirects of <paramref name="kind"/> will be written.</summary>
+    private static void RecordRedirectPaths(BuildContext context, string kind, Dictionary<string, TaxonomyTerm> terms, string? routePrefix)
     {
         var paths = context.GetOrAdd(BuildDataKeys.TaxonomyRedirectPaths, static () => []);
-        foreach (var (_, kind, _, terms, routePrefix) in CollectKindTerms(context))
+        foreach (var (path, _) in TaxonomyRedirectWriter.PlanRedirects(kind, terms, routePrefix))
         {
-            foreach (var (path, _) in TaxonomyRedirectWriter.PlanRedirects(kind, terms, routePrefix))
-            {
-                paths.Add(path);
-            }
+            paths.Add(path);
         }
     }
 
