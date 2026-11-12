@@ -923,7 +923,7 @@ public sealed class WorktreeBuildCoordinatorTests : IDisposable
         var expected = SnapshotPublishedOutputs(Path.Combine(root, "dist"));
         Assert.True(File.Exists(Path.Combine(root, "dist", "index.html")));
         Assert.True(File.Exists(Path.Combine(root, "dist", "en", "index.html")));
-        Assert.Contains("url=/", File.ReadAllText(Path.Combine(root, "dist", "en", "index.html")), StringComparison.Ordinal);
+        Assert.Contains("url=https://example.test/\"", File.ReadAllText(Path.Combine(root, "dist", "en", "index.html")), StringComparison.Ordinal);
         TestCleanup.DeleteDirectory(Path.Combine(root, "dist"), recursive: true);
         TestCleanup.DeleteDirectory(Path.Combine(root, ".cache"), recursive: true);
 
@@ -958,7 +958,7 @@ public sealed class WorktreeBuildCoordinatorTests : IDisposable
         Assert.True(File.Exists(Path.Combine(root, "dist", "index.html")));
         Assert.Equal(string.Empty, File.ReadAllText(Path.Combine(root, "dist", "zh-CN", "index.html")));
         Assert.True(File.Exists(Path.Combine(root, "dist", "en", "index.html")));
-        Assert.Contains("url=/", File.ReadAllText(Path.Combine(root, "dist", "en", "index.html")), StringComparison.Ordinal);
+        Assert.Contains("url=https://example.test/\"", File.ReadAllText(Path.Combine(root, "dist", "en", "index.html")), StringComparison.Ordinal);
     }
 
     [Fact]

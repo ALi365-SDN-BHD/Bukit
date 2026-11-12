@@ -437,6 +437,11 @@ internal sealed class BuildTransaction : IDisposable
             paths.Add("index.html");
         }
 
+        if (rootLanguage is not null && config.Site.DefaultLanguageRedirect)
+        {
+            paths.Add(rootLanguage.Trim() + "/index.html");
+        }
+
         foreach (var language in languages)
         {
             var prefix = layout.RelativeOutputPrefix(language);
@@ -447,7 +452,7 @@ internal sealed class BuildTransaction : IDisposable
 
             paths.AddRange(PublicOutputLifecycle.ProjectionPlan(config, [], language: language)
                 .Select(item => I18nOutputLayout.CombineRelative(prefix, item.Destination)));
-            paths.Add(I18nOutputLayout.CombineRelative(prefix, ".bukit"));
+            paths.Add(BuildPathUtils.NormalizeRelPath(layout.ReportDir(string.Empty, language)));
         }
 
         return paths;

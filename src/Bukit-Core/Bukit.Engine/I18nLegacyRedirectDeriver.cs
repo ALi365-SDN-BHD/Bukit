@@ -39,6 +39,10 @@ internal static class I18nLegacyRedirectDeriver
         }
 
         var target = context.BaseUrl == "/" ? "/" : context.BaseUrl.TrimEnd('/') + "/";
+        if (!string.IsNullOrWhiteSpace(site.Url))
+        {
+            target = site.Url.TrimEnd('/') + target;
+        }
         var document = DerivedContentDocumentFactory.Create(
             id: $"i18n-legacy-home-{language}",
             title: "Redirect",
