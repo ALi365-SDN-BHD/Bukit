@@ -44,9 +44,9 @@ internal static partial class SeoAuditReportWriter
         string outputDir,
         IReadOnlyList<PublishedVariant> results,
         ILogger logger,
+        IReadOnlyDictionary<string, string> outputPrefixes,
         IReadOnlyList<PublishProjectionResult>? projectionResults = null,
-        IReadOnlyList<VariantAuditIssues>? variantIssues = null,
-        IReadOnlyDictionary<string, string>? outputPrefixes = null)
+        IReadOnlyList<VariantAuditIssues>? variantIssues = null)
     {
         var seoIndex = new Dictionary<string, SeoIndexEntry>(StringComparer.OrdinalIgnoreCase);
         var seoModels = new Dictionary<string, SeoModel>(StringComparer.OrdinalIgnoreCase);
@@ -244,11 +244,13 @@ internal static partial class SeoAuditReportWriter
     private static string CombineOutputPath(
         string language,
         string path,
-        IReadOnlyDictionary<string, string>? outputPrefixes)
+        IReadOnlyDictionary<string, string> outputPrefixes)
     {
-        var prefix = outputPrefixes is not null && outputPrefixes.TryGetValue(language, out var value)
-            ? value
-            : language;
+        if (!outputPrefixes.TryGetValue(language, out var prefix))
+        {
+            throw new InvalidOperationException($"No output prefix is defined for language '{language}'.");
+        }
+
         return string.IsNullOrEmpty(prefix) ? path : Path.Combine(prefix, path);
     }
 }

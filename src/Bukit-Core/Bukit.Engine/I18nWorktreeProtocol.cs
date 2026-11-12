@@ -218,7 +218,7 @@ internal static class I18nWorktreeProtocol
         string expectedLanguage,
         string expectedOutputDir,
         string manifestPath,
-        SiteConfig? site = null)
+        SiteConfig site)
     {
         ValidateIdentity(snapshot, expectedHead, expectedConfigHash, expectedContentHash, expectedLanguage, expectedOutputDir);
         ValidateOutputPaths(expectedOutputDir, snapshot, site);
@@ -306,7 +306,7 @@ internal static class I18nWorktreeProtocol
             PluginOutputs = new Dictionary<string, PluginOutputManifestEntry>(snapshot.PluginOutputs, StringComparer.Ordinal)
         };
 
-    private static void ValidateOutputPaths(string outputDir, I18nVariantSnapshot snapshot, SiteConfig? site)
+    private static void ValidateOutputPaths(string outputDir, I18nVariantSnapshot snapshot, SiteConfig site)
     {
         var paths = snapshot.PlannedOutputs.Select(x => x.Destination)
                      .Concat(snapshot.PluginOutputs.Select(x => x.Path))
@@ -323,14 +323,10 @@ internal static class I18nWorktreeProtocol
                      .Concat(snapshot.Manifest.PluginOutputs.Values.Select(x => x.Path))
             .ToList();
 
-        if (site is not null)
+        var layout = I18nOutputLayout.For(site);
+        if (layout.IsRootLanguage(snapshot.Language))
         {
-            var languages = I18nOutputMerger.GetLanguages(site);
-            var layout = I18nOutputLayout.Create(site, languages, site.BaseUrl);
-            if (layout.IsRootLanguage(snapshot.Language))
-            {
-                I18nReservedPrefixGuard.ValidateWorktreeOutputs(paths, layout.ReservedPrefixes);
-            }
+            I18nReservedPrefixGuard.ValidateWorktreeOutputs(paths, layout.ReservedPrefixes);
         }
 
         foreach (var path in paths)

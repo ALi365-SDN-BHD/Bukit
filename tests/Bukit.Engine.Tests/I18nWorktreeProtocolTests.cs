@@ -17,6 +17,15 @@ public sealed class I18nWorktreeProtocolTests : IDisposable
 {
     private readonly string _root = Path.Combine(Path.GetTempPath(), "bukit-i18n-protocol-" + Guid.NewGuid().ToString("N"));
 
+    private static readonly SiteConfig PrefixedSite = new()
+    {
+        Name = "prefixed",
+        Title = "Prefixed",
+        Languages = ["en", "zh-CN"],
+        DefaultLanguage = "en",
+        DefaultLanguageInSubdir = true
+    };
+
     public I18nWorktreeProtocolTests() => Directory.CreateDirectory(_root);
 
     public void Dispose() => TestCleanup.DeleteDirectory(_root, recursive: true);
@@ -120,7 +129,7 @@ public sealed class I18nWorktreeProtocolTests : IDisposable
 
         Assert.Throws<InvalidDataException>(() => I18nWorktreeProtocol.RestoreVariant(
             snapshot, CanonicalContentGraph.Empty, "head", "config-hash", "hash", "en", output,
-            Path.Combine(_root, "manifest.json")));
+            Path.Combine(_root, "manifest.json"), PrefixedSite));
     }
 
     [Theory]
@@ -254,7 +263,7 @@ public sealed class I18nWorktreeProtocolTests : IDisposable
             Assert.True(captured.Completed);
             var restored = I18nWorktreeProtocol.RestoreVariant(
                 captured, prepared.Content.ContentGraph!, "head", configHash, contentHash, language, output,
-                Path.Combine(overrides.CacheDir!, "build-manifest." + language + ".json"));
+                Path.Combine(overrides.CacheDir!, "build-manifest." + language + ".json"), config.Site);
             var page = Assert.Single(restored.RoutedDocuments);
             Assert.Contains(language == "en" ? "English body" : "Chinese body",
                 await File.ReadAllTextAsync(Path.Combine(output, page.Route.OutputPath)), StringComparison.Ordinal);
@@ -277,7 +286,7 @@ public sealed class I18nWorktreeProtocolTests : IDisposable
             "hash",
             "en",
             output,
-            Path.Combine(_root, "manifest.json")));
+            Path.Combine(_root, "manifest.json"), PrefixedSite));
     }
 
     [Fact]
@@ -294,7 +303,7 @@ public sealed class I18nWorktreeProtocolTests : IDisposable
             "hash",
             "en",
             output,
-            Path.Combine(_root, "manifest.json")));
+            Path.Combine(_root, "manifest.json"), PrefixedSite));
     }
 
     [Fact]
@@ -314,7 +323,7 @@ public sealed class I18nWorktreeProtocolTests : IDisposable
             "hash",
             "en",
             output,
-            Path.Combine(_root, "manifest.json")));
+            Path.Combine(_root, "manifest.json"), PrefixedSite));
     }
 
     [Fact]
@@ -366,7 +375,7 @@ public sealed class I18nWorktreeProtocolTests : IDisposable
             "hash",
             "en",
             output,
-            Path.Combine(_root, "manifest.json")));
+            Path.Combine(_root, "manifest.json"), PrefixedSite));
     }
 
     private static string CreateSite(string root)
@@ -473,7 +482,7 @@ public sealed class I18nWorktreeProtocolTests : IDisposable
 
         BuildVariantResult Restore(I18nVariantSnapshot value) => I18nWorktreeProtocol.RestoreVariant(
             value, CanonicalContentGraph.Empty, "head", "config-hash", "hash", "en", output,
-            Path.Combine(_root, "manifest.json"));
+            Path.Combine(_root, "manifest.json"), PrefixedSite);
     }
 
     private static I18nVariantSnapshot CreateVariantSnapshot(string output)

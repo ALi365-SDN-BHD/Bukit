@@ -134,11 +134,15 @@ public sealed class I18nMergedSearchIndexTests
         var state = I18nMergedVariantState.Create([
             en with { ContentGraph = sharedGraph },
             zh with { ContentGraph = sharedGraph }
-        ]);
+        ], PrefixedLayout("en", "zh"));
 
         var record = Assert.Single(state.ContentGraph.Records);
         Assert.Equal("en-post", record.Identity.Id);
     }
+
+    private static I18nOutputLayout PrefixedLayout(params string[] languages) => I18nOutputLayout.Create(
+        new SiteConfig { Name = "prefixed", Title = "Prefixed", Languages = languages, DefaultLanguage = languages[0] },
+        languages, "/", defaultLanguageInSubdir: true);
 
     private static BuildVariantResult CreateVariant(
         string language,

@@ -417,7 +417,7 @@ internal sealed class BuildTransaction : IDisposable
     {
         var paths = new List<string> { ".bukit", ".bukit-output-marker", ".bukit-build-state.json" };
         var languages = I18nOutputMerger.GetLanguages(config.Site);
-        var layout = I18nOutputLayout.Create(config.Site, languages, config.Site.BaseUrl);
+        var layout = I18nOutputLayout.For(config.Site);
         var rootLanguage = languages.FirstOrDefault(layout.IsRootLanguage);
         paths.AddRange(PublicOutputLifecycle.ProjectionPlan(config, [], root: true)
             .Select(item => item.Destination));

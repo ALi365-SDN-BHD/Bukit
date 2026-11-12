@@ -290,7 +290,7 @@ public sealed partial class SiteEngine
     {
         SignedLinkDiagnostics.ReportMerged(variantResults, buildLogger);
         var languages = I18nOutputMerger.GetLanguages(config.Site);
-        var layout = I18nOutputLayout.Create(config.Site, languages, config.Site.BaseUrl);
+        var layout = I18nOutputLayout.For(config.Site);
         var prefixes = languages.ToDictionary(
             language => language,
             layout.RelativeOutputPrefix,
@@ -300,9 +300,9 @@ public sealed partial class SiteEngine
             outputDir,
             [.. variantResults.Select(variant => variant.ToPublishedVariant())],
             buildLogger,
+            prefixes,
             projectionResults,
-            ToVariantAuditIssues(variantResults),
-            prefixes);
+            ToVariantAuditIssues(variantResults));
     }
 
     private (BuildManifest Manifest, IReadOnlyList<PublishProjectionResult> Projections) WriteRootOutputs(
