@@ -14,6 +14,7 @@ public sealed class I18nReservedPrefixTests
         {
             Name = "reserved-prefix",
             Title = "Reserved prefix",
+            Language = languages.Length == 0 ? "zh-CN" : languages[0],
             Languages = languages.Length == 0 ? null : languages,
             DefaultLanguage = languages.Length == 0 ? null : languages[0],
             DefaultLanguageInSubdir = false
@@ -49,6 +50,7 @@ public sealed class I18nReservedPrefixTests
         Assert.Equal(DiagnosticCode.I18nRouteReservedLanguagePrefix, ex.Code);
         Assert.Contains("zh-CN", ex.Message, StringComparison.Ordinal);
         I18nReservedPrefixGuard.ValidateAssetPlan(config, [defaultCode]);
+        I18nReservedPrefixGuard.ValidateAssetPlan(config with { Site = config.Site with { Language = "zh-CN" } }, [staticItem]);
 
         var prefixEx = Assert.Throws<BukitException>(() =>
             I18nReservedPrefixGuard.ValidateAssetPlan(config with
@@ -171,6 +173,25 @@ public sealed class I18nReservedPrefixTests
 
         Assert.Equal(DiagnosticCode.I18nRouteReservedLanguagePrefix, ex.Code);
         Assert.Contains("ms", ex.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task Build_AllowsOtherLanguageCodeInsideNonDefaultLanguage()
+    {
+        using var site = new SiteBuilder("i18n-site");
+        var contentPath = site.Sandbox.PathFor("content/zh/index.md");
+        File.WriteAllText(contentPath, File.ReadAllText(contentPath)
+            .Replace("collection: page\n", "collection: page\naliases:\n  - /ms/old/\n", StringComparison.Ordinal));
+        var baseConfig = RootConfig(site.Config);
+        var config = baseConfig with
+        {
+            Site = baseConfig.Site with { Languages = ["en", "zh-CN", "ms"], DefaultLanguage = "en" }
+        };
+
+        await new SiteEngine(new ConsoleLogger(LogLevel.Error)).BuildAsync(config, site.Root,
+            new ConfigOverrides { Incremental = false });
+
+        Assert.True(File.Exists(Path.Combine(site.Output, "zh-CN", "ms", "old", "index.html")));
     }
 
     private static AppConfig RootConfig(AppConfig config)

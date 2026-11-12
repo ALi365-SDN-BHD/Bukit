@@ -322,7 +322,7 @@ internal sealed class AgentManifestProjection : IPublishProjection
 
     public PublishProjectionResult Project(PublishProjectionContext context)
     {
-        if (I18nOutputLayout.IsRootLanguageOutput(context.Config))
+        if (I18nOutputLayout.IsRootLanguageVariant(context.Config))
         {
             return new PublishProjectionResult(
                 Representation,

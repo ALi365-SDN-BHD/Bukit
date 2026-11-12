@@ -8,7 +8,7 @@ internal static class I18nRootOutputConflictGuard
 {
     internal static void Validate(AppConfig config, string? staticDir, string? parentStaticDir)
     {
-        if (!I18nOutputLayout.IsRootLanguageOutput(config))
+        if (!I18nOutputLayout.IsRootLanguageVariant(config))
         {
             return;
         }

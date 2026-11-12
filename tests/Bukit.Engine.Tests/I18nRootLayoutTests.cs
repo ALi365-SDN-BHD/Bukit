@@ -113,6 +113,33 @@ public sealed class I18nRootLayoutTests
             }
         };
 
+    [Fact]
+    public async Task RootLayout_OtherLanguagesKeepTheirOwnAggregateFiles()
+    {
+        using var site = new SiteBuilder("i18n-site");
+        var rootConfig = WithRobots(RootConfig(site.Config));
+        var config = rootConfig with
+        {
+            Site = rootConfig.Site with
+            {
+                Seo = rootConfig.Site.Seo with
+                {
+                    Geo = rootConfig.Site.Seo.Geo with { Enabled = true, LlmsTxt = true, LlmsFullTxt = true }
+                }
+            }
+        };
+
+        await new SiteEngine(new ConsoleLogger(LogLevel.Error)).BuildAsync(config, site.Root,
+            new ConfigOverrides { Incremental = false });
+
+        foreach (var file in new[] { "agent-manifest.json", "robots.txt", "llms.txt", "llms-full.txt" })
+        {
+            Assert.True(File.Exists(Path.Combine(site.Output, file)), "root " + file);
+            Assert.True(File.Exists(Path.Combine(site.Output, "zh-CN", file)), "zh-CN " + file);
+            Assert.False(File.Exists(Path.Combine(site.Output, "en", file)), "en " + file);
+        }
+    }
+
     [Theory]
     [InlineData("split")]
     [InlineData("index")]
@@ -554,5 +581,7 @@ public sealed class I18nRootLayoutTests
         var english = File.ReadAllText(Path.Combine(site.Output, "en", "sitemap.xml"));
         Assert.Contains("<loc>https://example.test/</loc>", english, StringComparison.Ordinal);
         Assert.DoesNotContain("<loc>https://example.test/en/</loc>", english, StringComparison.Ordinal);
+        Assert.True(File.Exists(Path.Combine(site.Output, "zh-CN", "sitemap.xml")));
+        Assert.False(File.Exists(Path.Combine(site.Output, "zh-CN", "zh-CN", "sitemap.xml")), string.Join(",", sitemapFiles));
     }
 }

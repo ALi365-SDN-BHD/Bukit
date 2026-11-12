@@ -120,12 +120,24 @@ internal sealed class I18nOutputLayout
         return languages.Count > 0 && !site.DefaultLanguageInSubdir ? "root" : "subdir";
     }
 
-    internal static bool IsRootLanguageOutput(AppConfig config, string? language = null)
+    /// <summary>Whether <paramref name="language"/> builds into the output root.</summary>
+    internal static bool IsRootLanguageOutput(AppConfig config, string language)
     {
         var languages = I18nOutputMerger.GetLanguages(config.Site);
         return languages.Count > 0 &&
-            I18nOutputLayout.Create(config.Site, languages, config.Site.BaseUrl)
-                .IsRootLanguage(language ?? I18nLanguagePolicy.GetDefaultLanguage(config.Site, languages));
+            I18nOutputLayout.Create(config.Site, languages, config.Site.BaseUrl).IsRootLanguage(language);
+    }
+
+    /// <summary>Whether the variant built with <paramref name="variantConfig"/> owns the output root.</summary>
+    internal static bool IsRootLanguageVariant(AppConfig variantConfig)
+        => IsRootLanguageOutput(variantConfig, variantConfig.Site.Language);
+
+    /// <summary>Whether the site's default language owns the output root (root-level decisions).</summary>
+    internal static bool IsDefaultLanguageAtRoot(AppConfig config)
+    {
+        var languages = I18nOutputMerger.GetLanguages(config.Site);
+        return languages.Count > 0 &&
+            IsRootLanguageOutput(config, I18nLanguagePolicy.GetDefaultLanguage(config.Site, languages));
     }
 
     internal static string CombineRelative(string prefix, string path)

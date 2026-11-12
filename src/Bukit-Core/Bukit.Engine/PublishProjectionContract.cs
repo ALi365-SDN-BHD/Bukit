@@ -94,7 +94,7 @@ internal abstract class AggregatePublishProjectionBase : IPublishProjection
             languages.Count > 0 &&
             (context.Config.Site.SitemapMode ?? "split").Trim().Equals("merged", StringComparison.OrdinalIgnoreCase);
         if ((RootOwnedKinds.Contains(Representation.Kind) &&
-             I18nOutputLayout.IsRootLanguageOutput(context.Config)) ||
+             I18nOutputLayout.IsRootLanguageVariant(context.Config)) ||
             feedSuppressed ||
             sitemapSuppressed)
         {
@@ -291,7 +291,7 @@ internal sealed class SitemapPublishProjection : AggregatePublishProjectionBase
         }
 
         var outputDir = context.OutputDir;
-        if (I18nOutputLayout.IsRootLanguageOutput(context.Config) &&
+        if (I18nOutputLayout.IsRootLanguageVariant(context.Config) &&
             (context.Config.Site.SitemapMode ?? "split").Trim().Equals("index", StringComparison.OrdinalIgnoreCase))
         {
             outputDir = Path.Combine(context.OutputDir, context.Config.Site.Language);
@@ -301,7 +301,7 @@ internal sealed class SitemapPublishProjection : AggregatePublishProjectionBase
     }
 
     protected override string ResolveRelativePath(PublishProjectionContext context)
-        => I18nOutputLayout.IsRootLanguageOutput(context.Config) &&
+        => I18nOutputLayout.IsRootLanguageVariant(context.Config) &&
            (context.Config.Site.SitemapMode ?? "split").Trim().Equals("index", StringComparison.OrdinalIgnoreCase)
             ? Path.Combine(context.Config.Site.Language, "sitemap.xml")
             : base.ResolveRelativePath(context);
