@@ -29,7 +29,7 @@ internal sealed class I18nRootLlmsWriter : II18nRootProjectionWriter
             return;
         }
 
-        var state = context.MergedState ??= I18nMergedVariantState.Create(context.Results);
+        var state = context.MergedState ??= I18nMergedVariantState.Create(context.Results, CreateLayout(context));
         var urls = new HashSet<string>(StringComparer.Ordinal);
         LlmsTxtPlugin.WriteLlmsTxt(
             context.Config,
@@ -52,7 +52,7 @@ internal sealed class I18nRootLlmsWriter : II18nRootProjectionWriter
             return;
         }
 
-        var state = context.MergedState ??= I18nMergedVariantState.Create(context.Results);
+        var state = context.MergedState ??= I18nMergedVariantState.Create(context.Results, CreateLayout(context));
         var urls = new HashSet<string>(StringComparer.Ordinal);
         LlmsTxtPlugin.WriteLlmsFullTxt(
             context.Config,
@@ -66,4 +66,10 @@ internal sealed class I18nRootLlmsWriter : II18nRootProjectionWriter
             urls);
         context.PublishedUrls["llms-full"] = urls;
     }
+
+    private static I18nOutputLayout CreateLayout(I18nRootProjectionWriterContext context)
+        => I18nOutputLayout.Create(
+            context.Config.Site,
+            I18nOutputMerger.GetLanguages(context.Config.Site),
+            context.Config.Site.BaseUrl);
 }

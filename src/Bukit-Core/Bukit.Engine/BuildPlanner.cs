@@ -92,9 +92,10 @@ internal static class BuildPlanner
         if (!Directory.Exists(outputDir)) return;
         var manifestPath = PublicOutputLifecycle.ManifestPath(rootDir, overrides);
         var prior = Incremental.BuildManifest.Load(manifestPath, logger);
+        var layoutChanged = !string.Equals(prior.Layout, I18nOutputLayout.ManifestLayout(config.Site), StringComparison.Ordinal);
         var needsMigration = Directory.EnumerateFileSystemEntries(outputDir).Any() &&
             (File.Exists(manifestPath) || File.Exists(Path.Combine(outputDir, ".bukit-output-marker"))) &&
-            (prior.Version != 3 || !PublicOutputLifecycle.SameRoot(prior, outputDir));
+            (prior.Version != 3 || !PublicOutputLifecycle.SameRoot(prior, outputDir) || layoutChanged);
         if (config.Build.Clean || needsMigration || BuildRecoveryTracker.HasIncompleteBuild(outputDir))
             OutputDirectoryCleaner.EnsureCanClean(rootDir, outputDir);
     }
@@ -103,14 +104,15 @@ internal static class BuildPlanner
     {
         var manifestPath = PublicOutputLifecycle.ManifestPath(rootDir, overrides);
         var prior = Incremental.BuildManifest.Load(manifestPath, logger);
+        var layoutChanged = !string.Equals(prior.Layout, I18nOutputLayout.ManifestLayout(config.Site), StringComparison.Ordinal);
         var needsMigration = Directory.Exists(outputDir) && Directory.EnumerateFileSystemEntries(outputDir).Any() &&
             (File.Exists(manifestPath) || File.Exists(Path.Combine(outputDir, ".bukit-output-marker"))) &&
-            (prior.Version != 3 || !PublicOutputLifecycle.SameRoot(prior, outputDir));
+            (prior.Version != 3 || !PublicOutputLifecycle.SameRoot(prior, outputDir) || layoutChanged);
         if (needsMigration && !config.Build.Clean)
         {
             if (BuildRecoveryTracker.HasIncompleteBuild(outputDir))
                 logger.Warn($"event=build.recovery previousIncomplete=true outputDir={BuildTransaction.Logical(outputDir)} action=autoClean");
-            logger.Info("event=build.output.migration version=3 action=protectedClean");
+            logger.Info($"event=build.output.migration version=3 action=protectedClean reason={(layoutChanged ? "layout" : "root")}");
             OutputDirectoryCleaner.CleanIfExists(BuildTransaction.PhysicalRoot(rootDir), outputDir);
         }
 

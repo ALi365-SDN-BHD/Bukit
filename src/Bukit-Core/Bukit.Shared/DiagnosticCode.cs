@@ -65,4 +65,7 @@ public enum DiagnosticCode
     MediaImageLocalizeFailed = 0x0902,
     MediaImageFormatInvalid = 0x0903,
     MediaImageSizeExceeded = 0x0904,
+
+    I18nRootOutputConflict = 0x0A01,
+    I18nRouteReservedLanguagePrefix = 0x0A02,
 }

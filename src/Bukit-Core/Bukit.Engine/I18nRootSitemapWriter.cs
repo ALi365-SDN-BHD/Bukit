@@ -23,8 +23,16 @@ internal sealed class I18nRootSitemapWriter : II18nRootProjectionWriter
         }
         else if (sitemapMode == "index")
         {
-            var sitemaps = context.Results
-                .Select(result => SitemapGenerator.BuildAbsoluteUrl(siteUrl, result.BaseUrl, "/sitemap.xml"))
+            var results = context.Results;
+            var languages = I18nOutputMerger.GetLanguages(context.Config.Site);
+            var layout = I18nOutputLayout.Create(context.Config.Site, languages, context.RootBaseUrl);
+            var sitemaps = results
+                .Select(result => SitemapGenerator.BuildAbsoluteUrl(
+                    siteUrl,
+                    layout.IsRootLanguage(result.Language)
+                        ? I18nLanguagePolicy.CombineBaseUrlWithLanguage(context.RootBaseUrl, result.Language)
+                        : result.BaseUrl,
+                    "/sitemap.xml"))
                 .ToList();
             SitemapGenerator.GenerateIndex(context.OutputDir, sitemaps);
         }

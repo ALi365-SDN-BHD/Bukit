@@ -45,6 +45,15 @@ same-category override order; cross-category and file/descendant conflicts fail
 instead of relying on copy timing. Third-party after-build plugin outputs are
 outside this plan.
 
+## i18n links
+
+Do not hard-code a language prefix such as `/{{ site.language }}/` in templates, and
+do not treat `href="/"` as the home link when `site.defaultLanguageInSubdir` is
+`false`: the default language is already at the root and its base URL is
+`site.base_url`. Build links from `site.base_url` and page route URLs. A
+default-language `static/robots.txt` overrides generated robots; other static files
+that collide with root-owned outputs fail with `i18n-root-output-conflict`.
+
 The resolved layouts directory may contain `bukit.templates.yaml`. Capability
 manifests are cached by current content fingerprint, and static root/include/
 layout analysis is scoped to one decision call. A subsequent build observes a

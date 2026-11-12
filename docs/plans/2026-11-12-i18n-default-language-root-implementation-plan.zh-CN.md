@@ -1,6 +1,6 @@
 # 默认语言根目录布局：实施方案与任务计划
 
-- 状态：**计划，未实施**。实施属于 Core 任务，需用户另行授权后作为单独的 Core 任务开展。
+- 状态：**已实施**（2026-11-12，Core 任务）。T00–T12 全部完成；专项测试、公共 API 漂移、格式、`openspec validate --strict` 与 osx-arm64 AOT 均已取得通过证据。
 - 日期：2026-11-12
 - 依据：`docs/analysis/bukit-core-i18n-default-language-root-proposal-2026-11-12.zh-CN.md`；规范性提案 `openspec/changes/add-i18n-default-language-root/`（proposal、design、specs、tasks）
 - 代码基线：`33c20cd7`（本计划写作时 Core 代码与之相同）
@@ -355,7 +355,7 @@
 **T10.2 布局变化时受保护清理（复用现有迁移清理）**
 - 改动（进程内）：不直接调用 `OutputDirectoryCleaner` 清理正式输出目录。在 `BuildPlanner.ValidateOutputDirectory`（第 90 行，`BuildTransaction` 第 98 行预检）和 `BuildPlanner.PrepareOutputDirectory`（第 102 行）的 `needsMigration` 条件中各加一项"上次记录的布局 ≠ 本次布局"。前者触发 `EnsureCanClean` 保护预检，后者对事务 staging 执行 `CleanIfExists(BuildTransaction.PhysicalRoot(rootDir), outputDir)`；构建失败时正式输出原样回滚。日志沿用 `event=build.output.migration`，附带布局变化原因。
 - 改动（Worktree）：在派发 Worker 之前完成，全部作用于 staging：`WorktreeBuildRun` 第 231 行 `WorktreeBuildPaths.PrepareStaging(final, staging, copyExisting: …)` 的条件加上"布局未变"，布局变化时 staging 从空目录开始；第 163 行 `OutputDirectoryCleaner.EnsureCanClean(..., effectiveConfig.Build.Clean)` 在布局变化时同样要求输出标记（与 `--clean` 相同的保护预检）；第 233 行 `RewriteManifestRoots` 在布局变化时丢弃旧的各语言 manifest，避免旧路径进入新构建。正式输出由事务提交时整体替换。
-- 测试：spec 场景 "Switching to a root default language"：`dist/en/` 不再存在，`dist/index.html` 为英文首页；反向切换同样干净；进程内和 Worktree 两种模式各测一遍；布局切换的构建中途失败时，正式输出保持切换前原样；缓存 manifest 丢失但输出目录有构建标记时，切换布局后不残留旧布局目录；输出目录没有构建标记时，布局切换按现有规则拒绝清理并报错。
+- 测试：spec 场景 "Switching to a root default language"（该场景固定 `defaultLanguageRedirect: false`）：`dist/en/` 不再存在，`dist/index.html` 为英文首页；开启默认跳转时 `dist/en/index.html` 只保留跳转页；反向切换同样干净；进程内和 Worktree 两种模式各测一遍；布局切换的构建中途失败时，正式输出保持切换前原样；缓存 manifest 丢失但输出目录有构建标记时，切换布局后不残留旧布局目录；输出目录没有构建标记时，布局切换按现有规则拒绝清理并报错。
 - 依赖：T10.1。
 
 **T10.3 增量删除不越界**
@@ -461,3 +461,4 @@
 | 审计 3 | 2026-11-12 | T05.2a 改为覆盖语言级审计直接读取的全部聚合文件，投影沿用现有字段（`Exists = false`）；T06.8 改用默认语言 static 计划判断根目录 robots，补两个方向的过渡测试；T05.5 注明依赖 T05.2a |
 | 审计 4 | 2026-11-12 | T05.2a 补默认语言 static robots 照常读取的例外；T04.2 把根目录 `index.html` 加入链接检查清单；T10.2 写明 Worktree 在派发 Worker 前清理，两种模式各测一遍 |
 | 审计 5 | 2026-11-12 | T10.1、T10.2 改为复用 `BuildPlanner` 的 `needsMigration` 迁移清理（作用于事务 staging），Worktree 落到 `PrepareStaging`、`EnsureCanClean`、`RewriteManifestRoots`；manifest 丢失的边界由现有逻辑覆盖；补构建失败回滚测试 |
+| 实施 | 2026-11-12 | T00–T12 完成；补齐 T07.7 裁剪保护及 T02.6/T04.4/T05.3/T10.2 专项测试。记录：T02.6 首次重构曾丢失语言级链接路径前缀，属重构引入的回归，已修复并补测；alias 全量构建 NRE 已在 HEAD 复现并修复 |

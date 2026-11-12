@@ -85,7 +85,14 @@ public sealed partial class SiteEngineIntegrationTests
                 var baseUrl = report.RootElement.GetProperty("baseUrl").GetString()!.TrimEnd('/');
                 var representations = report.RootElement.GetProperty("documents").EnumerateArray()
                     .SelectMany(document => document.GetProperty("representations").EnumerateArray()).ToArray();
-                Assert.Contains(representations, item => item.GetProperty("kind").GetString() == "atom" && item.GetProperty("generated").GetBoolean());
+                if (Path.GetFullPath(reportOutput) == Path.GetFullPath(output))
+                {
+                    Assert.Contains(representations, item => item.GetProperty("kind").GetString() == "atom" && item.GetProperty("generated").GetBoolean());
+                }
+                else
+                {
+                    Assert.DoesNotContain(representations, item => item.GetProperty("kind").GetString() == "atom" && item.GetProperty("generated").GetBoolean());
+                }
                 foreach (var item in representations.Where(item => item.GetProperty("kind").GetString() is "feed" or "atom" or "jsonfeed" or "sitemap" or "search" or "llms" or "llms-full" or "robots" or "agent-manifest"))
                 {
                     var kind = item.GetProperty("kind").GetString();

@@ -63,6 +63,8 @@ public static class ConfigJsonSchemaGenerator
             ("language", StringSchema()),
             ("languages", StringArraySchema()),
             ("defaultLanguage", StringSchema()),
+            ("defaultLanguageInSubdir", BoolSchema(true)),
+            ("defaultLanguageRedirect", BoolSchema(true)),
             ("sitemapMode", EnumSchema("split", "merged", "index")),
             ("searchIncludeDerived", BoolSchema()),
             ("pluginFailMode", EnumSchema("strict", "warn")),
@@ -701,7 +703,16 @@ public static class ConfigJsonSchemaGenerator
 
     private static JsonObject StringSchema() => Obj(("type", "string"));
 
-    private static JsonObject BoolSchema() => Obj(("type", "boolean"));
+    private static JsonObject BoolSchema(bool? defaultValue = null)
+    {
+        var schema = Obj(("type", "boolean"));
+        if (defaultValue is not null)
+        {
+            schema["default"] = defaultValue.Value;
+        }
+
+        return schema;
+    }
 
     private static JsonObject IntSchema(int? min = null, int? max = null)
     {

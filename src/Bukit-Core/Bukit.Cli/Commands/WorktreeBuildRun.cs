@@ -160,7 +160,15 @@ internal sealed class WorktreeBuildRun
             effectiveConfig, resolved.RootDir, overrides with { CacheDir = finalCacheDir }, finalOutputDir);
         OutputDirectoryCleaner.EnsureNoSourceOverlap(
             OutputDirectoryCleaner.GetConfiguredContentSources(effectiveConfig, resolved.RootDir), writeTargets);
-        OutputDirectoryCleaner.EnsureCanClean(resolved.RootDir, finalOutputDir, effectiveConfig.Build.Clean);
+        var priorManifest = BuildManifest.Load(Path.Combine(finalCacheDir, "build-manifest.json"), logger);
+        var layoutChanged = !string.Equals(
+            priorManifest.Layout,
+            I18nOutputLayout.ManifestLayout(effectiveConfig.Site),
+            StringComparison.Ordinal);
+        OutputDirectoryCleaner.EnsureCanClean(
+            resolved.RootDir,
+            finalOutputDir,
+            effectiveConfig.Build.Clean || layoutChanged);
 
         var runId = Guid.NewGuid().ToString("N");
         var runsRoot = WorktreeBuildPaths.RunsRoot(repository.Root);
@@ -228,9 +236,22 @@ internal sealed class WorktreeBuildRun
             new(PathUtils.GetCanonicalFullPath(_finalOutputDir), PathUtils.GetCanonicalFullPath(_stagingOutputDir), PathUtils.GetCanonicalFullPath(_backupOutputDir), true),
             new(PathUtils.GetCanonicalFullPath(_finalCacheDir), PathUtils.GetCanonicalFullPath(_stagingCacheDir), PathUtils.GetCanonicalFullPath(_backupCacheDir), true)
         ]);
-        WorktreeBuildPaths.PrepareStaging(_finalOutputDir, _stagingOutputDir, copyExisting: !_effectiveConfig.Build.Clean);
+        var preparedPrior = BuildManifest.Load(Path.Combine(_finalCacheDir, "build-manifest.json"), _logger);
+        var preparedLayoutChanged = !string.Equals(
+            preparedPrior.Layout,
+            I18nOutputLayout.ManifestLayout(_effectiveConfig.Site),
+            StringComparison.Ordinal);
+        WorktreeBuildPaths.PrepareStaging(
+            _finalOutputDir, _stagingOutputDir, copyExisting: !_effectiveConfig.Build.Clean && !preparedLayoutChanged);
         WorktreeBuildPaths.PrepareStaging(_finalCacheDir, _stagingCacheDir, copyExisting: true);
-        WorktreeBuildPaths.RewriteManifestRoots(_stagingCacheDir, _finalOutputDir, _stagingOutputDir, _languages);
+        if (preparedLayoutChanged)
+        {
+            WorktreeBuildPaths.DiscardManifests(_stagingCacheDir);
+        }
+        else
+        {
+            WorktreeBuildPaths.RewriteManifestRoots(_stagingCacheDir, _finalOutputDir, _stagingOutputDir, _languages, _effectiveConfig.Site);
+        }
 
         var contentWorktree = Path.Combine(_runRoot, "content");
         await WorktreeBuildRepository.AddWorktreeAsync(
@@ -310,7 +331,8 @@ internal sealed class WorktreeBuildRun
                 _repository, workerWorktree, _registryPath, _ownedWorktrees, _logger, cancellationToken).ConfigureAwait(false);
             var workerSiteRoot = WorktreeBuildPaths.MapIntoWorktree(_repository, _rootDir, workerWorktree);
             var workerConfigPath = WorktreeBuildPaths.MapIntoWorktree(_repository, _fullConfigPath, workerWorktree);
-            var outputDir = Path.Combine(_stagingOutputDir, language);
+            var layout = I18nOutputLayout.Create(_effectiveConfig.Site, _languages, _effectiveConfig.Site.BaseUrl);
+            var outputDir = layout.OutputDir(_stagingOutputDir, language);
             var workerCache = Path.Combine(_runRoot, "worker-cache", segment);
             Directory.CreateDirectory(workerCache);
             WorktreeBuildPaths.CopyVariantManifest(_stagingCacheDir, workerCache, language, outputDir);
@@ -348,6 +370,7 @@ internal sealed class WorktreeBuildRun
         var languageJobs = Math.Min(Math.Max(1, _effectiveConfig.Build.LanguageJobs), Environment.ProcessorCount);
         _logger.Info($"event=build.i18n.worktree.start head={_repository.Head} languages={_languages.Count} concurrent_jobs={languageJobs}");
         using var workersCancellation = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        var failures = new System.Collections.Concurrent.ConcurrentDictionary<string, Exception>(StringComparer.OrdinalIgnoreCase);
         try
         {
             await Parallel.ForEachAsync(
@@ -359,17 +382,19 @@ internal sealed class WorktreeBuildRun
                 },
                 async (item, ct) =>
                 {
-                    await WorktreeBuildCoordinator.RunWorkerProcessAsync(item.plan, _logger, ct).ConfigureAwait(false);
                     try
                     {
+                        await WorktreeBuildCoordinator.RunWorkerProcessAsync(item.plan, _logger, ct).ConfigureAwait(false);
                         snapshots[item.index] = await I18nWorktreeProtocolStore.ReadResultAsync(item.plan.ResultPath, ct).ConfigureAwait(false);
                     }
-                    catch (Exception ex)
+                    catch (Exception ex) when (ex is not OperationCanceledException)
                     {
-                        throw new WorktreeBuildException(
-                            "i18n-worktree-result-invalid",
-                            $"Worker result for language '{item.plan.Language}' is invalid: {ex.Message}",
-                            ex);
+                        failures[item.plan.Language] = ex is WorktreeBuildException
+                            ? ex
+                            : new WorktreeBuildException(
+                                "i18n-worktree-result-invalid",
+                                $"Worker result for language '{item.plan.Language}' is invalid: {ex.Message}",
+                                ex);
                     }
                 }).ConfigureAwait(false);
         }
@@ -377,6 +402,13 @@ internal sealed class WorktreeBuildRun
         {
             await workersCancellation.CancelAsync().ConfigureAwait(false);
             throw;
+        }
+
+        if (failures.Count > 0)
+        {
+            throw I18nReservedPrefixGuard.SelectPrimaryFailure(
+                failures,
+                I18nOutputMerger.GetDefaultLanguage(_effectiveConfig.Site, _languages));
         }
 
         var prepared = _prepared ?? throw new InvalidOperationException("Worktree build prepare phase has not completed.");
@@ -401,7 +433,8 @@ internal sealed class WorktreeBuildRun
                     _contentHash ?? throw new InvalidOperationException("Content snapshot hash is unavailable."),
                     plan.Language,
                     plan.OutputDir,
-                    manifestPath);
+                    manifestPath,
+                    _effectiveConfig.Site);
                 _warningCount += snapshots[index].WarningCount;
                 _errorCount += snapshots[index].ErrorCount;
             }
@@ -428,7 +461,7 @@ internal sealed class WorktreeBuildRun
             _warningCount,
             _errorCount,
             cancellationToken).ConfigureAwait(false);
-        WorktreeBuildPaths.RewriteManifestRoots(_stagingCacheDir, _stagingOutputDir, _finalOutputDir, _languages);
+        WorktreeBuildPaths.RewriteManifestRoots(_stagingCacheDir, _stagingOutputDir, _finalOutputDir, _languages, _effectiveConfig.Site);
 
         await prepared.DisposeAsync().ConfigureAwait(false);
         _prepared = null;

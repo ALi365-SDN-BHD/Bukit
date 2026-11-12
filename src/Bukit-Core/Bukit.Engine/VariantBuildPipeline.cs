@@ -54,6 +54,7 @@ internal sealed partial class VariantBuildPipeline
             pluginSession,
             variantStageMetrics,
             cancellationToken);
+        I18nLegacyRedirectDeriver.Derive(context, routePipelineResult.PluginContext);
         routePipelineResult = routePipelineResult with
         {
             RouteResult = AddDerivedListRoutesToGraph(
@@ -62,6 +63,12 @@ internal sealed partial class VariantBuildPipeline
                 dataModules.RouteMetadata)
         };
         ValidatePostDeriveRoutes(routePipelineResult);
+        I18nReservedPrefixGuard.ValidateRoutes(
+            context.Config,
+            routePipelineResult.RouteResult.RoutedDocuments,
+            routePipelineResult.PluginContext.DerivedDocuments,
+            routePipelineResult.RouteResult.ListRoutes);
+        I18nReservedPrefixGuard.ValidateStaticRoutes(context.Config, routePipelineResult.StaticHtmlRoutes);
         stageStarted = Stopwatch.GetTimestamp();
         if (media is not null)
         {
@@ -115,6 +122,7 @@ internal sealed partial class VariantBuildPipeline
         var assetPipelinePreparation = await AssetPipeline.PrepareAsync(
             renderAssetPlan.AssetPipelineContext,
             cancellationToken);
+        I18nReservedPrefixGuard.ValidateAssetPlan(context.Config, assetPipelinePreparation.OutputPlan.Items);
 
         // Remove only prior owned destinations before aggregate writers inspect existing files.
         PublicOutputLifecycle.PrepareProjectionWrites(context.OutputDir, manifestSetup.Manifest, assetPipelinePreparation.OutputPlan.Items);
@@ -174,6 +182,9 @@ internal sealed partial class VariantBuildPipeline
                 variantTotalStopwatch.ElapsedMilliseconds);
 
             analyticsTransformPlan.PluginHtmlTransforms.RecordExecutions();
+            I18nReservedPrefixGuard.ValidatePluginOutputs(
+                context.Config,
+                VariantReportStage.GetPluginOutputs(routePipelineResult.PluginContext));
             var plannedOutputs = assetPipelinePreparation.OutputPlan.Items.Concat(
                 VariantReportStage.GetPluginOutputs(routePipelineResult.PluginContext).Select(output =>
                     new AssetOutputItem(output.Plugin, output.Path, AssetOutputCategory.Plugin, Operation: AssetOutputOperation.Generate))).ToArray();

@@ -12,7 +12,8 @@ internal sealed class ArtifactManifestReportWriter : IBuildReportWriter
         var artifacts = ArtifactManifestInventory.Create(
             context.ReportDir,
             context.ReportsEnabled ? context.OutputDir : null,
-            context.ReportsEnabled ? context.Variants : null);
+            context.ReportsEnabled ? context.Variants : null,
+            context.Config);
         using var stream = File.Create(Path.Combine(context.ReportDir, "artifact-manifest.json"));
         using var writer = new Utf8JsonWriter(stream, new JsonWriterOptions { Indented = true });
         writer.WriteStartObject();

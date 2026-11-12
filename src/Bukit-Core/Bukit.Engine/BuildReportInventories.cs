@@ -1,3 +1,4 @@
+using Bukit.Config;
 using Bukit.Engine.Analytics;
 using Bukit.Shared;
 
@@ -70,7 +71,8 @@ internal static class ArtifactManifestInventory
     internal static IReadOnlyList<BuildReportFileEntry> Create(
         string reportDir,
         string? outputDir,
-        IReadOnlyList<BuildVariantResult>? variants)
+        IReadOnlyList<BuildVariantResult>? variants,
+        AppConfig? config = null)
     {
         // The downstream digest includes this manifest, so including it would create a hash cycle.
         var artifactFiles = Directory.EnumerateFiles(reportDir, "*.json", SearchOption.TopDirectoryOnly)
@@ -89,7 +91,7 @@ internal static class ArtifactManifestInventory
 
         if (outputDir is not null && variants is not null)
         {
-            AddVariantAnalyticsReports(artifactFiles, artifactEntries, outputDir, variants);
+            AddVariantAnalyticsReports(artifactFiles, artifactEntries, outputDir, variants, config);
         }
 
         return artifactEntries
@@ -101,17 +103,23 @@ internal static class ArtifactManifestInventory
         IReadOnlyList<string> artifactFiles,
         ICollection<BuildReportFileEntry> artifactEntries,
         string outputDir,
-        IReadOnlyList<BuildVariantResult> variants)
+        IReadOnlyList<BuildVariantResult> variants,
+        AppConfig? config)
     {
+        var languages = config is null
+            ? Array.Empty<string>()
+            : I18nOutputMerger.GetLanguages(config.Site);
+        var layout = config is null || languages.Count == 0
+            ? null
+            : I18nOutputLayout.Create(config.Site, languages, config.Site.BaseUrl);
         var existingFiles = new HashSet<string>(
             artifactFiles.Select(Path.GetFullPath),
             StringComparer.OrdinalIgnoreCase);
         foreach (var variant in variants.OrderBy(item => item.Language, StringComparer.OrdinalIgnoreCase))
         {
-            var analyticsReport = Path.GetFullPath(Path.Combine(
-                variant.OutputDir,
-                BuildReporter.ReportDirectoryName,
-                AnalyticsReportWriter.FileName));
+            var reportDir = layout?.ReportDir(outputDir, variant.Language)
+                ?? Path.Combine(variant.OutputDir, BuildReporter.ReportDirectoryName);
+            var analyticsReport = Path.GetFullPath(Path.Combine(reportDir, AnalyticsReportWriter.FileName));
             if (!File.Exists(analyticsReport) ||
                 !PathUtils.IsSameOrSubPathOf(variant.OutputDir, outputDir) ||
                 !PathUtils.IsSameOrSubPathOf(analyticsReport, outputDir) ||

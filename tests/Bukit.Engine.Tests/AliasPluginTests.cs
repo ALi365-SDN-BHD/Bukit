@@ -106,6 +106,8 @@ public sealed class AliasPluginTests
         var html = derived[0].Document.Body.Html;
         Assert.Contains("http-equiv=\"refresh\"", html);
         Assert.Contains("rel=\"canonical\"", html);
+        Assert.Contains("<meta name=\"robots\" content=\"noindex\">", html);
+        Assert.Contains("<title>Redirect</title>", html);
         Assert.Contains("/post/", html);
     }
 

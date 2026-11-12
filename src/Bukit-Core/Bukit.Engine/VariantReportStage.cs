@@ -26,6 +26,12 @@ internal static class VariantReportStage
                 searchTemplate,
                 context.LayoutsDir);
         var pluginContext = routePipelineResult.PluginContext;
+        var layout = I18nOutputLayout.Create(
+            context.Config.Site,
+            I18nOutputMerger.GetLanguages(context.Config.Site),
+            context.RootBaseUrl ?? context.Config.Site.BaseUrl);
+        var reportDir = layout.VariantReportDir(context.OutputDir, context.Config.Site.Language);
+        var auditReadPaths = layout.AuditReadPaths(context.OutputDir, context.Config.Site.Language, context.StaticDir);
         var result = new BuildReportPipeline().Execute(reportTimer, new BuildReportPipelineContext(
             Config: context.Config,
             Language: context.Config.Site.Language,
@@ -51,7 +57,9 @@ internal static class VariantReportStage
             Logger: logger,
             DefaultLanguage: context.DefaultLanguage,
             ContentGraph: context.ContentGraph,
-            ProjectionResults: projectionResults));
+            ProjectionResults: projectionResults,
+            ReportDirectory: reportDir,
+            AuditReadPaths: auditReadPaths));
         analyticsBuildState.RecordRenderOutcome(
             renderPipelineResult.RenderedCount,
             renderPipelineResult.SkippedCount);
@@ -59,7 +67,8 @@ internal static class VariantReportStage
         Time(reportTimer, "analytics-report", () => AnalyticsReportWriter.WriteIfEnabled(
             context.Config,
             context.OutputDir,
-            analyticsSnapshot));
+            analyticsSnapshot,
+            reportDir));
         return Task.FromResult(result with { SignedLinks = renderPipelineResult.SignedLinks });
     }
 

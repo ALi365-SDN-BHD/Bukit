@@ -157,6 +157,7 @@ public sealed partial class SiteEngine
             var contentGraph = contentResult.ContentGraph ?? CanonicalContentGraph.Empty;
             var bodyStore = contentResult.BodyStore;
             var bodyCacheMetrics = contentResult.BodyCacheMetrics;
+            I18nLanguagePolicy.WarnLayoutSettingsWithoutLanguages(effectiveConfig.Site, buildLogger);
             I18nLanguagePolicy.WarnDocumentLanguageIssues(documents, effectiveConfig.Site, buildLogger);
 
             BuildResult completedResult;
@@ -190,7 +191,8 @@ public sealed partial class SiteEngine
                     {
                         reportTimer.Step("metrics-write", () => MetricsWriter.WriteIfRequested(rootDir, overrides.MetricsPath, effectiveConfig, plan.OutputDir, documents.Count, new[] { result }, bodyCacheMetrics));
                     }
-                    completedManifest = reportTimer.Step("collect-and-clean", () => PublicOutputLifecycle.CollectAndClean(rootDir, overrides, plan.OutputDir, [result], buildLogger));
+                    completedManifest = reportTimer.Step("collect-and-clean", () => PublicOutputLifecycle.CollectAndClean(
+                        rootDir, overrides, plan.OutputDir, [result], buildLogger, site: effectiveConfig.Site));
                     var generatedFiles = reportTimer.Step("output-inventory", () => BuildOutputInventory.Create(plan.OutputDir));
                     plan.Stopwatch.Stop();
                     var singleLanguageBuildResult = BuildResultFactory.Create(
@@ -309,6 +311,7 @@ public sealed partial class SiteEngine
     {
         var defaultLanguage = I18nOutputMerger.GetDefaultLanguage(config.Site, languages);
         var rootBaseUrl = BuildPathUtils.NormalizeBaseUrl(config.Site.BaseUrl);
+        var layout = I18nOutputLayout.Create(config.Site, languages, rootBaseUrl);
         var templateResolver = new ThemeTemplateResolver(ThemeBootstrapper.BootstrapRequired(config, rootDir, buildLogger).Manifest);
         var seoAlternates = SeoAlternatesService.BuildSeoAlternates(config, documents, languages, defaultLanguage, rootBaseUrl, templateResolver, rootDir, layoutsDir);
         var results = new BuildVariantResult[languages.Count];
@@ -321,37 +324,50 @@ public sealed partial class SiteEngine
         }
 
         buildLogger.Info($"event=build.i18n.start languages={languages.Count} concurrent_jobs={languageJobs}");
+        var failures = new System.Collections.Concurrent.ConcurrentDictionary<string, Exception>(StringComparer.OrdinalIgnoreCase);
         await Parallel.ForEachAsync(
             languages.Select((lang, i) => (lang, i)),
             new ParallelOptions { MaxDegreeOfParallelism = languageJobs, CancellationToken = cancellationToken },
             async (entry, ct) =>
             {
                 var (lang, i) = entry;
-                var variantLogger = buildLogger;
-                var baseUrl = I18nOutputMerger.CombineBaseUrlWithLanguage(rootBaseUrl, lang);
-                var variantConfig = config with
+                try
                 {
-                    Site = config.Site with
+                    var variantLogger = buildLogger;
+                    var baseUrl = layout.BaseUrl(lang);
+                    var variantConfig = config with
                     {
-                        Language = lang,
-                        BaseUrl = baseUrl
-                    }
-                };
+                        Site = config.Site with
+                        {
+                            Language = lang,
+                            BaseUrl = baseUrl
+                        }
+                    };
 
-                var variantDocuments = I18nOutputMerger.FilterDocumentsByLanguage(documents, lang, defaultLanguage);
-                var variantOutputDir = Path.Combine(outputDir, lang);
-                variantLogger.Info($"event=build.variant.start language={lang} baseUrl={baseUrl} outputDir={BuildTransaction.Logical(variantOutputDir)}");
-                var variantCtx = new BuildVariantContext(
-                    variantConfig, rootDir, overrides, variantDocuments, contentGraph, bodyStore, variantOutputDir, baseUrl,
-                    layoutsDir, assetsDir, staticDir, mediaCacheDir,
-                    SeoAlternates: seoAlternates,
-                    RootBaseUrl: rootBaseUrl, ManifestSuffix: lang, DefaultLanguage: defaultLanguage,
-                    BuildStartedAt: buildStartedAt,
-                    ParentLayoutsDir: parentLayoutsDir, ParentAssetsDir: parentAssetsDir, ParentStaticDir: parentStaticDir,
-                    UserLayoutsDir: userLayoutsDir, ScssOutputDir: scssOutputDir);
-                results[i] = await BuildVariantAsync(variantCtx, templateHashCache, ct, variantLogger);
-                variantLogger.Info($"event=build.variant.done language={lang} baseUrl={baseUrl} outputDir={BuildTransaction.Logical(variantOutputDir)}");
+                    var variantDocuments = I18nOutputMerger.FilterDocumentsByLanguage(documents, lang, defaultLanguage);
+                    var variantOutputDir = layout.OutputDir(outputDir, lang);
+                    variantLogger.Info($"event=build.variant.start language={lang} baseUrl={baseUrl} outputDir={BuildTransaction.Logical(variantOutputDir)}");
+                    var variantCtx = new BuildVariantContext(
+                        variantConfig, rootDir, overrides, variantDocuments, contentGraph, bodyStore, variantOutputDir, baseUrl,
+                        layoutsDir, assetsDir, staticDir, mediaCacheDir,
+                        SeoAlternates: seoAlternates,
+                        RootBaseUrl: rootBaseUrl, ManifestSuffix: lang, DefaultLanguage: defaultLanguage,
+                        BuildStartedAt: buildStartedAt,
+                        ParentLayoutsDir: parentLayoutsDir, ParentAssetsDir: parentAssetsDir, ParentStaticDir: parentStaticDir,
+                        UserLayoutsDir: userLayoutsDir, ScssOutputDir: scssOutputDir);
+                    results[i] = await BuildVariantAsync(variantCtx, templateHashCache, ct, variantLogger);
+                    variantLogger.Info($"event=build.variant.done language={lang} baseUrl={baseUrl} outputDir={BuildTransaction.Logical(variantOutputDir)}");
+                }
+                catch (Exception ex) when (ex is not OperationCanceledException)
+                {
+                    failures[lang] = ex;
+                }
             });
+
+        if (failures.Count > 0)
+        {
+            throw I18nReservedPrefixGuard.SelectPrimaryFailure(failures, defaultLanguage);
+        }
 
         var variantResults = results.Where(r => r is not null).ToList();
 

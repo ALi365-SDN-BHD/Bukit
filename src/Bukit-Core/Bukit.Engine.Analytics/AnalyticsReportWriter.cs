@@ -12,10 +12,11 @@ internal static class AnalyticsReportWriter
     internal static void WriteIfEnabled(
         AppConfig config,
         string outputDir,
-        AnalyticsBuildSnapshot snapshot)
+        AnalyticsBuildSnapshot snapshot,
+        string? reportDirectory = null)
     {
-        var relativePath = Path.Combine(BuildReportPaths.ReportDirectoryName, FileName);
-        var path = FileWriter.GetSafeFullPath(outputDir, relativePath);
+        var directory = reportDirectory ?? Path.Combine(outputDir, BuildReportPaths.ReportDirectoryName);
+        var path = FileWriter.GetSafeFullPath(directory, FileName);
         if (!config.Build.Report.Enabled)
         {
             if (File.Exists(path))

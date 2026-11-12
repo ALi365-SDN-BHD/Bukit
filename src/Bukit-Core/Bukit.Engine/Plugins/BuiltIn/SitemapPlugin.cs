@@ -69,7 +69,16 @@ internal sealed class SitemapPlugin : IBukitPlugin, IAfterBuildPlugin
             filtered.Add((seo.Canonical, seo.LastModified));
         }
 
-        SitemapGenerator.GenerateAbsolute(context.OutputDir, filtered);
+        var outputDir = context.OutputDir;
+        var languages = I18nOutputMerger.GetLanguages(_config.Site);
+        var layout = I18nOutputLayout.Create(_config.Site, languages, _config.Site.BaseUrl);
+        var sitemapMode = (_config.Site.SitemapMode ?? "split").Trim().ToLowerInvariant();
+        if (layout.IsRootLanguage(_config.Site.Language) && sitemapMode == "index")
+        {
+            outputDir = Path.Combine(context.OutputDir, _config.Site.Language);
+        }
+
+        SitemapGenerator.GenerateAbsolute(outputDir, filtered);
     }
 
     internal static HashSet<string> BuildDocumentSitemapExclusions(

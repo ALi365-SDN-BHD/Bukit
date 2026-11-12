@@ -58,6 +58,7 @@ public sealed class BuildDiagnosticCodeTests
         Assert.StartsWith("Seo", DiagnosticCode.SeoAuditFailed.ToString());
         Assert.StartsWith("Geo", DiagnosticCode.GeoLlmsTxtMissing.ToString());
         Assert.StartsWith("Media", DiagnosticCode.MediaImageMissing.ToString());
+        Assert.StartsWith("I18n", DiagnosticCode.I18nRootOutputConflict.ToString());
     }
 
     [Fact]
@@ -76,6 +77,7 @@ public sealed class BuildDiagnosticCodeTests
             ["Seo"] = (0x0801, 0x080F),
             ["Geo"] = (0x0810, 0x081F),
             ["Media"] = (0x0901, 0x09FF),
+            ["I18n"] = (0x0A01, 0x0AFF),
         };
 
         foreach (DiagnosticCode code in Enum.GetValues<DiagnosticCode>())

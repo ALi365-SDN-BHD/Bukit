@@ -58,6 +58,8 @@ public sealed class ConfigPhase2ValidatorTests : IDisposable
         Assert.Equal("/", config.Site.BaseUrl);
         Assert.Equal("zh-CN", config.Site.Language);
         Assert.Null(config.Site.Languages);
+        Assert.True(config.Site.DefaultLanguageInSubdir);
+        Assert.True(config.Site.DefaultLanguageRedirect);
         Assert.Null(config.Site.DefaultLanguage);
         Assert.Equal("split", config.Site.SitemapMode);
         Assert.Equal("Asia/Shanghai", config.Site.Timezone);
@@ -159,5 +161,31 @@ public sealed class ConfigPhase2ValidatorTests : IDisposable
 
         Assert.Equal(DiagnosticCode.ConfigPathTraversal, ex.Code);
         Assert.Contains($"theme.{field} must not contain '..' path traversal segments", ex.Message, StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData("split", false)]
+    [InlineData("index", false)]
+    [InlineData("merged", true)]
+    public void Validate_RootDefaultLanguageWithSearchMode(string searchMode, bool shouldFail)
+    {
+        var path = WriteConfig($"""
+              languages: [en, zh-CN]
+              defaultLanguage: en
+              defaultLanguageInSubdir: false
+              search:
+                mode: {searchMode}
+            """);
+        var config = ConfigLoader.Load(path);
+
+        if (!shouldFail)
+        {
+            ConfigValidator.Validate(config);
+            return;
+        }
+
+        var ex = Assert.Throws<ConfigException>(() => ConfigValidator.Validate(config));
+        Assert.Contains("site.defaultLanguageInSubdir", ex.Message, StringComparison.Ordinal);
+        Assert.Contains("site.search.mode", ex.Message, StringComparison.Ordinal);
     }
 }

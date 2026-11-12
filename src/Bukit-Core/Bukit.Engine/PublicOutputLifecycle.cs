@@ -10,7 +10,11 @@ internal static class PublicOutputLifecycle
     internal static string ManifestPath(string rootDir, ConfigOverrides overrides)
         => Path.Combine(string.IsNullOrWhiteSpace(overrides.CacheDir) ? Path.Combine(rootDir, ".cache") : Path.GetFullPath(overrides.CacheDir), "build-manifest.json");
 
-    internal static IReadOnlyList<AssetOutputItem> ProjectionPlan(AppConfig config, IEnumerable<RouteInfo> routes, bool root = false)
+    internal static IReadOnlyList<AssetOutputItem> ProjectionPlan(
+        AppConfig config,
+        IEnumerable<RouteInfo> routes,
+        bool root = false,
+        string? language = null)
     {
         var items = new List<AssetOutputItem>();
         void Add(string path, string kind) => items.Add(new AssetOutputItem(kind, BuildPathUtils.NormalizeRelPath(path), AssetOutputCategory.Projection, Operation: AssetOutputOperation.Generate));
@@ -19,24 +23,68 @@ internal static class PublicOutputLifecycle
             Add(ContentProjectionPaths.GetContentProjectionRelativePath(route, ".json"), "json " + route.Url);
             Add(ContentProjectionPaths.GetContentProjectionRelativePath(route, ".md"), "markdown " + route.Url);
         }
-        Add("agent-manifest.json", "agent-manifest");
-        if (!root || SiteModeResolver.ResolveSearchMode(config.Site) == "merged") Add("search.json", "search");
-        else if (SiteModeResolver.ResolveSearchMode(config.Site) == "index") Add("search.index.json", "search");
-        if (!root && config.Site.Search.Ui?.Trim().ToLowerInvariant() is not (null or "false" or "off")) Add("bukit-search.html", "search-ui");
+
+        var languages = I18nOutputMerger.GetLanguages(config.Site);
+        var layout = language is null
+            ? null
+            : I18nOutputLayout.Create(config.Site, languages, config.Site.BaseUrl);
+        var isRootLanguage = layout?.IsRootLanguage(language!) == true;
+        var sitemapMode = (config.Site.SitemapMode ?? "split").Trim().ToLowerInvariant();
+        var feedMode = SiteModeResolver.ResolveFeedMode(config.Site);
+        var searchMode = SiteModeResolver.ResolveSearchMode(config.Site);
+
+        if (!isRootLanguage)
+        {
+            Add("agent-manifest.json", "agent-manifest");
+        }
+
+        if (root && I18nRootRedirectWriter.ShouldWrite(config)) Add("index.html", "redirect");
+
+        if (isRootLanguage)
+        {
+            if (searchMode != "merged") Add("search.json", "search");
+        }
+        else if (!root || searchMode == "merged")
+        {
+            Add("search.json", "search");
+        }
+        else if (searchMode == "index")
+        {
+            Add("search.index.json", "search");
+        }
+
+        if (!root && !isRootLanguage && config.Site.Search.Ui?.Trim().ToLowerInvariant() is not (null or "false" or "off")) Add("bukit-search.html", "search-ui");
+
         if (!string.IsNullOrWhiteSpace(config.Site.Url))
         {
-            if (!root || (config.Site.SitemapMode ?? "split").Trim().ToLowerInvariant() is "merged" or "index") Add("sitemap.xml", "sitemap");
-            if (config.Site.Seo.RobotsTxt.Enabled) Add("robots.txt", "robots");
-            if (!root || SiteModeResolver.ResolveFeedMode(config.Site) == "merged")
+            if (root)
+            {
+                if (sitemapMode is "merged" or "index") Add("sitemap.xml", "sitemap");
+            }
+            else if (isRootLanguage)
+            {
+                if (sitemapMode == "split") Add("sitemap.xml", "sitemap");
+                else if (sitemapMode == "index") Add(Path.Combine(language!, "sitemap.xml"), "sitemap");
+            }
+            else if (sitemapMode != "merged")
+            {
+                Add("sitemap.xml", "sitemap");
+            }
+
+            if (!isRootLanguage && config.Site.Seo.RobotsTxt.Enabled) Add("robots.txt", "robots");
+
+            if (root ? feedMode == "merged" : feedMode == "split")
             {
                 AddFeedOutputs(config, root, Add);
             }
         }
-        if (config.Site.Seo.Geo.Enabled)
+
+        if (!isRootLanguage && config.Site.Seo.Geo.Enabled)
         {
             if (config.Site.Seo.Geo.LlmsTxt) Add("llms.txt", "llms");
             if (config.Site.Seo.Geo.LlmsFullTxt) Add("llms-full.txt", "llms-full");
         }
+
         return items;
     }
 
@@ -100,14 +148,26 @@ internal static class PublicOutputLifecycle
     internal static bool SameRoot(BuildManifest manifest, string outputDir)
         => !string.IsNullOrEmpty(manifest.OutputRoot) && string.Equals(manifest.OutputRoot, BuildTransaction.Logical(Path.GetFullPath(outputDir)), PlatformPathHelper.PathComparison);
 
-    internal static void Record(BuildManifest manifest, string outputDir, IEnumerable<AssetOutputItem> items)
+    internal static void Record(BuildManifest manifest, string outputDir, IEnumerable<AssetOutputItem> items, SiteConfig? site = null)
     {
         manifest.Version = 3;
         manifest.OutputRoot = BuildTransaction.Logical(Path.GetFullPath(outputDir));
+        if (site is not null)
+        {
+            manifest.Layout = I18nOutputLayout.ManifestLayout(site);
+        }
+
         manifest.OwnedOutputs = items.Select(x => x.Destination).ToHashSet(StringComparer.Ordinal);
     }
 
-    internal static BuildManifest CollectAndClean(string rootDir, ConfigOverrides overrides, string outputDir, IReadOnlyList<BuildVariantResult> variants, ILogger logger, IReadOnlyList<AssetOutputItem>? rootOutputs = null)
+    internal static BuildManifest CollectAndClean(
+        string rootDir,
+        ConfigOverrides overrides,
+        string outputDir,
+        IReadOnlyList<BuildVariantResult> variants,
+        ILogger logger,
+        IReadOnlyList<AssetOutputItem>? rootOutputs = null,
+        SiteConfig? site = null)
     {
         var items = variants.SelectMany(variant => variant.PlannedOutputs.Select(item => item with
         {
@@ -117,7 +177,7 @@ internal static class PublicOutputLifecycle
         var previous = BuildManifest.Load(ManifestPath(rootDir, overrides), logger);
         DeleteStale(outputDir, previous, items.Select(x => x.Destination).ToHashSet(OutputDestinationIdentityComparer.ForOutputRoot(outputDir)));
         var manifest = variants.Count == 1 && variants[0].OutputDir == outputDir ? variants[0].PendingManifest!.Manifest : new BuildManifest();
-        Record(manifest, outputDir, items);
+        Record(manifest, outputDir, items, site);
         return manifest;
     }
 }

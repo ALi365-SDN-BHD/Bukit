@@ -30,7 +30,8 @@ internal static class I18nRootProjectionCoordinator
         string rootBaseUrl,
         IReadOnlyList<BuildVariantResult> results,
         ILogger logger,
-        ISearchIndexBuilder? searchIndexBuilder = null)
+        ISearchIndexBuilder? searchIndexBuilder = null,
+        bool skipRootRobots = false)
     {
         var projectionContext = new PublishProjectionContext(
             Config: config,
@@ -44,10 +45,19 @@ internal static class I18nRootProjectionCoordinator
             VariantResults: results,
             DerivedDocuments: Array.Empty<RoutedContentDocument>());
         var writerContext = ToWriterContext(projectionContext, searchIndexBuilder);
+        var representations = PublishRepresentationRegistry.AggregateRepresentations();
+        if (skipRootRobots)
+        {
+            representations = representations
+                .Where(representation => representation.Kind != "robots")
+                .ToArray();
+        }
 
-        return WriterRegistry.BuildPlan(PublishRepresentationRegistry.AggregateRepresentations())
+        var projections = WriterRegistry.BuildPlan(representations)
             .Select(entry => Project(writerContext, entry.Representation, entry.Writer))
             .ToArray();
+        I18nRootRedirectWriter.WriteIfRequested(config, outputDir);
+        return projections;
     }
 
     internal static PublishProjectionResult Project(

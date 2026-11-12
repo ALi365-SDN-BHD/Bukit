@@ -37,6 +37,14 @@ search, llms, robots, and agent manifest.
 
 Reports are not optional prose. CLI audit commands consume them directly.
 
+Report scan scope depends on the i18n layout. `PublicOutputPrivacyCheck`,
+`AssetsReportInventory`, and `ReleaseBundleInventory` skip the root `.bukit/`
+tree, which includes `.bukit/variants/<lang>/` for a root default language. In
+the prefixed layout, `<lang>/.bukit/` is outside the root report tree and is
+therefore scanned and included in the asset and release inventories. The
+release-bundle checksum set can differ between the two layouts; this is
+intentional and fixed by tests.
+
 `BuildDiagnosticLogger` counts Warn/Error events per build invocation and shares
 the same counters across language-variant forwarders. `BuildOutputInventory`
 captures sorted root-relative public files before the report is written and

@@ -5,6 +5,7 @@ using Bukit.Engine.Abstractions.Content;
 using Bukit.Engine.Abstractions.Plugins;
 using Bukit.Rendering;
 using Bukit.Engine.Abstractions.Routing;
+using Bukit.Engine.Primitives;
 using Bukit.Shared;
 
 namespace Bukit.Engine;
@@ -28,11 +29,13 @@ internal static partial class SeoAuditReportWriter
         ILogger logger,
         IReadOnlyList<PublishProjectionResult>? projectionResults = null,
         IReadOnlyDictionary<string, ContentDocument>? documentsByOutputPath = null,
-        bool logIssues = true)
+        bool logIssues = true,
+        string? reportDir = null,
+        AuditOutputReadPaths? readPaths = null)
     {
         var result = MachineReadabilityTrustAuditBuilder.Build(config, outputDir, seoIndex, seoModels, contentGraph,
-            requireHreflangTargets: false, projectionResults, documentsByOutputPath);
-        WriteReport(outputDir, result, logger, logIssues);
+            requireHreflangTargets: false, projectionResults, documentsByOutputPath, readPaths);
+        WriteReport(outputDir, result, logger, logIssues, reportDir);
         return result.SeoReport;
     }
 
@@ -42,7 +45,8 @@ internal static partial class SeoAuditReportWriter
         IReadOnlyList<PublishedVariant> results,
         ILogger logger,
         IReadOnlyList<PublishProjectionResult>? projectionResults = null,
-        IReadOnlyList<VariantAuditIssues>? variantIssues = null)
+        IReadOnlyList<VariantAuditIssues>? variantIssues = null,
+        IReadOnlyDictionary<string, string>? outputPrefixes = null)
     {
         var seoIndex = new Dictionary<string, SeoIndexEntry>(StringComparer.OrdinalIgnoreCase);
         var seoModels = new Dictionary<string, SeoModel>(StringComparer.OrdinalIgnoreCase);
@@ -63,7 +67,7 @@ internal static partial class SeoAuditReportWriter
                 {
                     Route = new RouteInfo(
                         CombineBaseUrl(result.BaseUrl, entry.Route.Url),
-                        Path.Combine(result.Language, entry.Route.OutputPath),
+                        CombineOutputPath(result.Language, entry.Route.OutputPath, outputPrefixes),
                         entry.Route.Template)
                 };
             }
@@ -81,7 +85,7 @@ internal static partial class SeoAuditReportWriter
         {
             Outputs = [.. projection.Outputs.Select(output => output with
             {
-                Path = BuildPathUtils.NormalizeRelPath(Path.Combine(result.Language, output.Path)),
+                Path = BuildPathUtils.NormalizeRelPath(CombineOutputPath(result.Language, output.Path, outputPrefixes)),
                 DocumentRoute = output.DocumentRoute is null ? null : CombineBaseUrl(result.BaseUrl, output.DocumentRoute)
             })]
         }));
@@ -150,15 +154,21 @@ internal static partial class SeoAuditReportWriter
             TimeSpan.FromSeconds(1));
     }
 
-    private static void WriteReport(string outputDir, MachineReadabilityTrustAuditResult result, ILogger logger, bool logIssues = true)
+    private static void WriteReport(
+        string outputDir,
+        MachineReadabilityTrustAuditResult result,
+        ILogger logger,
+        bool logIssues = true,
+        string? reportDir = null)
     {
         var report = result.SeoReport;
         var json = JsonSerializer.Serialize(report, SeoAuditReportJsonContext.Default.SeoAuditReport);
-        FileWriter.WriteUtf8(outputDir, Path.Combine(BuildReportPaths.ReportDirectoryName, "seo-report.json"), json + Environment.NewLine);
-        PublishAuditReportWriter.Write(outputDir, result.PublishReport);
-        SeoRouteMapWriter.Write(outputDir, result.RouteMap);
+        var directory = reportDir ?? Path.Combine(outputDir, BuildReportPaths.ReportDirectoryName);
+        FileWriter.WriteUtf8(directory, "seo-report.json", json + Environment.NewLine);
+        PublishAuditReportWriter.Write(outputDir, result.PublishReport, reportDir);
+        SeoRouteMapWriter.Write(outputDir, result.RouteMap, reportDir);
 
-        WriteGeoReport(outputDir, report, logger);
+        WriteGeoReport(outputDir, report, logger, reportDir);
         if (logIssues)
         {
             LogIssues(report.Issues, logger);
@@ -196,7 +206,7 @@ internal static partial class SeoAuditReportWriter
         return "seo.audit";
     }
 
-    private static void WriteGeoReport(string outputDir, SeoAuditReport report, ILogger logger)
+    private static void WriteGeoReport(string outputDir, SeoAuditReport report, ILogger logger, string? reportDir = null)
     {
         if (report.Summary is null)
         {
@@ -218,7 +228,8 @@ internal static partial class SeoAuditReportWriter
                 .ToList());
 
         var json = JsonSerializer.Serialize(geoReport, GeoReportJsonContext.Default.GeoReport);
-        FileWriter.WriteUtf8(outputDir, Path.Combine(BuildReportPaths.ReportDirectoryName, "geo-report.json"), json + Environment.NewLine);
+        var directory = reportDir ?? Path.Combine(outputDir, BuildReportPaths.ReportDirectoryName);
+        FileWriter.WriteUtf8(directory, "geo-report.json", json + Environment.NewLine);
     }
 
     internal static SeoAuditReport Build(
@@ -230,5 +241,14 @@ internal static partial class SeoAuditReportWriter
         bool requireHreflangTargets = true)
         => MachineReadabilityTrustAuditBuilder.Build(config, outputDir, seoIndex, seoModels, contentGraph, requireHreflangTargets).SeoReport;
 
-
+    private static string CombineOutputPath(
+        string language,
+        string path,
+        IReadOnlyDictionary<string, string>? outputPrefixes)
+    {
+        var prefix = outputPrefixes is not null && outputPrefixes.TryGetValue(language, out var value)
+            ? value
+            : language;
+        return string.IsNullOrEmpty(prefix) ? path : Path.Combine(prefix, path);
+    }
 }

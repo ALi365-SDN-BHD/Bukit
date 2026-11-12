@@ -114,6 +114,11 @@ internal sealed class DefaultContentProjectionWriter : IContentProjectionWriter
         {
             var record = documentContext.Record;
             var route = documentContext.Route;
+            if (route.Template == RedirectPageHtml.RouteTemplate)
+            {
+                continue;
+            }
+
             var entry = documentContext.SeoIndexEntry;
             var model = documentContext.SeoModel;
             if (entry?.Indexable == false)
@@ -317,6 +322,13 @@ internal sealed class AgentManifestProjection : IPublishProjection
 
     public PublishProjectionResult Project(PublishProjectionContext context)
     {
+        if (I18nOutputLayout.IsRootLanguageOutput(context.Config))
+        {
+            return new PublishProjectionResult(
+                Representation,
+                [new PublishRepresentationOutput(Representation.Kind, "/" + Representation.Path, Representation.Path, Exists: false, Indexable: false)]);
+        }
+
         var path = Project(context.OutputDir, DefaultContentProjectionWriter.BuildAgentManifestEntries(context));
         return new PublishProjectionResult(
             Representation,

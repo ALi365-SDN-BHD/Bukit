@@ -137,12 +137,14 @@ default language's own code SHALL NOT be reserved.
 The layout setting SHALL contribute to the incremental site hash only when it is
 `false`. When the recorded layout of the previous build differs from the current
 one, Bukit SHALL clean the output directory through the existing protected
-clean path before writing, so no file from the previous layout remains. Stale
-file and empty directory removal for the root default language SHALL NOT remove
-files or directories owned by another language.
+clean path before writing, so no content output from the previous layout
+remains. When `defaultLanguageRedirect` is `true`, the root layout may still
+write `<lang>/index.html` as a redirect page. Stale file and empty directory
+removal for the root default language SHALL NOT remove files or directories
+owned by another language.
 
 #### Scenario: Switching to a root default language
-- **WHEN** a site previously built with `dist/en/` is rebuilt with `defaultLanguageInSubdir: false`
+- **WHEN** a site previously built with `dist/en/` is rebuilt with `defaultLanguageInSubdir: false` and `defaultLanguageRedirect: false`
 - **THEN** `dist/en/` no longer exists after the build and `dist/index.html` is the English home page
 
 #### Scenario: Upgrade without opting in

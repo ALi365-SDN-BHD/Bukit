@@ -217,7 +217,8 @@ internal static class I18nWorktreeProtocol
         string expectedContentHash,
         string expectedLanguage,
         string expectedOutputDir,
-        string manifestPath)
+        string manifestPath,
+        SiteConfig? site = null)
     {
         if (snapshot.Schema != ResultSchema || !snapshot.Completed ||
             !string.Equals(snapshot.Head, expectedHead, StringComparison.Ordinal) ||
@@ -229,7 +230,7 @@ internal static class I18nWorktreeProtocol
             throw new InvalidDataException("Worker result identity or protocol version is invalid.");
         }
 
-        ValidateOutputPaths(expectedOutputDir, snapshot);
+        ValidateOutputPaths(expectedOutputDir, snapshot, site);
         var bodyStore = new DictionaryContentBodyStore(snapshot.Bodies);
         return new BuildVariantResult(
             snapshot.Language,
@@ -295,9 +296,9 @@ internal static class I18nWorktreeProtocol
             PluginOutputs = new Dictionary<string, PluginOutputManifestEntry>(snapshot.PluginOutputs, StringComparer.Ordinal)
         };
 
-    private static void ValidateOutputPaths(string outputDir, I18nVariantSnapshot snapshot)
+    private static void ValidateOutputPaths(string outputDir, I18nVariantSnapshot snapshot, SiteConfig? site)
     {
-        foreach (var path in snapshot.PlannedOutputs.Select(x => x.Destination)
+        var paths = snapshot.PlannedOutputs.Select(x => x.Destination)
                      .Concat(snapshot.PluginOutputs.Select(x => x.Path))
                      .Concat(snapshot.RoutedDocuments.Select(x => x.Route.OutputPath))
                      .Concat(snapshot.ListRoutes.Select(x => x.OutputPath))
@@ -309,7 +310,20 @@ internal static class I18nWorktreeProtocol
                      .Concat(snapshot.Manifest.Media.Keys)
                      .Concat(snapshot.Manifest.Assets.Keys)
                      .Concat(snapshot.Manifest.Static.Keys)
-                     .Concat(snapshot.Manifest.PluginOutputs.Values.Select(x => x.Path)))
+                     .Concat(snapshot.Manifest.PluginOutputs.Values.Select(x => x.Path))
+            .ToList();
+
+        if (site is not null)
+        {
+            var languages = I18nOutputMerger.GetLanguages(site);
+            var layout = I18nOutputLayout.Create(site, languages, site.BaseUrl);
+            if (layout.IsRootLanguage(snapshot.Language))
+            {
+                I18nReservedPrefixGuard.ValidateWorktreeOutputs(paths, layout.ReservedPrefixes);
+            }
+        }
+
+        foreach (var path in paths)
         {
             _ = FileWriter.GetSafeFullPath(outputDir, path);
         }

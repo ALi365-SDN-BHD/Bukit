@@ -318,6 +318,38 @@ public sealed class I18nWorktreeProtocolTests : IDisposable
     }
 
     [Fact]
+    public void VariantResult_RejectsReservedLanguagePrefixForRootDefaultLanguage()
+    {
+        var output = Path.Combine(_root, "output");
+        var snapshot = CreateVariantSnapshot(output) with
+        {
+            PlannedOutputs = [new I18nAssetOutputSnapshot("test", "zh-CN/sw.js", AssetOutputCategory.Plugin, AssetOutputOperation.Generate)]
+        };
+        var site = new SiteConfig
+        {
+            Name = "root-language",
+            Title = "Root language",
+            Languages = ["en", "zh-CN"],
+            DefaultLanguage = "en",
+            DefaultLanguageInSubdir = false
+        };
+
+        var error = Assert.Throws<BukitException>(() => I18nWorktreeProtocol.RestoreVariant(
+            snapshot,
+            CanonicalContentGraph.Empty,
+            "head",
+            "config-hash",
+            "hash",
+            "en",
+            output,
+            Path.Combine(_root, "manifest.json"),
+            site));
+
+        Assert.Equal(DiagnosticCode.I18nRouteReservedLanguagePrefix, error.Code);
+        Assert.Contains("zh-CN", error.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void VariantResult_RejectsTraversalOutsidePlannedOutputs()
     {
         var output = Path.Combine(_root, "output");

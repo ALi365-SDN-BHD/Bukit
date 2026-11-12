@@ -26,6 +26,11 @@ internal static class VariantRenderAssetPlanner
         string? parentThemeRootForTokens,
         ILogger logger)
     {
+        I18nRootOutputConflictGuard.Validate(
+            context.Config,
+            Directory.Exists(context.StaticDir) ? context.StaticDir : null,
+            context.ParentStaticDir);
+
         var renderDocuments = routeResult.RoutedDocuments
             .Concat(derivedDocuments)
             .ToList();
@@ -57,7 +62,10 @@ internal static class VariantRenderAssetPlanner
             RenderEntries: renderEntries,
             ManifestEntries: manifestSetup.ManifestEntries,
             ScssOutputDir: context.ScssOutputDir,
-            ProjectionOutputs: PublicOutputLifecycle.ProjectionPlan(context.Config, renderDocuments.Select(x => x.Route)));
+            ProjectionOutputs: PublicOutputLifecycle.ProjectionPlan(
+                context.Config,
+                renderDocuments.Select(x => x.Route),
+                language: context.Config.Site.Language));
 
         return new VariantRenderAssetPlan(
             renderDocuments,

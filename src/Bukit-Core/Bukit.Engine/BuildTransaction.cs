@@ -400,15 +400,7 @@ internal sealed class BuildTransaction : IDisposable
 
     private static void RejectGeneratedOutputLinks(string output, AppConfig config)
     {
-        var paths = new List<string> { ".bukit", ".bukit-output-marker", ".bukit-build-state.json" };
-        paths.AddRange(PublicOutputLifecycle.ProjectionPlan(config, []).Select(item => item.Destination));
-        foreach (var language in I18nOutputMerger.GetLanguages(config.Site))
-        {
-            paths.Add(language);
-            paths.AddRange(PublicOutputLifecycle.ProjectionPlan(config, []).Select(item => Path.Combine(language, item.Destination)));
-            paths.Add(Path.Combine(language, ".bukit"));
-        }
-        foreach (var relative in paths)
+        foreach (var relative in GeneratedOutputLinkPaths(config))
         {
             var current = output;
             foreach (var part in relative.Split('/', Path.DirectorySeparatorChar))
@@ -419,6 +411,46 @@ internal sealed class BuildTransaction : IDisposable
                 catch (DirectoryNotFoundException) { break; }
             }
         }
+    }
+
+    internal static IReadOnlyList<string> GeneratedOutputLinkPaths(AppConfig config)
+    {
+        var paths = new List<string> { ".bukit", ".bukit-output-marker", ".bukit-build-state.json" };
+        var languages = I18nOutputMerger.GetLanguages(config.Site);
+        var layout = I18nOutputLayout.Create(config.Site, languages, config.Site.BaseUrl);
+        var rootLanguage = languages.FirstOrDefault(layout.IsRootLanguage);
+        paths.AddRange(PublicOutputLifecycle.ProjectionPlan(config, [], root: true)
+            .Select(item => item.Destination));
+        if (rootLanguage is not null)
+        {
+            paths.AddRange(PublicOutputLifecycle.ProjectionPlan(config, [], language: rootLanguage)
+                .Select(item => item.Destination));
+        }
+        else
+        {
+            paths.AddRange(PublicOutputLifecycle.ProjectionPlan(config, [])
+                .Select(item => item.Destination));
+        }
+
+        if (I18nRootRedirectWriter.ShouldWrite(config))
+        {
+            paths.Add("index.html");
+        }
+
+        foreach (var language in languages)
+        {
+            var prefix = layout.RelativeOutputPrefix(language);
+            if (!string.IsNullOrEmpty(prefix))
+            {
+                paths.Add(prefix);
+            }
+
+            paths.AddRange(PublicOutputLifecycle.ProjectionPlan(config, [], language: language)
+                .Select(item => I18nOutputLayout.CombineRelative(prefix, item.Destination)));
+            paths.Add(I18nOutputLayout.CombineRelative(prefix, ".bukit"));
+        }
+
+        return paths;
     }
 
     private static string Fingerprint(string path)

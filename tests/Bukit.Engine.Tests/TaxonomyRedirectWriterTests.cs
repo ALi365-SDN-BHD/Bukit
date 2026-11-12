@@ -44,6 +44,8 @@ public sealed class TaxonomyRedirectWriterTests : IDisposable
 
         var content = File.ReadAllText(aliasPath);
         Assert.Contains("http-equiv=\"refresh\"", content, StringComparison.Ordinal);
+        Assert.Contains("<meta name=\"robots\" content=\"noindex\">", content, StringComparison.Ordinal);
+        Assert.Contains("<title>Redirect</title>", content, StringComparison.Ordinal);
         Assert.Contains("url=/tags/tech/", content, StringComparison.Ordinal);
         Assert.True(File.Exists(Path.Combine(_tempDir, "tags", "it", "index.html")));
         Assert.Equal(["existing.txt", "tags/technology/index.html", "tags/it/index.html"], generatedPaths);

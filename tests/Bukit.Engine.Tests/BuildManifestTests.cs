@@ -222,6 +222,25 @@ public sealed class BuildManifestTests
         Assert.Equal("meta-v1", loaded.Entries["pages/hello/index.html"].MetadataHash);
     }
 
+    [Fact]
+    public void Layout_RoundTripsAndOlderManifestDefaultsToSubdir()
+    {
+        var path = Path.GetTempFileName();
+        try
+        {
+            var manifest = new BuildManifest { Layout = "root", OwnedOutputs = ["index.html"] };
+            manifest.Save(path);
+            Assert.Equal("root", BuildManifest.Load(path).Layout);
+
+            File.WriteAllText(path, """{"version":3,"outputRoot":"/tmp/output","ownedOutputs":[]}""");
+            Assert.Equal("subdir", BuildManifest.Load(path).Layout);
+        }
+        finally
+        {
+            File.Delete(path);
+        }
+    }
+
     private sealed class CancelAfterFirstReadStream : Stream
     {
         private const int MaxChunkSize = 1024;
