@@ -68,8 +68,5 @@ internal sealed class I18nRootLlmsWriter : II18nRootProjectionWriter
     }
 
     private static I18nOutputLayout CreateLayout(I18nRootProjectionWriterContext context)
-        => I18nOutputLayout.Create(
-            context.Config.Site,
-            I18nOutputMerger.GetLanguages(context.Config.Site),
-            context.Config.Site.BaseUrl);
+        => I18nOutputLayout.For(context.Config.Site);
 }

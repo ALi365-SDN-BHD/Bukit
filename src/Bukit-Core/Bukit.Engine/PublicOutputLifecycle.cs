@@ -170,7 +170,11 @@ internal static class PublicOutputLifecycle
         AssetOutputPlan.Validate(items, OutputDestinationIdentityComparer.ForOutputRoot(outputDir));
         var previous = BuildManifest.Load(ManifestPath(rootDir, overrides), logger);
         DeleteStale(outputDir, previous, items.Select(x => x.Destination).ToHashSet(OutputDestinationIdentityComparer.ForOutputRoot(outputDir)));
-        var manifest = variants.Count == 1 && variants[0].OutputDir == outputDir ? variants[0].PendingManifest!.Manifest : new BuildManifest();
+        // Only a non-i18n build (no root outputs) shares its single variant's manifest; a root
+        // layout with one configured language writes into the same directory but keeps them apart.
+        var manifest = rootOutputs is null && variants.Count == 1 && variants[0].OutputDir == outputDir
+            ? variants[0].PendingManifest!.Manifest
+            : new BuildManifest();
         Record(manifest, outputDir, items, site);
         return manifest;
     }

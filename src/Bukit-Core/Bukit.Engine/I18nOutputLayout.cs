@@ -18,6 +18,7 @@ internal sealed class I18nOutputLayout
     private readonly string _rootBaseUrl;
     private readonly bool _defaultLanguageInSubdir;
     private readonly string _defaultLanguage;
+    private bool _placementOnly;
 
     private I18nOutputLayout(
         SiteConfig site,
@@ -52,7 +53,12 @@ internal sealed class I18nOutputLayout
     /// need root-relative base URLs must use <see cref="Create"/> with the root base URL instead.
     /// </summary>
     internal static I18nOutputLayout For(SiteConfig site)
-        => PlacementCache.GetValue(site, key => Create(key, I18nOutputMerger.GetLanguages(key), key.BaseUrl));
+        => PlacementCache.GetValue(site, key =>
+        {
+            var layout = Create(key, I18nOutputMerger.GetLanguages(key), key.BaseUrl);
+            layout._placementOnly = true;
+            return layout;
+        });
 
     internal bool IsMultilingual => _languages.Count > 0;
 
@@ -60,7 +66,9 @@ internal sealed class I18nOutputLayout
         => IsMultilingual && !_defaultLanguageInSubdir && IsDefaultLanguage(language);
 
     internal string BaseUrl(string language)
-        => IsRootLanguage(language) || !IsMultilingual
+        => _placementOnly
+            ? throw new InvalidOperationException("A placement layout from For() has no root base URL; use Create with the root base URL.")
+            : IsRootLanguage(language) || !IsMultilingual
             ? _rootBaseUrl
             : I18nLanguagePolicy.CombineBaseUrlWithLanguage(_rootBaseUrl, language);
 
@@ -104,7 +112,7 @@ internal sealed class I18nOutputLayout
     /// Audit read locations for a root language. Root aggregate files are written after every
     /// language, so reading them here would make the audit depend on the previous build.
     /// </summary>
-    internal AuditOutputReadPaths? AuditReadPaths(string outputRoot, string language, string? staticDir = null)
+    internal AuditOutputReadPaths? AuditReadPaths(string outputRoot, string language, IReadOnlyList<string?> staticDirs)
     {
         if (!IsRootLanguage(language))
         {
@@ -119,20 +127,24 @@ internal sealed class I18nOutputLayout
             : null;
         var feedRoot = feedMode == "split" ? outputRoot : null;
         var feedPath = (_site.Feed.Path ?? "feed").Trim('/');
-        var robots = staticDir is not null && File.Exists(Path.Combine(staticDir, "robots.txt"))
+        var robots = staticDirs.Any(directory => directory is not null && File.Exists(Path.Combine(directory, "robots.txt")))
             ? Path.Combine(outputRoot, "robots.txt")
             : null;
         return new AuditOutputReadPaths(
             Sitemap: sitemap,
             Search: searchMode == "merged" ? null : Path.Combine(outputRoot, "search.json"),
             Rss: feedRoot is null ? null : Path.Combine(feedRoot, "rss.xml"),
-            Atom: feedRoot is null ? null : Path.Combine(feedRoot, feedPath, "atom.xml"),
-            JsonFeed: feedRoot is null ? null : Path.Combine(feedRoot, feedPath, "feed.json"),
+            Atom: feedRoot is null ? null : FirstExisting(Path.Combine(feedRoot, feedPath, "atom.xml"), Path.Combine(feedRoot, "atom.xml")),
+            JsonFeed: feedRoot is null ? null : FirstExisting(Path.Combine(feedRoot, feedPath, "feed.json"), Path.Combine(feedRoot, "feed.json")),
             AgentManifest: null,
             Robots: robots,
             Llms: null,
             LlmsFull: null);
     }
+
+    // Same fallback as AuditOutputReadPaths.ForOutputDirectory: feeds may sit at the output root.
+    private static string FirstExisting(string preferred, string fallback)
+        => File.Exists(preferred) ? preferred : fallback;
 
     internal static string ManifestLayout(SiteConfig site)
     {

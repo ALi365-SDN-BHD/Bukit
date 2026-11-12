@@ -359,6 +359,10 @@ internal sealed class WorktreeBuildRun
     private async Task RunWorkersAsync(I18nVariantSnapshot[] snapshots, int languageJobs, CancellationToken cancellationToken)
     {
         using var workersCancellation = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        // After any failure the other workers stop early; the default language worker always runs
+        // to completion so its root-cause failure can still be reported first.
+        using var stopOtherWorkers = new CancellationTokenSource();
+        var defaultLanguage = I18nOutputMerger.GetDefaultLanguage(_effectiveConfig.Site, _languages);
         var failures = new System.Collections.Concurrent.ConcurrentDictionary<string, Exception>(StringComparer.OrdinalIgnoreCase);
         try
         {
@@ -369,12 +373,21 @@ internal sealed class WorktreeBuildRun
                     MaxDegreeOfParallelism = languageJobs,
                     CancellationToken = workersCancellation.Token
                 },
-                async (item, ct) =>
+                async (item, parallelToken) =>
                 {
+                    using var workerCancellation = string.Equals(item.plan.Language, defaultLanguage, StringComparison.OrdinalIgnoreCase)
+                        ? null
+                        : CancellationTokenSource.CreateLinkedTokenSource(parallelToken, stopOtherWorkers.Token);
+                    var ct = workerCancellation?.Token ?? parallelToken;
                     try
                     {
+                        ct.ThrowIfCancellationRequested();
                         await WorktreeBuildCoordinator.RunWorkerProcessAsync(item.plan, _logger, ct).ConfigureAwait(false);
                         snapshots[item.index] = await I18nWorktreeProtocolStore.ReadResultAsync(item.plan.ResultPath, ct).ConfigureAwait(false);
+                    }
+                    catch (OperationCanceledException) when (!parallelToken.IsCancellationRequested && stopOtherWorkers.IsCancellationRequested)
+                    {
+                        // Stopped because another worker already failed.
                     }
                     catch (Exception ex) when (ex is not OperationCanceledException)
                     {
@@ -384,6 +397,7 @@ internal sealed class WorktreeBuildRun
                                 "i18n-worktree-result-invalid",
                                 $"Worker result for language '{item.plan.Language}' is invalid: {ex.Message}",
                                 ex);
+                        await stopOtherWorkers.CancelAsync().ConfigureAwait(false);
                     }
                 }).ConfigureAwait(false);
         }
@@ -406,9 +420,19 @@ internal sealed class WorktreeBuildRun
         }
     }
 
+    /// <summary>
+    /// A layout switch is only known from a previous manifest; without one (fresh or cleared
+    /// cache) the build is not a switch, matching the in-process migration check.
+    /// </summary>
     private static bool LayoutChanged(string cacheDir, SiteConfig site, ILogger logger)
     {
-        var prior = BuildManifest.Load(Path.Combine(cacheDir, "build-manifest.json"), logger);
+        var manifestPath = Path.Combine(cacheDir, "build-manifest.json");
+        if (!File.Exists(manifestPath))
+        {
+            return false;
+        }
+
+        var prior = BuildManifest.Load(manifestPath, logger);
         return !string.Equals(prior.Layout, I18nOutputLayout.ManifestLayout(site), StringComparison.Ordinal);
     }
 
