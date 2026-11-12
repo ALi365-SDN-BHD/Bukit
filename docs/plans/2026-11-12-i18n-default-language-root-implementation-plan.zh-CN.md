@@ -12,9 +12,9 @@
 
 1. **先做"默认值行为不变"的重构，再加新行为。** 阶段 2 把所有拼接语言代码的位置收拢到 `I18nOutputLayout`，此时布局固定为"带前缀"，现有 i18n 测试必须原样通过。之后每个阶段都在这个对照之上增加根目录布局的行为。
 2. **默认值下唯一的对外变化是带前缀布局的根目录跳转页**（阶段 4）。它单独成一个阶段、单独测试，便于评审和回退。
-3. **根目录布局分四步打开**：输出与 URL（阶段 5）→ 根目录归属与报告（阶段 6）→ 保留前缀（阶段 7）→ Worktree（阶段 8）。在阶段 7 完成之前，根目录布局只在测试中使用，不写进任何用户文档。
+3. **根目录布局分四步打开**：布局开关、根目录归属与报告（阶段 5）→ 输出、URL 与其余归属（阶段 6）→ 保留前缀（阶段 7）→ Worktree（阶段 8）。归属必须先于输出验收，否则默认语言与根目录聚合的同名文件会在重复检查中失败。在阶段 7 完成之前，根目录布局只在测试中使用，不写进任何用户文档。
 4. **任务按严格顺序排列**，同一时刻只有一个实施者写仓库（AGENTS.md 单写者规则）。"依赖"一栏说明为什么排在这里；没有依赖关系的任务也不并行写，只有只读的调查可以并行。
-5. 每个任务都应能单独编译、单独通过所列测试，并单独形成一个提交（提交需授权）。
+5. 每个任务都应能单独编译、单独通过所列测试，并单独形成一个提交（提交需授权）。引入公共成员的任务必须在同一任务内更新公共 API 基线，否则中间提交会让 `scripts/gates/ci-fast.sh` 中的 `public-api-drift.sh` 失败。
 
 ## 1. 约束与执行方式
 
@@ -22,6 +22,7 @@
 - 测试：只跑每个任务列出的专项测试（`dotnet test <项目> -c Release --filter <过滤>`）。不跑 `scripts/test-all.sh`、`scripts/smoke-all.sh`、整个解决方案的测试和 full/release gate，除非用户明确授权。
 - 证据：GREEN 结果用 `codex-workflow.py cache record` 缓存；闭包、命令、环境、SDK 不变时复用，不重复跑同一 fixture。
 - 审查：每个阶段实施并测完后做一次专项审查；只有严重或重要问题才回到实施。全部阶段完成后生成一次 `review-scope`，做一次只看增量的统一审查。
+- 公共 API：`SiteConfig` 新属性（T01.1）、`DiagnosticCode` 新成员（T06.8、T07.1）在引入时同步更新 `docs/governance/bukit-core-public-api-baseline.v1.json`，并跑 `bash scripts/checks/public-api-drift.sh check`。
 - 记录：各阶段耗时、缓存命中、重跑、写者冲突用 `codex-workflow.py metrics add` 记录。
 
 ## 2. 总体顺序
@@ -33,8 +34,8 @@
 | 2 | `I18nOutputLayout` 与重构（布局固定为带前缀） | 不变 | T02.1–T02.7 |
 | 3 | 跳转页共用实现 | alias、分类跳转页加 `<title>` 和 `noindex` | T03.1–T03.3 |
 | 4 | 带前缀布局的根目录跳转页 | **新增根目录 `index.html`** | T04.1–T04.4 |
-| 5 | 根目录布局：输出目录与 URL | 不变 | T05.1–T05.6 |
-| 6 | 根目录布局：根目录归属、static、报告 | 不变 | T06.1–T06.9 |
+| 5 | 根目录布局：布局开关、根目录归属与报告 | 不变 | T05.1–T05.6 |
+| 6 | 根目录布局：输出、URL、robots、feed/search、static | 不变 | T06.1–T06.9 |
 | 7 | 根目录布局：路由保留前缀 | 不变 | T07.1–T07.7 |
 | 8 | 根目录布局：Worktree 构建 | 不变 | T08.1–T08.5 |
 | 9 | 根目录布局：`/<lang>/` 跳转页 | 不变 | T09.1–T09.3 |
@@ -66,8 +67,8 @@
 ### 阶段 1：配置项与校验
 
 **T01.1 `SiteConfig` 新增两个属性**
-- 改动：`Bukit.Config/AppConfig.cs` 中的 `SiteConfig` 新增 `bool DefaultLanguageInSubdir { get; init; } = true;`、`bool DefaultLanguageRedirect { get; init; } = true;`。
-- 测试：编译通过；`tests/Bukit.Config.Tests` 新增默认值断言。
+- 改动：`Bukit.Config/AppConfig.cs` 中的 `SiteConfig` 新增 `bool DefaultLanguageInSubdir { get; init; } = true;`、`bool DefaultLanguageRedirect { get; init; } = true;`；同一任务内在 `docs/governance/bukit-core-public-api-baseline.v1.json` 登记这两个属性。
+- 测试：编译通过；`tests/Bukit.Config.Tests` 新增默认值断言；`bash scripts/checks/public-api-drift.sh check`。
 - 依赖：T00.3。
 
 **T01.2 YAML 读取**
@@ -86,8 +87,8 @@
 - 依赖：T01.3。
 
 **T01.5 配置校验**
-- 改动：`Bukit.Config/SiteConfigValidator.cs`（search mode 校验附近，约第 91 行）：`languages` 非空、`DefaultLanguageInSubdir == false` 且 search mode 解析为 `merged` 时抛 `ConfigException`，信息同时点名 `site.defaultLanguageInSubdir` 和 `site.search.mode`；`languages` 为空且任一新字段为 `false` 时记录警告（按现有警告通道）。
-- 测试：`ConfigPhase2ValidatorTests` 或 `ConfigValidatorTests` 新增：merged 组合报错、split/index 通过、无 languages 时警告。
+- 改动：`Bukit.Config/SiteConfigValidator.cs`（search mode 校验附近，约第 91 行）：`languages` 非空、`DefaultLanguageInSubdir == false` 且 search mode 解析为 `merged` 时抛 `ConfigException`，信息同时点名 `site.defaultLanguageInSubdir` 和 `site.search.mode`；配置层（`SiteConfigValidator`、`ConfigValidator`）只抛异常、没有警告通道，因此"`languages` 为空且任一新字段为 `false`"的警告放在引擎构建开始处，用 `BuildDiagnosticLogger.Warn` 记录（参照 `BuildPlanner.cs:112` 的 `event=` 写法）。
+- 测试：`ConfigPhase2ValidatorTests` 或 `ConfigValidatorTests` 新增：merged 组合报错、split/index 通过；`SiteEngineLoggerTests` 新增：无 languages 时记录警告且输出不变。
 - 依赖：T01.4。
 
 **T01.6 增量站点哈希**
@@ -126,10 +127,9 @@
 - 依赖：T02.4。
 
 **T02.6 `BuildTransaction.RejectGeneratedOutputLinks`**
-- 改动：`BuildTransaction.cs:401-408` 的路径清单按布局生成：根目录聚合用 `ProjectionPlan(config, [], root: true)`；每种语言加其相对前缀，空前缀不当作语言目录。
-- 测试：`BuildTransactionTests` 原样通过，并新增带前缀布局下清单内容与改动前相同的断言。
+- 改动：`BuildTransaction.cs:401-408` 的语言部分改用布局相对前缀（空前缀不当作语言目录）；根目录部分（第 404 行，现为非 root 计划）**本阶段原样保留**，不改为 `root: true`，以免改变带前缀布局下的检查范围。根目录布局下的清单在 T05.2 随 `ProjectionPlan` 一起调整。
+- 测试：`BuildTransactionTests` 原样通过，并新增带前缀布局下清单内容与改动前完全相同的断言。
 - 依赖：T02.5。
-- 说明：第 404 行现在对根目录用的是非 root 计划，改动时确认清单只会更准确、不会漏检。
 
 **T02.7 报告目录与 analytics 报告查找**
 - 改动：`VariantReportStage` 和 `SeoAuditReportWriter.Write` 的报告目录改由布局提供（带前缀时结果不变）；`BuildReportInventories.cs` 中 `ArtifactManifestInventory.AddVariantAnalyticsReports` 按 `layout.ReportDir` 查找。
@@ -157,15 +157,20 @@
 
 ### 阶段 4：带前缀布局的根目录跳转页（默认开启）
 
-**T04.1 根目录跳转页 writer**
-- 改动：新增 `Bukit.Engine/I18nRootRedirectWriter.cs`，实现 `II18nRootProjectionWriter`：带前缀布局、`DefaultLanguageRedirect == true`、`languages` 非空时写 `<output>/index.html`，目标 `<baseUrl>/<defaultLang>/`；配置了 `site.url` 时用绝对地址。
-- 测试：新增 `I18nRootRedirectTests`（writer 级）：绝对/相对地址、`/repo` baseUrl、`false` 时不写。
+**T04.1 新增聚合表示 `redirect`**
+- 改动：根目录 writer 按聚合表示派发（`I18nRootProjectionWriterRegistry.BuildPlan` 遍历 `PublishRepresentationRegistry.AggregateRepresentations()`，再按 kind 找 writer），只注册 writer 不会被调用。因此在 `Bukit.Engine.Primitives/PublishRepresentations.cs` 新增聚合表示 `redirect`，并在 `ExpectedAggregateKinds` 与 `PublishRepresentationExpectation` 中加入对应条件（带前缀布局、`languages` 非空、`DefaultLanguageRedirect == true`）。
+- 测试：`PublishRepresentationRegistryTests` 更新聚合表示清单与 expectation 断言；`BuildReportPipelineProjectionResultTests` 中依赖聚合 kind 清单的断言同步更新。
 - 依赖：阶段 3 完成。
 
-**T04.2 注册与根目录计划输出**
-- 改动：`I18nRootProjectionWriterRegistry.CreateDefault()` 注册新 writer；`PublicOutputLifecycle.ProjectionPlan(root: true)` 在相同条件下加入 `index.html`，使其进入根目录归属清单（受保护删除、重复检查）。
-- 测试：`I18nRegressionTests` 或新增集成测试：默认配置的多语言构建生成 `dist/index.html`；关闭后上次生成的 `index.html` 被作为自有文件删除。
+**T04.1a 根目录跳转页 writer**
+- 改动：新增 `Bukit.Engine/I18nRootRedirectWriter.cs`，实现 `II18nRootProjectionWriter`，`RepresentationKinds => ["redirect"]`：带前缀布局、`DefaultLanguageRedirect == true`、`languages` 非空时写 `<output>/index.html`，目标 `<baseUrl>/<defaultLang>/`；配置了 `site.url` 时用绝对地址。
+- 测试：新增 `I18nRootRedirectTests`（writer 级）：绝对/相对地址、`/repo` baseUrl、`false` 时不写。
 - 依赖：T04.1。
+
+**T04.2 注册与根目录计划输出**
+- 改动：`I18nRootProjectionWriterRegistry.CreateDefault()` 注册新 writer，并更新 `I18nRootProjectionWriterRegistryTests` 第 20 行的精确 writer 计划断言；`PublicOutputLifecycle.ProjectionPlan(root: true)` 在相同条件下加入 `index.html`，使其进入根目录归属清单（受保护删除、重复检查）。
+- 测试：`I18nRegressionTests` 或新增集成测试：默认配置的多语言构建生成 `dist/index.html`；关闭后上次生成的 `index.html` 被作为自有文件删除。
+- 依赖：T04.1a。
 
 **T04.3 跳转页排除于各类索引**
 - 改动：确认根目录跳转页不经过路由，因此不进入 sitemap、搜索、llms、agent-manifest、feed 和 SEO 路由审计；如有聚合按根目录文件扫描，显式排除。
@@ -178,70 +183,74 @@
 
 **阶段 4 审查**：默认行为变化是否只有这一个文件；Netlify 场景的说明留到 T11。
 
-### 阶段 5：根目录布局——输出目录与 URL
+### 阶段 5：根目录布局——布局开关、根目录归属与报告
+
+先解决根目录文件的重复归属和报告覆盖，再做输出验收。否则打开开关后，默认语言计划的 `agent-manifest.json`（总是生成）会与根目录聚合的同名文件在 `PublicOutputLifecycle.CollectAndClean` → `AssetOutputPlan.Validate` 中重复，所有根目录布局构建都会失败；默认语言的 SEO 报告也会被合并报告覆盖。本阶段的测试只用不含 static 的最小站点。
 
 **T05.1 打开布局开关**
 - 改动：`I18nOutputLayout` 读取 `DefaultLanguageInSubdir`：为 `false` 时默认语言 `IsRootLanguage = true`，`BaseUrl` 为根 baseUrl，`OutputDir` 为输出根目录，`ReportDir` 为 `.bukit/variants/<lang>`。
-- 测试：`I18nOutputLayoutTests` 的根目录布局用例转为生效。
+- 测试：`I18nOutputLayoutTests` 的根目录布局用例转为生效（只测策略本身，不跑构建）。
 - 依赖：阶段 4 完成。
 
-**T05.2 进程内构建的根目录输出**
-- 测试：新增 `tests/Bukit.Engine.Tests/I18nRootLayoutTests.cs`：`dist/index.html`、`dist/404.html` 为英文页面，`dist/zh-CN/index.html` 为中文页面，`dist/en/` 下没有内容页。
+**T05.2 `ProjectionPlan` 支持根目录语言**
+- 改动：`PublicOutputLifecycle.ProjectionPlan` 新增参数 `rootLanguage`：为 true 时不计划 `agent-manifest.json`、`robots.txt`、`llms.txt`、`llms-full.txt`；index 模式下默认语言 sitemap 计划为 `<lang>/sitemap.xml`；所有语言的计划输出按 sitemap/feed mode 生成（merged 时不再列出插件本来就不写的文件）。默认语言对应的 writer（agent-manifest、robots、llms）在根目录语言下不写文件。`BuildTransaction.RejectGeneratedOutputLinks` 在根目录布局下按"根目录聚合计划 + 根目录语言计划"生成根目录清单（T02.6 留到这里）。
+- 测试：单元测试覆盖三种 sitemap mode × 两种 feed mode × 根目录语言与否的计划清单；最小站点的根目录布局构建不再因重复输出失败。
 - 依赖：T05.1。
 
-**T05.3 URL、canonical、hreflang、x-default**
-- 测试：同文件新增 spec 场景 "hreflang for a root default language"：`en` 与 `x-default` 为 `https://example.com/about/`，`zh-CN` 为 `https://example.com/zh-CN/about/`；模板 `site.base_url` 为根 baseUrl。
+**T05.3 计划清单变化的安全性**
+- 测试：带前缀站点从旧版本 manifest 升级：计划清单变短后不误删任何实际存在的文件，不触发全量重建（对应风险 R4）。
 - 依赖：T05.2。
 
-**T05.4 项目站点 baseUrl**
-- 测试：`site.baseUrl: /repo` 时英文 baseUrl 为 `/repo`、中文为 `/repo/zh-CN`，生成的链接与 canonical 正确。
+**T05.4 index 模式下默认语言 sitemap**
+- 改动：`Plugins/BuiltIn/SitemapPlugin.cs`：根目录语言且 `sitemapMode: index` 时写 `<lang>/sitemap.xml`（条目地址不带前缀）。`I18nRootSitemapWriter` 的索引条目引用该地址。
+- 测试：spec 场景 "Sitemap index with a root default language"；split 模式默认语言写根目录 `sitemap.xml`；merged 模式只有根目录。
 - 依赖：T05.3。
 
-**T05.5 合并 SEO 审计路径**
-- 测试：根目录布局下合并 SEO 审计不报 `seo.output_file_missing`；`--strict` 通过。
-- 依赖：T05.4。
-
-**T05.6 `--metrics` 输出**
-- 测试：`variants[].outputDir` 对默认语言等于输出根目录（记录为已知差异，不改格式）。
-- 依赖：T05.5。
-
-### 阶段 6：根目录布局——根目录归属、static、报告
-
-**T06.1 `ProjectionPlan` 支持根目录语言**
-- 改动：`PublicOutputLifecycle.ProjectionPlan` 新增参数 `rootLanguage`：为 true 时不计划 `agent-manifest.json`、`robots.txt`、`llms.txt`、`llms-full.txt`；所有语言的计划输出按 sitemap/feed mode 生成（merged 时不再列出插件本来就不写的文件）。
-- 测试：单元测试覆盖三种 sitemap mode × 两种 feed mode × 根目录语言与否的计划清单。
-- 依赖：阶段 5 完成。
-
-**T06.2 计划清单变化的安全性**
-- 测试：带前缀站点从旧版本 manifest 升级：计划清单变短后不误删任何实际存在的文件，不触发全量重建（对应风险 R4）。
-- 依赖：T06.1。
-
-**T06.3 index 模式下默认语言 sitemap**
-- 改动：`Plugins/BuiltIn/SitemapPlugin.cs`：根目录语言且 `sitemapMode: index` 时写 `<lang>/sitemap.xml`（条目地址不带前缀）；计划输出同步为 `<lang>/sitemap.xml`。`I18nRootSitemapWriter` 的索引条目引用该地址。
-- 测试：spec 场景 "Sitemap index with a root default language"；split 模式默认语言写根目录 `sitemap.xml`；merged 模式只有根目录。
-- 依赖：T06.2。
-
-**T06.4 robots 引用实际 sitemap 地址**
-- 改动：`I18nRootRobotsWriter`：split 模式下默认语言 sitemap 地址为 `<siteUrl><baseUrl>/sitemap.xml`；index 模式引用根目录索引。
-- 测试：`RobotsTxtWriterTests` 或集成测试覆盖两种 mode。
-- 依赖：T06.3。
-
-**T06.5 feed 与 search**
-- 测试：split feed 下默认语言 feed 在根目录；merged feed 只有根目录合并 feed；search split/index 下默认语言写 `/search.json`，index 模式根目录 `search.index.json` 引用正确路径。
-- 依赖：T06.4。
-
-**T06.6 默认语言 static：robots 覆盖与冲突**
-- 改动：在 static 资源计划确定后、复制前检查：默认语言 `static/robots.txt` 存在时作为整站 robots，根目录 robots writer 不生成；与 `agent-manifest.json`、`llms.txt`、`llms-full.txt`、merged/index 下的根 `sitemap.xml`、merged feed 文件同名时抛 `i18n-root-output-conflict`，信息含 static 源路径和对应设置。新增报错码到 `Bukit.Shared/DiagnosticCode.cs`（公共枚举，基线在 T11.1 更新）及 `DiagnosticCodeFormatter`。
-- 测试：spec 场景 "Static robots override"、"Static llms conflict"；`404.html`、`CNAME` 正常落到根目录。
-- 依赖：T06.5。
-
-**T06.7 默认语言报告移到 `.bukit/variants/<lang>/`**
+**T05.5 默认语言报告移到 `.bukit/variants/<lang>/`**
 - 改动：`SeoAuditReportWriter.Write`（含 publish-audit、seo-route-map、geo）和 `AnalyticsReportWriter` 使用 `layout.ReportDir`；根目录合并报告路径不变。
 - 测试：spec 场景 "SEO reports"：`dist/.bukit/seo-report.json` 为合并报告，`dist/.bukit/variants/en/seo-report.json` 为英文报告；5 种报告逐一断言。
+- 依赖：T05.4。
+
+**T05.6 build-report 产物清单**
+- 测试：spec 场景 "Analytics report in the build report"：产物清单登记 `.bukit/variants/en/analytics-report.json`（T02.7 已改查找逻辑，这里补根目录布局用例）。
+- 依赖：T05.5。
+
+**阶段 5 审查**：根目录每个文件的唯一归属；`AssetOutputPlan.Validate` 仍作为最后防线；报告不再互相覆盖。
+
+### 阶段 6：根目录布局——输出、URL 与其余归属
+
+**T06.1 进程内构建的根目录输出**
+- 测试：新增 `tests/Bukit.Engine.Tests/I18nRootLayoutTests.cs`：`dist/index.html`、`dist/404.html` 为英文页面，`dist/zh-CN/index.html` 为中文页面，`dist/en/` 下没有内容页。
+- 依赖：阶段 5 完成。
+
+**T06.2 URL、canonical、hreflang、x-default**
+- 测试：同文件新增 spec 场景 "hreflang for a root default language"：`en` 与 `x-default` 为 `https://example.com/about/`，`zh-CN` 为 `https://example.com/zh-CN/about/`；模板 `site.base_url` 为根 baseUrl。
+- 依赖：T06.1。
+
+**T06.3 项目站点 baseUrl**
+- 测试：`site.baseUrl: /repo` 时英文 baseUrl 为 `/repo`、中文为 `/repo/zh-CN`，生成的链接与 canonical 正确。
+- 依赖：T06.2。
+
+**T06.4 合并 SEO 审计路径**
+- 测试：根目录布局下合并 SEO 审计不报 `seo.output_file_missing`；`--strict` 通过（依赖 T02.5 的路径修正和 T05.5 的报告分离）。
+- 依赖：T06.3。
+
+**T06.5 `--metrics` 输出**
+- 测试：`variants[].outputDir` 对默认语言等于输出根目录（记录为已知差异，不改格式）。
+- 依赖：T06.4。
+
+**T06.6 robots 引用实际 sitemap 地址**
+- 改动：`I18nRootRobotsWriter`：split 模式下默认语言 sitemap 地址为 `<siteUrl><baseUrl>/sitemap.xml`；index 模式引用根目录索引。
+- 测试：`RobotsTxtWriterTests` 或集成测试覆盖两种 mode。
+- 依赖：T06.5。
+
+**T06.7 feed 与 search**
+- 测试：split feed 下默认语言 feed 在根目录；merged feed 只有根目录合并 feed；search split/index 下默认语言写 `/search.json`，index 模式根目录 `search.index.json` 引用正确路径。
 - 依赖：T06.6。
 
-**T06.8 build-report 产物清单**
-- 测试：spec 场景 "Analytics report in the build report"：产物清单登记 `.bukit/variants/en/analytics-report.json`（T02.7 已改查找逻辑，这里补根目录布局用例）。
+**T06.8 默认语言 static：robots 覆盖与冲突**
+- 改动：在 static 资源计划确定后、复制前检查：默认语言 `static/robots.txt` 存在时作为整站 robots，根目录 robots writer 不生成；与 `agent-manifest.json`、`llms.txt`、`llms-full.txt`、merged/index 下的根 `sitemap.xml`、merged feed 文件同名时抛 `i18n-root-output-conflict`，信息含 static 源路径和对应设置。新增报错码到 `Bukit.Shared/DiagnosticCode.cs`（公共枚举）及 `DiagnosticCodeFormatter`，**同一任务内**更新公共 API 基线。
+- 测试：spec 场景 "Static robots override"、"Static llms conflict"；`404.html`、`CNAME` 正常落到根目录；`bash scripts/checks/public-api-drift.sh check`。
 - 依赖：T06.7。
 
 **T06.9 隐私扫描与两份清单的计入范围**
@@ -249,13 +258,13 @@
 - 测试：三处各一条两种布局的断言。
 - 依赖：T06.8。
 
-**阶段 6 审查**：根目录每个文件的唯一归属；`AssetOutputPlan.Validate` 仍作为最后防线。
+**阶段 6 审查**：根目录布局下输出、URL、聚合文件和 static 的整体一致性。
 
 ### 阶段 7：根目录布局——路由保留前缀
 
 **T07.1 共用检查实现**
-- 改动：新增内部检查（建议放在 `I18nOutputLayout` 或新类 `I18nReservedPrefixGuard`）：取输出相对路径第一个路径段，与 `ReservedPrefixes` 做不区分大小写比较（`StringComparison.OrdinalIgnoreCase`，任何平台一致）；默认语言自身代码不保留。新增报错码 `i18n-route-reserved-language-prefix`，信息含文档 id 或源路径，以及被占用的语言代码。
-- 测试：单元测试覆盖大小写、默认语言代码放行、空路径、多级路径。
+- 改动：新增内部检查（建议放在 `I18nOutputLayout` 或新类 `I18nReservedPrefixGuard`）：取输出相对路径第一个路径段，与 `ReservedPrefixes` 做不区分大小写比较（`StringComparison.OrdinalIgnoreCase`，任何平台一致）；默认语言自身代码不保留。新增报错码 `i18n-route-reserved-language-prefix`（`DiagnosticCode` 新成员，同一任务内更新公共 API 基线），信息含文档 id 或源路径，以及被占用的语言代码。
+- 测试：单元测试覆盖大小写、默认语言代码放行、空路径、多级路径；`bash scripts/checks/public-api-drift.sh check`。
 - 依赖：阶段 6 完成。
 
 **T07.2 路由检查**
@@ -311,7 +320,7 @@
 - 依赖：T08.3。
 
 **T08.5 进程内与 Worktree 输出等价**
-- 测试：`i18n-worktree-build` 规格的 MODIFIED 场景：同一干净提交用 `bukit build`（Worktree）与 `bukit deploy` 的进程内构建，都设 `defaultLanguageInSubdir: false`，输出文件路径集合一致。
+- 测试：`i18n-worktree-build` 规格的 MODIFIED 场景。`bukit deploy` 需要 git 远端和 gh-pages 分支，测试中不直接调用；改为对同一干净提交分别运行 Worktree 构建和进程内引擎构建（deploy 使用的同一路径），都设 `defaultLanguageInSubdir: false`，用 `WorktreeBuildCoordinatorTests.SnapshotPublishedOutputs` 比较输出文件集合一致。
 - 依赖：T08.4。
 
 ### 阶段 9：根目录布局——`/<lang>/` 跳转页
@@ -334,7 +343,7 @@
 
 **T10.1 根 manifest 记录布局**
 - 改动：`Incremental/BuildManifest.cs` 新增布局字段（读写兼容：旧 manifest 无此字段时视为带前缀）。
-- 测试：manifest 读写往返；旧 manifest 读取。
+- 测试：manifest 读写往返；旧 manifest 读取；边界用例：manifest 位于缓存目录（`PublicOutputLifecycle.ManifestPath`），缓存丢失或改用 `--cache-dir` 而输出目录保留时，若输出目录已有构建标记，按"布局未知"处理并走受保护清理，不得残留旧布局目录。
 - 依赖：阶段 9 完成。
 
 **T10.2 布局变化时受保护清理**
@@ -355,7 +364,7 @@
 ### 阶段 11：文档与契约
 
 **T11.1 公共 API 基线**
-- 改动：`docs/governance/bukit-core-public-api-baseline.v1.json` 登记 `SiteConfig` 的两个新属性，以及公共枚举 `Bukit.Shared.DiagnosticCode` 新增的两个成员（T06.6、T07.1 引入）。
+- 改动：最终核对 `docs/governance/bukit-core-public-api-baseline.v1.json`：`SiteConfig` 的两个新属性（T01.1 已登记）和 `Bukit.Shared.DiagnosticCode` 的两个新成员（T06.8、T07.1 已登记）齐全，无多余漂移。
 - 测试：`scripts/checks/public-api-drift.sh` 与其 owner 自测。
 - 依赖：阶段 10 完成。
 
@@ -412,7 +421,9 @@
 |---|---|---|
 | 重构改变了带前缀布局的行为 | 阶段 2 | T00.1 对照测试必须原样通过；不通过即回退该任务 |
 | 根目录跳转页与托管层规则冲突 | 阶段 4 | `defaultLanguageRedirect: false`；CHANGELOG 标为行为变化 |
-| 计划清单变短导致误删或全量重建 | T06.1–T06.2 | 先写升级场景测试，再改计划 |
+| 计划清单变短导致误删或全量重建 | T05.2–T05.3 | 先写升级场景测试，再改计划 |
+| 根目录同名文件重复导致构建失败 | 阶段 5 | 归属规则（T05.2）先于输出验收（阶段 6） |
+| 公共 API 基线滞后导致 ci-fast 失败 | T01.1、T06.8、T07.1 | 引入公共成员的任务内同步更新基线 |
 | 根目录语言误删其他语言目录 | 阶段 7、8、10 | T07.7 禁止裁剪同步；T10.3 增量删除测试 |
 | 插件越界写入 staging 其他语言目录 | T07.4、T08.2 | 提交前拦截，根因优先报告 |
 | 隐私扫描与清单的计入范围在两种布局下不同 | T06.9 | 先与用户确认预期，再用测试固定 |
@@ -425,10 +436,17 @@
 |---|---|
 | 1. 布局策略 | T02.1–T02.7、T05.1 |
 | 2. 配置 | T01.1–T01.5 |
-| 3. 根目录归属、static 和报告 | T06.1–T06.9 |
+| 3. 根目录归属、static 和报告 | T05.2–T05.6、T06.6–T06.9 |
 | 4. 路由保留前缀 | T07.1–T07.7、T08.2–T08.3 |
-| 4a. 默认语言跳转页 | T03.1–T03.3、T04.1–T04.4、T09.1–T09.3 |
+| 4a. 默认语言跳转页 | T03.1–T03.3、T04.1–T04.4（含 T04.1a）、T09.1–T09.3 |
 | 5. 布局切换和增量构建 | T01.6、T10.1–T10.4 |
 | 6. 测试 | 分布在各任务中；CLI（Worktree）为 T08.1–T08.5 |
 | 7. 文档与契约 | T11.1–T11.8 |
 | 8. 验证 | T12.1–T12.4 |
+
+## 修订记录
+
+| 轮次 | 日期 | 内容 |
+|---|---|---|
+| 初稿 | 2026-11-12 | 13 个阶段、69 个任务 |
+| 审计 1 | 2026-11-12 | 阶段 5、6 改为先归属与报告、后输出验收；公共 API 基线随引入公共成员的任务同步更新；补聚合表示 `redirect`（新增 T04.1，原 writer 任务改为 T04.1a）；T02.6 根目录清单本阶段不变；警告改由引擎日志记录；T08.5 不直接调用 deploy；T10.1 补缓存丢失边界 |

@@ -105,7 +105,7 @@ split 模式下没有根目录索引，默认语言的 sitemap 仍写在 `/sitem
 
 ### 5. 路由保留前缀校验
 
-默认语言在根目录时，以下所有输出路径的第一个路径段不得等于其他已配置语言代码：内容路由、列表和分页路由、分类路由、alias、派生文档、`static/` 文件、插件输出。报错码 `i18n-route-reserved-language-prefix`，报错信息包含来源文档 id 或文件路径。
+默认语言在根目录时，以下所有输出路径的第一个路径段不得等于其他已配置语言代码：内容路由、列表和分页路由、分类路由、alias、派生文档、`static/` 文件、插件输出。报错码 `i18n-route-reserved-language-prefix`（与 `i18n-root-output-conflict` 一样作为公共枚举 `DiagnosticCode` 的新成员，需更新公共 API 基线），报错信息包含来源文档 id 或文件路径。
 
 - **比较一律不区分大小写，与操作系统无关。** 否则在 macOS 开发机上会冲突（大小写不敏感的文件系统），在 Linux CI 上却通过，两边结果不一致。
 - **检查时机尽量在写文件之前。** 路由类检查放在 `RoutePipeline` 完成路由后、渲染前；static 和资源计划检查放在资源计划确定后、复制前。插件输出是例外：它在 AfterBuild 才确定，此时文件已写入 staging，检查只能报错并阻止提交，正式输出不受影响。根目录布局下，默认语言插件的越界输出可能已经写进 `staging/<其他语言>/`，并与该语言的 Worker 同时写入，导致其他语言先报出看似无关的错误。因此父进程汇总失败时，必须把默认语言的越界输出作为根因优先报告。
@@ -130,7 +130,7 @@ split 模式下没有根目录索引，默认语言的 sitemap 仍写在 `/sitem
 
 参照 Hugo 和 Astro，新增 `site.defaultLanguageRedirect: bool`，默认 `true`，只在 `site.languages` 非空时生效。
 
-- **带前缀布局（`defaultLanguageInSubdir: true`）**：根目录生成 `index.html`，跳转到 `<baseUrl>/<defaultLang>/`。这就是此前单独讨论的"方案 A"，现在并入本设计。它是根目录独占文件，由新增的根目录 writer 在聚合阶段写出，加入根目录计划输出。
+- **带前缀布局（`defaultLanguageInSubdir: true`）**：根目录生成 `index.html`，跳转到 `<baseUrl>/<defaultLang>/`。这就是此前单独讨论的"方案 A"，现在并入本设计。它是根目录独占文件，由新增的根目录 writer 在聚合阶段写出，加入根目录计划输出。根目录 writer 按聚合表示派发（`I18nRootProjectionWriterRegistry` 遍历 `PublishRepresentationRegistry.AggregateRepresentations()`），因此需要在 `Bukit.Engine.Primitives/PublishRepresentations.cs` 新增聚合表示 `redirect`，并在 `ExpectedAggregateKinds` 中加入对应条件。
 - **根目录布局（`defaultLanguageInSubdir: false`）**：生成 `<lang>/index.html`，跳转到站点根 `<baseUrl>/`，让从带前缀布局迁移来的旧首页 `/en/` 不会 404。它由默认语言那一轮作为派生跳转文档写出，与 alias 生成的跳转页走同一条路径。
 - **跳转页内容**：meta refresh 和 canonical 指向目标地址；带 `<title>` 和 `<meta name="robots" content="noindex">`；配置了 `site.url` 时使用绝对地址，否则使用 baseUrl 相对地址。不进入 sitemap、搜索索引、`llms.txt`、`agent-manifest.json` 和 feed。实施时把 `AliasPlugin.BuildRedirectHtml` 和 `TaxonomyRedirectWriter.RenderRedirect` 合并为一份共用实现，并补上 `<title>` 和 `noindex`（alias 和分类跳转页随之获得这两个标签，属于有意的小改动）。
 - **用户内容优先**：根目录布局下，如果默认语言已有输出落在 `<lang>/index.html`（页面、alias 或 static 文件），不生成跳转页，记录一条 info 日志。带前缀布局下根目录没有任何语言输出，不存在这种冲突。

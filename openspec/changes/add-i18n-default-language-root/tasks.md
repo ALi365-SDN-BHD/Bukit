@@ -44,7 +44,7 @@
 
 - [ ] `SiteConfig.DefaultLanguageRedirect`；YAML 读取、严格字段白名单、JSON Schema；只在值为 `false` 时写入增量站点哈希。
 - [ ] 合并 `AliasPlugin.BuildRedirectHtml` 与 `TaxonomyRedirectWriter.RenderRedirect` 为共用实现，补 `<title>` 和 `noindex`。
-- [ ] 带前缀布局：新增根目录跳转页 writer，注册到 `I18nRootProjectionWriterRegistry`，加入根目录计划输出。
+- [ ] 带前缀布局：在 `PublishRepresentations.cs` 新增聚合表示 `redirect`；新增根目录跳转页 writer，注册到 `I18nRootProjectionWriterRegistry`，加入根目录计划输出。
 - [ ] 根目录布局：默认语言生成 `<lang>/index.html` 派生跳转文档；同路径已有用户输出时跳过并记录 info 日志。
 - [ ] 跳转页不进入 sitemap、搜索、llms、llms-full、agent-manifest、feed，也不进入 SEO 路由审计。
 
