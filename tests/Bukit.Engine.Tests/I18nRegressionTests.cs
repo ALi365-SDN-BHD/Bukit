@@ -251,6 +251,86 @@ public sealed class I18nRegressionTests : IDisposable
         }
     }
 
+    [Fact]
+    public void MergedAuditIssues_KeepDistinctMessagesAndScopeEveryVariantRoute()
+    {
+        var merged = new[]
+        {
+            new SeoAuditIssue("error", "seo.output_file_missing", "/en/a/", "Output file is missing for route /en/a/."),
+            new SeoAuditIssue("warning", "seo.schema_field_missing", "/en/a/", "Schema is missing headline.")
+        };
+        var en = new VariantAuditIssues("en", "/en", [
+            new SeoAuditIssue("error", "seo.output_file_missing", "/a/", "Output file is missing for route /a/."),
+            new SeoAuditIssue("warning", "seo.schema_field_missing", "/a/", "Schema is missing image."),
+            new SeoAuditIssue("error", "seo.sitemap_xml_invalid", "sitemap.xml", "sitemap.xml is not valid XML.")
+        ]);
+        var zh = en with { Language = "zh-CN", BaseUrl = "/zh-CN" };
+
+        var issues = SeoAuditReportWriter.WithVariantIssues(merged, [en, zh]);
+
+        Assert.Single(issues, issue => issue.Code == "seo.output_file_missing" && issue.Route == "/en/a/");
+        Assert.Contains(issues, issue => issue.Route == "/en/a/" && issue.Message == "Schema is missing image.");
+        Assert.Contains(issues, issue => issue.Route == "/zh-CN/a/" && issue.Message == "Output file is missing for route /zh-CN/a/.");
+        Assert.Equal(["/en/sitemap.xml", "/zh-CN/sitemap.xml"],
+            issues.Where(issue => issue.Code == "seo.sitemap_xml_invalid").Select(issue => issue.Route));
+        Assert.Equal(issues.Count, issues.Distinct().Count());
+    }
+
+    [Fact]
+    public void MergedAuditLog_AddsVariantOnlyIssuesOnceWithLanguageRoutes()
+    {
+        // Split sitemap mode: only the per-language audits read <lang>/sitemap.xml.
+        var config = Config();
+        var variants = new[] { Variant("en", Document("a", "en")), Variant("zh", Document("a", "zh")) };
+        var logger = new AuditLogger();
+        var variantIssues = new List<VariantAuditIssues>();
+        foreach (var variant in variants)
+        {
+            Directory.CreateDirectory(variant.OutputDir);
+            File.WriteAllText(Path.Combine(variant.OutputDir, "sitemap.xml"),
+                "<urlset xmlns=\"http://www.sitemaps.org/schemas/sitemap/0.9\"></urlset>");
+            var result = new BuildReportPipeline().Execute(new BuildReportPipelineContext(
+                Config: config with { Site = config.Site with { Language = variant.Language, BaseUrl = variant.BaseUrl } },
+                Language: variant.Language, OutputDir: variant.OutputDir, BaseUrl: variant.BaseUrl,
+                SearchSnippetsEnabled: false, BodyStore: variant.BodyStore,
+                DerivedRoutes: [], SeoIndex: variant.SeoIndex, SeoModels: variant.SeoModels,
+                PluginExecutions: [], RenderedCount: 0, SkippedCount: 0,
+                RenderReasons: new Dictionary<string, int>(), StageMetrics: BuildStageMetrics.Empty,
+                Logger: logger, DefaultLanguage: "en", RoutedDocuments: variant.RoutedDocuments,
+                ContentGraph: variant.ContentGraph));
+            variantIssues.Add(new VariantAuditIssues(variant.Language, variant.BaseUrl, result.AuditIssues));
+        }
+
+        Assert.Empty(logger.Lines);
+        SeoAuditReportWriter.WriteMerged(config, _root, variants.Select(variant => variant.ToPublishedVariant()).ToArray(), logger,
+            variantIssues: variantIssues);
+
+        Assert.Equal(logger.Lines.Count, logger.Lines.Distinct(StringComparer.Ordinal).Count());
+        foreach (var language in new[] { "en", "zh" })
+            Assert.Single(logger.Lines, line =>
+                line.Contains($"code=seo.sitemap_missing_url route=/docs/{language}/a/ ", StringComparison.Ordinal));
+    }
+
+    private sealed class AuditLogger : ILogger
+    {
+        internal List<string> Lines { get; } = [];
+        public void Debug(string message) { }
+        public void Info(string message) { }
+        public void Warn(string message) => Add(message);
+        public void Error(string message) => Add(message);
+
+        private void Add(string message)
+        {
+            if (message.Contains(".audit severity=", StringComparison.Ordinal))
+            {
+                lock (Lines)
+                {
+                    Lines.Add(message);
+                }
+            }
+        }
+    }
+
     private static void AssertExclusionReport(string outputDir, string route, bool excluded)
     {
         using var json = JsonDocument.Parse(File.ReadAllText(Path.Combine(outputDir, ".bukit", "publish-audit-report.json")));

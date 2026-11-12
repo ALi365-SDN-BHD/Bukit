@@ -28,6 +28,10 @@ internal sealed record BuildVariantResult(
 {
     internal ManifestSetupResult? PendingManifest { get; init; }
     internal IReadOnlyList<AssetOutputItem> PlannedOutputs { get; init; } = [];
+    /// <summary>Signed-link findings a language variant leaves for the parent to log once.</summary>
+    internal IReadOnlyList<Incremental.SignedLinkFinding> SignedLinks { get; init; } = [];
+    /// <summary>Audit issues a language variant leaves for the merged log.</summary>
+    internal IReadOnlyList<SeoAuditIssue> AuditIssues { get; init; } = [];
     public IReadOnlyList<RoutedContentDocument> DerivedDocuments { get; init; } = DerivedDocuments ?? Array.Empty<RoutedContentDocument>();
     public IReadOnlyList<PublishProjectionResult> ProjectionResults { get; init; } = ProjectionResults ?? Array.Empty<PublishProjectionResult>();
     public IReadOnlyList<RouteInfo> StaticRoutes { get; init; } = StaticRoutes ?? Array.Empty<RouteInfo>();

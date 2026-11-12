@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Text.RegularExpressions;
 using Bukit.Config;
 using Bukit.Engine.Abstractions.Content;
 using Bukit.Engine.Abstractions.Plugins;
@@ -26,11 +27,12 @@ internal static partial class SeoAuditReportWriter
         CanonicalContentGraph? contentGraph,
         ILogger logger,
         IReadOnlyList<PublishProjectionResult>? projectionResults = null,
-        IReadOnlyDictionary<string, ContentDocument>? documentsByOutputPath = null)
+        IReadOnlyDictionary<string, ContentDocument>? documentsByOutputPath = null,
+        bool logIssues = true)
     {
         var result = MachineReadabilityTrustAuditBuilder.Build(config, outputDir, seoIndex, seoModels, contentGraph,
             requireHreflangTargets: false, projectionResults, documentsByOutputPath);
-        WriteReport(outputDir, result, logger);
+        WriteReport(outputDir, result, logger, logIssues);
         return result.SeoReport;
     }
 
@@ -39,7 +41,8 @@ internal static partial class SeoAuditReportWriter
         string outputDir,
         IReadOnlyList<PublishedVariant> results,
         ILogger logger,
-        IReadOnlyList<PublishProjectionResult>? projectionResults = null)
+        IReadOnlyList<PublishProjectionResult>? projectionResults = null,
+        IReadOnlyList<VariantAuditIssues>? variantIssues = null)
     {
         var seoIndex = new Dictionary<string, SeoIndexEntry>(StringComparer.OrdinalIgnoreCase);
         var seoModels = new Dictionary<string, SeoModel>(StringComparer.OrdinalIgnoreCase);
@@ -85,11 +88,69 @@ internal static partial class SeoAuditReportWriter
         var actualProjections = documentProjections.Concat(projectionResults ?? []).ToArray();
         var auditResult = MachineReadabilityTrustAuditBuilder.Build(config, outputDir, seoIndex, seoModels,
             new CanonicalContentGraph(records, entities), requireHreflangTargets: true, actualProjections, documentsByOutputPath);
-        WriteReport(outputDir, auditResult, logger);
+        WriteReport(outputDir, auditResult, logger, logIssues: false);
+        LogIssues(WithVariantIssues(auditResult.SeoReport.Issues, variantIssues ?? []), logger);
         return auditResult.SeoReport;
     }
 
-    private static void WriteReport(string outputDir, MachineReadabilityTrustAuditResult result, ILogger logger)
+    /// <summary>Logs the language variants' own issues when the merged audit cannot run.</summary>
+    internal static void LogVariantIssues(IReadOnlyList<VariantAuditIssues> variantIssues, ILogger logger)
+        => LogIssues(WithVariantIssues([], variantIssues), logger);
+
+    // Language variants write their reports without logging them. Some checks run only there
+    // (for example on a per-language sitemap in split mode), so the merged log adds those issues,
+    // with the language prefix on the route, and logs every distinct issue once.
+    internal static List<SeoAuditIssue> WithVariantIssues(
+        IReadOnlyList<SeoAuditIssue> mergedIssues,
+        IReadOnlyList<VariantAuditIssues> variantIssues)
+    {
+        var seen = new HashSet<SeoAuditIssue>();
+        var issues = new List<SeoAuditIssue>(mergedIssues.Count);
+        issues.AddRange(mergedIssues.Where(seen.Add));
+        foreach (var variant in variantIssues)
+        {
+            foreach (var issue in variant.Issues)
+            {
+                var route = ScopeRoute(variant.BaseUrl, issue.Route);
+                // Some messages embed the variant-relative route, so scope it there too.
+                var scoped = issue with { Route = route, Message = ScopeMessage(issue.Message, issue.Route, route) };
+                if (seen.Add(scoped))
+                {
+                    issues.Add(scoped);
+                }
+            }
+        }
+
+        return issues;
+    }
+
+    private static string ScopeRoute(string baseUrl, string? route)
+    {
+        if (string.IsNullOrWhiteSpace(route) || route == "-")
+        {
+            return BuildPathUtils.NormalizeBaseUrl(baseUrl);
+        }
+
+        return IsAbsoluteHttpUrl(route) ? route : CombineBaseUrl(baseUrl, route);
+    }
+
+    private static string ScopeMessage(string message, string? route, string scopedRoute)
+    {
+        if (string.IsNullOrWhiteSpace(route) || route == "-" || string.Equals(route, scopedRoute, StringComparison.Ordinal))
+        {
+            return message;
+        }
+
+        // Replace the route only where it stands alone, so "/" does not match inside other paths.
+        return Regex.Replace(
+            message,
+            $"(?<![\\w/.-]){Regex.Escape(route)}(?![\\w/-]|\\.\\w)",
+            scopedRoute.Replace("$", "$$", StringComparison.Ordinal),
+            RegexOptions.CultureInvariant,
+            TimeSpan.FromSeconds(1));
+    }
+
+    private static void WriteReport(string outputDir, MachineReadabilityTrustAuditResult result, ILogger logger, bool logIssues = true)
     {
         var report = result.SeoReport;
         var json = JsonSerializer.Serialize(report, SeoAuditReportJsonContext.Default.SeoAuditReport);
@@ -98,8 +159,15 @@ internal static partial class SeoAuditReportWriter
         SeoRouteMapWriter.Write(outputDir, result.RouteMap);
 
         WriteGeoReport(outputDir, report, logger);
+        if (logIssues)
+        {
+            LogIssues(report.Issues, logger);
+        }
+    }
 
-        foreach (var issue in report.Issues)
+    private static void LogIssues(IEnumerable<SeoAuditIssue> issues, ILogger logger)
+    {
+        foreach (var issue in issues)
         {
             var message = $"{LogPrefix(issue.Code)} severity={issue.Severity} code={issue.Code} route={issue.Route ?? "-"} message={issue.Message}";
             if (string.Equals(issue.Severity, "error", StringComparison.OrdinalIgnoreCase))

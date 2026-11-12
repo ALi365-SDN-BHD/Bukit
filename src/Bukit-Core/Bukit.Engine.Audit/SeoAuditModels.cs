@@ -90,6 +90,9 @@ internal sealed record SeoAuditRoute(
 
 internal sealed record SeoAuditIssue(string Severity, string Code, string? Route, string Message);
 
+/// <summary>The audit issues one language variant leaves for the merged log.</summary>
+internal sealed record VariantAuditIssues(string Language, string BaseUrl, IReadOnlyList<SeoAuditIssue> Issues);
+
 internal sealed record SeoAuditSummary(
     int RouteCount,
     int IndexableCount,

@@ -4,6 +4,9 @@ Bukit 所有重要变更都将记录在此文件中。
 
 ## [Unreleased]
 
+- **共用 slug 的翻译页不再导致严格 schema 校验失败**：设置了 `site.languages` 时，`canonical_duplicate_id` 现在只在同一语言内查重；没写语言的页面算作默认语言，单语言站点仍要求 id 全站唯一。各语言用相同文件名或 slug 的翻译页（例如 `content/en/index.md` 和 `content/zh/index.md`）按设计共用同一个 id，但此前每对翻译都会报一次重复 id 警告，并在 `build.schemaFailMode: strict` 下导致构建失败。`bukit doctor` 也不再把这类翻译对当作阻断性的 schema 错误。同一语言内两个页面 id 相同时仍会报警告，消息中会写明语言。
+- **多语言构建中每条审计问题只输出一次**：`seo.audit`、`publish.audit` 和 `geo.audit` 问题此前会输出两遍：先由每个语言变体输出一次，路由不带语言前缀（因此 `/index/` 每种语言各出现一次），再由合并审计带完整路由输出一次。现在语言变体只写报告文件，由父进程把合并审计的问题和各语言自己的问题（只在单个语言里执行的检查，例如 `split` 模式下各语言的 sitemap；路由补上语言前缀）合在一起，每条不同的问题以 `/en/index/` 这样的路由只输出一次。构建报告的警告数和错误数不再重复计入这些问题，因此多语言站点的计数会下降。各语言的 `.bukit/seo-report.json` 不变。如果构建在写根目录输出时失败，各语言自己的问题和签名链接警告仍会在报错前输出。
+- **多语言构建中签名链接警告只输出一次**：`event=incremental.signed_links` 此前每种语言各输出一次，而各语言读取同一份共享数据，内容通常相同。现在各语言把检测结果交给父进程，检测结果相同的语言合成一行，用逗号分隔列出，例如 `language=en,zh-CN`；结果不同的语言仍各占一行。解析日志时需注意 `language=` 现在可能是逗号分隔的列表；构建报告的警告数会相应减少（每少一行重复警告减一）。单语言构建不变。
 - **i18n 丢弃与重复内容诊断**：构建现在会输出 `i18n.document.language_unknown`（页面 `language` 不在 `site.languages` 中；单语言构建中不等于 `site.language`）、`i18n.document.i18n_key_duplicate`（同一语言内两个页面使用相同 `i18nKey`）和 `i18n.config.default_language_ignored`（设置了 `site.defaultLanguage` 但未配置 `site.languages`）。这些页面或配置以前会被静默丢弃、覆盖或忽略。故意从混合语言内容源中只挑一种语言的单语言站点，现在每次构建都会为其他语言输出 `language_unknown` 警告；每类警告最多显示 5 条并附一行汇总，构建报告的警告数可能上升。除下文 `i18n_key` public ID 变化外，其他有效站点的输出不变。
 - **doctor 检查所有已配置语言**：`bukit doctor` 现在会为 `site.languages` 中的每种语言构建并校验路由，不再只检查默认语言；只存在于非默认语言的路由冲突或缺失模板会在 doctor 阶段失败，而不是拖到构建阶段。
 - **`i18n_key` 现在决定 public ID**：使用 `i18n_key` 别名的页面，其 `agent-manifest.json` 和公开内容投影中的 `id`、`canonicalId` 现在使用该值，与 `i18nKey` 一致。以前该别名会回退到 slug，导致同一翻译组在不同语言下得到不同的 public ID。使用 `i18nKey` 或 slug 回退的站点输出不变。

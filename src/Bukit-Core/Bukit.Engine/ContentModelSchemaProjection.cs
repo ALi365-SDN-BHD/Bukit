@@ -14,7 +14,7 @@ public static class ContentModelSchemaProjection
     {
         var schema = ContentModelSchemaFactory.FromConfig(config);
         var graph = CanonicalContentGraphBuilder.BuildFromDocuments(documents);
-        return CanonicalContentValidator.Validate(graph)
+        return CanonicalContentValidator.Validate(graph, config.Site)
             .Concat(ContentModelSchemaValidator.Validate(graph, schema))
             .Concat(documents.SelectMany(ToSchemaErrors))
             .GroupBy(issue => $"{issue.SourcePath}:{issue.Field}:{issue.Code}", StringComparer.OrdinalIgnoreCase)

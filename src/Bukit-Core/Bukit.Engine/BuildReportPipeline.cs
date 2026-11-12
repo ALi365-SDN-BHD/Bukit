@@ -46,8 +46,12 @@ internal sealed class BuildReportPipeline
     {
         var contentGraph = ctx.ContentGraph ?? CanonicalContentGraph.Empty;
         var projectionResults = ctx.ProjectionResults ?? [];
-        void WriteSeoAudit() => SeoAuditReportWriter.Write(ctx.Config, ctx.OutputDir, ctx.SeoIndex, ctx.SeoModels, contentGraph, ctx.Logger,
-            projectionResults, SearchIndexDocuments.BuildDocumentMap(ctx.RoutedDocuments.Concat(ctx.DerivedDocuments)));
+        // In a multi-language build the merged audit logs every language's issues with
+        // full routes, so a language variant writes its report file and hands the issues back.
+        IReadOnlyList<SeoAuditIssue> auditIssues = [];
+        void WriteSeoAudit() => auditIssues = SeoAuditReportWriter.Write(ctx.Config, ctx.OutputDir, ctx.SeoIndex, ctx.SeoModels, contentGraph, ctx.Logger,
+            projectionResults, SearchIndexDocuments.BuildDocumentMap(ctx.RoutedDocuments.Concat(ctx.DerivedDocuments)),
+            logIssues: ctx.DefaultLanguage is null).Issues;
         if (reportTimer is null)
         {
             WriteSeoAudit();
@@ -76,6 +80,9 @@ internal sealed class BuildReportPipeline
             StaticRoutes: ctx.StaticRoutes,
             PluginOutputs: ctx.PluginOutputs,
             DerivedDocuments: ctx.DerivedDocuments,
-            ProjectionResults: projectionResults);
+            ProjectionResults: projectionResults)
+        {
+            AuditIssues = ctx.DefaultLanguage is null ? [] : auditIssues
+        };
     }
 }

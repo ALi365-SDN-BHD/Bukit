@@ -12,7 +12,7 @@ internal sealed class ContentGraphValidateStage : IContentStage
         var graph = CanonicalContentGraphBuilder.BuildFromDocuments(input.Documents);
         var schema = ContentModelSchemaFactory.FromConfig(input.Config);
 
-        var issues = CanonicalContentValidator.Validate(graph)
+        var issues = CanonicalContentValidator.Validate(graph, input.Config.Site)
             .Concat(ContentModelSchemaValidator.Validate(graph, schema))
             .Concat(input.Documents.SelectMany(ToSchemaErrors))
             .GroupBy(x => $"{x.SourcePath}:{x.Field}:{x.Code}", StringComparer.OrdinalIgnoreCase)

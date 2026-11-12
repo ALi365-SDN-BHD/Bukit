@@ -95,7 +95,9 @@ internal sealed record I18nVariantSnapshot(
     bool IncrementalEnabled,
     IReadOnlyList<I18nAssetOutputSnapshot> PlannedOutputs,
     int WarningCount,
-    int ErrorCount);
+    int ErrorCount,
+    IReadOnlyList<Incremental.SignedLinkFinding>? SignedLinks = null,
+    IReadOnlyList<SeoAuditIssue>? AuditIssues = null);
 
 internal sealed record I18nConfigIdentity(
     AppConfig Config,

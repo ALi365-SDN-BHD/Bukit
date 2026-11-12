@@ -150,20 +150,7 @@ internal static class I18nWorktreeProtocol
         int errorCount,
         CancellationToken cancellationToken)
     {
-        var bodies = new Dictionary<string, ContentBody>(StringComparer.Ordinal);
-        var documents = result.RoutedDocuments.Select(x => x.Document)
-            .Concat(result.DerivedDocuments.Select(x => x.Document))
-            .Concat(result.ContentGraph?.Documents ?? [])
-            .DistinctBy(x => (x.Id, x.Body.BodyKey));
-        foreach (var document in documents)
-        {
-            cancellationToken.ThrowIfCancellationRequested();
-            if (document.Body.Html is null && document.Body.BodyKey is { Length: > 0 } key)
-            {
-                bodies[key] = await result.BodyStore.GetAsync(document, cancellationToken).ConfigureAwait(false);
-            }
-        }
-
+        var bodies = await CaptureBodiesAsync(result, cancellationToken).ConfigureAwait(false);
         var pending = result.PendingManifest
             ?? throw new InvalidOperationException("Worker variant did not produce an incremental manifest.");
         return new I18nVariantSnapshot(
@@ -196,7 +183,30 @@ internal static class I18nWorktreeProtocol
             pending.IncrementalEnabled,
             [.. result.PlannedOutputs.Select(x => new I18nAssetOutputSnapshot(x.Source, x.Destination, x.Category, x.Operation))],
             warningCount,
-            errorCount);
+            errorCount,
+            result.SignedLinks,
+            result.AuditIssues);
+    }
+
+    private static async Task<Dictionary<string, ContentBody>> CaptureBodiesAsync(
+        BuildVariantResult result,
+        CancellationToken cancellationToken)
+    {
+        var bodies = new Dictionary<string, ContentBody>(StringComparer.Ordinal);
+        var documents = result.RoutedDocuments.Select(x => x.Document)
+            .Concat(result.DerivedDocuments.Select(x => x.Document))
+            .Concat(result.ContentGraph?.Documents ?? [])
+            .DistinctBy(x => (x.Id, x.Body.BodyKey));
+        foreach (var document in documents)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            if (document.Body.Html is null && document.Body.BodyKey is { Length: > 0 } key)
+            {
+                bodies[key] = await result.BodyStore.GetAsync(document, cancellationToken).ConfigureAwait(false);
+            }
+        }
+
+        return bodies;
     }
 
     internal static BuildVariantResult RestoreVariant(
@@ -253,7 +263,9 @@ internal static class I18nWorktreeProtocol
                 x.Source,
                 x.Destination,
                 x.Category,
-                Operation: x.Operation))]
+                Operation: x.Operation))],
+            SignedLinks = snapshot.SignedLinks ?? [],
+            AuditIssues = snapshot.AuditIssues ?? []
         };
     }
 

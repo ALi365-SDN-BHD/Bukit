@@ -82,6 +82,38 @@ public sealed class SignedLinkDiagnosticsTests
         Assert.Contains("may change on every fetch", warning, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public async Task MultiLanguageBuild_ReportsSharedSignedLinksOnceForAllLanguages()
+    {
+        using var site = new SiteBuilder("i18n-site");
+        site.Sandbox.Write("data/menu.json", JsonSerializer.Serialize(new { image = AwsSigned + "shared" }));
+        var logger = new RecordingLogger();
+
+        await BuildAsync(site, logger);
+
+        var warning = Assert.Single(logger.Warnings, message => message.Contains("event=incremental.signed_links", StringComparison.Ordinal));
+        Assert.Contains(" language=en,zh-CN ", warning, StringComparison.Ordinal);
+        Assert.Contains("keys=site.data_files:1", warning, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task MultiLanguageBuild_ReportsLanguagesWithDifferentFindingsOnSeparateLines()
+    {
+        using var site = new SiteBuilder("i18n-site");
+        site.Sandbox.Write("data/menu.json", JsonSerializer.Serialize(new { image = AwsSigned + "shared" }));
+        // Only the English page reads a signed link of its own.
+        site.Sandbox.Write("content/en/index.md",
+            $"---\ntitle: English Page\ncollection: page\nlanguage: en\npublishAt: 2024-06-01T00:00:00Z\ncover: \"{AwsSigned}en\"\n---\nThis is the English version of the page.\n");
+        var logger = new RecordingLogger();
+
+        await BuildAsync(site, logger);
+
+        var warnings = logger.Warnings.Where(message => message.Contains("event=incremental.signed_links", StringComparison.Ordinal)).ToArray();
+        Assert.Equal(2, warnings.Length);
+        Assert.Single(warnings, warning => warning.Contains(" language=en keys=", StringComparison.Ordinal) && warning.Contains("pages:1", StringComparison.Ordinal));
+        Assert.Single(warnings, warning => warning.Contains(" language=zh-CN keys=site.data_files:1 ", StringComparison.Ordinal));
+    }
+
     private static SiteBuilder CreateSite(string image)
     {
         var site = new SiteBuilder();

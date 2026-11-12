@@ -180,8 +180,9 @@ addition:
   because the skipped page would keep an expired link. Download those files with
   `content.media`: list the page fields that hold them in
   `content.media.fieldKeys`, and replace links written by hand in `data/*.json`
-  with local files. Multi-language builds log one warning per language, with
-  `language=<code>`.
+  with local files. Multi-language builds log one warning for all languages
+  whose findings match, listing them as `language=en,zh-CN`; languages with
+  different findings get their own line.
 - `renderReasons` in `<output>/.bukit/incremental-manifest.json` counts each
   page under the first input that changed: `new_page`, `output_missing`,
   `template_changed`, `metadata_changed` (the page record or custom fields; a

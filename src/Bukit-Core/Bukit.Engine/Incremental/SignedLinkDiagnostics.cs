@@ -7,6 +7,9 @@ using Bukit.Shared;
 
 namespace Bukit.Engine.Incremental;
 
+/// <summary>One read key that holds signed links, and how many.</summary>
+internal sealed record SignedLinkFinding(string Key, int Count);
+
 /// <summary>
 /// Finds links of a recognized signing scheme left in the shared render data, including the
 /// route metadata source and page custom fields (read through <c>pages</c>). Their signature may
@@ -16,25 +19,51 @@ namespace Bukit.Engine.Incremental;
 /// </summary>
 internal static partial class SignedLinkDiagnostics
 {
+    /// <summary>Logs the findings of a single-language build; language variants use <see cref="ReportMerged"/>.</summary>
     internal static void Report(
         RenderDependencyContext context,
         IEnumerable<ContentDocument>? pageDocuments,
-        string? language,
         ILogger logger)
     {
-        var found = Find(context, pageDocuments);
+        Log(FindFindings(context, pageDocuments), language: null, logger);
+    }
+
+    internal static IReadOnlyList<SignedLinkFinding> FindFindings(
+        RenderDependencyContext context,
+        IEnumerable<ContentDocument>? pageDocuments)
+        => [.. Find(context, pageDocuments).Select(item => new SignedLinkFinding(item.Key, item.Count))];
+
+    /// <summary>
+    /// Logs the findings of a multi-language build once: languages whose findings are identical
+    /// (typically shared data files) share one line, as <c>language=en,zh-CN</c>.
+    /// </summary>
+    internal static void ReportMerged(IReadOnlyList<BuildVariantResult> variants, ILogger logger)
+    {
+        var groups = variants
+            .Where(variant => variant.SignedLinks.Count > 0)
+            .GroupBy(variant => FormatKeys(variant.SignedLinks), StringComparer.Ordinal);
+        foreach (var group in groups)
+        {
+            Log(group.First().SignedLinks, string.Join(',', group.Select(variant => variant.Language)), logger);
+        }
+    }
+
+    private static void Log(IReadOnlyList<SignedLinkFinding> found, string? language, ILogger logger)
+    {
         if (found.Count == 0)
         {
             return;
         }
 
-        var keys = string.Join(',', found.Select(item => $"{item.Key}:{item.Count}"));
         var languagePart = string.IsNullOrWhiteSpace(language) ? string.Empty : $" language={language}";
         logger.Warn(
-            $"event=incremental.signed_links{languagePart} keys={keys} links={found.Sum(item => item.Count)} " +
+            $"event=incremental.signed_links{languagePart} keys={FormatKeys(found)} links={found.Sum(item => item.Count)} " +
             "message=Shared data contains signed links that may change on every fetch; routes that read these keys may render again on every build. " +
             "hint=localize_these_files_with_content_media");
     }
+
+    private static string FormatKeys(IReadOnlyList<SignedLinkFinding> found)
+        => string.Join(',', found.Select(item => $"{item.Key}:{item.Count}"));
 
     internal static IReadOnlyList<(string Key, int Count)> Find(
         RenderDependencyContext context,

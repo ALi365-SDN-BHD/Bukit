@@ -57,6 +57,10 @@ When incremental rendering is enabled, the engine MUST report links of a recogni
 - **WHEN** a shared data collection contains a signed link and the next incremental build sees it re-signed
 - **THEN** the build logs `event=incremental.signed_links` naming that read key, and the routes that read it are re-rendered with reason `data_dependency_changed`
 
+#### Scenario: Languages read the same signed links
+- **WHEN** a multi-language build finds the same signed links in every language
+- **THEN** it logs one `event=incremental.signed_links` line that lists those languages comma-separated, such as `language=en,zh-CN`; languages with different findings get their own line
+
 #### Scenario: Unchanged inputs without signed links
 - **WHEN** the same inputs without signed links are built twice incrementally
 - **THEN** every route keeps its render dependency hash, every page is skipped, and no signed-link warning is logged
