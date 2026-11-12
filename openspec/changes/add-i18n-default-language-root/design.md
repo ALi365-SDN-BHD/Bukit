@@ -130,7 +130,7 @@ split 模式下没有根目录索引，默认语言的 sitemap 仍写在 `/sitem
 
 参照 Hugo 和 Astro，新增 `site.defaultLanguageRedirect: bool`，默认 `true`，只在 `site.languages` 非空时生效。
 
-- **带前缀布局（`defaultLanguageInSubdir: true`）**：根目录生成 `index.html`，跳转到 `<baseUrl>/<defaultLang>/`。这就是此前单独讨论的"方案 A"，现在并入本设计。它是根目录独占文件，由新增的根目录 writer 在聚合阶段写出，加入根目录计划输出。根目录 writer 按聚合表示派发（`I18nRootProjectionWriterRegistry` 遍历 `PublishRepresentationRegistry.AggregateRepresentations()`），因此需要在 `Bukit.Engine.Primitives/PublishRepresentations.cs` 新增聚合表示 `redirect`，并在 `ExpectedAggregateKinds` 中加入对应条件。
+- **带前缀布局（`defaultLanguageInSubdir: true`）**：根目录生成 `index.html`，跳转到 `<baseUrl>/<defaultLang>/`。这就是此前单独讨论的"方案 A"，现在并入本设计。它是根目录独占文件，由新增的根目录 writer 在聚合阶段写出，加入根目录计划输出。跳转页不是内容的一种表示形式，不注册为聚合表示：`PublishRepresentationRegistry.AggregateRepresentations()` 还被投影契约、publish-audit 和机器可读性审计使用，加入新 kind 会改变这些报告。因此跳转页 writer 在聚合 writer 计划执行后单独调用，不产生投影结果。
 - **根目录布局（`defaultLanguageInSubdir: false`）**：生成 `<lang>/index.html`，跳转到站点根 `<baseUrl>/`，让从带前缀布局迁移来的旧首页 `/en/` 不会 404。它由默认语言那一轮作为派生跳转文档写出，与 alias 生成的跳转页走同一条路径。
 - **跳转页内容**：meta refresh 和 canonical 指向目标地址；带 `<title>` 和 `<meta name="robots" content="noindex">`；配置了 `site.url` 时使用绝对地址，否则使用 baseUrl 相对地址。不进入 sitemap、搜索索引、`llms.txt`、`agent-manifest.json` 和 feed。实施时把 `AliasPlugin.BuildRedirectHtml` 和 `TaxonomyRedirectWriter.RenderRedirect` 合并为一份共用实现，并补上 `<title>` 和 `noindex`（alias 和分类跳转页随之获得这两个标签，属于有意的小改动）。
 - **用户内容优先**：根目录布局下，如果默认语言已有输出落在 `<lang>/index.html`（页面、alias 或 static 文件），不生成跳转页，记录一条 info 日志。带前缀布局下根目录没有任何语言输出，不存在这种冲突。

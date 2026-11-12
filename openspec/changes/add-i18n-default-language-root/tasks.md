@@ -29,6 +29,7 @@
 - [ ] 默认语言 `static/robots.txt` 作为整站 robots；其他根目录独占文件同名的 static 文件在复制前报 `i18n-root-output-conflict`。
 - [ ] 默认语言 5 种报告写入 `.bukit/variants/<lang>/`（`SeoAuditReportWriter.Write`、`PublishAuditReportWriter`、`SeoRouteMapWriter`、geo 报告、`AnalyticsReportWriter`）。
 - [ ] `ArtifactManifestInventory.AddVariantAnalyticsReports`（`BuildReportInventories.cs`）按 `I18nOutputLayout` 的报告目录查找语言报告。
+- [ ] 根目录语言下 agent-manifest、robots、llms、llms-full 的语言级投影不写文件但仍产出"由根目录聚合提供"的结果，默认语言 publish-audit 的表示标记与带前缀布局一致，且不读取旧的根目录 robots。
 - [ ] 确认 `PublicOutputPrivacyCheck`、`AssetsReportInventory.Create`（资源清单）和 `ReleaseBundleInventory.Create`（release bundle 校验和清单）在两种布局下对语言报告的扫描和计入范围，并用测试固定。
 
 ## 4. 路由保留前缀
@@ -44,7 +45,7 @@
 
 - [ ] `SiteConfig.DefaultLanguageRedirect`；YAML 读取、严格字段白名单、JSON Schema；只在值为 `false` 时写入增量站点哈希。
 - [ ] 合并 `AliasPlugin.BuildRedirectHtml` 与 `TaxonomyRedirectWriter.RenderRedirect` 为共用实现，补 `<title>` 和 `noindex`。
-- [ ] 带前缀布局：在 `PublishRepresentations.cs` 新增聚合表示 `redirect`；新增根目录跳转页 writer，注册到 `I18nRootProjectionWriterRegistry`，加入根目录计划输出。
+- [ ] 带前缀布局：新增根目录跳转页 writer，在根目录聚合 writer 计划执行后单独调用（不注册为聚合表示，不产生投影结果），加入根目录计划输出；build-report 投影结果和 publish-audit 不变。
 - [ ] 根目录布局：默认语言生成 `<lang>/index.html` 派生跳转文档；同路径已有用户输出时跳过并记录 info 日志。
 - [ ] 跳转页不进入 sitemap、搜索、llms、llms-full、agent-manifest、feed，也不进入 SEO 路由审计。
 

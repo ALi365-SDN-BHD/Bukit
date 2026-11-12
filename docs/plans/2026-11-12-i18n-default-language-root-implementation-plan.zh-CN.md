@@ -51,7 +51,7 @@
 
 **T00.1 基线测试取证**
 - 做法：在未改动的分支上跑现有 i18n 相关专项测试并缓存证据，作为"行为不变"的对照。
-- 测试：`tests/Bukit.Engine.Tests`（过滤 `I18n|SiteEngineIntegration|SitemapPlugin|AliasPlugin|SeoAuditReportWriter|BuildReport|IncrementalEngineIdentity|BuildTransaction`）、`tests/Bukit.Config.Tests`（`ConfigLoader|StrictYamlContract|ConfigPhase2Validator`）、`tests/Bukit.Cli.Tests`（`WorktreeBuildCoordinator`）。
+- 测试：`tests/Bukit.Engine.Tests`（过滤 `I18n|SiteEngineIntegration|SitemapPlugin|AliasPlugin|TaxonomyRedirect|SeoAuditReportWriter|BuildReport|PublishRepresentationRegistry|PublishAudit|MachineReadability|IncrementalEngineIdentity|BuildTransaction`）、`tests/Bukit.Config.Tests`（`ConfigLoader|StrictYamlContract|ConfigPhase2Validator`）、`tests/Bukit.Cli.Tests`（`WorktreeBuildCoordinator`）。
 - 完成标准：全部通过，`cache record` 记录。
 - 依赖：无。
 
@@ -83,7 +83,7 @@
 
 **T01.4 JSON Schema**
 - 改动：`Bukit.Config/ConfigJsonSchemaGenerator.cs`（`defaultLanguage` 附近，约第 65 行）加入两个布尔字段及默认值。
-- 测试：Schema 相关测试新增断言；若仓库有提交的 schema 产物或文档同步脚本（`scripts/checks/config-docs-contract.sh`），跑其 owner 自测。
+- 测试：Schema 相关测试新增断言（schema 由 `bukit config schema`（`Bukit.Cli/Commands/ConfigCommand.cs:75`）运行时生成，仓库中没有提交的 site.yaml schema 产物，无需同步文件）。配置文档字段的一致性在 T11.4 由 `scripts/checks/config-docs-contract.sh` 检查。
 - 依赖：T01.3。
 
 **T01.5 配置校验**
@@ -157,31 +157,28 @@
 
 ### 阶段 4：带前缀布局的根目录跳转页（默认开启）
 
-**T04.1 新增聚合表示 `redirect`**
-- 改动：根目录 writer 按聚合表示派发（`I18nRootProjectionWriterRegistry.BuildPlan` 遍历 `PublishRepresentationRegistry.AggregateRepresentations()`，再按 kind 找 writer），只注册 writer 不会被调用。因此在 `Bukit.Engine.Primitives/PublishRepresentations.cs` 新增聚合表示 `redirect`，并在 `ExpectedAggregateKinds` 与 `PublishRepresentationExpectation` 中加入对应条件（带前缀布局、`languages` 非空、`DefaultLanguageRedirect == true`）。
-- 测试：`PublishRepresentationRegistryTests` 更新聚合表示清单与 expectation 断言；`BuildReportPipelineProjectionResultTests` 中依赖聚合 kind 清单的断言同步更新。
+跳转页不是内容的一种表示形式，**不注册为聚合表示**。`PublishRepresentationRegistry.AggregateRepresentations()` 还被 `PublishProjectionContract.RootAggregate()`、`PublishAuditBuilder`、`ContentProjectionWriter` 和 `MachineReadabilityTrustAuditBuilder`（经 `ExpectedAggregateKinds`）使用，加入新 kind 会改变 build-report 投影结果、publish-audit 和机器可读性审计的内容。因此跳转页在根目录 writer 注册表之外单独写出，`PublishRepresentations.cs` 与 `I18nRootProjectionWriterRegistry` 都不改。
+
+**T04.1 根目录跳转页 writer**
+- 改动：新增 `Bukit.Engine/I18nRootRedirectWriter.cs`（internal static，不实现 `II18nRootProjectionWriter`）：带前缀布局、`DefaultLanguageRedirect == true`、`languages` 非空时写 `<output>/index.html`，目标 `<baseUrl>/<defaultLang>/`；配置了 `site.url` 时用绝对地址；内容用 T03.1 的共用实现。
+- 测试：新增 `I18nRootRedirectTests`（writer 级）：绝对/相对地址、`/repo` baseUrl、`false` 时不写。
 - 依赖：阶段 3 完成。
 
-**T04.1a 根目录跳转页 writer**
-- 改动：新增 `Bukit.Engine/I18nRootRedirectWriter.cs`，实现 `II18nRootProjectionWriter`，`RepresentationKinds => ["redirect"]`：带前缀布局、`DefaultLanguageRedirect == true`、`languages` 非空时写 `<output>/index.html`，目标 `<baseUrl>/<defaultLang>/`；配置了 `site.url` 时用绝对地址。
-- 测试：新增 `I18nRootRedirectTests`（writer 级）：绝对/相对地址、`/repo` baseUrl、`false` 时不写。
+**T04.2 调用点与根目录计划输出**
+- 改动：在 `I18nOutputMerger.GenerateRootOutputs` / `I18nRootProjectionCoordinator` 执行完 writer 计划后单独调用 `I18nRootRedirectWriter`，不产生 `PublishProjectionResult`；进程内与 Worktree 两条路径都经过这里。`PublicOutputLifecycle.ProjectionPlan(root: true)` 在相同条件下加入 `index.html`（kind `redirect`，只用于归属清单），使其进入受保护删除和重复检查。
+- 测试：`I18nRegressionTests` 或新增集成测试：默认配置的多语言构建生成 `dist/index.html`；关闭后上次生成的 `index.html` 被作为自有文件删除；`I18nRootProjectionWriterRegistryTests` 原样通过。
 - 依赖：T04.1。
 
-**T04.2 注册与根目录计划输出**
-- 改动：`I18nRootProjectionWriterRegistry.CreateDefault()` 注册新 writer，并更新 `I18nRootProjectionWriterRegistryTests` 第 20 行的精确 writer 计划断言；`PublicOutputLifecycle.ProjectionPlan(root: true)` 在相同条件下加入 `index.html`，使其进入根目录归属清单（受保护删除、重复检查）。
-- 测试：`I18nRegressionTests` 或新增集成测试：默认配置的多语言构建生成 `dist/index.html`；关闭后上次生成的 `index.html` 被作为自有文件删除。
-- 依赖：T04.1a。
-
-**T04.3 跳转页排除于各类索引**
-- 改动：确认根目录跳转页不经过路由，因此不进入 sitemap、搜索、llms、agent-manifest、feed 和 SEO 路由审计；如有聚合按根目录文件扫描，显式排除。
-- 测试：集成测试断言上述产物均不含根目录跳转页地址。
+**T04.3 跳转页不进入索引和报告契约**
+- 改动：确认根目录跳转页不经过路由，因此不进入 sitemap、搜索、llms、agent-manifest、feed 和 SEO 路由审计。
+- 测试：集成测试断言上述产物均不含根目录跳转页地址；build-report 投影结果、publish-audit 报告中不出现跳转页或新的 kind；`PublishRepresentationRegistryTests`、`BuildReportPipelineProjectionResultTests` 原样通过。
 - 依赖：T04.2。
 
 **T04.4 升级场景回归**
 - 测试：spec 场景 "Upgrade without opting in"：未设置两个新字段时，增量站点哈希、全部已有输出路径不变，唯一新增的公开文件是 `dist/index.html`。
 - 依赖：T04.3。
 
-**阶段 4 审查**：默认行为变化是否只有这一个文件；Netlify 场景的说明留到 T11。
+**阶段 4 审查**：默认行为变化是否只有这一个文件；报告契约是否未变；Netlify 场景的说明留到 T11。
 
 ### 阶段 5：根目录布局——布局开关、根目录归属与报告
 
@@ -193,13 +190,18 @@
 - 依赖：阶段 4 完成。
 
 **T05.2 `ProjectionPlan` 支持根目录语言**
-- 改动：`PublicOutputLifecycle.ProjectionPlan` 新增参数 `rootLanguage`：为 true 时不计划 `agent-manifest.json`、`robots.txt`、`llms.txt`、`llms-full.txt`；index 模式下默认语言 sitemap 计划为 `<lang>/sitemap.xml`；所有语言的计划输出按 sitemap/feed mode 生成（merged 时不再列出插件本来就不写的文件）。默认语言对应的 writer（agent-manifest、robots、llms）在根目录语言下不写文件。`BuildTransaction.RejectGeneratedOutputLinks` 在根目录布局下按"根目录聚合计划 + 根目录语言计划"生成根目录清单（T02.6 留到这里）。
-- 测试：单元测试覆盖三种 sitemap mode × 两种 feed mode × 根目录语言与否的计划清单；最小站点的根目录布局构建不再因重复输出失败。
+- 改动：`PublicOutputLifecycle.ProjectionPlan` 新增参数 `rootLanguage`：为 true 时不计划 `agent-manifest.json`、`robots.txt`、`llms.txt`、`llms-full.txt`；index 模式下默认语言 sitemap 计划为 `<lang>/sitemap.xml`；所有语言的计划输出按 sitemap/feed mode 生成（merged 时不再列出插件本来就不写的文件）。写文件一侧的改动见 T05.2a。`BuildTransaction.RejectGeneratedOutputLinks` 在根目录布局下按"根目录聚合计划 + 根目录语言计划"生成根目录清单（T02.6 留到这里）。
+- 测试：单元测试覆盖三种 sitemap mode × 两种 feed mode × 根目录语言与否的计划清单。
 - 依赖：T05.1。
+
+**T05.2a 根目录语言的语言级聚合投影**
+- 改动：默认语言写这些根目录独占文件的是三处语言级投影：`AgentManifestProjection`（`ContentProjectionWriter.cs:313`）、`LlmsTxtPublishProjection` / `LlmsFullTxtPublishProjection`（`PublishProjectionContract.cs:280/293`，经 `LlmsAggregateProjectionWriter`）、robots（`PublishAggregateProjectionWriters.cs:201` 调用 `RobotsTxtWriter.WriteIfRequested`）。根目录语言下它们不写文件，但**仍产出投影结果**，并标明"由根目录聚合提供"（对应文档的 included 判定与带前缀布局一致），而不是简单地不产出。原因：语言级机器可读性审计按该语言的投影结果推算每个文档的 `ManifestIncluded`、`RobotsIncluded`、`Llms*` 标记（`MachineReadabilityTrustAuditBuilder.Core.cs:136-150`）；拿不到 robots 投影时会回退读取文件，根目录布局下该文件由根目录聚合写出，可能读到上一次构建的旧文件。
+- 测试：同一站点在两种布局下，默认语言 publish-audit 中各文档的 agent-manifest、robots、llms、llms-full 表示标记一致，且无新增问题；输出目录预先放一个旧的根目录 `robots.txt` 时，默认语言审计结果不受其内容影响；最小站点的根目录布局构建不再因重复输出失败。
+- 依赖：T05.2。
 
 **T05.3 计划清单变化的安全性**
 - 测试：带前缀站点从旧版本 manifest 升级：计划清单变短后不误删任何实际存在的文件，不触发全量重建（对应风险 R4）。
-- 依赖：T05.2。
+- 依赖：T05.2a。
 
 **T05.4 index 模式下默认语言 sitemap**
 - 改动：`Plugins/BuiltIn/SitemapPlugin.cs`：根目录语言且 `sitemapMode: index` 时写 `<lang>/sitemap.xml`（条目地址不带前缀）。`I18nRootSitemapWriter` 的索引条目引用该地址。
@@ -407,7 +409,7 @@
 - 依赖：T12.1。
 
 **T12.3 AOT 编译**
-- 测试：当前平台 AOT 二进制编译通过（新增代码不得引入反射或不兼容 AOT 的序列化）。
+- 测试：`bash scripts/build/native-aot.sh <version> <当前平台 rid，如 osx-arm64> "$TMPDIR/bukit-aot"` 编译通过，输出放在临时目录（新增代码不得引入反射或不兼容 AOT 的序列化）。只跑这一步，不跑 `post-change-focused-owner-checks.sh` 整体。
 - 依赖：T12.2。
 
 **T12.4 统一审查与收尾**
@@ -436,9 +438,9 @@
 |---|---|
 | 1. 布局策略 | T02.1–T02.7、T05.1 |
 | 2. 配置 | T01.1–T01.5 |
-| 3. 根目录归属、static 和报告 | T05.2–T05.6、T06.6–T06.9 |
+| 3. 根目录归属、static 和报告 | T05.2–T05.6（含 T05.2a）、T06.6–T06.9 |
 | 4. 路由保留前缀 | T07.1–T07.7、T08.2–T08.3 |
-| 4a. 默认语言跳转页 | T03.1–T03.3、T04.1–T04.4（含 T04.1a）、T09.1–T09.3 |
+| 4a. 默认语言跳转页 | T03.1–T03.3、T04.1–T04.4、T09.1–T09.3 |
 | 5. 布局切换和增量构建 | T01.6、T10.1–T10.4 |
 | 6. 测试 | 分布在各任务中；CLI（Worktree）为 T08.1–T08.5 |
 | 7. 文档与契约 | T11.1–T11.8 |
@@ -450,3 +452,4 @@
 |---|---|---|
 | 初稿 | 2026-11-12 | 13 个阶段、69 个任务 |
 | 审计 1 | 2026-11-12 | 阶段 5、6 改为先归属与报告、后输出验收；公共 API 基线随引入公共成员的任务同步更新；补聚合表示 `redirect`（新增 T04.1，原 writer 任务改为 T04.1a）；T02.6 根目录清单本阶段不变；警告改由引擎日志记录；T08.5 不直接调用 deploy；T10.1 补缓存丢失边界 |
+| 审计 2 | 2026-11-12 | 撤回聚合表示 `redirect`，根目录跳转页在 writer 注册表之外单独写出（删除 T04.1a）；新增 T05.2a：根目录语言的语言级聚合投影仍产出结果，保证审计标记一致；补 T00.1 基线过滤、T01.4 schema 说明、T12.3 AOT 命令 |
