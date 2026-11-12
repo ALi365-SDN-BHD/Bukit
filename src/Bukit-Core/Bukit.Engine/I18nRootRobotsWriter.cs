@@ -4,9 +4,23 @@ internal sealed class I18nRootRobotsWriter : II18nRootProjectionWriter
 {
     public IReadOnlyList<string> RepresentationKinds => ["robots"];
 
-    internal static bool HasStaticRobots(Config.AppConfig config, string rootDir)
-        => I18nOutputLayout.IsDefaultLanguageAtRoot(config) &&
-           File.Exists(Path.Combine(rootDir, config.Theme.Static, "robots.txt"));
+    /// <summary>
+    /// Whether the root default language copies a static <c>robots.txt</c> to the output root.
+    /// It reads the language's planned static outputs, so site, named-theme and parent-theme
+    /// static directories are all covered exactly as the copy step resolves them.
+    /// </summary>
+    internal static bool HasStaticRobots(Config.AppConfig config, IReadOnlyList<BuildVariantResult> variants)
+    {
+        if (!I18nOutputLayout.IsDefaultLanguageAtRoot(config))
+        {
+            return false;
+        }
+
+        var layout = I18nOutputLayout.For(config.Site);
+        return variants.Any(variant => layout.IsRootLanguage(variant.Language) &&
+            variant.PlannedOutputs.Any(item => item.Category == AssetOutputCategory.Static &&
+                string.Equals(BuildPathUtils.NormalizeRelPath(item.Destination), "robots.txt", StringComparison.OrdinalIgnoreCase)));
+    }
 
     public void Write(I18nRootProjectionWriterContext context, PublishRepresentation representation)
     {
@@ -41,7 +55,7 @@ internal sealed class I18nRootRobotsWriter : II18nRootProjectionWriter
             ?
             [
                 SitemapGenerator.BuildAbsoluteUrl(siteUrl, context.RootBaseUrl, "/sitemap.xml"),
-                SitemapGenerator.BuildAbsoluteUrl(siteUrl, context.RootBaseUrl, "/" + rootLanguage.Trim() + "/sitemap.xml")
+                SitemapGenerator.BuildAbsoluteUrl(siteUrl, context.RootBaseUrl, "/" + BuildPathUtils.NormalizeRelPath(layout.SitemapRelativePath(rootLanguage)))
             ]
             : null;
     }

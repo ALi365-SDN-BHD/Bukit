@@ -36,11 +36,7 @@ internal static class I18nLegacyRedirectDeriver
             return;
         }
 
-        var target = context.BaseUrl == "/" ? "/" : context.BaseUrl.TrimEnd('/') + "/";
-        if (!string.IsNullOrWhiteSpace(site.Url))
-        {
-            target = site.Url.TrimEnd('/') + target;
-        }
+        var target = SeoModelBuilder.BuildAbsoluteUrl(site.Url, context.BaseUrl, "/");
         var document = DerivedContentDocumentFactory.Create(
             id: $"i18n-legacy-home-{language}",
             title: "Redirect",

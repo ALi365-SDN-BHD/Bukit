@@ -99,6 +99,7 @@ public sealed class I18nRootLayoutTests
 
         Assert.Equal(expected, BuildPathUtils.NormalizeRelPath(I18nOutputLayout.For(site).SitemapRelativePath(language)));
         Assert.Same(I18nOutputLayout.For(site), I18nOutputLayout.For(site));
+        Assert.Throws<InvalidOperationException>(() => I18nOutputLayout.For(site).BaseUrl(language));
     }
 
     [Fact]
@@ -264,6 +265,57 @@ public sealed class I18nRootLayoutTests
     }
 
     [Fact]
+    public async Task StaticRobots_FromNamedThemeOverridesGeneratedRobots()
+    {
+        using var site = RootSite();
+        var themeRoot = site.Sandbox.PathFor("themes/local");
+        CopyDirectory(site.Sandbox.PathFor("layouts"), Path.Combine(themeRoot, "layouts"));
+        File.WriteAllText(Path.Combine(themeRoot, "theme.yaml"), "name: local\nversion: 1.0.0\nengine: bukit\n");
+        site.Sandbox.Write("themes/local/static/robots.txt", "User-agent: *\nAllow: /theme\n");
+        var config = WithRobots(site.Config) with { Theme = site.Config.Theme with { Name = "local" } };
+
+        var engine = new SiteEngine(new ConsoleLogger(LogLevel.Error));
+        await engine.BuildAsync(config, site.Root, new ConfigOverrides { Incremental = false });
+        Assert.Equal("User-agent: *\nAllow: /theme\n", File.ReadAllText(Path.Combine(site.Output, "robots.txt")));
+
+        // The second build sees robots.txt as a previously owned output; it must still be the static file.
+        await engine.BuildAsync(config, site.Root, new ConfigOverrides());
+        Assert.Equal("User-agent: *\nAllow: /theme\n", File.ReadAllText(Path.Combine(site.Output, "robots.txt")));
+    }
+
+    [Fact]
+    public async Task SingleLanguageRootLayout_KeepsLanguageAndRootManifestsApart()
+    {
+        using var site = RootSite();
+        var config = site.Config with
+        {
+            Site = site.Config.Site with { Languages = ["en"], DefaultLanguage = "en" }
+        };
+        var engine = new SiteEngine(new ConsoleLogger(LogLevel.Error));
+        await engine.BuildAsync(config, site.Root, new ConfigOverrides { Incremental = false });
+
+        var cache = Path.Combine(site.Root, ".cache");
+        var languageManifest = BuildManifest.Load(Path.Combine(cache, "build-manifest.en.json"));
+        var rootManifest = BuildManifest.Load(Path.Combine(cache, "build-manifest.json"));
+        Assert.Contains("agent-manifest.json", rootManifest.OwnedOutputs);
+        Assert.DoesNotContain("agent-manifest.json", languageManifest.OwnedOutputs);
+
+        await engine.BuildAsync(config, site.Root, new ConfigOverrides());
+        Assert.True(File.Exists(Path.Combine(site.Output, "agent-manifest.json")));
+        Assert.True(File.Exists(Path.Combine(site.Output, "index.html")));
+    }
+
+    private static void CopyDirectory(string source, string destination)
+    {
+        foreach (var file in Directory.EnumerateFiles(source, "*", SearchOption.AllDirectories))
+        {
+            var target = Path.Combine(destination, Path.GetRelativePath(source, file));
+            Directory.CreateDirectory(Path.GetDirectoryName(target)!);
+            File.Copy(file, target);
+        }
+    }
+
+    [Fact]
     public async Task StaticLlms_ConflictsBeforeCopy()
     {
         using var site = RootSite();
@@ -426,6 +478,9 @@ public sealed class I18nRootLayoutTests
         Assert.DoesNotContain("\"/en/\"", File.ReadAllText(Path.Combine(site.Output, "agent-manifest.json")), StringComparison.Ordinal);
         Assert.DoesNotContain("\"url\":\"/en/\"", File.ReadAllText(Path.Combine(site.Output, "search.json")), StringComparison.Ordinal);
         Assert.DoesNotContain("<loc>https://example.test/en/</loc>", File.ReadAllText(Path.Combine(site.Output, "sitemap.xml")), StringComparison.Ordinal);
+        Assert.NotEmpty(Directory.EnumerateFiles(Path.Combine(site.Output, "content"), "*.json", SearchOption.AllDirectories));
+        Assert.False(File.Exists(Path.Combine(site.Output, "content", "en", "index.html.json")));
+        Assert.False(File.Exists(Path.Combine(site.Output, "content", "en", "index.html.md")));
         foreach (var file in new[] { "llms.txt", "llms-full.txt", "rss.xml" })
         {
             var path = Path.Combine(site.Output, file);

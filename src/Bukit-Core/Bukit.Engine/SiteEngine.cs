@@ -325,14 +325,22 @@ public sealed partial class SiteEngine
 
         buildLogger.Info($"event=build.i18n.start languages={languages.Count} concurrent_jobs={languageJobs}");
         var failures = new System.Collections.Concurrent.ConcurrentDictionary<string, Exception>(StringComparer.OrdinalIgnoreCase);
+        // After any failure the other languages stop early; the default language always runs to
+        // completion so a default-language reserved-prefix violation can still be the primary failure.
+        using var stopOtherLanguages = new CancellationTokenSource();
         await Parallel.ForEachAsync(
             languages.Select((lang, i) => (lang, i)),
             new ParallelOptions { MaxDegreeOfParallelism = languageJobs, CancellationToken = cancellationToken },
-            async (entry, ct) =>
+            async (entry, parallelToken) =>
             {
                 var (lang, i) = entry;
+                using var languageCancellation = string.Equals(lang, defaultLanguage, StringComparison.OrdinalIgnoreCase)
+                    ? null
+                    : CancellationTokenSource.CreateLinkedTokenSource(parallelToken, stopOtherLanguages.Token);
+                var ct = languageCancellation?.Token ?? parallelToken;
                 try
                 {
+                    ct.ThrowIfCancellationRequested();
                     var variantLogger = buildLogger;
                     var baseUrl = layout.BaseUrl(lang);
                     var variantConfig = config with
@@ -358,9 +366,14 @@ public sealed partial class SiteEngine
                     results[i] = await BuildVariantAsync(variantCtx, templateHashCache, ct, variantLogger);
                     variantLogger.Info($"event=build.variant.done language={lang} baseUrl={baseUrl} outputDir={BuildTransaction.Logical(variantOutputDir)}");
                 }
+                catch (OperationCanceledException) when (!parallelToken.IsCancellationRequested && stopOtherLanguages.IsCancellationRequested)
+                {
+                    // Stopped because another language already failed.
+                }
                 catch (Exception ex) when (ex is not OperationCanceledException)
                 {
                     failures[lang] = ex;
+                    await stopOtherLanguages.CancelAsync();
                 }
             });
 

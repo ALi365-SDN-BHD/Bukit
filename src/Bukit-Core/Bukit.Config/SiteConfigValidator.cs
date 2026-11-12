@@ -102,11 +102,12 @@ internal static class SiteConfigValidator
         }
 
         if (!site.DefaultLanguageInSubdir &&
-            site.Languages is { Count: > 0 } &&
+            site.Languages?.Any(language => !string.IsNullOrWhiteSpace(language)) == true &&
             searchMode == "merged")
         {
             throw new ConfigException(
-                "site.defaultLanguageInSubdir: false cannot be combined with site.search.mode: merged.");
+                "site.defaultLanguageInSubdir: false cannot be combined with site.search.mode: merged.",
+                DiagnosticCode.ConfigInvalidValue);
         }
 
         ValidateSearchRoute(site.Search.Route);

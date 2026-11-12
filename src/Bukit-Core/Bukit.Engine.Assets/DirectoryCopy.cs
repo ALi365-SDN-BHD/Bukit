@@ -83,13 +83,6 @@ internal static class DirectoryCopy
 
     public static void Sync(string sourceDir, string destinationDir, DirectoryCopyOptions options, ILogger logger, string? outputRoot = null, IOutputPathPolicy? pathPolicy = null)
     {
-        if (options.Prune && outputRoot is not null &&
-            string.Equals(Path.GetFullPath(destinationDir), Path.GetFullPath(outputRoot), PlatformPathHelper.PathComparison))
-        {
-            throw new InvalidOperationException(
-                "Refusing to prune the output root: a root default language owns it and pruning would remove other language directories.");
-        }
-
         if (!Directory.Exists(sourceDir))
         {
             return;

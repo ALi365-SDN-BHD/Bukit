@@ -318,7 +318,7 @@ public sealed partial class SiteEngine
         try
         {
             var previous = BuildManifest.Load(PublicOutputLifecycle.ManifestPath(rootDir, overrides), buildLogger);
-            var staticRobots = I18nRootRobotsWriter.HasStaticRobots(config, rootDir);
+            var staticRobots = I18nRootRobotsWriter.HasStaticRobots(config, variantResults);
             var rootOutputs = PublicOutputLifecycle.ProjectionPlan(config, [], root: true).ToList();
             if (staticRobots)
             {
