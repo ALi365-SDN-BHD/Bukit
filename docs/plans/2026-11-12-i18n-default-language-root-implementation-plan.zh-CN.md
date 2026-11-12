@@ -348,12 +348,14 @@
 
 **T10.1 根 manifest 记录布局**
 - 改动：`Incremental/BuildManifest.cs` 新增布局字段（读写兼容：旧 manifest 无此字段时视为带前缀）。
-- 测试：manifest 读写往返；旧 manifest 读取；边界用例：manifest 位于缓存目录（`PublicOutputLifecycle.ManifestPath`），缓存丢失或改用 `--cache-dir` 而输出目录保留时，若输出目录已有构建标记，按"布局未知"处理并走受保护清理，不得残留旧布局目录。
+- 测试：manifest 读写往返；旧 manifest 读取。
+- 说明：缓存中的 manifest 丢失或改用 `--cache-dir` 而输出目录保留的情况，**已由现有逻辑覆盖**：`BuildManifest.Load` 返回默认对象（`Version = 3`、`OutputRoot` 为空），`PublicOutputLifecycle.SameRoot` 判为 false，只要输出目录有构建标记，`BuildPlanner` 的 `needsMigration` 就成立并走受保护清理。这里不另行设计"布局未知"的处理，只在 T10.2 用测试确认该路径在布局切换场景下仍然有效。
 - 依赖：阶段 9 完成。
 
-**T10.2 布局变化时受保护清理**
-- 改动：上次布局与本次不同时，走 `OutputDirectoryCleaner` 的受保护清理后再写。进程内在各语言构建开始前清理；Worktree 模式由协调器在派发 Worker 之前判断布局变化并完成清理（staging 也不得保留旧布局目录），不能在 Worker 写入之后清理。
-- 测试：spec 场景 "Switching to a root default language"：`dist/en/` 不再存在，`dist/index.html` 为英文首页；反向切换同样干净；进程内和 Worktree 两种模式各测一遍。
+**T10.2 布局变化时受保护清理（复用现有迁移清理）**
+- 改动（进程内）：不直接调用 `OutputDirectoryCleaner` 清理正式输出目录。在 `BuildPlanner.ValidateOutputDirectory`（第 90 行，`BuildTransaction` 第 98 行预检）和 `BuildPlanner.PrepareOutputDirectory`（第 102 行）的 `needsMigration` 条件中各加一项"上次记录的布局 ≠ 本次布局"。前者触发 `EnsureCanClean` 保护预检，后者对事务 staging 执行 `CleanIfExists(BuildTransaction.PhysicalRoot(rootDir), outputDir)`；构建失败时正式输出原样回滚。日志沿用 `event=build.output.migration`，附带布局变化原因。
+- 改动（Worktree）：在派发 Worker 之前完成，全部作用于 staging：`WorktreeBuildRun` 第 231 行 `WorktreeBuildPaths.PrepareStaging(final, staging, copyExisting: …)` 的条件加上"布局未变"，布局变化时 staging 从空目录开始；第 163 行 `OutputDirectoryCleaner.EnsureCanClean(..., effectiveConfig.Build.Clean)` 在布局变化时同样要求输出标记（与 `--clean` 相同的保护预检）；第 233 行 `RewriteManifestRoots` 在布局变化时丢弃旧的各语言 manifest，避免旧路径进入新构建。正式输出由事务提交时整体替换。
+- 测试：spec 场景 "Switching to a root default language"：`dist/en/` 不再存在，`dist/index.html` 为英文首页；反向切换同样干净；进程内和 Worktree 两种模式各测一遍；布局切换的构建中途失败时，正式输出保持切换前原样；缓存 manifest 丢失但输出目录有构建标记时，切换布局后不残留旧布局目录；输出目录没有构建标记时，布局切换按现有规则拒绝清理并报错。
 - 依赖：T10.1。
 
 **T10.3 增量删除不越界**
@@ -458,3 +460,4 @@
 | 审计 2 | 2026-11-12 | 撤回聚合表示 `redirect`，根目录跳转页在 writer 注册表之外单独写出（删除 T04.1a）；新增 T05.2a：根目录语言的语言级聚合投影仍产出结果，保证审计标记一致；补 T00.1 基线过滤、T01.4 schema 说明、T12.3 AOT 命令 |
 | 审计 3 | 2026-11-12 | T05.2a 改为覆盖语言级审计直接读取的全部聚合文件，投影沿用现有字段（`Exists = false`）；T06.8 改用默认语言 static 计划判断根目录 robots，补两个方向的过渡测试；T05.5 注明依赖 T05.2a |
 | 审计 4 | 2026-11-12 | T05.2a 补默认语言 static robots 照常读取的例外；T04.2 把根目录 `index.html` 加入链接检查清单；T10.2 写明 Worktree 在派发 Worker 前清理，两种模式各测一遍 |
+| 审计 5 | 2026-11-12 | T10.1、T10.2 改为复用 `BuildPlanner` 的 `needsMigration` 迁移清理（作用于事务 staging），Worktree 落到 `PrepareStaging`、`EnsureCanClean`、`RewriteManifestRoots`；manifest 丢失的边界由现有逻辑覆盖；补构建失败回滚测试 |

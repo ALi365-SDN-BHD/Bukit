@@ -52,7 +52,7 @@
 ## 5. 布局切换和增量构建
 
 - [ ] `SiteIdentityAndModesContributor` 只在值为 `false` 时写入哈希。
-- [ ] 根 manifest 记录布局；布局变化时走受保护清理（Worktree 由协调器在派发 Worker 前完成）。
+- [ ] 根 manifest 记录布局；布局变化时扩展 `BuildPlanner` 的 `needsMigration`，对事务 staging 走受保护清理；Worktree 在派发 Worker 前让 staging 从空目录开始、要求输出标记、丢弃旧的各语言 manifest；构建失败时正式输出不变。
 
 ## 6. 测试
 

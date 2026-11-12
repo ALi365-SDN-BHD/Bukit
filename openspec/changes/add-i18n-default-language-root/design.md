@@ -116,7 +116,7 @@ split 模式下没有根目录索引，默认语言的 sitemap 仍写在 `/sitem
 
 ### 6. 布局切换和增量构建
 
-`SiteIdentityAndModesContributor` 只在值为 `false` 时写入哈希，这样未启用的站点升级后不会全量重渲染。根 manifest 记录本次布局，和上次不同时，`BuildPlanner.PrepareOutputDirectory` 按现有 migration 路径执行受保护的清理。默认语言 manifest（`build-manifest.<lang>.json`）的 `OutputRoot` 改为输出根目录，`WorktreeBuildPaths.RewriteManifestRoots` 和 `CopyVariantManifest` 通过 `I18nOutputLayout` 计算路径。
+`SiteIdentityAndModesContributor` 只在值为 `false` 时写入哈希，这样未启用的站点升级后不会全量重渲染。根 manifest 记录本次布局，和上次不同时，在 `BuildPlanner.ValidateOutputDirectory`（预检）和 `PrepareOutputDirectory` 的 `needsMigration` 条件中加入布局变化，按现有 migration 路径对事务 staging 执行受保护的清理，构建失败时正式输出可回滚；不直接清理正式输出目录。Worktree 模式在派发 Worker 前处理：布局变化时 `PrepareStaging` 不复制旧输出，`EnsureCanClean` 要求输出标记，`RewriteManifestRoots` 丢弃旧的各语言 manifest。缓存 manifest 丢失但输出目录有构建标记的情况，现有 `needsMigration` 已会触发受保护清理。默认语言 manifest（`build-manifest.<lang>.json`）的 `OutputRoot` 改为输出根目录，`WorktreeBuildPaths.RewriteManifestRoots` 和 `CopyVariantManifest` 通过 `I18nOutputLayout` 计算路径。
 
 默认语言 manifest 和根 manifest 的 `OutputRoot` 会相同。两者都只按各自记录的归属删除旧文件，`BuildManifestTracker.DeleteEmptyDirectoriesUpToRoot` 和 `PublicOutputLifecycle.DeleteOwnedFile` 都在输出根目录处停止，不会越界；但需要专项测试覆盖"删除默认语言最后一个文件后，空目录清理不影响其他语言目录"。
 
