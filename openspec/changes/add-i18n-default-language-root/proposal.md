@@ -18,13 +18,13 @@
 - 新增路由保留前缀校验：默认语言所有输出的第一个路径段不得与其他已配置语言代码相同，在任何平台上都不区分大小写，报 `i18n-route-reserved-language-prefix`。路由、static 和资源计划在写文件前检查；插件输出要到 AfterBuild 才确定，只能在提交前检查并阻止提交，此时父进程把默认语言的越界输出作为根因优先报告。默认语言自身的代码不保留，用户可以用 alias 为旧地址做跳转。
 - Worktree 构建：默认语言的 Worker 输出到 staging 根目录；该 Worker 写前检查保留前缀，父进程拒绝越界结果。
 - 切换该配置会改变输出布局：设置值进入增量构建的站点哈希，且与上次构建不同时对输出目录执行受保护的清理。
-- 配置读取、严格字段白名单、`SiteConfigValidator`/`I18nValidator`、JSON Schema、公共 API 基线、i18n skill、用户指南、开发文档、站点迁移清单、插件和主题作者说明、中英马 CHANGELOG 同步更新。
+- 配置读取、严格字段白名单、`SiteConfigValidator`、JSON Schema、公共 API 基线、i18n skill、用户指南、开发文档、站点迁移清单、插件和主题作者说明、中英马 CHANGELOG 同步更新。
 
 ## Impact
 
 - 受影响代码：`Bukit.Config`（`SiteConfig`、`ConfigLoader`、`ConfigStrictFieldValidator`、`SiteConfigValidator`、`ConfigJsonSchemaGenerator`），`Bukit.Engine`（`I18nLanguagePolicy`、`SiteEngine`、`I18nWorktreeBuild`、`I18nWorktreeProtocol`、`SeoAlternatesService`、`I18nMergedVariantState`、`PublicOutputLifecycle`、`AssetOutputPlan`、`RoutePipeline`/`RouteInventoryValidator`、`BuildReportPipeline`、`VariantReportStage`、`SitemapPlugin`、`I18nRootSitemapWriter`、`I18nRootRobotsWriter`、`I18nRootProjectionWriterRegistry`（新增根目录跳转页 writer）、`AliasPlugin`、`TaxonomyRedirectWriter`、`BuildTransaction`、`Incremental/SiteIdentityAndModesContributor`），`Bukit.Engine.Audit`（`SeoAuditReportWriter` 及其报告 writer），`Bukit.Engine.Analytics`（`AnalyticsReportWriter`），`Bukit.Engine`（`BuildReportInventories`：按语言输出目录查找 analytics 报告），`Bukit.Cli`（`WorktreeBuildRun`、`WorktreeBuildPaths`）。
 - 规范：新增能力 `i18n-output-layout`；修改 `i18n-worktree-build` 的"Worker 结果必须完整且可验证"和"根级输出必须保持现有语义"两条要求。
-- 公共契约：`SiteConfig` 新增一个属性（新增性变更），公共 API 基线随之更新；`site.yaml` 新增一个可选字段；新增两个报错码。
+- 公共契约：`SiteConfig` 新增两个属性 `DefaultLanguageInSubdir`、`DefaultLanguageRedirect`（新增性变更），公共 API 基线随之更新；`site.yaml` 新增两个可选字段；新增两个报错码 `i18n-route-reserved-language-prefix`、`i18n-root-output-conflict`（`search.mode: merged` 组合走配置校验报错）。
 - 兼容性：不配置时，URL、已有输出路径、报告路径和增量站点哈希都不变，但有以下变化：
   - **行为变化**：现有多语言站点升级后，根目录会新增跳转页 `index.html`。纯静态托管上首页从 404 变为跳转，这是想要的修复。但在 Netlify 等平台，如果已配置未加 `force` 的 `/` → `/<lang>/` 301 规则，新文件会盖过这条规则，跳转从 301 退化为 meta refresh。这类站点应设置 `defaultLanguageRedirect: false`，CHANGELOG 中标为行为变化。
   - 各语言计划输出清单不再列出插件本来就不写的文件，需要测试确认不会误删文件或触发全量重建。
