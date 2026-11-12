@@ -1,5 +1,6 @@
 using System.Security.Cryptography;
 using System.Text;
+using Bukit.Config;
 using Bukit.Engine;
 using Bukit.Engine.Incremental;
 using Bukit.Shared;
@@ -49,20 +50,38 @@ internal static class WorktreeBuildPaths
         manifest.Save(Path.Combine(workerCache, fileName));
     }
 
+    internal static void DiscardManifests(string cacheDir)
+    {
+        if (!Directory.Exists(cacheDir))
+        {
+            return;
+        }
+
+        foreach (var path in Directory.EnumerateFiles(cacheDir, "build-manifest*.json", SearchOption.TopDirectoryOnly))
+        {
+            File.Delete(path);
+        }
+    }
+
     internal static void RewriteManifestRoots(
         string cacheDir,
         string oldOutputRoot,
         string newOutputRoot,
-        IReadOnlyList<string> languages)
+        IReadOnlyList<string> languages,
+        SiteConfig? site = null)
     {
         RewriteManifest(Path.Combine(cacheDir, "build-manifest.json"), oldOutputRoot, newOutputRoot);
+        var layout = site is null
+            ? null
+            : I18nOutputLayout.Create(site, languages, site.BaseUrl);
         foreach (var language in languages)
         {
             var fileName = $"build-manifest.{BuildPathUtils.SanitizeFileSegment(language)}.json";
+            var prefix = layout?.RelativeOutputPrefix(language) ?? language;
             RewriteManifest(
                 Path.Combine(cacheDir, fileName),
-                Path.Combine(oldOutputRoot, language),
-                Path.Combine(newOutputRoot, language));
+                I18nOutputLayout.CombineRelative(prefix, oldOutputRoot),
+                I18nOutputLayout.CombineRelative(prefix, newOutputRoot));
         }
     }
 

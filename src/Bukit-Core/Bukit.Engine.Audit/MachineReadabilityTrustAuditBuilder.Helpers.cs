@@ -471,7 +471,8 @@ internal static partial class MachineReadabilityTrustAuditBuilder
             or "publish.updated_at_missing"
             or "publish.entity_missing";
 
-    private static string? ReadOptional(string path) => File.Exists(path) ? File.ReadAllText(path) : null;
+    private static string? ReadOptional(string? path)
+        => path is not null && File.Exists(path) ? File.ReadAllText(path) : null;
 
     private static bool ContainsInvariant(string? haystack, string needle)
         => haystack?.IndexOf(needle, StringComparison.OrdinalIgnoreCase) >= 0;

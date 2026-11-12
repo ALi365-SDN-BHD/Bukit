@@ -78,15 +78,37 @@ internal abstract class AggregatePublishProjectionBase : IPublishProjection
 
     public PublishRepresentation Representation { get; }
 
+    private static readonly HashSet<string> RootOwnedKinds = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "agent-manifest", "robots", "llms", "llms-full"
+    };
+
     public PublishProjectionResult Project(PublishProjectionContext context)
     {
-        ProjectAggregate(context);
-        var relativePath = Representation.Kind switch
+        var relativePath = ResolveRelativePath(context);
+        var languages = I18nOutputMerger.GetLanguages(context.Config.Site);
+        var feedSuppressed = Representation.Kind is "feed" or "atom" or "jsonfeed" &&
+            languages.Count > 0 &&
+            SiteModeResolver.ResolveFeedMode(context.Config.Site) == "merged";
+        var sitemapSuppressed = Representation.Kind == "sitemap" &&
+            languages.Count > 0 &&
+            (context.Config.Site.SitemapMode ?? "split").Trim().Equals("merged", StringComparison.OrdinalIgnoreCase);
+        if ((RootOwnedKinds.Contains(Representation.Kind) &&
+             I18nOutputLayout.IsRootLanguageOutput(context.Config)) ||
+            feedSuppressed ||
+            sitemapSuppressed)
         {
-            "atom" => context.Config.Site.Feed.Path + "/atom.xml",
-            "jsonfeed" => context.Config.Site.Feed.Path + "/feed.json",
-            _ => Representation.Path
-        };
+            return new PublishProjectionResult(
+                Representation,
+                [new PublishRepresentationOutput(
+                    Representation.Kind,
+                    "/" + relativePath.Replace('\\', '/'),
+                    relativePath,
+                    Exists: false,
+                    Indexable: false)]);
+        }
+
+        ProjectAggregate(context);
         var path = FileWriter.GetSafeFullPath(context.OutputDir, relativePath);
         var text = File.Exists(path) ? File.ReadAllText(path) : null;
         var outputs = BuildRouteOutputs(context, text, File.Exists(path), relativePath);
@@ -101,6 +123,14 @@ internal abstract class AggregatePublishProjectionBase : IPublishProjection
     }
 
     protected abstract void ProjectAggregate(PublishProjectionContext context);
+
+    protected virtual string ResolveRelativePath(PublishProjectionContext context)
+        => Representation.Kind switch
+        {
+            "atom" => context.Config.Site.Feed.Path + "/atom.xml",
+            "jsonfeed" => context.Config.Site.Feed.Path + "/feed.json",
+            _ => Representation.Path
+        };
 
     private IReadOnlyList<PublishRepresentationOutput> BuildRouteOutputs(
         PublishProjectionContext context,
@@ -260,8 +290,21 @@ internal sealed class SitemapPublishProjection : AggregatePublishProjectionBase
             filtered.Add((seo.Canonical, seo.LastModified));
         }
 
-        SitemapGenerator.GenerateAbsolute(context.OutputDir, filtered);
+        var outputDir = context.OutputDir;
+        if (I18nOutputLayout.IsRootLanguageOutput(context.Config) &&
+            (context.Config.Site.SitemapMode ?? "split").Trim().Equals("index", StringComparison.OrdinalIgnoreCase))
+        {
+            outputDir = Path.Combine(context.OutputDir, context.Config.Site.Language);
+        }
+
+        SitemapGenerator.GenerateAbsolute(outputDir, filtered);
     }
+
+    protected override string ResolveRelativePath(PublishProjectionContext context)
+        => I18nOutputLayout.IsRootLanguageOutput(context.Config) &&
+           (context.Config.Site.SitemapMode ?? "split").Trim().Equals("index", StringComparison.OrdinalIgnoreCase)
+            ? Path.Combine(context.Config.Site.Language, "sitemap.xml")
+            : base.ResolveRelativePath(context);
 }
 
 internal sealed class SearchIndexPublishProjection : AggregatePublishProjectionBase

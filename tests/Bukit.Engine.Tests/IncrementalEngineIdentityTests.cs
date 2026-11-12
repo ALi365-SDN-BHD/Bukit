@@ -35,6 +35,31 @@ public sealed class IncrementalEngineIdentityTests
         Assert.Equal(0, ListReasons(site, "list_unchanged"));
     }
 
+    [Fact]
+    public async Task DefaultLanguageLayout_OnlyContributesToHashWhenDisabled()
+    {
+        using var site = CreateSite();
+        var config = Configure(site.Config, true);
+        var first = await BuildAsync(config, site.Root, "2.0.12+layout");
+
+        var explicitTrue = config with
+        {
+            Site = config.Site with { DefaultLanguageInSubdir = true, DefaultLanguageRedirect = true }
+        };
+        var same = await BuildAsync(explicitTrue, site.Root, "2.0.12+layout");
+        Assert.Equal(0, same.Incremental.CacheMissCount);
+
+        var subdirFalse = explicitTrue with { Site = explicitTrue.Site with { DefaultLanguageInSubdir = false } };
+        var subdirChanged = await BuildAsync(subdirFalse, site.Root, "2.0.12+layout");
+        Assert.Equal(0, subdirChanged.Incremental.CacheHitCount);
+        Assert.True(subdirChanged.Incremental.CacheMissCount > 0);
+
+        var redirectFalse = explicitTrue with { Site = explicitTrue.Site with { DefaultLanguageRedirect = false } };
+        var redirectChanged = await BuildAsync(redirectFalse, site.Root, "2.0.12+layout");
+        Assert.Equal(0, redirectChanged.Incremental.CacheHitCount);
+        Assert.True(redirectChanged.Incremental.CacheMissCount > 0);
+    }
+
     private static int ListReasons(SiteBuilder site, string reason)
     {
         var total = 0;

@@ -30,7 +30,8 @@ internal static class I18nOutputMerger
         string rootBaseUrl,
         IReadOnlyList<BuildVariantResult> results,
         ILogger logger,
-        ISearchIndexBuilder searchIndexBuilder)
+        ISearchIndexBuilder searchIndexBuilder,
+        bool skipRootRobots = false)
     {
         return I18nRootProjectionCoordinator.GenerateRootOutputs(
             config,
@@ -38,7 +39,8 @@ internal static class I18nOutputMerger
             rootBaseUrl,
             results,
             logger,
-            searchIndexBuilder);
+            searchIndexBuilder,
+            skipRootRobots);
     }
 
     internal static PublishProjectionResult ProjectRootAggregate(

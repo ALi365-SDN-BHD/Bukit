@@ -20,6 +20,11 @@ internal sealed class I18nRootAgentManifestWriter : II18nRootProjectionWriter
             {
                 var document = routedDocument.Document;
                 var route = routedDocument.Route;
+                if (route.Template == RedirectPageHtml.RouteTemplate)
+                {
+                    continue;
+                }
+
                 var key = BuildPathUtils.NormalizeRelPath(route.OutputPath);
                 result.SeoIndex.TryGetValue(key, out var seoEntry);
                 if (seoEntry?.Indexable == false)

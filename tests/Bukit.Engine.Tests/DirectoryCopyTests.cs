@@ -1,3 +1,4 @@
+using Bukit.Config;
 using Bukit.Engine.Output;
 using Bukit.Shared;
 using Bukit.Shared.IO;
@@ -861,6 +862,33 @@ public sealed class DirectoryCopyTests : IDisposable
                 stream,
                 displacedPath);
         }
+    }
+
+    [Fact]
+    public void SyncPrune_RefusesRootLanguageOutputDirectory()
+    {
+        var root = CreateTempRoot();
+        var sourceDir = Path.Combine(root, "source");
+        var outputDir = Path.Combine(root, "output");
+        Directory.CreateDirectory(sourceDir);
+        Directory.CreateDirectory(outputDir);
+        var site = new SiteConfig
+        {
+            Name = "prune-guard",
+            Title = "Prune guard",
+            Languages = ["en", "zh-CN"],
+            DefaultLanguage = "en",
+            DefaultLanguageInSubdir = false
+        };
+        var layout = I18nOutputLayout.Create(site, ["en", "zh-CN"], "/");
+
+        var destination = layout.OutputDir(outputDir, "en");
+        Assert.Equal(Path.GetFullPath(outputDir), Path.GetFullPath(destination));
+
+        var ex = Assert.Throws<InvalidOperationException>(() =>
+            DirectoryCopy.Sync(sourceDir, destination, Logger, prune: true, outputRoot: outputDir));
+
+        Assert.Contains("Refusing to prune the output root", ex.Message, StringComparison.Ordinal);
     }
 
     private sealed class RejectingSourceOpener : ISafeSourceFileOpener

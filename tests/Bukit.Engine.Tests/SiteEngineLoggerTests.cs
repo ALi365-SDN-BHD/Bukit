@@ -95,6 +95,25 @@ public sealed class SiteEngineLoggerTests
         AssertReport(site, result);
     }
 
+    [Fact]
+    public async Task DefaultLanguageLayoutWithoutLanguages_WarnsAndOutputIsUnchanged()
+    {
+        using var site = CreateSite();
+        var logger = new RecordingLogger(new ConsoleLogger(LogLevel.Error));
+        var config = Configure(site.Config, false) with
+        {
+            Site = Configure(site.Config, false).Site with { DefaultLanguageInSubdir = false }
+        };
+
+        var result = await new SiteEngine(logger).BuildAsync(config, site.Root,
+            new ConfigOverrides { Incremental = false });
+
+        Assert.Contains(logger.Warnings, message => message.Contains("event=i18n.config.default_language_layout_ignored", StringComparison.Ordinal));
+        Assert.True(File.Exists(Path.Combine(site.Output, "hello", "index.html")));
+        Assert.Equal(0, result.Summary.ErrorCount);
+        AssertReport(site, result);
+    }
+
     private static SiteBuilder CreateSite()
     {
         var site = new SiteBuilder();

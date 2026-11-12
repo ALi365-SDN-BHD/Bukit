@@ -1,4 +1,3 @@
-using System.Text;
 using Bukit.Config;
 using Bukit.Content;
 using Bukit.Engine.Abstractions.Content;
@@ -51,9 +50,9 @@ internal sealed class AliasPlugin : IBukitPlugin, IDerivePagesPlugin
 
                 var targetUrl = route.Url.StartsWith('/') ? route.Url : "/" + route.Url;
 
-                var html = BuildRedirectHtml($"{baseUrl}{targetUrl}");
+                var html = RedirectPageHtml.Build($"{baseUrl}{targetUrl}");
                 var outputPath = RoutePathBuilder.BuildOutputPathFromUrl(aliasUrl, _config.Site.OutputPathEncoding);
-                var aliasRoute = new RouteInfo(aliasUrl, outputPath, null!);
+                var aliasRoute = new RouteInfo(aliasUrl, outputPath, RedirectPageHtml.RouteTemplate);
                 var fields = new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase)
                 {
                     ["type"] = new("text", "redirect"),
@@ -83,22 +82,6 @@ internal sealed class AliasPlugin : IBukitPlugin, IDerivePagesPlugin
         return derived;
     }
 
-    private static string BuildRedirectHtml(string targetUrl)
-    {
-        var sb = new StringBuilder();
-        sb.AppendLine("<!DOCTYPE html>");
-        sb.AppendLine("<html>");
-        sb.AppendLine("<head>");
-        sb.AppendLine($"<meta http-equiv=\"refresh\" content=\"0; url={EscapeAttr(targetUrl)}\">");
-        sb.AppendLine($"<link rel=\"canonical\" href=\"{EscapeAttr(targetUrl)}\">");
-        sb.AppendLine("</head>");
-        sb.AppendLine("<body>");
-        sb.AppendLine($"<p>Redirecting to <a href=\"{EscapeAttr(targetUrl)}\">{EscapeHtml(targetUrl)}</a></p>");
-        sb.AppendLine("</body>");
-        sb.AppendLine("</html>");
-        return sb.ToString();
-    }
-
     private static string EscapePath(string path)
     {
         return path.Replace("/", "-", StringComparison.Ordinal)
@@ -106,20 +89,4 @@ internal sealed class AliasPlugin : IBukitPlugin, IDerivePagesPlugin
             .TrimStart('-');
     }
 
-    private static string EscapeHtml(string value)
-    {
-        return (value ?? string.Empty)
-            .Replace("&", "&amp;", StringComparison.Ordinal)
-            .Replace("<", "&lt;", StringComparison.Ordinal)
-            .Replace(">", "&gt;", StringComparison.Ordinal);
-    }
-
-    private static string EscapeAttr(string value)
-    {
-        return (value ?? string.Empty)
-            .Replace("&", "&amp;", StringComparison.Ordinal)
-            .Replace("<", "&lt;", StringComparison.Ordinal)
-            .Replace(">", "&gt;", StringComparison.Ordinal)
-            .Replace("\"", "&quot;", StringComparison.Ordinal);
-    }
 }

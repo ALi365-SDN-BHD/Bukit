@@ -283,4 +283,26 @@ public sealed class StrictYamlContractTests : IDisposable
         Assert.Contains($"content.modelSchema.{mapping}", ex.Message, StringComparison.Ordinal);
         Assert.Contains(requiredKey, ex.Message, StringComparison.Ordinal);
     }
+
+    [Fact]
+    public void Load_DefaultLanguageLayoutFields_AreDeclared()
+    {
+        var path = WriteTempYaml("""
+            site:
+              name: myblog
+              title: My Blog
+              defaultLanguageInSubdir: false
+              defaultLanguageRedirect: false
+            content:
+              sources:
+                - type: markdown
+                  markdown:
+                    dir: content
+            """);
+
+        var config = ConfigLoader.Load(path);
+
+        Assert.False(config.Site.DefaultLanguageInSubdir);
+        Assert.False(config.Site.DefaultLanguageRedirect);
+    }
 }

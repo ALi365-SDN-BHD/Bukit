@@ -6,7 +6,7 @@ internal static class RepresentationAuditRules
 {
     internal static void Analyze(PublishDocument document, string outputDir, List<PublishAuditIssue> issues)
     {
-        using var agentManifest = new AgentManifestSnapshot(outputDir);
+        using var agentManifest = new AgentManifestSnapshot(Path.Combine(outputDir, "agent-manifest.json"));
         Analyze(document, outputDir, issues, agentManifest);
     }
 
@@ -324,8 +324,9 @@ internal static class RepresentationAuditRules
 /// in the same order the per-document scan first needs them, so failures surface at the
 /// same point as before.
 /// </summary>
-internal sealed class AgentManifestSnapshot(string outputDir) : IDisposable
+internal sealed class AgentManifestSnapshot(string? manifestPath) : IDisposable
 {
+    private bool _disabled;
     private bool _loaded;
     private bool _exists;
     private string? _invalidJsonMessage;
@@ -351,6 +352,8 @@ internal sealed class AgentManifestSnapshot(string outputDir) : IDisposable
 
     internal string? Language(int index) => _language.Get(_documents!, index, "language");
 
+    internal static AgentManifestSnapshot Disabled() => new(null) { _disabled = true, _loaded = true };
+
     public void Dispose() => _json?.Dispose();
 
     private void Load()
@@ -360,7 +363,13 @@ internal sealed class AgentManifestSnapshot(string outputDir) : IDisposable
             return;
         }
 
-        var path = Path.Combine(outputDir, "agent-manifest.json");
+        if (_disabled || manifestPath is null)
+        {
+            _loaded = true;
+            return;
+        }
+
+        var path = manifestPath;
         _exists = File.Exists(path);
         if (_exists)
         {

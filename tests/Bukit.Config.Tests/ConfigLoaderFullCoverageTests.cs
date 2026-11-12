@@ -1218,4 +1218,48 @@ public sealed class ConfigLoaderFullCoverageTests : IDisposable
         Assert.Equal("Updated", source.SortProperty);
         Assert.Equal("descending", source.SortDirection);
     }
+
+    [Fact]
+    public void Load_SiteDefaultLanguageLayout_ParsesBools()
+    {
+        var yaml = """
+            site:
+              name: myblog
+              title: My Blog
+              defaultLanguageInSubdir: false
+              defaultLanguageRedirect: false
+            content:
+              sources:
+                - type: markdown
+                  markdown:
+                    dir: content
+            """;
+        var path = WriteTempYaml(yaml);
+        var config = ConfigLoader.Load(path);
+
+        Assert.False(config.Site.DefaultLanguageInSubdir);
+        Assert.False(config.Site.DefaultLanguageRedirect);
+    }
+
+    [Fact]
+    public void Load_SiteDefaultLanguageLayout_InvalidBoolFails()
+    {
+        var yaml = """
+            site:
+              name: myblog
+              title: My Blog
+              defaultLanguageInSubdir: maybe
+            content:
+              sources:
+                - type: markdown
+                  markdown:
+                    dir: content
+            """;
+        var path = WriteTempYaml(yaml);
+
+        var ex = Assert.Throws<ConfigException>(() => ConfigLoader.Load(path));
+
+        Assert.Equal(DiagnosticCode.ConfigInvalidValue, ex.Code);
+        Assert.Contains("defaultLanguageInSubdir", ex.Message, StringComparison.Ordinal);
+    }
 }

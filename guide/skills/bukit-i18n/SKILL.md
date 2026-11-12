@@ -27,9 +27,11 @@ site:
   url: https://example.com      # required for sitemaps, feeds, hreflang
   languages: [en, zh-CN]        # codes like en, zh-CN; zh_CN is rejected
   defaultLanguage: en           # must be in languages; default first entry
+  defaultLanguageInSubdir: true # false puts the default language at the output root
+  defaultLanguageRedirect: true # legacy home redirect page
   sitemapMode: merged           # split | merged | index
   feed: { mode: split }         # split | merged
-  search: { mode: index }       # split | merged | index
+  search: { mode: index }       # split | merged | index (merged is rejected at the root)
 ```
 
 ```markdown
@@ -54,16 +56,38 @@ collection: page
 
 ## Output layout
 
-Any non-empty `languages`, even one entry, builds every language into
-`dist/<lang>/` with base `<baseUrl>/<lang>`, including the default language. Nothing is
-rendered at `/`: add a root redirect at the host or CDN. The root holds only aggregate
-files (sitemap, feeds, search index, `llms.txt`, `robots.txt`, `agent-manifest.json`).
+With `defaultLanguageInSubdir: true` (the default), every language including the
+default builds into `dist/<lang>/` with base `<baseUrl>/<lang>`. With
+`defaultLanguageInSubdir: false` the default language builds into `dist/` with the
+site root base URL, and the other languages keep their codes. In both layouts the
+root holds the aggregate files (sitemap, feeds, search index, `llms.txt`,
+`robots.txt`, `agent-manifest.json`).
+
+`defaultLanguageRedirect: true` (the default) writes a noindex redirect page so the
+home URL never 404s on static hosting: `dist/index.html` → `/<defaultLang>/` for the
+prefixed layout, and `dist/<defaultLang>/index.html` → `/` for the root layout. The
+redirect page is not listed in sitemaps, search, feeds, llms, or the agent manifest.
+Set it to `false` when the host or CDN already redirects and would otherwise be
+overridden.
+
+With the root layout, the default language's first path segment must not equal
+another language code (case-insensitive). The build fails with
+`i18n-route-reserved-language-prefix`; adding a language can therefore reject
+existing content. Default-language `static/robots.txt` overrides generated robots;
+other static files colliding with root-owned outputs fail with
+`i18n-root-output-conflict`. Default-language reports move to
+`.bukit/variants/<lang>/`; the merged reports stay in `.bukit/`. `search.mode:
+merged` is rejected with the root layout.
 
 | Setting | `split` | `merged` | `index` |
 |---|---|---|---|
 | `sitemapMode` | per-language sitemaps | one root sitemap with `xhtml:link` alternates; per-language ones suppressed | per-language sitemaps plus a root sitemap index |
 | `site.feed.mode` | per-language feeds | root feeds only | — |
 | `site.search.mode` | `/<lang>/search.json` only | adds root `search.json` | adds root `search.index.json` |
+
+With the root layout, `split` writes the default language sitemap to the root
+`sitemap.xml`; `index` writes it to `/<lang>/sitemap.xml` with unprefixed page URLs
+and lists it from the root sitemap index.
 
 ## hreflang
 

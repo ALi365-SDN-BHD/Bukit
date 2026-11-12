@@ -161,6 +161,16 @@ Example operation shape:
 }
 ```
 
+## i18n output roots
+
+`BuildContext.OutputDir` is the current language's output directory, not necessarily the
+site root. With `site.defaultLanguageInSubdir: false` the default language's
+`OutputDir` is the output root, so root-level plugin files such as a service worker
+cover every language; other languages still write under their code directory.
+Plugin outputs are checked before commit: a default-language output whose first
+path segment equals another language code fails with
+`i18n-route-reserved-language-prefix`.
+
 The internal SRBiz install bundle is platform-specific. Its installer manifest
 records Core and plugin versions, the `osx-arm64` RID, relative install targets,
 and real SHA-256 archive, plugin-entry, and package hashes. `stagedEntry` is

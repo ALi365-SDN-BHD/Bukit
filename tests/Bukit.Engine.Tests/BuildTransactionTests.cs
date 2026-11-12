@@ -886,4 +886,40 @@ public sealed partial class SiteEngineIntegrationTests
         }
         finally { CleanupDir(root); }
     }
+
+    [Fact]
+    public void GeneratedOutputLinkPaths_PrefixedLayoutKeepsEveryLanguageDestinationPrefixed()
+    {
+        var config = new AppConfig
+        {
+            Site = new SiteConfig
+            {
+                Name = "link-paths",
+                Title = "Link paths",
+                Url = "https://example.test",
+                Languages = ["en", "zh-CN"],
+                DefaultLanguage = "en",
+                SitemapMode = "split",
+                Seo = new SeoConfig
+                {
+                    RobotsTxt = new SeoRobotsTxtConfig { Enabled = true },
+                    Geo = new SeoGeoConfig { Enabled = false }
+                }
+            },
+            Content = TestContent.Markdown()
+        };
+
+        var paths = BuildTransaction.GeneratedOutputLinkPaths(config);
+
+        Assert.All(paths, path => Assert.False(string.IsNullOrWhiteSpace(path)));
+        Assert.Contains("index.html", paths);
+        Assert.Contains("en", paths);
+        Assert.Contains("zh-CN", paths);
+        Assert.Contains("en/.bukit", paths);
+        Assert.Contains("zh-CN/.bukit", paths);
+        Assert.Contains("en/agent-manifest.json", paths);
+        Assert.Contains("en/search.json", paths);
+        Assert.Contains("zh-CN/search.json", paths);
+        Assert.DoesNotContain(".bukit/variants/en", paths);
+    }
 }

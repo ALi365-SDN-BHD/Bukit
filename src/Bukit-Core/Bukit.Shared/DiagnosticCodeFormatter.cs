@@ -50,6 +50,9 @@ public static class DiagnosticCodeFormatter
             DiagnosticCode.PluginTimeoutExceeded => "Plugin: timeout exceeded",
             DiagnosticCode.PluginOutputLimitExceeded => "Plugin: output limit exceeded",
 
+            DiagnosticCode.I18nRootOutputConflict => "I18n: a default language static file conflicts with a root-owned output",
+            DiagnosticCode.I18nRouteReservedLanguagePrefix => "I18n: a default language route uses another language code as its first segment",
+
             _ => $"Diagnostic code: {Format(code)}"
         };
     }

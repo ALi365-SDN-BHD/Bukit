@@ -9,6 +9,8 @@ site:
   language: en
   languages: [en, zh-CN, ms]
   defaultLanguage: en
+  defaultLanguageInSubdir: true   # false puts the default language at the root
+  defaultLanguageRedirect: true   # noindex home redirect page
   sitemapMode: index
   feed:
     mode: split
@@ -19,8 +21,25 @@ build:
   languageJobs: 2
 ```
 
-Each language builds into `dist/<language>/`. Content without a language value
-belongs to `defaultLanguage`.
+Content without a language value belongs to `defaultLanguage`.
+
+With `defaultLanguageInSubdir: true` (the default), every language builds into
+`dist/<language>/`. With `false`, the default language builds into `dist/` with the
+site root base URL, while other languages keep `dist/<language>/`. The default
+`defaultLanguageRedirect: true` writes a noindex redirect page so the home URL works
+on static hosting: `dist/index.html` → `/<defaultLanguage>/` in the prefixed layout,
+or `dist/<defaultLanguage>/index.html` → `/` in the root layout. Set
+`defaultLanguageRedirect: false` when the host or CDN already redirects the home
+URL and would otherwise be overridden. With the root layout, `search.mode: merged`
+is rejected; default-language reports move to `.bukit/variants/<language>/`.
+
+The root layout reserves other language codes as first path segments. A default
+language page, list, taxonomy, alias, derived document, static file, or plugin
+output whose first segment equals another language code fails with
+`i18n-route-reserved-language-prefix` (case-insensitive). The default language's own
+code remains available for legacy aliases such as `/en/about/`. A default-language
+`static/robots.txt` becomes the site robots file; a static file that collides with
+another root-owned output fails with `i18n-root-output-conflict` before copying.
 
 ## Language Diagnostics
 
@@ -31,6 +50,7 @@ The build reports these warnings:
 | `i18n.document.language_unknown` | A page `language` is not in `site.languages` (or is not `site.language` in a single-language build), so the page is dropped. |
 | `i18n.document.i18n_key_duplicate` | Two pages in the same language use the same `i18nKey`; hreflang and merged sitemap alternates can point to only one of them. |
 | `i18n.config.default_language_ignored` | `site.defaultLanguage` is set but `site.languages` is empty, so the single-language build uses `site.language`. |
+| `i18n.config.default_language_layout_ignored` | `site.defaultLanguageInSubdir` or `site.defaultLanguageRedirect` is `false` but `site.languages` is empty, so the single-language output is unchanged. |
 
 Warnings are capped at five per kind, followed by one summary line. A single-language
 site that intentionally selects one language from a mixed-language source will warn
@@ -203,6 +223,32 @@ run diagnostics, but leave title rendering to the theme. Per-page
 `seo_inject: false` also skips mutation. In all cases the final report inspects
 the actual HTML output. HTML without a standard complete head is preserved
 rather than repaired implicitly.
+
+## Migrating to the root layout
+
+Switching `defaultLanguageInSubdir` from `true` to `false` removes every old
+`/<language>/...` default-language URL. The generated `/<language>/index.html`
+redirect only covers the old home page. Before deploying:
+
+- For the first root-layout build, confirm `dist/.bukit-output-marker` exists. If
+  it does not, move the old output aside or point `build.output` at a dedicated
+  empty directory; the protected clean path refuses an unmarked output directory.
+
+- Add host redirects from `/<language>/*` to `/*` (for example a Netlify
+  `_redirects` rule or a Cloudflare Pages redirect rule). GitHub Pages cannot issue
+  a server 301; keep the redirect page or write aliases for important old URLs.
+- Remove any existing `/` → `/<language>/` redirect rule, which would now override
+  the new home page, then purge the CDN cache.
+- Rebuild the `seo diff` baseline and resubmit sitemaps in Search Console. In
+  `split` mode the default language sitemap moves to the root `sitemap.xml`; in
+  `index` mode it stays at `/<language>/sitemap.xml`.
+- Update Analytics path filters and CI scripts that hard-code `dist/<language>`.
+- Read default-language reports from
+  `dist/.bukit/variants/<language>/seo-report.json`, for example
+  `bukit seo audit --report dist/.bukit/variants/en/seo-report.json`.
+- Before adding a language, check existing default-language routes for a first
+  segment equal to the new language code; the build fails with
+  `i18n-route-reserved-language-prefix`.
 
 ## Audits
 

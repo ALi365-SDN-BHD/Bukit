@@ -1,6 +1,7 @@
 using Bukit.Config;
 using Bukit.Engine.Abstractions.Content;
 using Bukit.Engine.Abstractions.Plugins;
+using Bukit.Engine.Primitives;
 using Bukit.Engine.PublishAuditRules;
 using Bukit.Rendering;
 
@@ -16,22 +17,24 @@ internal static partial class MachineReadabilityTrustAuditBuilder
         CanonicalContentGraph? contentGraph = null,
         bool requireHreflangTargets = true,
         IReadOnlyList<PublishProjectionResult>? projectionResults = null,
-        IReadOnlyDictionary<string, ContentDocument>? documentsByOutputPath = null)
+        IReadOnlyDictionary<string, ContentDocument>? documentsByOutputPath = null,
+        AuditOutputReadPaths? readPaths = null)
     {
         contentGraph ??= CanonicalContentGraph.Empty;
         var projectionLookup = BuildProjectionLookup(projectionResults);
-        var sitemapText = ReadOptional(Path.Combine(outputDir, "sitemap.xml"));
-        var searchText = ReadOptional(Path.Combine(outputDir, "search.json"));
-        var rssText = ReadOptional(Path.Combine(outputDir, "rss.xml"));
-        var atomFeedText = ReadOptional(Path.Combine(outputDir, config.Site.Feed.Path, "atom.xml")) ??
-                           ReadOptional(Path.Combine(outputDir, "atom.xml"));
-        var jsonFeedText = ReadOptional(Path.Combine(outputDir, config.Site.Feed.Path, "feed.json")) ??
-                           ReadOptional(Path.Combine(outputDir, "feed.json"));
-        var agentManifestText = ReadOptional(Path.Combine(outputDir, "agent-manifest.json"));
-        var robotsText = ReadOptional(Path.Combine(outputDir, "robots.txt"));
-        var llmsText = ReadOptional(Path.Combine(outputDir, "llms.txt"));
-        var llmsFullText = ReadOptional(Path.Combine(outputDir, "llms-full.txt"));
-        using var agentManifest = new AgentManifestSnapshot(outputDir);
+        var paths = readPaths ?? AuditOutputReadPaths.ForOutputDirectory(outputDir, config.Site.Feed.Path);
+        var sitemapText = ReadOptional(paths.Sitemap);
+        var searchText = ReadOptional(paths.Search);
+        var rssText = ReadOptional(paths.Rss);
+        var atomFeedText = ReadOptional(paths.Atom);
+        var jsonFeedText = ReadOptional(paths.JsonFeed);
+        var agentManifestText = ReadOptional(paths.AgentManifest);
+        var robotsText = ReadOptional(paths.Robots);
+        var llmsText = ReadOptional(paths.Llms);
+        var llmsFullText = ReadOptional(paths.LlmsFull);
+        using var agentManifest = paths.AgentManifest is null
+            ? AgentManifestSnapshot.Disabled()
+            : new AgentManifestSnapshot(paths.AgentManifest);
 
         var seoIssues = new List<SeoAuditIssue>();
         var publishIssues = new List<PublishAuditIssue>();
@@ -251,8 +254,8 @@ internal static partial class MachineReadabilityTrustAuditBuilder
             .Where(x => x.SchemaTypes.Any(t =>
                 t is "FAQPage" or "HowTo" or "BlogPosting" or "Person" or "Article" or "NewsArticle" or "SpeakableSpecification"))
             .ToArray();
-        var llmsTxtGenerated = File.Exists(Path.Combine(outputDir, "llms.txt"));
-        var llmsFullTxtGenerated = File.Exists(Path.Combine(outputDir, "llms-full.txt"));
+        var llmsTxtGenerated = paths.Llms is not null && File.Exists(paths.Llms);
+        var llmsFullTxtGenerated = paths.LlmsFull is not null && File.Exists(paths.LlmsFull);
 
         if (config.Site.Seo.Geo.Enabled && config.Site.Seo.Geo.LlmsTxt && !llmsTxtGenerated)
         {
@@ -334,5 +337,4 @@ internal static partial class MachineReadabilityTrustAuditBuilder
             PublishAuditBuilder.Build(seoReport, publishDocuments, outputDir, sortedPublishIssues),
             routeMapBuilder.Build(seoReport.GeneratedAt));
     }
-
 }

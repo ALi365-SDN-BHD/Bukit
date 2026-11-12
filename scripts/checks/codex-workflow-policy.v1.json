@@ -1,6 +1,41 @@
 {
   "pathRules": [
     {
+      "id": "i18n-default-language-root-change",
+      "matches": [
+        "openspec/changes/add-i18n-default-language-root/*",
+        "src/Bukit-Core/Bukit.Engine/I18nOutputLayout.cs",
+        "src/Bukit-Core/Bukit.Engine/RedirectPageHtml.cs",
+        "src/Bukit-Core/Bukit.Engine/I18nRootRedirectWriter.cs",
+        "src/Bukit-Core/Bukit.Engine/I18nLegacyRedirectDeriver.cs",
+        "src/Bukit-Core/Bukit.Engine/I18nRootOutputConflictGuard.cs",
+        "src/Bukit-Core/Bukit.Engine/I18nReservedPrefixGuard.cs",
+        "src/Bukit-Core/Bukit.Engine.Primitives/AuditOutputReadPaths.cs",
+        "tests/Bukit.Engine.Tests/I18nOutputLayoutTests.cs",
+        "tests/Bukit.Engine.Tests/RedirectPageHtmlTests.cs",
+        "tests/Bukit.Engine.Tests/I18nRootRedirectTests.cs",
+        "tests/Bukit.Engine.Tests/I18nRootLayoutTests.cs",
+        "tests/Bukit.Engine.Tests/I18nReservedPrefixTests.cs"
+      ],
+      "specialtyTests": [
+        "dotnet test tests/Bukit.Config.Tests/Bukit.Config.Tests.csproj -c Release --filter \"FullyQualifiedName~ConfigLoader|FullyQualifiedName~StrictYamlContract|FullyQualifiedName~ConfigPhase2Validator\"",
+        "dotnet test tests/Bukit.Engine.Tests/Bukit.Engine.Tests.csproj -c Release --filter \"FullyQualifiedName~I18n|FullyQualifiedName~SiteEngineIntegration|FullyQualifiedName~SitemapPlugin|FullyQualifiedName~AliasPlugin|FullyQualifiedName~TaxonomyRedirect|FullyQualifiedName~SeoAuditReportWriter|FullyQualifiedName~BuildReport|FullyQualifiedName~PublishRepresentationRegistry|FullyQualifiedName~PublishAudit|FullyQualifiedName~MachineReadability|FullyQualifiedName~IncrementalEngineIdentity|FullyQualifiedName~BuildTransaction\"",
+        "dotnet test tests/Bukit.Cli.Tests/Bukit.Cli.Tests.csproj -c Release --filter \"FullyQualifiedName~WorktreeBuildCoordinator|FullyQualifiedName~I18nWorktreeProtocol\"",
+        "bash scripts/checks/public-api-drift.sh check",
+        "openspec validate add-i18n-default-language-root --strict"
+      ],
+      "contractConsumerGlobs": [
+        "src/Bukit-Core/Bukit.Config/AppConfig.cs",
+        "src/Bukit-Core/Bukit.Config/ConfigLoader.cs",
+        "src/Bukit-Core/Bukit.Engine/I18nOutputLayout.cs",
+        "src/Bukit-Core/Bukit.Engine/PublicOutputLifecycle.cs",
+        "src/Bukit-Core/Bukit.Engine/BuildTransaction.cs",
+        "src/Bukit-Core/Bukit.Engine/I18nWorktreeProtocol.cs"
+      ],
+      "publicContract": false,
+      "resource": "dotnet-serial"
+    },
+    {
       "id": "image-resize-temp-cleanup-contract",
       "matches": [
         "openspec/changes/fix-image-resize-temp-cleanup/proposal.md",

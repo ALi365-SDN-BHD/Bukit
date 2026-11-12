@@ -206,9 +206,13 @@ internal static class PageRenderDispatcher
                         }
                         var pageModel = new PageModel { Site = siteModel, Page = pageInfo, Pages = pageIndex };
                         var renderCallStarted = Stopwatch.GetTimestamp();
-                        var html = RenderReadTracking.Render(dependencySnapshot, () => renderer.RenderPage(route.Template, pageModel), out var pageReads);
+                        IReadOnlyList<string>? pageReads = null;
+                        var rawRedirect = route.Template == RedirectPageHtml.RouteTemplate;
+                        var html = string.IsNullOrEmpty(route.Template) || rawRedirect
+                            ? content
+                            : RenderReadTracking.Render(dependencySnapshot, () => renderer.RenderPage(route.Template, pageModel), out pageReads);
                         stageMetrics.AddElapsedTicks("renderCall", Stopwatch.GetTimestamp() - renderCallStarted);
-                        if (htmlTransformPipeline is not null)
+                        if (!rawRedirect && htmlTransformPipeline is not null)
                         {
                             var transformStarted = Stopwatch.GetTimestamp();
                             html = htmlTransformPipeline.Transform(

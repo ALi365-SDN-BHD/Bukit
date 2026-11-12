@@ -8,6 +8,7 @@ public sealed class BuildManifest
 {
     public int Version { get; set; } = 3;
     internal string OutputRoot { get; set; } = string.Empty;
+    internal string Layout { get; set; } = "subdir";
     internal HashSet<string> OwnedOutputs { get; set; } = new(StringComparer.Ordinal);
     public string TemplateHash { get; set; } = string.Empty;
     public Dictionary<string, BuildManifestEntry> Entries { get; set; } = new(StringComparer.Ordinal);
@@ -82,6 +83,7 @@ public sealed class BuildManifest
                 owned.ValueKind == JsonValueKind.Array && owned.EnumerateArray().All(item => item.ValueKind == JsonValueKind.String))
             {
                 manifest.OutputRoot = GetString(root, "outputRoot") ?? string.Empty;
+                manifest.Layout = GetString(root, "layout") ?? "subdir";
                 foreach (var item in owned.EnumerateArray()) manifest.OwnedOutputs.Add(item.GetString()!);
             }
 
@@ -119,6 +121,7 @@ public sealed class BuildManifest
                 writer.WriteNumber("version", Version);
                 writer.WriteString("templateHash", TemplateHash);
                 writer.WriteString("outputRoot", OutputRoot);
+                writer.WriteString("layout", Layout);
                 writer.WriteStartArray("ownedOutputs");
                 foreach (var path in OwnedOutputs.OrderBy(x => x, StringComparer.Ordinal)) writer.WriteStringValue(path);
                 writer.WriteEndArray();

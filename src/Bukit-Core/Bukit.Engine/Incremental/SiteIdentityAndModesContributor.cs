@@ -20,6 +20,16 @@ internal sealed class SiteIdentityAndModesContributor : IRenderDependencyContrib
             "site.languages",
             site.Languages?.OrderBy(x => x, StringComparer.OrdinalIgnoreCase).ToList());
         writer.AppendLabeledCanonicalValue("site.defaultLanguage", site.DefaultLanguage);
+        if (!site.DefaultLanguageInSubdir)
+        {
+            writer.AppendLabeledCanonicalValue("site.defaultLanguageInSubdir", false);
+        }
+
+        if (!site.DefaultLanguageRedirect)
+        {
+            writer.AppendLabeledCanonicalValue("site.defaultLanguageRedirect", false);
+        }
+
         writer.AppendLabeledCanonicalValue("site.sitemapMode", site.SitemapMode);
         writer.AppendLabeledCanonicalValue("site.feedMode", SiteModeResolver.ResolveFeedMode(site));
         writer.AppendLabeledCanonicalValue("site.searchMode", SiteModeResolver.ResolveSearchMode(site));

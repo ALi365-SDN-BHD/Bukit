@@ -15,7 +15,9 @@ internal sealed record I18nMergedVariantState(
     IReadOnlyDictionary<string, SeoIndexEntry> SeoIndex,
     IReadOnlyDictionary<string, Bukit.Rendering.SeoModel> SeoModels)
 {
-    internal static I18nMergedVariantState Create(IReadOnlyList<BuildVariantResult> results)
+    internal static I18nMergedVariantState Create(
+        IReadOnlyList<BuildVariantResult> results,
+        I18nOutputLayout? layout = null)
     {
         var routedDocuments = new List<RoutedContentDocument>();
         var derivedDocuments = new List<RoutedContentDocument>();
@@ -25,8 +27,8 @@ internal sealed record I18nMergedVariantState(
         var bodySources = new Dictionary<string, (ContentDocument Document, IContentBodyStore Store)>(StringComparer.OrdinalIgnoreCase);
         foreach (var result in results)
         {
-            routedDocuments.AddRange(result.RoutedDocuments.Select(x => x with { Route = MergeRoute(result, x.Route) }));
-            derivedDocuments.AddRange(result.DerivedDocuments.Select(x => x with { Route = MergeRoute(result, x.Route) }));
+            routedDocuments.AddRange(result.RoutedDocuments.Select(x => x with { Route = MergeRoute(result, x.Route, layout) }));
+            derivedDocuments.AddRange(result.DerivedDocuments.Select(x => x with { Route = MergeRoute(result, x.Route, layout) }));
             foreach (var routedDocument in result.RoutedDocuments.Concat(result.DerivedDocuments))
             {
                 bodySources[BuildBodyStoreKey(routedDocument.Document)] = (routedDocument.Document, result.BodyStore);
@@ -53,12 +55,13 @@ internal sealed record I18nMergedVariantState(
             derivedDocuments,
             new CanonicalContentGraph(uniqueRecords, uniqueEntities),
             new MergedVariantContentBodyStore(bodySources),
-            BuildSeoIndex(results),
+            BuildSeoIndex(results, layout),
             seoModels);
     }
 
     internal static IReadOnlyDictionary<string, SeoIndexEntry> BuildSeoIndex(
-        IReadOnlyList<BuildVariantResult> results)
+        IReadOnlyList<BuildVariantResult> results,
+        I18nOutputLayout? layout = null)
     {
         var seoIndex = new Dictionary<string, SeoIndexEntry>(StringComparer.OrdinalIgnoreCase);
         foreach (var result in results)
@@ -67,7 +70,7 @@ internal sealed record I18nMergedVariantState(
             {
                 seoIndex[BuildMergedKey(result.Language, key)] = entry with
                 {
-                    Route = MergeRoute(result, entry.Route)
+                    Route = MergeRoute(result, entry.Route, layout)
                 };
             }
         }
@@ -75,10 +78,12 @@ internal sealed record I18nMergedVariantState(
         return seoIndex;
     }
 
-    private static RouteInfo MergeRoute(BuildVariantResult result, RouteInfo route)
+    private static RouteInfo MergeRoute(BuildVariantResult result, RouteInfo route, I18nOutputLayout? layout)
         => new(
             I18nRootProjectionPath.CombineBaseUrl(result.BaseUrl, route.Url),
-            Path.Combine(result.Language, route.OutputPath),
+            I18nOutputLayout.CombineRelative(
+                layout?.RelativeOutputPrefix(result.Language) ?? result.Language,
+                route.OutputPath),
             route.Template);
 
     private static string BuildBodyStoreKey(ContentDocument document)

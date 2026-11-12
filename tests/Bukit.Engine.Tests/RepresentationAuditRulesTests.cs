@@ -160,7 +160,7 @@ public sealed class RepresentationAuditRulesTests : IDisposable
         }
 
         var shared = new List<PublishAuditIssue>();
-        using (var snapshot = new AgentManifestSnapshot(_outputDir))
+        using (var snapshot = new AgentManifestSnapshot(Path.Combine(_outputDir, "agent-manifest.json")))
         {
             foreach (var document in documents)
             {

@@ -54,24 +54,9 @@ internal static class TaxonomyRedirectWriter
         foreach (var (path, targetUrl) in redirects)
         {
             Directory.CreateDirectory(Path.GetDirectoryName(path)!);
-            File.WriteAllText(path, RenderRedirect(targetUrl), Encoding.UTF8);
+            File.WriteAllText(path, RedirectPageHtml.Build(targetUrl), Encoding.UTF8);
             generatedPaths?.Add(BuildPathUtils.NormalizeRelPath(Path.GetRelativePath(outputDir, path)));
         }
     }
 
-    private static string RenderRedirect(string targetUrl)
-    {
-        var escaped = EscapeHtml(targetUrl);
-        return $"<!DOCTYPE html>\n<html>\n<head>\n<meta http-equiv=\"refresh\" content=\"0;url={escaped}\">\n<link rel=\"canonical\" href=\"{escaped}\">\n<title>Redirect</title>\n</head>\n<body>\n<p>Redirecting to <a href=\"{escaped}\">{escaped}</a></p>\n</body>\n</html>\n";
-    }
-
-    private static string EscapeHtml(string value)
-    {
-        return (value ?? string.Empty)
-            .Replace("&", "&amp;", StringComparison.Ordinal)
-            .Replace("<", "&lt;", StringComparison.Ordinal)
-            .Replace(">", "&gt;", StringComparison.Ordinal)
-            .Replace("\"", "&quot;", StringComparison.Ordinal)
-            .Replace("'", "&#39;", StringComparison.Ordinal);
-    }
 }

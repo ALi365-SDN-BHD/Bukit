@@ -31,9 +31,10 @@ internal static class SeoAlternatesService
 
         var grouped = new Dictionary<string, Dictionary<string, string>>(StringComparer.Ordinal);
         var collectionRules = BuildCollectionRules(config.Site);
+        var layout = I18nOutputLayout.Create(config.Site, languages, rootBaseUrl);
         foreach (var language in languages)
         {
-            var baseUrl = I18nOutputMerger.CombineBaseUrlWithLanguage(rootBaseUrl, language);
+            var baseUrl = layout.BaseUrl(language);
             var variantDocuments = I18nOutputMerger
                 .FilterDocumentsByLanguage(documents, language, defaultLanguage)
                 .ToList();

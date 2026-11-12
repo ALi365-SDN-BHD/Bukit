@@ -6,12 +6,10 @@ internal static class SeoRouteMapWriter
 {
     private const string FileName = "seo-route-map.json";
 
-    internal static void Write(string outputDir, SeoRouteMap map)
+    internal static void Write(string outputDir, SeoRouteMap map, string? reportDir = null)
     {
         var json = JsonSerializer.Serialize(map, SeoRouteMapJsonContext.Default.SeoRouteMap);
-        FileWriter.WriteUtf8(
-            outputDir,
-            Path.Combine(BuildReportPaths.ReportDirectoryName, FileName),
-            json + Environment.NewLine);
+        var directory = reportDir ?? Path.Combine(outputDir, BuildReportPaths.ReportDirectoryName);
+        FileWriter.WriteUtf8(directory, FileName, json + Environment.NewLine);
     }
 }

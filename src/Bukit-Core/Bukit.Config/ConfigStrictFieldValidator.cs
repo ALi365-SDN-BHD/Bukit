@@ -9,7 +9,8 @@ internal static class ConfigStrictFieldValidator
     private static readonly HashSet<string> RootKeys = Set("site", "content", "build", "theme", "taxonomy", "logging", "deploy");
     private static readonly HashSet<string> SiteKeys = Set(
         "name", "title", "url", "description", "seo", "analytics", "autoSummary", "autoSummaryMaxLength",
-        "baseUrl", "outputPathEncoding", "language", "languages", "defaultLanguage", "sitemapMode",
+        "baseUrl", "outputPathEncoding", "language", "languages", "defaultLanguage",
+        "defaultLanguageInSubdir", "defaultLanguageRedirect", "sitemapMode",
         "searchIncludeDerived", "pluginFailMode", "deriveConflictPolicy",
         "timezone", "permalinks", "collections", "plugins", "feed",
         "sitemapDetail", "pagination", "search", "related", "menus");

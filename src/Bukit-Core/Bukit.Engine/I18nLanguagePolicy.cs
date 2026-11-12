@@ -68,6 +68,18 @@ internal static class I18nLanguagePolicy
         return normalizedBaseUrl.TrimEnd('/') + "/" + normalizedLanguage;
     }
 
+    internal static void WarnLayoutSettingsWithoutLanguages(SiteConfig site, ILogger logger)
+    {
+        if (GetLanguages(site).Count > 0 ||
+            (site.DefaultLanguageInSubdir && site.DefaultLanguageRedirect))
+        {
+            return;
+        }
+
+        logger.Warn(
+            $"event=i18n.config.default_language_layout_ignored defaultLanguageInSubdir={site.DefaultLanguageInSubdir.ToString().ToLowerInvariant()} defaultLanguageRedirect={site.DefaultLanguageRedirect.ToString().ToLowerInvariant()}");
+    }
+
     internal static void WarnDocumentLanguageIssues(
         IReadOnlyList<ContentDocument> documents,
         SiteConfig site,

@@ -48,6 +48,8 @@ content:
 | `site.language` | `zh-CN` | Single-language default. |
 | `site.languages` | none | Enables language variants when set. |
 | `site.defaultLanguage` | none | Language considered the root/default variant. |
+| `site.defaultLanguageInSubdir` | `true` | When `false`, the default language builds into the output root; other languages keep their code directories. |
+| `site.defaultLanguageRedirect` | `true` | Writes a noindex home redirect page so `/` does not 404 on static hosting. |
 | `site.timezone` | `Asia/Shanghai` | Must resolve to a valid time zone identifier. |
 | `site.outputPathEncoding` | `none` | `none`, `slug`, `urlencode`, or `sanitize`. |
 | `site.sitemapMode` | `split` | `split`, `merged`, or `index`. |

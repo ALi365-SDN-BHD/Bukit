@@ -6,6 +6,7 @@ using Bukit.Cli.Shared;
 using Bukit.Cli.Shared.Cli.Binding;
 using Bukit.Config;
 using Bukit.Engine;
+using Bukit.Engine.Incremental;
 using Bukit.Shared;
 using Xunit;
 
@@ -904,6 +905,95 @@ public sealed class WorktreeBuildCoordinatorTests : IDisposable
         var worktrees = await RunProcessAsync("git", ["worktree", "list", "--porcelain"], root);
         Assert.Equal(0, worktrees.ExitCode);
         Assert.Single(worktrees.Output.Split('\n'), line => line.StartsWith("worktree ", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task WorktreeBuild_MatchesInProcessOutputs_ForRootDefaultLanguage()
+    {
+        var root = Path.Combine(_root, "root-layout-equivalence");
+        var site = CreateSite(root);
+        var path = Path.Combine(root, "site.yaml");
+        File.WriteAllText(path, File.ReadAllText(path)
+            .Replace("  defaultLanguage: en\n", "  defaultLanguage: en\n  defaultLanguageInSubdir: false\n", StringComparison.Ordinal)
+            .Replace("  sitemapMode: merged\n", "  sitemapMode: split\n", StringComparison.Ordinal)
+            .Replace("  search:\n    mode: merged\n", "  search:\n    mode: split\n", StringComparison.Ordinal));
+        await InitializeRepositoryAsync(root);
+
+        Assert.Equal(0, await BuildCommand.RunInProcessAsync(Command(site)));
+        var expected = SnapshotPublishedOutputs(Path.Combine(root, "dist"));
+        Assert.True(File.Exists(Path.Combine(root, "dist", "index.html")));
+        Assert.True(File.Exists(Path.Combine(root, "dist", "en", "index.html")));
+        Assert.Contains("url=/", File.ReadAllText(Path.Combine(root, "dist", "en", "index.html")), StringComparison.Ordinal);
+        TestCleanup.DeleteDirectory(Path.Combine(root, "dist"), recursive: true);
+        TestCleanup.DeleteDirectory(Path.Combine(root, ".cache"), recursive: true);
+
+        var worktree = await RunProcessAsync("dotnet", [typeof(BuildCommand).Assembly.Location, "build", "--config", site], root);
+        Assert.True(worktree.ExitCode == 0, worktree.Output);
+        Assert.Equal(expected, SnapshotPublishedOutputs(Path.Combine(root, "dist")));
+        Assert.True(File.Exists(Path.Combine(root, "dist", "index.html")));
+        Assert.True(File.Exists(Path.Combine(root, "dist", "zh-CN", "index.html")));
+    }
+
+    [Fact]
+    public async Task WorktreeBuild_SwitchesLayoutAndCleansPreviousOutput()
+    {
+        var root = Path.Combine(_root, "layout-switch");
+        var site = CreateSite(root);
+        await InitializeRepositoryAsync(root);
+
+        var prefixed = await RunProcessAsync("dotnet", [typeof(BuildCommand).Assembly.Location, "build", "--config", site], root);
+        Assert.True(prefixed.ExitCode == 0, prefixed.Output);
+        Assert.True(File.Exists(Path.Combine(root, "dist", "en", "index.html")));
+
+        var path = Path.Combine(root, "site.yaml");
+        File.WriteAllText(path, File.ReadAllText(path)
+            .Replace("  defaultLanguage: en\n", "  defaultLanguage: en\n  defaultLanguageInSubdir: false\n", StringComparison.Ordinal)
+            .Replace("  sitemapMode: merged\n", "  sitemapMode: split\n", StringComparison.Ordinal)
+            .Replace("  search:\n    mode: merged\n", "  search:\n    mode: split\n", StringComparison.Ordinal));
+        Assert.Equal(0, (await RunProcessAsync("git", ["add", "site.yaml"], root)).ExitCode);
+        Assert.Equal(0, (await RunProcessAsync("git", ["commit", "-m", "root layout"], root)).ExitCode);
+        var switched = await RunProcessAsync("dotnet", [typeof(BuildCommand).Assembly.Location, "build", "--config", site], root);
+        Assert.True(switched.ExitCode == 0, switched.Output);
+
+        Assert.True(File.Exists(Path.Combine(root, "dist", "index.html")));
+        Assert.Equal(string.Empty, File.ReadAllText(Path.Combine(root, "dist", "zh-CN", "index.html")));
+        Assert.True(File.Exists(Path.Combine(root, "dist", "en", "index.html")));
+        Assert.Contains("url=/", File.ReadAllText(Path.Combine(root, "dist", "en", "index.html")), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void RewriteManifestRoots_UsesLayoutPrefixForRootLanguage()
+    {
+        var root = Path.Combine(_root, "manifest-rewrite");
+        Directory.CreateDirectory(root);
+        var site = new SiteConfig
+        {
+            Name = "manifest",
+            Title = "Manifest",
+            Languages = ["en", "zh-CN"],
+            DefaultLanguage = "en",
+            DefaultLanguageInSubdir = false
+        };
+        var oldRoot = Path.Combine(root, "old");
+        var newRoot = Path.Combine(root, "new");
+        void WriteManifest(string name, string outputRoot) =>
+            File.WriteAllText(Path.Combine(root, name),
+                $$"""{"version":3,"outputRoot":{{System.Text.Json.JsonSerializer.Serialize(Path.GetFullPath(outputRoot))}},"ownedOutputs":[]}""");
+
+        WriteManifest("build-manifest.json", oldRoot);
+        WriteManifest("build-manifest.en.json", oldRoot);
+        WriteManifest("build-manifest.zh-CN.json", Path.Combine(oldRoot, "zh-CN"));
+
+        WorktreeBuildPaths.RewriteManifestRoots(root, oldRoot, newRoot, ["en", "zh-CN"], site);
+
+        static string OutputRoot(string path)
+        {
+            using var document = System.Text.Json.JsonDocument.Parse(File.ReadAllText(path));
+            return document.RootElement.GetProperty("outputRoot").GetString()!;
+        }
+
+        Assert.Equal(Path.GetFullPath(newRoot), OutputRoot(Path.Combine(root, "build-manifest.en.json")));
+        Assert.Equal(Path.GetFullPath(Path.Combine(newRoot, "zh-CN")), OutputRoot(Path.Combine(root, "build-manifest.zh-CN.json")));
     }
 
     [Fact]

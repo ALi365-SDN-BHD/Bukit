@@ -542,4 +542,16 @@ public sealed class ConfigJsonSchemaGeneratorTests
         Assert.DoesNotMatch(regex, "https://analytics.example.com/script.js#fragment");
         Assert.DoesNotMatch(regex, "https://analytics.example.com/script.css");
     }
+
+    [Fact]
+    public void Generate_DefaultLanguageLayout_AreBooleanFields()
+    {
+        using var doc = JsonDocument.Parse(ConfigJsonSchemaGenerator.Generate());
+        var site = doc.RootElement.GetProperty("properties").GetProperty("site").GetProperty("properties");
+
+        Assert.Equal("boolean", site.GetProperty("defaultLanguageInSubdir").GetProperty("type").GetString());
+        Assert.True(site.GetProperty("defaultLanguageInSubdir").GetProperty("default").GetBoolean());
+        Assert.Equal("boolean", site.GetProperty("defaultLanguageRedirect").GetProperty("type").GetString());
+        Assert.True(site.GetProperty("defaultLanguageRedirect").GetProperty("default").GetBoolean());
+    }
 }

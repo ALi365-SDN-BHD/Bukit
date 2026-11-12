@@ -26,6 +26,8 @@ public sealed record SiteConfig
     public string Language { get; init; } = "zh-CN";
     public IReadOnlyList<string>? Languages { get; init; }
     public string? DefaultLanguage { get; init; }
+    public bool DefaultLanguageInSubdir { get; init; } = true;
+    public bool DefaultLanguageRedirect { get; init; } = true;
     public string SitemapMode { get; init; } = "split";
     public bool SearchIncludeDerived { get; init; }
     public string PluginFailMode { get; init; } = "strict";

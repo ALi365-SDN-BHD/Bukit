@@ -1,6 +1,7 @@
 using Bukit.Config;
 using Bukit.Engine.Abstractions.Content;
 using Bukit.Engine.Abstractions.Plugins;
+using Bukit.Engine.Primitives;
 using Bukit.Rendering;
 
 namespace Bukit.Engine;
@@ -20,7 +21,8 @@ internal static partial class MachineReadabilityTrustAuditBuilder
         CanonicalContentGraph? contentGraph = null,
         bool requireHreflangTargets = true,
         IReadOnlyList<PublishProjectionResult>? projectionResults = null,
-        IReadOnlyDictionary<string, ContentDocument>? documentsByOutputPath = null)
+        IReadOnlyDictionary<string, ContentDocument>? documentsByOutputPath = null,
+        AuditOutputReadPaths? readPaths = null)
     {
         return BuildPublishAuditCore(
             config,
@@ -30,6 +32,7 @@ internal static partial class MachineReadabilityTrustAuditBuilder
             contentGraph,
             requireHreflangTargets,
             projectionResults,
-            documentsByOutputPath);
+            documentsByOutputPath,
+            readPaths);
     }
 }

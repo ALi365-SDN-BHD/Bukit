@@ -183,7 +183,8 @@ public sealed partial class SiteEngine
         var defaultLanguage = I18nOutputMerger.GetDefaultLanguage(request.Config.Site, languages);
         var rootBaseUrl = BuildPathUtils.NormalizeBaseUrl(request.Config.Site.BaseUrl);
         var seoAlternates = request.SeoAlternates;
-        var baseUrl = I18nOutputMerger.CombineBaseUrlWithLanguage(rootBaseUrl, request.Language);
+        var layout = I18nOutputLayout.Create(request.Config.Site, languages, rootBaseUrl);
+        var baseUrl = layout.BaseUrl(request.Language);
         var variantConfig = request.Config with
         {
             Site = request.Config.Site with
@@ -288,13 +289,20 @@ public sealed partial class SiteEngine
         IReadOnlyList<PublishProjectionResult> projectionResults)
     {
         SignedLinkDiagnostics.ReportMerged(variantResults, buildLogger);
+        var languages = I18nOutputMerger.GetLanguages(config.Site);
+        var layout = I18nOutputLayout.Create(config.Site, languages, config.Site.BaseUrl);
+        var prefixes = languages.ToDictionary(
+            language => language,
+            layout.RelativeOutputPrefix,
+            StringComparer.OrdinalIgnoreCase);
         SeoAuditReportWriter.WriteMerged(
             config,
             outputDir,
             [.. variantResults.Select(variant => variant.ToPublishedVariant())],
             buildLogger,
             projectionResults,
-            ToVariantAuditIssues(variantResults));
+            ToVariantAuditIssues(variantResults),
+            prefixes);
     }
 
     private (BuildManifest Manifest, IReadOnlyList<PublishProjectionResult> Projections) WriteRootOutputs(
@@ -310,16 +318,28 @@ public sealed partial class SiteEngine
         try
         {
             var previous = BuildManifest.Load(PublicOutputLifecycle.ManifestPath(rootDir, overrides), buildLogger);
-            var rootOutputs = PublicOutputLifecycle.ProjectionPlan(config, [], root: true)
-                .Where(item => item.Destination != "robots.txt" || previous.OwnedOutputs.Contains("robots.txt") ||
-                    !File.Exists(Path.Combine(outputDir, "robots.txt"))).ToArray();
-            var completedManifest = reportTimer.Step("collect-and-clean", () => PublicOutputLifecycle.CollectAndClean(rootDir, overrides, outputDir, variantResults, buildLogger, rootOutputs));
-            if (rootOutputs.Any(x => x.Destination == "robots.txt") && PublicOutputLifecycle.SameRoot(previous, outputDir) && previous.OwnedOutputs.Contains("robots.txt"))
+            var staticRobots = I18nRootRobotsWriter.HasStaticRobots(config, rootDir);
+            var rootOutputs = PublicOutputLifecycle.ProjectionPlan(config, [], root: true).ToList();
+            if (staticRobots)
+            {
+                // The default language variant plans the static copy; the root plan must not own it.
+                rootOutputs.RemoveAll(item => item.Destination == "robots.txt");
+            }
+            else
+            {
+                rootOutputs.RemoveAll(item => item.Destination == "robots.txt" && !previous.OwnedOutputs.Contains("robots.txt") &&
+                    File.Exists(Path.Combine(outputDir, "robots.txt")));
+            }
+
+            var completedManifest = reportTimer.Step("collect-and-clean", () => PublicOutputLifecycle.CollectAndClean(
+                rootDir, overrides, outputDir, variantResults, buildLogger, rootOutputs, config.Site));
+            if (!staticRobots && rootOutputs.Any(x => x.Destination == "robots.txt") && PublicOutputLifecycle.SameRoot(previous, outputDir) && previous.OwnedOutputs.Contains("robots.txt"))
             {
                 PublicOutputLifecycle.DeleteOwnedFile(outputDir, "robots.txt");
             }
 
-            return (completedManifest, reportTimer.Step("root-outputs", () => I18nOutputMerger.GenerateRootOutputs(config, outputDir, rootBaseUrl, variantResults, buildLogger, _searchIndexBuilder)));
+            return (completedManifest, reportTimer.Step("root-outputs", () => I18nOutputMerger.GenerateRootOutputs(
+                config, outputDir, rootBaseUrl, variantResults, buildLogger, _searchIndexBuilder, skipRootRobots: staticRobots)));
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {

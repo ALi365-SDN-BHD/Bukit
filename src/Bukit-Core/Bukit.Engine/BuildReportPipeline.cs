@@ -31,7 +31,9 @@ internal sealed record BuildReportPipelineContext(
     IReadOnlyList<PluginOutputTrackingInfo>? PluginOutputs = null,
     CanonicalContentGraph? ContentGraph = null,
     IReadOnlyList<RoutedContentDocument>? DerivedDocuments = null,
-    IReadOnlyList<PublishProjectionResult>? ProjectionResults = null)
+    IReadOnlyList<PublishProjectionResult>? ProjectionResults = null,
+    string? ReportDirectory = null,
+    Bukit.Engine.Primitives.AuditOutputReadPaths? AuditReadPaths = null)
 {
     public IReadOnlyList<RoutedContentDocument> DerivedDocuments { get; init; } = DerivedDocuments ?? Array.Empty<RoutedContentDocument>();
     public IReadOnlyList<RouteInfo> StaticRoutes { get; init; } = StaticRoutes ?? Array.Empty<RouteInfo>();
@@ -51,7 +53,7 @@ internal sealed class BuildReportPipeline
         IReadOnlyList<SeoAuditIssue> auditIssues = [];
         void WriteSeoAudit() => auditIssues = SeoAuditReportWriter.Write(ctx.Config, ctx.OutputDir, ctx.SeoIndex, ctx.SeoModels, contentGraph, ctx.Logger,
             projectionResults, SearchIndexDocuments.BuildDocumentMap(ctx.RoutedDocuments.Concat(ctx.DerivedDocuments)),
-            logIssues: ctx.DefaultLanguage is null).Issues;
+            logIssues: ctx.DefaultLanguage is null, reportDir: ctx.ReportDirectory, readPaths: ctx.AuditReadPaths).Issues;
         if (reportTimer is null)
         {
             WriteSeoAudit();
