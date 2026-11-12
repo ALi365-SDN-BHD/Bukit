@@ -4,6 +4,8 @@
       "id": "i18n-default-language-root-change",
       "matches": [
         "openspec/changes/add-i18n-default-language-root/*",
+        "openspec/changes/archive/2026-11-12-add-i18n-default-language-root/*",
+        "openspec/specs/i18n-output-layout/spec.md",
         "src/Bukit-Core/Bukit.Engine/I18nOutputLayout.cs",
         "src/Bukit-Core/Bukit.Engine/RedirectPageHtml.cs",
         "src/Bukit-Core/Bukit.Engine/I18nRootRedirectWriter.cs",
@@ -22,7 +24,7 @@
         "dotnet test tests/Bukit.Engine.Tests/Bukit.Engine.Tests.csproj -c Release --filter \"FullyQualifiedName~I18n|FullyQualifiedName~SiteEngineIntegration|FullyQualifiedName~SitemapPlugin|FullyQualifiedName~AliasPlugin|FullyQualifiedName~TaxonomyRedirect|FullyQualifiedName~SeoAuditReportWriter|FullyQualifiedName~BuildReport|FullyQualifiedName~PublishRepresentationRegistry|FullyQualifiedName~PublishAudit|FullyQualifiedName~MachineReadability|FullyQualifiedName~IncrementalEngineIdentity|FullyQualifiedName~BuildTransaction\"",
         "dotnet test tests/Bukit.Cli.Tests/Bukit.Cli.Tests.csproj -c Release --filter \"FullyQualifiedName~WorktreeBuildCoordinator|FullyQualifiedName~I18nWorktreeProtocol\"",
         "bash scripts/checks/public-api-drift.sh check",
-        "openspec validate add-i18n-default-language-root --strict"
+        "openspec validate i18n-output-layout --type spec --strict"
       ],
       "contractConsumerGlobs": [
         "src/Bukit-Core/Bukit.Config/AppConfig.cs",

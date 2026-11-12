@@ -3,7 +3,7 @@
 - 日期：2026-11-12
 - 基线：`33c20cd7bc2105191a936516e70530ecbc3cd235`
 - 范围：`site.languages` 多语言构建的输出目录结构、根目录聚合文件、Worktree 构建、跳转页
-- 规范性提案：`openspec/changes/add-i18n-default-language-root/`（proposal、design、specs、tasks；`openspec validate --strict` 通过）
+- 规范性提案：`openspec/changes/archive/2026-11-12-add-i18n-default-language-root/`（proposal、design、specs、tasks；`openspec validate --strict` 通过）
 - 本轮性质：**只分析和提案，不实施**。未修改源码、测试、配置、CI/gate；未运行 `dotnet test`。全部设计决策已由用户确认；实施须作为单独的 Core 任务开展。
 - 修订：见文末"修订记录"。
 
@@ -184,7 +184,7 @@ dist/
 - 代码：约 30 个已有 Core 文件，另新增 3 个左右（`I18nOutputLayout`、根目录跳转页 writer、共用跳转页生成代码），涉及 `Bukit.Config`、`Bukit.Engine`、`Bukit.Engine.Audit`、`Bukit.Engine.Analytics`、`Bukit.Cli`；完整清单见 proposal 的 Impact 一节。`SiteConfig` 新增两个属性（新增性变更，更新公共 API 基线）；新增两个报错码（`i18n-route-reserved-language-prefix`、`i18n-root-output-conflict`；`search.mode: merged` 组合走配置校验报错，不另设报错码）。
 - 测试：复核约 24 个 i18n 相关测试文件（默认值下保持通过作为对照），新增 Config、Engine、CLI（Worktree）专项用例。
 - 文档：i18n skill、用户指南、配置文档、站点迁移清单、插件和主题作者说明、中英马 CHANGELOG。
-- 详细清单见 `openspec/changes/add-i18n-default-language-root/tasks.md`。
+- 详细清单见 `openspec/changes/archive/2026-11-12-add-i18n-default-language-root/tasks.md`。
 
 ## 9. 后续事项（不在本提案范围）
 
