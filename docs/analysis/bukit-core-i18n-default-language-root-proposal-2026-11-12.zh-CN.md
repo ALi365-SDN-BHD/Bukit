@@ -5,20 +5,20 @@
 - 范围：`site.languages` 多语言构建的输出目录结构、根目录聚合文件、Worktree 构建、跳转页
 - 规范性提案：`openspec/changes/add-i18n-default-language-root/`（proposal、design、specs、tasks；`openspec validate --strict` 通过）
 - 本轮性质：**只分析和提案，不实施**。未修改源码、测试、配置、CI/gate；未运行 `dotnet test`。全部设计决策已由用户确认；实施须作为单独的 Core 任务开展。
-- 修订：2026-11-12 经严格审计后修订，补充遗漏的报告消费方（`BuildReportInventories.cs`）、插件输出检查时机的例外、兼容性表述、聚合文件出现条件和调研证据强度及来源；同日第二轮审计后修正计数、feed 表述、跳转目标的 baseUrl、根因报告主体和来源；第三轮审计后改正 `BuildReportInventories.cs` 中的类名，补充 release bundle 清单。
+- 修订：2026-11-12 经严格审计后修订，补充遗漏的报告消费方（`BuildReportInventories.cs`）、插件输出检查时机的例外、兼容性表述、聚合文件出现条件和调研证据强度及来源；同日第二轮审计后修正计数、feed 表述、跳转目标的 baseUrl、根因报告主体和来源；第三轮审计后改正 `BuildReportInventories.cs` 中的类名，补充 release bundle 清单；第四轮审计后补充内置 GitHub Pages deploy 证据，改正 skill 引文。
 
 ---
 
 ## 1. 问题
 
-配置 `site.languages` 后，Bukit 把每种语言（包括默认语言）都输出到 `dist/<lang>/`，baseUrl 为 `<baseUrl>/<lang>`。根目录只放聚合文件（见第 2 节），**没有 `index.html` 和 `404.html`**。现有文档（i18n skill）的说法是"在主机或 CDN 上配重定向"。
+配置 `site.languages` 后，Bukit 把每种语言（包括默认语言）都输出到 `dist/<lang>/`，baseUrl 为 `<baseUrl>/<lang>`。根目录只放聚合文件（见第 2 节），**没有 `index.html` 和 `404.html`**。现有文档只要求用户自己处理，i18n skill（`guide/skills/bukit-i18n/SKILL.md`）原文为 "add a root redirect at the host or CDN"。
 
 GitHub Pages 等纯静态托管不支持服务端重定向，因此：
 
 1. 站点首页 `/` 直接返回 404，即使配置了 `defaultLanguage` 也一样。
 2. 自定义 404 页不生效：站点提供 404 页时，它被生成到 `dist/<lang>/404.html`，而 GitHub Pages 只使用根目录的 `404.html`。
 
-仓库自带的 `examples/github-pages-workflow.yml` 直接上传构建输出，按它部署的多语言站点打开就是坏的。Netlify、Cloudflare Pages、S3 等平台也必须另外配置规则才能用。
+Bukit 自带的 `bukit deploy github-pages`（`GitHubPagesDeployProvider`）和仓库示例 `examples/github-pages-workflow.yml` 都原样发布构建输出，不感知语言；用任一方式部署的多语言站点，打开首页就是坏的。Netlify、Cloudflare Pages、S3 等平台也必须另外配置规则才能用。
 
 ## 2. 当前多语言目录结构
 
