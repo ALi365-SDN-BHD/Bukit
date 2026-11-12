@@ -158,16 +158,9 @@ internal sealed class TaxonomyPlugin : IBukitPlugin, IDerivePagesPlugin, IAfterB
         return derived;
     }
 
-    public void AfterBuild(BuildContext context)
+    private List<(string Key, string Kind, string Title, Dictionary<string, TaxonomyTerm> Terms, string? RoutePrefix)> CollectKindTerms(BuildContext context)
     {
-        var outputMode = NormalizeOutputMode(_taxonomy.OutputMode);
-        if (outputMode is not ("both" or "data"))
-        {
-            return;
-        }
-
         var itemFields = NormalizeItemFields(_taxonomy.ItemFields);
-
         var kindTerms = new List<(string Key, string Kind, string Title, Dictionary<string, TaxonomyTerm> Terms, string? RoutePrefix)>();
 
         if (_taxonomy.Kinds is { Count: > 0 } kinds)
@@ -213,6 +206,19 @@ internal sealed class TaxonomyPlugin : IBukitPlugin, IDerivePagesPlugin, IAfterB
                 kindTerms.Add(("categories", "categories", title, categories, null));
             }
         }
+
+        return kindTerms;
+    }
+
+    public void AfterBuild(BuildContext context)
+    {
+        var outputMode = NormalizeOutputMode(_taxonomy.OutputMode);
+        if (outputMode is not ("both" or "data"))
+        {
+            return;
+        }
+
+        var kindTerms = CollectKindTerms(context);
 
         var outPath = Path.Combine(context.OutputDir, "taxonomy.json");
         Directory.CreateDirectory(context.OutputDir);

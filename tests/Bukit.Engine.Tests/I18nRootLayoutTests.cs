@@ -2,6 +2,8 @@ using System.Text.Json;
 using Bukit.Config;
 using Bukit.Content;
 using Bukit.Engine.Abstractions.Content;
+using Bukit.Engine.Abstractions.Plugins;
+using Bukit.Engine.Abstractions.Routing;
 using Bukit.Engine.Incremental;
 using Bukit.Engine.Tests.Infrastructure;
 using Bukit.Shared;
@@ -262,6 +264,8 @@ public sealed class I18nRootLayoutTests
         await engine.BuildAsync(config, site.Root, new ConfigOverrides { Incremental = false });
         var generated = File.ReadAllText(Path.Combine(site.Output, "robots.txt"));
         Assert.Contains("Sitemap: https://example.test/sitemap.xml", generated, StringComparison.Ordinal);
+        // The regenerated file is owned again, so disabling robots later removes it.
+        Assert.Contains("robots.txt", BuildManifest.Load(Path.Combine(site.Root, ".cache", "build-manifest.json")).OwnedOutputs);
     }
 
     [Fact]
@@ -316,6 +320,19 @@ public sealed class I18nRootLayoutTests
     }
 
     [Fact]
+    public async Task StaticSitemap_WithoutSiteUrlIsNotARootConflict()
+    {
+        using var site = RootSite();
+        var config = site.Config with { Site = site.Config.Site with { Url = null, SitemapMode = "index" } };
+        site.Sandbox.Write("static/sitemap.xml", "<urlset/>");
+
+        await new SiteEngine(new ConsoleLogger(LogLevel.Error)).BuildAsync(config, site.Root,
+            new ConfigOverrides { Incremental = false });
+
+        Assert.Equal("<urlset/>", File.ReadAllText(Path.Combine(site.Output, "sitemap.xml")));
+    }
+
+    [Fact]
     public async Task StaticLlms_ConflictsBeforeCopy()
     {
         using var site = RootSite();
@@ -338,6 +355,48 @@ public sealed class I18nRootLayoutTests
 
         Assert.Equal(DiagnosticCode.I18nRootOutputConflict, ex.Code);
         Assert.Contains("static/llms.txt", ex.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task StaticLlms_ConflictIgnoresFileNameCase()
+    {
+        using var site = RootSite();
+        var config = site.Config with
+        {
+            Site = site.Config.Site with
+            {
+                Seo = site.Config.Site.Seo with { Geo = new SeoGeoConfig { Enabled = true, LlmsTxt = true } }
+            }
+        };
+        site.Sandbox.Write("static/LLMS.TXT", "static llms");
+
+        var ex = await Assert.ThrowsAsync<BukitException>(() =>
+            new SiteEngine(new ConsoleLogger(LogLevel.Error)).BuildAsync(config, site.Root,
+                new ConfigOverrides { Incremental = false }));
+
+        Assert.Equal(DiagnosticCode.I18nRootOutputConflict, ex.Code);
+        Assert.Contains("LLMS.TXT", ex.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void GeneratedOutputs_MayNotReplaceAPage()
+    {
+        RouteInfo[] pages = [new("/en/", "en/index.html", "__redirect__"), new("/about/", "about/index.html", "page")];
+        AssetOutputItem Generated(string source, string path, AssetOutputCategory category)
+            => new(source, path, category, Operation: AssetOutputOperation.Generate);
+
+        var plugin = Assert.Throws<BukitException>(() => VariantBuildPipeline.ValidateGeneratedOutputsDoNotReplacePages(
+            pages, [Generated("taxonomy", "EN/index.html", AssetOutputCategory.Plugin)], StringComparer.OrdinalIgnoreCase));
+        var projection = Assert.Throws<BukitException>(() => VariantBuildPipeline.ValidateGeneratedOutputsDoNotReplacePages(
+            pages, [Generated("feed", "about/index.html", AssetOutputCategory.Projection)], StringComparer.OrdinalIgnoreCase));
+        VariantBuildPipeline.ValidateGeneratedOutputsDoNotReplacePages(
+            pages,
+            [Generated("taxonomy", "taxonomy.json", AssetOutputCategory.Plugin), Generated("theme", "about/index.html", AssetOutputCategory.Static)],
+            StringComparer.OrdinalIgnoreCase);
+
+        Assert.Equal(DiagnosticCode.BuildAssetOutputCollision, plugin.Code);
+        Assert.Contains("'/en/'", plugin.Message, StringComparison.Ordinal);
+        Assert.StartsWith("Projection 'feed'", projection.Message, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -449,6 +508,41 @@ public sealed class I18nRootLayoutTests
         Assert.Equal(englishBefore, File.ReadAllBytes(Path.Combine(site.Output, "en", "index.html")));
         Assert.Equal(redirectBefore, File.ReadAllBytes(Path.Combine(site.Output, "index.html")));
         Assert.False(Directory.Exists(Path.Combine(site.Output, ".bukit", "variants", "en")));
+    }
+
+    [Fact]
+    public async Task LayoutSwitch_WithLostCacheManifestCleansThroughTheMarker()
+    {
+        using var site = new SiteBuilder("i18n-site");
+        var engine = new SiteEngine(new ConsoleLogger(LogLevel.Error));
+        await engine.BuildAsync(site.Config, site.Root, new ConfigOverrides { Incremental = false });
+        Assert.True(File.Exists(Path.Combine(site.Output, "en", "index.html")));
+        Directory.Delete(Path.Combine(site.Root, ".cache"), recursive: true);
+        var rootConfig = RootConfig(site.Config) with
+        {
+            Site = RootConfig(site.Config).Site with { DefaultLanguageRedirect = false }
+        };
+
+        await engine.BuildAsync(rootConfig, site.Root, new ConfigOverrides { Incremental = false });
+
+        Assert.True(File.Exists(Path.Combine(site.Output, "index.html")));
+        Assert.False(Directory.Exists(Path.Combine(site.Output, "en")));
+    }
+
+    [Fact]
+    public async Task LayoutSwitch_WithoutOutputMarkerRefusesToClean()
+    {
+        using var site = new SiteBuilder("i18n-site");
+        var engine = new SiteEngine(new ConsoleLogger(LogLevel.Error));
+        await engine.BuildAsync(site.Config, site.Root, new ConfigOverrides { Incremental = false });
+        var englishBefore = File.ReadAllBytes(Path.Combine(site.Output, "en", "index.html"));
+        File.Delete(Path.Combine(site.Output, ".bukit-output-marker"));
+
+        var ex = await Assert.ThrowsAnyAsync<BukitException>(() => engine.BuildAsync(
+            RootConfig(site.Config), site.Root, new ConfigOverrides { Incremental = false }));
+
+        Assert.Equal(DiagnosticCode.BuildOutputNoMarker, ex.Code);
+        Assert.Equal(englishBefore, File.ReadAllBytes(Path.Combine(site.Output, "en", "index.html")));
     }
 
     [Fact]

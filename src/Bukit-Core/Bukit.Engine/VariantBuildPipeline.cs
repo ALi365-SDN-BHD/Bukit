@@ -1,6 +1,8 @@
 using Bukit.Theme;
 using System.Diagnostics;
 using Bukit.Config;
+using Bukit.Engine.Abstractions.Plugins;
+using Bukit.Engine.Abstractions.Routing;
 using Bukit.Engine.Incremental;
 using Bukit.Engine.Plugins;
 using Bukit.Rendering;
@@ -189,6 +191,13 @@ internal sealed partial class VariantBuildPipeline
                 VariantReportStage.GetPluginOutputs(routePipelineResult.PluginContext).Select(output =>
                     new AssetOutputItem(output.Plugin, output.Path, AssetOutputCategory.Plugin, Operation: AssetOutputOperation.Generate))).ToArray();
             AssetOutputPlan.Validate(plannedOutputs, assetPipelinePreparation.OutputPlan.DestinationComparer);
+            ValidateGeneratedOutputsDoNotReplacePages(
+                routePipelineResult.RouteResult.RoutedDocuments.Select(document => document.Route)
+                    .Concat(routePipelineResult.PluginContext.DerivedDocuments.Select(document => document.Route))
+                    .Concat(routePipelineResult.RouteResult.ListRoutes)
+                    .Concat(routePipelineResult.StaticHtmlRoutes),
+                plannedOutputs,
+                assetPipelinePreparation.OutputPlan.DestinationComparer);
             var result = await VariantReportRunner.RunAsync(
                 context, routePipelineResult, seoStage, renderPipelineResult, variantStageMetrics, templateResolver,
                 analyticsTransformPlan.AnalyticsBuildState, manifestSetup, media, plannedOutputs, logger, cancellationToken);
@@ -227,4 +236,37 @@ internal sealed partial class VariantBuildPipeline
         string rootDir,
         ILogger logger)
         => Task.FromResult(ThemeBootstrapper.BootstrapRequired(config, rootDir, logger));
+
+    /// <summary>
+    /// Plugin and projection writers (feeds, search, llms, sitemap, tracked plugin files) run after
+    /// pages are rendered; one that lands on a page would silently replace it and own it twice.
+    /// </summary>
+    internal static void ValidateGeneratedOutputsDoNotReplacePages(
+        IEnumerable<RouteInfo> pageRoutes,
+        IEnumerable<AssetOutputItem> plannedOutputs,
+        StringComparer comparer)
+    {
+        var generated = plannedOutputs
+            .Where(item => item.Category is AssetOutputCategory.Plugin or AssetOutputCategory.Projection)
+            .ToList();
+        if (generated.Count == 0)
+        {
+            return;
+        }
+
+        var pages = pageRoutes
+            .GroupBy(route => BuildPathUtils.NormalizeRelPath(route.OutputPath), comparer)
+            .ToDictionary(group => group.Key, group => group.First().Url, comparer);
+        foreach (var item in generated)
+        {
+            var path = BuildPathUtils.NormalizeRelPath(item.Destination);
+            if (pages.TryGetValue(path, out var url))
+            {
+                var owner = item.Category == AssetOutputCategory.Plugin ? "Plugin" : "Projection";
+                throw new BukitException(
+                    $"{owner} '{item.Source}' output '{path}' replaces the page for route '{url}'.",
+                    DiagnosticCode.BuildAssetOutputCollision);
+            }
+        }
+    }
 }
