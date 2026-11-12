@@ -34,10 +34,7 @@ internal static class TaxonomyRedirectWriter
         }
     }
 
-    /// <summary>Alias redirect outputs (relative, '/'-separated) and their targets, without writing.</summary>
-    internal static List<(string Path, string TargetUrl)> PlanRedirects(string kind, Dictionary<string, TaxonomyTerm> terms, string? routePrefix = null)
-        => [.. PlanAliases(kind, terms, routePrefix).Where(alias => !alias.IsSelfAlias).Select(alias => (alias.Path, alias.TargetUrl))];
-
+    /// <summary>Alias outputs (relative, '/'-separated) and their targets, without writing.</summary>
     private static List<(string Path, string TargetUrl, bool IsSelfAlias)> PlanAliases(string kind, Dictionary<string, TaxonomyTerm> terms, string? routePrefix)
     {
         var normalizedRoutePrefix = TaxonomyPageCreator.NormalizeRoutePrefix(kind, routePrefix);

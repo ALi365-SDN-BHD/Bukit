@@ -17,11 +17,12 @@ internal static class I18nRootOutputConflictGuard
         // excluded because a default language static robots.txt replaces the generated one.
         var rootOutputs = PublicOutputLifecycle.ProjectionPlan(config, [], root: true)
             .Where(item => !string.Equals(item.Destination, "robots.txt", StringComparison.OrdinalIgnoreCase));
+        var listings = new Dictionary<string, Dictionary<string, string>>(StringComparer.Ordinal);
         foreach (var output in rootOutputs)
         {
             foreach (var directory in new[] { parentStaticDir, staticDir })
             {
-                var file = FindIgnoringCase(directory, output.Destination.TrimStart('/'));
+                var file = FindIgnoringCase(directory, output.Destination, listings);
                 if (file is not null)
                 {
                     throw new BukitException(
@@ -32,22 +33,46 @@ internal static class I18nRootOutputConflictGuard
         }
     }
 
-    /// <summary>Case-insensitive lookup on every platform, so Linux and macOS report the same conflicts.</summary>
-    private static string? FindIgnoringCase(string? root, string relativePath)
+    /// <summary>
+    /// Case-insensitive lookup on every platform, so Linux and macOS report the same conflicts.
+    /// '.' segments and backslashes are normalized as the writers resolve them; each directory is
+    /// listed at most once per validation.
+    /// </summary>
+    private static string? FindIgnoringCase(
+        string? root,
+        string relativePath,
+        Dictionary<string, Dictionary<string, string>> listings)
     {
         if (string.IsNullOrWhiteSpace(root) || !Directory.Exists(root))
         {
             return null;
         }
 
-        var current = root;
-        var segments = relativePath.Split('/', StringSplitOptions.RemoveEmptyEntries);
-        for (var index = 0; index < segments.Length; index++)
+        var segments = relativePath.Split(['/', '\\'], StringSplitOptions.RemoveEmptyEntries)
+            .Where(segment => segment != ".")
+            .ToArray();
+        if (segments.Length == 0 || segments.Contains(".."))
         {
-            var last = index == segments.Length - 1;
-            var match = (last ? Directory.EnumerateFiles(current) : Directory.EnumerateDirectories(current))
-                .FirstOrDefault(entry => string.Equals(Path.GetFileName(entry), segments[index], StringComparison.OrdinalIgnoreCase));
-            if (match is null)
+            return null;
+        }
+
+        var current = root;
+        foreach (var segment in segments)
+        {
+            if (!listings.TryGetValue(current, out var entries))
+            {
+                if (!Directory.Exists(current))
+                {
+                    return null;
+                }
+
+                entries = Directory.EnumerateFileSystemEntries(current)
+                    .GroupBy(Path.GetFileName, StringComparer.OrdinalIgnoreCase)
+                    .ToDictionary(group => group.Key!, group => group.First(), StringComparer.OrdinalIgnoreCase);
+                listings[current] = entries;
+            }
+
+            if (!entries.TryGetValue(segment, out var match))
             {
                 return null;
             }
@@ -55,7 +80,7 @@ internal static class I18nRootOutputConflictGuard
             current = match;
         }
 
-        return current;
+        return File.Exists(current) ? current : null;
     }
 
     private static string Setting(SiteConfig site, string kind) => kind switch

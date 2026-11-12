@@ -379,17 +379,24 @@ public sealed class I18nRootLayoutTests
     }
 
     [Fact]
-    public void PluginOutputs_MayNotReplaceAPage()
+    public void GeneratedOutputs_MayNotReplaceAPage()
     {
         RouteInfo[] pages = [new("/en/", "en/index.html", "__redirect__"), new("/about/", "about/index.html", "page")];
+        AssetOutputItem Generated(string source, string path, AssetOutputCategory category)
+            => new(source, path, category, Operation: AssetOutputOperation.Generate);
 
-        var ex = Assert.Throws<BukitException>(() => VariantBuildPipeline.ValidatePluginOutputsDoNotReplacePages(
-            pages, [new PluginOutputTrackingInfo("taxonomy", "after-build", "EN/index.html")], StringComparer.OrdinalIgnoreCase));
-        VariantBuildPipeline.ValidatePluginOutputsDoNotReplacePages(
-            pages, [new PluginOutputTrackingInfo("taxonomy", "after-build", "taxonomy.json")], StringComparer.OrdinalIgnoreCase);
+        var plugin = Assert.Throws<BukitException>(() => VariantBuildPipeline.ValidateGeneratedOutputsDoNotReplacePages(
+            pages, [Generated("taxonomy", "EN/index.html", AssetOutputCategory.Plugin)], StringComparer.OrdinalIgnoreCase));
+        var projection = Assert.Throws<BukitException>(() => VariantBuildPipeline.ValidateGeneratedOutputsDoNotReplacePages(
+            pages, [Generated("feed", "about/index.html", AssetOutputCategory.Projection)], StringComparer.OrdinalIgnoreCase));
+        VariantBuildPipeline.ValidateGeneratedOutputsDoNotReplacePages(
+            pages,
+            [Generated("taxonomy", "taxonomy.json", AssetOutputCategory.Plugin), Generated("theme", "about/index.html", AssetOutputCategory.Static)],
+            StringComparer.OrdinalIgnoreCase);
 
-        Assert.Equal(DiagnosticCode.BuildAssetOutputCollision, ex.Code);
-        Assert.Contains("'/en/'", ex.Message, StringComparison.Ordinal);
+        Assert.Equal(DiagnosticCode.BuildAssetOutputCollision, plugin.Code);
+        Assert.Contains("'/en/'", plugin.Message, StringComparison.Ordinal);
+        Assert.StartsWith("Projection 'feed'", projection.Message, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -501,6 +508,41 @@ public sealed class I18nRootLayoutTests
         Assert.Equal(englishBefore, File.ReadAllBytes(Path.Combine(site.Output, "en", "index.html")));
         Assert.Equal(redirectBefore, File.ReadAllBytes(Path.Combine(site.Output, "index.html")));
         Assert.False(Directory.Exists(Path.Combine(site.Output, ".bukit", "variants", "en")));
+    }
+
+    [Fact]
+    public async Task LayoutSwitch_WithLostCacheManifestCleansThroughTheMarker()
+    {
+        using var site = new SiteBuilder("i18n-site");
+        var engine = new SiteEngine(new ConsoleLogger(LogLevel.Error));
+        await engine.BuildAsync(site.Config, site.Root, new ConfigOverrides { Incremental = false });
+        Assert.True(File.Exists(Path.Combine(site.Output, "en", "index.html")));
+        Directory.Delete(Path.Combine(site.Root, ".cache"), recursive: true);
+        var rootConfig = RootConfig(site.Config) with
+        {
+            Site = RootConfig(site.Config).Site with { DefaultLanguageRedirect = false }
+        };
+
+        await engine.BuildAsync(rootConfig, site.Root, new ConfigOverrides { Incremental = false });
+
+        Assert.True(File.Exists(Path.Combine(site.Output, "index.html")));
+        Assert.False(Directory.Exists(Path.Combine(site.Output, "en")));
+    }
+
+    [Fact]
+    public async Task LayoutSwitch_WithoutOutputMarkerRefusesToClean()
+    {
+        using var site = new SiteBuilder("i18n-site");
+        var engine = new SiteEngine(new ConsoleLogger(LogLevel.Error));
+        await engine.BuildAsync(site.Config, site.Root, new ConfigOverrides { Incremental = false });
+        var englishBefore = File.ReadAllBytes(Path.Combine(site.Output, "en", "index.html"));
+        File.Delete(Path.Combine(site.Output, ".bukit-output-marker"));
+
+        var ex = await Assert.ThrowsAnyAsync<BukitException>(() => engine.BuildAsync(
+            RootConfig(site.Config), site.Root, new ConfigOverrides { Incremental = false }));
+
+        Assert.Equal(DiagnosticCode.BuildOutputNoMarker, ex.Code);
+        Assert.Equal(englishBefore, File.ReadAllBytes(Path.Combine(site.Output, "en", "index.html")));
     }
 
     [Fact]

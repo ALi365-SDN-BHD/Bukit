@@ -27,8 +27,6 @@ internal static class I18nLegacyRedirectDeriver
         var occupied = pluginContext.RoutedDocuments.Any(document => SamePath(document.Route.OutputPath, outputPath)) ||
                        pluginContext.DerivedDocuments.Any(document => SamePath(document.Route.OutputPath, outputPath)) ||
                        pluginContext.StaticHtmlRoutes.Any(route => SamePath(route.OutputPath, outputPath)) ||
-                       (pluginContext.TryGet(BuildDataKeys.TaxonomyRedirectPaths, out var taxonomyRedirects) &&
-                        taxonomyRedirects.Any(path => SamePath(path, outputPath))) ||
                        File.Exists(Path.Combine(context.StaticDir, outputPath)) ||
                        (context.ParentStaticDir is not null && File.Exists(Path.Combine(context.ParentStaticDir, outputPath)));
         if (occupied)

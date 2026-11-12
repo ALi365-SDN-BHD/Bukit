@@ -191,12 +191,12 @@ internal sealed partial class VariantBuildPipeline
                 VariantReportStage.GetPluginOutputs(routePipelineResult.PluginContext).Select(output =>
                     new AssetOutputItem(output.Plugin, output.Path, AssetOutputCategory.Plugin, Operation: AssetOutputOperation.Generate))).ToArray();
             AssetOutputPlan.Validate(plannedOutputs, assetPipelinePreparation.OutputPlan.DestinationComparer);
-            ValidatePluginOutputsDoNotReplacePages(
+            ValidateGeneratedOutputsDoNotReplacePages(
                 routePipelineResult.RouteResult.RoutedDocuments.Select(document => document.Route)
                     .Concat(routePipelineResult.PluginContext.DerivedDocuments.Select(document => document.Route))
                     .Concat(routePipelineResult.RouteResult.ListRoutes)
                     .Concat(routePipelineResult.StaticHtmlRoutes),
-                VariantReportStage.GetPluginOutputs(routePipelineResult.PluginContext),
+                plannedOutputs,
                 assetPipelinePreparation.OutputPlan.DestinationComparer);
             var result = await VariantReportRunner.RunAsync(
                 context, routePipelineResult, seoStage, renderPipelineResult, variantStageMetrics, templateResolver,
@@ -238,15 +238,18 @@ internal sealed partial class VariantBuildPipeline
         => Task.FromResult(ThemeBootstrapper.BootstrapRequired(config, rootDir, logger));
 
     /// <summary>
-    /// After-build plugin outputs are written once pages exist; one that lands on a rendered or
-    /// derived page would silently replace it and leave the path owned twice.
+    /// Plugin and projection writers (feeds, search, llms, sitemap, tracked plugin files) run after
+    /// pages are rendered; one that lands on a page would silently replace it and own it twice.
     /// </summary>
-    internal static void ValidatePluginOutputsDoNotReplacePages(
+    internal static void ValidateGeneratedOutputsDoNotReplacePages(
         IEnumerable<RouteInfo> pageRoutes,
-        IReadOnlyList<PluginOutputTrackingInfo> pluginOutputs,
+        IEnumerable<AssetOutputItem> plannedOutputs,
         StringComparer comparer)
     {
-        if (pluginOutputs.Count == 0)
+        var generated = plannedOutputs
+            .Where(item => item.Category is AssetOutputCategory.Plugin or AssetOutputCategory.Projection)
+            .ToList();
+        if (generated.Count == 0)
         {
             return;
         }
@@ -254,12 +257,14 @@ internal sealed partial class VariantBuildPipeline
         var pages = pageRoutes
             .GroupBy(route => BuildPathUtils.NormalizeRelPath(route.OutputPath), comparer)
             .ToDictionary(group => group.Key, group => group.First().Url, comparer);
-        foreach (var output in pluginOutputs)
+        foreach (var item in generated)
         {
-            if (pages.TryGetValue(BuildPathUtils.NormalizeRelPath(output.Path), out var url))
+            var path = BuildPathUtils.NormalizeRelPath(item.Destination);
+            if (pages.TryGetValue(path, out var url))
             {
+                var owner = item.Category == AssetOutputCategory.Plugin ? "Plugin" : "Projection";
                 throw new BukitException(
-                    $"Plugin '{output.Plugin}' output '{BuildPathUtils.NormalizeRelPath(output.Path)}' replaces the page for route '{url}'.",
+                    $"{owner} '{item.Source}' output '{path}' replaces the page for route '{url}'.",
                     DiagnosticCode.BuildAssetOutputCollision);
             }
         }

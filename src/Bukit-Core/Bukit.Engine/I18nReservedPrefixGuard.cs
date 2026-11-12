@@ -59,7 +59,8 @@ internal static class I18nReservedPrefixGuard
         }
 
         foreach (var item in items.Where(item =>
-                     item.Category is AssetOutputCategory.Static or AssetOutputCategory.Assets or AssetOutputCategory.Media))
+                     item.Category is AssetOutputCategory.Static or AssetOutputCategory.Assets or
+                         AssetOutputCategory.Media or AssetOutputCategory.Projection))
         {
             Check(item.Destination, $"asset '{item.Source}'", reserved);
         }

@@ -61,6 +61,18 @@ public sealed class I18nReservedPrefixTests
     }
 
     [Fact]
+    public void ValidateAssetPlan_RejectsProjectionFeedUnderAnotherLanguage()
+    {
+        var config = Config("en", "zh-CN");
+        var feed = new AssetOutputItem("feed", "zh-CN/news.xml", AssetOutputCategory.Projection, Operation: AssetOutputOperation.Generate);
+
+        var ex = Assert.Throws<BukitException>(() => I18nReservedPrefixGuard.ValidateAssetPlan(config, [feed]));
+
+        Assert.Equal(DiagnosticCode.I18nRouteReservedLanguagePrefix, ex.Code);
+        Assert.Contains("zh-CN/news.xml", ex.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void ValidatePluginOutputs_RejectsReservedPath()
     {
         var config = Config("en", "zh-CN");
