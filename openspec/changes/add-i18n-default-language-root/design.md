@@ -6,7 +6,7 @@
 - 输出目录：`SiteEngine`（`Path.Combine(outputDir, lang)`）、`WorktreeBuildRun`（`Path.Combine(_stagingOutputDir, language)`）、`WorktreeBuildPaths.RewriteManifestRoots` / `CopyVariantManifest`。
 - 语言代码被当作输出子目录：`I18nMergedVariantState.MergeRoute`、`SeoAuditReportWriter`（两处）。
 - 根目录聚合：`PublicOutputLifecycle.CollectAndClean` 把各语言计划输出与根目录计划输出合并后，用 `AssetOutputPlan.Validate` 检查目标路径是否重复。这个检查只覆盖资源和插件输出，**不覆盖路由 HTML**。
-- 报告：每种语言在自己的输出目录调用 `SeoAuditReportWriter.Write`，写出 `.bukit/seo-report.json`、`publish-audit-report.json`、`seo-route-map.json`、`geo-report.json`；`VariantReportStage` 另写 `.bukit/analytics-report.json`。根目录的 `WriteMerged` 通过同一个 `WriteReport` 写出前 4 种同名文件。`BuildReportInventories.AddVariantAnalyticsReports` 按 `variant.OutputDir/.bukit/analytics-report.json` 查找每种语言的 analytics 报告，登记进 build-report 产物清单。
+- 报告：每种语言在自己的输出目录调用 `SeoAuditReportWriter.Write`，写出 `.bukit/seo-report.json`、`publish-audit-report.json`、`seo-route-map.json`、`geo-report.json`；`VariantReportStage` 另写 `.bukit/analytics-report.json`。根目录的 `WriteMerged` 通过同一个 `WriteReport` 写出前 4 种同名文件。`ArtifactManifestInventory.AddVariantAnalyticsReports`（`BuildReportInventories.cs`）按 `variant.OutputDir/.bukit/analytics-report.json` 查找每种语言的 analytics 报告，登记进 build-report 产物清单。
 - Worktree：每个 Worker 直接写 `staging/<lang>/`，父进程在 `I18nWorktreeProtocol.ValidateOutputPaths` 中**事后**验证结果引用的所有路径（计划输出、插件输出、路由、列表、派生、投影、static、manifest 各项）都在该 Worker 的输出目录内。
 
 已核实、不需要改的部分：
@@ -15,7 +15,7 @@
 - `search.mode: index` 的根目录 `search.index.json` 和 merged 搜索都按 `result.BaseUrl` 计算路径；根目录 robots、agent-manifest、feed、llms writer 也按 `result.BaseUrl` 计算。
 - 恢复标记 `.bukit-output-marker`、`.bukit-build-state.json` 只在根目录这一层由 `BuildPlanner`/`SiteEngine` 写入，语言那一轮不写。
 - 输出目录的整体清理（`OutputDirectoryCleaner`）只由根目录这一层的 `BuildPlanner.PrepareOutputDirectory` 执行；Worker 和语言那一轮不执行整体清理。
-- `PublicOutputPrivacyCheck`、`BuildOutputInventory` 只在根目录这一层扫描整个输出目录。
+- `PublicOutputPrivacyCheck`、`BuildOutputInventory`、`AssetsReportInventory`、`ReleaseBundleInventory` 只在根目录这一层扫描整个输出目录。其中 `PublicOutputPrivacyCheck`、`AssetsReportInventory`、`ReleaseBundleInventory` 只排除根目录 `.bukit/`；`BuildOutputInventory` 只排除恢复状态和输出标记文件。
 - 模板只拿到当前语言的 `site.base_url`；内置 Starter 主题的 hreflang 来自 `page.seo.alternates`。dev 服务器和 deploy 不感知语言。GitHub Pages deploy 复制输出时跳过任意层级的 `.bukit/`。
 - 现有两份跳转页生成代码：`AliasPlugin.BuildRedirectHtml` 和 `TaxonomyRedirectWriter.RenderRedirect`，都输出 meta refresh 和 canonical，都没有 `<title>` 和 `noindex`。
 
@@ -67,7 +67,7 @@
 - `ReservedFirstSegments(site)`：默认语言在根目录时返回其他语言代码，否则返回空
 - `ResolveReportDirectory(site, language)`：根目录语言返回 `.bukit/variants/<lang>`，否则返回 `.bukit`
 
-Context 中列出的所有拼接点都改为调用该策略，包括读取语言报告位置的 `BuildReportInventories`（不改的话，默认语言的 analytics 报告会悄悄从 build-report 产物清单中消失）。`BuildTransaction.RejectGeneratedOutputLinks` 按布局生成路径清单，不能把空前缀当作语言目录加入。
+Context 中列出的所有拼接点都改为调用该策略，包括读取语言报告位置的 `ArtifactManifestInventory`（不改的话，默认语言的 analytics 报告会悄悄从 build-report 产物清单中消失）。`BuildTransaction.RejectGeneratedOutputLinks` 按布局生成路径清单，不能把空前缀当作语言目录加入。
 
 ### 3. 根目录文件归属
 
@@ -182,7 +182,7 @@ split 模式下没有根目录索引，默认语言的 sitemap 仍写在 `/sitem
 
 ### 隐私与安全
 
-- 默认语言报告移到根目录 `.bukit/` 下之后，会被 `PublicOutputPrivacyCheck` 跳过，也不再计入 build-report 资源清单（`BuildReportInventories.Create`），因为两者都只跳过根目录 `.bukit/`。现状下 `<lang>/.bukit/` 会被扫描、也会计入资源清单，两种布局下的结果因此不同。实施时确认这是预期行为，并补测试固定下来。
+- 默认语言报告移到根目录 `.bukit/` 下之后，会被 `PublicOutputPrivacyCheck` 跳过，也不再计入 build-report 资源清单（`AssetsReportInventory.Create`）和 release bundle 校验和清单（`ReleaseBundleInventory.Create`），因为三者都只跳过根目录 `.bukit/`。现状下 `<lang>/.bukit/` 会被扫描、也会计入这两份清单，两种布局下的结果因此不同。实施时确认这是预期行为，并补测试固定下来。
 - `examples/github-pages-workflow.yml` 直接上传整个输出目录，包括 `.bukit/` 报告。这是现有问题，不是本变更引入的，记录为后续事项。
 
 ## Risks / Trade-offs

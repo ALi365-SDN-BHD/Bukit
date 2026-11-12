@@ -28,8 +28,8 @@
 - [ ] `SitemapPlugin` 在 index 模式下为根目录默认语言写入 `<lang>/sitemap.xml`（地址不带前缀）；`I18nRootSitemapWriter` 的索引和 `I18nRootRobotsWriter` 引用实际地址。
 - [ ] 默认语言 `static/robots.txt` 作为整站 robots；其他根目录独占文件同名的 static 文件在复制前报 `i18n-root-output-conflict`。
 - [ ] 默认语言 5 种报告写入 `.bukit/variants/<lang>/`（`SeoAuditReportWriter.Write`、`PublishAuditReportWriter`、`SeoRouteMapWriter`、geo 报告、`AnalyticsReportWriter`）。
-- [ ] `BuildReportInventories.AddVariantAnalyticsReports` 按 `I18nOutputLayout` 的报告目录查找语言报告。
-- [ ] 确认 `PublicOutputPrivacyCheck` 和 `BuildReportInventories.Create` 在两种布局下对语言报告的扫描和计入范围，并用测试固定。
+- [ ] `ArtifactManifestInventory.AddVariantAnalyticsReports`（`BuildReportInventories.cs`）按 `I18nOutputLayout` 的报告目录查找语言报告。
+- [ ] 确认 `PublicOutputPrivacyCheck`、`AssetsReportInventory.Create`（资源清单）和 `ReleaseBundleInventory.Create`（release bundle 校验和清单）在两种布局下对语言报告的扫描和计入范围，并用测试固定。
 
 ## 4. 路由保留前缀
 

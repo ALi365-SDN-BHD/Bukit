@@ -5,7 +5,7 @@
 - 范围：`site.languages` 多语言构建的输出目录结构、根目录聚合文件、Worktree 构建、跳转页
 - 规范性提案：`openspec/changes/add-i18n-default-language-root/`（proposal、design、specs、tasks；`openspec validate --strict` 通过）
 - 本轮性质：**只分析和提案，不实施**。未修改源码、测试、配置、CI/gate；未运行 `dotnet test`。全部设计决策已由用户确认；实施须作为单独的 Core 任务开展。
-- 修订：2026-11-12 经严格审计后修订，补充遗漏的报告消费方 `BuildReportInventories`、插件输出检查时机的例外、兼容性表述、聚合文件出现条件和调研证据强度及来源；同日第二轮审计后修正计数、feed 表述、跳转目标的 baseUrl、根因报告主体和来源。
+- 修订：2026-11-12 经严格审计后修订，补充遗漏的报告消费方（`BuildReportInventories.cs`）、插件输出检查时机的例外、兼容性表述、聚合文件出现条件和调研证据强度及来源；同日第二轮审计后修正计数、feed 表述、跳转目标的 baseUrl、根因报告主体和来源；第三轮审计后改正 `BuildReportInventories.cs` 中的类名，补充 release bundle 清单。
 
 ---
 
@@ -112,7 +112,7 @@ dist/
 
 ### 6.2 单一布局策略
 
-新增内部策略 `I18nOutputLayout`，统一计算每种语言的 baseUrl、输出目录、相对前缀、报告目录和保留前缀。当前散落的拼接点全部改为调用它：`CombineBaseUrlWithLanguage` 的 3 个调用点、`SiteEngine`/`WorktreeBuildRun` 的输出目录、`WorktreeBuildPaths` 的 manifest 路径、`BuildReportInventories` 的语言报告查找，以及 `I18nMergedVariantState`、`SeoAuditReportWriter` 中把语言代码直接当输出子目录的 3 处。漏改后者会让合并 SEO 审计去 `dist/<lang>/` 找默认语言页面，为每个默认语言页面误报 `seo.output_file_missing`，`--strict` 下直接失败。
+新增内部策略 `I18nOutputLayout`，统一计算每种语言的 baseUrl、输出目录、相对前缀、报告目录和保留前缀。当前散落的拼接点全部改为调用它：`CombineBaseUrlWithLanguage` 的 3 个调用点、`SiteEngine`/`WorktreeBuildRun` 的输出目录、`WorktreeBuildPaths` 的 manifest 路径、`ArtifactManifestInventory` 的语言报告查找，以及 `I18nMergedVariantState`、`SeoAuditReportWriter` 中把语言代码直接当输出子目录的 3 处。漏改后者会让合并 SEO 审计去 `dist/<lang>/` 找默认语言页面，为每个默认语言页面误报 `seo.output_file_missing`，`--strict` 下直接失败。
 
 ### 6.3 根目录文件归属（根目录布局）
 
@@ -122,7 +122,7 @@ dist/
 | sitemap | split：默认语言写 `/sitemap.xml`；merged：只有根目录；index：根目录是索引，默认语言写 `/<lang>/sitemap.xml` |
 | feed | split：默认语言写在根目录；merged：只有根目录 |
 | search | split / index：默认语言写 `/search.json`；merged：不支持 |
-| `.bukit/` 报告 | 默认语言 5 种报告（seo、publish-audit、seo-route-map、geo、analytics）改写到 `.bukit/variants/<lang>/`。前 4 种和根目录合并报告共用 `SeoAuditReportWriter.WriteReport`、写到同一路径，不改会被合并版本悄悄覆盖；analytics 只在语言那一轮写，移动它是为了让默认语言报告集中在一处。读取报告位置的地方要一起改：`BuildReportInventories.AddVariantAnalyticsReports` 按 `variant.OutputDir/.bukit/analytics-report.json` 查找每种语言的报告，不改的话默认语言的 analytics 报告会悄悄从 build-report 产物清单中消失 |
+| `.bukit/` 报告 | 默认语言 5 种报告（seo、publish-audit、seo-route-map、geo、analytics）改写到 `.bukit/variants/<lang>/`。前 4 种和根目录合并报告共用 `SeoAuditReportWriter.WriteReport`、写到同一路径，不改会被合并版本悄悄覆盖；analytics 只在语言那一轮写，移动它是为了让默认语言报告集中在一处。读取报告位置的地方要一起改：`ArtifactManifestInventory.AddVariantAnalyticsReports`（位于 `BuildReportInventories.cs`）按 `variant.OutputDir/.bukit/analytics-report.json` 查找每种语言的报告，不改的话默认语言的 analytics 报告会悄悄从 build-report 产物清单中消失 |
 | 默认语言 `static/` | `robots.txt` 作为整站 robots；与其他根目录独占文件同名时报 `i18n-root-output-conflict`；`404.html`、`CNAME` 等正常落到根目录 |
 
 所有语言的计划输出清单按当前 sitemap/feed mode 生成，与插件实际写出行为一致。现有 `AssetOutputPlan.Validate` 重复检查保留为最后防线。
@@ -142,7 +142,7 @@ dist/
 
 ### 6.6 布局切换和增量构建
 
-两个新配置都只在非默认值时写入增量站点哈希，未启用的站点升级后不会全量重渲染。布局变化时走现有受保护清理。已核实的安全点：恢复标记只在根目录写；整体清理只在根目录这一层执行；`PublicOutputPrivacyCheck`、`BuildOutputInventory`、`BuildReportInventories.Create` 只在根目录这一层扫描（后两者对语言报告的计入范围变化见 7.2 最后一条）。
+两个新配置都只在非默认值时写入增量站点哈希，未启用的站点升级后不会全量重渲染。布局变化时走现有受保护清理。已核实的安全点：恢复标记只在根目录写；整体清理只在根目录这一层执行；`PublicOutputPrivacyCheck`、`BuildOutputInventory`、`AssetsReportInventory`、`ReleaseBundleInventory` 只在根目录这一层扫描。其中 `BuildOutputInventory` 不排除 `.bukit/`，不受报告移动影响；其余三者只排除根目录 `.bukit/`，对语言报告的计入范围变化见 7.2 最后一条。
 
 ## 7. 影响与风险
 
@@ -165,7 +165,7 @@ dist/
 - 插件写到根目录的 service worker 作用范围会覆盖所有语言；插件不应把 `context.OutputDir` 当作站点根目录。
 - 主题如果手写 `/{{ site.language }}/` 前缀或用 `href="/"` 当首页链接，在根目录布局下会出错；内置主题已核实没有这类写法，第三方主题需要自查。
 - `--metrics` 输出里默认语言的 `variants[].outputDir` 等于输出根目录，外部工具若假设各语言目录互不重叠（如按目录统计大小）会重复计算。
-- 隐私扫描（`PublicOutputPrivacyCheck`）和 build-report 资源清单（`BuildReportInventories.Create`）都只跳过根目录 `.bukit/`。现状下 `<lang>/.bukit/` 里的语言报告会被扫描、也会计入资源清单；根目录布局下默认语言报告移到根目录 `.bukit/` 后不再被扫描和计入，两种布局结果不同。实施时要确认这是预期行为并用测试固定。
+- 隐私扫描（`PublicOutputPrivacyCheck`）、build-report 资源清单（`AssetsReportInventory.Create`）和 release bundle 校验和清单（`ReleaseBundleInventory.Create`）都只跳过根目录 `.bukit/`。现状下 `<lang>/.bukit/` 里的语言报告会被扫描、也会计入这两份清单；根目录布局下默认语言报告移到根目录 `.bukit/` 后不再被扫描和计入，两种布局结果不同。实施时要确认这是预期行为并用测试固定。
 
 ### 7.3 主要风险
 
