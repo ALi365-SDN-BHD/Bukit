@@ -220,16 +220,7 @@ internal static class I18nWorktreeProtocol
         string manifestPath,
         SiteConfig? site = null)
     {
-        if (snapshot.Schema != ResultSchema || !snapshot.Completed ||
-            !string.Equals(snapshot.Head, expectedHead, StringComparison.Ordinal) ||
-            !string.Equals(snapshot.ConfigHash, expectedConfigHash, StringComparison.Ordinal) ||
-            !string.Equals(snapshot.ContentHash, expectedContentHash, StringComparison.Ordinal) ||
-            !string.Equals(snapshot.Language, expectedLanguage, StringComparison.Ordinal) ||
-            !PathEquals(snapshot.OutputDir, expectedOutputDir))
-        {
-            throw new InvalidDataException("Worker result identity or protocol version is invalid.");
-        }
-
+        ValidateIdentity(snapshot, expectedHead, expectedConfigHash, expectedContentHash, expectedLanguage, expectedOutputDir);
         ValidateOutputPaths(expectedOutputDir, snapshot, site);
         var bodyStore = new DictionaryContentBodyStore(snapshot.Bodies);
         return new BuildVariantResult(
@@ -268,6 +259,25 @@ internal static class I18nWorktreeProtocol
             SignedLinks = snapshot.SignedLinks ?? [],
             AuditIssues = snapshot.AuditIssues ?? []
         };
+    }
+
+    private static void ValidateIdentity(
+        I18nVariantSnapshot snapshot,
+        string expectedHead,
+        string expectedConfigHash,
+        string expectedContentHash,
+        string expectedLanguage,
+        string expectedOutputDir)
+    {
+        if (snapshot.Schema != ResultSchema || !snapshot.Completed ||
+            !string.Equals(snapshot.Head, expectedHead, StringComparison.Ordinal) ||
+            !string.Equals(snapshot.ConfigHash, expectedConfigHash, StringComparison.Ordinal) ||
+            !string.Equals(snapshot.ContentHash, expectedContentHash, StringComparison.Ordinal) ||
+            !string.Equals(snapshot.Language, expectedLanguage, StringComparison.Ordinal) ||
+            !PathEquals(snapshot.OutputDir, expectedOutputDir))
+        {
+            throw new InvalidDataException("Worker result identity or protocol version is invalid.");
+        }
     }
 
     private static I18nBuildManifestSnapshot FromManifest(BuildManifest manifest)

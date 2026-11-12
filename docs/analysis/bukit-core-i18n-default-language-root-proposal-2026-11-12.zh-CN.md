@@ -160,7 +160,7 @@ dist/
 - `seo diff` 基线要重建；按 `/<lang>/` 路径筛选的 Analytics 报表失效；写死 `dist/<lang>` 的 CI 脚本要修改。
 - split 模式下默认语言 sitemap 地址变化，需重新提交 Search Console。
 - `bukit seo audit --dir dist/<lang>` 改为 `--report dist/.bukit/variants/<lang>/seo-report.json`。
-- `feed.mode: merged` 时各语言本来就不写自己的 feed；默认语言模板中的 `{{ site.base_url }}/rss.xml` 现状为 404，改后指向根目录的多语言合并 feed，需在文档中说明。
+- `feed.mode: merged` 时，现状下各语言的 feed 由语言级投影写出（与文档约定的“只有根目录”不符）；实施后各语言不再生成 feed，默认语言在根目录时 `{{ site.base_url }}/rss.xml` 指向根目录合并 feed，带前缀布局下该地址变为 404，需在文档中说明。
 - 默认语言作者不能使用与其他语言代码相同的 slug、标签、分类；**以后新增语言可能让已有内容报错**。
 - 插件写到根目录的 service worker 作用范围会覆盖所有语言；插件不应把 `context.OutputDir` 当作站点根目录。
 - 主题如果手写 `/{{ site.language }}/` 前缀或用 `href="/"` 当首页链接，在根目录布局下会出错；内置主题已核实没有这类写法，第三方主题需要自查。

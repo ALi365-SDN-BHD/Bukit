@@ -40,36 +40,15 @@ internal static class PublicOutputLifecycle
 
         if (root && I18nRootRedirectWriter.ShouldWrite(config)) Add("index.html", "redirect");
 
-        if (isRootLanguage)
-        {
-            if (searchMode != "merged") Add("search.json", "search");
-        }
-        else if (!root || searchMode == "merged")
-        {
-            Add("search.json", "search");
-        }
-        else if (searchMode == "index")
-        {
-            Add("search.index.json", "search");
-        }
+        var searchPath = SearchPlanPath(root, isRootLanguage, searchMode);
+        if (searchPath is not null) Add(searchPath, "search");
 
         if (!root && !isRootLanguage && config.Site.Search.Ui?.Trim().ToLowerInvariant() is not (null or "false" or "off")) Add("bukit-search.html", "search-ui");
 
         if (!string.IsNullOrWhiteSpace(config.Site.Url))
         {
-            if (root)
-            {
-                if (sitemapMode is "merged" or "index") Add("sitemap.xml", "sitemap");
-            }
-            else if (isRootLanguage)
-            {
-                if (sitemapMode == "split") Add("sitemap.xml", "sitemap");
-                else if (sitemapMode == "index") Add(Path.Combine(language!, "sitemap.xml"), "sitemap");
-            }
-            else if (sitemapMode != "merged")
-            {
-                Add("sitemap.xml", "sitemap");
-            }
+            var sitemapPath = SitemapPlanPath(root, isRootLanguage, sitemapMode, language);
+            if (sitemapPath is not null) Add(sitemapPath, "sitemap");
 
             if (!isRootLanguage && config.Site.Seo.RobotsTxt.Enabled) Add("robots.txt", "robots");
 
@@ -86,6 +65,29 @@ internal static class PublicOutputLifecycle
         }
 
         return items;
+    }
+
+    private static string? SearchPlanPath(bool root, bool isRootLanguage, string searchMode)
+    {
+        if (isRootLanguage) return searchMode != "merged" ? "search.json" : null;
+        if (!root || searchMode == "merged") return "search.json";
+        return searchMode == "index" ? "search.index.json" : null;
+    }
+
+    private static string? SitemapPlanPath(bool root, bool isRootLanguage, string sitemapMode, string? language)
+    {
+        if (root) return sitemapMode is "merged" or "index" ? "sitemap.xml" : null;
+        if (isRootLanguage)
+        {
+            return sitemapMode switch
+            {
+                "split" => "sitemap.xml",
+                "index" => Path.Combine(language!, "sitemap.xml"),
+                _ => null,
+            };
+        }
+
+        return sitemapMode != "merged" ? "sitemap.xml" : null;
     }
 
     private static void AddFeedOutputs(AppConfig config, bool root, Action<string, string> add)

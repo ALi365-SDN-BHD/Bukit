@@ -11,7 +11,7 @@ namespace Bukit.Engine;
 internal sealed class I18nOutputLayout
 {
     private readonly SiteConfig _site;
-    private readonly IReadOnlyList<string> _languages;
+    private readonly List<string> _languages;
     private readonly string _rootBaseUrl;
     private readonly bool _defaultLanguageInSubdir;
     private readonly string _defaultLanguage;
@@ -23,11 +23,13 @@ internal sealed class I18nOutputLayout
         bool defaultLanguageInSubdir)
     {
         _site = site;
-        _languages = languages
-            .Where(language => !string.IsNullOrWhiteSpace(language))
-            .Select(language => language.Trim())
-            .Distinct(StringComparer.OrdinalIgnoreCase)
-            .ToList();
+        _languages =
+        [
+            .. languages
+                .Where(language => !string.IsNullOrWhiteSpace(language))
+                .Select(language => language.Trim())
+                .Distinct(StringComparer.OrdinalIgnoreCase),
+        ];
         _rootBaseUrl = BuildPathUtils.NormalizeBaseUrl(rootBaseUrl);
         _defaultLanguageInSubdir = defaultLanguageInSubdir;
         _defaultLanguage = I18nLanguagePolicy.GetDefaultLanguage(site, _languages);

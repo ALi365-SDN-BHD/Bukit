@@ -190,7 +190,7 @@
 - 依赖：阶段 4 完成。
 
 **T05.2 `ProjectionPlan` 支持根目录语言**
-- 改动：`PublicOutputLifecycle.ProjectionPlan` 新增参数 `rootLanguage`：为 true 时不计划 `agent-manifest.json`、`robots.txt`、`llms.txt`、`llms-full.txt`；index 模式下默认语言 sitemap 计划为 `<lang>/sitemap.xml`；所有语言的计划输出按 sitemap/feed mode 生成（merged 时不再列出插件本来就不写的文件）。写文件一侧的改动见 T05.2a。`BuildTransaction.RejectGeneratedOutputLinks` 在根目录布局下按"根目录聚合计划 + 根目录语言计划"生成根目录清单（T02.6 留到这里）。
+- 改动：`PublicOutputLifecycle.ProjectionPlan` 新增参数 `rootLanguage`：为 true 时不计划 `agent-manifest.json`、`robots.txt`、`llms.txt`、`llms-full.txt`；index 模式下默认语言 sitemap 计划为 `<lang>/sitemap.xml`；所有语言的计划输出按 sitemap/feed mode 生成（merged 时各语言既不计划也不写 sitemap/feed；main 上语言级投影仍会写出，属行为变化）。写文件一侧的改动见 T05.2a。`BuildTransaction.RejectGeneratedOutputLinks` 在根目录布局下按"根目录聚合计划 + 根目录语言计划"生成根目录清单（T02.6 留到这里）。
 - 测试：单元测试覆盖三种 sitemap mode × 两种 feed mode × 根目录语言与否的计划清单。
 - 依赖：T05.1。
 

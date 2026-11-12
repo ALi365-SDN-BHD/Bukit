@@ -24,7 +24,7 @@
 ## 3. 根目录归属、static 和报告
 
 - [x] `PublicOutputLifecycle.ProjectionPlan` 支持"根目录语言"：排除 agent-manifest、robots、llms、llms-full；index 模式下默认语言 sitemap 计划为 `<lang>/sitemap.xml`；所有语言的计划输出按 sitemap/feed mode 生成。
-- [x] 确认计划输出清单变化不会误删文件，也不会触发带前缀站点全量重建。
+- [x] 确认计划输出清单变化只去掉 merged 模式下各语言的 sitemap/feed 副本，不误删其他文件，也不触发带前缀站点全量重建。
 - [x] `SitemapPlugin` 在 index 模式下为根目录默认语言写入 `<lang>/sitemap.xml`（地址不带前缀）；`I18nRootSitemapWriter` 的索引和 `I18nRootRobotsWriter` 引用实际地址。
 - [x] 默认语言 `static/robots.txt` 作为整站 robots（`WriteRootOutputs` 按默认语言 static 计划判断，覆盖"生成 ↔ static"两个方向的过渡构建）；其他根目录独占文件同名的 static 文件在复制前报 `i18n-root-output-conflict`。
 - [x] 默认语言 5 种报告写入 `.bukit/variants/<lang>/`（`SeoAuditReportWriter.Write`、`PublishAuditReportWriter`、`SeoRouteMapWriter`、geo 报告、`AnalyticsReportWriter`）。

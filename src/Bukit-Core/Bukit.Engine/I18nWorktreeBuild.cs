@@ -327,10 +327,8 @@ public sealed partial class SiteEngine
             }
             else
             {
-                rootOutputs = rootOutputs
-                    .Where(item => item.Destination != "robots.txt" || previous.OwnedOutputs.Contains("robots.txt") ||
-                        !File.Exists(Path.Combine(outputDir, "robots.txt")))
-                    .ToList();
+                rootOutputs.RemoveAll(item => item.Destination == "robots.txt" && !previous.OwnedOutputs.Contains("robots.txt") &&
+                    File.Exists(Path.Combine(outputDir, "robots.txt")));
             }
 
             var completedManifest = reportTimer.Step("collect-and-clean", () => PublicOutputLifecycle.CollectAndClean(

@@ -27,7 +27,7 @@
 - 公共契约：`SiteConfig` 新增两个属性 `DefaultLanguageInSubdir`、`DefaultLanguageRedirect`（新增性变更），公共 API 基线随之更新；`site.yaml` 新增两个可选字段；新增两个报错码 `i18n-route-reserved-language-prefix`、`i18n-root-output-conflict`，即公共枚举 `DiagnosticCode` 新增两个成员，公共 API 基线一并更新（`search.mode: merged` 组合走配置校验报错）。
 - 兼容性：不配置时，URL、已有输出路径、报告路径和增量站点哈希都不变，但有以下变化：
   - **行为变化**：现有多语言站点升级后，根目录会新增跳转页 `index.html`。纯静态托管上首页从 404 变为跳转，这是想要的修复。但在 Netlify 等平台，如果已配置未加 `force` 的 `/` → `/<lang>/` 301 规则，新文件会盖过这条规则，跳转从 301 退化为 meta refresh。这类站点应设置 `defaultLanguageRedirect: false`，CHANGELOG 中标为行为变化。
-  - 各语言计划输出清单不再列出插件本来就不写的文件，需要测试确认不会误删文件或触发全量重建。
+  - **行为变化**：`sitemapMode: merged` 和 `feed.mode: merged` 下，各语言不再生成自己的 sitemap 和 feed 副本（main 上由语言级投影写出，与文档约定不符），带前缀布局同样受影响，CHANGELOG 中标为行为变化；需要测试确认不会误删其他文件或触发全量重建。
   - alias 和分类跳转页的 HTML 新增 `<title>` 和 `noindex` 标签；派生跳转页的内容哈希包含 HTML，增量构建会自动重新生成。
 - 启用后的站点侧影响（由站点自行承担，详见 design.md Impact Inventory）：旧地址失效需在托管层配 301；CDN 已有的 `/` → `/<lang>/` 跳转规则要删除；`seo diff` 基线要重建；按路径前缀的 Analytics 报表、写死 `dist/<lang>` 的 CI 脚本要修改；以后新增语言可能让已有内容报错。
 - 跨仓影响：SRBiz-bukit 等网站仓库无需改动；是否启用由各站点自行决定，本变更不修改任何站点仓库。

@@ -22,32 +22,19 @@ internal static partial class MachineReadabilityTrustAuditBuilder
     {
         contentGraph ??= CanonicalContentGraph.Empty;
         var projectionLookup = BuildProjectionLookup(projectionResults);
-        string? ReadOrDefault(string defaultPath, string? explicitPath)
-            => readPaths is null ? defaultPath : explicitPath;
-        var sitemapText = ReadOptional(ReadOrDefault(Path.Combine(outputDir, "sitemap.xml"), readPaths?.Sitemap));
-        var searchText = ReadOptional(ReadOrDefault(Path.Combine(outputDir, "search.json"), readPaths?.Search));
-        var rssText = ReadOptional(ReadOrDefault(Path.Combine(outputDir, "rss.xml"), readPaths?.Rss));
-        var atomFeedText = ReadOptional(ReadOrDefault(
-                               Path.Combine(outputDir, config.Site.Feed.Path, "atom.xml"),
-                               readPaths?.Atom)) ??
-                           (readPaths is null
-                               ? ReadOptional(Path.Combine(outputDir, "atom.xml"))
-                               : null);
-        var jsonFeedText = ReadOptional(ReadOrDefault(
-                               Path.Combine(outputDir, config.Site.Feed.Path, "feed.json"),
-                               readPaths?.JsonFeed)) ??
-                           (readPaths is null
-                               ? ReadOptional(Path.Combine(outputDir, "feed.json"))
-                               : null);
-        var agentManifestText = ReadOptional(ReadOrDefault(Path.Combine(outputDir, "agent-manifest.json"), readPaths?.AgentManifest));
-        var robotsText = ReadOptional(ReadOrDefault(Path.Combine(outputDir, "robots.txt"), readPaths?.Robots));
-        var llmsText = ReadOptional(ReadOrDefault(Path.Combine(outputDir, "llms.txt"), readPaths?.Llms));
-        var llmsFullText = ReadOptional(ReadOrDefault(Path.Combine(outputDir, "llms-full.txt"), readPaths?.LlmsFull));
-        using var agentManifest = readPaths is null
-            ? new AgentManifestSnapshot(Path.Combine(outputDir, "agent-manifest.json"))
-            : readPaths.AgentManifest is null
-                ? AgentManifestSnapshot.Disabled()
-                : new AgentManifestSnapshot(readPaths.AgentManifest);
+        var paths = readPaths ?? AuditOutputReadPaths.ForOutputDirectory(outputDir, config.Site.Feed.Path);
+        var sitemapText = ReadOptional(paths.Sitemap);
+        var searchText = ReadOptional(paths.Search);
+        var rssText = ReadOptional(paths.Rss);
+        var atomFeedText = ReadOptional(paths.Atom);
+        var jsonFeedText = ReadOptional(paths.JsonFeed);
+        var agentManifestText = ReadOptional(paths.AgentManifest);
+        var robotsText = ReadOptional(paths.Robots);
+        var llmsText = ReadOptional(paths.Llms);
+        var llmsFullText = ReadOptional(paths.LlmsFull);
+        using var agentManifest = paths.AgentManifest is null
+            ? AgentManifestSnapshot.Disabled()
+            : new AgentManifestSnapshot(paths.AgentManifest);
 
         var seoIssues = new List<SeoAuditIssue>();
         var publishIssues = new List<PublishAuditIssue>();
@@ -267,12 +254,8 @@ internal static partial class MachineReadabilityTrustAuditBuilder
             .Where(x => x.SchemaTypes.Any(t =>
                 t is "FAQPage" or "HowTo" or "BlogPosting" or "Person" or "Article" or "NewsArticle" or "SpeakableSpecification"))
             .ToArray();
-        var llmsTxtGenerated = readPaths is null
-            ? File.Exists(Path.Combine(outputDir, "llms.txt"))
-            : readPaths.Llms is not null && File.Exists(readPaths.Llms);
-        var llmsFullTxtGenerated = readPaths is null
-            ? File.Exists(Path.Combine(outputDir, "llms-full.txt"))
-            : readPaths.LlmsFull is not null && File.Exists(readPaths.LlmsFull);
+        var llmsTxtGenerated = paths.Llms is not null && File.Exists(paths.Llms);
+        var llmsFullTxtGenerated = paths.LlmsFull is not null && File.Exists(paths.LlmsFull);
 
         if (config.Site.Seo.Geo.Enabled && config.Site.Seo.Geo.LlmsTxt && !llmsTxtGenerated)
         {
@@ -354,5 +337,4 @@ internal static partial class MachineReadabilityTrustAuditBuilder
             PublishAuditBuilder.Build(seoReport, publishDocuments, outputDir, sortedPublishIssues),
             routeMapBuilder.Build(seoReport.GeneratedAt));
     }
-
 }

@@ -364,7 +364,7 @@ public sealed partial class SiteEngine
                 }
             });
 
-        if (failures.Count > 0)
+        if (!failures.IsEmpty)
         {
             throw I18nReservedPrefixGuard.SelectPrimaryFailure(failures, defaultLanguage);
         }

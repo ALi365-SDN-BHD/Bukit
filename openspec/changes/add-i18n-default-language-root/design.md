@@ -11,7 +11,7 @@
 
 已核实、不需要改的部分：
 
-- `sitemapMode: merged` 和 `feed.mode: merged` 时，`SitemapPlugin`、`FeedPlugin` 在各语言中已跳过写文件（但计划输出清单仍列出这些文件）。
+- `sitemapMode: merged` 和 `feed.mode: merged` 时，`SitemapPlugin`、`FeedPlugin` 在各语言中跳过写文件，但语言级发布投影（`SitemapPublishProjection`、`RssProjectionWriter`）仍会写出各语言的 sitemap 和 feed，与文档约定的“只有根目录”不一致。本变更让各语言在两种布局下都既不计划也不写出这些文件，这是带前缀布局下的行为变化（实施期间由 i18n-site golden 测试发现，最初的核实只看了插件）。
 - `search.mode: index` 的根目录 `search.index.json` 和 merged 搜索都按 `result.BaseUrl` 计算路径；根目录 robots、agent-manifest、feed、llms writer 也按 `result.BaseUrl` 计算。
 - 恢复标记 `.bukit-output-marker`、`.bukit-build-state.json` 只在根目录这一层由 `BuildPlanner`/`SiteEngine` 写入，语言那一轮不写。
 - 输出目录的整体清理（`OutputDirectoryCleaner`）只由根目录这一层的 `BuildPlanner.PrepareOutputDirectory` 执行；Worker 和语言那一轮不执行整体清理。
@@ -77,10 +77,10 @@ Context 中列出的所有拼接点都改为调用该策略，包括读取语言
 | `robots.txt` | 根目录 + 各语言 | 只由根目录生成；默认语言 `static/robots.txt` 的处理见决策 4 |
 | `llms.txt` / `llms-full.txt` | 根目录 + 各语言 | 只由根目录生成 |
 | `sitemap.xml`，split | 各语言 | 默认语言写 `/sitemap.xml`，没有冲突 |
-| `sitemap.xml`，merged | 只有根目录 | 不变；各语言计划输出不再列出 |
+| `sitemap.xml`，merged | 根目录 + 各语言（语言级投影写出，与文档不符） | 只有根目录；两种布局下各语言都不再生成（行为变化） |
 | `sitemap.xml`，index | 根目录索引 + 各语言 | 根目录 `/sitemap.xml` 仍是索引；默认语言 sitemap 写在 `/<lang>/sitemap.xml`（与 Hugo 相同），其中地址不带前缀；索引和 robots 都引用这个地址 |
 | feed，split | 各语言 | 默认语言写在根目录，没有冲突 |
-| feed，merged | 只有根目录 | 不变；各语言计划输出不再列出 |
+| feed，merged | 根目录 + 各语言（语言级投影写出，与文档不符） | 只有根目录；两种布局下各语言都不再生成（行为变化） |
 | `search.json`，split / index | 各语言（index 另有根目录 `search.index.json`） | 默认语言写 `/search.json`，没有冲突 |
 | `search.json`，merged | 根目录 + 各语言 | 本版本校验失败 |
 | `.bukit/` 下 5 种报告 | 根目录 + `<lang>/.bukit/` | 默认语言改写到 `.bukit/variants/<lang>/` |
@@ -146,7 +146,7 @@ split 模式下没有根目录索引，默认语言的 sitemap 仍写在 `/sitem
 ### 构建结果与公开输出
 
 - 默认语言的 URL、canonical、hreflang、`x-default`、sitemap 条目、feed 链接全部去掉语言段。`x-default` 从此指向一个真实页面，而不是 `/en/`。
-- `feed.mode: merged` 时，默认语言模板中 `{{ site.base_url }}/rss.xml` 会指向根目录的多语言合并 feed；现状下各语言的这个地址都是 404。这是行为变化，需要在文档中说明。
+- `feed.mode: merged` 时，默认语言模板中 `{{ site.base_url }}/rss.xml` 会指向根目录的多语言合并 feed；现状下各语言的这个地址由语言级投影写出。本变更后各语言不再生成 feed，带前缀布局下 `{{ site.base_url }}/rss.xml` 会变成 404。这是行为变化，需要在文档中说明。
 - 内置搜索页、`/search/` 路由在默认语言下变为根路径，其他语言不变。
 - 仍然只有根目录的 `404.html` 会被 GitHub Pages 使用，其他语言的 404 页仍然用不上（与现状一致）。
 

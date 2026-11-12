@@ -46,14 +46,18 @@ them. With `sitemapMode: index`, the root `sitemap.xml` SHALL remain the sitemap
 index and the default language sitemap SHALL be written to `<lang>/sitemap.xml`
 with unprefixed page URLs, and referenced by the index and by `robots.txt`.
 With `sitemapMode: split`, the default language sitemap SHALL be written to the
-root `sitemap.xml`. Every language's planned
-outputs SHALL NOT list sitemap or feed files that the active aggregate mode
-suppresses. Any remaining duplicate destination SHALL fail the build instead of
+root `sitemap.xml`. In either layout, no language SHALL plan or write a
+per-language sitemap under `sitemapMode: merged` or per-language feeds under
+`feed.mode: merged`; only the root aggregate provides them. Any remaining duplicate destination SHALL fail the build instead of
 overwriting a file.
 
 #### Scenario: Sitemap index with a root default language
 - **WHEN** the default language `en` is at the root, `languages` is `[en, zh-CN]`, and `sitemapMode` is `index`
 - **THEN** `dist/sitemap.xml` is an index listing `https://example.com/en/sitemap.xml` and `https://example.com/zh-CN/sitemap.xml`, and `dist/en/sitemap.xml` lists `https://example.com/` rather than `https://example.com/en/`
+
+#### Scenario: Merged sitemap without per-language copies
+- **WHEN** `languages` is `[en, zh-CN]`, `sitemapMode` is `merged`, and `defaultLanguageInSubdir` is not set
+- **THEN** `dist/sitemap.xml` is the merged sitemap and neither `dist/en/sitemap.xml` nor `dist/zh-CN/sitemap.xml` is written
 
 #### Scenario: Aggregate files at the root
 - **WHEN** the default language is at the root and GEO `llmsTxt` is enabled
@@ -149,7 +153,7 @@ owned by another language.
 
 #### Scenario: Upgrade without opting in
 - **WHEN** an existing multilingual site upgrades Bukit without setting `defaultLanguageInSubdir` or `defaultLanguageRedirect`
-- **THEN** the incremental site hash and every existing output path are unchanged, and the only new public file is the root redirect `dist/index.html`
+- **THEN** the incremental site hash and every existing output path are unchanged, except the per-language sitemap and feed copies that `sitemapMode: merged` or `feed.mode: merged` no longer writes, and the only new public file is the root redirect `dist/index.html`
 
 #### Scenario: Incremental removal near another language
 - **WHEN** the default language is at the root and the only English page under `/guides/` is deleted while `dist/zh-CN/guides/` exists

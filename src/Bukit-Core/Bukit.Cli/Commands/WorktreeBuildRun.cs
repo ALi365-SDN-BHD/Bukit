@@ -160,11 +160,7 @@ internal sealed class WorktreeBuildRun
             effectiveConfig, resolved.RootDir, overrides with { CacheDir = finalCacheDir }, finalOutputDir);
         OutputDirectoryCleaner.EnsureNoSourceOverlap(
             OutputDirectoryCleaner.GetConfiguredContentSources(effectiveConfig, resolved.RootDir), writeTargets);
-        var priorManifest = BuildManifest.Load(Path.Combine(finalCacheDir, "build-manifest.json"), logger);
-        var layoutChanged = !string.Equals(
-            priorManifest.Layout,
-            I18nOutputLayout.ManifestLayout(effectiveConfig.Site),
-            StringComparison.Ordinal);
+        var layoutChanged = LayoutChanged(finalCacheDir, effectiveConfig.Site, logger);
         OutputDirectoryCleaner.EnsureCanClean(
             resolved.RootDir,
             finalOutputDir,
@@ -236,11 +232,7 @@ internal sealed class WorktreeBuildRun
             new(PathUtils.GetCanonicalFullPath(_finalOutputDir), PathUtils.GetCanonicalFullPath(_stagingOutputDir), PathUtils.GetCanonicalFullPath(_backupOutputDir), true),
             new(PathUtils.GetCanonicalFullPath(_finalCacheDir), PathUtils.GetCanonicalFullPath(_stagingCacheDir), PathUtils.GetCanonicalFullPath(_backupCacheDir), true)
         ]);
-        var preparedPrior = BuildManifest.Load(Path.Combine(_finalCacheDir, "build-manifest.json"), _logger);
-        var preparedLayoutChanged = !string.Equals(
-            preparedPrior.Layout,
-            I18nOutputLayout.ManifestLayout(_effectiveConfig.Site),
-            StringComparison.Ordinal);
+        var preparedLayoutChanged = LayoutChanged(_finalCacheDir, _effectiveConfig.Site, _logger);
         WorktreeBuildPaths.PrepareStaging(
             _finalOutputDir, _stagingOutputDir, copyExisting: !_effectiveConfig.Build.Clean && !preparedLayoutChanged);
         WorktreeBuildPaths.PrepareStaging(_finalCacheDir, _stagingCacheDir, copyExisting: true);
@@ -364,11 +356,8 @@ internal sealed class WorktreeBuildRun
         }
     }
 
-    internal async Task ExecuteWorkersAsync(CancellationToken cancellationToken)
+    private async Task RunWorkersAsync(I18nVariantSnapshot[] snapshots, int languageJobs, CancellationToken cancellationToken)
     {
-        var snapshots = new I18nVariantSnapshot[_workerPlans.Count];
-        var languageJobs = Math.Min(Math.Max(1, _effectiveConfig.Build.LanguageJobs), Environment.ProcessorCount);
-        _logger.Info($"event=build.i18n.worktree.start head={_repository.Head} languages={_languages.Count} concurrent_jobs={languageJobs}");
         using var workersCancellation = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         var failures = new System.Collections.Concurrent.ConcurrentDictionary<string, Exception>(StringComparer.OrdinalIgnoreCase);
         try
@@ -404,12 +393,31 @@ internal sealed class WorktreeBuildRun
             throw;
         }
 
-        if (failures.Count > 0)
+        ThrowIfWorkersFailed(failures);
+    }
+
+    private void ThrowIfWorkersFailed(System.Collections.Concurrent.ConcurrentDictionary<string, Exception> failures)
+    {
+        if (!failures.IsEmpty)
         {
             throw I18nReservedPrefixGuard.SelectPrimaryFailure(
                 failures,
                 I18nOutputMerger.GetDefaultLanguage(_effectiveConfig.Site, _languages));
         }
+    }
+
+    private static bool LayoutChanged(string cacheDir, SiteConfig site, ILogger logger)
+    {
+        var prior = BuildManifest.Load(Path.Combine(cacheDir, "build-manifest.json"), logger);
+        return !string.Equals(prior.Layout, I18nOutputLayout.ManifestLayout(site), StringComparison.Ordinal);
+    }
+
+    internal async Task ExecuteWorkersAsync(CancellationToken cancellationToken)
+    {
+        var snapshots = new I18nVariantSnapshot[_workerPlans.Count];
+        var languageJobs = Math.Min(Math.Max(1, _effectiveConfig.Build.LanguageJobs), Environment.ProcessorCount);
+        _logger.Info($"event=build.i18n.worktree.start head={_repository.Head} languages={_languages.Count} concurrent_jobs={languageJobs}");
+        await RunWorkersAsync(snapshots, languageJobs, cancellationToken).ConfigureAwait(false);
 
         var prepared = _prepared ?? throw new InvalidOperationException("Worktree build prepare phase has not completed.");
         var contentGraph = prepared.Content.ContentGraph

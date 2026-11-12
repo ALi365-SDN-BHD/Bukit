@@ -43,7 +43,7 @@ internal static class I18nLegacyRedirectDeriver
             id: $"i18n-legacy-home-{language}",
             title: "Redirect",
             slug: $"i18n-legacy-home-{language}",
-            publishAt: pluginContext.RoutedDocuments.FirstOrDefault()?.Document.PublishAt ?? DateTimeOffset.UnixEpoch,
+            publishAt: pluginContext.RoutedDocuments.Count > 0 ? pluginContext.RoutedDocuments[0].Document.PublishAt : DateTimeOffset.UnixEpoch,
             body: new ContentBodyRef(Html: RedirectPageHtml.Build(target)),
             customFields: ContentFieldReader.ToFieldMap(new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
             {
