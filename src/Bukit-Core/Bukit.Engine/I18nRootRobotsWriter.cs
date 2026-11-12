@@ -5,7 +5,7 @@ internal sealed class I18nRootRobotsWriter : II18nRootProjectionWriter
     public IReadOnlyList<string> RepresentationKinds => ["robots"];
 
     internal static bool HasStaticRobots(Config.AppConfig config, string rootDir)
-        => I18nOutputLayout.IsRootLanguageOutput(config) &&
+        => I18nOutputLayout.IsDefaultLanguageAtRoot(config) &&
            File.Exists(Path.Combine(rootDir, config.Theme.Static, "robots.txt"));
 
     public void Write(I18nRootProjectionWriterContext context, PublishRepresentation representation)

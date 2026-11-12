@@ -125,12 +125,18 @@ internal static class I18nReservedPrefixGuard
         return reserved.FirstOrDefault(code => string.Equals(code, first, StringComparison.OrdinalIgnoreCase));
     }
 
-    private static IReadOnlyList<string> ReservedPrefixes(AppConfig config)
-        => I18nOutputLayout.Create(
-                config.Site,
-                I18nOutputMerger.GetLanguages(config.Site),
-                config.Site.BaseUrl)
-            .ReservedPrefixes;
+    /// <summary>
+    /// Only the root language's outputs share a directory with other languages; every other
+    /// language writes under its own code directory and reserves nothing.
+    /// </summary>
+    private static IReadOnlyList<string> ReservedPrefixes(AppConfig variantConfig)
+    {
+        var layout = I18nOutputLayout.Create(
+            variantConfig.Site,
+            I18nOutputMerger.GetLanguages(variantConfig.Site),
+            variantConfig.Site.BaseUrl);
+        return layout.IsRootLanguage(variantConfig.Site.Language) ? layout.ReservedPrefixes : [];
+    }
 
     private static void Check(string path, string source, IReadOnlyList<string> reserved)
     {
