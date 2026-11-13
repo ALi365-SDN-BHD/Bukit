@@ -55,9 +55,9 @@
 - 推荐：`RecordLanguageFallback` 在单语言时也返回站点语言，不再返回 `und`。单语言站点的语言总是已知的，前端过滤逻辑在两种模式下一致。
 - 备选：保持 `und`，`search.json` 不变。
 
-### D6. 只有 1 项时 `site.defaultLanguage` 只能不写或等于那一项（已确认，2026-11-14）
+### D6. 只有 1 项时，默认语言就是这一种语言（已确认，2026-11-14）
 
-- 推荐：沿用现有规则"`defaultLanguage` 必须在 `languages` 中"，不另加规则。只有 1 项时这条规则自然只接受那一项。
+- 决定：只有 1 项时，默认语言等于这一项。`site.defaultLanguage` 不写时自动取这一项（与现有"不写时取 `languages` 第一项"一致）；写了就必须等于这一项，由现有规则"`defaultLanguage` 必须在 `languages` 中"保证，不另加规则。
 - 现有警告 `i18n.config.default_language_ignored`（写了 `defaultLanguage` 但没有 `languages`）随之删除，因为 `languages` 总会有值（D1）。
 
 ### 实现方式：集中在一个判断和一次推导

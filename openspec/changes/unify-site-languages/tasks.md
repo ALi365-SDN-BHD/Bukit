@@ -11,7 +11,7 @@ D1–D6 均采用推荐选项，用户已于 2026-11-14 确认。
 - [x] D3：只有 1 项时不能保留语言前缀。
 - [x] D4：`site.defaultLanguageInSubdir` 默认改为 `false`。
 - [x] D5：单语言搜索记录的回退语言改为站点语言。
-- [x] D6：只有 1 项时 `site.defaultLanguage` 只能不写或等于那一项；删除警告 `i18n.config.default_language_ignored`。
+- [x] D6：只有 1 项时默认语言就是这一项（`site.defaultLanguage` 不写时自动取这一项，写了必须等于它）；删除警告 `i18n.config.default_language_ignored`。
 
 ## 1. 配置层
 
@@ -51,7 +51,7 @@ D1–D6 均采用推荐选项，用户已于 2026-11-14 确认。
 - [ ] 10 个 yaml 测试站点和 53 处内嵌 yaml 改为 `languages`。
 - [ ] 用单项 `Languages` 构造配置的测试（`I18nRootLayoutTests`、`I18nOutputMergerTests`、`DataFilesPluginTests`、`SiteEngineLifecycleTests`、`MarkdownFolderProviderTests` 等）按新语义改写：要测多语言的改为 2 项。
 - [ ] 逐一区分约 112 处 C# `Language = "..."`：配置对象改为 `Languages`，渲染模型 `SiteModel` 保持不变。
-- [ ] 新增测试：只有 1 项时输出在根目录且模板 `site.language` 正确；不写 `languages` 时为 `zh-CN`；旧字段报错；只有 1 项时 `defaultLanguage` 不匹配报错；加第二种语言后默认语言 URL 不变。
+- [ ] 新增测试：只有 1 项时输出在根目录且模板 `site.language` 正确；不写 `languages` 时为 `zh-CN`；旧字段报错；只有 1 项且不写 `defaultLanguage` 时默认语言为这一项；只有 1 项时 `defaultLanguage` 不匹配报错；加第二种语言后默认语言 URL 不变。
 - [ ] 只运行受影响范围的专项测试；full/release gate 需另行授权。
 
 ## 7. 文档

@@ -16,8 +16,9 @@ rejected by configuration validation with a message that names
 `languages: [<code>]` as the replacement. The template value `site.language`
 SHALL still be available: in a single-language site it SHALL be the one
 configured language, and in a multilingual site it SHALL be the language being
-built. When `site.languages` has one entry, `site.defaultLanguage` SHALL be
-either unset or equal to that entry. In a single-language site, a search record
+built. When `site.languages` has one entry, the default language SHALL be that
+entry: an unset `site.defaultLanguage` SHALL resolve to it, and a set value SHALL
+equal it. In a single-language site, a search record
 without its own language SHALL use the site language instead of `und`.
 
 #### Scenario: One language builds at the root
@@ -35,6 +36,10 @@ without its own language SHALL use the site language instead of `und`.
 #### Scenario: Old key is rejected
 - **WHEN** `site.yaml` sets `site.language: en`
 - **THEN** configuration validation fails and the message tells the user to write `languages: [<code>]` instead
+
+#### Scenario: Default language follows the single entry
+- **WHEN** `languages` is `[en]` and `defaultLanguage` is not set
+- **THEN** the default language is `en`
 
 #### Scenario: Default language outside the single entry
 - **WHEN** `languages` is `[en]` and `defaultLanguage` is `zh-CN`

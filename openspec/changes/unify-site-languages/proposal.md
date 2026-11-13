@@ -20,7 +20,7 @@
 - 不写 `site.languages` 时默认为 `[zh-CN]`，与现在 `site.language` 的默认值一致（决策 D1）。
 - 内部模型 `SiteConfig.Language` 和模板变量 `site.language` 保留：单语言时取唯一那一项，多语言时取当前构建的那种语言。推导放在 `I18nLanguagePolicy`（或引擎入口统一规范化一次），不只靠配置加载器，这样不经过加载器构造的配置也能得到正确语言。主题和模板不用改。
 - 多语言判断改为"有 2 种及以上语言"，集中在 `I18nLanguagePolicy.GetLanguages()` 这一处：只有 1 项时返回空，现有约 20 个源文件里的单语言分支原样复用。`languages: []` 视同未写；全部为空白的列表仍然报错。
-- `site.defaultLanguage` 在只有 1 项时只能不写或等于那一项。
+- 只有 1 项时，默认语言就是这一种语言：`site.defaultLanguage` 不写时自动取这一项，写了也必须等于这一项（决策 D6）。
 - `site.defaultLanguageInSubdir` 的默认值改为 `false`（默认语言放在根目录），这样单语言站点以后加第二种语言时，已有链接不会变（决策 D4）。只有 1 项时这个字段不起作用。`defaultLanguageRedirect` 和 `defaultLanguageLegacyRedirects` 在只有 1 项时也不起作用，沿用现在"没有多语言时忽略并给出警告"的规则。
 - 单语言站点里没有语言的搜索记录，`language` 从 `und` 改为站点语言，与多语言模式一致（决策 D5）。
 - 今天加的单语言 `site.language` 格式校验并入 `site.languages` 的已有规则，不再单独存在。
