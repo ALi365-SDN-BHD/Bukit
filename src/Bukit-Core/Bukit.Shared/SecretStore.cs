@@ -138,7 +138,7 @@ internal static partial class SecretStore
         {
             lock (Gate)
             {
-                return s_stdinSecrets.Values.ToArray();
+                return [.. s_stdinSecrets.Values];
             }
         }
     }

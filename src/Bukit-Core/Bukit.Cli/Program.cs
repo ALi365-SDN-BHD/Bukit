@@ -6,7 +6,7 @@ using Bukit.Cli.Commands;
 using Bukit.Shared;
 
 var command = args.Length > 0 ? args[0] : null;
-var commandArgsRaw = SecretsStdinOption.Strip(args.Skip(1).ToArray(), out var secretsStdinRequested);
+var commandArgsRaw = SecretsStdinOption.Strip([.. args.Skip(1)], out var secretsStdinRequested);
 var logFormat = ReadGlobalLogFormat(commandArgsRaw, new List<string>(commandArgsRaw.Length), keepLogFormat: false) ?? "text";
 var isJsonErrorMode = string.Equals(logFormat, "json", StringComparison.OrdinalIgnoreCase);
 
@@ -187,9 +187,7 @@ static string? ReadGlobalLogFormat(string[] args, List<string> outputArgs, bool 
 static int PrintDiagnostics(string? command, int exitCode, IReadOnlyList<CliDiagnostic> diagnostics, string? usage, bool isJsonErrorMode)
 {
     // Defense in depth: a secret passed with --secrets-stdin never reaches an error message.
-    diagnostics = diagnostics
-        .Select(d => d with { Message = SecretStore.Redact(d.Message) })
-        .ToList();
+    diagnostics = [.. diagnostics.Select(d => d with { Message = SecretStore.Redact(d.Message) })];
     var errors = diagnostics
         .Select(d => new CliErrorRenderer.CliErrorDiagnostic(d.Code, d.Message, d.ShowUsage))
         .ToList();

@@ -123,7 +123,7 @@ internal static class WorktreeBuildCoordinator
             startInfo.ArgumentList.Add(SecretStore.StdinFlag);
             secretsInput = SecretStore.SerializeStdinSecrets();
         }
-        var result = await I18nWorktreeGitRunner.RunAsync(startInfo, WorkerTimeout, logger, cancellationToken, secretsInput).ConfigureAwait(false);
+        var result = await I18nWorktreeGitRunner.RunAsync(startInfo, WorkerTimeout, logger, secretsInput, cancellationToken).ConfigureAwait(false);
         if (result.StandardOutput.Length > 0)
         {
             await Console.Out.WriteAsync(result.StandardOutput).ConfigureAwait(false);

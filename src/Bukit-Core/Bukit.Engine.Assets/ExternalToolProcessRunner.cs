@@ -17,12 +17,20 @@ internal static class ExternalToolProcessRunner
     private static readonly TimeSpan TerminationGracePeriod = TimeSpan.FromSeconds(2);
     private static readonly Encoding Utf8NoBom = new UTF8Encoding(encoderShouldEmitUTF8Identifier: false);
 
+    internal static Task<ExternalToolProcessResult> RunAsync(
+        ProcessStartInfo startInfo,
+        TimeSpan timeout,
+        ILogger logger,
+        CancellationToken cancellationToken = default)
+        => RunAsync(startInfo, timeout, logger, standardInput: null, cancellationToken);
+
+    /// <summary>Runs the tool, writing <paramref name="standardInput"/> (when not null) to its stdin and then closing it.</summary>
     internal static async Task<ExternalToolProcessResult> RunAsync(
         ProcessStartInfo startInfo,
         TimeSpan timeout,
         ILogger logger,
-        CancellationToken cancellationToken = default,
-        string? standardInput = null)
+        string? standardInput,
+        CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(startInfo);
         ArgumentNullException.ThrowIfNull(logger);

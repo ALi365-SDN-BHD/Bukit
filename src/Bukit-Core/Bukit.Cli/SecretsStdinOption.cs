@@ -27,7 +27,7 @@ internal static class SecretsStdinOption
             output.Add(arg);
         }
 
-        return output.ToArray();
+        return [.. output];
     }
 
     internal static bool IsSupported(string? command, IReadOnlyList<string> commandArgs)
