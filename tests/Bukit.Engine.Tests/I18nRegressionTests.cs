@@ -251,6 +251,39 @@ public sealed class I18nRegressionTests : IDisposable
         }
     }
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void MergedAudit_ResolvesSharedIdRecordsByEachRouteLanguage(bool rootDefaultLanguage)
+    {
+        // Translations share an ID. site.language is unused in a multilingual build and here
+        // names the other language, so a fallback to it would pick the wrong translation.
+        var en = Variant("en", Document("shared", "en"));
+        var zh = Variant("zh", Document("shared", "zh"));
+        if (rootDefaultLanguage)
+        {
+            en = en with { OutputDir = _root, BaseUrl = "/docs" };
+        }
+
+        var prefixes = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["en"] = rootDefaultLanguage ? string.Empty : "en",
+            ["zh"] = "zh"
+        };
+        var config = Config() with { Site = Config().Site with { BaseUrl = "/docs", Language = "zh" } };
+        foreach (var variant in new[] { en, zh })
+            Directory.CreateDirectory(variant.OutputDir);
+
+        SeoAuditReportWriter.WriteMerged(config, _root, new[] { en, zh }.Select(variant => variant.ToPublishedVariant()).ToArray(),
+            new ConsoleLogger(LogLevel.Error), prefixes);
+
+        using var json = JsonDocument.Parse(File.ReadAllText(Path.Combine(_root, ".bukit", "publish-audit-report.json")));
+        var languages = json.RootElement.GetProperty("documents").EnumerateArray()
+            .ToDictionary(item => item.GetProperty("routeUrl").GetString()!, item => item.GetProperty("language").GetString());
+        Assert.Equal("en", languages[rootDefaultLanguage ? "/docs/shared/" : "/docs/en/shared/"]);
+        Assert.Equal("zh", languages["/docs/zh/shared/"]);
+    }
+
     [Fact]
     public void MergedAuditIssues_KeepDistinctMessagesAndScopeEveryVariantRoute()
     {
