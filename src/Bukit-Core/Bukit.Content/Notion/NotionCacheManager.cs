@@ -32,7 +32,19 @@ internal static class NotionCacheManager
 
         var root = cacheDir.Trim();
         var pagesDir = Path.Combine(root, "pages");
-        if (mode == "readwrite") Directory.CreateDirectory(pagesDir);
+        if (mode == "readwrite")
+        {
+            try
+            {
+                Directory.CreateDirectory(pagesDir);
+            }
+            catch (Exception exception) when (snapshot is not null && exception is IOException or UnauthorizedAccessException)
+            {
+                // .NET I/O messages carry the path; the snapshot location is never printed.
+                throw new NotionSnapshotException("Notion snapshot entry could not be written.", exception);
+            }
+        }
+
         return new PageHtmlCache(mode, root, pagesDir)
         {
             OfflineSnapshot = snapshot is { Offline: true },
@@ -150,7 +162,15 @@ internal static class NotionCacheManager
                 writer.WriteEndObject();
             }
 
-            await AtomicNotionCacheWriter.WriteJsonAsync(cachePath, buffer.WrittenMemory.ToArray(), cancellationToken);
+            try
+            {
+                await AtomicNotionCacheWriter.WriteJsonAsync(cachePath, buffer.WrittenMemory.ToArray(), cancellationToken);
+            }
+            catch (Exception exception) when (cache.PageUsed is not null && exception is IOException or UnauthorizedAccessException)
+            {
+                // Recording a snapshot: fail without printing the snapshot location.
+                throw new NotionSnapshotException("Notion snapshot entry could not be written.", exception);
+            }
         }
 
         return html;

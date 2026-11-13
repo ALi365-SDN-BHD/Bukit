@@ -50,6 +50,9 @@ public sealed partial class SiteEngineIntegrationTests
             }
 
             Assert.Empty(offlineApi.Requests);
+            // Each source reports how many items it loaded (both Notion pages here).
+            Assert.Contains(logger.Infos, m => m.StartsWith("event=content.source.loaded source=", StringComparison.Ordinal) && m.EndsWith(" count=2", StringComparison.Ordinal));
+            Assert.DoesNotContain(logger.Infos.Concat(logger.Warnings), m => m.Contains(snapshotRoot, StringComparison.Ordinal));
             var onlineOutput = Path.Combine(onlineRoot, "dist");
             var offlineOutput = Path.Combine(offlineRoot, "dist");
             var onlineFiles = EnumeratePublicOutputFiles(onlineOutput);

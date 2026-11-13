@@ -90,10 +90,18 @@ internal sealed class NotionSnapshotSession : INotionSnapshotHandle, IDisposable
     {
         var target = NormalizeTarget(targetDirectory);
         var parent = Path.GetDirectoryName(target)!;
-        CreatePrivateDirectory(parent);
-        RemoveAbandonedSiblings(target);
         var staging = Path.Combine(parent, $".{Path.GetFileName(target)}.staging-{Guid.NewGuid():N}");
-        CreatePrivateDirectory(staging);
+        try
+        {
+            CreatePrivateDirectory(parent);
+            RemoveAbandonedSiblings(target);
+            CreatePrivateDirectory(staging);
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+        {
+            // .NET I/O messages carry the path; the snapshot location is never printed.
+            throw new NotionSnapshotException("Notion snapshot directory could not be created.", exception);
+        }
         try
         {
             SeedBodies(target, staging);
@@ -163,7 +171,10 @@ internal sealed class NotionSnapshotSession : INotionSnapshotHandle, IDisposable
             writer.WriteEndObject();
         }
 
-        WriteBytes(ErrorPath(getPath), buffer.ToArray());
+        if (ErrorPath(getPath) is { } path)
+        {
+            WriteBytes(path, buffer.ToArray());
+        }
     }
 
     internal void RecordQuery(string databaseId, string requestJson, DateTimeOffset serverTime, JsonElement body)
@@ -212,11 +223,19 @@ internal sealed class NotionSnapshotSession : INotionSnapshotHandle, IDisposable
             throw new InvalidOperationException("Notion snapshot session is already closed.");
         }
 
-        PruneUnusedBodies();
-        RemoveTransientFiles(Directory);
-        WriteManifest();
-        ApplyPrivatePermissions(Directory);
-        Swap(Directory, _targetDirectory);
+        try
+        {
+            PruneUnusedBodies();
+            RemoveTransientFiles(Directory);
+            WriteManifest();
+            ApplyPrivatePermissions(Directory);
+            Swap(Directory, _targetDirectory);
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+        {
+            throw new NotionSnapshotException("Notion snapshot could not be saved; the previous snapshot is kept.", exception);
+        }
+
         _committed = true;
     }
 
@@ -318,17 +337,17 @@ internal sealed class NotionSnapshotSession : INotionSnapshotHandle, IDisposable
     private string QueryDirectory(string databaseId, string fingerprintKey)
         => Path.Combine(Directory, ApiDir, "databases", NormalizeId(databaseId), "queries", fingerprintKey);
 
-    private string ErrorPath(string getPath) => getPath switch
+    private string? ErrorPath(string getPath) => getPath switch
     {
         _ when NotionApiPath.TryParseDatabase(getPath, out var id) => Path.Combine(Directory, ApiDir, "databases", NormalizeId(id), "schema.error.json"),
         _ when NotionApiPath.TryParsePage(getPath, out var id) => Path.Combine(Directory, ApiDir, "pages", NormalizeId(id) + ".error.json"),
-        _ => throw new ArgumentException("Unsupported Notion path.", nameof(getPath))
+        _ => null
     };
 
     private void ThrowIfRecordedFailure(string getPath)
     {
         var path = ErrorPath(getPath);
-        if (!File.Exists(path))
+        if (path is null || !File.Exists(path))
         {
             return;
         }
@@ -419,9 +438,18 @@ internal sealed class NotionSnapshotSession : INotionSnapshotHandle, IDisposable
             throw new InvalidOperationException("An offline Notion snapshot is read-only.");
         }
 
-        CreatePrivateDirectory(Path.GetDirectoryName(path)!);
-        AtomicNotionCacheWriter.WriteJsonAsync(path, bytes, CancellationToken.None).GetAwaiter().GetResult();
-        SetFileMode(path);
+        try
+        {
+            CreatePrivateDirectory(Path.GetDirectoryName(path)!);
+            AtomicNotionCacheWriter.WriteJsonAsync(path, bytes, CancellationToken.None).GetAwaiter().GetResult();
+            SetFileMode(path);
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+        {
+            // Fails the build: a snapshot missing what the site used must never be committed,
+            // and catch-all warnings in relation or taxonomy code would otherwise swallow it.
+            throw new NotionSnapshotException("Notion snapshot entry could not be written.", exception);
+        }
     }
 
     private void WriteManifest()

@@ -191,14 +191,17 @@ errors. Because the raw data is stored, a changed `propertyMap` or template work
 offline.
 
 **Keep it private.** The snapshot holds more than the site publishes. Keep it
-outside the site and outside any checkout that tools or other people can read.
+outside the site and outside any checkout that tools or other people can read;
+`build` rejects a snapshot directory inside the site or its output directory.
 On Unix the directories are `0700` and the files `0600`. The token is never
 written to it.
 
 **When it is replaced.** A recording build writes to a staging directory next to
 `<dir>` and replaces `<dir>` only after the whole build succeeded; a failed or
-cancelled build keeps the previous snapshot. Bodies of pages the build no longer
-uses are dropped; unchanged bodies are reused from the previous snapshot. The
+cancelled build keeps the previous snapshot. A recording build renders every
+page (it is never incremental) so that every body is recorded. Bodies of pages
+the build no longer uses are dropped; unchanged bodies are reused from the
+previous snapshot instead of being fetched again. The
 snapshot records its format version and the Bukit version; a different version is
 an error, so upgrade Bukit and record again.
 

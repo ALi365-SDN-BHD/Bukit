@@ -16,12 +16,23 @@ internal static class NotionSnapshotOptions
     internal const string OfflineOption = "--notion-offline";
 
     /// <summary>Opens the snapshot for <c>build</c>: recording, or offline reads. Null when not requested.</summary>
-    internal static NotionSnapshot? OpenForBuild(CliBoundCommand command)
+    internal static NotionSnapshot? OpenForBuild(CliBoundCommand command, string siteRoot, string output)
     {
         var (directory, offline) = Read(command);
         if (directory is null)
         {
             return null;
+        }
+
+        // The snapshot holds more than the site publishes (drafts, hidden fields), and a build
+        // cleans or swaps its output: keep it outside the site and the output directory.
+        var snapshotPath = Path.GetFullPath(directory);
+        foreach (var area in new[] { siteRoot, Path.GetFullPath(output, siteRoot) })
+        {
+            if (PathUtils.IsSameOrSubPathOf(snapshotPath, area) || PathUtils.IsSameOrSubPathOf(area, snapshotPath))
+            {
+                throw new CommandArgumentException($"{SnapshotOption} must point outside the site and its output directory.");
+            }
         }
 
         return offline ? NotionSnapshot.OpenOffline(directory) : NotionSnapshot.BeginWrite(directory);

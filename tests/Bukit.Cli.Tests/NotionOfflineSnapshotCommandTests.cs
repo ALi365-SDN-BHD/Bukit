@@ -98,6 +98,42 @@ public sealed class NotionOfflineSnapshotCommandTests : IDisposable
     }
 
     [Fact]
+    public async Task RecordingOverAnExistingBuild_StillKeepsEveryBody()
+    {
+        // The second recording runs where dist and the build manifest already exist, which
+        // would let an incremental build skip unchanged pages and drop their bodies.
+        await RecordSnapshotAsync();
+        await RecordSnapshotAsync("--no-clean");
+
+        Environment.SetEnvironmentVariable(EnvironmentHelper.NotionTokenKey, null);
+        var offlineApi = new FakeNotionApi();
+        NotionContentClient.TransportOverride.Value = () => offlineApi;
+        Directory.Delete(Path.Combine(_rootDir, "dist"), recursive: true);
+        var (code, output) = await CaptureAsync(() => BuildCommand.RunInProcessAsync(CliTestHelper.CreateCommand("build",
+            ["build", "--config", _configPath, "--notion-snapshot", SnapshotDir, "--notion-offline"])));
+
+        Assert.True(code == 0, output);
+        Assert.Contains("Body of notion-page", await File.ReadAllTextAsync(Path.Combine(_rootDir, "dist", "pages", "notion-page", "index.html")), StringComparison.Ordinal);
+        Assert.DoesNotContain(_snapshotRoot, output, StringComparison.Ordinal);
+        Assert.Empty(offlineApi.Requests);
+    }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData("dist")]
+    public async Task SnapshotInsideTheSiteOrOutput_IsRejected(string area)
+    {
+        Environment.SetEnvironmentVariable(EnvironmentHelper.NotionTokenKey, Token);
+        var inside = Path.Combine(_rootDir, area, "notion-snapshot");
+
+        var error = await Assert.ThrowsAnyAsync<Exception>(() => BuildCommand.RunInProcessAsync(CliTestHelper.CreateCommand("build",
+            ["build", "--config", _configPath, "--notion-snapshot", inside])));
+
+        Assert.Contains("must point outside the site", error.Message, StringComparison.Ordinal);
+        Assert.False(Directory.Exists(inside));
+    }
+
+    [Fact]
     public async Task WithoutOffline_ChecksStillNeedTheToken()
     {
         Environment.SetEnvironmentVariable(EnvironmentHelper.NotionTokenKey, null);
@@ -156,15 +192,16 @@ public sealed class NotionOfflineSnapshotCommandTests : IDisposable
         Assert.Empty(Directory.Exists(_snapshotRoot) ? Directory.GetFileSystemEntries(_snapshotRoot) : []);
     }
 
-    private async Task RecordSnapshotAsync()
+    private async Task RecordSnapshotAsync(params string[] extraArgs)
     {
         Environment.SetEnvironmentVariable(EnvironmentHelper.NotionTokenKey, Token);
         var api = new FakeNotionApi();
         NotionContentClient.TransportOverride.Value = () => api;
         var (code, output) = await CaptureAsync(() => BuildCommand.RunInProcessAsync(CliTestHelper.CreateCommand("build",
-            ["build", "--config", _configPath, "--notion-snapshot", SnapshotDir])));
+            ["build", "--config", _configPath, "--notion-snapshot", SnapshotDir, .. extraArgs])));
         Assert.True(code == 0, output);
         Assert.NotEmpty(api.Requests);
+        Assert.DoesNotContain(_snapshotRoot, output, StringComparison.Ordinal);
         Assert.True(File.Exists(Path.Combine(SnapshotDir, "manifest.json")));
         foreach (var file in Directory.EnumerateFiles(SnapshotDir, "*", SearchOption.AllDirectories))
         {

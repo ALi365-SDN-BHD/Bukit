@@ -78,6 +78,32 @@ public sealed class NotionSnapshotTests : IDisposable
     }
 
     [Fact]
+    public void RecordingWriteFailure_FailsWithoutNamingThePath()
+    {
+        using var recording = NotionSnapshotSession.BeginWrite(Target);
+        // A file where the api directory belongs makes every write fail with an IOException.
+        File.WriteAllText(Path.Combine(recording.Directory, "api"), "blocked");
+        using var page = JsonDocument.Parse("""{"object":"page","id":"p1"}""");
+
+        var error = Assert.Throws<NotionSnapshotException>(() => recording.RecordPage("p1", page.RootElement));
+
+        Assert.DoesNotContain(_root, error.Message, StringComparison.Ordinal);
+        Assert.IsAssignableFrom<IOException>(error.InnerException);
+    }
+
+    [Fact]
+    public void OddDatabaseId_IsASnapshotError()
+    {
+        using (var recording = NotionSnapshotSession.BeginWrite(Target))
+        {
+            recording.Commit();
+        }
+
+        using var offline = NotionSnapshotSession.OpenOffline(Target);
+        Assert.Throws<NotionSnapshotException>(() => offline.ReadDatabaseSchema("a/b"));
+    }
+
+    [Fact]
     public async Task FailedBuild_KeepsThePreviousSnapshot()
     {
         await LoadOnlineAsync(Options());

@@ -148,6 +148,11 @@ public sealed class ImageAssetLocalizer : IImageAssetLocalizer, IDisposable
         var requestTarget = SignedUrlIdentity.RequestTarget(uri);
 
         var root = _config.DownloadDir.Trim();
+        if (_offline && !Directory.Exists(root))
+        {
+            return KeepOffline(source, original);
+        }
+
         Directory.CreateDirectory(root);
         _indexManager.EnsureIndexLoaded(root);
 
@@ -158,12 +163,16 @@ public sealed class ImageAssetLocalizer : IImageAssetLocalizer, IDisposable
                 return _indexManager.CombineUrl(cachedFileName);
             }
 
-            _cache.TryRemove(normalizedKey, out _);
-            _indexManager.ForgetIndex(normalizedKey);
-            if (!DeleteUntrustedCachedFile(root, cachedFileName))
+            // Offline builds use the media cache read-only: skip the clean-up, keep looking.
+            if (!_offline)
             {
-                AddFailure(source, "Unsafe cached media could not be removed.");
-                return FailureResult(original);
+                _cache.TryRemove(normalizedKey, out _);
+                _indexManager.ForgetIndex(normalizedKey);
+                if (!DeleteUntrustedCachedFile(root, cachedFileName))
+                {
+                    AddFailure(source, "Unsafe cached media could not be removed.");
+                    return FailureResult(original);
+                }
             }
         }
 
@@ -175,11 +184,14 @@ public sealed class ImageAssetLocalizer : IImageAssetLocalizer, IDisposable
                 return _indexManager.CombineUrl(indexedFileName);
             }
 
-            _indexManager.ForgetIndex(normalizedKey);
-            if (!DeleteUntrustedCachedFile(root, indexedFileName))
+            if (!_offline)
             {
-                AddFailure(source, "Unsafe cached media could not be removed.");
-                return FailureResult(original);
+                _indexManager.ForgetIndex(normalizedKey);
+                if (!DeleteUntrustedCachedFile(root, indexedFileName))
+                {
+                    AddFailure(source, "Unsafe cached media could not be removed.");
+                    return FailureResult(original);
+                }
             }
         }
 
@@ -189,12 +201,16 @@ public sealed class ImageAssetLocalizer : IImageAssetLocalizer, IDisposable
         {
             if (await IsTrustedCachedFileAsync(root, existingName, cancellationToken))
             {
-                _indexManager.RememberIndex(normalizedKey, existingName);
+                if (!_offline)
+                {
+                    _indexManager.RememberIndex(normalizedKey, existingName);
+                }
+
                 _cache.TryAdd(normalizedKey, existingName);
                 return _indexManager.CombineUrl(existingName);
             }
 
-            if (!DeleteUntrustedCachedFile(root, existingName))
+            if (!_offline && !DeleteUntrustedCachedFile(root, existingName))
             {
                 AddFailure(source, "Unsafe cached media could not be removed.");
                 return FailureResult(original);
@@ -203,16 +219,18 @@ public sealed class ImageAssetLocalizer : IImageAssetLocalizer, IDisposable
 
         if (await FindLegacySignedFileAsync(root, uri, requestTarget, cancellationToken) is { } legacyName)
         {
-            _indexManager.RememberIndex(normalizedKey, legacyName);
+            if (!_offline)
+            {
+                _indexManager.RememberIndex(normalizedKey, legacyName);
+            }
+
             _cache.TryAdd(normalizedKey, legacyName);
             return _indexManager.CombineUrl(legacyName);
         }
 
         if (_offline)
         {
-            // Offline builds make no network requests: media not in the cache keeps its URL.
-            _logger?.Info($"event=media.skip_offline source={UrlRedactor.Redact(source)}");
-            return original;
+            return KeepOffline(source, original);
         }
 
         // Checked after the success lookups: once any reference to an object has downloaded, an
@@ -762,6 +780,13 @@ public sealed class ImageAssetLocalizer : IImageAssetLocalizer, IDisposable
     /// </summary>
     private readonly record struct DownloadOutcome(string? LocalUrl, string RequestTarget, int? StatusCode, string? Reason);
 
+
+    /// <summary>Offline builds make no network requests and never change the media cache: the URL is kept.</summary>
+    private string KeepOffline(string source, string original)
+    {
+        _logger?.Info($"event=media.skip_offline source={UrlRedactor.Redact(source)}");
+        return original;
+    }
     private string FailureResult(string sourceUrl)
     {
         if (_keepOriginalOnFailure)
@@ -948,7 +973,12 @@ public sealed class ImageAssetLocalizer : IImageAssetLocalizer, IDisposable
             LogFailureSummary(_logger, "deferred");
         }
 
-        _indexManager.PersistIndex();
+        if (!_offline)
+        {
+            // Offline builds never rewrite the media index.
+            _indexManager.PersistIndex();
+        }
+
         _httpClient.Dispose();
 
         _lifetimeCancellation.Dispose();
