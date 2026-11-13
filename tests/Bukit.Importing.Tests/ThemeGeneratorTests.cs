@@ -107,6 +107,10 @@ public sealed class ThemeGeneratorTests : IDisposable
         Assert.DoesNotContain("site.css", baseLayout, StringComparison.Ordinal);
         Assert.DoesNotContain("app.js", baseLayout, StringComparison.Ordinal);
         Assert.Contains("<html lang=\"{{ site.language | html.escape }}\">", baseLayout, StringComparison.Ordinal);
+        Assert.Contains("<title>{{ page.fields.seo_title.value | html.escape }} | {{ site.title | html.escape }}</title>", baseLayout, StringComparison.Ordinal);
+        Assert.Contains("<title>{{ page.title | html.escape }} | {{ site.title | html.escape }}</title>", baseLayout, StringComparison.Ordinal);
+        Assert.Contains("content=\"{{ page.fields.seo_desc.value | html.escape }}\"", baseLayout, StringComparison.Ordinal);
+        Assert.Contains("href=\"{{ page.seo.canonical | html.escape }}\"", baseLayout, StringComparison.Ordinal);
         Assert.Contains("{{ page_head }}", baseLayout, StringComparison.Ordinal);
         Assert.Contains("{{ page_scripts }}", baseLayout, StringComparison.Ordinal);
         Assert.Contains("{{ include 'partials/header.html' }}", baseLayout, StringComparison.Ordinal);

@@ -83,8 +83,8 @@ public sealed class HtmlDemoImporterTests : IDisposable
 
         var layoutPath = Path.Combine(_tempDir, "themes", "base-layout-fields", "layouts", "layouts", "base.html");
         var content = File.ReadAllText(layoutPath);
-        Assert.Contains("{{ page.fields.seo_title.value }}", content);
-        Assert.Contains("{{ page.fields.seo_desc.value }}", content);
+        Assert.Contains("{{ page.fields.seo_title.value | html.escape }}", content);
+        Assert.Contains("{{ page.fields.seo_desc.value | html.escape }}", content);
         Assert.Contains("base_url = site.base_url", content);
         Assert.Contains("if base_url == \"/\"", content);
         Assert.DoesNotContain("style.css", content);
