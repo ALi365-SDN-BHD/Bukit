@@ -5,6 +5,7 @@
 - 前置提案：`docs/analysis/bukit-core-i18n-default-language-root-proposal-2026-11-12.zh-CN.md`（第 5 节决策 4、第 9 节"后续事项"）
 - 范围：`site.defaultLanguageInSubdir: false` 与 `site.search.mode: merged` 的组合；以及内置搜索 UI 的索引地址
 - 本轮性质：**只分析和提案，不实施**。未修改源码、测试、配置、CI/gate；未运行 `dotnet test`。实施须作为单独的 Core 任务开展（`AGENTS.md` "Website/Core isolation"），确认决策不等于授权实施。
+- 状态：**已实施**（2026-11-13）。决策按第 7 节推荐项确认；E1/F2 与本提案分别在 PR #142 的 `d3a28d0a`、`11b9a07c` 中实施，openspec change 已归档为 `openspec/changes/archive/2026-11-13-add-i18n-root-layout-merged-search/`（PR #143）。与正文不一致之处见文末“实施结果”，正文保留提案时的原文。
 
 ---
 
@@ -32,7 +33,7 @@
 | `Bukit.Engine/PublicOutputLifecycle.cs:99-104` `SearchPlanPath` | 根语言：非 merged 时 `search.json`，merged 时 `null`；其他语言变体：总是 `search.json`；根目录计划：merged 为 `search.json`，index 为 `search.index.json` | 根语言 merged 时改为 `<lang>/search.json` |
 | `Bukit.Engine/PublishProjectionContract.cs` `SearchIndexPublishProjection` → `PublishAggregateProjectionWriters.cs:139` `WriteSearchIndex` | 每个语言变体调用 `GenerateSingleSearchIndex(context.OutputDir, ...)`，固定写 `<OutputDir>/search.json`；随后 `WriteSearchUi` | 根语言 merged 时写到 `<lang>/search.json` |
 | `Bukit.Engine/I18nRootSearchWriter.cs` | merged：`GenerateMergedSearchIndex(OutputDir, Results, ...)` 写根目录 `/search.json`；index：写 `/search.index.json` | 不变 |
-| `Bukit.Engine/SearchIndexBuilder.cs:12-50` `GenerateMergedSearchIndex` | 把各语言条目写进一个数组；条目字段为 `id/title/url/summary/content/snippet/type/contentType/collection/reviewStatus/tags...`，**没有 `language`** | 新增 `language` 字段（见 Q2） |
+| `Bukit.Engine/SearchIndexBuilder.cs:12-50` `GenerateMergedSearchIndex` | 把各语言条目写进一个数组；条目字段为 `id/title/url/summary/content/snippet/type/contentType/collection/reviewStatus/tags...`，**没有 `language`**（不准确，见“实施结果”） | 新增 `language` 字段（见 Q2） |
 | `Bukit.Engine/SearchIndexBuilder.cs:322-345` `GenerateSearchIndexIndex` | 每种语言一条 `{language, path}`，`path` 为 `<baseUrl>/search.json` | 不变（merged 与 index 互斥） |
 | `Bukit.Engine/I18nOutputLayout.cs:156` `AuditReadPaths` | 根语言 merged 时 `Search: null`（这个组合目前不可能出现） | 改为 `<lang>/search.json` |
 | `Bukit.Engine/I18nRootProjectionCoordinator.cs:102` | 根目录清单里 search 的路径：index 为 `search.index.json`，否则 `search.json` | 不变 |
@@ -44,8 +45,8 @@
 
 | 编号 | 级别 | 问题 | 证据 | 建议 |
 |---|---|---|---|---|
-| E1 | Important | 内置搜索 UI 永远请求域名根的 `/search.json`，不管当前语言和 baseUrl。后果：① GitHub Project Pages 等带 baseUrl（如 `/repo`）的站点，所有模式下都 404；② 带前缀布局 + split，根目录没有 `/search.json`，所有语言 404；③ 根目录布局 + split，各语言 UI 都读到默认语言的索引，中文页面搜出英文结果 | `SearchIndexPlugin.cs:34` 回退值写死；`WriteSearchUi` 生成的 `<input>` 不设 `data-search-url` | 与本提案独立，可单独先修：`WriteSearchUi` 写入 `data-search-url`。split / index 指向当前语言 `<baseUrl>/search.json`；merged 指向根目录 `<rootBaseUrl>/search.json` 并写入 `data-search-language` 供过滤（见 5.3） |
-| F2 | Minor（疑似，未复现） | 根目录布局下默认语言的计划清单不含 `bukit-search.html`（`PublicOutputLifecycle.cs:75` 对根语言排除），但 `WriteSearchIndex` 仍调用 `WriteSearchUi` 写出该文件。计划和实际写出不一致，可能影响归属记录和关闭 `search.ui` 后的清理 | `PublicOutputLifecycle.cs:75`；`PublishAggregateProjectionWriters.cs:153`；`SearchIndexPlugin.cs:172` | 实施时核实：若排除是有意的（例如由别处计划），补注释；否则把根语言的 UI 纳入计划并补关闭后清理的测试 |
+| E1 | Important | 内置搜索 UI 永远请求域名根的 `/search.json`，不管当前语言和 baseUrl。后果：① GitHub Project Pages 等带 baseUrl（如 `/repo`）的站点，所有模式下都 404；② 带前缀布局 + split，根目录没有 `/search.json`，所有语言 404；③ 根目录布局 + split，各语言 UI 都读到默认语言的索引，中文页面搜出英文结果 | `SearchIndexPlugin.cs:34` 回退值写死；`WriteSearchUi` 生成的 `<input>` 不设 `data-search-url` | 与本提案独立，可单独先修：`WriteSearchUi` 写入 `data-search-url`。split / index 指向当前语言 `<baseUrl>/search.json`；merged 指向根目录 `<rootBaseUrl>/search.json` 并写入 `data-search-language` 供过滤（见 5.3；实施时改为读本语言索引，见“实施结果”） |
+| F2 | Minor（疑似，未复现；实施时已复现并修复） | 根目录布局下默认语言的计划清单不含 `bukit-search.html`（`PublicOutputLifecycle.cs:75` 对根语言排除），但 `WriteSearchIndex` 仍调用 `WriteSearchUi` 写出该文件。计划和实际写出不一致，可能影响归属记录和关闭 `search.ui` 后的清理 | `PublicOutputLifecycle.cs:75`；`PublishAggregateProjectionWriters.cs:153`；`SearchIndexPlugin.cs:172` | 实施时核实：若排除是有意的（例如由别处计划），补注释；否则把根语言的 UI 纳入计划并补关闭后清理的测试 |
 
 ## 4. 方案对比
 
@@ -73,7 +74,7 @@
 
 ### 5.3 搜索 UI
 
-- 内置 UI 按 E1 的修法写入 `data-search-url`；merged 模式额外写 `data-search-language="<当前语言>"`，脚本在加载后按 `item.language` 过滤（无该属性时不过滤，兼容自定义页面）。
+- 内置 UI 按 E1 的修法写入 `data-search-url`；merged 模式额外写 `data-search-language="<当前语言>"`，脚本在加载后按 `item.language` 过滤（无该属性时不过滤，兼容自定义页面）。（实施时未采用，见“实施结果”）
 - `WriteSearchUi` 需要知道根目录 baseUrl：根目录布局下根语言的变体 baseUrl 就是根；其他语言变体需要从 `BuildVariantContext.RootBaseUrl` 传入。`PublishProjectionContext`（`PublishProjectionContract.cs:18`）目前只有变体 `BaseUrl`，需新增根目录 baseUrl 字段，或由 `I18nOutputLayout.Create` 按站点配置计算。
 - starter 主题和第三方主题：默认语言页面 `{{ base_url }}/search.json` 在方案 B 下取到合并索引，内容多于当前语言。文档里给出按 `language` 过滤的写法；不修改主题模板语法。
 
@@ -153,8 +154,21 @@
 - `CHANGELOG.md`、`CHANGELOG.zh-CN.md`、`CHANGELOG.ms.md`（E1 标为行为变化）
 - 前置提案第 9 节：实施后把该后续事项标为已解决
 
+## 实施结果（2026-11-13）
+
+| 正文位置 | 提案 | 实施 |
+|---|---|---|
+| 2.2 `GenerateMergedSearchIndex` | 条目没有 `language` | 不准确：页面记录本来就写 `language`（无语言时为 `und`），只有列表路由在没有带语言的条目时缺省。实施后所有记录都带非空 `language`：自身没有或为 `und` 时，多语言构建取写出它的语言，单语言站点为 `und` |
+| 3 E1、5.3 | merged 模式 UI 指向根目录合并索引，并写 `data-search-language` 由脚本按语言过滤 | 每种语言的片段都读本语言索引 `<语言 base URL>/search.json`（根目录布局 merged 下默认语言为 `/<lang>/search.json`），不新增 `data-search-language`。效果同 Q4（只显示当前语言），但不依赖脚本过滤；需要跨语言结果时把片段标记复制到模板并修改 `data-search-url` |
+| 3 F2 | 疑似，未复现 | 用失败测试复现：根语言的 `bukit-search.html` 未进入归属，关闭 `search.ui` 后残留。已改为纳入计划与归属 |
+| 8.2 T8、T9 | 断言 `data-search-language` | 改为断言各布局、模式、baseUrl 下的 `data-search-url`，以及加载失败时的提示 |
+| 补充 | — | 索引加载失败或内容不是数组时片段显示 "Search is unavailable"；加载期间输入的查询在加载完成后执行；聚合投影输出路径统一为 `/` |
+
+遗留（Minor，已在用户指南说明）：Starter 主题 `SearchTemplate.html` 请求 `{{ base_url }}/search.json` 且不按语言过滤，根目录布局 merged 下默认语言的搜索页会显示所有语言。
+
 ## 修订记录
 
 | 日期 | 内容 |
 |---|---|
 | 2026-11-13 | 初稿 |
+| 2026-11-13 | 标为已实施，补充“实施结果”并在正文标注不一致之处 |
