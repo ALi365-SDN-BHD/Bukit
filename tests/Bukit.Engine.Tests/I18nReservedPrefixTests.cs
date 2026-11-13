@@ -1,3 +1,4 @@
+using System.Text.Json;
 using Bukit.Config;
 using Bukit.Engine.Abstractions.Plugins;
 using Bukit.Engine.Tests.Infrastructure;
@@ -43,6 +44,7 @@ public sealed class I18nReservedPrefixTests
         var config = Config("en", "zh-CN");
         var staticItem = new AssetOutputItem("static/x.txt", "zh-CN/x.txt", AssetOutputCategory.Static);
         var assetItem = new AssetOutputItem("assets/logo.svg", "assets/logo.svg", AssetOutputCategory.Assets);
+        var tokenItem = new AssetOutputItem("theme tokens", "assets/css/theme-tokens.css", AssetOutputCategory.Tokens);
         var defaultCode = new AssetOutputItem("static/en.txt", "en/x.txt", AssetOutputCategory.Static);
 
         var ex = Assert.Throws<BukitException>(() =>
@@ -58,6 +60,13 @@ public sealed class I18nReservedPrefixTests
                 Site = config.Site with { Languages = ["en", "assets"], DefaultLanguage = "en" }
             }, [assetItem]));
         Assert.Contains("assets", prefixEx.Message, StringComparison.Ordinal);
+
+        var tokenEx = Assert.Throws<BukitException>(() =>
+            I18nReservedPrefixGuard.ValidateAssetPlan(config with
+            {
+                Site = config.Site with { Languages = ["en", "assets"], DefaultLanguage = "en" }
+            }, [tokenItem]));
+        Assert.Contains("assets", tokenEx.Message, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -141,10 +150,27 @@ public sealed class I18nReservedPrefixTests
         File.WriteAllText(contentPath, File.ReadAllText(contentPath)
             .Replace("collection: page\n", "collection: page\naliases:\n  - /en/about/\n", StringComparison.Ordinal));
 
-        await new SiteEngine(new ConsoleLogger(LogLevel.Error)).BuildAsync(RootConfig(site.Config), site.Root,
+        var rootConfig = RootConfig(site.Config);
+        var config = rootConfig with
+        {
+            Site = rootConfig.Site with
+            {
+                Seo = rootConfig.Site.Seo with { Geo = new SeoGeoConfig { Enabled = true, LlmsTxt = true } }
+            }
+        };
+
+        await new SiteEngine(new ConsoleLogger(LogLevel.Error)).BuildAsync(config, site.Root,
             new ConfigOverrides { Incremental = false });
 
         Assert.True(File.Exists(Path.Combine(site.Output, "en", "about", "index.html")));
+        var llms = File.ReadAllText(Path.Combine(site.Output, "llms.txt"));
+        Assert.DoesNotContain("/en/about/", llms, StringComparison.Ordinal);
+
+        using var report = JsonDocument.Parse(File.ReadAllText(
+            Path.Combine(site.Output, ".bukit", "publish-audit-report.json")));
+        var alias = report.RootElement.GetProperty("documents").EnumerateArray()
+            .Single(document => document.GetProperty("routeUrl").GetString() == "/en/about/");
+        Assert.False(alias.GetProperty("indexable").GetBoolean());
     }
 
     [Fact]

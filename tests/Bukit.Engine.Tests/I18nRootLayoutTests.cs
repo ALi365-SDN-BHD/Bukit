@@ -31,6 +31,34 @@ public sealed class I18nRootLayoutTests
     }
 
     [Fact]
+    public async Task RootLayout_LegacyHomeRedirectIsNotIndexed()
+    {
+        using var site = RootSite();
+        var config = site.Config with
+        {
+            Site = site.Config.Site with
+            {
+                SearchIncludeDerived = true,
+                Seo = site.Config.Site.Seo with { Geo = new SeoGeoConfig { Enabled = true, LlmsTxt = true } }
+            }
+        };
+
+        await new SiteEngine(new ConsoleLogger(LogLevel.Error)).BuildAsync(config, site.Root,
+            new ConfigOverrides { Incremental = false });
+
+        Assert.True(File.Exists(Path.Combine(site.Output, "en", "index.html")));
+        var llms = File.ReadAllText(Path.Combine(site.Output, "llms.txt"));
+        Assert.DoesNotContain("/en/", llms, StringComparison.Ordinal);
+        var search = File.ReadAllText(Path.Combine(site.Output, "search.json"));
+        Assert.DoesNotContain("/en/", search, StringComparison.Ordinal);
+        using var report = JsonDocument.Parse(File.ReadAllText(
+            Path.Combine(site.Output, ".bukit", "variants", "en", "publish-audit-report.json")));
+        var legacy = report.RootElement.GetProperty("documents").EnumerateArray()
+            .Single(document => document.GetProperty("routeUrl").GetString() == "/en/");
+        Assert.False(legacy.GetProperty("indexable").GetBoolean());
+    }
+
+    [Fact]
     public async Task RootLayout_WritesEnglishAtRootAndKeepsOtherLanguages()
     {
         using var site = RootSite();
@@ -358,6 +386,126 @@ public sealed class I18nRootLayoutTests
         Assert.Equal("<urlset/>", File.ReadAllText(Path.Combine(site.Output, "sitemap.xml")));
     }
 
+    [Theory]
+    [InlineData("agent-manifest.json")]
+    [InlineData("sitemap.xml")]
+    [InlineData("rss.xml")]
+    [InlineData("llms-full.txt")]
+    public async Task StaticRootOwnedFiles_ConflictBeforeCopy(string fileName)
+    {
+        using var site = RootSite();
+        var baseConfig = site.Config;
+        var config = baseConfig with
+        {
+            Site = baseConfig.Site with
+            {
+                SitemapMode = "merged",
+                Feed = baseConfig.Site.Feed with { Mode = "merged" },
+                Seo = baseConfig.Site.Seo with
+                {
+                    Geo = new SeoGeoConfig { Enabled = true, LlmsTxt = true, LlmsFullTxt = true }
+                }
+            }
+        };
+        site.Sandbox.Write($"static/{fileName}", "static root output");
+
+        var ex = await Assert.ThrowsAsync<BukitException>(() =>
+            new SiteEngine(new ConsoleLogger(LogLevel.Error)).BuildAsync(config, site.Root,
+                new ConfigOverrides { Incremental = false }));
+
+        Assert.Equal(DiagnosticCode.I18nRootOutputConflict, ex.Code);
+        Assert.Contains(fileName, ex.Message, StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task StaticLlmsSymlinkOutsideSource_IsNotTreatedAsUserOutput(bool followSymlinks)
+    {
+        using var site = RootSite();
+        var config = site.Config with
+        {
+            Build = site.Config.Build with { FollowSymlinks = followSymlinks }
+        };
+        site.Sandbox.Write("outside-llms.txt", "outside");
+        Directory.CreateDirectory(Path.Combine(site.Root, "static"));
+        File.CreateSymbolicLink(
+            Path.Combine(site.Root, "static", "llms.txt"),
+            "../outside-llms.txt");
+
+        await new SiteEngine(new ConsoleLogger(LogLevel.Error)).BuildAsync(config, site.Root,
+            new ConfigOverrides { Incremental = false });
+
+        Assert.True(File.Exists(Path.Combine(site.Output, "llms.txt")));
+        Assert.DoesNotContain("outside", File.ReadAllText(Path.Combine(site.Output, "llms.txt")), StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task StaticSymlinkDirectoryOutsideSource_DoesNotSuppressLegacyRedirect(bool followSymlinks)
+    {
+        using var site = RootSite();
+        var config = site.Config with
+        {
+            Build = site.Config.Build with { FollowSymlinks = followSymlinks }
+        };
+        site.Sandbox.Write("outside/index.html", "outside");
+        Directory.CreateDirectory(Path.Combine(site.Root, "static"));
+        Directory.CreateSymbolicLink(Path.Combine(site.Root, "static", "en"), "../outside");
+
+        await new SiteEngine(new ConsoleLogger(LogLevel.Error)).BuildAsync(config, site.Root,
+            new ConfigOverrides { Incremental = false });
+
+        var html = File.ReadAllText(Path.Combine(site.Output, "en", "index.html"));
+        Assert.Contains("http-equiv=\"refresh\"", html, StringComparison.Ordinal);
+        Assert.DoesNotContain("outside", html, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task StaticSafeSymlink_ConflictsWhenFollowSymlinksIsEnabled()
+    {
+        using var site = RootSite();
+        var config = site.Config with
+        {
+            Build = site.Config.Build with { FollowSymlinks = true }
+        };
+        site.Sandbox.Write("static/target/llms.txt", "inside static");
+        Directory.CreateDirectory(Path.Combine(site.Root, "static"));
+        File.CreateSymbolicLink(
+            Path.Combine(site.Root, "static", "llms.txt"),
+            "target/llms.txt");
+
+        var ex = await Assert.ThrowsAsync<BukitException>(() =>
+            new SiteEngine(new ConsoleLogger(LogLevel.Error)).BuildAsync(config, site.Root,
+                new ConfigOverrides { Incremental = false }));
+
+        Assert.Equal(DiagnosticCode.I18nRootOutputConflict, ex.Code);
+        Assert.Contains("llms.txt", ex.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task StaticSafeSymlinkDirectory_SuppressesLegacyRedirectWhenFollowSymlinksIsEnabled()
+    {
+        using var site = RootSite();
+        var config = site.Config with
+        {
+            Build = site.Config.Build with { FollowSymlinks = true }
+        };
+        site.Sandbox.Write("static/target/en/index.html", "inside static");
+        Directory.CreateDirectory(Path.Combine(site.Root, "static"));
+        Directory.CreateSymbolicLink(
+            Path.Combine(site.Root, "static", "en"),
+            "target/en");
+
+        await new SiteEngine(new ConsoleLogger(LogLevel.Error)).BuildAsync(config, site.Root,
+            new ConfigOverrides { Incremental = false });
+
+        var html = File.ReadAllText(Path.Combine(site.Output, "en", "index.html"));
+        Assert.Contains("inside static", html, StringComparison.Ordinal);
+        Assert.DoesNotContain("http-equiv=\"refresh\"", html, StringComparison.Ordinal);
+    }
+
     [Fact]
     public async Task StaticLlms_ConflictsBeforeCopy()
     {
@@ -414,6 +562,27 @@ public sealed class I18nRootLayoutTests
 
         Assert.True(PublicOutputLifecycle.IsRootOwnedAggregate(site.Config, kind, "en"));
         Assert.False(PublicOutputLifecycle.IsRootOwnedAggregate(site.Config, kind, "zh-CN"));
+    }
+
+    [Theory]
+    [InlineData("Feed")]
+    [InlineData("ATOM")]
+    [InlineData("JsonFeed")]
+    [InlineData("SiteMap")]
+    public void MergedAggregate_MatchesKindIgnoringCase(string kind)
+    {
+        using var site = RootSite();
+        var merged = site.Config with
+        {
+            Site = site.Config.Site with { SitemapMode = "merged", Feed = site.Config.Site.Feed with { Mode = "merged" } }
+        };
+        var split = site.Config with
+        {
+            Site = site.Config.Site with { SitemapMode = "split", Feed = site.Config.Site.Feed with { Mode = "split" } }
+        };
+
+        Assert.True(PublicOutputLifecycle.IsRootOwnedAggregate(merged, kind, "zh-CN"));
+        Assert.False(PublicOutputLifecycle.IsRootOwnedAggregate(split, kind, "zh-CN"));
     }
 
     [Fact]

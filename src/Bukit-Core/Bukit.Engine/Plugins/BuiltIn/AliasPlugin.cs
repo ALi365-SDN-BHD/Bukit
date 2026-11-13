@@ -50,32 +50,15 @@ internal sealed class AliasPlugin : IBukitPlugin, IDerivePagesPlugin
 
                 var targetUrl = route.Url.StartsWith('/') ? route.Url : "/" + route.Url;
 
-                var html = RedirectPageHtml.Build($"{baseUrl}{targetUrl}");
                 var outputPath = RoutePathBuilder.BuildOutputPathFromUrl(aliasUrl, _config.Site.OutputPathEncoding);
-                var aliasRoute = new RouteInfo(aliasUrl, outputPath, RedirectPageHtml.RouteTemplate);
-                var fields = new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase)
-                {
-                    ["type"] = new("text", "redirect"),
-                    ["collection"] = new("text", "redirect"),
-                    ["excludeFromSitemap"] = new("bool", true)
-                };
-
-                var aliasDocument = DerivedContentDocumentFactory.Create(
+                derived.Add(RedirectPageDocument.Create(
                     id: $"alias-{document.Id}-{EscapePath(alias)}",
                     title: $"[Redirect] {document.Title}",
                     slug: $"alias-{document.Slug}",
                     publishAt: document.PublishAt,
-                    body: new ContentBodyRef(Html: html),
-                    customFields: ContentFieldReader.ToFieldMap(new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
-                    {
-                        ["type"] = "redirect",
-                        ["sitemap"] = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
-                        {
-                            ["exclude"] = true
-                        }
-                    }));
-
-                derived.Add(new RoutedContentDocument(aliasDocument, aliasRoute, document.PublishAt));
+                    targetUrl: $"{baseUrl}{targetUrl}",
+                    routeUrl: aliasUrl,
+                    outputPath: outputPath));
             }
         }
 

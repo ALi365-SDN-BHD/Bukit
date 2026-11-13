@@ -18,11 +18,16 @@ internal static class I18nRootOutputConflictGuard
         var rootOutputs = PublicOutputLifecycle.ProjectionPlan(config, [], root: true)
             .Where(item => !string.Equals(item.Destination, "robots.txt", StringComparison.OrdinalIgnoreCase));
         var listings = new Dictionary<string, Dictionary<string, string>>(StringComparer.Ordinal);
+        var options = new DirectoryCopyOptions
+        {
+            FollowSymlinks = config.Build.FollowSymlinks,
+            IgnoreDotPrefixedFiles = !config.Build.PublishDotFiles
+        };
         foreach (var output in rootOutputs)
         {
             foreach (var directory in new[] { parentStaticDir, staticDir })
             {
-                var file = FindIgnoringCase(directory, output.Destination, listings);
+                var file = FindIgnoringCase(directory, output.Destination, listings, options);
                 if (file is not null)
                 {
                     throw new BukitException(
@@ -41,7 +46,8 @@ internal static class I18nRootOutputConflictGuard
     private static string? FindIgnoringCase(
         string? root,
         string relativePath,
-        Dictionary<string, Dictionary<string, string>> listings)
+        Dictionary<string, Dictionary<string, string>> listings,
+        DirectoryCopyOptions options)
     {
         if (string.IsNullOrWhiteSpace(root) || !Directory.Exists(root))
         {
@@ -67,6 +73,8 @@ internal static class I18nRootOutputConflictGuard
                 }
 
                 entries = Directory.EnumerateFileSystemEntries(current)
+                    .Where(path => !DirectoryCopy.IsSymlink(path) ||
+                        options.FollowSymlinks && DirectoryCopy.IsSafeStaticLink(path, root, options))
                     .GroupBy(Path.GetFileName, StringComparer.OrdinalIgnoreCase)
                     .ToDictionary(group => group.Key!, group => group.First(), StringComparer.OrdinalIgnoreCase);
                 listings[current] = entries;

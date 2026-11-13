@@ -136,6 +136,22 @@ public sealed class DirectoryCopyTests : IDisposable
         Assert.Equal("bbbb", File.ReadAllText(destinationFile));
     }
 
+    [Theory]
+    [InlineData(true, false)]
+    [InlineData(false, true)]
+    public void StaticSourceExists_FollowsTheCopyStepDotfileRule(bool ignoreDotPrefixedFiles, bool expected)
+    {
+        var root = CreateTempRoot();
+        var sourceDir = Path.Combine(root, "static");
+        Directory.CreateDirectory(Path.Combine(sourceDir, ".drafts"));
+        File.WriteAllText(Path.Combine(sourceDir, ".drafts", "llms.txt"), "draft");
+        var options = new DirectoryCopyOptions { IgnoreDotPrefixedFiles = ignoreDotPrefixedFiles };
+
+        Assert.Equal(expected, DirectoryCopy.StaticSourceExists(sourceDir, ".drafts/llms.txt", options));
+        DirectoryCopy.Sync(sourceDir, Path.Combine(root, "output"), options, Logger);
+        Assert.Equal(expected, File.Exists(Path.Combine(root, "output", ".drafts", "llms.txt")));
+    }
+
     [Fact]
     public void Sync_PruneDeletesFilesRemovedFromSource()
     {

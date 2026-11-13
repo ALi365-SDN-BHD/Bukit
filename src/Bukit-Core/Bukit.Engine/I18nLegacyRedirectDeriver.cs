@@ -24,11 +24,17 @@ internal static class I18nLegacyRedirectDeriver
 
         var language = site.Language.Trim();
         var outputPath = BuildPathUtils.NormalizeRelPath(Path.Combine(language, "index.html"));
+        var staticOptions = new DirectoryCopyOptions
+        {
+            FollowSymlinks = context.Config.Build.FollowSymlinks,
+            IgnoreDotPrefixedFiles = !context.Config.Build.PublishDotFiles
+        };
         var occupied = pluginContext.RoutedDocuments.Any(document => SamePath(document.Route.OutputPath, outputPath)) ||
                        pluginContext.DerivedDocuments.Any(document => SamePath(document.Route.OutputPath, outputPath)) ||
                        pluginContext.StaticHtmlRoutes.Any(route => SamePath(route.OutputPath, outputPath)) ||
-                       File.Exists(Path.Combine(context.StaticDir, outputPath)) ||
-                       (context.ParentStaticDir is not null && File.Exists(Path.Combine(context.ParentStaticDir, outputPath)));
+                       DirectoryCopy.StaticSourceExists(context.StaticDir, outputPath, staticOptions) ||
+                       (context.ParentStaticDir is not null &&
+                        DirectoryCopy.StaticSourceExists(context.ParentStaticDir, outputPath, staticOptions));
         if (occupied)
         {
             pluginContext.Logger.Info(
@@ -37,22 +43,16 @@ internal static class I18nLegacyRedirectDeriver
         }
 
         var target = SeoModelBuilder.BuildAbsoluteUrl(site.Url, context.BaseUrl, "/");
-        var document = DerivedContentDocumentFactory.Create(
+        var derived = RedirectPageDocument.Create(
             id: $"i18n-legacy-home-{language}",
             title: "Redirect",
             slug: $"i18n-legacy-home-{language}",
             publishAt: pluginContext.RoutedDocuments.Count > 0 ? pluginContext.RoutedDocuments[0].Document.PublishAt : DateTimeOffset.UnixEpoch,
-            body: new ContentBodyRef(Html: RedirectPageHtml.Build(target)),
-            customFields: ContentFieldReader.ToFieldMap(new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
-            {
-                ["type"] = "redirect",
-                ["collection"] = "redirect",
-                ["excludeFromSitemap"] = true
-            }));
-        var route = new RouteInfo("/" + language + "/", outputPath, RedirectPageHtml.RouteTemplate);
-        var derived = new RoutedContentDocument(document, route, document.PublishAt);
+            targetUrl: target,
+            routeUrl: "/" + language + "/",
+            outputPath: outputPath);
         pluginContext.DerivedDocuments.Add(derived);
-        pluginContext.DerivedRoutes.Add((route, document.PublishAt));
+        pluginContext.DerivedRoutes.Add((derived.Route, derived.Document.PublishAt));
     }
 
     private static bool SamePath(string left, string right)

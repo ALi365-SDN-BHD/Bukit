@@ -8,6 +8,7 @@
         "openspec/specs/i18n-output-layout/spec.md",
         "src/Bukit-Core/Bukit.Engine/I18nOutputLayout.cs",
         "src/Bukit-Core/Bukit.Engine/RedirectPageHtml.cs",
+        "src/Bukit-Core/Bukit.Engine/RedirectPageDocument.cs",
         "src/Bukit-Core/Bukit.Engine/I18nRootRedirectWriter.cs",
         "src/Bukit-Core/Bukit.Engine/I18nLegacyRedirectDeriver.cs",
         "src/Bukit-Core/Bukit.Engine/I18nRootOutputConflictGuard.cs",

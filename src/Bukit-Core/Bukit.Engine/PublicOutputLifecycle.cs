@@ -1,3 +1,4 @@
+using System.Collections.Frozen;
 using Bukit.Config;
 using Bukit.Engine.Abstractions.Routing;
 using Bukit.Engine.Incremental;
@@ -7,6 +8,12 @@ namespace Bukit.Engine;
 
 internal static class PublicOutputLifecycle
 {
+    private static readonly FrozenSet<string> RootLanguageKinds =
+        new[] { "agent-manifest", "robots", "llms", "llms-full" }.ToFrozenSet(StringComparer.OrdinalIgnoreCase);
+
+    private static readonly FrozenSet<string> FeedKinds =
+        new[] { "feed", "atom", "jsonfeed" }.ToFrozenSet(StringComparer.OrdinalIgnoreCase);
+
     internal static string ManifestPath(string rootDir, ConfigOverrides overrides)
         => Path.Combine(string.IsNullOrWhiteSpace(overrides.CacheDir) ? Path.Combine(rootDir, ".cache") : Path.GetFullPath(overrides.CacheDir), "build-manifest.json");
 
@@ -19,13 +26,19 @@ internal static class PublicOutputLifecycle
     internal static bool IsRootOwnedAggregate(AppConfig config, string kind, string? language)
     {
         var layout = I18nOutputLayout.For(config.Site);
-        return kind.ToLowerInvariant() switch
+        if (RootLanguageKinds.Contains(kind))
         {
-            "agent-manifest" or "robots" or "llms" or "llms-full" => language is not null && layout.IsRootLanguage(language),
-            "feed" or "atom" or "jsonfeed" => layout.IsMultilingual && SiteModeResolver.ResolveFeedMode(config.Site) == "merged",
-            "sitemap" => layout.IsMultilingual && (config.Site.SitemapMode ?? "split").Trim().Equals("merged", StringComparison.OrdinalIgnoreCase),
-            _ => false
-        };
+            return language is not null && layout.IsRootLanguage(language);
+        }
+
+        if (FeedKinds.Contains(kind))
+        {
+            return layout.IsMultilingual && SiteModeResolver.ResolveFeedMode(config.Site) == "merged";
+        }
+
+        return kind.Equals("sitemap", StringComparison.OrdinalIgnoreCase) &&
+            layout.IsMultilingual &&
+            (config.Site.SitemapMode ?? "split").Trim().Equals("merged", StringComparison.OrdinalIgnoreCase);
     }
 
     internal static IReadOnlyList<AssetOutputItem> ProjectionPlan(
