@@ -150,15 +150,21 @@ public sealed class I18nReservedPrefixTests
         File.WriteAllText(contentPath, File.ReadAllText(contentPath)
             .Replace("collection: page\n", "collection: page\naliases:\n  - /en/about/\n", StringComparison.Ordinal));
 
-        await new SiteEngine(new ConsoleLogger(LogLevel.Error)).BuildAsync(RootConfig(site.Config), site.Root,
+        var rootConfig = RootConfig(site.Config);
+        var config = rootConfig with
+        {
+            Site = rootConfig.Site with
+            {
+                Seo = rootConfig.Site.Seo with { Geo = new SeoGeoConfig { Enabled = true, LlmsTxt = true } }
+            }
+        };
+
+        await new SiteEngine(new ConsoleLogger(LogLevel.Error)).BuildAsync(config, site.Root,
             new ConfigOverrides { Incremental = false });
 
         Assert.True(File.Exists(Path.Combine(site.Output, "en", "about", "index.html")));
-        var llmsPath = Path.Combine(site.Output, "llms.txt");
-        if (File.Exists(llmsPath))
-        {
-            Assert.DoesNotContain("/en/about/", File.ReadAllText(llmsPath), StringComparison.Ordinal);
-        }
+        var llms = File.ReadAllText(Path.Combine(site.Output, "llms.txt"));
+        Assert.DoesNotContain("/en/about/", llms, StringComparison.Ordinal);
 
         using var report = JsonDocument.Parse(File.ReadAllText(
             Path.Combine(site.Output, ".bukit", "publish-audit-report.json")));

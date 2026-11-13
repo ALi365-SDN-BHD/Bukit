@@ -31,6 +31,34 @@ public sealed class I18nRootLayoutTests
     }
 
     [Fact]
+    public async Task RootLayout_LegacyHomeRedirectIsNotIndexed()
+    {
+        using var site = RootSite();
+        var config = site.Config with
+        {
+            Site = site.Config.Site with
+            {
+                SearchIncludeDerived = true,
+                Seo = site.Config.Site.Seo with { Geo = new SeoGeoConfig { Enabled = true, LlmsTxt = true } }
+            }
+        };
+
+        await new SiteEngine(new ConsoleLogger(LogLevel.Error)).BuildAsync(config, site.Root,
+            new ConfigOverrides { Incremental = false });
+
+        Assert.True(File.Exists(Path.Combine(site.Output, "en", "index.html")));
+        var llms = File.ReadAllText(Path.Combine(site.Output, "llms.txt"));
+        Assert.DoesNotContain("/en/", llms, StringComparison.Ordinal);
+        var search = File.ReadAllText(Path.Combine(site.Output, "search.json"));
+        Assert.DoesNotContain("/en/", search, StringComparison.Ordinal);
+        using var report = JsonDocument.Parse(File.ReadAllText(
+            Path.Combine(site.Output, ".bukit", "variants", "en", "publish-audit-report.json")));
+        var legacy = report.RootElement.GetProperty("documents").EnumerateArray()
+            .Single(document => document.GetProperty("routeUrl").GetString() == "/en/");
+        Assert.False(legacy.GetProperty("indexable").GetBoolean());
+    }
+
+    [Fact]
     public async Task RootLayout_WritesEnglishAtRootAndKeepsOtherLanguages()
     {
         using var site = RootSite();

@@ -146,8 +146,9 @@ internal static class DirectoryCopy
     }
 
     /// <summary>
-    /// True when the static source path will survive the copy step. Without followSymlinks,
-    /// any symlink is skipped; with it, only links resolving inside the static root count.
+    /// True when the static source path will survive the copy step: skipped dotfile segments
+    /// do not count, and without followSymlinks any symlink is skipped; with it, only links
+    /// resolving inside the static root count.
     /// </summary>
     internal static bool StaticSourceExists(
         string sourceDir,
@@ -168,7 +169,7 @@ internal static class DirectoryCopy
                      [Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar],
                      StringSplitOptions.RemoveEmptyEntries))
         {
-            if (segment == "..")
+            if (segment == ".." || ShouldSkipDotfile(segment, options))
             {
                 return false;
             }
@@ -525,7 +526,7 @@ internal static class DirectoryCopy
         }
     }
 
-    private static bool IsSymlink(string path)
+    internal static bool IsSymlink(string path)
     {
         try
         {

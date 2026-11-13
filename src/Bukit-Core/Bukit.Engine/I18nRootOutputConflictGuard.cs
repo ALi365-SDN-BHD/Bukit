@@ -73,7 +73,7 @@ internal static class I18nRootOutputConflictGuard
                 }
 
                 entries = Directory.EnumerateFileSystemEntries(current)
-                    .Where(path => !IsReparsePoint(path) ||
+                    .Where(path => !DirectoryCopy.IsSymlink(path) ||
                         options.FollowSymlinks && DirectoryCopy.IsSafeStaticLink(path, root, options))
                     .GroupBy(Path.GetFileName, StringComparer.OrdinalIgnoreCase)
                     .ToDictionary(group => group.Key!, group => group.First(), StringComparer.OrdinalIgnoreCase);
@@ -89,22 +89,6 @@ internal static class I18nRootOutputConflictGuard
         }
 
         return File.Exists(current) ? current : null;
-    }
-
-    private static bool IsReparsePoint(string path)
-    {
-        try
-        {
-            return (File.GetAttributes(path) & FileAttributes.ReparsePoint) != 0;
-        }
-        catch (FileNotFoundException)
-        {
-            return false;
-        }
-        catch (DirectoryNotFoundException)
-        {
-            return false;
-        }
     }
 
     private static string Setting(SiteConfig site, string kind) => kind switch
