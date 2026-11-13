@@ -4,10 +4,10 @@
 
 ## 0. 前置与核查
 
-- [ ] 提案 B 已实施并验收。
-- [ ] 按 B 的最终代码复核 design.md D3、D8、D9，必要时更新本提案并重新 strict 校验。
+- [x] 提案 B 已实施并验收（`openspec/changes/archive/2026-11-12-add-i18n-default-language-root`；后续 `2026-11-13-add-i18n-default-language-legacy-redirects` 已归档，`add-i18n-root-layout-merged-search` 已实施）。
+- [ ] 按 B 的最终代码复核 design.md D3、D8、D9，必要时更新本提案并重新 strict 校验；复核范围包括迁移跳转（`I18nLegacyRedirectDeriver`）和根目录布局合并搜索（`I18nOutputLayout.SearchRelativePath`）。
 - [ ] 以 B 合入后的 `i18n-worktree-build` 规范为基准，补写该能力的 MODIFIED delta（任务下发共用 webp 映射、Worker 结果新增完整媒体引用、Worker 不得写共用路径、父进程收尾复制媒体并做存在性校验）。
-- [ ] 核查按语言目录解析站内地址的检查是否会把 `/assets/...` 误报：站内链接审计、`PublicOutputPrivacyCheck`、`BuildTransaction.RejectGeneratedOutputLinks`，记录结论和需要的修改。
+- [ ] 核查按语言目录解析站内地址的检查是否会把 `/assets/...` 误报：站内链接审计、`PublicOutputPrivacyCheck`、`BuildTransaction.RejectGeneratedOutputLinks`、SEO/发布审计的图片检查（`Bukit.Engine.Audit/ImageMetadataReader.cs` 的 `TryMapSiteUrlToOutputPath` 按语言 baseUrl 和语言输出目录解析图片地址，共用后的 `/assets/...` 会被误报为缺失），记录结论和需要的修改。
 - [ ] 核查审计、发布检查和 projections 中哪些依赖本地图片或媒体文件存在，确定 Worktree 模式下需要推迟到父进程的检查清单。
 - [ ] 核实 `RewriteCurrentHtmlWithWebp` 对已改写 HTML 是否幂等；不幂等时补充修改和测试。
 - [ ] 确认受保护清理在带前缀布局下会删除根目录共用目录。
