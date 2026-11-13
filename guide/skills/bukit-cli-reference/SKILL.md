@@ -47,12 +47,15 @@ Project selection, shared by most commands:
 - `--site <name>`: use `./sites/<name>.yaml`; root is the current directory.
   `--config` wins when both are given. Paths escaping `sites/` are rejected.
 - `--site-url <url>`: override `site.url` for this run.
+- `--notion-snapshot <dir>` (`build`): record a Notion offline snapshot outside the site; add
+  `--notion-offline` (`build`, `doctor`, `config check`) to read only that snapshot, with no
+  `NOTION_TOKEN` and no network.
 
 | Command | Options |
 |---|---|
-| `build` | `--config`, `--site`, `--output`, `--base-url`, `--site-url`, `--clean`, `--no-clean`, `--draft`, `--ci`, `--incremental`, `--no-incremental`, `--cache-dir`, `--metrics`, `--jobs`, `--log-format` |
-| `doctor` | `--config`, `--site`, `--site-url` |
-| `config check` | `--config`, `--site`, `--site-url` |
+| `build` | `--config`, `--site`, `--output`, `--base-url`, `--site-url`, `--clean`, `--no-clean`, `--draft`, `--ci`, `--incremental`, `--no-incremental`, `--cache-dir`, `--metrics`, `--jobs`, `--log-format`, `--notion-snapshot`, `--notion-offline` |
+| `doctor` | `--config`, `--site`, `--site-url`, `--notion-snapshot`, `--notion-offline` |
+| `config check` | `--config`, `--site`, `--site-url`, `--notion-snapshot`, `--notion-offline` |
 | `config schema` | `--output` (file; stdout when omitted) |
 | `preview` | `--dir`, `--host`, `--port`, `--strict-port`, `--config`, `--site`, `--allow-lan`, `--public` |
 | `dev` | `--config`, `--site`, `--host`, `--port`, `--output`, `--no-watch`, `--allow-lan`, `--public` |

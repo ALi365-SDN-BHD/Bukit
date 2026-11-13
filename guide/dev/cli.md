@@ -8,10 +8,10 @@ loads dynamic plugin descriptors only when the command is not a Core command.
 
 | Command | Parameters |
 |---|---|
-| `build` | `--config`, `--site`, `--output`, `--base-url`, `--site-url`, `--clean`, `--no-clean`, `--draft`, `--ci`, `--incremental`, `--no-incremental`, `--cache-dir`, `--metrics`, `--jobs`, `--log-format` |
-| `doctor` | `--config`, `--site`, `--site-url` |
+| `build` | `--config`, `--site`, `--output`, `--base-url`, `--site-url`, `--clean`, `--no-clean`, `--draft`, `--ci`, `--incremental`, `--no-incremental`, `--cache-dir`, `--metrics`, `--jobs`, `--log-format`, `--notion-snapshot`, `--notion-offline` |
+| `doctor` | `--config`, `--site`, `--site-url`, `--notion-snapshot`, `--notion-offline` |
 | `config` | `--config`, `--site`, `--site-url`, `--output` |
-| `config check` | `--config`, `--site`, `--site-url` |
+| `config check` | `--config`, `--site`, `--site-url`, `--notion-snapshot`, `--notion-offline` |
 | `config schema` | `--output` |
 | `preview` | `--dir`, `--host`, `--port`, `--strict-port`, `--config`, `--site`, `--allow-lan`, `--public` |
 | `dev` | `--config`, `--site`, `--host`, `--port`, `--output`, `--no-watch`, `--allow-lan`, `--public` |

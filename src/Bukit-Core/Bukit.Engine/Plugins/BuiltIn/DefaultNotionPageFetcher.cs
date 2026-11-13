@@ -1,5 +1,6 @@
 using Bukit.Content.Notion;
 using Bukit.Shared;
+using Bukit.Content.Notion.Snapshot;
 
 namespace Bukit.Engine.Plugins.BuiltIn;
 
@@ -26,7 +27,7 @@ internal sealed class DefaultNotionPageFetcher : INotionPageFetcher
         {
             throw;
         }
-        catch (Bukit.Shared.NotionSnapshotException)
+        catch (NotionSnapshotException)
         {
             // Offline: a page the snapshot lacks fails the build instead of vanishing from pages_index.
             throw;

@@ -3,6 +3,7 @@ using System.Globalization;
 using System.Text.Json;
 using Bukit.Notion.Rendering;
 using Bukit.Shared;
+using Bukit.Content.Notion.Snapshot;
 namespace Bukit.Content.Notion;
 
 internal static class NotionCacheManager
@@ -88,7 +89,7 @@ internal static class NotionCacheManager
             return await rendererFactory().RenderPageAsync(pageId, cancellationToken);
         }
 
-        var html = await GetOrRenderCachedPageHtmlAsync(rendererFactory, cache, pageId, lastEditedTime, cancellationToken, logger);
+        var html = await GetOrRenderCachedPageHtmlAsync(rendererFactory, cache, pageId, lastEditedTime, logger, cancellationToken);
         cache.PageUsed?.Invoke(pageId);
         return html;
     }
@@ -98,8 +99,8 @@ internal static class NotionCacheManager
         PageHtmlCache cache,
         string pageId,
         string? lastEditedTime,
-        CancellationToken cancellationToken,
-        ILogger? logger)
+        ILogger? logger,
+        CancellationToken cancellationToken)
     {
 
         var cachePath = Path.Combine(cache.PagesDir, $"{pageId}.json");
@@ -126,7 +127,7 @@ internal static class NotionCacheManager
 
         if (cache.OfflineSnapshot)
         {
-            throw Bukit.Shared.NotionSnapshotException.Missing($"rendered body for page '{pageId}' (edited after the formal build, or never rendered by it)");
+            throw NotionSnapshotException.Missing($"rendered body for page '{pageId}' (edited after the formal build, or never rendered by it)");
         }
 
         if (cache.Mode == "readonly")

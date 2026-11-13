@@ -4,6 +4,7 @@ using Bukit.Engine.Abstractions.Content;
 using Bukit.Content.Notion;
 using Bukit.Engine.Abstractions.Plugins;
 using Bukit.Shared;
+using Bukit.Content.Notion.Snapshot;
 namespace Bukit.Engine;
 
 internal static class TaxonomyTermsInjector
@@ -147,7 +148,7 @@ internal static class TaxonomyTermsInjector
                     cancellationToken);
                 InjectNotionSchemaOptions(schemaOptions, keyToKind, context);
             }
-            catch (Bukit.Shared.NotionSnapshotException)
+            catch (NotionSnapshotException)
             {
                 // Offline: missing options are an error, not a silently smaller term list.
                 throw;

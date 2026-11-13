@@ -31,7 +31,7 @@ public static class DoctorCommand
         {
             snapshot = NotionSnapshotOptions.OpenForCheck(command);
         }
-        catch (NotionSnapshotException ex)
+        catch (Exception ex) when (NotionSnapshot.IsSnapshotError(ex))
         {
             Console.WriteLine("✖ Notion offline snapshot error");
             Console.WriteLine(ex.Message);
@@ -39,7 +39,7 @@ public static class DoctorCommand
         }
 
         using (snapshot)
-        using (NotionSnapshotScope.Enter(snapshot?.Handle))
+        using (NotionSnapshot.Enter(snapshot))
         {
             return await RunAsync(command, logFormat, snapshot).ConfigureAwait(false);
         }
@@ -345,7 +345,7 @@ public static class DoctorCommand
             {
                 snapshot.EnsureDatabases(config);
             }
-            catch (NotionSnapshotException ex)
+            catch (Exception ex) when (NotionSnapshot.IsSnapshotError(ex))
             {
                 Console.WriteLine("✖ Notion offline snapshot error");
                 Console.WriteLine(ex.Message);
@@ -422,7 +422,7 @@ public static class DoctorCommand
             routedDocuments = [.. routesByLanguage.Values.SelectMany(routes => routes)];
             Console.WriteLine("✔ Routes valid");
         }
-        catch (Exception ex) when (ex is ConfigException or ContentException or NotionSnapshotException)
+        catch (Exception ex) when (ex is ConfigException or ContentException || NotionSnapshot.IsSnapshotError(ex))
         {
             Console.WriteLine("✖ Route inventory error");
             Console.WriteLine(ex.Message);

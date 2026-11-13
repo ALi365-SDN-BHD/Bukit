@@ -112,7 +112,7 @@ public static class BuildCommand
         // Recording writes a staging directory that replaces the snapshot only after the
         // whole build succeeded; any failure (or cancellation) discards it.
         using var snapshot = NotionSnapshotOptions.OpenForBuild(command, resolved.RootDir, overrides.Output ?? config.Build.Output);
-        using var snapshotScope = NotionSnapshotScope.Enter(snapshot?.Handle);
+        using var snapshotScope = NotionSnapshot.Enter(snapshot);
         if (snapshot is not null)
         {
             overrides = overrides with { NotionSnapshotDir = snapshot.Directory, NotionOffline = snapshot.Offline };

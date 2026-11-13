@@ -5,6 +5,7 @@ using Bukit.Cli.Commands;
 using Bukit.Content.Notion;
 using Bukit.Shared;
 using Xunit;
+using Bukit.Content.Notion.Snapshot;
 
 namespace Bukit.Cli.Tests;
 
@@ -162,7 +163,7 @@ public sealed class NotionOfflineSnapshotCommandTests : IDisposable
         Assert.Equal(1, doctorCode);
         Assert.Contains("no data for database", doctorOutput, StringComparison.Ordinal);
 
-        await Assert.ThrowsAsync<Bukit.Shared.NotionSnapshotException>(() => BuildCommand.RunInProcessAsync(CliTestHelper.CreateCommand("build",
+        await Assert.ThrowsAsync<NotionSnapshotException>(() => BuildCommand.RunInProcessAsync(CliTestHelper.CreateCommand("build",
             ["build", "--config", _configPath, "--notion-snapshot", SnapshotDir, "--notion-offline"])));
     }
 

@@ -3,6 +3,7 @@ using System.Diagnostics;
 using System.Text.Json;
 using Bukit.Notion;
 using Bukit.Shared;
+using Bukit.Content.Notion.Snapshot;
 namespace Bukit.Content.Notion;
 
 internal static class NotionRelationResolver
@@ -136,7 +137,7 @@ internal static class NotionRelationResolver
             {
                 throw;
             }
-            catch (Bukit.Shared.NotionSnapshotException)
+            catch (NotionSnapshotException)
             {
                 // Offline: data the snapshot lacks is an error, never a silently dropped link.
                 throw;

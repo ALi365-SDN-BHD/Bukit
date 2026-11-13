@@ -5,18 +5,23 @@ using Bukit.Shared;
 namespace Bukit.Engine;
 
 /// <summary>
-/// Public entry point to the Notion offline snapshot for the CLI, which may not depend on
-/// Bukit.Content. Enter <see cref="Handle"/> with <see cref="NotionSnapshotScope.Enter"/> in the
-/// frame that awaits the build or check. Failures throw <see cref="NotionSnapshotException"/>.
+/// Entry point to the Notion offline snapshot for the CLI, which may not depend on
+/// Bukit.Content. Failures are recognised with <see cref="IsSnapshotError"/>.
 /// </summary>
-public sealed class NotionSnapshot : IDisposable
+internal sealed class NotionSnapshot : IDisposable
 {
     private readonly NotionSnapshotSession _session;
 
     private NotionSnapshot(NotionSnapshotSession session) => _session = session;
 
-    /// <summary>The ambient handle: the session itself, so content code can find it.</summary>
-    public INotionSnapshotHandle Handle => _session;
+    /// <summary>
+    /// Makes <paramref name="snapshot"/> the ambient snapshot until the scope is disposed (null
+    /// clears it). Call it in the frame that awaits the build or check.
+    /// </summary>
+    public static IDisposable Enter(NotionSnapshot? snapshot) => NotionSnapshotScope.Enter(snapshot?._session);
+
+    /// <summary>True for a snapshot failure: missing, unreadable, another version, or lacking data.</summary>
+    public static bool IsSnapshotError(Exception exception) => exception is NotionSnapshotException;
 
     /// <summary>Directory read or written by this process. Never log it.</summary>
     public string Directory => _session.Directory;

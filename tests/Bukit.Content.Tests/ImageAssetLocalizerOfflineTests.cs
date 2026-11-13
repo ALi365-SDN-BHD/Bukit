@@ -2,6 +2,7 @@ using System.Net;
 using Bukit.Content.Media;
 using Bukit.Shared;
 using Xunit;
+using Bukit.Config;
 
 namespace Bukit.Content.Tests;
 

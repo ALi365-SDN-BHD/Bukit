@@ -39,7 +39,7 @@ internal static class WorktreeBuildCoordinator
             using var notionSnapshot = string.IsNullOrWhiteSpace(request.Overrides.NotionSnapshotDir)
                 ? null
                 : NotionSnapshot.AttachWorker(request.Overrides.NotionSnapshotDir, request.Overrides.NotionOffline);
-            using var notionSnapshotScope = NotionSnapshotScope.Enter(notionSnapshot?.Handle);
+            using var notionSnapshotScope = NotionSnapshot.Enter(notionSnapshot);
             var level = request.Overrides.IsCI
                 ? LogLevel.Warn
                 : ParseLogLevel(request.Config.Logging.Level);

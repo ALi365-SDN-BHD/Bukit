@@ -1,10 +1,10 @@
-namespace Bukit.Shared;
+namespace Bukit.Config;
 
 /// <summary>
 /// The Notion offline snapshot selected for the current command: the directory this
 /// process reads (offline) or writes (a staging directory while a build records it).
 /// </summary>
-public interface INotionSnapshotHandle
+internal interface INotionSnapshotHandle
 {
     /// <summary>Directory read or written by this process. Never log it.</summary>
     string Directory { get; }
@@ -18,7 +18,7 @@ public interface INotionSnapshotHandle
 /// <c>build</c>, <c>config check</c> and <c>doctor</c> when <c>--notion-snapshot</c> is given;
 /// absent otherwise, which keeps every existing code path unchanged.
 /// </summary>
-public static class NotionSnapshotScope
+internal static class NotionSnapshotScope
 {
     private static readonly AsyncLocal<INotionSnapshotHandle?> s_current = new();
 

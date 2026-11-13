@@ -5,6 +5,7 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using Bukit.Shared;
+using Bukit.Config;
 
 namespace Bukit.Content.Notion.Snapshot;
 

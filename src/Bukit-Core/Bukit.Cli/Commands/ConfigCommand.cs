@@ -35,7 +35,7 @@ public static class ConfigCommand
         {
             snapshot = NotionSnapshotOptions.OpenForCheck(command);
         }
-        catch (NotionSnapshotException ex)
+        catch (Exception ex) when (NotionSnapshot.IsSnapshotError(ex))
         {
             Console.WriteLine("✖ Config error");
             Console.WriteLine(ex.Message);
@@ -43,7 +43,7 @@ public static class ConfigCommand
         }
 
         using (snapshot)
-        using (NotionSnapshotScope.Enter(snapshot?.Handle))
+        using (NotionSnapshot.Enter(snapshot))
         {
             return Check(command, logFormat, snapshot);
         }
@@ -63,10 +63,7 @@ public static class ConfigCommand
             }
 
             ConfigValidator.Validate(config);
-            if (snapshot is not null)
-            {
-                snapshot.EnsureDatabases(config);
-            }
+            snapshot?.EnsureDatabases(config);
 
             Console.WriteLine("✔ Config check passed");
             if (snapshot is not null)
@@ -85,7 +82,7 @@ public static class ConfigCommand
             DoctorThemeChecker.CheckMediaPlaceholder(config, resolved.RootDir);
             return 0;
         }
-        catch (Exception ex) when (ex is ConfigException or NotionSnapshotException)
+        catch (Exception ex) when (ex is ConfigException || NotionSnapshot.IsSnapshotError(ex))
         {
             Console.WriteLine("✖ Config error");
             Console.WriteLine(ex.Message);

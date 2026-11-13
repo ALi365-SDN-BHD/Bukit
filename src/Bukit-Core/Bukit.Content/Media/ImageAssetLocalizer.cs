@@ -163,16 +163,10 @@ public sealed class ImageAssetLocalizer : IImageAssetLocalizer, IDisposable
                 return _indexManager.CombineUrl(cachedFileName);
             }
 
-            // Offline builds use the media cache read-only: skip the clean-up, keep looking.
-            if (!_offline)
+            if (!DiscardUntrusted(root, normalizedKey, cachedFileName, forgetCache: true, forgetIndex: true))
             {
-                _cache.TryRemove(normalizedKey, out _);
-                _indexManager.ForgetIndex(normalizedKey);
-                if (!DeleteUntrustedCachedFile(root, cachedFileName))
-                {
-                    AddFailure(source, "Unsafe cached media could not be removed.");
-                    return FailureResult(original);
-                }
+                AddFailure(source, "Unsafe cached media could not be removed.");
+                return FailureResult(original);
             }
         }
 
@@ -184,14 +178,10 @@ public sealed class ImageAssetLocalizer : IImageAssetLocalizer, IDisposable
                 return _indexManager.CombineUrl(indexedFileName);
             }
 
-            if (!_offline)
+            if (!DiscardUntrusted(root, normalizedKey, indexedFileName, forgetCache: false, forgetIndex: true))
             {
-                _indexManager.ForgetIndex(normalizedKey);
-                if (!DeleteUntrustedCachedFile(root, indexedFileName))
-                {
-                    AddFailure(source, "Unsafe cached media could not be removed.");
-                    return FailureResult(original);
-                }
+                AddFailure(source, "Unsafe cached media could not be removed.");
+                return FailureResult(original);
             }
         }
 
@@ -201,16 +191,12 @@ public sealed class ImageAssetLocalizer : IImageAssetLocalizer, IDisposable
         {
             if (await IsTrustedCachedFileAsync(root, existingName, cancellationToken))
             {
-                if (!_offline)
-                {
-                    _indexManager.RememberIndex(normalizedKey, existingName);
-                }
-
+                RememberIndex(normalizedKey, existingName);
                 _cache.TryAdd(normalizedKey, existingName);
                 return _indexManager.CombineUrl(existingName);
             }
 
-            if (!_offline && !DeleteUntrustedCachedFile(root, existingName))
+            if (!DiscardUntrusted(root, normalizedKey, existingName, forgetCache: false, forgetIndex: false))
             {
                 AddFailure(source, "Unsafe cached media could not be removed.");
                 return FailureResult(original);
@@ -219,11 +205,7 @@ public sealed class ImageAssetLocalizer : IImageAssetLocalizer, IDisposable
 
         if (await FindLegacySignedFileAsync(root, uri, requestTarget, cancellationToken) is { } legacyName)
         {
-            if (!_offline)
-            {
-                _indexManager.RememberIndex(normalizedKey, legacyName);
-            }
-
+            RememberIndex(normalizedKey, legacyName);
             _cache.TryAdd(normalizedKey, legacyName);
             return _indexManager.CombineUrl(legacyName);
         }
@@ -780,6 +762,39 @@ public sealed class ImageAssetLocalizer : IImageAssetLocalizer, IDisposable
     /// </summary>
     private readonly record struct DownloadOutcome(string? LocalUrl, string RequestTarget, int? StatusCode, string? Reason);
 
+
+    /// <summary>
+    /// Drops an untrusted cached file. Offline builds use the media cache read-only, so they
+    /// skip the clean-up and keep looking. False when the file could not be removed.
+    /// </summary>
+    private bool DiscardUntrusted(string root, string normalizedKey, string fileName, bool forgetCache, bool forgetIndex)
+    {
+        if (_offline)
+        {
+            return true;
+        }
+
+        if (forgetCache)
+        {
+            _cache.TryRemove(normalizedKey, out _);
+        }
+
+        if (forgetIndex)
+        {
+            _indexManager.ForgetIndex(normalizedKey);
+        }
+
+        return DeleteUntrustedCachedFile(root, fileName);
+    }
+
+    /// <summary>Records a found file in the media index; offline builds never change it.</summary>
+    private void RememberIndex(string normalizedKey, string fileName)
+    {
+        if (!_offline)
+        {
+            _indexManager.RememberIndex(normalizedKey, fileName);
+        }
+    }
 
     /// <summary>Offline builds make no network requests and never change the media cache: the URL is kept.</summary>
     private string KeepOffline(string source, string original)
