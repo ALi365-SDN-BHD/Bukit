@@ -1,4 +1,5 @@
 using System.Text;
+using System.Text.Encodings.Web;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 
@@ -82,7 +83,21 @@ internal static partial class SecretStore
             snapshot = s_stdinSecrets;
         }
 
-        return JsonSerializer.Serialize(snapshot, SecretStoreJsonContext.Default.IReadOnlyDictionaryStringString);
+        // Relaxed escaping keeps non-ASCII text unescaped, so the forwarded payload stays about
+        // the size of the original input and within the child's MaxStdinBytes limit.
+        using var buffer = new MemoryStream();
+        using (var writer = new Utf8JsonWriter(buffer, new JsonWriterOptions { Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping }))
+        {
+            writer.WriteStartObject();
+            foreach (var (name, value) in snapshot)
+            {
+                writer.WriteString(name, value);
+            }
+
+            writer.WriteEndObject();
+        }
+
+        return Encoding.UTF8.GetString(buffer.ToArray());
     }
 
     /// <summary>Replaces every stdin secret value that appears in <paramref name="text"/> with <c>***</c>.</summary>
@@ -213,7 +228,18 @@ internal static partial class SecretStore
             var secrets = new Dictionary<string, string>(StringComparer.Ordinal);
             foreach (var property in document.RootElement.EnumerateObject())
             {
-                if (!SecretNamePattern().IsMatch(property.Name))
+                string name;
+                try
+                {
+                    name = property.Name;
+                }
+                catch (InvalidOperationException)
+                {
+                    // An escape such as a lone surrogate (\uD800) cannot be decoded to text.
+                    throw new SecretsInputException("--secrets-stdin input contains an invalid escape sequence. The input is not echoed.");
+                }
+
+                if (!SecretNamePattern().IsMatch(name))
                 {
                     throw new SecretsInputException("--secrets-stdin names must be environment-variable style (letters, digits and underscores, not starting with a digit). The name is not echoed.");
                 }
@@ -223,13 +249,21 @@ internal static partial class SecretStore
                     throw new SecretsInputException("--secrets-stdin values must be JSON strings. The value is not echoed.");
                 }
 
-                var value = property.Value.GetString()!;
+                string value;
+                try
+                {
+                    value = property.Value.GetString()!;
+                }
+                catch (InvalidOperationException)
+                {
+                    throw new SecretsInputException("--secrets-stdin input contains an invalid escape sequence. The input is not echoed.");
+                }
                 if (value.Length == 0)
                 {
                     throw new SecretsInputException("--secrets-stdin values must not be empty strings.");
                 }
 
-                if (!secrets.TryAdd(property.Name, value))
+                if (!secrets.TryAdd(name, value))
                 {
                     throw new SecretsInputException("--secrets-stdin input contains a duplicate name. The name is not echoed.");
                 }
@@ -242,6 +276,3 @@ internal static partial class SecretStore
     [GeneratedRegex("^[A-Za-z_][A-Za-z0-9_]{0,127}$", RegexOptions.CultureInvariant)]
     private static partial Regex SecretNamePattern();
 }
-
-[System.Text.Json.Serialization.JsonSerializable(typeof(IReadOnlyDictionary<string, string>))]
-internal sealed partial class SecretStoreJsonContext : System.Text.Json.Serialization.JsonSerializerContext;

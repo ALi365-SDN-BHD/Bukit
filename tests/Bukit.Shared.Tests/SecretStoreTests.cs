@@ -88,6 +88,28 @@ public sealed class SecretStoreTests : IDisposable
         Assert.DoesNotContain("secret_leak_value", ex.Message, StringComparison.Ordinal);
     }
 
+    [Theory]
+    [InlineData("{\"A\":\"\\uD800\"}")]
+    [InlineData("{\"\\uDC00\":\"secret_leak_value\"}")]
+    public void Parse_LoneSurrogateEscape_FailsWithSecretsErrorWithoutEcho(string input)
+    {
+        var ex = Assert.Throws<SecretsInputException>(() => SecretStore.Parse(Encoding.UTF8.GetBytes(input)));
+        Assert.Contains("invalid escape", ex.Message, StringComparison.Ordinal);
+        Assert.DoesNotContain("secret_leak_value", ex.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void SerializeStdinSecrets_KeepsNonAsciiUnescaped_SoForwardedPayloadStaysSmall()
+    {
+        var value = new string('\u4E2D', 20000);
+        SecretStore.Install(new Dictionary<string, string> { ["BIG"] = value });
+
+        var json = SecretStore.SerializeStdinSecrets();
+
+        Assert.True(Encoding.UTF8.GetByteCount(json) < SecretStore.MaxStdinBytes);
+        Assert.Equal(value, SecretStore.Parse(Encoding.UTF8.GetBytes(json))["BIG"]);
+    }
+
     [Fact]
     public void Parse_EmptyStringValue_Fails()
     {
