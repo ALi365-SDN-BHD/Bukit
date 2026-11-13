@@ -310,6 +310,46 @@ public sealed class ConfigValidatorTests
         Assert.Equal("site.languages must use safe alphanumeric subtags separated by hyphens.", ex.Message);
     }
 
+    [Theory]
+    [InlineData("en_US")]
+    [InlineData("en/us")]
+    [InlineData("../outside")]
+    [InlineData("x\"><script>")]
+    [InlineData("en\nadmin")]
+    public void Validate_SingleLanguageIsNotSafeTag_Throws(string language)
+    {
+        var config = ConfigWithSite(s => s with { Language = language, Languages = null });
+
+        var ex = Assert.Throws<ConfigException>(() => ConfigValidator.Validate(config));
+
+        Assert.Equal("site.language must use safe alphanumeric subtags separated by hyphens.", ex.Message);
+    }
+
+    [Theory]
+    [InlineData("zh-CN")]
+    [InlineData(" en ")]
+    [InlineData("zh-Hant-TW")]
+    [InlineData("")]
+    public void Validate_SingleLanguageSafeOrBlank_Passes(string language)
+    {
+        var config = ConfigWithSite(s => s with { Language = language, Languages = null });
+
+        ConfigValidator.Validate(config);
+    }
+
+    [Fact]
+    public void Validate_MultiLanguageIgnoresSingleLanguageValue()
+    {
+        var config = ConfigWithSite(s => s with
+        {
+            Language = "en_US",
+            Languages = new[] { "en", "zh-CN" },
+            DefaultLanguage = "en"
+        });
+
+        ConfigValidator.Validate(config);
+    }
+
     [Fact]
     public void Validate_DefaultLanguageNotInLanguages_Throws()
     {

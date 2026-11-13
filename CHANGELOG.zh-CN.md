@@ -4,6 +4,7 @@ Bukit 所有重要变更都将记录在此文件中。
 
 ## [Unreleased]
 
+- **行为变更：`site.language` 必须是安全的语言代码**：未设置 `site.languages` 时，`site.language` 现在只能由字母和数字组成、用连字符分隔子标签（例如 `en`、`zh-CN`、`zh-Hant-TW`），与 `site.languages` 已有的规则一致。`en_US` 或包含引号、`/`、`<` 的值现在会校验失败，报错 `site.language must use safe alphanumeric subtags separated by hyphens.`，不再写进 `<html lang>`。请把 `en_US` 改为 `en-US`。空值仍然允许；设置了 `site.languages` 时不检查 `site.language`。
 - **Starter 主题搜索只显示当前语言**：Starter 主题的搜索页（`layouts/pages/search.html`，由主题脚手架和 clone 写出）请求 `{{ site.base_url }}/search.json`。默认语言放在根目录且 `search.mode: merged` 时，这个文件是合并索引，默认语言的搜索结果会混入所有语言。现在页面只保留 `language` 与 `site.language` 相同（不区分大小写）或为 `und` 的记录。已有主题不会被改写；要获得此行为，把过滤逻辑复制到已生成的 `search.html` 中。
 - **每条搜索记录都带语言**：页面没有语言的列表和分类记录过去在 `search.json` 中缺少 `language`，没有语言的页面在多语言站点的某个语言里也记为 `und`。现在每条记录都有 `language`：自身没有语言的记录，在多语言站点取写出它的语言，其他情况为 `und`。前端可以直接按 `language` 过滤合并索引，无需特殊处理。
 - **行为变更：搜索 UI 加载本语言的索引**：`bukit-search.html` 过去写死请求 `/search.json`，站点部署在 `/repo/` 这类 `baseUrl` 下时搜不到任何结果；多语言站点里每种语言都去请求根目录的文件（`split` 和 `index` 模式下该文件不存在，`merged` 模式下拿到的是合并索引）。现在片段从输入框的 `data-search-url` 属性读取索引地址，值为 `<语言 base URL>/search.json`（例如 `/repo/zh-CN/search.json`；默认语言在根目录且 `search.mode: merged` 时为 `/<默认语言>/search.json`）；删除该属性时仍回退到 `/search.json`。`search.mode: merged` 下片段改为只搜索本语言；如需改用其他索引，请把片段标记复制到模板中，并在那里设置 `data-search-url`（生成的文件每次构建都会重写）。索引加载失败或内容不是数组时，片段显示“Search is unavailable”，不再显示空结果；索引加载期间输入的查询会在加载完成后执行。
