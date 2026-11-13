@@ -91,6 +91,19 @@ public sealed class SingleLanguageSiteTests
         Assert.Equal(["en"], metricsSite.GetProperty("languages").EnumerateArray().Select(item => item.GetString()));
     }
 
+    // Spec scenario "Single-language search record language".
+    [Theory]
+    [MemberData(nameof(LanguageForms))]
+    public async Task SingleLanguage_SearchRecordsUseTheSiteLanguage(string languageYaml)
+    {
+        using var site = await BuildAsync(languageYaml);
+
+        using var search = JsonDocument.Parse(File.ReadAllText(Path.Combine(site.Output, "search.json")));
+        var records = search.RootElement.EnumerateArray().ToList();
+        Assert.NotEmpty(records);
+        Assert.All(records, record => Assert.Equal("en", record.GetProperty("language").GetString()));
+    }
+
     [Fact]
     public async Task CodeBuiltConfig_SiteLanguageComesFromSiteLanguages()
     {
