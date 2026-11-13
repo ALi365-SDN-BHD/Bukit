@@ -7,7 +7,9 @@ internal sealed class I18nRootRobotsWriter : II18nRootProjectionWriter
     /// <summary>
     /// Whether the root default language copies a static <c>robots.txt</c> to the output root.
     /// It reads the language's planned static outputs, so site, named-theme and parent-theme
-    /// static directories are all covered exactly as the copy step resolves them.
+    /// static directories are all covered exactly as the copy step resolves them. Only the exact
+    /// name <c>robots.txt</c> is an override, because crawlers request only that path;
+    /// <see cref="I18nRootOutputConflictGuard"/> rejects other casings before the copy.
     /// </summary>
     internal static bool HasStaticRobots(Config.AppConfig config, IReadOnlyList<BuildVariantResult> variants)
     {
@@ -19,7 +21,7 @@ internal sealed class I18nRootRobotsWriter : II18nRootProjectionWriter
         var layout = I18nOutputLayout.For(config.Site);
         return variants.Any(variant => layout.IsRootLanguage(variant.Language) &&
             variant.PlannedOutputs.Any(item => item.Category == AssetOutputCategory.Static &&
-                string.Equals(BuildPathUtils.NormalizeRelPath(item.Destination), "robots.txt", StringComparison.OrdinalIgnoreCase)));
+                string.Equals(BuildPathUtils.NormalizeRelPath(item.Destination), "robots.txt", StringComparison.Ordinal)));
     }
 
     public void Write(I18nRootProjectionWriterContext context, PublishRepresentation representation)

@@ -24,11 +24,7 @@ internal static class I18nLegacyRedirectDeriver
 
         var language = site.Language.Trim();
         var outputPath = BuildPathUtils.NormalizeRelPath(Path.Combine(language, "index.html"));
-        var staticOptions = new DirectoryCopyOptions
-        {
-            FollowSymlinks = context.Config.Build.FollowSymlinks,
-            IgnoreDotPrefixedFiles = !context.Config.Build.PublishDotFiles
-        };
+        var staticOptions = I18nOutputLayout.StaticCopyOptions(context.Config.Build);
         var occupied = pluginContext.RoutedDocuments.Any(document => SamePath(document.Route.OutputPath, outputPath)) ||
                        pluginContext.DerivedDocuments.Any(document => SamePath(document.Route.OutputPath, outputPath)) ||
                        pluginContext.StaticHtmlRoutes.Any(route => SamePath(route.OutputPath, outputPath)) ||

@@ -128,7 +128,11 @@ internal sealed class I18nOutputLayout
     /// Audit read locations for a root language. Root aggregate files are written after every
     /// language, so reading them here would make the audit depend on the previous build.
     /// </summary>
-    internal AuditOutputReadPaths? AuditReadPaths(string outputRoot, string language, IReadOnlyList<string?> staticDirs)
+    internal AuditOutputReadPaths? AuditReadPaths(
+        string outputRoot,
+        string language,
+        IReadOnlyList<string?> staticDirs,
+        DirectoryCopyOptions staticOptions)
     {
         if (!IsRootLanguage(language))
         {
@@ -143,7 +147,8 @@ internal sealed class I18nOutputLayout
             : null;
         var feedRoot = feedMode == "split" ? outputRoot : null;
         var feedPath = (_site.Feed.Path ?? "feed").Trim('/');
-        var robots = staticDirs.Any(directory => directory is not null && File.Exists(Path.Combine(directory, "robots.txt")))
+        var robots = staticDirs.Any(directory => directory is not null &&
+                DirectoryCopy.StaticSourceExists(directory, "robots.txt", staticOptions))
             ? Path.Combine(outputRoot, "robots.txt")
             : null;
         return new AuditOutputReadPaths(
@@ -164,6 +169,16 @@ internal sealed class I18nOutputLayout
 
     internal static string ManifestLayout(SiteConfig site)
         => For(site).IsRootLayout ? "root" : "subdir";
+
+    /// <summary>
+    /// Static copy rules from <c>build</c> (dotfiles and symlinks), for checks that must agree
+    /// with what the asset copy step will publish.
+    /// </summary>
+    internal static DirectoryCopyOptions StaticCopyOptions(BuildConfig build) => new()
+    {
+        FollowSymlinks = build.FollowSymlinks,
+        IgnoreDotPrefixedFiles = !build.PublishDotFiles
+    };
 
     /// <summary>Whether the variant built with <paramref name="variantConfig"/> owns the output root.</summary>
     internal static bool IsRootLanguageVariant(AppConfig variantConfig)

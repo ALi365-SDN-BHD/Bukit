@@ -421,11 +421,10 @@ internal sealed class WorktreeBuildRun
     }
 
     /// <summary>
-    /// A layout switch is only known from a previous manifest; without one (fresh or cleared
-    /// cache) the build is not a switch, matching the in-process migration check.
+    /// Mirrors BuildPlanner's migration rule: a previous manifest with a different layout is a
+    /// switch; without a manifest (fresh or cleared cache), a Bukit-owned output (marker present)
+    /// is treated as a switch, while unowned output is left alone.
     /// </summary>
-    // Mirrors BuildPlanner's migration rule: a Bukit-owned output (marker present) without a
-    // root manifest is treated like a layout switch, while unowned output is left alone.
     private static bool LayoutChanged(string cacheDir, string outputDir, SiteConfig site, ILogger logger)
     {
         var manifestPath = Path.Combine(cacheDir, "build-manifest.json");

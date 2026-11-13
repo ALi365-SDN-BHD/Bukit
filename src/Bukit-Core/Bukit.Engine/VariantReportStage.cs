@@ -31,7 +31,11 @@ internal static class VariantReportStage
             I18nOutputMerger.GetLanguages(context.Config.Site),
             context.RootBaseUrl ?? context.Config.Site.BaseUrl);
         var reportDir = layout.VariantReportDir(context.OutputDir, context.Config.Site.Language);
-        var auditReadPaths = layout.AuditReadPaths(context.OutputDir, context.Config.Site.Language, [context.StaticDir, context.ParentStaticDir]);
+        var auditReadPaths = layout.AuditReadPaths(
+            context.OutputDir,
+            context.Config.Site.Language,
+            [context.StaticDir, context.ParentStaticDir],
+            I18nOutputLayout.StaticCopyOptions(context.Config.Build));
         var result = new BuildReportPipeline().Execute(reportTimer, new BuildReportPipelineContext(
             Config: context.Config,
             Language: context.Config.Site.Language,

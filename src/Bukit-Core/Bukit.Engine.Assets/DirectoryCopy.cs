@@ -401,7 +401,7 @@ internal static class DirectoryCopy
         }
     }
 
-    private static bool ShouldSkipDotfile(string name, DirectoryCopyOptions? options = null)
+    internal static bool ShouldSkipDotfile(string name, DirectoryCopyOptions? options = null)
     {
         if (options?.DotfileAllowList?.Contains(name) == true)
         {
