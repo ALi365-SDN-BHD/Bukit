@@ -39,6 +39,36 @@
       "resource": "dotnet-serial"
     },
     {
+      "id": "unify-site-languages-change",
+      "matches": [
+        "openspec/changes/unify-site-languages/*",
+        "docs/plans/2026-11-14-unify-site-languages-implementation-plan.zh-CN.md",
+        "tests/fixtures/*-site/site.yaml",
+        "tests/Bukit.Engine.Tests/Fixtures/SrbizTask4/sites/wp2-task4-trust-fixture/site.yaml",
+        "tests/Bukit.Engine.Tests/Snapshots/Stage7/*/*.golden.json",
+        "tests/Bukit.Engine.Tests/SingleLanguageSiteTests.cs",
+        "tests/Bukit.Engine.Tests/I18nLanguagePolicyTests.cs",
+        "tests/Bukit.Importing.Tests/HtmlDemoImporterTests.cs",
+        "guide/user/02-core-concepts.md",
+        "guide/labs/import-html-demo.md",
+        "docs/demo_to_bukit_workflow.md"
+      ],
+      "specialtyTests": [
+        "dotnet test tests/Bukit.Engine.Tests/Bukit.Engine.Tests.csproj -c Release --filter \"FullyQualifiedName~SingleLanguage|FullyQualifiedName~I18nLanguagePolicy|FullyQualifiedName~Stage7|FullyQualifiedName~ReportSchemaContract|FullyQualifiedName~SignedLinkDiagnostics|FullyQualifiedName~TestInfrastructure|FullyQualifiedName~SiteEngineIntegration|FullyQualifiedName~I18n|FullyQualifiedName~SearchIndex\"",
+        "dotnet test tests/Bukit.Config.Tests/Bukit.Config.Tests.csproj -c Release --filter \"FullyQualifiedName~ConfigLoader|FullyQualifiedName~StrictYamlContract|FullyQualifiedName~ConfigJsonSchemaGenerator|FullyQualifiedName~ConfigPhase2Validator\"",
+        "dotnet test tests/Bukit.Importing.Tests/Bukit.Importing.Tests.csproj -c Release --filter \"FullyQualifiedName~HtmlDemoImporter\"",
+        "openspec validate unify-site-languages --strict --no-interactive",
+        "bash scripts/checks/docs/size-policy.sh",
+        "bash scripts/checks/docs/active-links.sh"
+      ],
+      "contractConsumerGlobs": [
+        "src/Bukit-Core/Bukit.Config/ConfigLoader.cs",
+        "src/Bukit-Core/Bukit.Engine/I18nLanguagePolicy.cs"
+      ],
+      "publicContract": false,
+      "resource": "dotnet-serial"
+    },
+    {
       "id": "image-resize-temp-cleanup-contract",
       "matches": [
         "openspec/changes/fix-image-resize-temp-cleanup/proposal.md",

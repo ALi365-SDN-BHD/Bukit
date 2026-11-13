@@ -18,7 +18,7 @@
 
 ## 1. 约束与执行方式
 
-- 开工前：`python3 scripts/checks/codex-workflow.py closure` 生成验证闭包。按本计划的文件试算，测试站点的 `site.yaml`（T04.6、T06.3 要改）是**未映射文件**，需在 T00.2 补映射并跑 `scripts/checks/codex-workflow-self-test.sh`。用 `codex-workflow.py classify` 给闭包路径和命令分类：Stage7 快照和测试站点相关测试属于 `fixture-exclusive`，单独运行；`dotnet test` 串行；静态检查可并行。再用 `codex-workflow.py queue init` 建立任务队列，实施者取得写者槽位后才写文件。
+- 开工前：`python3 scripts/checks/codex-workflow.py closure` 生成验证闭包。按本计划的文件试算，测试站点的 `site.yaml`（T04.6、T06.3 要改）是**未映射文件**，需在 T00.2 补映射并跑 `scripts/checks/codex-workflow-self-test.sh`。用 `codex-workflow.py classify` 给闭包路径和命令分类：按现有 `resourceRules`，`dotnet test` 命令都归为 `dotnet-serial`；Stage7 快照和测试站点相关测试仍选择单独运行；`dotnet test` 串行；静态检查可并行。再用 `codex-workflow.py queue init` 建立任务队列，实施者取得写者槽位后才写文件。
 - 测试：每个任务只跑列出的专项测试，命令格式为 `dotnet test tests/<项目> -c Release --filter "<过滤>"`，过滤写成 `FullyQualifiedName~A|FullyQualifiedName~B`，下文简写为 `A|B`。每个阶段结束时跑一次该阶段涉及的完整测试项目（闭包给出的专项测试）。过滤条件必须能选中测试：新加过滤先用 `--list-tests` 确认非空，避免 0 个测试也显示通过。不跑 `scripts/test-all.sh`、`scripts/smoke-all.sh`、整个解决方案的测试和 full/release gate，除非用户明确授权。
 - 证据：GREEN 结果用 `codex-workflow.py cache record` 缓存；`HEAD`、闭包、命令、环境、SDK 不变时复用。
 - 审查：每个阶段实施并测完后做一次专项审查，只有严重或重要问题才回到实施。全部阶段完成后生成一次 `review-scope`，做一次只看增量的统一审查。
@@ -67,7 +67,7 @@
 - 依赖：T00.2。
 
 **T00.4 锁定现在单语言站点的行为**
-- 做法：新增测试（放在 `tests/Bukit.Engine.Tests/SingleLanguageSiteTests.cs`），在**当前代码**上用"不写 `languages`、写 `language: en`、设置 `site.url`"的站点断言：首页写在 `dist/index.html`；没有 `dist/en/` 和跳转页；页面没有 hreflang（必须设置 `site.url`，否则 alternates 本来就为空，见 `SeoAlternatesService.cs:28`）；模板 `site.language` 为 `en`；`content/en/a/foo.md` 与 `content/en/b/foo.md` 这对**同一语言目录下不同子目录的同名文件**的 slug（现在是 `en/a/foo`、`en/b/foo`；如果把 `Languages = [en]` 传给 `MarkdownFolderProvider` 会变成 `a/foo`、`b/foo`，见 `MarkdownFolderProvider.cs:117-155,215-226`）。这些断言在阶段 2 改用 `languages: [en]` 写法后，结果必须完全相同。
+- 做法：新增测试（放在 `tests/Bukit.Engine.Tests/SingleLanguageSiteTests.cs`），在**当前代码**上用"不写 `languages`、写 `language: en`、设置 `site.url`"的站点断言：首页写在 `dist/index.html`；没有 `dist/en/index.html` 和跳转页；页面没有 hreflang（前瞻性锁定：`SeoAlternatesService.cs:79` 本来就跳过少于 2 种语言的分组）；模板 `site.language` 为 `en`；`content/en/a/foo.md` 与 `content/en/b/foo.md` 这对**同一语言目录下不同子目录的同名文件**的 slug（现在是 `en/a/foo`、`en/b/foo`；如果把 `Languages = [en]` 传给 `MarkdownFolderProvider` 会变成 `a/foo`、`b/foo`，见 `MarkdownFolderProvider.cs:117-155,215-226`）。这些断言在阶段 2 改用 `languages: [en]` 写法后，结果必须完全相同。
 - 测试：新测试在当前代码上通过。
 - 依赖：T00.3。
 
