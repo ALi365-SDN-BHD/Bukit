@@ -53,6 +53,28 @@ public sealed class I18nRootLayoutTests
         Assert.DoesNotContain(SearchFiles(site.Output), text => text.Contains("/en/hello/", StringComparison.Ordinal));
     }
 
+    [Fact]
+    public async Task DefaultLayout_MergedModes_AuditMatchesEachTranslationInTheMergedManifest()
+    {
+        // The merged agent manifest at the root lists /index/ (en) and /zh-CN/index/ (zh-CN). The zh-CN page
+        // must be compared with its own entry, not the English one that matches after adding its prefix.
+        using var site = new SiteBuilder("i18n-site");
+        var path = site.Sandbox.PathFor("site.yaml");
+        File.WriteAllText(path, File.ReadAllText(path)
+            .Replace("  defaultLanguageInSubdir: true\n", string.Empty, StringComparison.Ordinal));
+        Assert.False(site.Config.Site.DefaultLanguageInSubdir);
+        Assert.Equal("merged", site.Config.Site.Search.Mode);
+
+        await new SiteEngine(new ConsoleLogger(LogLevel.Error)).BuildAsync(site.Config, site.Root,
+            new ConfigOverrides { Incremental = false });
+
+        var manifest = File.ReadAllText(Path.Combine(site.Output, "agent-manifest.json"));
+        Assert.Contains("\"/zh-CN/index/\"", manifest, StringComparison.Ordinal);
+        var audit = File.ReadAllText(Path.Combine(site.Output, ".bukit", "publish-audit-report.json"));
+        Assert.Contains("/zh-CN/index/", audit, StringComparison.Ordinal);
+        Assert.DoesNotContain("publish.manifest_mismatch", audit, StringComparison.Ordinal);
+    }
+
     private static HashSet<string> EnglishPages(string output) =>
         Directory.EnumerateFiles(output, "*.html", SearchOption.AllDirectories)
             .Select(path => Path.GetRelativePath(output, path))

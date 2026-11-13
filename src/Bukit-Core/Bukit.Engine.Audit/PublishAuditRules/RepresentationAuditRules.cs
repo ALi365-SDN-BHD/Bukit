@@ -138,16 +138,7 @@ internal static class RepresentationAuditRules
             return;
         }
 
-        JsonElement? manifestDocument = null;
-        for (var i = 0; i < documents.Length; i++)
-        {
-            if (RouteEquals(manifest.Route(i), document))
-            {
-                manifestDocument = documents[i];
-                break;
-            }
-        }
-
+        var manifestDocument = FindManifestDocumentByRoute(documents, manifest, document);
         if (manifestDocument is null)
         {
             for (var i = 0; i < documents.Length; i++)
@@ -187,6 +178,24 @@ internal static class RepresentationAuditRules
         {
             issues.Add(new PublishAuditIssue("error", "publish.manifest_mismatch", document.RouteUrl, BuildManifestMismatchMessage(value, document)));
         }
+    }
+
+    private static JsonElement? FindManifestDocumentByRoute(JsonElement[] documents, AgentManifestSnapshot manifest, PublishDocument document)
+    {
+        for (var i = 0; i < documents.Length; i++)
+        {
+            // A route that matches only after adding the document's first output segment (a per-language
+            // manifest with unprefixed routes) must also agree on language: the merged manifest of a root
+            // default language lists /index/ (default language) next to /zh-CN/index/.
+            var route = manifest.Route(i);
+            if (RouteEquals(route, document) &&
+                (StringEquals(route, document.RouteUrl) || ManifestLanguageMatches(manifest.Language(i), document)))
+            {
+                return documents[i];
+            }
+        }
+
+        return null;
     }
 
     private static string? FindProjectionPath(PublishDocument document, string outputDir, string extension)
