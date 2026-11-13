@@ -21,6 +21,7 @@ public sealed class StarterThemeTemplateResourceTests : IDisposable
         CopyResource("ListTemplate.html", "pages/list.html");
         CopyResource("PaginationTemplate.html", "pages/pagination.html");
         CopyResource("TaxonomyTermTemplate.html", "pages/taxonomy-term.html");
+        CopyResource("SearchTemplate.html", "pages/search.html");
     }
 
     public void Dispose()
@@ -172,6 +173,25 @@ public sealed class StarterThemeTemplateResourceTests : IDisposable
             Page = new PageInfo { Title = "Page", Url = "/page/", Content = "" }
         });
         Assert.Contains("<html lang=\"zh-CN\">", validHtml, StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData("zh-CN", "const siteLanguage = \"zh-CN\".toLowerCase();")]
+    [InlineData("x\"</script>", "const siteLanguage = \"x\\\"\\u003C/script>\".toLowerCase();")]
+    public void StarterSearchTemplate_FiltersRecordsBySiteLanguage(string language, string expectedDeclaration)
+    {
+        var renderer = new ScribanTemplateRenderer(_layoutsDir);
+
+        var html = renderer.RenderPage("pages/search.html", new PageModel
+        {
+            Site = new SiteModel { Name = "starter-test", Title = "Starter Test", BaseUrl = "/repo", Language = language },
+            Page = new PageInfo { Title = "Search", Url = "/search/", Content = "" }
+        });
+
+        Assert.Contains(expectedDeclaration, html, StringComparison.Ordinal);
+        Assert.Contains(".filter(matchesSiteLanguage)", html, StringComparison.Ordinal);
+        Assert.Contains("fetch('/repo/search.json')", html, StringComparison.Ordinal);
+        Assert.DoesNotContain("siteLanguage = \"x\"</script>", html, StringComparison.Ordinal);
     }
 
     private static ListPageModel CreateListModel()

@@ -164,7 +164,7 @@
 | 8.2 T8、T9 | 断言 `data-search-language` | 改为断言各布局、模式、baseUrl 下的 `data-search-url`，以及加载失败时的提示 |
 | 补充 | — | 索引加载失败或内容不是数组时片段显示 "Search is unavailable"；加载期间输入的查询在加载完成后执行；聚合投影输出路径统一为 `/` |
 
-遗留（Minor，已在用户指南说明）：Starter 主题 `SearchTemplate.html` 请求 `{{ base_url }}/search.json` 且不按语言过滤，根目录布局 merged 下默认语言的搜索页会显示所有语言。
+遗留（Minor，已在用户指南说明）：Starter 主题 `SearchTemplate.html` 请求 `{{ base_url }}/search.json` 且不按语言过滤，根目录布局 merged 下默认语言的搜索页会显示所有语言。已修复（2026-11-13）：该模板只保留 `language` 与 `site.language` 相同（或为 `und`）的记录。
 
 ## 修订记录
 
@@ -172,3 +172,4 @@
 |---|---|
 | 2026-11-13 | 初稿 |
 | 2026-11-13 | 标为已实施，补充“实施结果”并在正文标注不一致之处 |
+| 2026-11-13 | 遗留 Minor 已修复：Starter 主题搜索页按 `site.language` 过滤记录 |
