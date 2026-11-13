@@ -1,6 +1,6 @@
 ---
 name: bukit-i18n
-description: Use for Bukit language settings — single-language filtering with site.language, multilingual builds with site.languages, per-page language and i18nKey, output folders per language, merged sitemap/feed/search modes, hreflang, and translated UI strings.
+description: Use for Bukit language settings — site.languages (one entry = single-language site, two or more = multilingual build), per-page language and i18nKey, output folders per language, merged sitemap/feed/search modes, hreflang, and translated UI strings.
 ---
 
 # Bukit i18n
@@ -9,12 +9,12 @@ description: Use for Bukit language settings — single-language filtering with 
 
 ```yaml
 site:
-  language: en     # default zh-CN
+  languages: [en]  # one language = single-language site; default [zh-CN]
 ```
 
-Documents whose front matter `language` differs from `site.language` are dropped
+Documents whose front matter `language` differs from the site language are dropped
 with an `i18n.document.language_unknown` warning; untagged documents are kept.
-Always set `site.language` for non-Chinese sites. A site that intentionally picks
+Always set `site.languages` for non-Chinese sites; the old `language` key was removed. A site that intentionally picks
 one language from a mixed-language source will warn about the other languages on
 every build; warnings are capped at five per kind plus one summary line.
 
@@ -108,7 +108,7 @@ theme-written ones; templates can read `page.seo.alternates`.
 
 ## UI strings
 
-There is no `t()` helper or `i18n/` folder. Branch on `site.language` or load strings
+There is no `t()` helper or `i18n/` folder. Branch on `{{ site.language }}` or load strings
 from `data/<lang>/*.yaml`, exposed as `site.data_files.<lang>.<file>`:
 
 ```scriban

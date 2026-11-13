@@ -6,7 +6,6 @@ Bukit handles language variants and SEO metadata inside the build pipeline.
 
 ```yaml
 site:
-  language: en
   languages: [en, zh-CN, ms]
   defaultLanguage: en
   defaultLanguageInSubdir: true   # false puts the default language at the root
@@ -36,7 +35,7 @@ the merged index stays at `/search.json` and the default language's own index mo
 to `/<defaultLanguage>/search.json`. A theme search page that fetches
 `{{ site.base_url }}/search.json` therefore receives the merged index on
 default-language pages; filter its records by `language`. The starter theme
-search page keeps records whose `language` matches `site.language` (or is
+search page keeps records whose `language` matches `{{ site.language }}` (or is
 `und`), so it searches only the current language. Default-language
 reports move to `.bukit/variants/<language>/`.
 
@@ -89,10 +88,9 @@ The build reports these warnings:
 
 | Event | Meaning |
 |---|---|
-| `i18n.document.language_unknown` | A page `language` is not in `site.languages` (or is not `site.language` in a single-language build), so the page is dropped. |
+| `i18n.document.language_unknown` | A page `language` is not in `site.languages`, so the page is dropped. |
 | `i18n.document.i18n_key_duplicate` | Two pages in the same language use the same `i18nKey`; hreflang and merged sitemap alternates can point to only one of them. |
-| `i18n.config.default_language_ignored` | `site.defaultLanguage` is set but `site.languages` is empty, so the single-language build uses `site.language`. |
-| `i18n.config.default_language_layout_ignored` | `site.defaultLanguageInSubdir` or `site.defaultLanguageRedirect` is `false`, or `site.defaultLanguageLegacyRedirects` is `true`, but `site.languages` is empty, so the single-language output is unchanged. |
+| `i18n.config.default_language_layout_ignored` | `site.defaultLanguageInSubdir` or `site.defaultLanguageRedirect` is `false`, or `site.defaultLanguageLegacyRedirects` is `true`, but `site.languages` has only one language, so the single-language output is unchanged. |
 | `i18n.config.legacy_redirects_ignored` | `site.defaultLanguageLegacyRedirects` is `true` but the default language is still prefixed (`defaultLanguageInSubdir: true`), so there are no old URLs to redirect. |
 
 Warnings are capped at five per kind, followed by one summary line. A single-language

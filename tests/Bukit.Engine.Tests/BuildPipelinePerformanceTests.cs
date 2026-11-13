@@ -29,7 +29,7 @@ public sealed class BuildPipelinePerformanceTests
                   name: perf-test
                   title: Performance Test
                   baseUrl: /
-                  language: en
+                  languages: [en]
                   seo:
                     enabled: false
                   collections:
@@ -199,7 +199,7 @@ public sealed class BuildPipelinePerformanceTests
                   name: minimal
                   title: Minimal Site
                   baseUrl: /
-                  language: en
+                  languages: [en]
                   seo:
                     enabled: false
                   collections:

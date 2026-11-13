@@ -13,15 +13,15 @@ namespace Bukit.Engine.Tests;
 /// </summary>
 public sealed class SingleLanguageSiteTests
 {
-    private const string LegacyLanguageYaml = "  language: en\n";
     private const string LanguagesYaml = "  languages: [en]\n";
+    private const string LanguagesWithDefaultYaml = "  languages: [en]\n  defaultLanguage: en\n";
 
     private static SiteBuilder EnglishSite(string languageYaml)
     {
         var site = new SiteBuilder();
         var path = site.Sandbox.PathFor("site.yaml");
         var yaml = File.ReadAllText(path).ReplaceLineEndings("\n")
-            .Replace("  language: en\n", languageYaml, StringComparison.Ordinal);
+            .Replace("  languages: [en]\n", languageYaml, StringComparison.Ordinal);
         Assert.Contains(languageYaml, yaml, StringComparison.Ordinal);
         File.WriteAllText(path, yaml);
         site.Sandbox.Write("content/index.md", "---\ntitle: Home\n---\nHome page.\n");
@@ -38,7 +38,7 @@ public sealed class SingleLanguageSiteTests
         return site;
     }
 
-    public static TheoryData<string> LanguageForms => new() { LegacyLanguageYaml, LanguagesYaml };
+    public static TheoryData<string> LanguageForms => new() { LanguagesYaml, LanguagesWithDefaultYaml };
 
     [Theory]
     [MemberData(nameof(LanguageForms))]
@@ -95,7 +95,7 @@ public sealed class SingleLanguageSiteTests
     public async Task CodeBuiltConfig_SiteLanguageComesFromSiteLanguages()
     {
         // The config is built in code, so ConfigLoader never derives the language; the engine must.
-        using var site = EnglishSite(LegacyLanguageYaml);
+        using var site = EnglishSite(LanguagesYaml);
         var config = site.Config with
         {
             Site = site.Config.Site with { Language = "zh-CN", Languages = ["en", "fr"], DefaultLanguage = "fr" }

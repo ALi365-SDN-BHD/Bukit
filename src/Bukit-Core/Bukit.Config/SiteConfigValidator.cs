@@ -77,6 +77,7 @@ internal static class SiteConfigValidator
         }
         else if (!string.IsNullOrWhiteSpace(site.Language) && !IsSafeLanguageTag(site.Language.Trim()))
         {
+            // YAML cannot set site.language any more, but code can still build a SiteConfig with it.
             throw new ConfigException("site.language must use safe alphanumeric subtags separated by hyphens.");
         }
 

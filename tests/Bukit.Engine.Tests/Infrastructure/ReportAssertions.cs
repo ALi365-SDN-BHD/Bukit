@@ -33,7 +33,7 @@ internal static class ReportAssertions
             var error = Record.Exception(check);
             if (error is not null) errors.Add(name + ": " + error);
         }
-        var languages = site.Config.Site.Languages?.ToArray() ?? [];
+        var languages = I18nLanguagePolicy.GetLanguages(site.Config.Site).ToArray();
         var all = OutputSnapshot.Managed(("output", site.Output)).Entries
             .Where(pair => pair.Value.Kind == "file").ToDictionary(pair => pair.Key[7..], pair => pair.Value.Bytes, StringComparer.Ordinal);
         var expectedReports = RootReports.Concat(AuditReports).Select(name => ".bukit/" + name).ToList();

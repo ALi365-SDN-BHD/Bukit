@@ -18,7 +18,7 @@ public sealed class Stage7GoldenTests
         var ended = DateTimeOffset.UtcNow;
         ReportAssertions.Generated(site, result, started, ended);
 
-        var actual = OutputSnapshot.Public(site.Output, site.Config.Site.Languages?.ToArray() ?? []).Entries;
+        var actual = OutputSnapshot.Public(site.Output, I18nLanguagePolicy.GetLanguages(site.Config.Site).ToArray()).Entries;
         Assert.NotEmpty(actual);
         Assert.All(actual.Values, entry => Assert.Equal("file", entry.Kind));
         var platform = OperatingSystem.IsWindows() ? "windows"

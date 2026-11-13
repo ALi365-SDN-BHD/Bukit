@@ -34,14 +34,14 @@ public sealed class ConfigLoaderTests : IDisposable
     }
 
     [Theory]
-    [InlineData("  languages: [en]\n", "en")]
-    [InlineData("  languages: [en]\n  language: zh-CN\n", "en")]
-    [InlineData("  languages: [en, fr]\n", "en")]
-    [InlineData("  languages: [en, fr]\n  defaultLanguage: fr\n", "fr")]
-    [InlineData("  languages: [en, fr]\n  defaultLanguage: FR\n", "fr")]
-    [InlineData("  language: ja\n", "ja")]
-    [InlineData("", "zh-CN")]
-    public void Load_SiteLanguage_IsTheDefaultLanguageOfSiteLanguages(string languageYaml, string expected)
+    [InlineData("  languages: [en]\n", "en", new[] { "en" })]
+    [InlineData("  languages: [en]\n  defaultLanguage: en\n", "en", new[] { "en" })]
+    [InlineData("  languages: [en, fr]\n", "en", new[] { "en", "fr" })]
+    [InlineData("  languages: [en, fr]\n  defaultLanguage: fr\n", "fr", new[] { "en", "fr" })]
+    [InlineData("  languages: [en, fr]\n  defaultLanguage: FR\n", "fr", new[] { "en", "fr" })]
+    [InlineData("  languages: []\n", "zh-CN", new[] { "zh-CN" })]
+    [InlineData("", "zh-CN", new[] { "zh-CN" })]
+    public void Load_SiteLanguage_IsTheDefaultLanguageOfSiteLanguages(string languageYaml, string expected, string[] expectedLanguages)
     {
         var yaml = "site:\n  name: myblog\n  title: My Blog\n" + languageYaml +
                    "content:\n  sources:\n    - type: markdown\n      markdown:\n        dir: content\n";
@@ -49,6 +49,36 @@ public sealed class ConfigLoaderTests : IDisposable
         var config = ConfigLoader.Load(WriteTempYaml(yaml));
 
         Assert.Equal(expected, config.Site.Language);
+        Assert.Equal(expectedLanguages, config.Site.Languages);
+    }
+
+    [Theory]
+    [InlineData("  languages: [\"\"]\n", "site.languages must contain at least one language.")]
+    [InlineData("  languages: [\" \", \"\"]\n", "site.languages must contain at least one language.")]
+    public void Load_InvalidSiteLanguages_Fails(string languageYaml, string expectedMessage)
+    {
+        // A list whose entries are all blank is an error, not the [zh-CN] default.
+        var yaml = "site:\n  name: myblog\n  title: My Blog\n" + languageYaml +
+                   "content:\n  sources:\n    - type: markdown\n      markdown:\n        dir: content\n";
+
+        var error = Assert.Throws<ConfigException>(() => ConfigLoader.Load(WriteTempYaml(yaml)));
+
+        Assert.Equal(expectedMessage, error.Message);
+    }
+
+    [Theory]
+    [InlineData("  language: ja\n")]
+    [InlineData("  languages: [en]\n  language: zh-CN\n")]
+    public void Load_SiteLanguage_IsRemovedAndNamesTheReplacement(string languageYaml)
+    {
+        var yaml = "site:\n  name: myblog\n  title: My Blog\n" + languageYaml +
+                   "content:\n  sources:\n    - type: markdown\n      markdown:\n        dir: content\n";
+
+        var error = Assert.Throws<ConfigException>(() => ConfigLoader.Load(WriteTempYaml(yaml)));
+
+        Assert.Equal(DiagnosticCode.ConfigInvalidValue, error.Code);
+        Assert.Contains("site.language was removed", error.Message, StringComparison.Ordinal);
+        Assert.Contains("languages: [<code>]", error.Message, StringComparison.Ordinal);
     }
 
     [Fact]

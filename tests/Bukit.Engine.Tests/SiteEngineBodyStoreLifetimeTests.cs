@@ -109,7 +109,7 @@ public sealed class SiteEngineBodyStoreLifetimeTests
                 Name = "body-store-lifetime",
                 Title = "Body Store Lifetime",
                 Url = "https://example.com",
-                Language = "en",
+                Languages = ["en"],
                 Collections = new Dictionary<string, CollectionConfig>(StringComparer.OrdinalIgnoreCase)
                 {
                     ["post"] = new()

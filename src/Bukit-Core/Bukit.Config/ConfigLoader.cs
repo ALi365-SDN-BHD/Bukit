@@ -53,6 +53,13 @@ public static class ConfigLoader
         var loggingNode = ConfigYamlHelpers.GetOptionalMapping(root, "logging");
 
         var collections = ConfigCollectionReader.ReadCollections(siteNode);
+        // A languages list with entries that are all blank is an error, not the [zh-CN] default.
+        if (ConfigYamlHelpers.GetOptionalSequence(siteNode, "languages") is { Children.Count: > 0 } &&
+            ConfigYamlHelpers.ReadStringList(siteNode, "languages") is null)
+        {
+            throw new ConfigException("site.languages must contain at least one language.", DiagnosticCode.ConfigInvalidValue);
+        }
+
         var site = new SiteConfig
         {
             Name = ConfigYamlHelpers.GetRequiredString(siteNode, "name"),
@@ -65,8 +72,10 @@ public static class ConfigLoader
             AutoSummaryMaxLength = ConfigYamlHelpers.GetOptionalInt(siteNode, "autoSummaryMaxLength") ?? 200,
             BaseUrl = ConfigYamlHelpers.GetOptionalString(siteNode, "baseUrl") ?? "/",
             OutputPathEncoding = ConfigYamlHelpers.GetOptionalString(siteNode, "outputPathEncoding") ?? "none",
-            Language = ConfigYamlHelpers.GetOptionalString(siteNode, "language") ?? "zh-CN",
-            Languages = ConfigYamlHelpers.ReadStringList(siteNode, "languages"),
+            // site.languages is the only language setting; missing or empty means [zh-CN].
+            Languages = ConfigYamlHelpers.ReadStringList(siteNode, "languages") is { Count: > 0 } languages
+                ? languages
+                : [SiteConfig.DefaultSiteLanguage],
             DefaultLanguage = ConfigYamlHelpers.GetOptionalString(siteNode, "defaultLanguage"),
             DefaultLanguageInSubdir = ConfigYamlHelpers.GetOptionalBool(siteNode, "defaultLanguageInSubdir") ?? true,
             DefaultLanguageRedirect = ConfigYamlHelpers.GetOptionalBool(siteNode, "defaultLanguageRedirect") ?? true,

@@ -292,16 +292,16 @@ public sealed class I18nOutputMergerTests
     }
 
     [Fact]
-    public void WarnDocumentLanguageIssues_WarnsWhenDefaultLanguageHasNoLanguages()
+    public void WarnDocumentLanguageIssues_SingleLanguageWithDefaultLanguage_DoesNotWarn()
     {
-        var site = new SiteConfig { Name = "t", Title = "t", Language = "zh-CN", DefaultLanguage = "en" };
+        // site.languages always has a value now, and validation keeps defaultLanguage in it.
+        var site = new SiteConfig { Name = "t", Title = "t", Language = "en", Languages = ["en"], DefaultLanguage = "en" };
         var logger = new ListLogger();
 
         I18nLanguagePolicy.WarnDocumentLanguageIssues([], site, logger);
 
-        Assert.Contains(logger.Warnings, message =>
-            message.Contains("i18n.config.default_language_ignored", StringComparison.Ordinal) &&
-            message.Contains("defaultLanguage=en", StringComparison.Ordinal));
+        Assert.DoesNotContain(logger.Warnings, message =>
+            message.Contains("i18n.config.default_language_ignored", StringComparison.Ordinal));
     }
 
     [Fact]

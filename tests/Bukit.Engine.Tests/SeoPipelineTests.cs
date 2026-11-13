@@ -40,7 +40,7 @@ public sealed class SeoPipelineTests
             {
                 Name = "test",
                 Title = "Test",
-                Language = "en",
+                Languages = ["en"],
                 Seo = new SeoConfig { Enabled = true, RenderMode = "inject" }
             },
             Content = TestContent.Markdown()

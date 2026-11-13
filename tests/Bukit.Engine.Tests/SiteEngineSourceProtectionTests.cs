@@ -224,7 +224,7 @@ public sealed class SiteEngineSourceProtectionTests : IDisposable
                 Name = "composite",
                 Title = "Composite",
                 BaseUrl = "/",
-                Language = "en",
+                Languages = ["en"],
                 Seo = new SeoConfig { Enabled = false },
                 Collections = new Dictionary<string, CollectionConfig>(StringComparer.OrdinalIgnoreCase)
                 {
@@ -263,7 +263,7 @@ public sealed class SiteEngineSourceProtectionTests : IDisposable
                 Name = "multi",
                 Title = "Multi",
                 BaseUrl = "/",
-                Language = "en",
+                Languages = ["en"],
                 Seo = new SeoConfig { Enabled = false },
                 Collections = new Dictionary<string, CollectionConfig>(StringComparer.OrdinalIgnoreCase)
                 {

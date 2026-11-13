@@ -1,7 +1,7 @@
 site:
   name: route-sec-test
   title: Route Security Test
-  language: en
+  languages: [en]
   collections:
     page:
       permalink: /{slug}/

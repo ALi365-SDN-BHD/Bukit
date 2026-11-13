@@ -52,7 +52,7 @@ public sealed class SchemaFailModeTests : IDisposable
             site:
               name: test-site
               title: Test
-              language: en
+              languages: [en]
               baseUrl: /
               collections:
                 posts:
@@ -85,7 +85,7 @@ public sealed class SchemaFailModeTests : IDisposable
             site:
               name: test-site
               title: Test
-              language: en
+              languages: [en]
               baseUrl: /
               collections:
                 posts:
@@ -163,7 +163,7 @@ public sealed class SchemaFailModeTests : IDisposable
             {
                 Name = "test",
                 Title = "Test",
-                Language = "en",
+                Languages = ["en"],
                 BaseUrl = "/",
                 Collections = new Dictionary<string, CollectionConfig>(StringComparer.OrdinalIgnoreCase)
                 {

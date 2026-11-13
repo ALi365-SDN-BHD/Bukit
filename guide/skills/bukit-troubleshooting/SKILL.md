@@ -44,7 +44,7 @@ the command; error objects are multi-line JSON, see `bukit-cli-reference`). Read
 | `No route rule matches content document` | No collection rule or type permalink (or a typo in `collection`) | Add `site.collections.<c>` or `site.permalinks.<type>` (`bukit-routing`). |
 | `Route conflict on url\|outputPath` (`RouteConflict`) | Two routes share a URL or file | Change slug/permalink; check `url: /`, aliases, taxonomy prefixes. |
 | `No theme template matches kind='taxonomy_index'` / `Taxonomy template not found` | Front matter `tags`/`categories` auto-creates taxonomy pages | Add taxonomy templates or set `taxonomy.outputMode: data` (`bukit-routing`). |
-| Pages missing from output | `site.language` default `zh-CN` filters other languages; `draft: true`; Notion `Published` filter | Set `site.language`; use `--draft`; adjust `filterType`. |
+| Pages missing from output | `site.languages` default `[zh-CN]` filters other languages; `draft: true`; Notion `Published` filter | Set `languages: [<code>]`; use `--draft`; adjust `filterType`. |
 | `content/index.md` shows at `/index/` | Home `/` is always the home list | Put home content in the home template or data. |
 | HTML in Markdown shows as text | Raw HTML is escaped | Move HTML to templates or shortcodes. |
 | Posts unordered / dates 1970 | Only `publishAt` is the date | Rename `date:` to `publishAt:`. |

@@ -111,7 +111,7 @@ public sealed class LlmsProjectionIntegrationTests
               title: Llms Curation
               url: https://example.com
               baseUrl: /
-              language: en
+              languages: [en]
               collections:
                 post:
                   permalink: /blog/{slug}/
@@ -289,7 +289,7 @@ public sealed class LlmsProjectionIntegrationTests
                   title: Llms Projection
                   url: https://example.com
                   baseUrl: /
-                  language: en
+                  languages: [en]
                   collections:
                     post:
                       permalink: /blog/{slug}/
@@ -422,7 +422,7 @@ public sealed class LlmsProjectionIntegrationTests
                   title: Representation Urls
                   url: https://example.com
                   baseUrl: /repo/
-                  language: en
+                  languages: [en]
                   collections:
                     post:
                       permalink: /blog/{slug}/

@@ -326,7 +326,7 @@ public sealed class BreadcrumbDescriptorResolverTests
                 Name = "site",
                 Title = "站点",
                 Url = "https://example.com",
-                Language = "zh-CN"
+                Languages = ["zh-CN"]
             },
             Content = TestContent.Markdown()
         };

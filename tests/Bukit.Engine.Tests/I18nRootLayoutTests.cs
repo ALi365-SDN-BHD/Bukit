@@ -1354,7 +1354,7 @@ public sealed class I18nRootLayoutTests
         var site = new SiteBuilder("taxonomy-site");
         var path = site.Sandbox.PathFor("site.yaml");
         File.WriteAllText(path, File.ReadAllText(path)
-            .Replace("  language: en\n", "  language: en\n  languages:\n    - en\n    - zh-CN\n  defaultLanguage: en\n  defaultLanguageInSubdir: false\n", StringComparison.Ordinal));
+            .Replace("  languages: [en]\n", "  languages:\n    - en\n    - zh-CN\n  defaultLanguage: en\n  defaultLanguageInSubdir: false\n", StringComparison.Ordinal));
         return site;
     }
 

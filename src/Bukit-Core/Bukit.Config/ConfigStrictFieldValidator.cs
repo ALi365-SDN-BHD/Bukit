@@ -9,7 +9,7 @@ internal static class ConfigStrictFieldValidator
     private static readonly HashSet<string> RootKeys = Set("site", "content", "build", "theme", "taxonomy", "logging", "deploy");
     private static readonly HashSet<string> SiteKeys = Set(
         "name", "title", "url", "description", "seo", "analytics", "autoSummary", "autoSummaryMaxLength",
-        "baseUrl", "outputPathEncoding", "language", "languages", "defaultLanguage",
+        "baseUrl", "outputPathEncoding", "languages", "defaultLanguage",
         "defaultLanguageInSubdir", "defaultLanguageRedirect", "defaultLanguageLegacyRedirects", "sitemapMode",
         "searchIncludeDerived", "pluginFailMode", "deriveConflictPolicy",
         "timezone", "permalinks", "collections", "plugins", "feed",
@@ -43,6 +43,13 @@ internal static class ConfigStrictFieldValidator
 
     private static void ValidateSite(YamlMappingNode site)
     {
+        if (site.Children.ContainsKey(new YamlScalarNode("language")))
+        {
+            throw new ConfigException(
+                "site.language was removed; write languages: [<code>] instead, for example languages: [en].",
+                DiagnosticCode.ConfigInvalidValue);
+        }
+
         RequireOnly(site, SiteKeys, "site");
         if (Map(site, "collections") is { } collections)
         {

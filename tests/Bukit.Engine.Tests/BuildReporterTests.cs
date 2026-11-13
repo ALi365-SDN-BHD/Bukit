@@ -969,7 +969,7 @@ public sealed class BuildReporterTests
                 Name = "bukit",
                 Title = "Bukit",
                 BaseUrl = "/",
-                Language = "zh-CN"
+                Languages = ["zh-CN"]
             },
             Content = TestContent.Markdown(),
             Build = new BuildConfig

@@ -21,7 +21,7 @@ public sealed class ConfigApplierTests
             Title = "Test",
             BaseUrl = "/",
             OutputPathEncoding = "none",
-            Language = "en",
+            Languages = ["en"],
             Timezone = "Asia/Shanghai",
             SitemapMode = "split",
             Feed = new FeedConfig { Mode = "split" },

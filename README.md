@@ -96,7 +96,7 @@ site:
   title: My Site
   url: https://example.com
   baseUrl: /
-  language: en
+  languages: [en]
   collections:
     page:
       permalink: /{slug}/

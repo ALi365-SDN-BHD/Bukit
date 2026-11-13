@@ -45,8 +45,7 @@ content:
 | `site.url` | none | Absolute site URL for canonical URLs, feeds, sitemap, robots, and deploy output. |
 | `site.description` | none | Default description used by templates and SEO models. |
 | `site.baseUrl` | `/` | Base path for generated URLs. CLI `--base-url` can override it. |
-| `site.language` | `zh-CN` | Single-language default. Letters and digits in hyphen-separated subtags, such as `en` or `zh-CN` (not `en_US`). |
-| `site.languages` | none | Enables language variants when set. Same code format as `site.language`. Each language then builds with its own code, so `site.language` no longer affects pages, routes, search, feeds or audits (it is still recorded in `metrics.json`). |
+| `site.languages` | `[zh-CN]` | The only language setting (the old `language` key was removed). Letters and digits in hyphen-separated subtags, such as `en` or `zh-CN` (not `en_US`). One entry builds a single-language site at the output root; two or more build language variants, each with its own code. Templates read the current language as `{{ site.language }}`. |
 | `site.defaultLanguage` | none | Language considered the root/default variant. |
 | `site.defaultLanguageInSubdir` | `true` | When `false`, the default language builds into the output root; other languages keep their code directories. |
 | `site.defaultLanguageRedirect` | `true` | Writes a noindex home redirect page so `/` does not 404 on static hosting. |
@@ -563,7 +562,7 @@ with `--clean` after replacing images.
 | `taxonomy.kinds[].hierarchical` | `false` | Builds hierarchy from slash-like terms. |
 | `taxonomy.kinds[].routePrefix` | none | Absolute route prefix. |
 
-Taxonomy metadata defaults follow `site.language`: languages beginning with
+Taxonomy metadata defaults follow the site language (`{{ site.language }}`): languages beginning with
 `zh` use Chinese titles, punctuation, counts, and pagination ranges; other
 languages fall back to English. Override priority is
 `content.routeMetadata` SEO fields, route metadata visible fields, term

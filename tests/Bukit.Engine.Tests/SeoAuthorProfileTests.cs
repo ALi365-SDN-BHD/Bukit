@@ -388,7 +388,7 @@ public sealed class SeoAuthorProfileTests
                 Name = "Example",
                 Title = "Example",
                 Url = "https://example.com",
-                Language = "zh-CN",
+                Languages = ["zh-CN"],
                 Seo = new SeoConfig
                 {
                     Enabled = true,

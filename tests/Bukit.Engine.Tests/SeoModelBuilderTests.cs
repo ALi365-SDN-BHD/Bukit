@@ -21,7 +21,7 @@ public sealed class SeoModelBuilderTests
                 Name = siteTitle,
                 Title = siteTitle,
                 Url = siteUrl,
-                Language = "zh-CN",
+                Languages = ["zh-CN"],
                 Seo = new SeoConfig
                 {
                     Enabled = true,

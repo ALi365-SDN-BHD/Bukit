@@ -556,4 +556,16 @@ public sealed class ConfigJsonSchemaGeneratorTests
         Assert.Equal("boolean", site.GetProperty("defaultLanguageLegacyRedirects").GetProperty("type").GetString());
         Assert.False(site.GetProperty("defaultLanguageLegacyRedirects").GetProperty("default").GetBoolean());
     }
+
+    [Fact]
+    public void Generate_SiteLanguages_IsTheOnlyLanguageFieldAndDefaultsToZhCn()
+    {
+        using var doc = JsonDocument.Parse(ConfigJsonSchemaGenerator.Generate());
+        var site = doc.RootElement.GetProperty("properties").GetProperty("site").GetProperty("properties");
+
+        Assert.False(site.TryGetProperty("language", out _));
+        var languages = site.GetProperty("languages");
+        Assert.Equal("array", languages.GetProperty("type").GetString());
+        Assert.Equal(["zh-CN"], languages.GetProperty("default").EnumerateArray().Select(item => item.GetString()));
+    }
 }

@@ -47,6 +47,17 @@ public sealed class StrictYamlContractTests : IDisposable
         """;
 
     [Fact]
+    public void Load_SiteLanguage_ShouldFailAndNameTheReplacement()
+    {
+        var path = WriteTempYaml(MinimalSite + "\n  language: en\n" + MinimalContent);
+
+        var error = Assert.Throws<ConfigException>(() => ConfigLoader.Load(path));
+
+        Assert.Equal(DiagnosticCode.ConfigInvalidValue, error.Code);
+        Assert.Equal("site.language was removed; write languages: [<code>] instead, for example languages: [en].", error.Message);
+    }
+
+    [Fact]
     public void Load_DuplicateKeyInRoot_ShouldFailWithConfigYamlSyntaxError_WhenYamlDeclaresKeyTwice()
     {
         var path = WriteTempYaml("""

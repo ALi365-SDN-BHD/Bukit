@@ -86,12 +86,6 @@ internal static class I18nLanguagePolicy
         ILogger logger)
     {
         var languages = GetLanguages(site);
-        if (languages.Count == 0 && !string.IsNullOrWhiteSpace(site.DefaultLanguage))
-        {
-            logger.Warn(
-                $"event=i18n.config.default_language_ignored defaultLanguage={site.DefaultLanguage.Trim()} language={site.Language}");
-        }
-
         var configured = languages.Count > 0
             ? languages
             : [site.Language.Trim()];

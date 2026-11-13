@@ -51,7 +51,8 @@
         "tests/Bukit.Importing.Tests/HtmlDemoImporterTests.cs",
         "guide/user/02-core-concepts.md",
         "guide/labs/import-html-demo.md",
-        "docs/demo_to_bukit_workflow.md"
+        "docs/demo_to_bukit_workflow.md",
+        "tests/Bukit.Engine.Tests/Fixtures/SrbizTask4/provenance.json"
       ],
       "specialtyTests": [
         "dotnet test tests/Bukit.Engine.Tests/Bukit.Engine.Tests.csproj -c Release --filter \"FullyQualifiedName~SingleLanguage|FullyQualifiedName~I18nLanguagePolicy|FullyQualifiedName~Stage7|FullyQualifiedName~ReportSchemaContract|FullyQualifiedName~SignedLinkDiagnostics|FullyQualifiedName~TestInfrastructure|FullyQualifiedName~SiteEngineIntegration|FullyQualifiedName~I18n|FullyQualifiedName~SearchIndex\"",

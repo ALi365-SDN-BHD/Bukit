@@ -1,7 +1,7 @@
 site:
   name: output-safety-test
   title: Output Safety
-  language: en
+  languages: [en]
   collections:
     page:
       permalink: /{slug}/

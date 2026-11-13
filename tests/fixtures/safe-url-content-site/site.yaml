@@ -1,7 +1,7 @@
 site:
   name: safe-url-test
   title: Safe URL Test
-  language: en
+  languages: [en]
   collections:
     page:
       permalink: /{slug}/

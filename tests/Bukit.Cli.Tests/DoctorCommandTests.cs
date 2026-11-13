@@ -807,7 +807,6 @@ public sealed class DoctorCommandTests : IDisposable
             site:
               name: test
               title: Test
-              language: en
               languages: [en, zh]
               defaultLanguage: en
               collections:
