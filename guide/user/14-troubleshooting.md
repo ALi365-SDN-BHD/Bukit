@@ -53,10 +53,11 @@ Rename one destination; changing build parallelism does not resolve ownership.
 
 ### `BuildGeneratedOutputReplacesPage`
 
-A feed, search, llms, sitemap, or tracked plugin file would be written onto a
-generated page such as a taxonomy, list, or legacy-redirect page. (A collision
-with a content page reports `BuildAssetOutputCollision`.) Move the feed or
-plugin path, or the page route, so each destination has one owner.
+A tracked plugin file or projection would be written onto a page that the
+asset plan does not cover. This is a safety net: built-in features do not
+normally reach it, and a feed or plugin path that collides with a content page
+reports `BuildAssetOutputCollision` first. Move the generated path or the page
+route so each destination has one owner.
 
 ### Clean Refuses A Directory
 

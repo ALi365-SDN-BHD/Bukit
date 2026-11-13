@@ -13,7 +13,8 @@ internal static class PublicOutputLifecycle
     /// <summary>
     /// Whether a language variant leaves an aggregate kind to the root writers: the root
     /// language's root-owned files, and feeds or sitemaps a multilingual site merges at the root.
-    /// <see cref="ProjectionPlan"/> and the variant aggregate projections both use this rule.
+    /// <see cref="ProjectionPlan"/>, the variant aggregate projections, and the sitemap and feed
+    /// plugins all use this rule, so what a variant plans, reports and writes cannot drift.
     /// </summary>
     internal static bool IsRootOwnedAggregate(AppConfig config, string kind, string? language)
     {
