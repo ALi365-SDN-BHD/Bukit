@@ -27,7 +27,7 @@ site:
   url: https://example.com      # required for sitemaps, feeds, hreflang
   languages: [en, zh-CN]        # codes like en, zh-CN; zh_CN is rejected
   defaultLanguage: en           # must be in languages; default first entry
-  defaultLanguageInSubdir: true # false puts the default language at the output root
+  defaultLanguageInSubdir: false # default; true puts every language under /<lang>/
   defaultLanguageRedirect: true # legacy home redirect page
   defaultLanguageLegacyRedirects: false # true: redirect every old /<default>/... page
   sitemapMode: merged           # split | merged | index
@@ -57,10 +57,11 @@ collection: page
 
 ## Output layout
 
-With `defaultLanguageInSubdir: true` (the default), every language including the
-default builds into `dist/<lang>/` with base `<baseUrl>/<lang>`. With
-`defaultLanguageInSubdir: false` the default language builds into `dist/` with the
-site root base URL, and the other languages keep their codes. In both layouts the
+With `defaultLanguageInSubdir: false` (the default), the default language builds into
+`dist/` with the site root base URL and the other languages keep their codes, so adding
+a second language keeps the default-language URLs. With `true`, every language
+including the default builds into `dist/<lang>/` with base `<baseUrl>/<lang>`; sites
+that relied on the old prefixed default must set it to keep their URLs. In both layouts the
 root holds the aggregate files (sitemap, feeds, search index, `llms.txt`,
 `robots.txt`, `agent-manifest.json`).
 
