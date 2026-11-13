@@ -1,3 +1,4 @@
+using Bukit.Config;
 using System.Text.Json;
 using Bukit.Content;
 using Bukit.Engine.Abstractions.Content;
@@ -9,6 +10,23 @@ namespace Bukit.Engine;
 
 internal static class SearchIndexBuilder
 {
+    private const string UndeterminedLanguage = "und";
+
+    /// <summary>
+    /// Language for search records without their own: the variant language in a multilingual
+    /// build, where an undetermined page belongs to the variant that rendered it, otherwise
+    /// <c>und</c>.
+    /// </summary>
+    internal static string RecordLanguageFallback(AppConfig config)
+        => I18nOutputLayout.For(config.Site).IsMultilingual && !string.IsNullOrWhiteSpace(config.Site.Language)
+            ? config.Site.Language.Trim()
+            : UndeterminedLanguage;
+
+    private static string RecordLanguage(string? language, string fallback)
+        => string.IsNullOrWhiteSpace(language) || string.Equals(language, UndeterminedLanguage, StringComparison.OrdinalIgnoreCase)
+            ? fallback
+            : language;
+
     internal static void GenerateMergedSearchIndex(
         string outputDir,
         IReadOnlyList<BuildVariantResult> results,
@@ -35,12 +53,12 @@ internal static class SearchIndexBuilder
                 {
                     if (!SearchIndexDocuments.IsSearchExcluded(document))
                     {
-                        WriteSearchItem(writer, document, seo.Route, r.BaseUrl, r.BodyStore, r.SearchSnippetsEnabled, maxContentLength);
+                        WriteSearchItem(writer, document, seo.Route, r.BaseUrl, r.BodyStore, r.SearchSnippetsEnabled, maxContentLength, r.Language);
                     }
                 }
                 else if (listRoutesByPath.TryGetValue(BuildPathUtils.NormalizeRelPath(key), out var listRoute))
                 {
-                    WriteListRouteSearchItem(writer, listRoute, r.BaseUrl, r.SeoModels, r.SearchSnippetsEnabled, maxContentLength);
+                    WriteListRouteSearchItem(writer, listRoute, r.BaseUrl, r.SeoModels, r.SearchSnippetsEnabled, maxContentLength, r.Language);
                 }
             }
         }
@@ -60,7 +78,8 @@ internal static class SearchIndexBuilder
         IReadOnlyDictionary<string, SeoIndexEntry> seoIndex,
         IContentBodyStore bodyStore,
         ListRouteGraph? listRouteGraph = null,
-        IReadOnlyDictionary<string, SeoModel>? seoModels = null)
+        IReadOnlyDictionary<string, SeoModel>? seoModels = null,
+        string languageFallback = UndeterminedLanguage)
     {
         var outPath = Path.Combine(outputDir, "search.json");
         Directory.CreateDirectory(outputDir);
@@ -79,14 +98,14 @@ internal static class SearchIndexBuilder
             {
                 if (!SearchIndexDocuments.IsSearchExcluded(document))
                 {
-                    WriteSearchItem(writer, document, seo.Route, baseUrl, bodyStore, emitSnippet, maxContentLength);
+                    WriteSearchItem(writer, document, seo.Route, baseUrl, bodyStore, emitSnippet, maxContentLength, languageFallback);
                 }
                 continue;
             }
 
             if (listRoutesByPath.TryGetValue(BuildPathUtils.NormalizeRelPath(key), out var listRoute))
             {
-                WriteListRouteSearchItem(writer, listRoute, baseUrl, seoModels, emitSnippet, maxContentLength);
+                WriteListRouteSearchItem(writer, listRoute, baseUrl, seoModels, emitSnippet, maxContentLength, languageFallback);
             }
         }
 
@@ -101,7 +120,8 @@ internal static class SearchIndexBuilder
         string baseUrl,
         IContentBodyStore bodyStore,
         bool emitSnippet,
-        int maxContentLength)
+        int maxContentLength,
+        string languageFallback = UndeterminedLanguage)
     {
         var record = document.Record;
         var publicId = PublicContentProjectionPolicy.ResolvePublicId(record, NormalizeSearchUrl(baseUrl, route.Url));
@@ -151,7 +171,7 @@ internal static class SearchIndexBuilder
             writer.WriteEndArray();
         }
 
-        writer.WriteString("language", record.Presentation.Language);
+        writer.WriteString("language", RecordLanguage(record.Presentation.Language, languageFallback));
         writer.WriteString("publishAt", record.Lifecycle.PublishedAt.ToString("O"));
 
         var publicEntities = PublicContentProjectionPolicy.SanitizeEntities(record);
@@ -191,7 +211,8 @@ internal static class SearchIndexBuilder
         string baseUrl,
         IReadOnlyDictionary<string, SeoModel>? seoModels,
         bool emitSnippet,
-        int maxContentLength)
+        int maxContentLength,
+        string languageFallback = UndeterminedLanguage)
     {
         SeoModel? seo = null;
         if (seoModels is not null)
@@ -230,10 +251,7 @@ internal static class SearchIndexBuilder
         var language = route.Items
             .Select(item => item.ContentRecord?.Presentation.Language)
             .FirstOrDefault(value => !string.IsNullOrWhiteSpace(value));
-        if (!string.IsNullOrWhiteSpace(language))
-        {
-            writer.WriteString("language", language);
-        }
+        writer.WriteString("language", RecordLanguage(language, languageFallback));
 
         writer.WriteEndObject();
     }

@@ -80,7 +80,7 @@ internal abstract class AggregatePublishProjectionBase : IPublishProjection
 
     public PublishProjectionResult Project(PublishProjectionContext context)
     {
-        var relativePath = ResolveRelativePath(context);
+        var relativePath = BuildPathUtils.NormalizeRelPath(ResolveRelativePath(context));
         if (PublicOutputLifecycle.IsRootOwnedAggregate(context.Config, Representation.Kind, context.Config.Site.Language))
         {
             return new PublishProjectionResult(
@@ -294,6 +294,9 @@ internal sealed class SearchIndexPublishProjection : AggregatePublishProjectionB
     {
         SearchProjectionWriter.WriteSearchIndex(context);
     }
+
+    protected override string ResolveRelativePath(PublishProjectionContext context)
+        => I18nOutputLayout.VariantSearchRelativePath(context.Config);
 }
 
 internal sealed class LlmsTxtPublishProjection : AggregatePublishProjectionBase

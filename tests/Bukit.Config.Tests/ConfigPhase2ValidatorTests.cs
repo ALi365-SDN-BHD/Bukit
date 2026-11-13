@@ -165,10 +165,10 @@ public sealed class ConfigPhase2ValidatorTests : IDisposable
     }
 
     [Theory]
-    [InlineData("split", false)]
-    [InlineData("index", false)]
-    [InlineData("merged", true)]
-    public void Validate_RootDefaultLanguageWithSearchMode(string searchMode, bool shouldFail)
+    [InlineData("split")]
+    [InlineData("index")]
+    [InlineData("merged")]
+    public void Validate_RootDefaultLanguageAcceptsEverySearchMode(string searchMode)
     {
         var path = WriteConfig($"""
               languages: [en, zh-CN]
@@ -179,14 +179,7 @@ public sealed class ConfigPhase2ValidatorTests : IDisposable
             """);
         var config = ConfigLoader.Load(path);
 
-        if (!shouldFail)
-        {
-            ConfigValidator.Validate(config);
-            return;
-        }
-
-        var ex = Assert.Throws<ConfigException>(() => ConfigValidator.Validate(config));
-        Assert.Contains("site.defaultLanguageInSubdir", ex.Message, StringComparison.Ordinal);
-        Assert.Contains("site.search.mode", ex.Message, StringComparison.Ordinal);
+        ConfigValidator.Validate(config);
+        Assert.Equal(searchMode, config.Site.Search.Mode);
     }
 }

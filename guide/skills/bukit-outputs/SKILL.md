@@ -19,8 +19,8 @@ under `site.seo.diagnostics: strict` that fails the build.
 |---|---|---|
 | Per-page projections | Every routed document | `content/<output path>.json` and `.md` (e.g. `content/about/index.html.json`) |
 | `agent-manifest.json` | Always | root |
-| `search.json` | Always | root (`search.index.json` in i18n index mode) |
-| `bukit-search.html` | Unless `site.search.ui` is `false`/`off` | root |
+| `search.json` | Always | each language's output root; i18n `merged` adds the root merged index (the root-layout default language then uses `<lang>/search.json`), `index` adds `search.index.json` |
+| `bukit-search.html` | Unless `site.search.ui` is `false`/`off` | each language's output root; loads that language's `search.json` |
 | `sitemap.xml` | `site.url` set | root |
 | `robots.txt` | `site.seo.robotsTxt.enabled: true` and `site.url`, no static `robots.txt` | root |
 | `rss.xml` | `site.url` and `rss` in `site.feed.formats` (default `[rss]`) | root `/rss.xml` |

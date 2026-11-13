@@ -31,8 +31,12 @@ site root base URL, while other languages keep `dist/<language>/`. The default
 on static hosting: `dist/index.html` → `/<defaultLanguage>/` in the prefixed layout,
 or `dist/<defaultLanguage>/index.html` → `/` in the root layout. Set
 `defaultLanguageRedirect: false` when the host or CDN already redirects the home
-URL and would otherwise be overridden. With the root layout, `search.mode: merged`
-is rejected; default-language reports move to `.bukit/variants/<language>/`.
+URL and would otherwise be overridden. With the root layout and `search.mode: merged`,
+the merged index stays at `/search.json` and the default language's own index moves
+to `/<defaultLanguage>/search.json`. A theme search page that fetches
+`{{ site.base_url }}/search.json` therefore receives the merged index on
+default-language pages; filter its records by `language`. Default-language
+reports move to `.bukit/variants/<language>/`.
 
 ### Migrating an existing site to the root layout
 
@@ -41,7 +45,9 @@ page from `/<defaultLanguage>/<path>/` to `/<path>/`. Only the old home page get
 redirect by default. If your host can issue 301s (Netlify, Cloudflare Pages, S3/CDN
 rules), add a `/<defaultLanguage>/*` → `/*` rule there: a 301 is a stronger migration
 signal than a page redirect. Do not enable the option below in that case, because the
-generated files can shadow host rules that are not forced.
+generated files can shadow host rules that are not forced. With `search.mode: merged`,
+exclude `/<defaultLanguage>/search.json` from a forced rule, or the default-language
+search fragment loads the merged index instead of its own.
 
 On static hosts that cannot redirect, such as GitHub Pages, set
 `defaultLanguageLegacyRedirects: true`. Bukit then writes a noindex meta-refresh page at
@@ -272,6 +278,7 @@ redirect only covers the old home page. Before deploying:
 - Add host redirects from `/<language>/*` to `/*` (for example a Netlify
   `_redirects` rule or a Cloudflare Pages redirect rule). GitHub Pages cannot issue
   a server 301; keep the redirect page or write aliases for important old URLs.
+  With `search.mode: merged`, keep `/<language>/search.json` out of a forced rule.
 - Remove any existing `/` → `/<language>/` redirect rule, which would now override
   the new home page, then purge the CDN cache.
 - Rebuild the `seo diff` baseline and resubmit sitemaps in Search Console. In
