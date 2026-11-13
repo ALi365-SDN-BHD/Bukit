@@ -10,6 +10,24 @@ internal static class PublicOutputLifecycle
     internal static string ManifestPath(string rootDir, ConfigOverrides overrides)
         => Path.Combine(string.IsNullOrWhiteSpace(overrides.CacheDir) ? Path.Combine(rootDir, ".cache") : Path.GetFullPath(overrides.CacheDir), "build-manifest.json");
 
+    /// <summary>
+    /// Whether a language variant leaves an aggregate kind to the root writers: the root
+    /// language's root-owned files, and feeds or sitemaps a multilingual site merges at the root.
+    /// <see cref="ProjectionPlan"/>, the variant aggregate projections, and the sitemap and feed
+    /// plugins all use this rule, so what a variant plans, reports and writes cannot drift.
+    /// </summary>
+    internal static bool IsRootOwnedAggregate(AppConfig config, string kind, string? language)
+    {
+        var layout = I18nOutputLayout.For(config.Site);
+        return kind.ToLowerInvariant() switch
+        {
+            "agent-manifest" or "robots" or "llms" or "llms-full" => language is not null && layout.IsRootLanguage(language),
+            "feed" or "atom" or "jsonfeed" => layout.IsMultilingual && SiteModeResolver.ResolveFeedMode(config.Site) == "merged",
+            "sitemap" => layout.IsMultilingual && (config.Site.SitemapMode ?? "split").Trim().Equals("merged", StringComparison.OrdinalIgnoreCase),
+            _ => false
+        };
+    }
+
     internal static IReadOnlyList<AssetOutputItem> ProjectionPlan(
         AppConfig config,
         IEnumerable<RouteInfo> routes,
@@ -27,10 +45,11 @@ internal static class PublicOutputLifecycle
         var layout = I18nOutputLayout.For(config.Site);
         var isRootLanguage = language is not null && layout.IsRootLanguage(language);
         var sitemapMode = (config.Site.SitemapMode ?? "split").Trim().ToLowerInvariant();
-        var feedMode = SiteModeResolver.ResolveFeedMode(config.Site);
         var searchMode = SiteModeResolver.ResolveSearchMode(config.Site);
 
-        if (!isRootLanguage)
+        bool VariantOwns(string kind) => !IsRootOwnedAggregate(config, kind, language);
+
+        if (VariantOwns("agent-manifest"))
         {
             Add("agent-manifest.json", "agent-manifest");
         }
@@ -44,21 +63,21 @@ internal static class PublicOutputLifecycle
 
         if (!string.IsNullOrWhiteSpace(config.Site.Url))
         {
-            var sitemapPath = SitemapPlanPath(root, isRootLanguage, sitemapMode, language is null ? null : layout.SitemapRelativePath(language));
+            var sitemapPath = SitemapPlanPath(config, root, language, sitemapMode, layout);
             if (sitemapPath is not null) Add(sitemapPath, "sitemap");
 
-            if (!isRootLanguage && config.Site.Seo.RobotsTxt.Enabled) Add("robots.txt", "robots");
+            if (VariantOwns("robots") && config.Site.Seo.RobotsTxt.Enabled) Add("robots.txt", "robots");
 
-            if (root ? feedMode == "merged" : feedMode == "split")
+            if (root ? SiteModeResolver.ResolveFeedMode(config.Site) == "merged" : VariantOwns("feed"))
             {
                 AddFeedOutputs(config, root, Add);
             }
         }
 
-        if (!isRootLanguage && config.Site.Seo.Geo.Enabled)
+        if (config.Site.Seo.Geo.Enabled)
         {
-            if (config.Site.Seo.Geo.LlmsTxt) Add("llms.txt", "llms");
-            if (config.Site.Seo.Geo.LlmsFullTxt) Add("llms-full.txt", "llms-full");
+            if (VariantOwns("llms") && config.Site.Seo.Geo.LlmsTxt) Add("llms.txt", "llms");
+            if (VariantOwns("llms-full") && config.Site.Seo.Geo.LlmsFullTxt) Add("llms-full.txt", "llms-full");
         }
 
         return items;
@@ -71,15 +90,11 @@ internal static class PublicOutputLifecycle
         return searchMode == "index" ? "search.index.json" : null;
     }
 
-    private static string? SitemapPlanPath(bool root, bool isRootLanguage, string sitemapMode, string? languageSitemapPath)
+    private static string? SitemapPlanPath(AppConfig config, bool root, string? language, string sitemapMode, I18nOutputLayout layout)
     {
         if (root) return sitemapMode is "merged" or "index" ? "sitemap.xml" : null;
-        if (isRootLanguage)
-        {
-            return sitemapMode is "split" or "index" ? languageSitemapPath : null;
-        }
-
-        return sitemapMode != "merged" ? "sitemap.xml" : null;
+        if (IsRootOwnedAggregate(config, "sitemap", language)) return null;
+        return language is null ? "sitemap.xml" : layout.SitemapRelativePath(language);
     }
 
     private static void AddFeedOutputs(AppConfig config, bool root, Action<string, string> add)

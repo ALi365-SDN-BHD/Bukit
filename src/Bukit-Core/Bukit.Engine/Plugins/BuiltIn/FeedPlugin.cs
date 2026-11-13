@@ -30,10 +30,8 @@ internal sealed class FeedPlugin : IBukitPlugin, IAfterBuildPlugin
         var limit = feedConfig.Limit > 0 ? feedConfig.Limit : 20;
         var collections = _config.Site.Collections;
 
-        var isMergedMode = _config.Site.Languages is { Count: > 0 }
-            && SiteModeResolver.ResolveFeedMode(_config.Site) == "merged";
-
-        if (isMergedMode)
+        // Merged multilingual feeds are written once at the root, by the same rule ProjectionPlan uses.
+        if (PublicOutputLifecycle.IsRootOwnedAggregate(_config, "feed", _config.Site.Language))
         {
             return;
         }

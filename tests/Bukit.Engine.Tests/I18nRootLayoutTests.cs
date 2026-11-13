@@ -126,6 +126,32 @@ public sealed class I18nRootLayoutTests
         Assert.DoesNotContain("en/index.html", BuildTransaction.GeneratedOutputLinkPaths(disabled).Select(BuildPathUtils.NormalizeRelPath));
     }
 
+    [Theory]
+    [InlineData("split", new[] { "https://example.test/repo/sitemap.xml", "https://example.test/repo/zh-CN/sitemap.xml" })]
+    [InlineData("index", new[] { "https://example.test/repo/sitemap.xml", "https://example.test/repo/en/sitemap.xml" })]
+    public async Task RootLayout_ProjectSiteRobotsAdvertisesTheWrittenSitemaps(string mode, string[] expected)
+    {
+        using var site = RootSite();
+        var robotsConfig = WithRobots(site.Config);
+        var config = robotsConfig with { Site = robotsConfig.Site with { BaseUrl = "/repo", SitemapMode = mode } };
+
+        await new SiteEngine(new ConsoleLogger(LogLevel.Error)).BuildAsync(config, site.Root,
+            new ConfigOverrides { Incremental = false });
+
+        var sitemapLines = File.ReadAllLines(Path.Combine(site.Output, "robots.txt"))
+            .Where(line => line.StartsWith("Sitemap: ", StringComparison.Ordinal))
+            .Select(line => line["Sitemap: ".Length..])
+            .ToArray();
+        Assert.Equal(expected, sitemapLines);
+        if (mode == "index")
+        {
+            var index = File.ReadAllText(Path.Combine(site.Output, "sitemap.xml"));
+            Assert.Contains("<loc>https://example.test/repo/en/sitemap.xml</loc>", index, StringComparison.Ordinal);
+            Assert.Contains("<loc>https://example.test/repo/zh-CN/sitemap.xml</loc>", index, StringComparison.Ordinal);
+            Assert.True(File.Exists(Path.Combine(site.Output, "en", "sitemap.xml")));
+        }
+    }
+
     [Fact]
     public async Task RootLayout_MetricsReportsRootOutputDirForDefaultLanguage()
     {
@@ -378,6 +404,18 @@ public sealed class I18nRootLayoutTests
         Assert.Contains("LLMS.TXT", ex.Message, StringComparison.Ordinal);
     }
 
+    [Theory]
+    [InlineData("robots")]
+    [InlineData("Robots")]
+    [InlineData("AGENT-MANIFEST")]
+    public void RootOwnedAggregate_MatchesKindIgnoringCase(string kind)
+    {
+        using var site = RootSite();
+
+        Assert.True(PublicOutputLifecycle.IsRootOwnedAggregate(site.Config, kind, "en"));
+        Assert.False(PublicOutputLifecycle.IsRootOwnedAggregate(site.Config, kind, "zh-CN"));
+    }
+
     [Fact]
     public void GeneratedOutputs_MayNotReplaceAPage()
     {
@@ -385,19 +423,75 @@ public sealed class I18nRootLayoutTests
         AssetOutputItem Generated(string source, string path, AssetOutputCategory category)
             => new(source, path, category, Operation: AssetOutputOperation.Generate);
 
-        var plugin = Assert.Throws<BukitException>(() => VariantBuildPipeline.ValidateGeneratedOutputsDoNotReplacePages(
+        var plugin = Assert.Throws<InvalidOperationException>(() => VariantBuildPipeline.ValidateGeneratedOutputsDoNotReplacePages(
             pages, [Generated("taxonomy", "EN/index.html", AssetOutputCategory.Plugin)], StringComparer.OrdinalIgnoreCase));
-        var projection = Assert.Throws<BukitException>(() => VariantBuildPipeline.ValidateGeneratedOutputsDoNotReplacePages(
+        var projection = Assert.Throws<InvalidOperationException>(() => VariantBuildPipeline.ValidateGeneratedOutputsDoNotReplacePages(
             pages, [Generated("feed", "about/index.html", AssetOutputCategory.Projection)], StringComparer.OrdinalIgnoreCase));
         VariantBuildPipeline.ValidateGeneratedOutputsDoNotReplacePages(
             pages,
             [Generated("taxonomy", "taxonomy.json", AssetOutputCategory.Plugin), Generated("theme", "about/index.html", AssetOutputCategory.Static)],
             StringComparer.OrdinalIgnoreCase);
 
-        Assert.Equal(DiagnosticCode.BuildAssetOutputCollision, plugin.Code);
+        Assert.Contains("Bukit defect", plugin.Message, StringComparison.Ordinal);
         Assert.Contains("'/en/'", plugin.Message, StringComparison.Ordinal);
-        Assert.StartsWith("Projection 'feed'", projection.Message, StringComparison.Ordinal);
+        Assert.StartsWith("Bukit defect: Projection 'feed'", projection.Message, StringComparison.Ordinal);
     }
+
+    [Fact]
+    public async Task CollectionFeedPath_UnderAnotherLanguageFailsTheBuild()
+    {
+        using var site = RootSite();
+        var config = WithPageFeedPath(site.Config, "zh-CN/news");
+
+        var ex = await Assert.ThrowsAsync<BukitException>(() =>
+            new SiteEngine(new ConsoleLogger(LogLevel.Error)).BuildAsync(config, site.Root,
+                new ConfigOverrides { Incremental = false }));
+
+        Assert.Equal(DiagnosticCode.I18nRouteReservedLanguagePrefix, ex.Code);
+        Assert.Contains("zh-CN/news/rss.xml", ex.Message, StringComparison.Ordinal);
+        Assert.False(File.Exists(Path.Combine(site.Output, "zh-CN", "news", "rss.xml")));
+    }
+
+    [Fact]
+    public async Task CollectionFeedPath_OntoARenderedPageFailsTheBuild()
+    {
+        using var site = RootSite();
+        site.Sandbox.Write("content/en/news.md", """
+            ---
+            title: News
+            collection: page
+            language: en
+            route:
+              url: /news.xml
+            ---
+            News page.
+            """);
+        var config = WithPageFeedPath(site.Config, "news.xml");
+
+        var ex = await Assert.ThrowsAsync<BukitException>(() =>
+            new SiteEngine(new ConsoleLogger(LogLevel.Error)).BuildAsync(config, site.Root,
+                new ConfigOverrides { Incremental = false }));
+
+        // The feed is a planned projection and every rendered page (content, derived, list,
+        // static HTML) is a render entry, so the asset plan rejects the collision before any
+        // write; the internal assertion behind it is not reachable through this path.
+        Assert.Equal(DiagnosticCode.BuildAssetOutputCollision, ex.Code);
+        Assert.Contains("news.xml", ex.Message, StringComparison.Ordinal);
+        Assert.False(File.Exists(Path.Combine(site.Output, "news.xml")));
+    }
+
+    private static AppConfig WithPageFeedPath(AppConfig config, string feedPath)
+        => config with
+        {
+            Site = config.Site with
+            {
+                Collections = config.Site.Collections!.ToDictionary(
+                    pair => pair.Key,
+                    pair => pair.Key == "page"
+                        ? pair.Value with { Output = pair.Value.Output with { Rss = true, FeedPath = feedPath } }
+                        : pair.Value)
+            }
+        };
 
     [Fact]
     public void RootLayout_ReportDirectoriesAreExcludedFromPublicInventories()

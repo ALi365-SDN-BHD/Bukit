@@ -95,6 +95,19 @@ internal sealed class I18nOutputLayout
             ? Path.Combine(language.Trim(), "sitemap.xml")
             : "sitemap.xml";
 
+    /// <summary>
+    /// Absolute URL of a language's own sitemap, as robots.txt and the sitemap index advertise it.
+    /// The root language's sitemap sits under the root base URL; any other language's under its
+    /// variant base URL.
+    /// </summary>
+    internal string SitemapUrl(string siteUrl, string language, string variantBaseUrl)
+        => _placementOnly
+            ? throw new InvalidOperationException("A placement layout from For() has no root base URL; use Create with the root base URL.")
+            : SitemapGenerator.BuildAbsoluteUrl(
+                siteUrl,
+                IsRootLanguage(language) ? _rootBaseUrl : variantBaseUrl,
+                "/" + BuildPathUtils.NormalizeRelPath(SitemapRelativePath(language)));
+
     internal string ReportDir(string root, string language)
         => IsRootLanguage(language)
             ? Path.Combine(root, ".bukit", "variants", language)

@@ -32,9 +32,7 @@ internal static partial class MachineReadabilityTrustAuditBuilder
         var robotsText = ReadOptional(paths.Robots);
         var llmsText = ReadOptional(paths.Llms);
         var llmsFullText = ReadOptional(paths.LlmsFull);
-        using var agentManifest = paths.AgentManifest is null
-            ? AgentManifestSnapshot.Disabled()
-            : new AgentManifestSnapshot(paths.AgentManifest);
+        using var agentManifest = new AgentManifestSnapshot(paths.AgentManifest);
 
         var seoIssues = new List<SeoAuditIssue>();
         var publishIssues = new List<PublishAuditIssue>();

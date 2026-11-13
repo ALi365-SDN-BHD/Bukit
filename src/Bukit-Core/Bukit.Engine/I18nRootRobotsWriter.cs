@@ -45,8 +45,7 @@ internal sealed class I18nRootRobotsWriter : II18nRootProjectionWriter
         var mode = context.Config.Site.SitemapMode?.Trim() ?? "split";
         if (string.Equals(mode, "split", StringComparison.OrdinalIgnoreCase))
         {
-            return [.. context.Results.Select(result => SitemapGenerator.BuildAbsoluteUrl(
-                siteUrl, result.BaseUrl, "/sitemap.xml"))];
+            return [.. context.Results.Select(result => layout.SitemapUrl(siteUrl, result.Language, result.BaseUrl))];
         }
 
         // Index mode with a root language: its sitemap moves to <lang>/sitemap.xml and is listed next to the index.
@@ -55,7 +54,7 @@ internal sealed class I18nRootRobotsWriter : II18nRootProjectionWriter
             ?
             [
                 SitemapGenerator.BuildAbsoluteUrl(siteUrl, context.RootBaseUrl, "/sitemap.xml"),
-                SitemapGenerator.BuildAbsoluteUrl(siteUrl, context.RootBaseUrl, "/" + BuildPathUtils.NormalizeRelPath(layout.SitemapRelativePath(rootLanguage)))
+                layout.SitemapUrl(siteUrl, rootLanguage, context.RootBaseUrl)
             ]
             : null;
     }

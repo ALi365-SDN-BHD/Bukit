@@ -21,7 +21,8 @@ internal sealed class SitemapPlugin : IBukitPlugin, IAfterBuildPlugin
 
     public void AfterBuild(BuildContext context)
     {
-        if (_config.Site.Languages is { Count: > 0 } && _config.Site.SitemapMode.Equals("merged", StringComparison.OrdinalIgnoreCase))
+        // A merged multilingual sitemap is written once at the root, by the same rule ProjectionPlan uses.
+        if (PublicOutputLifecycle.IsRootOwnedAggregate(_config, "sitemap", _config.Site.Language))
         {
             return;
         }
