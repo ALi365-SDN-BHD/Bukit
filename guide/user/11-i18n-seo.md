@@ -60,8 +60,9 @@ Keep in mind:
 - Plugin outputs should not use the old `/<defaultLanguage>/` prefix: a plugin file written
   at a redirect's path fails the build.
 - Each redirect is a small file (about 0.5 KB), so the default-language file count roughly
-  doubles. Route counts in `routes.json`, the build report, and `--metrics` grow by the
-  same number, and the redirects appear in `publish-audit-report.json` as non-indexable.
+  doubles. Route counts in `routes.json` and the build report, and the default language's
+  `derived` count in `--metrics`, grow by the same number, and the redirects appear in
+  `publish-audit-report.json` as non-indexable.
 - The option has no effect with the prefixed layout and logs
   `i18n.config.legacy_redirects_ignored`. Turning it off later removes the redirects.
 
