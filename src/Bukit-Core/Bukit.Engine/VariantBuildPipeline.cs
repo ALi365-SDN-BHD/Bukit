@@ -265,7 +265,7 @@ internal sealed partial class VariantBuildPipeline
                 var owner = item.Category == AssetOutputCategory.Plugin ? "Plugin" : "Projection";
                 throw new BukitException(
                     $"{owner} '{item.Source}' output '{path}' replaces the page for route '{url}'.",
-                    DiagnosticCode.BuildAssetOutputCollision);
+                    DiagnosticCode.BuildGeneratedOutputReplacesPage);
             }
         }
     }

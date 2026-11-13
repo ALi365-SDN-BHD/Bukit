@@ -51,6 +51,13 @@ prefix conflict. Check content/list routes, rendered static templates, theme
 On a case-insensitive filesystem, paths that differ only by case also collide.
 Rename one destination; changing build parallelism does not resolve ownership.
 
+### `BuildGeneratedOutputReplacesPage`
+
+A feed, search, llms, sitemap, or tracked plugin file would be written onto a
+generated page such as a taxonomy, list, or legacy-redirect page. (A collision
+with a content page reports `BuildAssetOutputCollision`.) Move the feed or
+plugin path, or the page route, so each destination has one owner.
+
 ### Clean Refuses A Directory
 
 Use a dedicated output directory such as `dist`. The clean operation refuses

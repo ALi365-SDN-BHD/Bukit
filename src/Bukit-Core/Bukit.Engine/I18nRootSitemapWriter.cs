@@ -27,10 +27,7 @@ internal sealed class I18nRootSitemapWriter : II18nRootProjectionWriter
             var languages = I18nOutputMerger.GetLanguages(context.Config.Site);
             var layout = I18nOutputLayout.Create(context.Config.Site, languages, context.RootBaseUrl);
             var sitemaps = results
-                .Select(result => SitemapGenerator.BuildAbsoluteUrl(
-                    siteUrl,
-                    layout.IsRootLanguage(result.Language) ? context.RootBaseUrl : result.BaseUrl,
-                    "/" + BuildPathUtils.NormalizeRelPath(layout.SitemapRelativePath(result.Language))))
+                .Select(result => layout.SitemapUrl(siteUrl, result.Language, result.BaseUrl))
                 .ToList();
             SitemapGenerator.GenerateIndex(context.OutputDir, sitemaps);
         }

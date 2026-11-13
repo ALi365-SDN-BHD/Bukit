@@ -322,11 +322,10 @@ internal static class RepresentationAuditRules
 /// <c>agent-manifest.json</c> read and parsed once for a whole audit run. The file is loaded
 /// on first use, and the strings the per-document lookup compares are read once per entry,
 /// in the same order the per-document scan first needs them, so failures surface at the
-/// same point as before.
+/// same point as before. A null path means the manifest is disabled and reported as absent.
 /// </summary>
 internal sealed class AgentManifestSnapshot(string? manifestPath) : IDisposable
 {
-    private bool _disabled;
     private bool _loaded;
     private bool _exists;
     private string? _invalidJsonMessage;
@@ -352,8 +351,6 @@ internal sealed class AgentManifestSnapshot(string? manifestPath) : IDisposable
 
     internal string? Language(int index) => _language.Get(_documents!, index, "language");
 
-    internal static AgentManifestSnapshot Disabled() => new(null) { _disabled = true, _loaded = true };
-
     public void Dispose() => _json?.Dispose();
 
     private void Load()
@@ -363,7 +360,7 @@ internal sealed class AgentManifestSnapshot(string? manifestPath) : IDisposable
             return;
         }
 
-        if (_disabled || manifestPath is null)
+        if (manifestPath is null)
         {
             _loaded = true;
             return;

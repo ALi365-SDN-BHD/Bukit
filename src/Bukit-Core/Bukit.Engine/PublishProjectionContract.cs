@@ -78,25 +78,10 @@ internal abstract class AggregatePublishProjectionBase : IPublishProjection
 
     public PublishRepresentation Representation { get; }
 
-    private static readonly HashSet<string> RootOwnedKinds = new(StringComparer.OrdinalIgnoreCase)
-    {
-        "agent-manifest", "robots", "llms", "llms-full"
-    };
-
     public PublishProjectionResult Project(PublishProjectionContext context)
     {
         var relativePath = ResolveRelativePath(context);
-        var languages = I18nOutputMerger.GetLanguages(context.Config.Site);
-        var feedSuppressed = Representation.Kind is "feed" or "atom" or "jsonfeed" &&
-            languages.Count > 0 &&
-            SiteModeResolver.ResolveFeedMode(context.Config.Site) == "merged";
-        var sitemapSuppressed = Representation.Kind == "sitemap" &&
-            languages.Count > 0 &&
-            (context.Config.Site.SitemapMode ?? "split").Trim().Equals("merged", StringComparison.OrdinalIgnoreCase);
-        if ((RootOwnedKinds.Contains(Representation.Kind) &&
-             I18nOutputLayout.IsRootLanguageVariant(context.Config)) ||
-            feedSuppressed ||
-            sitemapSuppressed)
+        if (PublicOutputLifecycle.IsRootOwnedAggregate(context.Config, Representation.Kind, context.Config.Site.Language))
         {
             return new PublishProjectionResult(
                 Representation,
