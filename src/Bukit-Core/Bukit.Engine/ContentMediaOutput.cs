@@ -17,6 +17,9 @@ internal sealed partial class ContentMediaOutput(BuildVariantContext context) : 
     private readonly ConcurrentDictionary<(string Id, ContentBodyRef Body), Lazy<Task<ContentBody>>> _bodies = new();
     private readonly ConcurrentDictionary<string, byte> _references = new(StringComparer.Ordinal);
     private readonly ConcurrentDictionary<string, byte> _fallbacks = new(StringComparer.Ordinal);
+    // Rendered pages that link to each placeholder, recorded while ValidateOutputs rereads them.
+    private readonly ConcurrentDictionary<string, ConcurrentDictionary<string, byte>> _fallbackPages = new(StringComparer.Ordinal);
+    private string? _validatingPage;
     // Computed once per variant; RewriteUrl runs for every link in every rendered page.
     private readonly MediaConfig _effective = ContentProviderFactory.BuildEffectiveMediaConfig(context.Config.Content.Media, context.RootDir, context.MediaDownloadDir);
     private readonly string _mediaPrefix = ContentProviderFactory.BuildEffectiveMediaConfig(context.Config.Content.Media, context.RootDir, context.MediaDownloadDir).UrlBase.TrimEnd('/');
@@ -106,13 +109,46 @@ internal sealed partial class ContentMediaOutput(BuildVariantContext context) : 
         foreach (var item in items.Where(item => item.Operation == AssetOutputOperation.Render && item.Destination.EndsWith(".html", StringComparison.OrdinalIgnoreCase)))
         {
             var path = FileWriter.GetSafeFullPath(context.OutputDir, item.Destination);
-            if (File.Exists(path)) RewriteHtml(File.ReadAllText(path), collect: true);
+            if (!File.Exists(path)) continue;
+            _validatingPage = item.Destination;
+            try
+            {
+                RewriteHtml(File.ReadAllText(path), collect: true);
+            }
+            finally
+            {
+                _validatingPage = null;
+            }
         }
-        foreach (var relative in _references.Keys.Select(path => _mediaPrefix.TrimStart('/') + "/" + path).Concat(_fallbacks.Keys))
+        foreach (var relative in _references.Keys.Select(path => _mediaPrefix.TrimStart('/') + "/" + path))
         {
             if (!planned.Contains(relative) || !File.Exists(FileWriter.GetSafeFullPath(context.OutputDir, relative)))
                 throw new IOException($"Referenced localized media output is missing: {relative}");
         }
+        foreach (var relative in _fallbacks.Keys.Order(StringComparer.Ordinal))
+        {
+            if (!planned.Contains(relative) || !File.Exists(FileWriter.GetSafeFullPath(context.OutputDir, relative)))
+                throw new IOException(MissingPlaceholderMessage(relative));
+        }
+    }
+
+    private const int MaxPagesInMessage = 5;
+
+    // Keeps the "Referenced localized media output is missing: <path>" start, followed by a space,
+    // so tools that read the path up to the first whitespace still find it.
+    private string MissingPlaceholderMessage(string relative)
+    {
+        var pages = _fallbackPages.TryGetValue(relative, out var found)
+            ? found.Keys.Order(StringComparer.Ordinal).ToArray()
+            : [];
+        var shown = string.Join(", ", pages.Take(MaxPagesInMessage));
+        var more = pages.Length > MaxPagesInMessage ? $" and {pages.Length - MaxPagesInMessage} more" : string.Empty;
+        var referencedBy = pages.Length == 0 ? string.Empty : $" Referenced by: {shown}{more}.";
+        return $"Referenced localized media output is missing: {relative} (content.media.defaultImageUrl, the placeholder " +
+            "that replaces an image that could not be downloaded or has no URL; the event=media.download_failed and " +
+            $"event=media.localize_summary warnings name the remote images that failed).{referencedBy} To fix: add {relative} " +
+            "to the theme or site (under assets/ or static/), or set content.media.onFailure: keep to link to the original " +
+            "remote image instead.";
     }
 
     private string RewriteHtml(string html, bool collect)
@@ -160,7 +196,12 @@ internal sealed partial class ContentMediaOutput(BuildVariantContext context) : 
         var fallback = _effective.DefaultImageUrl;
         if (path == fallback || path == _baseUrl + fallback || path == _rootBaseUrl + fallback)
         {
-            if (collect && requireFallback) _fallbacks.TryAdd(fallback.TrimStart('/'), 0);
+            if (collect && requireFallback)
+            {
+                _fallbacks.TryAdd(fallback.TrimStart('/'), 0);
+                if (_validatingPage is { } page)
+                    _fallbackPages.GetOrAdd(fallback.TrimStart('/'), _ => new(StringComparer.Ordinal)).TryAdd(page, 0);
+            }
             return _baseUrl + fallback + suffix;
         }
         return value;

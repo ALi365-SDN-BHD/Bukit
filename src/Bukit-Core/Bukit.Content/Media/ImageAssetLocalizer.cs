@@ -61,6 +61,7 @@ public sealed class ImageAssetLocalizer : IImageAssetLocalizer, IDisposable
     private readonly MediaIndexManager _indexManager;
     private readonly ImageContentValidator _imageValidator = new();
     private readonly bool _keepOriginalOnFailure;
+    private readonly MissingPlaceholderWarnings _missingPlaceholderWarnings = new();
     private readonly MediaHostFilter _hostFilter;
     private int _disposeState;
 
@@ -753,7 +754,25 @@ public sealed class ImageAssetLocalizer : IImageAssetLocalizer, IDisposable
     private readonly record struct DownloadOutcome(string? LocalUrl, string RequestTarget, int? StatusCode, string? Reason);
 
     private string FailureResult(string sourceUrl)
-        => _keepOriginalOnFailure ? sourceUrl : _config.DefaultImageUrl;
+    {
+        if (_keepOriginalOnFailure)
+        {
+            return sourceUrl;
+        }
+
+        if (!_config.PlaceholderMissing)
+        {
+            return _config.DefaultImageUrl;
+        }
+
+        // onFailure: placeholder, but the placeholder file is not in the theme or site: linking to
+        // it would fail the build, so keep the original URL as "keep" does and say why.
+        _missingPlaceholderWarnings.Warn(_logger, sourceUrl, _config.DefaultImageUrl);
+        return sourceUrl;
+    }
+
+    /// <summary>Warning event for a failed image kept as-is because the placeholder file is missing.</summary>
+    internal const string PlaceholderMissingEvent = MissingPlaceholderWarnings.Event;
 
     private static bool ParseKeepOnFailure(MediaConfig config)
     {

@@ -24,7 +24,7 @@ internal sealed class ImageLocalizeStage : IContentStage
             var loadResult = new RawContentLoadResult(ToRawDocuments(input.Documents), ownedBodyStore);
             var sw = Stopwatch.StartNew();
             loadResult = await _factory.LocalizeContentImagesAsync(
-                loadResult, input.Config.Content.Media, input.RootDir,
+                loadResult, EffectiveMedia(input), input.RootDir,
                 input.MediaCacheDir, input.Logger, cancellationToken);
             ownedBodyStore = loadResult.BodyStore;
             sw.Stop();
@@ -39,6 +39,21 @@ internal sealed class ImageLocalizeStage : IContentStage
             await DisposeBodyStoreAsync(ownedBodyStore);
             throw;
         }
+    }
+
+    // With onFailure: placeholder and no placeholder file in the theme or site, a failed download
+    // would link to a file the build then reports missing; the localizer keeps the original URL instead.
+    internal static MediaConfig EffectiveMedia(ContentStageInput input)
+    {
+        var media = input.Config.Content.Media;
+        if (!media.DownloadToLocal ||
+            MediaPlaceholderProbe.FindMissing(input.Config, input.RootDir, input.Logger) is not { } missing)
+        {
+            return media;
+        }
+
+        input.Logger.Debug($"event=media.placeholder_not_found placeholder={missing} result=failed_downloads_keep_original_url");
+        return media with { PlaceholderMissing = true };
     }
 
     private static IReadOnlyList<RawContentDocument> ToRawDocuments(IReadOnlyList<ContentDocument> documents)
