@@ -32,6 +32,69 @@ public sealed class StarterThemeScaffoldTests : IDisposable
         Assert.True(File.Exists(Path.Combine(themeRoot, "layouts", "pages", "index.html")));
         Assert.True(File.Exists(Path.Combine(themeRoot, "layouts", "pages", "post.html")));
         Assert.True(File.Exists(Path.Combine(themeRoot, "layouts", "bukit.templates.yaml")));
+
+        var css = File.ReadAllText(Path.Combine(themeRoot, "assets", "style.css"));
+        Assert.Contains("--primary: #0b5fff;", css, StringComparison.Ordinal);
+        Assert.Contains("--accent: #0f7b6c;", css, StringComparison.Ordinal);
+        Assert.Contains("pre code[class*=\"language-\"]", css, StringComparison.Ordinal);
+        Assert.Contains(".token.keyword", css, StringComparison.Ordinal);
+        Assert.Contains(".hljs-keyword", css, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void StyleCssFallback_IncludesSyntaxHighlightingSelectors()
+    {
+        var css = ThemeTemplateResource.Get("StyleCss");
+
+        Assert.Contains("pre code[class*=\"language-\"]", css, StringComparison.Ordinal);
+        Assert.Contains(".token.comment", css, StringComparison.Ordinal);
+        Assert.Contains(".hljs-string", css, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void WriteTo_CustomThemeNameAndColors_ReplacesColorVars()
+    {
+        StarterThemeScaffold.WriteTo(_rootDir, "custom", "#ff0000", "#00ff00");
+
+        var themeRoot = Path.Combine(_rootDir, "themes", "custom");
+        Assert.True(File.Exists(Path.Combine(themeRoot, "assets", "style.css")));
+        Assert.True(File.Exists(Path.Combine(themeRoot, "layouts", "layouts", "base.html")));
+
+        var css = File.ReadAllText(Path.Combine(themeRoot, "assets", "style.css"));
+        Assert.Contains("--primary: #ff0000;", css, StringComparison.Ordinal);
+        Assert.Contains("--accent: #00ff00;", css, StringComparison.Ordinal);
+        Assert.DoesNotContain("--primary: #0b5fff;", css, StringComparison.Ordinal);
+        Assert.DoesNotContain("--accent: #0f7b6c;", css, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void ApplyColorOverrides_NullColors_ReturnsUnchanged()
+    {
+        var original = ThemeTemplateResource.Get("StyleCss");
+
+        var result = StarterThemeScaffold.ApplyColorOverrides(original, null, null);
+
+        Assert.Equal(original, result);
+    }
+
+    [Fact]
+    public void ApplyColorOverrides_PrimaryOnly_ReplacesOnlyPrimary()
+    {
+        var result = StarterThemeScaffold.ApplyColorOverrides(ThemeTemplateResource.Get("StyleCss"), "#ffffff", null);
+
+        Assert.Contains("--primary: #ffffff;", result, StringComparison.Ordinal);
+        Assert.DoesNotContain("--primary: #0b5fff;", result, StringComparison.Ordinal);
+        Assert.Contains("--accent: #0f7b6c;", result, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void ApplyColorOverrides_AccentOnly_ReplacesOnlyAccent()
+    {
+        var result = StarterThemeScaffold.ApplyColorOverrides(ThemeTemplateResource.Get("StyleCss"), null, "#abcdef");
+
+        Assert.Contains("--accent: #abcdef;", result, StringComparison.Ordinal);
+        Assert.DoesNotContain("--accent: #0f7b6c;", result, StringComparison.Ordinal);
+        Assert.Contains("--primary: #0b5fff;", result, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -43,5 +106,35 @@ public sealed class StarterThemeScaffoldTests : IDisposable
         Assert.Contains("--accent: #222222;", result, StringComparison.Ordinal);
         Assert.DoesNotContain("--primary: #0b5fff;", result, StringComparison.Ordinal);
         Assert.DoesNotContain("--accent: #0f7b6c;", result, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void ApplyColorOverrides_WhitespaceColors_Ignored()
+    {
+        var result = StarterThemeScaffold.ApplyColorOverrides(ThemeTemplateResource.Get("StyleCss"), "   ", "\t");
+
+        Assert.Contains("--primary: #0b5fff;", result, StringComparison.Ordinal);
+        Assert.Contains("--accent: #0f7b6c;", result, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void WriteTo_CreatesCorrectDirectoryStructure()
+    {
+        StarterThemeScaffold.WriteTo(_rootDir, "mystarter", null, null);
+
+        var layoutsRoot = Path.Combine(_rootDir, "themes", "mystarter", "layouts");
+        Assert.True(Directory.Exists(Path.Combine(_rootDir, "themes", "mystarter", "assets")));
+        foreach (var relative in new[]
+                 {
+                     "layouts/base.html", "partials/seo.html", "partials/header.html", "partials/footer.html",
+                     "partials/list-card.html", "partials/pagination-nav.html", "pages/page.html", "pages/post.html",
+                     "pages/index.html", "pages/list.html", "pages/pagination.html", "pages/taxonomy-index.html",
+                     "pages/taxonomy-term.html", "pages/search.html", "bukit.templates.yaml"
+                 })
+        {
+            Assert.True(File.Exists(Path.Combine(layoutsRoot, relative)), relative);
+        }
+
+        Assert.False(File.Exists(Path.Combine(layoutsRoot, "partials", "analytics.html")));
     }
 }
