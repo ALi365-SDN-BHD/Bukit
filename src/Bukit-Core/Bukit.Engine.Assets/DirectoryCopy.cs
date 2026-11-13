@@ -145,6 +145,66 @@ internal static class DirectoryCopy
         }
     }
 
+    /// <summary>
+    /// True when the static source path will survive the copy step. Without followSymlinks,
+    /// any symlink is skipped; with it, only links resolving inside the static root count.
+    /// </summary>
+    internal static bool StaticSourceExists(
+        string sourceDir,
+        string relativePath,
+        DirectoryCopyOptions options)
+    {
+        if (string.IsNullOrWhiteSpace(sourceDir))
+        {
+            return false;
+        }
+
+        var sourceRoot = Path.GetFullPath(sourceDir).TrimEnd(
+            Path.DirectorySeparatorChar,
+            Path.AltDirectorySeparatorChar);
+        var physicalSourceRoot = ResolvePhysicalPath(sourceRoot) ?? sourceRoot;
+        var current = sourceRoot;
+        foreach (var segment in relativePath.Split(
+                     [Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar],
+                     StringSplitOptions.RemoveEmptyEntries))
+        {
+            if (segment == "..")
+            {
+                return false;
+            }
+
+            current = Path.Combine(current, segment);
+            if (IsSymlink(current))
+            {
+                if (!options.FollowSymlinks ||
+                    !TryResolveSafeTarget(current, physicalSourceRoot, options, out var resolved))
+                {
+                    return false;
+                }
+
+                current = resolved;
+                continue;
+            }
+
+            if (!File.Exists(current) && !Directory.Exists(current))
+            {
+                return false;
+            }
+        }
+
+        return File.Exists(current);
+    }
+
+    internal static bool IsSafeStaticLink(
+        string path,
+        string sourceRoot,
+        DirectoryCopyOptions options)
+    {
+        var physicalSourceRoot = ResolvePhysicalPath(sourceRoot) ?? Path.GetFullPath(sourceRoot);
+        return IsSymlink(path) &&
+            TryResolveSafeTarget(path, physicalSourceRoot, options, out _);
+    }
+
     internal static IReadOnlyList<DirectoryCopyItem> EnumerateFilesForSync(
         string sourceDir,
         DirectoryCopyOptions options,
