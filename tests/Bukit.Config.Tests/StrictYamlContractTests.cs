@@ -293,6 +293,7 @@ public sealed class StrictYamlContractTests : IDisposable
               title: My Blog
               defaultLanguageInSubdir: false
               defaultLanguageRedirect: false
+              defaultLanguageLegacyRedirects: true
             content:
               sources:
                 - type: markdown
@@ -304,5 +305,6 @@ public sealed class StrictYamlContractTests : IDisposable
 
         Assert.False(config.Site.DefaultLanguageInSubdir);
         Assert.False(config.Site.DefaultLanguageRedirect);
+        Assert.True(config.Site.DefaultLanguageLegacyRedirects);
     }
 }

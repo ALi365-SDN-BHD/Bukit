@@ -359,6 +359,40 @@ public sealed class I18nWorktreeProtocolTests : IDisposable
     }
 
     [Fact]
+    public void VariantResult_AcceptsLegacyRedirectsUnderTheDefaultLanguageCode()
+    {
+        var output = Path.Combine(_root, "output");
+        var snapshot = CreateVariantSnapshot(output) with
+        {
+            DerivedDocuments =
+            [
+                RedirectPageDocument.Create("i18n-legacy-en-0123456789abcdef", "Redirect", "i18n-legacy-en-0123456789abcdef",
+                    DateTimeOffset.UnixEpoch, "https://example.test/about/", "/en/about/", "en/about/index.html")
+            ]
+        };
+        var site = new SiteConfig
+        {
+            Name = "root-language",
+            Title = "Root language",
+            Languages = ["en", "zh-CN"],
+            DefaultLanguage = "en",
+            DefaultLanguageInSubdir = false,
+            DefaultLanguageLegacyRedirects = true
+        };
+
+        I18nWorktreeProtocol.RestoreVariant(
+            snapshot,
+            CanonicalContentGraph.Empty,
+            "head",
+            "config-hash",
+            "hash",
+            "en",
+            output,
+            Path.Combine(_root, "manifest.json"),
+            site);
+    }
+
+    [Fact]
     public void VariantResult_RejectsTraversalOutsidePlannedOutputs()
     {
         var output = Path.Combine(_root, "output");

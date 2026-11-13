@@ -56,7 +56,10 @@ internal sealed partial class VariantBuildPipeline
             pluginSession,
             variantStageMetrics,
             cancellationToken);
-        I18nLegacyRedirectDeriver.Derive(context, routePipelineResult.PluginContext);
+        I18nLegacyRedirectDeriver.Derive(
+            context,
+            routePipelineResult.PluginContext,
+            routePipelineResult.RouteResult.ListRoutes);
         routePipelineResult = routePipelineResult with
         {
             RouteResult = AddDerivedListRoutesToGraph(

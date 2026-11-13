@@ -1113,4 +1113,449 @@ public sealed class I18nRootLayoutTests
         Assert.True(File.Exists(Path.Combine(site.Output, "zh-CN", "sitemap.xml")));
         Assert.False(File.Exists(Path.Combine(site.Output, "zh-CN", "zh-CN", "sitemap.xml")), string.Join(",", sitemapFiles));
     }
+
+    // ---- Migration redirects for default-language legacy URLs (site.defaultLanguageLegacyRedirects) ----
+
+    private static AppConfig WithLegacyRedirects(AppConfig config, bool enabled = true)
+        => config with { Site = config.Site with { DefaultLanguageLegacyRedirects = enabled } };
+
+    private static bool IsRedirectPage(string path)
+        => File.ReadAllText(path).Contains("http-equiv=\"refresh\"", StringComparison.Ordinal);
+
+    private static SiteBuilder TaxonomyRootSite()
+    {
+        var site = new SiteBuilder("taxonomy-site");
+        var path = site.Sandbox.PathFor("site.yaml");
+        File.WriteAllText(path, File.ReadAllText(path)
+            .Replace("  language: en\n", "  language: en\n  languages:\n    - en\n    - zh-CN\n  defaultLanguage: en\n  defaultLanguageInSubdir: false\n", StringComparison.Ordinal));
+        return site;
+    }
+
+    private static async Task<RecordingLogger> BuildWithLogger(AppConfig config, string root, bool incremental = false)
+    {
+        var logger = new RecordingLogger();
+        await new SiteEngine(logger).BuildAsync(config, root, new ConfigOverrides { Incremental = incremental, Clean = false });
+        return logger;
+    }
+
+    [Fact]
+    public async Task LegacyRedirects_PrefixedLayoutWarnsAndDerivesNothing()
+    {
+        using var site = new SiteBuilder("i18n-site");
+        site.Markdown("about", "About", "About body");
+
+        var logger = await BuildWithLogger(WithLegacyRedirects(site.Config), site.Root);
+
+        Assert.Contains(logger.Warnings, message => message.Contains("event=i18n.config.legacy_redirects_ignored", StringComparison.Ordinal));
+        Assert.False(IsRedirectPage(Path.Combine(site.Output, "en", "about", "index.html")));
+        Assert.DoesNotContain(logger.Infos, message => message.Contains("event=i18n.legacy_redirects.derived", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task LegacyRedirects_SingleLanguageWarnsEvenWithOtherSettingsAtDefaults()
+    {
+        using var site = new SiteBuilder();
+        site.Markdown("about", "About", "About body");
+
+        var logger = await BuildWithLogger(WithLegacyRedirects(site.Config), site.Root);
+
+        Assert.Contains(logger.Warnings, message =>
+            message.Contains("event=i18n.config.default_language_layout_ignored", StringComparison.Ordinal) &&
+            message.Contains("defaultLanguageLegacyRedirects=true", StringComparison.Ordinal));
+        Assert.False(IsRedirectPage(Path.Combine(site.Output, "about", "index.html")));
+    }
+
+    [Fact]
+    public async Task LegacyRedirects_CoverPagesDerivedListsAndStaticHtml()
+    {
+        using var site = TaxonomyRootSite();
+        site.Sandbox.Write("static/legacy.html", "<p>Legacy static page</p>");
+        var config = WithLegacyRedirects(site.Config) with
+        {
+            Theme = site.Config.Theme with { StaticTemplate = "pages/page.html" }
+        };
+
+        await BuildWithLogger(config, site.Root);
+
+        var categories = Directory.EnumerateFiles(Path.Combine(site.Output, "categories"), "index.html", SearchOption.AllDirectories)
+            .Select(path => Path.GetRelativePath(site.Output, path))
+            .ToArray();
+        Assert.NotEmpty(categories);
+        Assert.Contains(categories, path => path.Contains("page", StringComparison.Ordinal));
+        foreach (var relative in categories)
+        {
+            var legacy = Path.Combine(site.Output, "en", relative);
+            Assert.True(File.Exists(legacy), relative);
+            var target = "https://example.test/" + Path.GetDirectoryName(relative)!.Replace('\\', '/') + "/";
+            Assert.Contains($"content=\"0; url={target}\"", File.ReadAllText(legacy), StringComparison.Ordinal);
+        }
+
+        // A static HTML route gets a directory URL: static/legacy.html is served at /legacy/.
+        var staticLegacy = Path.Combine(site.Output, "en", "legacy", "index.html");
+        Assert.True(IsRedirectPage(staticLegacy));
+        Assert.Contains("url=https://example.test/legacy/", File.ReadAllText(staticLegacy), StringComparison.Ordinal);
+        Assert.False(IsRedirectPage(Path.Combine(site.Output, "legacy", "index.html")));
+    }
+
+    [Fact]
+    public async Task LegacyRedirects_UseBaseUrlRelativeTargetsWithoutSiteUrl()
+    {
+        using var site = RootSite();
+        site.Markdown("about", "About", "About body");
+        var config = WithLegacyRedirects(site.Config) with
+        {
+            Site = site.Config.Site with { DefaultLanguageLegacyRedirects = true, BaseUrl = "/repo", Url = null }
+        };
+
+        await BuildWithLogger(config, site.Root);
+
+        var legacy = File.ReadAllText(Path.Combine(site.Output, "en", "about", "index.html"));
+        Assert.Contains("content=\"0; url=/repo/about/\"", legacy, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task LegacyRedirects_AreExcludedFromIndexesAndSkip404AndNonHtml()
+    {
+        using var site = RootSite();
+        site.Markdown("about", "About", "About body");
+        site.Sandbox.Write("static/404.html", "<p>Not found</p>");
+        site.Sandbox.Write("static/file.txt", "plain");
+        var config = WithLegacyRedirects(site.Config) with
+        {
+            Site = site.Config.Site with
+            {
+                DefaultLanguageLegacyRedirects = true,
+                SearchIncludeDerived = true,
+                Seo = site.Config.Site.Seo with { Geo = new SeoGeoConfig { Enabled = true, LlmsTxt = true } }
+            }
+        };
+
+        await BuildWithLogger(config, site.Root);
+
+        Assert.True(IsRedirectPage(Path.Combine(site.Output, "en", "about", "index.html")));
+        Assert.False(File.Exists(Path.Combine(site.Output, "en", "404.html")));
+        Assert.False(File.Exists(Path.Combine(site.Output, "en", "file.txt")));
+        foreach (var file in new[] { "agent-manifest.json", "search.json", "sitemap.xml", "llms.txt", "llms-full.txt", "rss.xml" })
+        {
+            var path = Path.Combine(site.Output, file);
+            if (File.Exists(path))
+            {
+                Assert.DoesNotContain("/en/about/", File.ReadAllText(path), StringComparison.Ordinal);
+            }
+        }
+
+        Assert.DoesNotContain(Directory.EnumerateFiles(Path.Combine(site.Output, "content"), "*", SearchOption.AllDirectories),
+            path => path.Replace('\\', '/').Contains("/content/en/about", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task LegacyRedirects_UserContentWinsAndIsCountedInTheSummary()
+    {
+        using var site = RootSite();
+        site.Markdown("about", "About", "About body");
+        site.Markdown("contact", "Contact", "Contact body");
+        site.Markdown("team", "Team", "Team body");
+        var contactPath = site.Sandbox.PathFor("content/contact.md");
+        File.WriteAllText(contactPath, File.ReadAllText(contactPath)
+            .Replace("collection: page\n", "collection: page\naliases:\n  - /en/about/\n", StringComparison.Ordinal));
+        site.Sandbox.Write("static/en/team/index.html", "<p>Kept team page</p>");
+
+        var logger = await BuildWithLogger(WithLegacyRedirects(site.Config), site.Root);
+
+        var about = File.ReadAllText(Path.Combine(site.Output, "en", "about", "index.html"));
+        Assert.Contains("/contact/", about, StringComparison.Ordinal);
+        Assert.Equal("<p>Kept team page</p>", File.ReadAllText(Path.Combine(site.Output, "en", "team", "index.html")));
+        var summary = Assert.Single(logger.Infos, message => message.Contains("event=i18n.legacy_redirects.derived", StringComparison.Ordinal));
+        Assert.Contains("skipped=2", summary, StringComparison.Ordinal);
+        Assert.Contains("en/about/index.html", summary, StringComparison.Ordinal);
+        Assert.Contains("en/team/index.html", summary, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task LegacyRedirects_ListRouteOccupiesTheLegacyHomePath()
+    {
+        using var site = RootSite();
+        var config = site.Config with
+        {
+            Site = site.Config.Site with
+            {
+                DefaultLanguageLegacyRedirects = true,
+                Collections = new Dictionary<string, CollectionConfig>(site.Config.Site.Collections!)
+                {
+                    ["page"] = site.Config.Site.Collections!["page"] with { ListRoute = "/en/", ListTemplate = "pages/index.html" }
+                }
+            }
+        };
+
+        var logger = await BuildWithLogger(config, site.Root);
+
+        Assert.False(IsRedirectPage(Path.Combine(site.Output, "en", "index.html")));
+        Assert.Contains(logger.Infos, message => message.Contains("event=i18n.legacy_root_redirect.skipped", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task LegacyRedirects_IncrementalDisableRemovesOnlyRedirects()
+    {
+        using var site = RootSite();
+        site.Markdown("about", "About", "About body");
+        await BuildWithLogger(WithLegacyRedirects(site.Config), site.Root, incremental: true);
+        Assert.True(IsRedirectPage(Path.Combine(site.Output, "en", "about", "index.html")));
+        var chineseBefore = File.ReadAllBytes(Path.Combine(site.Output, "zh-CN", "index.html"));
+
+        var result = await new SiteEngine(new ConsoleLogger(LogLevel.Error)).BuildAsync(
+            WithLegacyRedirects(site.Config, false), site.Root, new ConfigOverrides { Incremental = true, Clean = false });
+
+        Assert.False(File.Exists(Path.Combine(site.Output, "en", "about", "index.html")));
+        Assert.True(IsRedirectPage(Path.Combine(site.Output, "en", "index.html")));
+        Assert.True(File.Exists(Path.Combine(site.Output, "about", "index.html")));
+        Assert.Equal(chineseBefore, File.ReadAllBytes(Path.Combine(site.Output, "zh-CN", "index.html")));
+        // Only the legacy home redirect renders again: it shares the redirect set's dependencies.
+        Assert.Equal(1, result.Incremental.CacheMissCount);
+    }
+
+    [Fact]
+    public async Task LegacyRedirects_IncrementalUserContentReplacesTheRedirect()
+    {
+        using var site = RootSite();
+        site.Markdown("about", "About", "About body");
+        site.Markdown("contact", "Contact", "Contact body");
+        var config = WithLegacyRedirects(site.Config);
+        await BuildWithLogger(config, site.Root, incremental: true);
+        Assert.Contains("url=https://example.test/about/", File.ReadAllText(Path.Combine(site.Output, "en", "about", "index.html")), StringComparison.Ordinal);
+
+        var contactPath = site.Sandbox.PathFor("content/contact.md");
+        File.WriteAllText(contactPath, File.ReadAllText(contactPath)
+            .Replace("collection: page\n", "collection: page\naliases:\n  - /en/about/\n", StringComparison.Ordinal));
+        await BuildWithLogger(config, site.Root, incremental: true);
+
+        var about = File.ReadAllText(Path.Combine(site.Output, "en", "about", "index.html"));
+        Assert.Contains("/contact/", about, StringComparison.Ordinal);
+        Assert.DoesNotContain("url=https://example.test/about/", about, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task LegacyRedirects_LayoutSwitchInBothDirections()
+    {
+        using var site = new SiteBuilder("i18n-site");
+        site.Markdown("about", "About", "About body");
+        var prefixed = WithLegacyRedirects(site.Config);
+        var engine = new SiteEngine(new ConsoleLogger(LogLevel.Error));
+        await engine.BuildAsync(prefixed, site.Root, new ConfigOverrides { Incremental = false });
+        Assert.False(IsRedirectPage(Path.Combine(site.Output, "en", "about", "index.html")));
+
+        await engine.BuildAsync(WithLegacyRedirects(RootConfig(site.Config)), site.Root, new ConfigOverrides { Incremental = false });
+        Assert.Contains("url=https://example.test/about/", File.ReadAllText(Path.Combine(site.Output, "en", "about", "index.html")), StringComparison.Ordinal);
+        Assert.False(IsRedirectPage(Path.Combine(site.Output, "about", "index.html")));
+
+        await engine.BuildAsync(prefixed, site.Root, new ConfigOverrides { Incremental = false });
+        var about = File.ReadAllText(Path.Combine(site.Output, "en", "about", "index.html"));
+        Assert.False(IsRedirectPage(Path.Combine(site.Output, "en", "about", "index.html")));
+        Assert.Contains("lang=\"en\"", about, StringComparison.Ordinal);
+        Assert.False(File.Exists(Path.Combine(site.Output, "about", "index.html")));
+    }
+
+    [Fact]
+    public async Task LegacyRedirects_RefuseToWriteThroughAnInternalSymlink()
+    {
+        using var site = RootSite();
+        site.Markdown("about", "About", "About body");
+        await BuildWithLogger(site.Config, site.Root);
+        Directory.CreateDirectory(Path.Combine(site.Output, "zh-CN", "elsewhere"));
+        Directory.CreateSymbolicLink(Path.Combine(site.Output, "en", "about"), Path.Combine("..", "zh-CN", "elsewhere"));
+
+        var ex = await Assert.ThrowsAnyAsync<Exception>(() => new SiteEngine(new ConsoleLogger(LogLevel.Error)).BuildAsync(
+            WithLegacyRedirects(site.Config), site.Root, new ConfigOverrides { Incremental = false, Clean = false }));
+
+        Assert.Contains("symbolic link", ex.ToString(), StringComparison.Ordinal);
+        Assert.Empty(Directory.EnumerateFileSystemEntries(Path.Combine(site.Output, "zh-CN", "elsewhere")));
+    }
+
+    [Fact]
+    public async Task LegacyRedirects_MigrateAliasesDirectlyAndSkipPrefixedAliases()
+    {
+        using var site = RootSite();
+        site.Markdown("about", "About", "About body");
+        var aboutPath = site.Sandbox.PathFor("content/about.md");
+        File.WriteAllText(aboutPath, File.ReadAllText(aboutPath)
+            .Replace("collection: page\n", "collection: page\naliases:\n  - /old/\n  - /en/legacy/\n", StringComparison.Ordinal));
+
+        await BuildWithLogger(WithLegacyRedirects(site.Config), site.Root);
+
+        var migrated = File.ReadAllText(Path.Combine(site.Output, "en", "old", "index.html"));
+        Assert.Contains("content=\"0; url=https://example.test/about/\"", migrated, StringComparison.Ordinal);
+        Assert.True(IsRedirectPage(Path.Combine(site.Output, "en", "legacy", "index.html")));
+        Assert.False(Directory.Exists(Path.Combine(site.Output, "en", "en")));
+    }
+
+    [Fact]
+    public async Task LegacyRedirects_TaxonomyPagesGetExactlyOneRedirect()
+    {
+        using var site = TaxonomyRootSite();
+
+        var logger = await BuildWithLogger(WithLegacyRedirects(site.Config), site.Root);
+
+        var categoryIndex = Path.Combine(site.Output, "en", "categories", "index.html");
+        Assert.True(IsRedirectPage(categoryIndex));
+        Assert.True(IsRedirectPage(Path.Combine(site.Output, "en", "categories", "tech", "index.html")));
+        using var report = JsonDocument.Parse(File.ReadAllText(
+            Path.Combine(site.Output, ".bukit", "variants", "en", "publish-audit-report.json")));
+        Assert.Single(report.RootElement.GetProperty("documents").EnumerateArray(),
+            document => document.GetProperty("routeUrl").GetString() == "/en/categories/");
+        Assert.Single(logger.Infos, message => message.Contains("event=i18n.legacy_redirects.derived", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task LegacyRedirects_BuildTheOccupancySetOncePerDerive()
+    {
+        using var site = RootSite();
+        for (var i = 0; i < 50; i++)
+        {
+            site.Markdown($"page-{i}", $"Page {i}", "Body");
+        }
+
+        var probe = new System.Runtime.CompilerServices.StrongBox<int>(0);
+        I18nLegacyRedirectDeriver.OccupancyBuildsProbe.Value = probe;
+        try
+        {
+            await BuildWithLogger(WithLegacyRedirects(site.Config), site.Root);
+        }
+        finally
+        {
+            I18nLegacyRedirectDeriver.OccupancyBuildsProbe.Value = null;
+        }
+
+        Assert.Equal(1, probe.Value);
+        Assert.True(IsRedirectPage(Path.Combine(site.Output, "en", "page-49", "index.html")));
+    }
+
+    [Fact]
+    public async Task LegacyRedirects_ReportsAndCountsGrowByTheRedirects()
+    {
+        using var off = RootSite();
+        off.Markdown("about", "About", "About body");
+        off.Markdown("contact", "Contact", "Contact body");
+        var offResult = await new SiteEngine(new ConsoleLogger(LogLevel.Error)).BuildAsync(
+            off.Config, off.Root, new ConfigOverrides { Incremental = false });
+
+        using var on = RootSite();
+        on.Markdown("about", "About", "About body");
+        on.Markdown("contact", "Contact", "Contact body");
+        var logger = new RecordingLogger();
+        var onResult = await new SiteEngine(logger).BuildAsync(
+            WithLegacyRedirects(on.Config), on.Root, new ConfigOverrides { Incremental = false });
+
+        var summary = Assert.Single(logger.Infos, message => message.Contains("event=i18n.legacy_redirects.derived", StringComparison.Ordinal));
+        var count = int.Parse(summary.Split(' ').Single(part => part.StartsWith("count=", StringComparison.Ordinal))["count=".Length..]);
+        Assert.True(count >= 2, summary);
+        Assert.Equal(offResult.Summary.RouteCount + count, onResult.Summary.RouteCount);
+        var offRoutes = File.ReadAllText(Path.Combine(off.Output, ".bukit", "routes.json"));
+        var onRoutes = File.ReadAllText(Path.Combine(on.Output, ".bukit", "routes.json"));
+        Assert.DoesNotContain("/en/about/", offRoutes, StringComparison.Ordinal);
+        Assert.Contains("/en/about/", onRoutes, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task LegacyRedirects_ToggleKeepsOrdinaryPagesUnrendered()
+    {
+        using var site = RootSite();
+        site.Markdown("about", "About", "About body");
+        site.Markdown("contact", "Contact", "Contact body");
+        var engine = new SiteEngine(new ConsoleLogger(LogLevel.Error));
+        await engine.BuildAsync(site.Config, site.Root, new ConfigOverrides { Incremental = true, Clean = false });
+        var before = OrdinaryEntries(site);
+
+        var logger = new RecordingLogger();
+        var enabled = await new SiteEngine(logger).BuildAsync(
+            WithLegacyRedirects(site.Config), site.Root, new ConfigOverrides { Incremental = true, Clean = false });
+        var summary = Assert.Single(logger.Infos, message => message.Contains("event=i18n.legacy_redirects.derived", StringComparison.Ordinal));
+        var count = int.Parse(summary.Split(' ').Single(part => part.StartsWith("count=", StringComparison.Ordinal))["count=".Length..]);
+        // The new redirects render, plus the existing legacy home redirect; no ordinary page does.
+        Assert.Equal(count + 1, enabled.Incremental.CacheMissCount);
+        Assert.Equal(before, OrdinaryEntries(site));
+
+        var disabled = await engine.BuildAsync(site.Config, site.Root, new ConfigOverrides { Incremental = true, Clean = false });
+        Assert.Equal(1, disabled.Incremental.CacheMissCount);
+        Assert.Equal(before, OrdinaryEntries(site));
+    }
+
+    private static string OrdinaryEntries(SiteBuilder site)
+    {
+        var manifest = BuildManifest.Load(Path.Combine(site.Cache, "build-manifest.en.json"));
+        return string.Join("\n", manifest.Entries
+            .Where(entry => !entry.Value.OutputPath.StartsWith("en/", StringComparison.Ordinal))
+            .OrderBy(entry => entry.Key, StringComparer.Ordinal)
+            .Select(entry => $"{entry.Key}|{entry.Value.ContentHash}|{entry.Value.RenderDependencyHash}|{entry.Value.TemplateHash}"));
+    }
+
+    [Fact]
+    public async Task LegacyRedirects_HomeStaysWithDefaultLanguageRedirect()
+    {
+        using var site = RootSite();
+        site.Markdown("about", "About", "About body");
+        var config = site.Config with
+        {
+            Site = site.Config.Site with { DefaultLanguageRedirect = false, DefaultLanguageLegacyRedirects = true }
+        };
+
+        var logger = await BuildWithLogger(config, site.Root);
+
+        Assert.False(File.Exists(Path.Combine(site.Output, "en", "index.html")));
+        Assert.True(IsRedirectPage(Path.Combine(site.Output, "en", "about", "index.html")));
+        Assert.Contains(logger.Infos, message => message.Contains("event=i18n.legacy_redirects.home_skipped", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task LegacyRedirects_UseStableSafeSlugsForFileLikeAndNestedRoutes()
+    {
+        using var site = RootSite();
+        site.Markdown("about", "About", "About body");
+        var config = site.Config with
+        {
+            Site = site.Config.Site with
+            {
+                DefaultLanguageLegacyRedirects = true,
+                Collections = new Dictionary<string, CollectionConfig>(site.Config.Site.Collections!)
+                {
+                    ["page"] = site.Config.Site.Collections!["page"] with
+                    {
+                        Permalink = "/docs/{slug}.html",
+                        ListRoute = "/blog/post/",
+                        ListTemplate = "pages/index.html"
+                    }
+                }
+            }
+        };
+
+        await BuildWithLogger(config, site.Root);
+        var first = LegacyIds(site);
+        await BuildWithLogger(config, site.Root);
+
+        Assert.Equal(first, LegacyIds(site));
+        Assert.Contains("/en/docs/about.html", first.Keys);
+        Assert.Contains("/en/blog/post/", first.Keys);
+        Assert.All(first.Values, id => Assert.Matches("^i18n-legacy-en-[0-9a-f]{16}$", id));
+        using var security = JsonDocument.Parse(File.ReadAllText(Path.Combine(site.Output, ".bukit", "security-report.json")));
+        Assert.Equal("passed", security.RootElement.GetProperty("checks").GetProperty("unsafeSlug").GetProperty("status").GetString());
+    }
+
+    private static Dictionary<string, string> LegacyIds(SiteBuilder site)
+    {
+        using var report = JsonDocument.Parse(File.ReadAllText(
+            Path.Combine(site.Output, ".bukit", "variants", "en", "publish-audit-report.json")));
+        return report.RootElement.GetProperty("documents").EnumerateArray()
+            .Where(document => document.TryGetProperty("sourceItemId", out var id) &&
+                               id.ValueKind == JsonValueKind.String &&
+                               id.GetString()!.StartsWith("i18n-legacy-en-", StringComparison.Ordinal))
+            .ToDictionary(document => document.GetProperty("routeUrl").GetString()!, document => document.GetProperty("sourceItemId").GetString()!);
+    }
+
+    private sealed class RecordingLogger : ILogger
+    {
+        public List<string> Infos { get; } = [];
+        public List<string> Warnings { get; } = [];
+        public void Debug(string message) { }
+        public void Info(string message) { lock (Infos) Infos.Add(message); }
+        public void Warn(string message) { lock (Warnings) Warnings.Add(message); }
+        public void Error(string message) { }
+    }
 }

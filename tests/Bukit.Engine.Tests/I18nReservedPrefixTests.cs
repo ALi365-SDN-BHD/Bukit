@@ -143,6 +143,30 @@ public sealed class I18nReservedPrefixTests
     }
 
     [Fact]
+    public async Task Build_ReservedPrefixStillFailsWithLegacyRedirects()
+    {
+        using var site = new SiteBuilder("i18n-site");
+        var config = RootConfig(site.Config) with
+        {
+            Site = RootConfig(site.Config).Site with
+            {
+                DefaultLanguageLegacyRedirects = true,
+                Collections = new Dictionary<string, CollectionConfig>
+                {
+                    ["page"] = new() { Permalink = "/zh-CN/{slug}/", Template = "pages/page.html" }
+                }
+            }
+        };
+
+        var ex = await Assert.ThrowsAsync<BukitException>(() =>
+            new SiteEngine(new ConsoleLogger(LogLevel.Error)).BuildAsync(config, site.Root,
+                new ConfigOverrides { Incremental = false }));
+
+        Assert.Equal(DiagnosticCode.I18nRouteReservedLanguagePrefix, ex.Code);
+        Assert.False(Directory.Exists(Path.Combine(site.Output, "en", "zh-CN")));
+    }
+
+    [Fact]
     public async Task Build_AllowsLegacyAliasUnderDefaultLanguageCode()
     {
         using var site = new SiteBuilder("i18n-site");

@@ -58,7 +58,8 @@ internal sealed class AliasPlugin : IBukitPlugin, IDerivePagesPlugin
                     publishAt: document.PublishAt,
                     targetUrl: $"{baseUrl}{targetUrl}",
                     routeUrl: aliasUrl,
-                    outputPath: outputPath));
+                    outputPath: outputPath,
+                    redirectTarget: targetUrl));
             }
         }
 
