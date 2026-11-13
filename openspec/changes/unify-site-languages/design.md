@@ -1,6 +1,6 @@
 ## Context
 
-已在 `main`（`3ba02c9f`）上核实：
+已在 `main`（`3ba02c9f`）上核实（实施计划写作时的基线 `38b32568` 只多了文档和审计修复，以下结论不变）：
 
 - 模式分界：`I18nLanguagePolicy.GetLanguages(site)` 在 `site.Languages` 为空时返回空列表；`I18nOutputLayout.IsMultilingual => _languages.Count > 0`。约 20 个源文件通过 `GetLanguages` 或 `IsMultilingual` 区分单语言和多语言，例如 `SiteEngine`、`RoutePipeline`、`RouteInventoryValidator`、`I18nWorktreeBuild`、`PublicOutputLifecycle`、`I18nRootRedirectWriter`、`SearchIndexBuilder`、`DataFilesPlugin`、`CanonicalContentValidator`（`DoctorCommand` 经由 `RouteInventoryValidator` 间接使用）。只有 `BuildCommand` 的 worktree 隔离判断用的是 `Count > 1`。
 - 单语言模式的语言来源：`RoutePipeline` 用 `config.Site.Language` 过滤文档；`I18nLanguagePolicy.GetDefaultLanguage` 在没有多语言时返回 `site.Language`；模板变量 `site.language` 来自 `ScribanSiteModelMapper` 的 `model.Language`。
@@ -62,14 +62,13 @@
 
 ### 实现方式：集中在一个判断和一次推导
 
-1. 配置加载：读取 `site.languages`（缺失或为空列表时按 D1 取默认值），按规则清理（去空白、去重）。`SiteConfig.Language` 不再从 YAML 读取。
-2. 语言推导不能只放在加载器里：只靠加载器时，测试或 SDK 用 `Site with { Languages = ["en"] }` 构造的配置，`Language` 仍是默认的 `zh-CN`，单语言路径会按 `zh-CN` 过滤并丢掉所有英文页面，正是本变更要消除的问题。做法二选一，实施时定：
-   - 新增 `I18nLanguagePolicy.GetSiteLanguage(site)`（只有 1 项时取那一项，否则取 `site.Language`），`GetDefaultLanguage` 和各单语言分支（`RoutePipeline`、`RouteInventoryValidator` 等）都改用它；
-   - 或在引擎入口（`SiteEngine`、`WorktreeBuildRun`、`DoctorCommand`）统一规范化一次 `SiteConfig`，之后所有读取 `Site.Language` 的位置（SEO、sitemap、feed、审计、投影等）都拿到正确值。
+1. 配置加载：读取 `site.languages`（缺失或为空列表时按 D1 取默认值并写回），按规则清理（去空白、去重）。`SiteConfig.Language` 不再从 YAML 读取，而由加载器推导为站点的默认语言（`defaultLanguage`，不写时取第一项；只有 1 项时就是那一项）。这样 `ConfigLoader.Load` 的所有调用方（含公开的 `ContentPipeline`）都拿到正确语言。
+2. 语言推导不能只放在加载器里：测试或 SDK 用 `Site with { Languages = ["en"] }` 构造的配置不经过加载器，`Language` 仍是默认的 `zh-CN`，单语言路径会按 `zh-CN` 过滤并丢掉所有英文页面。所以引擎入口再规范化一次：新增 `I18nLanguagePolicy.NormalizeSite(site)`（规则同上），在 `SiteEngine.BuildCoreAsync` 开头（两个公开 `BuildAsync` 都经过）和公开的 `ContentPipeline.ExecuteAsync` 调用；SDK 的 `BuildOptionsMapper` 改为写 `Languages = ["en"]`，与多语言分界改为 2 项放在同一次提交，否则单项仍是多语言模式，SDK 输出会搬到语言子目录。之后所有读取 `Site.Language` 的位置（SEO、sitemap、feed、审计、投影等）都拿到正确值。Worktree 构建只在 2 种及以上语言时运行，不需要规范化。
 3. `I18nLanguagePolicy.GetLanguages` 在清理后少于 2 项时返回空列表。这样所有通过它判断模式的位置，只有 1 项时都会走现有的单语言分支。
 4. 逐一核实直接读取 `site.Languages` 的 4 个位置：
-   - `MetricsWriter`、`SiteIdentityAndModesContributor`：改为读取 `GetLanguages` 的结果或推导出的语言。
-   - `ContentProviderFactory`：只有 1 项时是否仍把那一项传给 `MarkdownFolderProvider`，取决于单语言站点的 `content/<lang>/` 目录是否参与同名文件的 slug 区分。实施时用测试锁定现在单语言站点的 slug 结果，确保不变。
+   - `MetricsWriter`：`site.languages` 记录配置里的列表原值，`site.language` 记录推导后的语言；不改代码。
+   - `SiteIdentityAndModesContributor`：已经同时哈希 `site.language` 和 `site.languages`，规范化之后结果正确；不改代码，只补测试。
+   - `ContentProviderFactory`：改为传 `GetLanguages` 的结果，单语言时为空，与现在单语言模式传 `null` 等价，`content/<lang>/` 不参与单语言站点的 slug 区分。实施前用"同一语言目录下不同子目录的同名文件"测试锁定现在的 slug（`en/a/foo`、`en/b/foo`），确保不变。
    - `SiteConfigValidator`：`languages` 规则保持不变，删除单语言 `site.language` 的规则。
 5. `BuildCommand` 的 worktree 判断已是 `Count > 1`，不用改。
 6. D4 落地时，`I18nLanguagePolicy.WarnLayoutSettingsWithoutLanguages` 里写死的旧默认值判断要改为以 `true` 为非默认，否则每个单语言站点每次构建都会警告；`SiteIdentityAndModesContributor` 的哈希条件改为"多语言且为 `true`"。D4 拆成单独提交前，`DefaultLanguageInSubdir` 是不可空 bool，无法区分显式 `true` 和默认值，所以只有 1 项时"设为 `true` 给出警告"的场景属于 D4 那次提交。
@@ -83,14 +82,7 @@
 
 ## Migration Plan
 
-没有存量站点，不需要迁移工具。实施顺序：
-
-1. 配置层：字段删除、默认值、推导、校验和报错。
-2. 引擎：`GetLanguages` 的判断改为 2 项，核实直接读取 `Languages` 的位置。
-3. 写出配置的工具：Labs、Importing（WechatSync 只需确认，不改代码）。
-4. D5 搜索回退语言。
-5. D4 默认值变更（可单独提交）。
-6. 测试、文档、CHANGELOG。
+没有存量站点，不需要迁移工具。实施顺序、提交边界和专项测试以实施计划 `docs/plans/2026-11-14-unify-site-languages-implementation-plan.zh-CN.md` 为准：语言推导 → 多语言分界改为 2 项（含 SDK）→ 写出配置的工具 → 配置层删除旧字段 → D5 → D4 → 文档。
 
 ## Open Questions
 

@@ -15,23 +15,23 @@ D1–D6 均采用推荐选项，用户已于 2026-11-14 确认。
 
 ## 1. 配置层
 
-- [ ] `ConfigLoader`：`languages` 缺失或为空列表时取默认值；不再从 YAML 读取 `language`；明确默认值是否写回 `SiteConfig.Languages`（影响 `metrics.json`、增量哈希和语言目录）。
+- [ ] `ConfigLoader`：`languages` 缺失或为空列表时取默认值；不再从 YAML 读取 `language`；默认值写回 `SiteConfig.Languages`；只有 1 项时由加载器推导 `SiteConfig.Language`。
 - [ ] `ConfigStrictFieldValidator`：从 `site` 允许字段中移除 `language`，出现时给出迁移提示。
 - [ ] `SiteConfigValidator`：删除单语言 `site.language` 规则；`defaultLanguage` 只有 1 项时的检查用测试固定。
-- [ ] `ConfigJsonSchemaGenerator` 和生成的 JSON Schema 去掉 `site.language`，更新 `defaultLanguageInSubdir` 默认值说明。
+- [ ] `ConfigJsonSchemaGenerator` 和生成的 JSON Schema 去掉 `site.language`，`languages` 说明默认 `[zh-CN]`。
 
 ## 2. 引擎
 
-- [ ] 语言推导放在 `I18nLanguagePolicy.GetSiteLanguage` 或引擎入口规范化（二选一），不经过加载器构造的单项配置也要得到正确的 `Site.Language`。
+- [ ] 引擎入口规范化：`I18nLanguagePolicy.NormalizeSite` 在 `SiteEngine.BuildCoreAsync` 和 `ContentPipeline.ExecuteAsync` 调用，不经过加载器构造的单项配置也要得到正确的 `Site.Language`；SDK `BuildOptionsMapper` 改写 `Languages = ["en"]`（与 `GetLanguages` 改为 2 项同一提交）。
 - [ ] `I18nLanguagePolicy.GetLanguages` 在少于 2 项时返回空列表。
 - [ ] 逐一检查 `GetLanguages` / `IsMultilingual` 的约 20 个源文件调用方，确认只有 1 项时都走单语言分支。
-- [ ] `MetricsWriter`、`SiteIdentityAndModesContributor` 改为读取推导后的语言或 `GetLanguages` 结果。
-- [ ] `ContentProviderFactory`：先用测试锁定现在单语言站点 `content/<lang>/` 的 slug，再决定只有 1 项时是否传语言目录，确保结果不变。
+- [ ] `MetricsWriter`、`SiteIdentityAndModesContributor` 不改代码：`metrics.json` 的 `site.languages` 记录配置原值、`site.language` 记录推导后的语言；哈希已含两者，补测试固定。
+- [ ] `ContentProviderFactory`：先用"同一语言目录下不同子目录的同名文件"测试锁定现在单语言站点的 slug，再改为传 `GetLanguages` 的结果（单语言时为空），确保 slug 不变。
 - [ ] `defaultLanguageInSubdir`、`defaultLanguageRedirect`、`defaultLanguageLegacyRedirects` 只有 1 项时被忽略，并按现有规则给出警告。
 
 ## 3. 写出或读取配置的工具
 
-- [ ] Labs：`InitCommand`、`IntentApplier`、`CloneFidelityRunner` 改为写 `languages`；intent 文件的 `site.language` 键（`IntentWizard`、`IntentLoader`、`IntentValidator`）按 D2 的结论映射或删除。
+- [ ] Labs：`InitCommand`、`IntentApplier`、`CloneFidelityRunner` 改为写 `languages`；intent 文件删除 `site.language` 键（`IntentWizard`、`IntentLoader`、`IntentValidator`），单语言写 `languages.supported: [x]`，只有 1 项时 `languages.default` 可省略（用户已于 2026-11-14 确认）。
 - [ ] Importing：`SiteConfigGenerator` 写 `languages: [<code>]`，`--language` 校验保留。
 - [ ] WechatSync：不改代码，确认内容投影清单里每篇文档的 `language` 在单语言站点照常填写。
 
@@ -41,7 +41,7 @@ D1–D6 均采用推荐选项，用户已于 2026-11-14 确认。
 
 ## 5. `defaultLanguageInSubdir` 默认值（D4，单独提交）
 
-- [ ] 默认值改为 `false`；只有 1 项时设为 `true` 记录 `i18n.config.default_language_layout_ignored`。
+- [ ] 默认值改为 `false`（`AppConfig`、`ConfigLoader`、JSON Schema 默认值同步）；只有 1 项时设为 `true` 记录 `i18n.config.default_language_layout_ignored`。
 - [ ] `WarnLayoutSettingsWithoutLanguages` 改为以 `true` 为非默认值；`SiteIdentityAndModesContributor` 只在多语言且为 `true` 时把该设置计入哈希。
 - [ ] 规范中随 D4 修改的三条需求、"加第二种语言后默认语言 URL 不变"的测试和本节一起提交。
 - [ ] 更新所有依赖默认带前缀的多语言测试和测试站点，需要带前缀的显式写 `true`。
@@ -56,6 +56,6 @@ D1–D6 均采用推荐选项，用户已于 2026-11-14 确认。
 
 ## 7. 文档
 
-- [ ] 三份 README，`guide/user/02、04、11、14、16`，`guide/labs/import-html-demo.md`，`guide/dev/config-site-yaml.md`、`guide/dev/theme.md`，`docs/seo.md`，`docs/demo_to_bukit_workflow.md`。
+- [ ] 三份 README，`guide/user/02、04、11、14、16`，`guide/labs/import-html-demo.md`，`guide/dev/config-site-yaml.md`、`guide/dev/theme.md`、`guide/dev/plugins.md`，`docs/seo.md`，`docs/demo_to_bukit_workflow.md`。
 - [ ] skills：`bukit-i18n`、`bukit-config`（删除"忘写 `site.language`"的常见错误条目）、`bukit-templating`、`bukit-content`、`bukit-troubleshooting`、`using-bukit`。
 - [ ] 中英马三份 CHANGELOG 写明破坏性变更和改法。
