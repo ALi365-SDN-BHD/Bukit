@@ -69,7 +69,7 @@ internal static class PublicOutputLifecycle
 
         if (root && I18nRootRedirectWriter.ShouldWrite(config)) Add("index.html", "redirect");
 
-        var searchPath = SearchPlanPath(root, isRootLanguage, searchMode);
+        var searchPath = SearchPlanPath(root, isRootLanguage, searchMode, language, layout);
         if (searchPath is not null) Add(searchPath, "search");
 
         if (!root && config.Site.Search.Ui?.Trim().ToLowerInvariant() is not (null or "false" or "off")) Add("bukit-search.html", "search-ui");
@@ -96,9 +96,9 @@ internal static class PublicOutputLifecycle
         return items;
     }
 
-    private static string? SearchPlanPath(bool root, bool isRootLanguage, string searchMode)
+    private static string? SearchPlanPath(bool root, bool isRootLanguage, string searchMode, string? language, I18nOutputLayout layout)
     {
-        if (isRootLanguage) return searchMode != "merged" ? "search.json" : null;
+        if (isRootLanguage) return layout.SearchRelativePath(language!);
         if (!root || searchMode == "merged") return "search.json";
         return searchMode == "index" ? "search.index.json" : null;
     }

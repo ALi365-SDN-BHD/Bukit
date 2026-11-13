@@ -101,15 +101,6 @@ internal static class SiteConfigValidator
                 DiagnosticCode.ConfigInvalidValue);
         }
 
-        if (!site.DefaultLanguageInSubdir &&
-            site.Languages?.Any(language => !string.IsNullOrWhiteSpace(language)) == true &&
-            searchMode == "merged")
-        {
-            throw new ConfigException(
-                "site.defaultLanguageInSubdir: false cannot be combined with site.search.mode: merged.",
-                DiagnosticCode.ConfigInvalidValue);
-        }
-
         ValidateSearchRoute(site.Search.Route);
 
         var seoRenderMode = (site.Seo.RenderMode ?? "inject").Trim().ToLowerInvariant();

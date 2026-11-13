@@ -36,7 +36,9 @@ complete final HTML search route and declare it with `site.search.route`.
 
 Each language writes its own `bukit-search.html` (at the output root for a
 single-language site or for the default language in the root layout, otherwise
-under `<lang>/`). The fragment loads the `search.json` of its own language from
+under `<lang>/`). Every search record carries `language`. The fragment loads the
+`search.json` of its own language (`/<defaultLanguage>/search.json` for the
+default language at the root in `search.mode: merged`) from
 the input's `data-search-url` attribute, for example `/repo/zh-CN/search.json`
 when `baseUrl` is `/repo/`; it falls back to `/search.json` only when the
 attribute is removed. In `search.mode: merged` the fragment therefore searches

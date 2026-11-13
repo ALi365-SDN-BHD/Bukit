@@ -96,6 +96,16 @@ internal sealed class I18nOutputLayout
             : "sitemap.xml";
 
     /// <summary>
+    /// Where <paramref name="language"/> writes its own search index, relative to that language's
+    /// output directory: <c>&lt;lang&gt;/search.json</c> for a root language in merged mode, whose
+    /// <c>search.json</c> is the root merged index, otherwise <c>search.json</c>.
+    /// </summary>
+    internal string SearchRelativePath(string language)
+        => IsRootLanguage(language) && SiteModeResolver.ResolveSearchMode(_site) == "merged"
+            ? Path.Combine(language.Trim(), "search.json")
+            : "search.json";
+
+    /// <summary>
     /// Absolute URL of a language's own sitemap, as robots.txt and the sitemap index advertise it.
     /// The root language's sitemap sits under the root base URL; any other language's under its
     /// variant base URL.
@@ -141,7 +151,6 @@ internal sealed class I18nOutputLayout
 
         var sitemapMode = (_site.SitemapMode ?? "split").Trim().ToLowerInvariant();
         var feedMode = SiteModeResolver.ResolveFeedMode(_site);
-        var searchMode = SiteModeResolver.ResolveSearchMode(_site);
         var sitemap = sitemapMode is "split" or "index"
             ? Path.Combine(outputRoot, SitemapRelativePath(language))
             : null;
@@ -153,7 +162,7 @@ internal sealed class I18nOutputLayout
             : null;
         return new AuditOutputReadPaths(
             Sitemap: sitemap,
-            Search: searchMode == "merged" ? null : Path.Combine(outputRoot, "search.json"),
+            Search: Path.Combine(outputRoot, SearchRelativePath(language)),
             Rss: feedRoot is null ? null : Path.Combine(feedRoot, "rss.xml"),
             Atom: feedRoot is null ? null : FirstExisting(Path.Combine(feedRoot, feedPath, "atom.xml"), Path.Combine(feedRoot, "atom.xml")),
             JsonFeed: feedRoot is null ? null : FirstExisting(Path.Combine(feedRoot, feedPath, "feed.json"), Path.Combine(feedRoot, "feed.json")),
@@ -191,6 +200,10 @@ internal sealed class I18nOutputLayout
     /// <summary>Sitemap path of the variant built with <paramref name="variantConfig"/>, relative to its output directory.</summary>
     internal static string VariantSitemapRelativePath(AppConfig variantConfig)
         => For(variantConfig.Site).SitemapRelativePath(variantConfig.Site.Language);
+
+    /// <summary>Search index path of the variant built with <paramref name="variantConfig"/>, relative to its output directory.</summary>
+    internal static string VariantSearchRelativePath(AppConfig variantConfig)
+        => For(variantConfig.Site).SearchRelativePath(variantConfig.Site.Language);
 
     /// <summary>Prefixes a relative output path with a language directory; absolute roots use <see cref="OutputDir"/>.</summary>
     internal static string CombineRelative(string prefix, string relativePath)

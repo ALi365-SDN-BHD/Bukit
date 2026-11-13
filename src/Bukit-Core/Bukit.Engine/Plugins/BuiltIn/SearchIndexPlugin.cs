@@ -103,8 +103,9 @@ internal sealed class SearchIndexPlugin : IBukitPlugin, IAfterBuildPlugin
             TemplateCapabilitiesResolver.SupportsSearchSnippets(searchTemplate, context.LayoutsDir);
         var listRouteGraph = context.TryGet(BuildDataKeys.ListRouteGraph, out var graph) ? graph : null;
         var seoModels = context.TryGet(BuildDataKeys.SeoModels, out var models) ? models : null;
+        var searchPath = I18nOutputLayout.VariantSearchRelativePath(_config);
         SearchIndexBuilder.GenerateSingleSearchIndex(
-            context.OutputDir,
+            Path.Combine(context.OutputDir, Path.GetDirectoryName(searchPath) ?? string.Empty),
             context.BaseUrl,
             _config.Site.SearchIncludeDerived,
             emitSnippet,
@@ -114,8 +115,9 @@ internal sealed class SearchIndexPlugin : IBukitPlugin, IAfterBuildPlugin
             context.SeoIndex,
             context.BodyStore,
             listRouteGraph,
-            seoModels);
-        WriteSearchUi(_config, context.OutputDir, context.BaseUrl);
+            seoModels,
+            SearchIndexBuilder.RecordLanguageFallback(_config));
+        WriteSearchUi(_config, context.OutputDir, context.BaseUrl, searchPath);
     }
 
     private static bool TryResolveTemplate(BuildContext context, string kind, out string template)
@@ -134,10 +136,11 @@ internal sealed class SearchIndexPlugin : IBukitPlugin, IAfterBuildPlugin
 
     /// <summary>
     /// Writes the embeddable search fragment. It loads the index of the language it is written
-    /// for, <c>&lt;baseUrl&gt;/search.json</c>, so base paths and per-language indexes resolve;
-    /// custom markup without <c>data-search-url</c> still falls back to <c>/search.json</c>.
+    /// for, <c>&lt;baseUrl&gt;/&lt;searchRelativePath&gt;</c>, so base paths and per-language
+    /// indexes resolve; custom markup without <c>data-search-url</c> still falls back to
+    /// <c>/search.json</c>.
     /// </summary>
-    internal static void WriteSearchUi(AppConfig config, string outputDir, string baseUrl)
+    internal static void WriteSearchUi(AppConfig config, string outputDir, string baseUrl, string searchRelativePath = "search.json")
     {
         var searchConfig = config.Site.Search;
         var ui = searchConfig.Ui?.Trim().ToLowerInvariant();
@@ -171,7 +174,7 @@ internal sealed class SearchIndexPlugin : IBukitPlugin, IAfterBuildPlugin
         sb.Append(".bukit-search-empty{padding:20px;text-align:center;color:").Append(placeholderColor).AppendLine(";}");
         sb.AppendLine("</style>");
         sb.AppendLine("<div class=\"bukit-search\">");
-        var searchUrl = HtmlEncoder.Default.Encode(SearchIndexBuilder.NormalizeSearchUrl(baseUrl, "/search.json"));
+        var searchUrl = HtmlEncoder.Default.Encode(SearchIndexBuilder.NormalizeSearchUrl(baseUrl, "/" + BuildPathUtils.NormalizeRelPath(searchRelativePath)));
         sb.Append("  <input type=\"search\" class=\"bukit-search-input\" placeholder=\"").Append(placeholder)
             .Append("\" data-search-url=\"").Append(searchUrl).AppendLine("\" autocomplete=\"off\" />");
         sb.AppendLine("  <div class=\"bukit-search-results\"></div>");

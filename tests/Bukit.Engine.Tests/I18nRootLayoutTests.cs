@@ -301,6 +301,170 @@ public sealed class I18nRootLayoutTests
         Assert.Contains("zh-CN", File.ReadAllText(Path.Combine(site.Output, "search.index.json")), StringComparison.Ordinal);
     }
 
+    private static AppConfig MergedSearch(AppConfig config)
+        => config with { Site = config.Site with { Search = config.Site.Search with { Mode = "merged" } } };
+
+    private static JsonElement[] SearchRecords(string path)
+    {
+        using var document = JsonDocument.Parse(File.ReadAllText(path));
+        return [.. document.RootElement.EnumerateArray().Select(record => record.Clone())];
+    }
+
+    [Fact]
+    public async Task RootLayout_MergedSearchKeepsTheMergedIndexAtRootAndMovesTheDefaultLanguageIndex()
+    {
+        using var site = RootSite();
+        var config = MergedSearch(site.Config);
+        Assert.Equal("en/search.json", BuildPathUtils.NormalizeRelPath(I18nOutputLayout.VariantSearchRelativePath(config with
+        {
+            Site = config.Site with { Language = "en" }
+        })));
+
+        await new SiteEngine(new ConsoleLogger(LogLevel.Error)).BuildAsync(config, site.Root,
+            new ConfigOverrides { Incremental = false });
+
+        var merged = SearchRecords(Path.Combine(site.Output, "search.json"));
+        Assert.Equal(["en", "zh-CN"], merged.Select(record => record.GetProperty("language").GetString()).Distinct().Order(StringComparer.Ordinal));
+        var english = SearchRecords(Path.Combine(site.Output, "en", "search.json"));
+        Assert.NotEmpty(english);
+        Assert.All(english, record => Assert.Equal("en", record.GetProperty("language").GetString()));
+        Assert.All(english, record => Assert.DoesNotContain("/zh-CN/", record.GetProperty("url").GetString(), StringComparison.Ordinal));
+        var chinese = SearchRecords(Path.Combine(site.Output, "zh-CN", "search.json"));
+        Assert.NotEmpty(chinese);
+        Assert.All(chinese, record => Assert.Equal("zh-CN", record.GetProperty("language").GetString()));
+        Assert.Equal(english.Length + chinese.Length, merged.Length);
+
+        Assert.Contains("data-search-url=\"/en/search.json\"",
+            File.ReadAllText(Path.Combine(site.Output, "bukit-search.html")), StringComparison.Ordinal);
+        Assert.Contains("data-search-url=\"/zh-CN/search.json\"",
+            File.ReadAllText(Path.Combine(site.Output, "zh-CN", "bukit-search.html")), StringComparison.Ordinal);
+
+        var owned = BuildManifest.Load(Path.Combine(site.Root, ".cache", "build-manifest.json")).OwnedOutputs;
+        Assert.Contains("en/search.json", owned);
+        Assert.Contains("search.json", owned);
+
+        using var audit = JsonDocument.Parse(File.ReadAllText(
+            Path.Combine(site.Output, ".bukit", "variants", "en", "seo-report.json")));
+        Assert.DoesNotContain("search_missing_route", audit.RootElement.GetProperty("issues").GetRawText(), StringComparison.Ordinal);
+        using var publish = JsonDocument.Parse(File.ReadAllText(
+            Path.Combine(site.Output, ".bukit", "variants", "en", "publish-audit-report.json")));
+        Assert.DoesNotContain("search_missing_route", publish.RootElement.GetRawText(), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task RootLayout_MergedSearchUsesTheProjectBaseUrl()
+    {
+        using var site = RootSite();
+        var config = MergedSearch(site.Config);
+        config = config with { Site = config.Site with { BaseUrl = "/repo" } };
+
+        await new SiteEngine(new ConsoleLogger(LogLevel.Error)).BuildAsync(config, site.Root,
+            new ConfigOverrides { Incremental = false });
+
+        Assert.Contains("data-search-url=\"/repo/en/search.json\"",
+            File.ReadAllText(Path.Combine(site.Output, "bukit-search.html")), StringComparison.Ordinal);
+        Assert.Contains("\"url\":\"/repo/\"", File.ReadAllText(Path.Combine(site.Output, "en", "search.json")), StringComparison.Ordinal);
+        Assert.Contains("\"url\":\"/repo/zh-CN/\"", File.ReadAllText(Path.Combine(site.Output, "search.json")), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task RootLayout_SwitchingSearchModeMovesTheDefaultLanguageIndex()
+    {
+        using var site = RootSite();
+        var engine = new SiteEngine(new ConsoleLogger(LogLevel.Error));
+        var english = Path.Combine(site.Output, "en", "search.json");
+        var root = Path.Combine(site.Output, "search.json");
+
+        await engine.BuildAsync(MergedSearch(site.Config), site.Root, new ConfigOverrides { Incremental = false });
+        Assert.True(File.Exists(english));
+        Assert.Contains("zh-CN", File.ReadAllText(root), StringComparison.Ordinal);
+
+        await engine.BuildAsync(site.Config, site.Root, new ConfigOverrides { Incremental = false });
+        Assert.False(File.Exists(english));
+        Assert.DoesNotContain("/zh-CN/", File.ReadAllText(root), StringComparison.Ordinal);
+
+        await engine.BuildAsync(MergedSearch(site.Config), site.Root, new ConfigOverrides { Incremental = false });
+        Assert.True(File.Exists(english));
+        Assert.Contains("/zh-CN/", File.ReadAllText(root), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task MergedSearch_SwitchingLayoutLeavesNoStaleIndex()
+    {
+        using var site = new SiteBuilder("i18n-site");
+        var prefixed = MergedSearch(site.Config);
+        var rootLayout = prefixed with { Site = prefixed.Site with { DefaultLanguageInSubdir = false } };
+        var engine = new SiteEngine(new ConsoleLogger(LogLevel.Error));
+
+        await engine.BuildAsync(prefixed, site.Root, new ConfigOverrides { Incremental = false });
+        Assert.True(File.Exists(Path.Combine(site.Output, "en", "search.json")));
+        Assert.True(File.Exists(Path.Combine(site.Output, "search.json")));
+
+        await engine.BuildAsync(rootLayout, site.Root, new ConfigOverrides { Incremental = false });
+        Assert.All(SearchRecords(Path.Combine(site.Output, "en", "search.json")),
+            record => Assert.Equal("en", record.GetProperty("language").GetString()));
+        Assert.Contains("/zh-CN/", File.ReadAllText(Path.Combine(site.Output, "search.json")), StringComparison.Ordinal);
+        Assert.Contains("\"url\":\"/\"", File.ReadAllText(Path.Combine(site.Output, "en", "search.json")), StringComparison.Ordinal);
+
+        await engine.BuildAsync(prefixed, site.Root, new ConfigOverrides { Incremental = false });
+        var english = SearchRecords(Path.Combine(site.Output, "en", "search.json"));
+        Assert.All(english, record => Assert.StartsWith("/en/", record.GetProperty("url").GetString(), StringComparison.Ordinal));
+        Assert.Equal(english.Length + SearchRecords(Path.Combine(site.Output, "zh-CN", "search.json")).Length,
+            SearchRecords(Path.Combine(site.Output, "search.json")).Length);
+    }
+
+    [Fact]
+    public async Task RootLayout_MergedSearchStaticIndexConflicts()
+    {
+        using var site = RootSite();
+        site.Sandbox.Write("static/search.json", "[]");
+
+        var ex = await Assert.ThrowsAnyAsync<BukitException>(() =>
+            new SiteEngine(new ConsoleLogger(LogLevel.Error)).BuildAsync(MergedSearch(site.Config), site.Root,
+                new ConfigOverrides { Incremental = false }));
+
+        Assert.Equal(DiagnosticCode.I18nRootOutputConflict, ex.Code);
+        Assert.Contains("search.json", ex.Message, StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData("merged", "en/search.json")]
+    [InlineData("split", "search.json")]
+    [InlineData("index", "search.json")]
+    public void AuditReadPaths_ReadTheRootLanguageOwnSearchIndex(string mode, string expected)
+    {
+        using var site = RootSite();
+        var config = site.Config with { Site = site.Config.Site with { Search = site.Config.Site.Search with { Mode = mode } } };
+        var layout = I18nOutputLayout.Create(config.Site, ["en", "zh-CN"], "/");
+
+        var paths = layout.AuditReadPaths(site.Output, "en", [], I18nOutputLayout.StaticCopyOptions(config.Build));
+
+        Assert.NotNull(paths);
+        Assert.Equal(expected, BuildPathUtils.NormalizeRelPath(Path.GetRelativePath(site.Output, paths.Search!)));
+    }
+
+    [Theory]
+    [InlineData(false, "merged", "en", "en/search.json")]
+    [InlineData(false, "split", "en", "search.json")]
+    [InlineData(false, "index", "en", "search.json")]
+    [InlineData(false, "merged", "zh-CN", "search.json")]
+    [InlineData(true, "merged", "en", "search.json")]
+    public void SearchRelativePath_MovesOnlyTheRootLanguageMergedIndex(bool inSubdir, string mode, string language, string expected)
+    {
+        var site = new SiteConfig
+        {
+            Name = "layout",
+            Title = "Layout",
+            Languages = ["en", "zh-CN"],
+            DefaultLanguage = "en",
+            DefaultLanguageInSubdir = inSubdir,
+            Search = new SearchDetailConfig { Mode = mode }
+        };
+
+        Assert.Equal(expected, BuildPathUtils.NormalizeRelPath(
+            I18nOutputLayout.Create(site, ["en", "zh-CN"], "/").SearchRelativePath(language)));
+    }
+
     [Fact]
     public async Task StaticRobots_OverridesGeneratedRobotsInBothDirections()
     {

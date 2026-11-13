@@ -189,7 +189,7 @@ dist/
 ## 9. 后续事项（不在本提案范围）
 
 - 为全部旧地址 `/<lang>/*` 自动生成迁移跳转。
-- `search.mode: merged` 与根目录布局的组合。
+- ~~`search.mode: merged` 与根目录布局的组合。~~ 已实施（2026-11-13，openspec change `add-i18n-root-layout-merged-search`）：合并索引仍在 `/search.json`，默认语言自己的索引移到 `/<lang>/search.json`；所有搜索记录带 `language`。
 - 资源目录在各语言间共用。
 - ~~`examples/github-pages-workflow.yml` 上传了 `.bukit/` 报告（现有问题）。~~ 已解决（PR #138，2026-11-13）：示例在上传前删除 `.bukit/`、`.bukit-output-marker` 和 `.bukit-build-state.json`，排除规则与 `GitHubPagesDeployProvider` 一致。
 
@@ -205,3 +205,4 @@ dist/
 | 审计 5 | 2026-11-12 | 改正 deploy 发布行为的表述 |
 | 审计 6 | 2026-11-12 | 未发现内容问题；修订记录移到文末 |
 | 更新 | 2026-11-13 | 第 9 节：示例 workflow 上传 `.bukit/` 的问题标为已解决（PR #138） |
+| 更新 | 2026-11-13 | 第 9 节：根目录布局与合并搜索的组合标为已实施 |

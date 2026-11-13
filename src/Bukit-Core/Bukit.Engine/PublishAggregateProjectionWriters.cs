@@ -138,8 +138,9 @@ internal static class SearchProjectionWriter
 {
     internal static void WriteSearchIndex(PublishProjectionContext context)
     {
+        var searchPath = I18nOutputLayout.VariantSearchRelativePath(context.Config);
         SearchIndexBuilder.GenerateSingleSearchIndex(
-            context.OutputDir,
+            Path.Combine(context.OutputDir, Path.GetDirectoryName(searchPath) ?? string.Empty),
             context.BaseUrl,
             context.Config.Site.SearchIncludeDerived,
             context.SearchSnippetsEnabled,
@@ -149,8 +150,9 @@ internal static class SearchProjectionWriter
             context.SeoIndex,
             context.BodyStore ?? NullContentBodyStore.Instance,
             context.ListRouteGraph,
-            context.SeoModels);
-        SearchIndexPlugin.WriteSearchUi(context.Config, context.OutputDir, context.BaseUrl);
+            context.SeoModels,
+            SearchIndexBuilder.RecordLanguageFallback(context.Config));
+        SearchIndexPlugin.WriteSearchUi(context.Config, context.OutputDir, context.BaseUrl, searchPath);
     }
 }
 

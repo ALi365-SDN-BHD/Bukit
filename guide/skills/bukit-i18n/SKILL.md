@@ -32,7 +32,7 @@ site:
   defaultLanguageLegacyRedirects: false # true: redirect every old /<default>/... page
   sitemapMode: merged           # split | merged | index
   feed: { mode: split }         # split | merged
-  search: { mode: index }       # split | merged | index (merged is rejected at the root)
+  search: { mode: index }       # split | merged | index
 ```
 
 ```markdown
@@ -86,8 +86,9 @@ another language code (case-insensitive). The build fails with
 existing content. Default-language `static/robots.txt` overrides generated robots;
 other static files colliding with root-owned outputs fail with
 `i18n-root-output-conflict`. Default-language reports move to
-`.bukit/variants/<lang>/`; the merged reports stay in `.bukit/`. `search.mode:
-merged` is rejected with the root layout.
+`.bukit/variants/<lang>/`; the merged reports stay in `.bukit/`. With `search.mode:
+merged` the root `search.json` is the merged index and the default language's own
+index is `/<defaultLang>/search.json`.
 
 | Setting | `split` | `merged` | `index` |
 |---|---|---|---|

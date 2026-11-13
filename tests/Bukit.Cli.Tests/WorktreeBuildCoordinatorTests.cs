@@ -935,6 +935,32 @@ public sealed class WorktreeBuildCoordinatorTests : IDisposable
     }
 
     [Fact]
+    public async Task WorktreeBuild_MatchesInProcessOutputs_ForRootDefaultLanguageMergedSearch()
+    {
+        var root = Path.Combine(_root, "root-layout-merged-search-equivalence");
+        var site = CreateSite(root);
+        var path = Path.Combine(root, "site.yaml");
+        File.WriteAllText(path, File.ReadAllText(path)
+            .Replace("  defaultLanguage: en\n", "  defaultLanguage: en\n  defaultLanguageInSubdir: false\n", StringComparison.Ordinal)
+            .Replace("  sitemapMode: merged\n", "  sitemapMode: split\n", StringComparison.Ordinal));
+        Assert.Contains("  search:\n    mode: merged\n", File.ReadAllText(path), StringComparison.Ordinal);
+        await InitializeRepositoryAsync(root);
+
+        Assert.Equal(0, await BuildCommand.RunInProcessAsync(Command(site)));
+        var expected = SnapshotPublishedOutputs(Path.Combine(root, "dist"));
+        Assert.True(File.Exists(Path.Combine(root, "dist", "en", "search.json")));
+        Assert.Contains("/zh-CN/", File.ReadAllText(Path.Combine(root, "dist", "search.json")), StringComparison.Ordinal);
+        Assert.Contains("data-search-url=\"/en/search.json\"", File.ReadAllText(Path.Combine(root, "dist", "bukit-search.html")), StringComparison.Ordinal);
+        TestCleanup.DeleteDirectory(Path.Combine(root, "dist"), recursive: true);
+        TestCleanup.DeleteDirectory(Path.Combine(root, ".cache"), recursive: true);
+
+        var worktree = await RunProcessAsync("dotnet", [typeof(BuildCommand).Assembly.Location, "build", "--config", site], root);
+        Assert.True(worktree.ExitCode == 0, worktree.Output);
+        Assert.Equal(expected, SnapshotPublishedOutputs(Path.Combine(root, "dist")));
+        Assert.Contains("data-search-url=\"/en/search.json\"", File.ReadAllText(Path.Combine(root, "dist", "bukit-search.html")), StringComparison.Ordinal);
+    }
+
+    [Fact]
     public async Task WorktreeBuild_MatchesInProcessOutputs_ForLegacyRedirects()
     {
         var root = Path.Combine(_root, "legacy-redirect-equivalence");
