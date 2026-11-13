@@ -43,6 +43,7 @@ public sealed class SingleLanguageAggregateOwnershipTests
     [Theory]
     [InlineData("split")]
     [InlineData("merged")]
+    [InlineData("index")]
     public async Task SingleLanguageSitemap_StaticFileCollidesInEveryMode(string mode)
     {
         using var site = new SiteBuilder("basic-markdown-site");
