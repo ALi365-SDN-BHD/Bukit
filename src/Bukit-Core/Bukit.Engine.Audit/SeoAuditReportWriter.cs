@@ -90,7 +90,14 @@ internal static partial class SeoAuditReportWriter
             })]
         }));
         var actualProjections = documentProjections.Concat(projectionResults ?? []).ToArray();
-        var auditResult = MachineReadabilityTrustAuditBuilder.Build(config, outputDir, seoIndex, seoModels,
+        // Record lookup matches a route's first segment to a language and otherwise falls back
+        // to site.language, which a multilingual build does not use. Routes without a language
+        // prefix belong to the language written at the output root, so fall back to that one.
+        var rootLanguage = outputPrefixes.FirstOrDefault(prefix => string.IsNullOrEmpty(prefix.Value)).Key;
+        var auditConfig = rootLanguage is null
+            ? config
+            : config with { Site = config.Site with { Language = rootLanguage } };
+        var auditResult = MachineReadabilityTrustAuditBuilder.Build(auditConfig, outputDir, seoIndex, seoModels,
             new CanonicalContentGraph(records, entities), requireHreflangTargets: true, actualProjections, documentsByOutputPath);
         WriteReport(outputDir, auditResult, logger, logIssues: false);
         LogIssues(WithVariantIssues(auditResult.SeoReport.Issues, variantIssues ?? []), logger);

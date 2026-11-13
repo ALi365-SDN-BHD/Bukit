@@ -15,7 +15,8 @@ internal static partial class MachineReadabilityTrustAuditBuilder
     private static ContentRecord? ResolveRecordForEntry(
         IReadOnlyDictionary<string, ContentRecord[]> recordsById,
         SeoIndexEntry entry,
-        string? siteLanguage)
+        string? siteLanguage,
+        string? baseUrl)
     {
         if (string.IsNullOrWhiteSpace(entry.SourceItemId) ||
             !recordsById.TryGetValue(entry.SourceItemId, out var records) ||
@@ -24,7 +25,7 @@ internal static partial class MachineReadabilityTrustAuditBuilder
             return null;
         }
 
-        var languageSegment = GetFirstRouteSegment(entry.Route.Url);
+        var languageSegment = GetFirstRouteSegment(entry.Route.Url, baseUrl);
         if (!string.IsNullOrWhiteSpace(languageSegment))
         {
             var languageMatch = records.FirstOrDefault(record =>
@@ -48,9 +49,19 @@ internal static partial class MachineReadabilityTrustAuditBuilder
         return records[0];
     }
 
-    private static string? GetFirstRouteSegment(string routeUrl)
+    // Merged routes carry the site base path (/docs/en/a/), so drop it before reading the
+    // language segment; otherwise every route under a non-root baseUrl starts with "docs".
+    private static string? GetFirstRouteSegment(string routeUrl, string? baseUrl)
     {
-        var parts = (routeUrl ?? string.Empty)
+        var url = routeUrl ?? string.Empty;
+        var basePath = BuildPathUtils.NormalizeBaseUrl(baseUrl ?? "/");
+        if (basePath != "/" &&
+            (url.Equals(basePath, StringComparison.Ordinal) || url.StartsWith(basePath + "/", StringComparison.Ordinal)))
+        {
+            url = url[basePath.Length..];
+        }
+
+        var parts = url
             .Trim('/')
             .Split('/', StringSplitOptions.RemoveEmptyEntries);
         return parts.Length == 0 ? null : parts[0];
@@ -256,7 +267,7 @@ internal static partial class MachineReadabilityTrustAuditBuilder
                 .OrderBy(pair => pair.Value.Route.Url, StringComparer.OrdinalIgnoreCase)
                 .Select(pair => new FeedAuditCandidate(
                     pair.Value,
-                    ResolveRecordForEntry(recordsById, pair.Value, config.Site.Language)?.Lifecycle.PublishedAt ?? pair.Value.LastModified,
+                    ResolveRecordForEntry(recordsById, pair.Value, config.Site.Language, config.Site.BaseUrl)?.Lifecycle.PublishedAt ?? pair.Value.LastModified,
                     documentsByOutputPath is not null && documentsByOutputPath.TryGetValue(pair.Key, out var document) ? document : null))
         ];
 

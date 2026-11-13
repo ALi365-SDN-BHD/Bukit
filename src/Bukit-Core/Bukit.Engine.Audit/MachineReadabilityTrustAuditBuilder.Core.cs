@@ -56,7 +56,7 @@ internal static partial class MachineReadabilityTrustAuditBuilder
         foreach (var (key, entry) in seoIndex.OrderBy(x => x.Value.Route.Url, StringComparer.OrdinalIgnoreCase))
         {
             seoModels.TryGetValue(key, out var model);
-            var record = ResolveRecordForEntry(recordsById, entry, config.Site.Language);
+            var record = ResolveRecordForEntry(recordsById, entry, config.Site.Language, config.Site.BaseUrl);
             routeMapBuilder.Add(entry, model, record);
             var outputPath = Path.Combine(outputDir, entry.Route.OutputPath);
             var outputExists = File.Exists(outputPath);

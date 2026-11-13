@@ -4,6 +4,7 @@ Bukit 所有重要变更都将记录在此文件中。
 
 ## [Unreleased]
 
+- **合并发布审计为每个路由匹配它自己的译文**：多语言构建中，共用同一 ID 的译文按路由第一段匹配内容记录，匹配不上就退回 `site.language`，而多语言构建并不使用这个值。在 `/docs` 这类 `baseUrl` 下第一段是 `docs`；默认语言放在根目录时，它的路由没有语言段。这些路由因此可能取到另一种语言的记录：合并后的 `publish-audit-report.json` 显示该语言的语言、摘要、作者和日期，feed 窗口检查也用了它的发布日期。现在先去掉 base 路径再读取语言段，没有语言段的路由使用写在输出根目录的语言。生成的页面不变。
 - **行为变更：`site.language` 必须是安全的语言代码**：未设置 `site.languages` 时，`site.language` 现在只能由字母和数字组成、用连字符分隔子标签（例如 `en`、`zh-CN`、`zh-Hant-TW`），与 `site.languages` 已有的规则一致。`en_US` 或包含引号、`/`、`<` 的值现在会校验失败，报错 `site.language must use safe alphanumeric subtags separated by hyphens.`，不再写进 `<html lang>`。请把 `en_US` 改为 `en-US`。空值仍然允许；设置了 `site.languages` 时不检查 `site.language`。HTML 演示导入器现在写入安全的语言代码：把页面 `lang` 中的 `zh_CN` 转成 `zh-CN`，转换后仍不安全时回退为 `zh`；不安全的 `--language` 直接报错，不再写出无法构建的 `site.yaml`。
 - **Starter 主题搜索只显示当前语言**：Starter 主题的搜索页（`layouts/pages/search.html`，由主题脚手架和 clone 写出）请求 `{{ site.base_url }}/search.json`。默认语言放在根目录且 `search.mode: merged` 时，这个文件是合并索引，默认语言的搜索结果会混入所有语言。现在页面只保留 `language` 与 `site.language` 相同（不区分大小写）或为 `und` 的记录。已有主题不会被改写；要获得此行为，把过滤逻辑复制到已生成的 `search.html` 中。
 - **每条搜索记录都带语言**：页面没有语言的列表和分类记录过去在 `search.json` 中缺少 `language`，没有语言的页面在多语言站点的某个语言里也记为 `und`。现在每条记录都有 `language`：自身没有语言的记录，在多语言站点取写出它的语言，其他情况为 `und`。前端可以直接按 `language` 过滤合并索引，无需特殊处理。
