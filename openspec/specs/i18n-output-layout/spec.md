@@ -73,7 +73,8 @@ When the default language is at the root, a default language `static/robots.txt`
 SHALL be used as the site robots file and the root robots writer SHALL NOT
 generate one. A default language static file whose output path equals another
 root-owned file (`agent-manifest.json`, `llms.txt`, `llms-full.txt`, the root
-sitemap under `merged` or `index` mode, or a merged root feed) SHALL fail the
+sitemap under `merged` or `index` mode, a merged root feed, or the merged root
+`search.json`) SHALL fail the
 build with `i18n-root-output-conflict` before any file is copied, naming the
 static source path and the conflicting setting. Other static files SHALL be
 copied to the output root unchanged.
@@ -85,15 +86,6 @@ copied to the output root unchanged.
 #### Scenario: Static llms conflict
 - **WHEN** the default language is at the root, GEO `llmsTxt` is enabled, and `static/llms.txt` exists
 - **THEN** the build fails with `i18n-root-output-conflict` naming `static/llms.txt`
-
-### Requirement: Merged search is rejected with a root default language
-Configuration validation SHALL fail when `site.defaultLanguageInSubdir` is
-`false`, `site.languages` is non-empty, and `site.search.mode` resolves to
-`merged`.
-
-#### Scenario: Merged search combination
-- **WHEN** `defaultLanguageInSubdir` is `false` and `search.mode` is `merged`
-- **THEN** configuration validation fails and names both settings
 
 ### Requirement: Root default language reports do not collide with merged reports
 When the default language is at the root, every per-language build report it
@@ -148,12 +140,13 @@ The layout setting SHALL contribute to the incremental site hash only when it is
 one, Bukit SHALL clean the output directory through the existing protected
 clean path before writing, so no content output from the previous layout
 remains. When `defaultLanguageRedirect` is `true`, the root layout may still
-write `<lang>/index.html` as a redirect page. Stale file and empty directory
+write `<lang>/index.html` as a redirect page, and with `search.mode: merged` it
+writes the default language's own index at `<lang>/search.json`. Stale file and empty directory
 removal for the root default language SHALL NOT remove files or directories
 owned by another language.
 
 #### Scenario: Switching to a root default language
-- **WHEN** a site previously built with `dist/en/` is rebuilt with `defaultLanguageInSubdir: false` and `defaultLanguageRedirect: false`
+- **WHEN** a site previously built with `dist/en/` is rebuilt with `defaultLanguageInSubdir: false`, `defaultLanguageRedirect: false`, and a `search.mode` other than `merged`
 - **THEN** `dist/en/` no longer exists after the build and `dist/index.html` is the English home page
 
 #### Scenario: Upgrade without opting in
@@ -242,3 +235,24 @@ setting SHALL NOT contribute to the incremental site hash.
 #### Scenario: Disabling removes the redirects
 - **WHEN** an incremental build follows a build with the setting `true` and the setting is now `false`
 - **THEN** every migration redirect is removed and no other page is re-rendered
+
+### Requirement: Merged search with a root default language
+When `site.defaultLanguageInSubdir` is `false`, `site.languages` is non-empty
+and `site.search.mode` resolves to `merged`, configuration validation SHALL
+accept the site. The root aggregate SHALL write the merged index at
+`search.json`, the default language SHALL write its own index at
+`<defaultLang>/search.json`, and every other language SHALL keep
+`<lang>/search.json`. The projection plan, the build manifest ownership, the
+default-language publish audit and the default-language search UI SHALL use
+that same path. In every search mode, every search record SHALL carry a
+non-empty `language`: the record's own language, or, when it has none or `und`,
+the language of the variant that wrote it in a multilingual build and `und`
+otherwise.
+
+#### Scenario: Root layout with merged search
+- **WHEN** `languages` is `[en, zh-CN]`, `defaultLanguage` is `en`, `defaultLanguageInSubdir` is `false`, and `search.mode` is `merged`
+- **THEN** `dist/search.json` lists the records of both languages, each with its `language`, `dist/en/search.json` lists only English records, `dist/zh-CN/search.json` lists only Chinese records, and `dist/bukit-search.html` loads `/en/search.json`
+
+#### Scenario: Static file collides with the merged index
+- **WHEN** the same site has a default-language `static/search.json`
+- **THEN** the build fails with `i18n-root-output-conflict` naming `static/search.json`
