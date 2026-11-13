@@ -342,6 +342,72 @@ public sealed class I18nRootLayoutTests
     }
 
     [Fact]
+    public async Task StaticRobots_MiscasedNameConflictsInsteadOfReplacingGeneratedRobots()
+    {
+        using var site = RootSite();
+        var config = WithRobots(site.Config);
+        site.Sandbox.Write("static/Robots.txt", "User-agent: *\nAllow: /static\n");
+
+        var ex = await Assert.ThrowsAsync<BukitException>(() =>
+            new SiteEngine(new ConsoleLogger(LogLevel.Error)).BuildAsync(config, site.Root,
+                new ConfigOverrides { Incremental = false }));
+
+        Assert.Equal(DiagnosticCode.I18nRootOutputConflict, ex.Code);
+        Assert.Contains("Robots.txt", ex.Message, StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData(false, false)]
+    [InlineData(true, true)]
+    public void ConflictGuard_FollowsTheCopyStepDotfileRule(bool publishDotFiles, bool expectConflict)
+    {
+        using var site = RootSite();
+        var config = site.Config with
+        {
+            Build = site.Config.Build with { PublishDotFiles = publishDotFiles },
+            Site = site.Config.Site with
+            {
+                Language = "en",
+                Feed = site.Config.Site.Feed with { Mode = "merged", Path = ".feeds", Formats = ["atom"] }
+            }
+        };
+        site.Sandbox.Write("static/.feeds/atom.xml", "<feed/>");
+
+        var ex = Record.Exception(() =>
+            I18nRootOutputConflictGuard.Validate(config, site.Sandbox.PathFor("static"), null));
+
+        if (expectConflict)
+        {
+            Assert.Equal(DiagnosticCode.I18nRootOutputConflict, Assert.IsType<BukitException>(ex).Code);
+        }
+        else
+        {
+            Assert.Null(ex);
+        }
+    }
+
+    [Theory]
+    [InlineData(false, false)]
+    [InlineData(true, true)]
+    public void AuditReadPaths_StaticRobotsFollowsTheCopyStepSymlinkRule(bool followSymlinks, bool expectStaticRobots)
+    {
+        using var site = RootSite();
+        var config = site.Config with { Build = site.Config.Build with { FollowSymlinks = followSymlinks } };
+        site.Sandbox.Write("static/policy/robots-source.txt", "User-agent: *\n");
+        File.CreateSymbolicLink(site.Sandbox.PathFor("static/robots.txt"), "policy/robots-source.txt");
+        var layout = I18nOutputLayout.Create(config.Site, ["en", "zh-CN"], "/");
+
+        var paths = layout.AuditReadPaths(
+            site.Output,
+            "en",
+            [site.Sandbox.PathFor("static")],
+            I18nOutputLayout.StaticCopyOptions(config.Build));
+
+        Assert.NotNull(paths);
+        Assert.Equal(expectStaticRobots, paths.Robots is not null);
+    }
+
+    [Fact]
     public async Task SingleLanguageRootLayout_KeepsLanguageAndRootManifestsApart()
     {
         using var site = RootSite();

@@ -38,8 +38,9 @@ language page, list, taxonomy, alias, derived document, static file, or plugin
 output whose first segment equals another language code fails with
 `i18n-route-reserved-language-prefix` (case-insensitive). The default language's own
 code remains available for legacy aliases such as `/en/about/`. A default-language
-`static/robots.txt` becomes the site robots file; a static file that collides with
-another root-owned output fails with `i18n-root-output-conflict` before copying.
+`static/robots.txt` becomes the site robots file. The name must be exactly
+`robots.txt`: any other casing, such as `Robots.txt`, and any static file that collides
+with another root-owned output fail with `i18n-root-output-conflict` before copying.
 
 ## Language Diagnostics
 
