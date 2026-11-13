@@ -95,7 +95,7 @@ index is `/<defaultLang>/search.json`.
 |---|---|---|---|
 | `sitemapMode` | per-language sitemaps | one root sitemap with `xhtml:link` alternates; per-language ones suppressed | per-language sitemaps plus a root sitemap index |
 | `site.feed.mode` | per-language feeds | root feeds only | — |
-| `site.search.mode` | `/<lang>/search.json` only | adds root `search.json` | adds root `search.index.json` |
+| `site.search.mode` | per-language `search.json` only (the root one belongs to a root default language) | adds root `search.json` | adds root `search.index.json` |
 
 With the root layout, `split` writes the default language sitemap to the root
 `sitemap.xml`; `index` writes it to `/<lang>/sitemap.xml` with unprefixed page URLs
