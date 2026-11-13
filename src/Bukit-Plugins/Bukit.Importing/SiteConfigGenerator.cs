@@ -354,10 +354,7 @@ internal static class SiteConfigGenerator
     {
         if (!string.IsNullOrWhiteSpace(configured))
         {
-            return NormalizeLanguageTag(configured)
-                ?? throw new ImportException(
-                    ImportErrorKind.UserInput,
-                    $"--language must use letters and digits in hyphen-separated subtags, such as en or zh-CN: {configured.Trim()}");
+            return NormalizeLanguageTag(configured) ?? throw InvalidLanguageOption(configured);
         }
 
         var language = pages?
@@ -371,6 +368,19 @@ internal static class SiteConfigGenerator
 
         return language ?? "zh";
     }
+
+    // Checked up front by HtmlDemoImporter.ValidateInput so a bad option fails
+    // before --force removes an existing theme or any file is written.
+    internal static void ValidateLanguageOption(string? configured)
+    {
+        if (!string.IsNullOrWhiteSpace(configured) && NormalizeLanguageTag(configured) is null)
+            throw InvalidLanguageOption(configured);
+    }
+
+    private static ImportException InvalidLanguageOption(string configured)
+        => new(
+            ImportErrorKind.UserInput,
+            $"--language must use letters and digits in hyphen-separated subtags, such as en or zh-CN: {configured.Trim()}");
 
     private static string? NormalizeLanguageTag(string? value)
     {

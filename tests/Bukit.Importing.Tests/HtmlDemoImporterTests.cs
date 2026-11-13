@@ -1865,12 +1865,16 @@ pages:
     }
 
     [Theory]
-    [InlineData("zh: #1")]
-    [InlineData("en/US")]
-    public void Import_UnsafeLanguageOption_IsRejected(string language)
+    [InlineData("zh: #1", false)]
+    [InlineData("en/US", false)]
+    [InlineData("en/US", true)]
+    public void Import_UnsafeLanguageOption_IsRejectedBeforeWriting(string language, bool dryRun)
     {
         File.WriteAllText(Path.Combine(_tempDir, "index.html"),
             "<html><head><title>Home</title></head><body><main><h1>Home</h1></main></body></html>");
+        var existingTheme = Path.Combine(_tempDir, "themes", "lang-rejected");
+        Directory.CreateDirectory(existingTheme);
+        File.WriteAllText(Path.Combine(existingTheme, "keep.txt"), "keep");
 
         var ex = Assert.Throws<ImportException>(() => HtmlDemoImporter.Import(new HtmlDemoImportOptions
         {
@@ -1878,11 +1882,16 @@ pages:
             ThemeName = "lang-rejected",
             RootDir = _tempDir,
             Force = true,
+            DryRun = dryRun,
             Language = language
         }));
 
         Assert.Equal(ImportErrorKind.UserInput, ex.Kind);
         Assert.Contains("--language must use letters and digits", ex.Message, StringComparison.Ordinal);
+        Assert.True(File.Exists(Path.Combine(existingTheme, "keep.txt")));
+        Assert.Equal(new[] { "keep.txt" }, Directory.GetFiles(existingTheme).Select(Path.GetFileName).ToArray());
+        Assert.False(Directory.Exists(Path.Combine(_tempDir, "sites", "lang-rejected")));
+        Assert.False(Directory.Exists(Path.Combine(_tempDir, "content")));
     }
 
     [Fact]
