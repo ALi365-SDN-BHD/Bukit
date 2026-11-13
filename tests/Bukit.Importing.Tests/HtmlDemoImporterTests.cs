@@ -1814,7 +1814,7 @@ pages:
             ThemeName = "yaml-values",
             RootDir = _tempDir,
             Force = true,
-            Language = "zh: #1",
+            Language = "zh-CN",
             BaseUrl = "/base: #2"
         });
 
@@ -1822,9 +1822,67 @@ pages:
 
         // A generic "Home" title names no site, so the theme name is used.
         Assert.Equal("yaml-values", config.Site.Name);
-        Assert.Equal("zh: #1", config.Site.Language);
+        Assert.Equal("zh-CN", config.Site.Language);
         Assert.Equal("/base: #2", config.Site.BaseUrl);
         Assert.Equal("dist", config.Build.Output);
+    }
+
+    [Fact]
+    public void Import_PageLanguageWithUnderscore_IsNormalizedToSafeTag()
+    {
+        File.WriteAllText(Path.Combine(_tempDir, "index.html"),
+            "<html lang=\"en_US\"><head><title>Home</title></head><body><main><h1>Home</h1></main></body></html>");
+
+        HtmlDemoImporter.Import(new HtmlDemoImportOptions
+        {
+            InputPath = _tempDir,
+            ThemeName = "lang-normalized",
+            RootDir = _tempDir,
+            Force = true
+        });
+
+        var config = Bukit.Config.ConfigLoader.Load(Path.Combine(_tempDir, "sites", "lang-normalized", "site.yaml"));
+        Assert.Equal("en-US", config.Site.Language);
+        Bukit.Config.ConfigValidator.Validate(config);
+    }
+
+    [Fact]
+    public void Import_UnsafePageLanguage_FallsBackToDefault()
+    {
+        File.WriteAllText(Path.Combine(_tempDir, "index.html"),
+            "<html lang=\"en us\"><head><title>Home</title></head><body><main><h1>Home</h1></main></body></html>");
+
+        HtmlDemoImporter.Import(new HtmlDemoImportOptions
+        {
+            InputPath = _tempDir,
+            ThemeName = "lang-fallback",
+            RootDir = _tempDir,
+            Force = true
+        });
+
+        var config = Bukit.Config.ConfigLoader.Load(Path.Combine(_tempDir, "sites", "lang-fallback", "site.yaml"));
+        Assert.Equal("zh", config.Site.Language);
+    }
+
+    [Theory]
+    [InlineData("zh: #1")]
+    [InlineData("en/US")]
+    public void Import_UnsafeLanguageOption_IsRejected(string language)
+    {
+        File.WriteAllText(Path.Combine(_tempDir, "index.html"),
+            "<html><head><title>Home</title></head><body><main><h1>Home</h1></main></body></html>");
+
+        var ex = Assert.Throws<ImportException>(() => HtmlDemoImporter.Import(new HtmlDemoImportOptions
+        {
+            InputPath = _tempDir,
+            ThemeName = "lang-rejected",
+            RootDir = _tempDir,
+            Force = true,
+            Language = language
+        }));
+
+        Assert.Equal(ImportErrorKind.UserInput, ex.Kind);
+        Assert.Contains("--language must use letters and digits", ex.Message, StringComparison.Ordinal);
     }
 
     [Fact]
