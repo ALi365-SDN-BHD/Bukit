@@ -71,13 +71,23 @@ internal static class I18nLanguagePolicy
     internal static void WarnLayoutSettingsWithoutLanguages(SiteConfig site, ILogger logger)
     {
         if (GetLanguages(site).Count > 0 ||
-            (site.DefaultLanguageInSubdir && site.DefaultLanguageRedirect))
+            (site.DefaultLanguageInSubdir && site.DefaultLanguageRedirect && !site.DefaultLanguageLegacyRedirects))
         {
             return;
         }
 
         logger.Warn(
-            $"event=i18n.config.default_language_layout_ignored defaultLanguageInSubdir={site.DefaultLanguageInSubdir.ToString().ToLowerInvariant()} defaultLanguageRedirect={site.DefaultLanguageRedirect.ToString().ToLowerInvariant()}");
+            $"event=i18n.config.default_language_layout_ignored defaultLanguageInSubdir={site.DefaultLanguageInSubdir.ToString().ToLowerInvariant()} defaultLanguageRedirect={site.DefaultLanguageRedirect.ToString().ToLowerInvariant()} defaultLanguageLegacyRedirects={site.DefaultLanguageLegacyRedirects.ToString().ToLowerInvariant()}");
+    }
+
+    /// <summary>Legacy redirects only exist once the default language of a multilingual site has moved to the root.</summary>
+    internal static void WarnIgnoredLegacyRedirects(SiteConfig site, ILogger logger)
+    {
+        if (GetLanguages(site).Count > 0 && site.DefaultLanguageInSubdir && site.DefaultLanguageLegacyRedirects)
+        {
+            logger.Warn(
+                "event=i18n.config.legacy_redirects_ignored defaultLanguageInSubdir=true defaultLanguageLegacyRedirects=true");
+        }
     }
 
     internal static void WarnDocumentLanguageIssues(

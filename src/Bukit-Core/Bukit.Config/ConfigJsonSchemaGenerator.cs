@@ -65,6 +65,7 @@ public static class ConfigJsonSchemaGenerator
             ("defaultLanguage", StringSchema()),
             ("defaultLanguageInSubdir", BoolSchema(true)),
             ("defaultLanguageRedirect", BoolSchema(true)),
+            ("defaultLanguageLegacyRedirects", BoolSchema(false)),
             ("sitemapMode", EnumSchema("split", "merged", "index")),
             ("searchIncludeDerived", BoolSchema()),
             ("pluginFailMode", EnumSchema("strict", "warn")),

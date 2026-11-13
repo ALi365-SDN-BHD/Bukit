@@ -158,6 +158,7 @@ public sealed partial class SiteEngine
             var bodyStore = contentResult.BodyStore;
             var bodyCacheMetrics = contentResult.BodyCacheMetrics;
             I18nLanguagePolicy.WarnLayoutSettingsWithoutLanguages(effectiveConfig.Site, buildLogger);
+            I18nLanguagePolicy.WarnIgnoredLegacyRedirects(effectiveConfig.Site, buildLogger);
             I18nLanguagePolicy.WarnDocumentLanguageIssues(documents, effectiveConfig.Site, buildLogger);
 
             BuildResult completedResult;

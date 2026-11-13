@@ -60,6 +60,28 @@ public sealed class IncrementalEngineIdentityTests
         Assert.True(redirectChanged.Incremental.CacheMissCount > 0);
     }
 
+    [Fact]
+    public async Task LegacyRedirects_DoNotContributeToTheSiteHash()
+    {
+        using var site = CreateSite();
+        var config = Configure(site.Config, true) with
+        {
+            Site = Configure(site.Config, true).Site with { DefaultLanguageInSubdir = false }
+        };
+        var first = await BuildAsync(config, site.Root, "2.0.12+legacy");
+
+        // Every page of the first build stays cached except the legacy home redirect, which
+        // shares the redirect set's dependencies; a site hash change would render them all.
+        var enabled = config with { Site = config.Site with { DefaultLanguageLegacyRedirects = true } };
+        var toggled = await BuildAsync(enabled, site.Root, "2.0.12+legacy");
+        Assert.Equal(first.Incremental.CacheMissCount - 1, toggled.Incremental.CacheHitCount);
+
+        var same = await BuildAsync(enabled, site.Root, "2.0.12+legacy");
+        Assert.Equal(0, same.Incremental.CacheMissCount);
+        var disabled = await BuildAsync(config, site.Root, "2.0.12+legacy");
+        Assert.Equal(1, disabled.Incremental.CacheMissCount);
+    }
+
     private static int ListReasons(SiteBuilder site, string reason)
     {
         var total = 0;

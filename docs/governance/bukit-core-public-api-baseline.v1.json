@@ -1868,6 +1868,7 @@
         "public Bukit.Config.SitemapDetailConfig! SitemapDetail { get; init; }",
         "public System.Boolean AutoSummary { get; init; }",
         "public System.Boolean DefaultLanguageInSubdir { get; init; }",
+        "public System.Boolean DefaultLanguageLegacyRedirects { get; init; }",
         "public System.Boolean DefaultLanguageRedirect { get; init; }",
         "public System.Boolean SearchIncludeDerived { get; init; }",
         "public System.Collections.Generic.IReadOnlyDictionary\u003CSystem.String!, Bukit.Config.CollectionConfig!\u003E? Collections { get; init; }",

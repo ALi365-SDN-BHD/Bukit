@@ -60,6 +60,7 @@ public sealed class ConfigPhase2ValidatorTests : IDisposable
         Assert.Null(config.Site.Languages);
         Assert.True(config.Site.DefaultLanguageInSubdir);
         Assert.True(config.Site.DefaultLanguageRedirect);
+        Assert.False(config.Site.DefaultLanguageLegacyRedirects);
         Assert.Null(config.Site.DefaultLanguage);
         Assert.Equal("split", config.Site.SitemapMode);
         Assert.Equal("Asia/Shanghai", config.Site.Timezone);

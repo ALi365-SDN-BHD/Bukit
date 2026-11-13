@@ -402,14 +402,20 @@ internal sealed class BuildTransaction : IDisposable
     {
         foreach (var relative in GeneratedOutputLinkPaths(config))
         {
-            var current = output;
-            foreach (var part in relative.Split('/', Path.DirectorySeparatorChar))
-            {
-                current = Path.Combine(current, part);
-                try { if ((File.GetAttributes(current) & FileAttributes.ReparsePoint) != 0) throw new IOException($"Generated output cannot traverse a symbolic link: {current}"); }
-                catch (FileNotFoundException) { break; }
-                catch (DirectoryNotFoundException) { break; }
-            }
+            RejectLinkSegments(output, relative);
+        }
+    }
+
+    /// <summary>Rejects a write whose output-relative path crosses a symbolic link, even one that stays inside the output.</summary>
+    internal static void RejectLinkSegments(string output, string relative)
+    {
+        var current = output;
+        foreach (var part in relative.Split('/', Path.DirectorySeparatorChar))
+        {
+            current = Path.Combine(current, part);
+            try { if ((File.GetAttributes(current) & FileAttributes.ReparsePoint) != 0) throw new IOException($"Generated output cannot traverse a symbolic link: {current}"); }
+            catch (FileNotFoundException) { break; }
+            catch (DirectoryNotFoundException) { break; }
         }
     }
 

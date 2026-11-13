@@ -70,6 +70,7 @@ public static class ConfigLoader
             DefaultLanguage = ConfigYamlHelpers.GetOptionalString(siteNode, "defaultLanguage"),
             DefaultLanguageInSubdir = ConfigYamlHelpers.GetOptionalBool(siteNode, "defaultLanguageInSubdir") ?? true,
             DefaultLanguageRedirect = ConfigYamlHelpers.GetOptionalBool(siteNode, "defaultLanguageRedirect") ?? true,
+            DefaultLanguageLegacyRedirects = ConfigYamlHelpers.GetOptionalBool(siteNode, "defaultLanguageLegacyRedirects") ?? false,
             SitemapMode = ConfigYamlHelpers.GetOptionalString(siteNode, "sitemapMode") ?? "split",
             SearchIncludeDerived = ConfigYamlHelpers.GetOptionalBool(siteNode, "searchIncludeDerived") ?? false,
             PluginFailMode = ConfigYamlHelpers.GetOptionalString(siteNode, "pluginFailMode") ?? "strict",

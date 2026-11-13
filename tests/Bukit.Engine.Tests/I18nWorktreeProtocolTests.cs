@@ -359,6 +359,40 @@ public sealed class I18nWorktreeProtocolTests : IDisposable
     }
 
     [Fact]
+    public void VariantResult_AcceptsLegacyRedirectsUnderTheDefaultLanguageCode()
+    {
+        var output = Path.Combine(_root, "output");
+        var snapshot = CreateVariantSnapshot(output) with
+        {
+            DerivedDocuments =
+            [
+                RedirectPageDocument.Create("i18n-legacy-en-0123456789abcdef", "Redirect", "i18n-legacy-en-0123456789abcdef",
+                    DateTimeOffset.UnixEpoch, "https://example.test/about/", "/en/about/", "en/about/index.html")
+            ]
+        };
+        var site = new SiteConfig
+        {
+            Name = "root-language",
+            Title = "Root language",
+            Languages = ["en", "zh-CN"],
+            DefaultLanguage = "en",
+            DefaultLanguageInSubdir = false,
+            DefaultLanguageLegacyRedirects = true
+        };
+
+        I18nWorktreeProtocol.RestoreVariant(
+            snapshot,
+            CanonicalContentGraph.Empty,
+            "head",
+            "config-hash",
+            "hash",
+            "en",
+            output,
+            Path.Combine(_root, "manifest.json"),
+            site);
+    }
+
+    [Fact]
     public void VariantResult_RejectsTraversalOutsidePlannedOutputs()
     {
         var output = Path.Combine(_root, "output");
@@ -376,6 +410,29 @@ public sealed class I18nWorktreeProtocolTests : IDisposable
             "en",
             output,
             Path.Combine(_root, "manifest.json"), PrefixedSite));
+    }
+
+    [Fact]
+    public async Task WorktreeBuild_WarnsWhenLegacyRedirectsAreIgnoredInThePrefixedLayout()
+    {
+        var root = Path.Combine(_root, "project");
+        var configPath = CreateSite(root);
+        var loaded = ConfigLoader.Load(configPath);
+        var config = loaded with { Site = loaded.Site with { DefaultLanguageLegacyRedirects = true } };
+        var overrides = new ConfigOverrides
+        {
+            Output = Path.Combine(_root, "staging-output"),
+            CacheDir = Path.Combine(_root, "staging-cache"),
+            Clean = false,
+            Jobs = 1
+        };
+        var logger = new WarningLogger();
+        var engine = new SiteEngine(logger, new CountingContentProviderFactory(), new DefaultSearchIndexBuilder());
+
+        await using var prepared = await engine.PrepareI18nWorktreeBuildAsync(
+            config, root, root, Path.Combine(root, "dist"), overrides, CancellationToken.None);
+
+        Assert.Single(logger.Warnings, message => message.Contains("event=i18n.config.legacy_redirects_ignored", StringComparison.Ordinal));
     }
 
     private static string CreateSite(string root)

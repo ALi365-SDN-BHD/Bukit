@@ -11,6 +11,7 @@ site:
   defaultLanguage: en
   defaultLanguageInSubdir: true   # false puts the default language at the root
   defaultLanguageRedirect: true   # noindex home redirect page
+  defaultLanguageLegacyRedirects: false  # true: redirect every old /<default>/... page
   sitemapMode: index
   feed:
     mode: split
@@ -33,6 +34,38 @@ or `dist/<defaultLanguage>/index.html` → `/` in the root layout. Set
 URL and would otherwise be overridden. With the root layout, `search.mode: merged`
 is rejected; default-language reports move to `.bukit/variants/<language>/`.
 
+### Migrating an existing site to the root layout
+
+Switching a live site to `defaultLanguageInSubdir: false` moves every default-language
+page from `/<defaultLanguage>/<path>/` to `/<path>/`. Only the old home page gets a
+redirect by default. If your host can issue 301s (Netlify, Cloudflare Pages, S3/CDN
+rules), add a `/<defaultLanguage>/*` → `/*` rule there: a 301 is a stronger migration
+signal than a page redirect. Do not enable the option below in that case, because the
+generated files can shadow host rules that are not forced.
+
+On static hosts that cannot redirect, such as GitHub Pages, set
+`defaultLanguageLegacyRedirects: true`. Bukit then writes a noindex meta-refresh page at
+the old prefixed path of every default-language HTML page: content pages, collection
+lists and pagination, taxonomy pages, static HTML routes, and aliases (an alias
+`/old/` also gets `/<defaultLanguage>/old/`, pointing straight at the page). The home
+page stays controlled by `defaultLanguageRedirect`. A redirect is skipped when your
+own content, alias, list, or static file already uses that path, and the build logs
+one summary line, `i18n.legacy_redirects.derived count=… skipped=… bytes=…`.
+
+Keep in mind:
+
+- Non-HTML files are not redirected: subscribers of `/<defaultLanguage>/rss.xml` need the
+  new feed URL, and a moved sitemap must be resubmitted to search engines.
+- Taxonomy alias redirects are not migrated.
+- Plugin outputs should not use the old `/<defaultLanguage>/` prefix: a plugin file written
+  at a redirect's path fails the build.
+- Each redirect is a small file (about 0.5 KB), so the default-language file count roughly
+  doubles. Route counts in `routes.json` and the build report, and the default language's
+  `derived` count in `--metrics`, grow by the same number, and the redirects appear in
+  `publish-audit-report.json` as non-indexable.
+- The option has no effect with the prefixed layout and logs
+  `i18n.config.legacy_redirects_ignored`. Turning it off later removes the redirects.
+
 The root layout reserves other language codes as first path segments. A default
 language page, list, taxonomy, alias, derived document, static file, or plugin
 output whose first segment equals another language code fails with
@@ -51,7 +84,8 @@ The build reports these warnings:
 | `i18n.document.language_unknown` | A page `language` is not in `site.languages` (or is not `site.language` in a single-language build), so the page is dropped. |
 | `i18n.document.i18n_key_duplicate` | Two pages in the same language use the same `i18nKey`; hreflang and merged sitemap alternates can point to only one of them. |
 | `i18n.config.default_language_ignored` | `site.defaultLanguage` is set but `site.languages` is empty, so the single-language build uses `site.language`. |
-| `i18n.config.default_language_layout_ignored` | `site.defaultLanguageInSubdir` or `site.defaultLanguageRedirect` is `false` but `site.languages` is empty, so the single-language output is unchanged. |
+| `i18n.config.default_language_layout_ignored` | `site.defaultLanguageInSubdir` or `site.defaultLanguageRedirect` is `false`, or `site.defaultLanguageLegacyRedirects` is `true`, but `site.languages` is empty, so the single-language output is unchanged. |
+| `i18n.config.legacy_redirects_ignored` | `site.defaultLanguageLegacyRedirects` is `true` but the default language is still prefixed (`defaultLanguageInSubdir: true`), so there are no old URLs to redirect. |
 
 Warnings are capped at five per kind, followed by one summary line. A single-language
 site that intentionally selects one language from a mixed-language source will warn

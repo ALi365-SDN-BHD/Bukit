@@ -29,6 +29,7 @@ site:
   defaultLanguage: en           # must be in languages; default first entry
   defaultLanguageInSubdir: true # false puts the default language at the output root
   defaultLanguageRedirect: true # legacy home redirect page
+  defaultLanguageLegacyRedirects: false # true: redirect every old /<default>/... page
   sitemapMode: merged           # split | merged | index
   feed: { mode: split }         # split | merged
   search: { mode: index }       # split | merged | index (merged is rejected at the root)
@@ -69,6 +70,15 @@ prefixed layout, and `dist/<defaultLang>/index.html` → `/` for the root layout
 redirect page is not listed in sitemaps, search, feeds, llms, or the agent manifest.
 Set it to `false` when the host or CDN already redirects and would otherwise be
 overridden.
+
+When migrating a live site to the root layout, prefer a host 301 rule
+`/<defaultLang>/*` → `/*`. On static hosts without redirects (GitHub Pages), set
+`defaultLanguageLegacyRedirects: true`: every default-language HTML page (content,
+lists, pagination, taxonomy pages, static HTML routes, aliases) also gets a noindex
+redirect at its old `/<defaultLang>/...` path. The home page stays with
+`defaultLanguageRedirect`; your own outputs at those paths win; non-HTML files (feeds,
+sitemaps) and taxonomy aliases are not redirected. It has no effect in the prefixed
+layout (`i18n.config.legacy_redirects_ignored`).
 
 With the root layout, the default language's first path segment must not equal
 another language code (case-insensitive). The build fails with
