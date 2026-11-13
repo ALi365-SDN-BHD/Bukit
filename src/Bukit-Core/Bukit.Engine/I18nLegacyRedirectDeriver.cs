@@ -96,7 +96,6 @@ internal static class I18nLegacyRedirectDeriver
         string language,
         IReadOnlyList<Candidate> candidates)
     {
-        var linkGuard = new LinkGuard(context.OutputDir);
         var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         var skippedPaths = new List<string>();
         var count = 0;
@@ -120,7 +119,8 @@ internal static class I18nLegacyRedirectDeriver
                 continue;
             }
 
-            linkGuard.Check(candidate.OutputPath);
+            // Staging keeps internal links from the previous output, e.g. en/blog -> zh-CN/blog (analysis 4.8 a).
+            BuildTransaction.RejectLinkSegments(context.OutputDir, candidate.OutputPath);
             var target = SeoModelBuilder.BuildAbsoluteUrl(context.Config.Site.Url, context.BaseUrl, candidate.TargetRouteUrl);
             var key = $"i18n-legacy-{language}-{HashUtil.Sha256Hex(candidate.OutputPath.ToLowerInvariant())[..16]}";
             var derived = RedirectPageDocument.Create(
@@ -266,50 +266,5 @@ internal static class I18nLegacyRedirectDeriver
                 DirectoryCopy.StaticSourceExists(_context.ParentStaticDir, path, _staticOptions));
 
         private static string Normalize(string path) => BuildPathUtils.NormalizeRelPath(path).TrimStart('/');
-    }
-
-    /// <summary>
-    /// The output path policy only rejects links that leave the output root; a link inside it
-    /// (for example <c>en/blog</c> pointing at <c>zh-CN/blog</c>) would let a redirect overwrite
-    /// another language, and staging preserves such links from the previous output.
-    /// </summary>
-    private sealed class LinkGuard(string outputDir)
-    {
-        private readonly HashSet<string> _checkedDirectories = new(StringComparer.Ordinal);
-
-        internal void Check(string relativePath)
-        {
-            var current = outputDir;
-            var parts = relativePath.Split('/', StringSplitOptions.RemoveEmptyEntries);
-            for (var i = 0; i < parts.Length; i++)
-            {
-                current = Path.Combine(current, parts[i]);
-                var isDirectory = i < parts.Length - 1;
-                if (isDirectory && _checkedDirectories.Contains(current))
-                {
-                    continue;
-                }
-
-                FileAttributes attributes;
-                try
-                {
-                    attributes = File.GetAttributes(current);
-                }
-                catch (Exception ex) when (ex is FileNotFoundException or DirectoryNotFoundException)
-                {
-                    return;
-                }
-
-                if ((attributes & FileAttributes.ReparsePoint) != 0)
-                {
-                    throw new IOException($"Generated output cannot traverse a symbolic link: {current}");
-                }
-
-                if (isDirectory)
-                {
-                    _checkedDirectories.Add(current);
-                }
-            }
-        }
     }
 }
