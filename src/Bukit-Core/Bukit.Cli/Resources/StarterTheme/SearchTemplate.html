@@ -16,6 +16,14 @@
 const queryInput = document.getElementById('search-query');
 const searchButton = document.getElementById('search-button');
 const resultsElement = document.getElementById('search-results');
+const siteLanguage = "{{ site.language | string.escape | string.replace '<' '\\u003C' }}".toLowerCase();
+
+// The root merged index holds every language; keep the records of this page's
+// language. Records marked "und" (no language) always match.
+function matchesSiteLanguage(item) {
+  const language = (item.language || 'und').toLowerCase();
+  return siteLanguage === '' || language === 'und' || language === siteLanguage;
+}
 
 function appendResult(item) {
   const li = document.createElement('li');
@@ -45,6 +53,7 @@ async function runSearch() {
   const items = await response.json();
   resultsElement.innerHTML = '';
   items
+    .filter(matchesSiteLanguage)
     .filter(item => keyword === '' ||
       (item.title || '').toLowerCase().includes(keyword) ||
       (item.summary || '').toLowerCase().includes(keyword) ||

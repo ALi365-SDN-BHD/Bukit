@@ -35,7 +35,9 @@ URL and would otherwise be overridden. With the root layout and `search.mode: me
 the merged index stays at `/search.json` and the default language's own index moves
 to `/<defaultLanguage>/search.json`. A theme search page that fetches
 `{{ site.base_url }}/search.json` therefore receives the merged index on
-default-language pages; filter its records by `language`. Default-language
+default-language pages; filter its records by `language`. The starter theme
+search page keeps records whose `language` matches `site.language` (or is
+`und`), so it searches only the current language. Default-language
 reports move to `.bukit/variants/<language>/`.
 
 ### Migrating an existing site to the root layout
