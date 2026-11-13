@@ -159,7 +159,8 @@ public static class ConfigLoader
 
         return new AppConfig
         {
-            Site = site,
+            // site.languages decides the site language; see SiteLanguageResolver.
+            Site = SiteLanguageResolver.WithDerivedLanguage(site),
             Content = content,
             Build = build,
             Theme = theme,

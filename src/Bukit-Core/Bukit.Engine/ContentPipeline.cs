@@ -46,6 +46,8 @@ public sealed class ContentPipeline
         string mediaCacheDir,
         CancellationToken cancellationToken = default)
     {
+        // Public entry: configs built in code may not have the site language derived yet.
+        config = config with { Site = I18nLanguagePolicy.NormalizeSite(config.Site) };
         var input = new ContentStageInput(
             Array.Empty<ContentDocument>(),
             EmptyContentBodyStore.Instance,

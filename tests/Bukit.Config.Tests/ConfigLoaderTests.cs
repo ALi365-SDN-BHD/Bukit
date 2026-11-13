@@ -33,6 +33,24 @@ public sealed class ConfigLoaderTests : IDisposable
         return path;
     }
 
+    [Theory]
+    [InlineData("  languages: [en]\n", "en")]
+    [InlineData("  languages: [en]\n  language: zh-CN\n", "en")]
+    [InlineData("  languages: [en, fr]\n", "en")]
+    [InlineData("  languages: [en, fr]\n  defaultLanguage: fr\n", "fr")]
+    [InlineData("  languages: [en, fr]\n  defaultLanguage: FR\n", "fr")]
+    [InlineData("  language: ja\n", "ja")]
+    [InlineData("", "zh-CN")]
+    public void Load_SiteLanguage_IsTheDefaultLanguageOfSiteLanguages(string languageYaml, string expected)
+    {
+        var yaml = "site:\n  name: myblog\n  title: My Blog\n" + languageYaml +
+                   "content:\n  sources:\n    - type: markdown\n      markdown:\n        dir: content\n";
+
+        var config = ConfigLoader.Load(WriteTempYaml(yaml));
+
+        Assert.Equal(expected, config.Site.Language);
+    }
+
     [Fact]
     public void Load_ValidMinimalConfig_ReturnsAppConfig()
     {

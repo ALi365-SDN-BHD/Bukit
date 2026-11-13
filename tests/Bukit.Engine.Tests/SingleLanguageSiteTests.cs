@@ -1,3 +1,4 @@
+using System.Text.Json;
 using Bukit.Config;
 using Bukit.Engine.Tests.Infrastructure;
 using Bukit.Shared;
@@ -74,5 +75,22 @@ public sealed class SingleLanguageSiteTests
         Assert.True(File.Exists(Path.Combine(site.Output, "en", "b", "foo", "index.html")));
         Assert.False(File.Exists(Path.Combine(site.Output, "a", "foo", "index.html")));
         Assert.False(File.Exists(Path.Combine(site.Output, "b", "foo", "index.html")));
+    }
+
+    [Fact]
+    public async Task CodeBuiltConfig_SiteLanguageComesFromSiteLanguages()
+    {
+        // The config is built in code, so ConfigLoader never derives the language; the engine must.
+        using var site = EnglishSite(LegacyLanguageYaml);
+        var config = site.Config with
+        {
+            Site = site.Config.Site with { Language = "zh-CN", Languages = ["en", "fr"], DefaultLanguage = "fr" }
+        };
+
+        await new SiteEngine(new ConsoleLogger(LogLevel.Error)).BuildAsync(config, site.Root,
+            new ConfigOverrides { Incremental = false, MetricsPath = "metrics.json" });
+
+        using var metrics = JsonDocument.Parse(File.ReadAllText(site.Sandbox.PathFor("metrics.json")));
+        Assert.Equal("fr", metrics.RootElement.GetProperty("site").GetProperty("language").GetString());
     }
 }

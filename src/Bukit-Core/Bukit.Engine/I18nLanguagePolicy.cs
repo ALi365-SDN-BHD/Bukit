@@ -7,31 +7,13 @@ namespace Bukit.Engine;
 
 internal static class I18nLanguagePolicy
 {
-    internal static IReadOnlyList<string> GetLanguages(SiteConfig site)
-    {
-        if (site.Languages is not { Count: > 0 } langs)
-        {
-            return Array.Empty<string>();
-        }
+    internal static IReadOnlyList<string> GetLanguages(SiteConfig site) => SiteLanguageResolver.Clean(site.Languages);
 
-        var cleaned = langs.Where(x => !string.IsNullOrWhiteSpace(x)).Select(x => x.Trim()).ToList();
-        if (cleaned.Count == 0)
-        {
-            return Array.Empty<string>();
-        }
-
-        var result = new List<string>();
-        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        foreach (var language in cleaned)
-        {
-            if (seen.Add(language))
-            {
-                result.Add(language);
-            }
-        }
-
-        return result;
-    }
+    /// <summary>
+    /// Derives <see cref="SiteConfig.Language"/> from <c>site.languages</c> for configs built in
+    /// code rather than by <see cref="ConfigLoader"/>, so every build reads the same site language.
+    /// </summary>
+    internal static SiteConfig NormalizeSite(SiteConfig site) => SiteLanguageResolver.WithDerivedLanguage(site);
 
     internal static string GetDefaultLanguage(SiteConfig site, IReadOnlyList<string> languages)
     {
@@ -45,10 +27,10 @@ internal static class I18nLanguagePolicy
             return languages[0];
         }
 
+        // Return the list's spelling, matching SiteLanguageResolver.
         var defaultLanguage = site.DefaultLanguage.Trim();
-        return languages.Contains(defaultLanguage, StringComparer.OrdinalIgnoreCase)
-            ? defaultLanguage
-            : languages[0];
+        return languages.FirstOrDefault(language => string.Equals(language, defaultLanguage, StringComparison.OrdinalIgnoreCase))
+            ?? languages[0];
     }
 
     internal static string CombineBaseUrlWithLanguage(string baseUrl, string language)
