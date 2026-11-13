@@ -1,6 +1,6 @@
 # Tasks
 
-唯一实施清单。只有取得实际证据的事项才勾选。实施须在用户确认本提案后，作为单独的 Core 任务开展。
+唯一实施清单。只有取得实际证据的事项才勾选。执行顺序、提交边界和专项测试命令见 `docs/plans/2026-11-14-unify-site-languages-implementation-plan.zh-CN.md`。实施须在用户确认本提案后，作为单独的 Core 任务开展。
 
 ## 0. 决策确认
 
@@ -56,6 +56,6 @@ D1–D6 均采用推荐选项，用户已于 2026-11-14 确认。
 
 ## 7. 文档
 
-- [ ] 三份 README，`guide/user/02、04、11、14、16`，`guide/labs/import-html-demo.md`，`guide/dev/theme.md`，`docs/seo.md`，`docs/demo_to_bukit_workflow.md`。
-- [ ] skills：`bukit-i18n`、`bukit-config`（删除"忘写 `site.language`"的常见错误条目）、`bukit-templating`、`bukit-troubleshooting`、`using-bukit`。
+- [ ] 三份 README，`guide/user/02、04、11、14、16`，`guide/labs/import-html-demo.md`，`guide/dev/config-site-yaml.md`、`guide/dev/theme.md`，`docs/seo.md`，`docs/demo_to_bukit_workflow.md`。
+- [ ] skills：`bukit-i18n`、`bukit-config`（删除"忘写 `site.language`"的常见错误条目）、`bukit-templating`、`bukit-content`、`bukit-troubleshooting`、`using-bukit`。
 - [ ] 中英马三份 CHANGELOG 写明破坏性变更和改法。
