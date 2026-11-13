@@ -182,14 +182,23 @@ internal static class RepresentationAuditRules
 
     private static JsonElement? FindManifestDocumentByRoute(JsonElement[] documents, AgentManifestSnapshot manifest, PublishDocument document)
     {
+        // An exact route match always wins over a prefix-only match, wherever it appears in the manifest:
+        // /posts/foo/ must not pick an earlier /foo/ entry through the first-segment fallback.
+        for (var i = 0; i < documents.Length; i++)
+        {
+            var route = manifest.Route(i);
+            if (!string.IsNullOrWhiteSpace(route) && StringEquals(route, document.RouteUrl))
+            {
+                return documents[i];
+            }
+        }
+
         for (var i = 0; i < documents.Length; i++)
         {
             // A route that matches only after adding the document's first output segment (a per-language
             // manifest with unprefixed routes) must also agree on language: the merged manifest of a root
             // default language lists /index/ (default language) next to /zh-CN/index/.
-            var route = manifest.Route(i);
-            if (RouteEquals(route, document) &&
-                (StringEquals(route, document.RouteUrl) || ManifestLanguageMatches(manifest.Language(i), document)))
+            if (RouteEquals(manifest.Route(i), document) && ManifestLanguageMatches(manifest.Language(i), document))
             {
                 return documents[i];
             }

@@ -17,7 +17,7 @@ public sealed class I18nRootLayoutTests
     {
         var site = new SiteBuilder("i18n-site");
         var path = site.Sandbox.PathFor("site.yaml");
-        var yaml = File.ReadAllText(path)
+        var yaml = File.ReadAllText(path).ReplaceLineEndings("\n")
             .Replace("  defaultLanguageInSubdir: true\n", "  defaultLanguageInSubdir: false\n", StringComparison.Ordinal)
             .Replace("  search:\n    mode: merged\n", "  search:\n    mode: split\n", StringComparison.Ordinal)
             .Replace("  sitemapMode: merged\n", "  sitemapMode: split\n", StringComparison.Ordinal);
@@ -60,7 +60,7 @@ public sealed class I18nRootLayoutTests
         // must be compared with its own entry, not the English one that matches after adding its prefix.
         using var site = new SiteBuilder("i18n-site");
         var path = site.Sandbox.PathFor("site.yaml");
-        File.WriteAllText(path, File.ReadAllText(path)
+        File.WriteAllText(path, File.ReadAllText(path).ReplaceLineEndings("\n")
             .Replace("  defaultLanguageInSubdir: true\n", string.Empty, StringComparison.Ordinal));
         Assert.False(site.Config.Site.DefaultLanguageInSubdir);
         Assert.Equal("merged", site.Config.Site.Search.Mode);
@@ -1380,7 +1380,7 @@ public sealed class I18nRootLayoutTests
     {
         using var site = new SiteBuilder("i18n-site");
         var path = site.Sandbox.PathFor("site.yaml");
-        File.WriteAllText(path, File.ReadAllText(path)
+        File.WriteAllText(path, File.ReadAllText(path).ReplaceLineEndings("\n")
             .Replace("  defaultLanguageInSubdir: true\n", "  defaultLanguageInSubdir: false\n", StringComparison.Ordinal)
             .Replace("  sitemapMode: merged\n", "  sitemapMode: index\n", StringComparison.Ordinal)
             .Replace("  search:\n    mode: merged\n", "  search:\n    mode: split\n", StringComparison.Ordinal));
@@ -1412,7 +1412,7 @@ public sealed class I18nRootLayoutTests
     {
         var site = new SiteBuilder("taxonomy-site");
         var path = site.Sandbox.PathFor("site.yaml");
-        File.WriteAllText(path, File.ReadAllText(path)
+        File.WriteAllText(path, File.ReadAllText(path).ReplaceLineEndings("\n")
             .Replace("  languages: [en]\n", "  languages:\n    - en\n    - zh-CN\n  defaultLanguage: en\n  defaultLanguageInSubdir: false\n", StringComparison.Ordinal));
         return site;
     }
