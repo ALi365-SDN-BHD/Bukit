@@ -191,7 +191,7 @@ dist/
 - 为全部旧地址 `/<lang>/*` 自动生成迁移跳转。
 - `search.mode: merged` 与根目录布局的组合。
 - 资源目录在各语言间共用。
-- `examples/github-pages-workflow.yml` 上传了 `.bukit/` 报告（现有问题）。
+- ~~`examples/github-pages-workflow.yml` 上传了 `.bukit/` 报告（现有问题）。~~ 已解决（PR #138，2026-11-13）：示例在上传前删除 `.bukit/`、`.bukit-output-marker` 和 `.bukit-build-state.json`，排除规则与 `GitHubPagesDeployProvider` 一致。
 
 ## 修订记录
 
@@ -204,3 +204,4 @@ dist/
 | 审计 4 | 2026-11-12 | 补充内置 GitHub Pages deploy 证据，改正 skill 引文 |
 | 审计 5 | 2026-11-12 | 改正 deploy 发布行为的表述 |
 | 审计 6 | 2026-11-12 | 未发现内容问题；修订记录移到文末 |
+| 更新 | 2026-11-13 | 第 9 节：示例 workflow 上传 `.bukit/` 的问题标为已解决（PR #138） |
