@@ -55,16 +55,17 @@ internal static partial class MachineReadabilityTrustAuditBuilder
     {
         var url = routeUrl ?? string.Empty;
         var basePath = BuildPathUtils.NormalizeBaseUrl(baseUrl ?? "/");
+        var skip = 0;
         if (basePath != "/" &&
             (url.Equals(basePath, StringComparison.Ordinal) || url.StartsWith(basePath + "/", StringComparison.Ordinal)))
         {
-            url = url[basePath.Length..];
+            skip = basePath.Split('/', StringSplitOptions.RemoveEmptyEntries).Length;
         }
 
         var parts = url
             .Trim('/')
             .Split('/', StringSplitOptions.RemoveEmptyEntries);
-        return parts.Length == 0 ? null : parts[0];
+        return parts.Length <= skip ? null : parts[skip];
     }
 
     private static void AnalyzeDuplicates(IReadOnlyList<SeoAuditRoute> routes, List<SeoAuditIssue> issues)
