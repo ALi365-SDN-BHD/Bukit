@@ -4,6 +4,7 @@ Bukit 所有重要变更都将记录在此文件中。
 
 ## [Unreleased]
 
+- **Starter 主题搜索只显示当前语言**：Starter 主题的搜索页（`layouts/pages/search.html`，由主题脚手架和 clone 写出）请求 `{{ site.base_url }}/search.json`。默认语言放在根目录且 `search.mode: merged` 时，这个文件是合并索引，默认语言的搜索结果会混入所有语言。现在页面只保留 `language` 与 `site.language` 相同（不区分大小写）或为 `und` 的记录。已有主题不会被改写；要获得此行为，把过滤逻辑复制到已生成的 `search.html` 中。
 - **每条搜索记录都带语言**：页面没有语言的列表和分类记录过去在 `search.json` 中缺少 `language`，没有语言的页面在多语言站点的某个语言里也记为 `und`。现在每条记录都有 `language`：自身没有语言的记录，在多语言站点取写出它的语言，其他情况为 `und`。前端可以直接按 `language` 过滤合并索引，无需特殊处理。
 - **行为变更：搜索 UI 加载本语言的索引**：`bukit-search.html` 过去写死请求 `/search.json`，站点部署在 `/repo/` 这类 `baseUrl` 下时搜不到任何结果；多语言站点里每种语言都去请求根目录的文件（`split` 和 `index` 模式下该文件不存在，`merged` 模式下拿到的是合并索引）。现在片段从输入框的 `data-search-url` 属性读取索引地址，值为 `<语言 base URL>/search.json`（例如 `/repo/zh-CN/search.json`；默认语言在根目录且 `search.mode: merged` 时为 `/<默认语言>/search.json`）；删除该属性时仍回退到 `/search.json`。`search.mode: merged` 下片段改为只搜索本语言；如需改用其他索引，请把片段标记复制到模板中，并在那里设置 `data-search-url`（生成的文件每次构建都会重写）。索引加载失败或内容不是数组时，片段显示“Search is unavailable”，不再显示空结果；索引加载期间输入的查询会在加载完成后执行。
 - **可选：为默认语言的全部旧地址生成跳转**：新增 `site.defaultLanguageLegacyRedirects`（默认 `false`），帮助在不支持 301 的托管平台（如 GitHub Pages）上把已上线的默认语言切到根目录布局。`defaultLanguageInSubdir: false` 时，为默认语言每个 HTML 页面（内容页、集合列表与分页、分类页、static HTML 路由，以及直接跳到目标页面的 alias）在旧地址 `/<默认语言>/...` 写一个 noindex meta refresh 跳转页。首页仍由 `defaultLanguageRedirect` 控制；已有输出占用的路径以已有输出为准；非 HTML 文件和分类别名不生成跳转。构建输出一条 `i18n.legacy_redirects.derived` 汇总日志；路由计数和报告会按跳转数量增加。带前缀布局下该配置被忽略，并记 `i18n.config.legacy_redirects_ignored`。alias 跳转文档现在会记录目标页面，HTML 不变。不开启的站点输出不变。
