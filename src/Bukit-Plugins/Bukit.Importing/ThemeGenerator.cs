@@ -191,7 +191,7 @@ internal static partial class ThemeGenerator
     {
         var sb = new StringBuilder();
         sb.AppendLine("<!DOCTYPE html>");
-        sb.AppendLine("<html lang=\"{{ site.language }}\">");
+        sb.AppendLine("<html lang=\"{{ site.language | html.escape }}\">");
         sb.AppendLine("<head>");
         sb.AppendLine("  <meta charset=\"UTF-8\" />");
         sb.AppendLine("  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1\" />");

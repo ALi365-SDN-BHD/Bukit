@@ -106,6 +106,7 @@ public sealed class ThemeGeneratorTests : IDisposable
         var baseLayout = File.ReadAllText(Path.Combine(themeRoot, "layouts", "layouts", "base.html"));
         Assert.DoesNotContain("site.css", baseLayout, StringComparison.Ordinal);
         Assert.DoesNotContain("app.js", baseLayout, StringComparison.Ordinal);
+        Assert.Contains("<html lang=\"{{ site.language | html.escape }}\">", baseLayout, StringComparison.Ordinal);
         Assert.Contains("{{ page_head }}", baseLayout, StringComparison.Ordinal);
         Assert.Contains("{{ page_scripts }}", baseLayout, StringComparison.Ordinal);
         Assert.Contains("{{ include 'partials/header.html' }}", baseLayout, StringComparison.Ordinal);

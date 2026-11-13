@@ -37,7 +37,7 @@ Layouts can chain up to 10 levels.
 
 ```html
 {{ base = site.base_url }}{{ if base == "/" }}{{ base = "" }}{{ end }}<!DOCTYPE html>
-<html lang="{{ site.language }}">
+<html lang="{{ site.language | html.escape }}">
 <head>
   <meta charset="utf-8">
   <title>{{ page.title | html.escape }}</title>

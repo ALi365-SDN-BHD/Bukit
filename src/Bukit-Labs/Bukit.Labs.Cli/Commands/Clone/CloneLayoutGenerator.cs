@@ -46,7 +46,7 @@ internal static class CloneLayoutGenerator
 {{ base_url = site.base_url }}
 {{ if base_url == "/" }}{{ base_url = "" }}{{ end }}
 <!DOCTYPE html>
-<html lang="{{ site.language }}">
+<html lang="{{ site.language | html.escape }}">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />

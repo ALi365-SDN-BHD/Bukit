@@ -88,6 +88,10 @@ public sealed class CloneWorkflowTests : IDisposable
         Assert.True(File.Exists(Path.Combine(_rootDir, "themes", "fidelity-theme", "layouts", "pages", "about.html")));
         Assert.True(File.Exists(Path.Combine(_rootDir, "themes", "fidelity-theme", "layouts", "layouts", "base.html")));
         Assert.True(File.Exists(Path.Combine(_rootDir, "themes", "fidelity-theme", "assets", "assets", "logo.png")));
+        Assert.Contains(
+            "<html lang=\"{{ site.language | html.escape }}\">",
+            File.ReadAllText(Path.Combine(_rootDir, "themes", "fidelity-theme", "layouts", "layouts", "base.html")),
+            StringComparison.Ordinal);
     }
 
     [Fact]
