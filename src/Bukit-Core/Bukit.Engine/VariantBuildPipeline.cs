@@ -240,6 +240,8 @@ internal sealed partial class VariantBuildPipeline
     /// <summary>
     /// Plugin and projection writers (feeds, search, llms, sitemap, tracked plugin files) run after
     /// pages are rendered; one that lands on a page would silently replace it and own it twice.
+    /// Defensive only: every page route here is also a render entry, so <see cref="AssetOutputPlan.Validate"/>
+    /// reports such collisions first; this guards writers that might bypass the asset plan.
     /// </summary>
     internal static void ValidateGeneratedOutputsDoNotReplacePages(
         IEnumerable<RouteInfo> pageRoutes,
@@ -263,9 +265,8 @@ internal sealed partial class VariantBuildPipeline
             if (pages.TryGetValue(path, out var url))
             {
                 var owner = item.Category == AssetOutputCategory.Plugin ? "Plugin" : "Projection";
-                throw new BukitException(
-                    $"{owner} '{item.Source}' output '{path}' replaces the page for route '{url}'.",
-                    DiagnosticCode.BuildGeneratedOutputReplacesPage);
+                throw new InvalidOperationException(
+                    $"Bukit defect: {owner} '{item.Source}' output '{path}' replaces the page for route '{url}' after the asset plan.");
             }
         }
     }

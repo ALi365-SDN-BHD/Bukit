@@ -51,14 +51,6 @@ prefix conflict. Check content/list routes, rendered static templates, theme
 On a case-insensitive filesystem, paths that differ only by case also collide.
 Rename one destination; changing build parallelism does not resolve ownership.
 
-### `BuildGeneratedOutputReplacesPage`
-
-A tracked plugin file or projection would be written onto a page that the
-asset plan does not cover. This is a safety net: built-in features do not
-normally reach it, and a feed or plugin path that collides with a content page
-reports `BuildAssetOutputCollision` first. Move the generated path or the page
-route so each destination has one owner.
-
 ### Clean Refuses A Directory
 
 Use a dedicated output directory such as `dist`. The clean operation refuses

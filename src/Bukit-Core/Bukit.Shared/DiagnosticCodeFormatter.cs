@@ -45,7 +45,6 @@ public static class DiagnosticCodeFormatter
             DiagnosticCode.BuildOutputNoMarker => "Build: output directory missing marker",
             DiagnosticCode.BuildCleanRefused => "Build: clean refused",
             DiagnosticCode.BuildAssetOutputCollision => "Build: asset output collision",
-            DiagnosticCode.BuildGeneratedOutputReplacesPage => "Build: a generated output replaces a page",
 
             DiagnosticCode.PluginExecutionFailed => "Plugin: execution failed",
             DiagnosticCode.PluginTimeoutExceeded => "Plugin: timeout exceeded",

@@ -404,6 +404,18 @@ public sealed class I18nRootLayoutTests
         Assert.Contains("LLMS.TXT", ex.Message, StringComparison.Ordinal);
     }
 
+    [Theory]
+    [InlineData("robots")]
+    [InlineData("Robots")]
+    [InlineData("AGENT-MANIFEST")]
+    public void RootOwnedAggregate_MatchesKindIgnoringCase(string kind)
+    {
+        using var site = RootSite();
+
+        Assert.True(PublicOutputLifecycle.IsRootOwnedAggregate(site.Config, kind, "en"));
+        Assert.False(PublicOutputLifecycle.IsRootOwnedAggregate(site.Config, kind, "zh-CN"));
+    }
+
     [Fact]
     public void GeneratedOutputs_MayNotReplaceAPage()
     {
@@ -411,19 +423,18 @@ public sealed class I18nRootLayoutTests
         AssetOutputItem Generated(string source, string path, AssetOutputCategory category)
             => new(source, path, category, Operation: AssetOutputOperation.Generate);
 
-        var plugin = Assert.Throws<BukitException>(() => VariantBuildPipeline.ValidateGeneratedOutputsDoNotReplacePages(
+        var plugin = Assert.Throws<InvalidOperationException>(() => VariantBuildPipeline.ValidateGeneratedOutputsDoNotReplacePages(
             pages, [Generated("taxonomy", "EN/index.html", AssetOutputCategory.Plugin)], StringComparer.OrdinalIgnoreCase));
-        var projection = Assert.Throws<BukitException>(() => VariantBuildPipeline.ValidateGeneratedOutputsDoNotReplacePages(
+        var projection = Assert.Throws<InvalidOperationException>(() => VariantBuildPipeline.ValidateGeneratedOutputsDoNotReplacePages(
             pages, [Generated("feed", "about/index.html", AssetOutputCategory.Projection)], StringComparer.OrdinalIgnoreCase));
         VariantBuildPipeline.ValidateGeneratedOutputsDoNotReplacePages(
             pages,
             [Generated("taxonomy", "taxonomy.json", AssetOutputCategory.Plugin), Generated("theme", "about/index.html", AssetOutputCategory.Static)],
             StringComparer.OrdinalIgnoreCase);
 
-        Assert.Equal(DiagnosticCode.BuildGeneratedOutputReplacesPage, plugin.Code);
-        Assert.Equal(DiagnosticCode.BuildGeneratedOutputReplacesPage, projection.Code);
+        Assert.Contains("Bukit defect", plugin.Message, StringComparison.Ordinal);
         Assert.Contains("'/en/'", plugin.Message, StringComparison.Ordinal);
-        Assert.StartsWith("Projection 'feed'", projection.Message, StringComparison.Ordinal);
+        Assert.StartsWith("Bukit defect: Projection 'feed'", projection.Message, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -461,9 +472,9 @@ public sealed class I18nRootLayoutTests
             new SiteEngine(new ConsoleLogger(LogLevel.Error)).BuildAsync(config, site.Root,
                 new ConfigOverrides { Incremental = false }));
 
-        // The feed is a planned projection, so the asset plan rejects it against the rendered page
-        // before any write; generated outputs over derived, list or redirect pages report
-        // BuildGeneratedOutputReplacesPage instead.
+        // The feed is a planned projection and every rendered page (content, derived, list,
+        // static HTML) is a render entry, so the asset plan rejects the collision before any
+        // write; the internal assertion behind it is not reachable through this path.
         Assert.Equal(DiagnosticCode.BuildAssetOutputCollision, ex.Code);
         Assert.Contains("news.xml", ex.Message, StringComparison.Ordinal);
         Assert.False(File.Exists(Path.Combine(site.Output, "news.xml")));

@@ -19,7 +19,7 @@ internal static class PublicOutputLifecycle
     internal static bool IsRootOwnedAggregate(AppConfig config, string kind, string? language)
     {
         var layout = I18nOutputLayout.For(config.Site);
-        return kind switch
+        return kind.ToLowerInvariant() switch
         {
             "agent-manifest" or "robots" or "llms" or "llms-full" => language is not null && layout.IsRootLanguage(language),
             "feed" or "atom" or "jsonfeed" => layout.IsMultilingual && SiteModeResolver.ResolveFeedMode(config.Site) == "merged",
