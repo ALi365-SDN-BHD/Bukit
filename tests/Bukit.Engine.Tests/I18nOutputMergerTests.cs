@@ -322,7 +322,7 @@ public sealed class I18nOutputMergerTests
     [Fact]
     public void WarnDocumentLanguageIssues_WarnsForDuplicateI18nKey()
     {
-        var site = new SiteConfig { Name = "t", Title = "t", Languages = ["en"], DefaultLanguage = "en" };
+        var site = new SiteConfig { Name = "t", Title = "t", Languages = ["en", "zh-CN"], DefaultLanguage = "en" };
         var logger = new ListLogger();
         var first = CreateItemWithMeta("1", "en", new Dictionary<string, object> { ["i18nKey"] = "about" });
         var second = CreateItemWithMeta("2", "en", new Dictionary<string, object> { ["i18nKey"] = "about" });
@@ -333,6 +333,32 @@ public sealed class I18nOutputMergerTests
             message.Contains("i18n.document.i18n_key_duplicate", StringComparison.Ordinal) &&
             message.Contains("key=about", StringComparison.Ordinal) &&
             message.Contains("ids=1,2", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void WarnDocumentLanguageIssues_SingleEntryLanguagesWarnsLikeASingleLanguageSite()
+    {
+        // One entry is a single-language site: the same warnings as a site with only site.language.
+        var single = new SiteConfig { Name = "t", Title = "t", Language = "en", Languages = ["en"] };
+        var legacy = new SiteConfig { Name = "t", Title = "t", Language = "en" };
+        var documents = new[]
+        {
+            CreateItemWithMeta("1", "en", new Dictionary<string, object> { ["i18nKey"] = "about" }),
+            CreateItemWithMeta("2", "en", new Dictionary<string, object> { ["i18nKey"] = "about" }),
+            CreateItemWithMeta("3", "fr", new Dictionary<string, object>())
+        };
+        var singleLogger = new ListLogger();
+        var legacyLogger = new ListLogger();
+
+        I18nLanguagePolicy.WarnDocumentLanguageIssues(documents, single, singleLogger);
+        I18nLanguagePolicy.WarnDocumentLanguageIssues(documents, legacy, legacyLogger);
+
+        Assert.Equal(legacyLogger.Warnings, singleLogger.Warnings);
+        Assert.Contains(singleLogger.Warnings, message =>
+            message.Contains("i18n.document.i18n_key_duplicate", StringComparison.Ordinal));
+        Assert.Contains(singleLogger.Warnings, message =>
+            message.Contains("i18n.document.language_unknown", StringComparison.Ordinal) &&
+            message.Contains("configured=en", StringComparison.Ordinal));
     }
 
     [Fact]

@@ -28,7 +28,7 @@ public sealed class BuildOptionsMapperTests
         Assert.Equal("https://mysite.com", config.Site.Url);
         Assert.Equal("/blog", config.Site.BaseUrl);
         Assert.False(config.Site.Seo.Enabled);
-        Assert.Equal("en", config.Site.Language);
+        Assert.Equal(["en"], config.Site.Languages);
         Assert.Equal("unicode", config.Site.OutputPathEncoding);
         Assert.Equal("public", config.Build.Output);
         Assert.False(config.Build.Clean);

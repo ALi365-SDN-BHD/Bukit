@@ -7,7 +7,15 @@ namespace Bukit.Engine;
 
 internal static class I18nLanguagePolicy
 {
-    internal static IReadOnlyList<string> GetLanguages(SiteConfig site) => SiteLanguageResolver.Clean(site.Languages);
+    /// <summary>
+    /// Returns the languages of a multilingual site. A site with fewer than two languages is a
+    /// single-language site and gets an empty list; its language is <see cref="SiteConfig.Language"/>.
+    /// </summary>
+    internal static IReadOnlyList<string> GetLanguages(SiteConfig site)
+    {
+        var languages = SiteLanguageResolver.Clean(site.Languages);
+        return languages.Count < 2 ? Array.Empty<string>() : languages;
+    }
 
     /// <summary>
     /// Derives <see cref="SiteConfig.Language"/> from <c>site.languages</c> for configs built in

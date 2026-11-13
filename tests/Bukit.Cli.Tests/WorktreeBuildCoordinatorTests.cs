@@ -42,7 +42,8 @@ public sealed class WorktreeBuildCoordinatorTests : IDisposable
         var result = await BuildCommand.RunAsync(Command(site));
 
         Assert.Equal(0, result);
-        Assert.True(File.Exists(Path.Combine(root, "dist", "en", "index.html")));
+        Assert.True(File.Exists(Path.Combine(root, "dist", "index.html")));
+        Assert.False(File.Exists(Path.Combine(root, "dist", "en", "index.html")));
     }
 
     [Theory]

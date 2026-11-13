@@ -10,6 +10,27 @@ namespace Bukit.Engine.Tests;
 public sealed class ContentPipelineTests
 {
     [Fact]
+    public async Task ExecuteAsync_CodeBuiltSingleEntryLanguages_IsASingleLanguageSiteInThatLanguage()
+    {
+        // The config is built in code, so ConfigLoader never derived the language; the public
+        // entry must, or stages would filter and default documents by the stale site.language.
+        var stage = new CapturingContentStage();
+        var pipeline = new ContentPipeline([stage], new RecordingLogger());
+        var config = new AppConfig
+        {
+            Site = new SiteConfig { Name = "t", Title = "t", Language = "zh-CN", Languages = ["en"] },
+            Content = TestContent.Markdown()
+        };
+
+        await pipeline.ExecuteAsync(config, Path.GetTempPath(), new ConfigOverrides(), Path.GetTempPath());
+
+        var site = Assert.IsType<AppConfig>(stage.Config).Site;
+        Assert.Equal("en", site.Language);
+        Assert.Empty(I18nLanguagePolicy.GetLanguages(site));
+        Assert.Equal("en", I18nLanguagePolicy.GetDefaultLanguage(site, I18nLanguagePolicy.GetLanguages(site)));
+    }
+
+    [Fact]
     public async Task ExecuteAsync_WhenArbitraryImageLocalizeStageThrows_DisposesPriorBuiltInStoreExactlyOnce()
     {
         var ownedStore = new TrackingBodyStore();
@@ -537,6 +558,19 @@ public sealed class ContentPipelineTests
 
         public Task<ContentStageOutput> ExecuteAsync(ContentStageInput input, CancellationToken cancellationToken)
             => Task.FromResult(new ContentStageOutput(_documents ?? input.Documents, _bodyStore, Name, 0, null));
+    }
+
+    private sealed class CapturingContentStage : IContentStage
+    {
+        public AppConfig? Config { get; private set; }
+
+        public string Name => "Capturing";
+
+        public Task<ContentStageOutput> ExecuteAsync(ContentStageInput input, CancellationToken cancellationToken)
+        {
+            Config = input.Config;
+            return Task.FromResult(new ContentStageOutput(input.Documents, input.BodyStore, Name, 0, null));
+        }
     }
 
     private sealed class ThrowingContentStage : IContentStage

@@ -634,8 +634,9 @@ public sealed class I18nRootLayoutTests
     }
 
     [Fact]
-    public async Task SingleLanguageRootLayout_KeepsLanguageAndRootManifestsApart()
+    public async Task SingleEntryLanguages_BuildsAsASingleLanguageSiteWithOneManifest()
     {
+        // One entry in site.languages is a single-language site, not a one-language multilingual site.
         using var site = RootSite();
         var config = site.Config with
         {
@@ -645,10 +646,10 @@ public sealed class I18nRootLayoutTests
         await engine.BuildAsync(config, site.Root, new ConfigOverrides { Incremental = false });
 
         var cache = Path.Combine(site.Root, ".cache");
-        var languageManifest = BuildManifest.Load(Path.Combine(cache, "build-manifest.en.json"));
+        Assert.False(File.Exists(Path.Combine(cache, "build-manifest.en.json")));
         var rootManifest = BuildManifest.Load(Path.Combine(cache, "build-manifest.json"));
         Assert.Contains("agent-manifest.json", rootManifest.OwnedOutputs);
-        Assert.DoesNotContain("agent-manifest.json", languageManifest.OwnedOutputs);
+        Assert.Contains("index.html", rootManifest.OwnedOutputs);
 
         await engine.BuildAsync(config, site.Root, new ConfigOverrides());
         Assert.True(File.Exists(Path.Combine(site.Output, "agent-manifest.json")));

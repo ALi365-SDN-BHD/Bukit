@@ -14,6 +14,7 @@ namespace Bukit.Engine.Tests;
 public sealed class SingleLanguageSiteTests
 {
     private const string LegacyLanguageYaml = "  language: en\n";
+    private const string LanguagesYaml = "  languages: [en]\n";
 
     private static SiteBuilder EnglishSite(string languageYaml)
     {
@@ -37,7 +38,7 @@ public sealed class SingleLanguageSiteTests
         return site;
     }
 
-    public static TheoryData<string> LanguageForms => new() { LegacyLanguageYaml };
+    public static TheoryData<string> LanguageForms => new() { LegacyLanguageYaml, LanguagesYaml };
 
     [Theory]
     [MemberData(nameof(LanguageForms))]
@@ -75,6 +76,19 @@ public sealed class SingleLanguageSiteTests
         Assert.True(File.Exists(Path.Combine(site.Output, "en", "b", "foo", "index.html")));
         Assert.False(File.Exists(Path.Combine(site.Output, "a", "foo", "index.html")));
         Assert.False(File.Exists(Path.Combine(site.Output, "b", "foo", "index.html")));
+    }
+
+    [Fact]
+    public async Task SingleEntryLanguages_MetricsRecordTheConfiguredListAndTheDerivedLanguage()
+    {
+        using var site = EnglishSite(LanguagesYaml);
+        await new SiteEngine(new ConsoleLogger(LogLevel.Error)).BuildAsync(site.Config, site.Root,
+            new ConfigOverrides { Incremental = false, MetricsPath = "metrics.json" });
+
+        using var metrics = JsonDocument.Parse(File.ReadAllText(site.Sandbox.PathFor("metrics.json")));
+        var metricsSite = metrics.RootElement.GetProperty("site");
+        Assert.Equal("en", metricsSite.GetProperty("language").GetString());
+        Assert.Equal(["en"], metricsSite.GetProperty("languages").EnumerateArray().Select(item => item.GetString()));
     }
 
     [Fact]

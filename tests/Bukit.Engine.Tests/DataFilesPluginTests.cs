@@ -85,7 +85,7 @@ public sealed class DataFilesPluginTests
             var dataDir = Path.Combine(root, "data");
             Directory.CreateDirectory(Path.Combine(dataDir, "en"));
             File.WriteAllText(Path.Combine(dataDir, "en", "strings.json"), """{"hello":"world"}""");
-            var config = CreateConfig() with { Site = CreateConfig().Site with { Languages = [" en"] } };
+            var config = CreateConfig() with { Site = CreateConfig().Site with { Languages = [" en", "fr"] } };
             var plugin = new DataFilesPlugin(config);
             var context = CreateContext(root);
 
@@ -116,7 +116,7 @@ public sealed class DataFilesPluginTests
             const string yaml = "original: &v [word, 7, false]\ncopy: *v\n---\nignored: later\n";
             File.WriteAllText(Path.Combine(dataDir, "en", "a.json"), json);
             File.WriteAllText(Path.Combine(dataDir, "b.yaml"), yaml);
-            var config = CreateConfig() with { Site = CreateConfig().Site with { Languages = ["en"] } };
+            var config = CreateConfig() with { Site = CreateConfig().Site with { Languages = ["en", "fr"] } };
             var totalBytes = Encoding.UTF8.GetByteCount(json + yaml);
             var plugin = new DataFilesPlugin(config, maxEntries: 3, maxTotalSizeBytes: totalBytes,
                 maxProjectedEntries: 17, maxProjectedChars: 30);
@@ -279,7 +279,7 @@ public sealed class DataFilesPluginTests
                 {
                     Name = "t",
                     Title = "t",
-                    Languages = new[] { "en" }
+                    Languages = new[] { "en", "fr" }
                 },
                 Content = TestContent.Markdown()
             };

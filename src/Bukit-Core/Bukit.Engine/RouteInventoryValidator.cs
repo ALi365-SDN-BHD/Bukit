@@ -25,6 +25,8 @@ public static class RouteInventoryValidator
         ThemeTemplateResolver? templateResolver = null,
         CancellationToken cancellationToken = default)
     {
+        // Public entry: configs built in code may not have the site language derived yet.
+        config = config with { Site = I18nLanguagePolicy.NormalizeSite(config.Site) };
         var provider = ContentProviderFactory.Create(config, rootDir, isCi, logger);
         return await BuildContentRoutesAsync(
             config,

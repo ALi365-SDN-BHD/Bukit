@@ -61,6 +61,39 @@ public sealed class IncrementalEngineIdentityTests
     }
 
     [Fact]
+    public async Task SiteLanguages_SwitchingBetweenOneAndMoreEntriesRebuildsEverything()
+    {
+        using var site = CreateSite();
+        var legacy = Configure(site.Config, false);
+        var first = await BuildAsync(legacy, site.Root, "2.0.12+languages");
+        Assert.True(first.Incremental.CacheMissCount > 0);
+
+        // site.languages is hashed as written, so writing the same one language still rebuilds once.
+        var single = legacy with { Site = legacy.Site with { Languages = ["en"] } };
+        var toSingle = await BuildAsync(single, site.Root, "2.0.12+languages");
+        Assert.Equal(0, toSingle.Incremental.CacheHitCount);
+        Assert.True(toSingle.Incremental.CacheMissCount > 0);
+
+        var same = await BuildAsync(single, site.Root, "2.0.12+languages");
+        Assert.Equal(0, same.Incremental.CacheMissCount);
+
+        var otherSingle = single with { Site = single.Site with { Languages = ["fr"] } };
+        var toOtherSingle = await BuildAsync(otherSingle, site.Root, "2.0.12+languages");
+        Assert.Equal(0, toOtherSingle.Incremental.CacheHitCount);
+        Assert.True(toOtherSingle.Incremental.CacheMissCount > 0);
+
+        var multiple = Configure(site.Config, true);
+        await BuildAsync(single, site.Root, "2.0.12+languages");
+        var toMultiple = await BuildAsync(multiple, site.Root, "2.0.12+languages");
+        Assert.Equal(0, toMultiple.Incremental.CacheHitCount);
+        Assert.True(toMultiple.Incremental.CacheMissCount > 0);
+
+        var backToSingle = await BuildAsync(single, site.Root, "2.0.12+languages");
+        Assert.Equal(0, backToSingle.Incremental.CacheHitCount);
+        Assert.True(backToSingle.Incremental.CacheMissCount > 0);
+    }
+
+    [Fact]
     public async Task LegacyRedirects_DoNotContributeToTheSiteHash()
     {
         using var site = CreateSite();

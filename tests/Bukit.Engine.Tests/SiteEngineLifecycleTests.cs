@@ -152,7 +152,10 @@ public sealed partial class SiteEngineIntegrationTests
                 }
                 finally { CleanupDir(cleanRoot); }
             }
-            Assert.True(File.Exists(Path.Combine(root, "dist", "en/content/companies/acme/index.html.json")));
+            // Step 7 left one language, which builds as a single-language site at the output root.
+            Assert.True(File.Exists(Path.Combine(root, "dist", "content/companies/acme/index.html.json")));
+            Assert.DoesNotContain(OutputSnapshot.Public(Path.Combine(root, "dist"), "en", "zh").Entries.Keys,
+                path => path.StartsWith("en/", StringComparison.Ordinal));
         }
         finally { CleanupDir(root); }
     }

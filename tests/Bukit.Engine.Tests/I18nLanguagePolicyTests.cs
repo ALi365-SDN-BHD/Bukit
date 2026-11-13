@@ -37,4 +37,19 @@ public sealed class I18nLanguagePolicyTests
     {
         Assert.Equal(["en", "fr"], I18nLanguagePolicy.GetLanguages(Site(["en", " ", "fr ", "EN"])));
     }
+
+    public static TheoryData<string[]> OneLanguage => new()
+    {
+        new[] { "en" },
+        new[] { "en", "EN" },
+        new[] { " en ", "" }
+    };
+
+    // One language after cleaning is a single-language site, not a one-language multilingual site.
+    [Theory]
+    [MemberData(nameof(OneLanguage))]
+    public void GetLanguages_OneLanguageAfterCleaning_IsEmpty(string[] languages)
+    {
+        Assert.Empty(I18nLanguagePolicy.GetLanguages(Site(languages)));
+    }
 }
