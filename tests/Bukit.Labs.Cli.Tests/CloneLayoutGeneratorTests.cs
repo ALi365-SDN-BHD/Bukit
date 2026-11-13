@@ -30,6 +30,7 @@ public sealed class CloneLayoutGeneratorTests
         Assert.Contains("assets/behaviors.js", html, StringComparison.Ordinal);
         Assert.Contains("lenis.min.js", html, StringComparison.Ordinal);
         Assert.Contains("assets/style.css", html, StringComparison.Ordinal);
+        Assert.Contains("<html lang=\"{{ site.language | html.escape }}\">", html, StringComparison.Ordinal);
     }
 
     [Fact]

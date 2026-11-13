@@ -76,7 +76,7 @@ internal static class CloneFidelityGenerator
     {
         var sb = new System.Text.StringBuilder();
         sb.AppendLine("<!DOCTYPE html>");
-        sb.AppendLine("<html lang=\"{{ site.language }}\">");
+        sb.AppendLine("<html lang=\"{{ site.language | html.escape }}\">");
         sb.AppendLine("<head>");
         sb.AppendLine("  <meta charset=\"UTF-8\" />");
         sb.AppendLine("  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1\" />");

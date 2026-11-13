@@ -152,6 +152,28 @@ public sealed class StarterThemeTemplateResourceTests : IDisposable
         Assert.Contains("<title>Page &amp; &lt;/title&gt;</title>", pageTitleHtml, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public void StarterBaseLayout_EscapesSiteLanguageAttribute()
+    {
+        var renderer = new ScribanTemplateRenderer(_layoutsDir);
+
+        var html = renderer.RenderPage("layouts/base.html", new PageModel
+        {
+            Site = new SiteModel { Name = "starter-test", Title = "Starter Test", BaseUrl = "", Language = "x\"><script>" },
+            Page = new PageInfo { Title = "Page", Url = "/page/", Content = "" }
+        });
+
+        Assert.Contains("<html lang=\"x&quot;&gt;&lt;script&gt;\">", html, StringComparison.Ordinal);
+        Assert.DoesNotContain("x\"><script>", html, StringComparison.Ordinal);
+
+        var validHtml = renderer.RenderPage("layouts/base.html", new PageModel
+        {
+            Site = new SiteModel { Name = "starter-test", Title = "Starter Test", BaseUrl = "", Language = "zh-CN" },
+            Page = new PageInfo { Title = "Page", Url = "/page/", Content = "" }
+        });
+        Assert.Contains("<html lang=\"zh-CN\">", validHtml, StringComparison.Ordinal);
+    }
+
     private static ListPageModel CreateListModel()
     {
         var item = new PageInfo
