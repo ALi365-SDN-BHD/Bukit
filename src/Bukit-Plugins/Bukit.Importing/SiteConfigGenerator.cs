@@ -45,7 +45,8 @@ internal static class SiteConfigGenerator
             ["url"] = SiteIdentity.Url(demoPages, options.BaseUrl) ?? SiteIdentity.PlaceholderUrl,
             ["description"] = SiteIdentity.Description(demoPages) ?? "Generated from HTML Demo",
             ["baseUrl"] = SiteBaseUrl(options.BaseUrl),
-            ["language"] = ResolveLanguage(options.Language, discoveredPages),
+            // site.languages is the only language setting; one entry is a single-language site.
+            ["languages"] = new List<object?> { ResolveLanguage(options.Language, discoveredPages) },
             ["seo"] = new Dictionary<string, object?>(StringComparer.Ordinal)
             {
                 ["renderMode"] = "inject"

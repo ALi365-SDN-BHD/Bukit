@@ -42,6 +42,26 @@ public sealed class ThemeSubcommandTests : IDisposable
         Assert.Contains("Unknown template: mystery.", result.StdErr, StringComparison.Ordinal);
     }
 
+    [Theory]
+    [InlineData("markdown")]
+    [InlineData("notion")]
+    public async Task InitCommand_RunAsync_WritesASingleLanguageSiteConfig(string provider)
+    {
+        var siteDir = Path.Combine(_rootDir, "init-" + provider);
+
+        var result = await CommandTestSupport.CaptureAsync(() =>
+            InitCommand.RunAsync(new CliBoundCommand(
+                new Dictionary<string, string?> { ["--provider"] = provider },
+                [siteDir])));
+
+        Assert.Equal(0, result.ExitCode);
+        var path = Path.Combine(siteDir, "site.yaml");
+        Assert.DoesNotMatch(@"(?m)^\s*language:", File.ReadAllText(path));
+        var config = Bukit.Config.ConfigLoader.Load(path);
+        Assert.Equal(["zh-CN"], config.Site.Languages);
+        Assert.Equal("zh-CN", config.Site.Language);
+    }
+
     [Fact]
     public async Task TemplateCommand_RunAsync_WithoutSubcommand_ReturnsTwo()
     {

@@ -12,9 +12,8 @@ public static class IntentWizard
         var siteUrl = Ask("site.url (optional)", defaultValue: string.Empty, required: false);
 
         var multiLang = AskYesNo("Enable multi-language?", defaultYes: false);
-        string? siteLanguage = null;
         string? defaultLanguage = null;
-        IReadOnlyList<string>? supportedLanguages = null;
+        IReadOnlyList<string> supportedLanguages;
         if (multiLang)
         {
             defaultLanguage = Ask("languages.default", defaultValue: "zh-CN", required: true);
@@ -22,7 +21,8 @@ public static class IntentWizard
         }
         else
         {
-            siteLanguage = Ask("site.language", defaultValue: "zh-CN", required: true);
+            // A single-language intent writes languages.supported: [x]; the default is that language.
+            supportedLanguages = [Ask("languages.supported (one language)", defaultValue: "zh-CN", required: true)];
         }
 
         var kind = AskChoice("content.kind", defaultValue: "markdown", choices: new[] { "markdown", "notion" });
@@ -52,12 +52,8 @@ public static class IntentWizard
         var enableSearch = AskYesNo("features.search?", defaultYes: true);
 
         var root = new YamlMappingNode();
-        root.Add("site", BuildSiteNode(siteName, siteTitle, baseUrl, siteUrl, siteLanguage));
-
-        if (multiLang && defaultLanguage is not null && supportedLanguages is not null)
-        {
-            root.Add("languages", BuildLanguagesNode(defaultLanguage, supportedLanguages));
-        }
+        root.Add("site", BuildSiteNode(siteName, siteTitle, baseUrl, siteUrl));
+        root.Add("languages", BuildLanguagesNode(defaultLanguage, supportedLanguages));
 
         root.Add("content", BuildContentNode(kind, mdDir, notionDatabaseId, fieldPolicyMode, allowedFields));
         root.Add("theme", BuildThemeNode(themeName));
@@ -75,7 +71,7 @@ public static class IntentWizard
         File.WriteAllText(outPath, writer.ToString());
     }
 
-    private static YamlMappingNode BuildSiteNode(string name, string title, string baseUrl, string siteUrl, string? language)
+    private static YamlMappingNode BuildSiteNode(string name, string title, string baseUrl, string siteUrl)
     {
         var site = new YamlMappingNode();
         site.Add("name", name);
@@ -86,18 +82,17 @@ public static class IntentWizard
             site.Add("url", siteUrl);
         }
 
-        if (!string.IsNullOrWhiteSpace(language))
-        {
-            site.Add("language", language);
-        }
-
         return site;
     }
 
-    private static YamlMappingNode BuildLanguagesNode(string def, IReadOnlyList<string> supported)
+    private static YamlMappingNode BuildLanguagesNode(string? def, IReadOnlyList<string> supported)
     {
         var node = new YamlMappingNode();
-        node.Add("default", def);
+        if (!string.IsNullOrWhiteSpace(def))
+        {
+            node.Add("default", def);
+        }
+
         var seq = new YamlSequenceNode(supported.Select(x => new YamlScalarNode(x)));
         node.Add("supported", seq);
         return node;

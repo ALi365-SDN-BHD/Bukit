@@ -34,12 +34,7 @@ public static class IntentValidator
 
         if (intent.Languages is not null)
         {
-            if (string.IsNullOrWhiteSpace(intent.Languages.Default))
-            {
-                result.Errors.Add("languages.default is required when languages section is present.");
-            }
-
-            if (intent.Languages.Supported is not { Count: > 0 })
+            if (intent.Languages.Supported is not { Count: > 0 } || intent.Languages.CleanSupported.Count == 0)
             {
                 result.Errors.Add("languages.supported must be a non-empty list when languages section is present.");
             }
@@ -55,7 +50,13 @@ public static class IntentValidator
                     result.Errors.Add($"languages.supported has duplicate language: {dup.Key}");
                 }
 
-                if (!intent.Languages.Supported.Contains(intent.Languages.Default, StringComparer.OrdinalIgnoreCase))
+                // With one language the default may be omitted and is that language (D6).
+                var resolvedDefault = intent.Languages.ResolvedDefault;
+                if (resolvedDefault is null)
+                {
+                    result.Errors.Add("languages.default is required when languages.supported has more than one language.");
+                }
+                else if (!intent.Languages.CleanSupported.Contains(resolvedDefault, StringComparer.OrdinalIgnoreCase))
                 {
                     result.Errors.Add("languages.default must be included in languages.supported.");
                 }
