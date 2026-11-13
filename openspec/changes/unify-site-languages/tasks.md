@@ -4,12 +4,14 @@
 
 ## 0. 决策确认
 
-- [ ] D1：不写 `site.languages` 时默认为 `[zh-CN]`。
-- [ ] D2：删除 `site.language`，出现时报错，不保留别名。
-- [ ] D3：只有 1 项时不能保留语言前缀。
-- [ ] D4：`site.defaultLanguageInSubdir` 默认改为 `false`。
-- [ ] D5：单语言搜索记录的回退语言改为站点语言。
-- [ ] D6：只有 1 项时 `site.defaultLanguage` 只能不写或等于那一项；删除警告 `i18n.config.default_language_ignored`。
+D1–D6 均采用推荐选项，用户已于 2026-11-14 确认。
+
+- [x] D1：不写 `site.languages` 时默认为 `[zh-CN]`。
+- [x] D2：删除 `site.language`，出现时报错，不保留别名。
+- [x] D3：只有 1 项时不能保留语言前缀。
+- [x] D4：`site.defaultLanguageInSubdir` 默认改为 `false`。
+- [x] D5：单语言搜索记录的回退语言改为站点语言。
+- [x] D6：只有 1 项时 `site.defaultLanguage` 只能不写或等于那一项；删除警告 `i18n.config.default_language_ignored`。
 
 ## 1. 配置层
 

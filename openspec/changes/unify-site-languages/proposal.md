@@ -43,5 +43,5 @@
 ## Approval Scope
 
 - 本提案只覆盖 Core、Labs、Plugins 的实现、测试和文档。commit、push、PR、发布和 full/release gate 均需另行授权。
-- design.md 中的决策 D1–D6 **尚未确认**，以下内容按推荐选项编写；用户选择不同选项时，规范和任务清单需要同步修改。
+- design.md 中的决策 D1–D6 已于 2026-11-14 由用户确认，均采用推荐选项，规范和任务清单按此编写。
 - 实施属于 Core 任务，须作为单独的 Core 任务开展。确认决策不等于授权开始实施。

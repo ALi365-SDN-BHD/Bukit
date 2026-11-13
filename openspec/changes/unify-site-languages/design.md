@@ -27,35 +27,35 @@
 
 ## Decisions
 
-### D1. 不写 `site.languages` 时默认为 `[zh-CN]`（待确认）
+### D1. 不写 `site.languages` 时默认为 `[zh-CN]`（已确认，2026-11-14）
 
 - 推荐：默认 `[zh-CN]`，与现在 `site.language` 的默认值一致，零配置也能构建，现有文档和示例的默认行为不变。
 - 备选 A：改为必填，缺失时校验失败。能根除"非中文站点忘写语言导致内容被过滤"的问题，但最简配置要多写一行。
 - 备选 B：默认改为 `[en]`。更符合国际默认，但会改变现有文档里"默认中文"的约定。
 
-### D2. 删除 `site.language`，出现时报错（待确认）
+### D2. 删除 `site.language`，出现时报错（已确认，2026-11-14）
 
 - 推荐：`ConfigStrictFieldValidator` 把 `language` 从 `site` 的允许字段中移除，加一条专门的报错，提示改成 `languages: [<code>]`。不保留别名。
 - 备选：保留为 `languages: [<value>]` 的别名，并给出弃用警告。这样两个字段又会并存一段时间，与本变更的目的相反。
 
-### D3. 只有 1 项时不能保留语言前缀（待确认）
+### D3. 只有 1 项时不能保留语言前缀（已确认，2026-11-14）
 
 - 现在 `languages: [en]` 会得到 `dist/en/`。统一后只有 1 项就是单语言，输出写在 `dist/`。
 - 推荐：放弃"单语言但带语言前缀"的能力。需要前缀的站点通常就是多语言站点。
 - 备选：在只有 1 项时，允许显式写 `defaultLanguageInSubdir: true` 来保留前缀。这样 D4 就必须用"是否显式设置"区分，规则更复杂。
 
-### D4. `site.defaultLanguageInSubdir` 默认改为 `false`（待确认）
+### D4. `site.defaultLanguageInSubdir` 默认改为 `false`（已确认，2026-11-14）
 
 - 原因：站点从 1 种语言加到 2 种时，如果默认值还是 `true`，默认语言的页面会从 `/about/` 搬到 `/en/about/`，所有已有链接都会失效；默认 `false` 时默认语言留在根目录，加语言不改变已有链接。没有存量站点，现在改默认值的成本最低。主流工具（Hugo、Astro、Docusaurus 等）默认也是根目录布局，见归档变更 `2026-11-12-add-i18n-default-language-root` 的 Prior Art。
 - 影响：多语言站点默认改为根目录布局，带前缀布局需要显式写 `true`。所有依赖默认带前缀的测试和文档示例需要修改。
 - 备选：保持 `true`，只在文档里提醒"以后会加语言的站点建议设为 `false`"。
 
-### D5. 单语言搜索记录的回退语言改为站点语言（待确认）
+### D5. 单语言搜索记录的回退语言改为站点语言（已确认，2026-11-14）
 
 - 推荐：`RecordLanguageFallback` 在单语言时也返回站点语言，不再返回 `und`。单语言站点的语言总是已知的，前端过滤逻辑在两种模式下一致。
 - 备选：保持 `und`，`search.json` 不变。
 
-### D6. 只有 1 项时 `site.defaultLanguage` 只能不写或等于那一项（待确认）
+### D6. 只有 1 项时 `site.defaultLanguage` 只能不写或等于那一项（已确认，2026-11-14）
 
 - 推荐：沿用现有规则"`defaultLanguage` 必须在 `languages` 中"，不另加规则。只有 1 项时这条规则自然只接受那一项。
 - 现有警告 `i18n.config.default_language_ignored`（写了 `defaultLanguage` 但没有 `languages`）随之删除，因为 `languages` 总会有值（D1）。
@@ -94,5 +94,5 @@
 
 ## Open Questions
 
-- D1–D6 待用户确认。
+- D1–D6 已于 2026-11-14 确认，均采用推荐选项。
 - 是否需要在 `bukit doctor` 中对旧字段 `site.language` 给出更友好的迁移提示（配置校验已经会报错）。
