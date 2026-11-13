@@ -899,6 +899,7 @@ public sealed partial class SiteEngineIntegrationTests
                 Url = "https://example.test",
                 Languages = ["en", "zh-CN"],
                 DefaultLanguage = "en",
+                DefaultLanguageInSubdir = true,
                 SitemapMode = "split",
                 Seo = new SeoConfig
                 {

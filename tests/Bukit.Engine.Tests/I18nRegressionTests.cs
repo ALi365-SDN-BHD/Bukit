@@ -415,6 +415,7 @@ public sealed class I18nRegressionTests : IDisposable
         Site = new SiteConfig
         {
             Name = "test", Title = "Test", Url = "https://example.com", Languages = ["en", "zh"],
+            DefaultLanguageInSubdir = true,
             Collections = new Dictionary<string, CollectionConfig>
             {
                 ["post"] = new() { Permalink = "/{slug}/", Output = new() { Rss = true } }

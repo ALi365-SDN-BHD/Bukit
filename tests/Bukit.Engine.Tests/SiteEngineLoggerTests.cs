@@ -96,13 +96,28 @@ public sealed class SiteEngineLoggerTests
     }
 
     [Fact]
+    public async Task DefaultLanguageLayoutWithoutLanguages_IsSilentByDefault()
+    {
+        // defaultLanguageInSubdir defaults to false, so a single-language site must not warn on every build.
+        using var site = CreateSite();
+        var logger = new RecordingLogger(new ConsoleLogger(LogLevel.Error));
+
+        var result = await new SiteEngine(logger).BuildAsync(Configure(site.Config, false), site.Root,
+            new ConfigOverrides { Incremental = false });
+
+        Assert.DoesNotContain(logger.Warnings, message => message.Contains("event=i18n.config.default_language_layout_ignored", StringComparison.Ordinal));
+        Assert.True(File.Exists(Path.Combine(site.Output, "hello", "index.html")));
+        Assert.Equal(0, result.Summary.ErrorCount);
+    }
+
+    [Fact]
     public async Task DefaultLanguageLayoutWithoutLanguages_WarnsAndOutputIsUnchanged()
     {
         using var site = CreateSite();
         var logger = new RecordingLogger(new ConsoleLogger(LogLevel.Error));
         var config = Configure(site.Config, false) with
         {
-            Site = Configure(site.Config, false).Site with { DefaultLanguageInSubdir = false }
+            Site = Configure(site.Config, false).Site with { DefaultLanguageInSubdir = true }
         };
 
         var result = await new SiteEngine(logger).BuildAsync(config, site.Root,
@@ -122,7 +137,7 @@ public sealed class SiteEngineLoggerTests
         var logger = new RecordingLogger(new ConsoleLogger(LogLevel.Error));
         var config = Configure(site.Config, false) with
         {
-            Site = Configure(site.Config, false).Site with { Languages = ["en"], DefaultLanguageInSubdir = false }
+            Site = Configure(site.Config, false).Site with { Languages = ["en"], DefaultLanguageInSubdir = true }
         };
 
         var result = await new SiteEngine(logger).BuildAsync(config, site.Root,
@@ -185,7 +200,9 @@ public sealed class SiteEngineLoggerTests
             Seo = new SeoConfig { Enabled = false },
             Analytics = new AnalyticsConfig { Enabled = false },
             Languages = multilingual ? ["en", "zh"] : null,
-            DefaultLanguage = multilingual ? "en" : null
+            DefaultLanguage = multilingual ? "en" : null,
+            // Warning counts are per variant directory in the prefixed layout.
+            DefaultLanguageInSubdir = multilingual
         },
         Build = config.Build with { LanguageJobs = multilingual ? 2 : 1 }
     };

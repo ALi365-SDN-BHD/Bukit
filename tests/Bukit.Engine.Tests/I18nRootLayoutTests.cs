@@ -18,7 +18,7 @@ public sealed class I18nRootLayoutTests
         var site = new SiteBuilder("i18n-site");
         var path = site.Sandbox.PathFor("site.yaml");
         var yaml = File.ReadAllText(path)
-            .Replace("  defaultLanguage: en\n", "  defaultLanguage: en\n  defaultLanguageInSubdir: false\n", StringComparison.Ordinal)
+            .Replace("  defaultLanguageInSubdir: true\n", "  defaultLanguageInSubdir: false\n", StringComparison.Ordinal)
             .Replace("  search:\n    mode: merged\n", "  search:\n    mode: split\n", StringComparison.Ordinal)
             .Replace("  sitemapMode: merged\n", "  sitemapMode: split\n", StringComparison.Ordinal);
         if (extraSite.Length > 0)
@@ -29,6 +29,43 @@ public sealed class I18nRootLayoutTests
         File.WriteAllText(path, yaml);
         return site;
     }
+
+    [Fact]
+    public async Task DefaultLayout_AddingASecondLanguageKeepsDefaultLanguageUrls()
+    {
+        // Spec scenario "Adding a second language keeps default-language URLs": defaultLanguageInSubdir is not set.
+        using var site = new SiteBuilder();
+        site.Markdown("hello", "Hello", "Body");
+        var engine = new SiteEngine(new ConsoleLogger(LogLevel.Error));
+        var single = site.Config with { Site = site.Config.Site with { Languages = ["en"], DefaultLanguage = null } };
+
+        await engine.BuildAsync(single, site.Root, new ConfigOverrides { Incremental = false });
+        var before = EnglishPages(site.Output);
+        Assert.Contains(Path.Combine("hello", "index.html"), before);
+        Assert.Contains(SearchFiles(site.Output), text => text.Contains("\"url\":\"/hello/\"", StringComparison.Ordinal));
+
+        var multilingual = site.Config with { Site = site.Config.Site with { Languages = ["en", "zh-CN"], DefaultLanguage = "en" } };
+        await engine.BuildAsync(multilingual, site.Root, new ConfigOverrides { Incremental = false });
+
+        Assert.Subset(EnglishPages(site.Output), before);
+        Assert.False(File.Exists(Path.Combine(site.Output, "en", "hello", "index.html")));
+        Assert.Contains(SearchFiles(site.Output), text => text.Contains("\"url\":\"/hello/\"", StringComparison.Ordinal));
+        Assert.DoesNotContain(SearchFiles(site.Output), text => text.Contains("/en/hello/", StringComparison.Ordinal));
+    }
+
+    private static HashSet<string> EnglishPages(string output) =>
+        Directory.EnumerateFiles(output, "*.html", SearchOption.AllDirectories)
+            .Select(path => Path.GetRelativePath(output, path))
+            .Where(path => !path.StartsWith(".bukit", StringComparison.Ordinal) &&
+                           !path.StartsWith("zh-CN", StringComparison.Ordinal) &&
+                           !path.StartsWith("en" + Path.DirectorySeparatorChar, StringComparison.Ordinal))
+            .ToHashSet(StringComparer.Ordinal);
+
+    private static string[] SearchFiles(string output) =>
+        Directory.EnumerateFiles(output, "search*.json", SearchOption.AllDirectories)
+            .Where(path => !Path.GetRelativePath(output, path).StartsWith(".bukit", StringComparison.Ordinal))
+            .Select(File.ReadAllText)
+            .ToArray();
 
     [Fact]
     public async Task RootLayout_LegacyHomeRedirectIsNotIndexed()
@@ -1322,7 +1359,7 @@ public sealed class I18nRootLayoutTests
         using var site = new SiteBuilder("i18n-site");
         var path = site.Sandbox.PathFor("site.yaml");
         File.WriteAllText(path, File.ReadAllText(path)
-            .Replace("  defaultLanguage: en\n", "  defaultLanguage: en\n  defaultLanguageInSubdir: false\n", StringComparison.Ordinal)
+            .Replace("  defaultLanguageInSubdir: true\n", "  defaultLanguageInSubdir: false\n", StringComparison.Ordinal)
             .Replace("  sitemapMode: merged\n", "  sitemapMode: index\n", StringComparison.Ordinal)
             .Replace("  search:\n    mode: merged\n", "  search:\n    mode: split\n", StringComparison.Ordinal));
 

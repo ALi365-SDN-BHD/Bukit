@@ -20,9 +20,11 @@ internal sealed class SiteIdentityAndModesContributor : IRenderDependencyContrib
             "site.languages",
             site.Languages?.OrderBy(x => x, StringComparer.OrdinalIgnoreCase).ToList());
         writer.AppendLabeledCanonicalValue("site.defaultLanguage", site.DefaultLanguage);
-        if (!site.DefaultLanguageInSubdir)
+        // Only a multilingual site that moves its default language into a subdirectory hashes
+        // the setting; the default (root) layout and single-language sites leave the hash unchanged.
+        if (site.DefaultLanguageInSubdir && I18nLanguagePolicy.GetLanguages(site).Count > 0)
         {
-            writer.AppendLabeledCanonicalValue("site.defaultLanguageInSubdir", false);
+            writer.AppendLabeledCanonicalValue("site.defaultLanguageInSubdir", true);
         }
 
         if (!site.DefaultLanguageRedirect)

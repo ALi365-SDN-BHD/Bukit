@@ -60,8 +60,9 @@ internal static class I18nLanguagePolicy
 
     internal static void WarnLayoutSettingsWithoutLanguages(SiteConfig site, ILogger logger)
     {
+        // Defaults: defaultLanguageInSubdir false, defaultLanguageRedirect true, legacy redirects false.
         if (GetLanguages(site).Count > 0 ||
-            (site.DefaultLanguageInSubdir && site.DefaultLanguageRedirect && !site.DefaultLanguageLegacyRedirects))
+            (!site.DefaultLanguageInSubdir && site.DefaultLanguageRedirect && !site.DefaultLanguageLegacyRedirects))
         {
             return;
         }

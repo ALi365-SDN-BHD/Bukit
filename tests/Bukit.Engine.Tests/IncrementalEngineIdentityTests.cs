@@ -36,28 +36,48 @@ public sealed class IncrementalEngineIdentityTests
     }
 
     [Fact]
-    public async Task DefaultLanguageLayout_OnlyContributesToHashWhenDisabled()
+    public async Task DefaultLanguageLayout_OnlyContributesToHashWhenEnabledOnAMultilingualSite()
     {
         using var site = CreateSite();
         var config = Configure(site.Config, true);
-        var first = await BuildAsync(config, site.Root, "2.0.12+layout");
+        await BuildAsync(config, site.Root, "2.0.12+layout");
 
-        var explicitTrue = config with
+        // Writing the defaults explicitly (root layout, redirect on) leaves the hash unchanged.
+        var explicitDefaults = config with
         {
-            Site = config.Site with { DefaultLanguageInSubdir = true, DefaultLanguageRedirect = true }
+            Site = config.Site with { DefaultLanguageInSubdir = false, DefaultLanguageRedirect = true }
         };
-        var same = await BuildAsync(explicitTrue, site.Root, "2.0.12+layout");
+        var same = await BuildAsync(explicitDefaults, site.Root, "2.0.12+layout");
         Assert.Equal(0, same.Incremental.CacheMissCount);
 
-        var subdirFalse = explicitTrue with { Site = explicitTrue.Site with { DefaultLanguageInSubdir = false } };
-        var subdirChanged = await BuildAsync(subdirFalse, site.Root, "2.0.12+layout");
+        var subdirTrue = explicitDefaults with { Site = explicitDefaults.Site with { DefaultLanguageInSubdir = true } };
+        var subdirChanged = await BuildAsync(subdirTrue, site.Root, "2.0.12+layout");
         Assert.Equal(0, subdirChanged.Incremental.CacheHitCount);
         Assert.True(subdirChanged.Incremental.CacheMissCount > 0);
 
-        var redirectFalse = explicitTrue with { Site = explicitTrue.Site with { DefaultLanguageRedirect = false } };
+        var redirectFalse = subdirTrue with { Site = subdirTrue.Site with { DefaultLanguageRedirect = false } };
         var redirectChanged = await BuildAsync(redirectFalse, site.Root, "2.0.12+layout");
         Assert.Equal(0, redirectChanged.Incremental.CacheHitCount);
         Assert.True(redirectChanged.Incremental.CacheMissCount > 0);
+    }
+
+    [Fact]
+    public async Task DefaultLanguageLayout_DoesNotContributeToTheHashOfASingleLanguageSite()
+    {
+        using var site = CreateSite();
+        var config = Configure(site.Config, false);
+        await BuildAsync(config, site.Root, "2.0.12+layout");
+
+        // The setting is ignored without at least two languages, so it must not invalidate the cache.
+        var subdirTrue = config with { Site = config.Site with { DefaultLanguageInSubdir = true } };
+        var same = await BuildAsync(subdirTrue, site.Root, "2.0.12+layout");
+        Assert.Equal(0, same.Incremental.CacheMissCount);
+
+        var single = config with { Site = config.Site with { Languages = ["en"] } };
+        await BuildAsync(single, site.Root, "2.0.12+layout");
+        var singleTrue = single with { Site = single.Site with { DefaultLanguageInSubdir = true } };
+        var singleSame = await BuildAsync(singleTrue, site.Root, "2.0.12+layout");
+        Assert.Equal(0, singleSame.Incremental.CacheMissCount);
     }
 
     [Fact]

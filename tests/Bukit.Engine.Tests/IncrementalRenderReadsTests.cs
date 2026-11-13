@@ -172,7 +172,8 @@ public sealed class IncrementalRenderReadsTests
         {
             config = config with
             {
-                Site = config.Site with { Languages = ["en", "zh"], DefaultLanguage = "en" },
+                // The exact render counts below are for the prefixed layout; the root layout also re-renders the legacy home redirect.
+                Site = config.Site with { Languages = ["en", "zh"], DefaultLanguage = "en", DefaultLanguageInSubdir = true },
                 Build = config.Build with { LanguageJobs = 2 }
             };
         }

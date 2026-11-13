@@ -5,6 +5,7 @@ site:
     - en
     - zh-CN
   defaultLanguage: en
+  defaultLanguageInSubdir: true
   collections:
     page:
       permalink: /{slug}/

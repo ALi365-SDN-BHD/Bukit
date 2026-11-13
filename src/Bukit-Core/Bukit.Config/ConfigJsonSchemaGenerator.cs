@@ -62,7 +62,7 @@ public static class ConfigJsonSchemaGenerator
             ("outputPathEncoding", EnumSchema("none", "slug", "urlencode", "sanitize")),
             ("languages", Obj(("type", "array"), ("items", StringSchema()), ("default", new JsonArray("zh-CN")))),
             ("defaultLanguage", StringSchema()),
-            ("defaultLanguageInSubdir", BoolSchema(true)),
+            ("defaultLanguageInSubdir", BoolSchema(false)),
             ("defaultLanguageRedirect", BoolSchema(true)),
             ("defaultLanguageLegacyRedirects", BoolSchema(false)),
             ("sitemapMode", EnumSchema("split", "merged", "index")),

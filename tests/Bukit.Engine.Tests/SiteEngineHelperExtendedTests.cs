@@ -138,8 +138,8 @@ public sealed class SiteEngineHelperExtendedTests
         var result = SeoAlternatesService.BuildSeoAlternates(config, documents, new[] { "en", "zh" }, "en", "/");
 
         var alternates = result["route:/companies/malaysia/page/2/"];
-        Assert.Contains(alternates, alternate => alternate.Hreflang == "x-default" && alternate.Href == "https://example.com/en/companies/malaysia/page/2/");
-        Assert.Contains(alternates, alternate => alternate.Hreflang == "en" && alternate.Href == "https://example.com/en/companies/malaysia/page/2/");
+        Assert.Contains(alternates, alternate => alternate.Hreflang == "x-default" && alternate.Href == "https://example.com/companies/malaysia/page/2/");
+        Assert.Contains(alternates, alternate => alternate.Hreflang == "en" && alternate.Href == "https://example.com/companies/malaysia/page/2/");
         Assert.Contains(alternates, alternate => alternate.Hreflang == "zh" && alternate.Href == "https://example.com/zh/companies/malaysia/page/2/");
     }
 
@@ -209,8 +209,8 @@ public sealed class SiteEngineHelperExtendedTests
                 layoutsDir: layoutsDir);
 
             var sharedAlternates = result["route:/insights/category/shared/"];
-            Assert.Contains(sharedAlternates, alternate => alternate.Hreflang == "x-default" && alternate.Href == "https://example.com/en/insights/category/shared/");
-            Assert.Contains(sharedAlternates, alternate => alternate.Hreflang == "en" && alternate.Href == "https://example.com/en/insights/category/shared/");
+            Assert.Contains(sharedAlternates, alternate => alternate.Hreflang == "x-default" && alternate.Href == "https://example.com/insights/category/shared/");
+            Assert.Contains(sharedAlternates, alternate => alternate.Hreflang == "en" && alternate.Href == "https://example.com/insights/category/shared/");
             Assert.Contains(sharedAlternates, alternate => alternate.Hreflang == "zh" && alternate.Href == "https://example.com/zh/insights/category/shared/");
             Assert.DoesNotContain("route:/insights/category/market/", result.Keys);
         }

@@ -35,7 +35,11 @@ public sealed record SiteConfig
     /// <summary>The site languages. One entry is a single-language site; the loader defaults it to <c>[zh-CN]</c>.</summary>
     public IReadOnlyList<string>? Languages { get; init; }
     public string? DefaultLanguage { get; init; }
-    public bool DefaultLanguageInSubdir { get; init; } = true;
+    /// <summary>
+    /// Whether the default language of a multilingual site builds into its own <c>/&lt;lang&gt;/</c>
+    /// directory. Defaults to <c>false</c>: the default language builds into the output root.
+    /// </summary>
+    public bool DefaultLanguageInSubdir { get; init; }
     public bool DefaultLanguageRedirect { get; init; } = true;
     public bool DefaultLanguageLegacyRedirects { get; init; }
     public string SitemapMode { get; init; } = "split";

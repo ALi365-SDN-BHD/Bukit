@@ -550,7 +550,7 @@ public sealed class ConfigJsonSchemaGeneratorTests
         var site = doc.RootElement.GetProperty("properties").GetProperty("site").GetProperty("properties");
 
         Assert.Equal("boolean", site.GetProperty("defaultLanguageInSubdir").GetProperty("type").GetString());
-        Assert.True(site.GetProperty("defaultLanguageInSubdir").GetProperty("default").GetBoolean());
+        Assert.False(site.GetProperty("defaultLanguageInSubdir").GetProperty("default").GetBoolean());
         Assert.Equal("boolean", site.GetProperty("defaultLanguageRedirect").GetProperty("type").GetString());
         Assert.True(site.GetProperty("defaultLanguageRedirect").GetProperty("default").GetBoolean());
         Assert.Equal("boolean", site.GetProperty("defaultLanguageLegacyRedirects").GetProperty("type").GetString());

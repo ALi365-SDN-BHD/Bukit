@@ -1873,6 +1873,7 @@ public sealed partial class SiteEngineIntegrationTests
                     Language = "en",
                     DefaultLanguage = "en",
                     Languages = ["en", "fr", "de"],
+                    DefaultLanguageInSubdir = true,
                     Collections = TestCollections(),
                     Seo = new SeoConfig { Enabled = false },
                     Analytics = new AnalyticsConfig { Enabled = false }
@@ -2080,6 +2081,7 @@ public sealed partial class SiteEngineIntegrationTests
                   baseUrl: /
                   languages: [en-US, ms-MY]
                   defaultLanguage: en-US
+                  defaultLanguageInSubdir: true
                   sitemapMode: merged
                   collections:
                     page:
@@ -4466,6 +4468,7 @@ public sealed partial class SiteEngineIntegrationTests
                   baseUrl: /
                   languages: [en, zh]
                   defaultLanguage: en
+                  defaultLanguageInSubdir: true
                   sitemapMode: merged
                   collections:
                     company:
@@ -4583,6 +4586,7 @@ public sealed partial class SiteEngineIntegrationTests
                   baseUrl: /
                   languages: [en, zh]
                   defaultLanguage: en
+                  defaultLanguageInSubdir: true
                   sitemapMode: merged
                   search:
                     mode: merged
@@ -4721,6 +4725,7 @@ public sealed partial class SiteEngineIntegrationTests
                   baseUrl: /
                   languages: [en, zh]
                   defaultLanguage: en
+                  defaultLanguageInSubdir: true
                   sitemapMode: merged
                   search:
                     mode: merged
@@ -4848,6 +4853,7 @@ public sealed partial class SiteEngineIntegrationTests
                   baseUrl: /
                   languages: [en, zh]
                   defaultLanguage: en
+                  defaultLanguageInSubdir: true
                 content:
                   sources:
                     - type: markdown
@@ -5985,6 +5991,7 @@ public sealed partial class SiteEngineIntegrationTests
                 Language = "en",
                 DefaultLanguage = multiLanguage ? "en" : null,
                 Languages = multiLanguage ? ["en", "zh"] : null,
+                DefaultLanguageInSubdir = multiLanguage,
                 Collections = TestCollections(),
                 Seo = new SeoConfig { Enabled = false },
                 Analytics = new AnalyticsConfig { Enabled = false }

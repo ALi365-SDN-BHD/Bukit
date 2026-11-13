@@ -58,7 +58,7 @@ public sealed class ConfigPhase2ValidatorTests : IDisposable
         Assert.Equal("/", config.Site.BaseUrl);
         Assert.Equal("zh-CN", config.Site.Language);
         Assert.Equal(["zh-CN"], config.Site.Languages);
-        Assert.True(config.Site.DefaultLanguageInSubdir);
+        Assert.False(config.Site.DefaultLanguageInSubdir);
         Assert.True(config.Site.DefaultLanguageRedirect);
         Assert.False(config.Site.DefaultLanguageLegacyRedirects);
         Assert.Null(config.Site.DefaultLanguage);

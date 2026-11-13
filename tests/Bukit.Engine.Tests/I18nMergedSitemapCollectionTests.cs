@@ -40,6 +40,7 @@ public sealed class I18nMergedSitemapCollectionTests
                 Title = "Test",
                 Url = "https://example.com",
                 Languages = ["en", "zh"],
+                DefaultLanguageInSubdir = true,
                 SitemapMode = "merged",
                 Collections = new Dictionary<string, CollectionConfig>(StringComparer.OrdinalIgnoreCase)
                 {
@@ -137,6 +138,7 @@ public sealed class I18nMergedSitemapCollectionTests
                     Url = siteUrl,
                     BaseUrl = "/repo/",
                     Languages = ["en", "zh"],
+                    DefaultLanguageInSubdir = true,
                     SitemapMode = "merged"
                 },
                 Content = TestContent.Markdown()

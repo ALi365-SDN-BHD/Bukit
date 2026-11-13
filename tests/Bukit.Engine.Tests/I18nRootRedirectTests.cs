@@ -32,6 +32,7 @@ public sealed class I18nRootRedirectTests : IDisposable
             BaseUrl = baseUrl,
             Languages = ["en", "zh-CN"],
             DefaultLanguage = "en",
+            DefaultLanguageInSubdir = true,
             DefaultLanguageRedirect = redirect
         },
         Content = TestContent.Markdown()
@@ -62,6 +63,7 @@ public sealed class I18nRootRedirectTests : IDisposable
     [Fact]
     public async Task Build_AddsRootRedirectAndExcludesItFromIndexes()
     {
+        // Spec scenario "Root redirect for a prefixed site": the i18n-site fixture sets defaultLanguageInSubdir: true.
         using var site = new SiteBuilder("i18n-site");
         var config = site.Config with
         {
@@ -85,6 +87,28 @@ public sealed class I18nRootRedirectTests : IDisposable
         var publishAudit = File.ReadAllText(Path.Combine(site.Output, ".bukit", "publish-audit-report.json"));
         Assert.DoesNotContain("\"outputPath\": \"index.html\"", publishAudit, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain("\"kind\": \"redirect\"", publishAudit, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task Build_DefaultLayout_WritesTheLegacyHomeRedirectInsteadOfARootRedirect()
+    {
+        // Spec scenario "Legacy home redirect for a root default language": neither defaultLanguageInSubdir
+        // nor defaultLanguageRedirect is set, so the default language builds at the root.
+        using var site = new SiteBuilder("i18n-site");
+        var configPath = site.Sandbox.PathFor("site.yaml");
+        File.WriteAllText(configPath, File.ReadAllText(configPath)
+            .Replace("  defaultLanguageInSubdir: true\n", string.Empty, StringComparison.Ordinal));
+        Assert.False(site.Config.Site.DefaultLanguageInSubdir);
+
+        await new SiteEngine(new ConsoleLogger(LogLevel.Error)).BuildAsync(site.Config, site.Root,
+            new ConfigOverrides { Incremental = false });
+
+        var home = File.ReadAllText(Path.Combine(site.Output, "index.html"));
+        Assert.DoesNotContain("http-equiv=\"refresh\"", home, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("lang=\"en\"", home, StringComparison.Ordinal);
+        var legacy = File.ReadAllText(Path.Combine(site.Output, "en", "index.html"));
+        Assert.Contains("content=\"0; url=https://example.test/\"", legacy, StringComparison.Ordinal);
+        Assert.Contains("noindex", legacy, StringComparison.Ordinal);
     }
 
     [Fact]

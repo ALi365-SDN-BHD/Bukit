@@ -53,6 +53,21 @@ public sealed class ConfigLoaderTests : IDisposable
     }
 
     [Theory]
+    [InlineData("", false)]
+    [InlineData("  defaultLanguageInSubdir: false\n", false)]
+    [InlineData("  defaultLanguageInSubdir: true\n", true)]
+    public void Load_DefaultLanguageInSubdir_DefaultsToFalse(string layoutYaml, bool expected)
+    {
+        // The default language of a multilingual site builds into the output root unless set to true.
+        var yaml = "site:\n  name: myblog\n  title: My Blog\n  languages: [en, zh-CN]\n" + layoutYaml +
+                   "content:\n  sources:\n    - type: markdown\n      markdown:\n        dir: content\n";
+
+        var config = ConfigLoader.Load(WriteTempYaml(yaml));
+
+        Assert.Equal(expected, config.Site.DefaultLanguageInSubdir);
+    }
+
+    [Theory]
     [InlineData("  languages: [\"\"]\n", "site.languages must contain at least one language.")]
     [InlineData("  languages: [\" \", \"\"]\n", "site.languages must contain at least one language.")]
     public void Load_InvalidSiteLanguages_Fails(string languageYaml, string expectedMessage)
