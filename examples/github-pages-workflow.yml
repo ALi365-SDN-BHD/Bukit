@@ -59,6 +59,19 @@ jobs:
             --ci \
             --clean
 
+      # Remove Bukit's internal files before uploading. These are the same
+      # exclusions GitHubPagesDeployProvider (`bukit deploy github-pages`)
+      # applies: every `.bukit/` directory (build/SEO/publish/security reports,
+      # including per-language reports under `.bukit/variants/<lang>/`) and the
+      # `.bukit-output-marker` and `.bukit-build-state.json` files, matched
+      # case-insensitively at any depth. upload-pages-artifact already omits
+      # `.git`.
+      - name: Remove internal Bukit files
+        shell: bash
+        run: |
+          find _site -depth -type d -iname '.bukit' -exec rm -rf {} +
+          find _site -type f \( -iname '.bukit-output-marker' -o -iname '.bukit-build-state.json' \) -delete
+
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
