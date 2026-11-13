@@ -58,6 +58,20 @@
 - Configure long-running tool calls to yield within 60 seconds and report progress between waits. After the same error occurs twice, stop blind retries and switch to targeted diagnosis.
 - If an agent provides no progress for 90 seconds, the controller must check whether it is stalled, waiting for input, or holding a contested resource.
 
+## Iterative SOP loop
+
+When the user asks to run the SOP over a task queue, execute this loop:
+
+1. Analyze: investigate and verify the current item (problem or task) with evidence before acting.
+2. Plan and implement: define the approach and the verification closure, then implement it.
+3. Audit: run the item's specialty tests and one independent specialty review of the result.
+4. Fix or advance: if the audit finds Critical or Important issues, fix them and re-audit the scope; otherwise return to step 1 for the next item.
+
+- Loop until the queue is empty, then audit the combined result once (review-scope plus a delta-only unified review) and report a summary of every item.
+- "Auto-authorized" applies only to actions inside the defined queue. It never overrides the red lines in this file: protected areas, Website/Core isolation, verification boundaries, and the single-writer workflow.
+- No drift: work only on queue items, in order. Record out-of-scope findings and do not act on them. An item whose design decisions the user has not confirmed becomes a proposal, not an implementation.
+- Each item ends in its own commit with its evidence and metrics recorded. Push, PR, merge and full/release gates still follow explicit user instructions.
+
 ## Failure boundary
 
 - Environment, permission, tool, or infrastructure failures do not authorize unrelated code changes.
