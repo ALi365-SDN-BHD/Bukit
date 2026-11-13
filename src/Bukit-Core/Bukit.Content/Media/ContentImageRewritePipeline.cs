@@ -47,6 +47,7 @@ public sealed class ContentImageRewritePipeline
             await documentGate.WaitAsync(cancellationToken);
             try
             {
+                MediaPageContext.Enter(document);
                 var localizeMemo = new Dictionary<string, string>(StringComparer.Ordinal);
                 var html = await RewriteHtmlAsync(document.Body.Html, localizeMemo, downloadGate, cancellationToken);
                 var fields = await RewriteFieldsAsync(document.CustomFields, localizeMemo, downloadGate, cancellationToken);

@@ -1,9 +1,20 @@
 using Bukit.Config;
+using Bukit.Engine;
+using Bukit.Shared;
 
 namespace Bukit.Cli.Commands;
 
 internal static class DoctorThemeChecker
 {
+    /// <summary>Warns when onFailure: placeholder points at a placeholder file the theme or site does not have.</summary>
+    internal static void CheckMediaPlaceholder(AppConfig config, string rootDir)
+    {
+        if (MediaPlaceholderProbe.CheckWarning(config, rootDir, new ConsoleLogger(LogLevel.Error)) is { } warning)
+        {
+            Console.WriteLine(warning);
+        }
+    }
+
     internal static void CheckThemeAssetDirs(AppConfig config, string rootDir)
     {
         var theme = config.Theme;

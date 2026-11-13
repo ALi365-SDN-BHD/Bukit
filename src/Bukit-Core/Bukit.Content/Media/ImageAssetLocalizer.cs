@@ -61,6 +61,8 @@ public sealed class ImageAssetLocalizer : IImageAssetLocalizer, IDisposable
     private readonly MediaIndexManager _indexManager;
     private readonly ImageContentValidator _imageValidator = new();
     private readonly bool _keepOriginalOnFailure;
+    // (source, page) pairs already warned about a missing placeholder, so each is logged once.
+    private readonly ConcurrentDictionary<string, byte> _missingPlaceholderWarnings = new(StringComparer.Ordinal);
     private readonly MediaHostFilter _hostFilter;
     private int _disposeState;
 
@@ -753,7 +755,58 @@ public sealed class ImageAssetLocalizer : IImageAssetLocalizer, IDisposable
     private readonly record struct DownloadOutcome(string? LocalUrl, string RequestTarget, int? StatusCode, string? Reason);
 
     private string FailureResult(string sourceUrl)
-        => _keepOriginalOnFailure ? sourceUrl : _config.DefaultImageUrl;
+    {
+        if (_keepOriginalOnFailure)
+        {
+            return sourceUrl;
+        }
+
+        if (!_config.PlaceholderMissing)
+        {
+            return _config.DefaultImageUrl;
+        }
+
+        // onFailure: placeholder, but the placeholder file is not in the theme or site: linking to
+        // it would fail the build, so keep the original URL as "keep" does and say why.
+        WarnMissingPlaceholder(sourceUrl);
+        return sourceUrl;
+    }
+
+    /// <summary>Warning event for a failed image kept as-is because the placeholder file is missing.</summary>
+    internal const string PlaceholderMissingEvent = "event=media.placeholder_missing";
+
+    private void WarnMissingPlaceholder(string sourceUrl)
+    {
+        var source = KeptUrlForLog(sourceUrl);
+        var page = MediaPageContext.Current is { Length: > 0 } current ? current : "unknown";
+        if (_logger is null || !_missingPlaceholderWarnings.TryAdd(source + "\n" + page, 0))
+        {
+            return;
+        }
+
+        _logger.Warn(
+            $"{PlaceholderMissingEvent} source={source} page=\"{page}\" placeholder={_config.DefaultImageUrl} " +
+            "result=kept_original_url " +
+            $"hint=\"the image could not be downloaded and the placeholder {_config.DefaultImageUrl} is not in the theme or site; " +
+            "the page links to the remote image instead. To fix: add that file to the theme or site (under assets/ or static/), " +
+            "or set content.media.onFailure: keep\"");
+    }
+
+    // Other media events log only scheme and host (UrlRedactor). This URL is about to be written
+    // into the published page, so its path is no secret and is what lets the user find the image;
+    // userinfo, query and fragment (where signed URLs carry their tokens) are still left out.
+    internal static string KeptUrlForLog(string url)
+    {
+        var text = url.Contains("&amp;", StringComparison.Ordinal) ? WebUtility.HtmlDecode(url) : url;
+        if (!Uri.TryCreate(text, UriKind.Absolute, out var uri) || uri.Scheme is not ("http" or "https") || string.IsNullOrEmpty(uri.Host))
+        {
+            return UrlRedactor.Redact(url);
+        }
+
+        var port = uri.IsDefaultPort ? string.Empty : ":" + uri.Port.ToString(System.Globalization.CultureInfo.InvariantCulture);
+        var query = uri.Query.Length > 0 ? "?<redacted-query>" : string.Empty;
+        return $"{uri.Scheme}://{uri.Host}{port}{uri.AbsolutePath}{query}";
+    }
 
     private static bool ParseKeepOnFailure(MediaConfig config)
     {

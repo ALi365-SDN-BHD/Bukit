@@ -354,7 +354,7 @@ content:
 | `content.media.maxFileSizeBytes` | `52428800` | Positive maximum file size. |
 | `content.media.blockPrivateNetworks` | `true` | SSRF guard for private networks. |
 | `content.media.retryBaseDelayMs` | `500` | Non-negative retry delay. |
-| `content.media.onFailure` | `placeholder` | Result of a failed download: `placeholder` uses `defaultImageUrl`; `keep` keeps the original URL. Failures are still listed in the build log. An empty image field always uses `defaultImageUrl`. |
+| `content.media.onFailure` | `placeholder` | Result of a failed download: `placeholder` uses `defaultImageUrl`; `keep` keeps the original URL. When the theme and site have no `defaultImageUrl` file (under `static/` or `assets/`), `placeholder` keeps the original URL too and logs `event=media.placeholder_missing` with the image and page; `bukit doctor` and `bukit config check` warn about it. Failures are still listed in the build log. An empty image field always uses `defaultImageUrl`. |
 | `content.media.downloadHosts` | empty (all hosts) | When set, only images on these hosts are downloaded; others keep their original URL. |
 | `content.media.skipHosts` | empty | Images on these hosts are never downloaded and keep their original URL. Takes precedence over `downloadHosts`. |
 

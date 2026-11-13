@@ -428,6 +428,12 @@ public sealed record MediaConfig
     public int? RetryBaseDelayMs { get; init; } = 500;
     /// <summary>Result of a failed download: "placeholder" (defaultImageUrl) or "keep" (original URL).</summary>
     public string OnFailure { get; init; } = "placeholder";
+    /// <summary>
+    /// Set by the build, never read from site.yaml: true when <see cref="OnFailure"/> is "placeholder"
+    /// but no theme or site directory provides <see cref="DefaultImageUrl"/>. Failed downloads then keep
+    /// their original URL (as "keep" does) and log a warning instead of failing the build.
+    /// </summary>
+    internal bool PlaceholderMissing { get; init; }
     /// <summary>When non-empty, only these hosts are downloaded. Supports "*." prefix wildcards.</summary>
     public IReadOnlyList<string> DownloadHosts { get; init; } = [];
     /// <summary>Hosts that are never downloaded; their URLs stay unchanged. Supports "*." prefix wildcards.</summary>

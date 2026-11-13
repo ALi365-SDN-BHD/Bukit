@@ -365,33 +365,75 @@ public sealed partial class SiteEngineIntegrationTests
     }
 
     [Theory]
-    [InlineData(false)]
-    [InlineData(true)]
-    public async Task MediaLifecycle_DownloadFailureRequiresAnExistingPlannedFallback(bool fallbackExists)
+    [InlineData("static/assets/images/noneimg-news.jpg")]
+    [InlineData("assets/images/noneimg-news.jpg")]
+    public async Task MediaLifecycle_DownloadFailureUsesThePlaceholderWhenTheSiteHasIt(string placeholderSource)
     {
         var (root, config) = CreateMediaSite();
         using var server = new MediaImageServer(fail: true);
         try
         {
             var output = Path.Combine(root, "dist");
-            if (fallbackExists)
-            {
-                var fallback = Path.Combine(root, "static", "assets", "images", "noneimg-news.jpg");
-                Directory.CreateDirectory(Path.GetDirectoryName(fallback)!);
-                File.WriteAllBytes(fallback, server.Bytes);
-                await BuildMediaAsync(root, config, [MediaDocument("one")], $"<img src=\"{server.Url}\" alt=\"描述\">");
-                Assert.False(BuildRecoveryTracker.HasIncompleteBuild(output));
-                Assert.Equal(SHA256.HashData(server.Bytes), SHA256.HashData(File.ReadAllBytes(Path.Combine(output, "assets", "images", "noneimg-news.jpg"))));
-            }
-            else
-            {
-                var beforeFailure = TransactionHashes(root);
-            var exception = await Assert.ThrowsAsync<IOException>(() => BuildMediaAsync(root, config, [MediaDocument("one")], $"<img src=\"{server.Url}\" alt=\"描述\">"));
-                Assert.Contains("Referenced localized media output is missing", exception.Message);
-                Assert.Equal(beforeFailure, TransactionHashes(root));
-                Assert.False(BuildRecoveryTracker.HasIncompleteBuild(output));
-            }
+            var fallback = Path.Combine(root, placeholderSource);
+            Directory.CreateDirectory(Path.GetDirectoryName(fallback)!);
+            File.WriteAllBytes(fallback, server.Bytes);
+            var logger = new TestLogger();
+            await BuildMediaAsync(root, config, [MediaDocument("one")], $"<img src=\"{server.Url}\" alt=\"描述\">", logger);
+            Assert.False(BuildRecoveryTracker.HasIncompleteBuild(output));
+            Assert.Equal(SHA256.HashData(server.Bytes), SHA256.HashData(File.ReadAllBytes(Path.Combine(output, "assets", "images", "noneimg-news.jpg"))));
+            var page = File.ReadAllText(Path.Combine(output, "blog", "one", "index.html"));
+            Assert.Contains("src=\"/assets/images/noneimg-news.jpg\"", page);
+            Assert.DoesNotContain(server.Url, page);
+            Assert.DoesNotContain(logger.Warnings, warning => warning.Contains(ImageAssetLocalizer.PlaceholderMissingEvent, StringComparison.Ordinal));
             Assert.True(server.RequestCount > 0);
+        }
+        finally { CleanupDir(root); }
+    }
+
+    [Fact]
+    public async Task MediaLifecycle_DownloadFailureKeepsTheOriginalUrlWhenThePlaceholderIsMissing()
+    {
+        var (root, config) = CreateMediaSite();
+        using var server = new MediaImageServer(fail: true);
+        try
+        {
+            var output = Path.Combine(root, "dist");
+            var logger = new TestLogger();
+            await BuildMediaAsync(root, config, [MediaDocument("one")], $"<img src=\"{server.Url}\" alt=\"描述\">", logger);
+
+            Assert.False(BuildRecoveryTracker.HasIncompleteBuild(output));
+            var page = File.ReadAllText(Path.Combine(output, "blog", "one", "index.html"));
+            Assert.Contains("src=\"" + server.Url + "\"", page);
+            Assert.DoesNotContain("noneimg-news", page);
+            Assert.False(File.Exists(Path.Combine(output, "assets", "images", "noneimg-news.jpg")));
+            var warning = Assert.Single(logger.Warnings, warning => warning.Contains(ImageAssetLocalizer.PlaceholderMissingEvent, StringComparison.Ordinal));
+            Assert.Contains("source=" + server.Url, warning);
+            Assert.Contains("page=\"one\"", warning);
+            Assert.Contains("placeholder=/assets/images/noneimg-news.jpg", warning);
+            Assert.Contains("result=kept_original_url", warning);
+            Assert.Contains("content.media.onFailure: keep", warning);
+            Assert.True(server.RequestCount > 0);
+        }
+        finally { CleanupDir(root); }
+    }
+
+    [Fact]
+    public async Task MediaLifecycle_MissingPlaceholderErrorNamesThePagesAndTheFixes()
+    {
+        var (root, config) = CreateMediaSite();
+        try
+        {
+            var output = Path.Combine(root, "dist");
+            var beforeFailure = TransactionHashes(root);
+            // A page that links to the placeholder itself still needs the file.
+            var exception = await Assert.ThrowsAsync<IOException>(() => BuildMediaAsync(root, config, [MediaDocument("one")], "<img src=\"/assets/images/noneimg-news.jpg\" alt=\"描述\">"));
+            Assert.StartsWith("Referenced localized media output is missing: assets/images/noneimg-news.jpg ", exception.Message);
+            Assert.Contains("content.media.defaultImageUrl", exception.Message);
+            Assert.Contains("Referenced by: blog/one/index.html.", exception.Message);
+            Assert.Contains("add assets/images/noneimg-news.jpg to the theme or site", exception.Message);
+            Assert.Contains("content.media.onFailure: keep", exception.Message);
+            Assert.Equal(beforeFailure, TransactionHashes(root));
+            Assert.False(BuildRecoveryTracker.HasIncompleteBuild(output));
         }
         finally { CleanupDir(root); }
     }
@@ -612,8 +654,8 @@ public sealed partial class SiteEngineIntegrationTests
         => ContentDocument.Create(id, id, id, DateTimeOffset.Parse("2026-06-01T00:00:00Z"), null,
             ContentFieldReader.ToFieldMap(new Dictionary<string, object> { ["type"] = "post", ["collection"] = "post", ["language"] = language }), bodyKey: id);
 
-    private static Task<BuildResult> BuildMediaAsync(string root, AppConfig config, ContentDocument[] documents, string html)
-        => new SiteEngine(new TestLogger(), new MediaProviderFactory(documents, html), new DefaultSearchIndexBuilder())
+    private static Task<BuildResult> BuildMediaAsync(string root, AppConfig config, ContentDocument[] documents, string html, TestLogger? logger = null)
+        => new SiteEngine(logger ?? new TestLogger(), new MediaProviderFactory(documents, html), new DefaultSearchIndexBuilder())
             .BuildAsync(config, root, new ConfigOverrides { Clean = false, Incremental = true });
 
     private sealed class MediaProviderFactory(ContentDocument[] documents, string html) : IContentProviderFactory

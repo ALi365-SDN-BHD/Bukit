@@ -52,6 +52,7 @@ public static class ConfigCommand
                 Console.WriteLine($"  siteUrl={config.Site.Url}");
             }
 
+            DoctorThemeChecker.CheckMediaPlaceholder(config, resolved.RootDir);
             return 0;
         }
         catch (ConfigException ex)
