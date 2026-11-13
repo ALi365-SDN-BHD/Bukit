@@ -48,9 +48,11 @@ outside this plan.
 ## i18n links
 
 Do not hard-code a language prefix such as `/{{ site.language }}/` in templates, and
-do not treat `href="/"` as the home link when `site.defaultLanguageInSubdir` is
-`false`: the default language is already at the root and its base URL is
-`site.base_url`. Build links from `site.base_url` and page route URLs. A
+do not assume `href="/"` is a language-neutral home link: in the default layout
+(`site.defaultLanguageInSubdir: false`) the default language is already at the root,
+and with `true` it lives under `/<language>/`. Its base URL is always
+`site.base_url`. `{{ site.language }}` is the current variant's language, taken from
+`site.languages` (the default language, or the only entry of a single-language site). Build links from `site.base_url` and page route URLs. A
 default-language `static/robots.txt` overrides generated robots; other static files
 that collide with root-owned outputs fail with `i18n-root-output-conflict`.
 

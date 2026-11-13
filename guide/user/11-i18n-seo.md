@@ -8,7 +8,7 @@ Bukit handles language variants and SEO metadata inside the build pipeline.
 site:
   languages: [en, zh-CN, ms]
   defaultLanguage: en
-  defaultLanguageInSubdir: true   # false puts the default language at the root
+  defaultLanguageInSubdir: false  # true puts every language, including the default, under /<language>/
   defaultLanguageRedirect: true   # noindex home redirect page
   defaultLanguageLegacyRedirects: false  # true: redirect every old /<default>/... page
   sitemapMode: index
@@ -23,9 +23,14 @@ build:
 
 Content without a language value belongs to `defaultLanguage`.
 
-With `defaultLanguageInSubdir: true` (the default), every language builds into
-`dist/<language>/`. With `false`, the default language builds into `dist/` with the
-site root base URL, while other languages keep `dist/<language>/`. The default
+`site.languages` is the only language setting. One entry (or none, which means
+`[zh-CN]`) is a single-language site built at the output root; two or more entries
+build one variant per language.
+
+With `defaultLanguageInSubdir: false` (the default), the default language builds into
+`dist/` with the site root base URL, while other languages keep `dist/<language>/`, so
+adding a second language does not change the default-language URLs. With `true`, every
+language builds into `dist/<language>/`. The default
 `defaultLanguageRedirect: true` writes a noindex redirect page so the home URL works
 on static hosting: `dist/index.html` → `/<defaultLanguage>/` in the prefixed layout,
 or `dist/<defaultLanguage>/index.html` → `/` in the root layout. Set
@@ -38,6 +43,14 @@ default-language pages; filter its records by `language`. The starter theme
 search page keeps records whose `language` matches `{{ site.language }}` (or is
 `und`), so it searches only the current language. Default-language
 reports move to `.bukit/variants/<language>/`.
+
+### Upgrading a site that relied on the old prefixed default
+
+Before this change `defaultLanguageInSubdir` defaulted to `true`. A multilingual site
+that never set it now builds its default language at the root. To keep the existing
+`/<defaultLanguage>/...` URLs, add `defaultLanguageInSubdir: true`; otherwise follow the
+migration steps below. The first build after the layout changes runs the protected
+clean of the output directory, which needs `dist/.bukit-output-marker`.
 
 ### Migrating an existing site to the root layout
 
@@ -90,7 +103,7 @@ The build reports these warnings:
 |---|---|
 | `i18n.document.language_unknown` | A page `language` is not in `site.languages`, so the page is dropped. |
 | `i18n.document.i18n_key_duplicate` | Two pages in the same language use the same `i18nKey`; hreflang and merged sitemap alternates can point to only one of them. |
-| `i18n.config.default_language_layout_ignored` | `site.defaultLanguageInSubdir` or `site.defaultLanguageRedirect` is `false`, or `site.defaultLanguageLegacyRedirects` is `true`, but `site.languages` has only one language, so the single-language output is unchanged. |
+| `i18n.config.default_language_layout_ignored` | `site.defaultLanguageInSubdir` is `true`, `site.defaultLanguageRedirect` is `false`, or `site.defaultLanguageLegacyRedirects` is `true`, but `site.languages` has fewer than two languages, so the single-language output is unchanged. |
 | `i18n.config.legacy_redirects_ignored` | `site.defaultLanguageLegacyRedirects` is `true` but the default language is still prefixed (`defaultLanguageInSubdir: true`), so there are no old URLs to redirect. |
 
 Warnings are capped at five per kind, followed by one summary line. A single-language

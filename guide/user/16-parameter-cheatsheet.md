@@ -18,6 +18,7 @@
 |---|---|
 | `site.baseUrl` | `/` |
 | `site.languages` | `[zh-CN]` (hyphen-separated letters/digits, e.g. `[en-US]`; one entry = single-language site) |
+| `site.defaultLanguageInSubdir` | `false` (default language at the output root; `true` prefixes every language) |
 | `site.timezone` | `Asia/Shanghai` |
 | `site.outputPathEncoding` | `none` |
 | `site.sitemapMode` | `split` |

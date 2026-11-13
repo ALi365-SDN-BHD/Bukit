@@ -14,7 +14,7 @@ writes HTML plus machine-readable outputs.
    list routes, and rejects conflicts.
 4. `VariantBuildPipeline` renders one language variant, runs built-in plugin
    stages, copies assets, and writes reports.
-5. `I18nOutputMerger` combines per-language outputs when `site.languages` is set.
+5. `I18nOutputMerger` combines per-language outputs when `site.languages` has two or more entries.
 6. `BuildReportPipeline` writes projections, SEO reports, publish audit inputs,
    route data, metrics, and security report data.
 

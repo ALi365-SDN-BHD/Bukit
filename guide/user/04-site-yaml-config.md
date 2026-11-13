@@ -46,8 +46,8 @@ content:
 | `site.description` | none | Default description used by templates and SEO models. |
 | `site.baseUrl` | `/` | Base path for generated URLs. CLI `--base-url` can override it. |
 | `site.languages` | `[zh-CN]` | The only language setting (the old `language` key was removed). Letters and digits in hyphen-separated subtags, such as `en` or `zh-CN` (not `en_US`). One entry builds a single-language site at the output root; two or more build language variants, each with its own code. Templates read the current language as `{{ site.language }}`. |
-| `site.defaultLanguage` | none | Language considered the root/default variant. |
-| `site.defaultLanguageInSubdir` | `true` | When `false`, the default language builds into the output root; other languages keep their code directories. |
+| `site.defaultLanguage` | first `site.languages` entry | Default language of a multilingual site; must be one of `site.languages`. With one entry it must be that entry or omitted. |
+| `site.defaultLanguageInSubdir` | `false` | With two or more languages, the default language builds into the output root and other languages keep their code directories. Set `true` to put every language, including the default, under `/<code>/`. Ignored (with a warning when `true`) for a single-language site. |
 | `site.defaultLanguageRedirect` | `true` | Writes a noindex home redirect page so `/` does not 404 on static hosting. |
 | `site.defaultLanguageLegacyRedirects` | `false` | With the root layout, writes a noindex redirect at the old `/<defaultLanguage>/...` path of every default-language HTML page, for static hosts that cannot issue 301s. |
 | `site.timezone` | `Asia/Shanghai` | Must resolve to a valid time zone identifier. |
@@ -432,7 +432,7 @@ content:
 | `content.modelSchema.requireEntityIds` | Require entity IDs. |
 | `content.modelSchema.requireRelationTargets` | Defaults to `true`. Blank targets are always invalid; when enabled, non-blank targets must resolve to a content record or entity. `translation-of` language keys and absolute HTTP(S) URLs are exempt. |
 
-Canonical validation reports `canonical_duplicate_id` when two documents share an id; with `site.languages` set, only documents in the same language collide, so translations may share one, and a document without a language counts as the default language, `canonical_relation_target_missing` for a blank target, and `canonical_relation_target_unresolved` when a target cannot be resolved. Content targets resolve by id or slug; entity targets resolve by id or name. Root-relative paths are not treated as external targets.
+Canonical validation reports `canonical_duplicate_id` when two documents share an id; with two or more `site.languages`, only documents in the same language collide, so translations may share one, and a document without a language counts as the default language, `canonical_relation_target_missing` for a blank target, and `canonical_relation_target_unresolved` when a target cannot be resolved. Content targets resolve by id or slug; entity targets resolve by id or name. Root-relative paths are not treated as external targets.
 
 Publish audit trust-presence warnings follow this schema. `requireAuthor`
 enables `publish.author_missing`, `requireProvenance` enables

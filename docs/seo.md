@@ -116,7 +116,7 @@ Content pages use this SEO description priority:
 
 Home, collection list, taxonomy, and pagination pages use `page.summary` when available and otherwise fall back to `site.description`. If `site.description` is missing, these generated routes will produce `seo.description_missing` warnings in `seo-report.json`.
 
-Taxonomy titles and summaries are derived in the active `site.language`.
+Taxonomy titles and summaries are derived in the active site language (`{{ site.language }}`, taken from `site.languages`).
 Languages beginning with `zh` use Chinese punctuation, count/range wording, and
 `第 N 页`; other languages currently fall back to English and use `- Page N`.
 For example, a Chinese category term can produce `商务资讯：市场观察` and
