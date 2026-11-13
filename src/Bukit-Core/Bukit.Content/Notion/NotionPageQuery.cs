@@ -14,12 +14,31 @@ internal sealed record NotionPageSnapshot(
 
 internal static class NotionPageQuery
 {
-    internal static async Task<NotionPageSnapshot> FetchAsync(
+    internal static Task<NotionPageSnapshot> FetchAsync(
         NotionClient client,
         string pageId,
         CancellationToken cancellationToken)
     {
-        using var document = await client.GetAsync(NotionApiUrls.Pages(pageId), cancellationToken);
+        ArgumentNullException.ThrowIfNull(client);
+        return FetchCoreAsync((url, token) => client.GetAsync(url, token), pageId, cancellationToken);
+    }
+
+    /// <summary>Reads a page through the content client: online, recorded, or from the offline snapshot.</summary>
+    internal static Task<NotionPageSnapshot> FetchAsync(
+        NotionContentClient client,
+        string pageId,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(client);
+        return FetchCoreAsync(client.GetAsync, pageId, cancellationToken);
+    }
+
+    private static async Task<NotionPageSnapshot> FetchCoreAsync(
+        Func<string, CancellationToken, Task<System.Text.Json.JsonDocument>> getAsync,
+        string pageId,
+        CancellationToken cancellationToken)
+    {
+        using var document = await getAsync(NotionApiUrls.Pages(pageId), cancellationToken);
         var page = document.RootElement;
         var notionUrl = NotionContentSource.GetString(page, "url")?.Trim() ?? string.Empty;
         var properties = page.TryGetProperty("properties", out var propertyElement)

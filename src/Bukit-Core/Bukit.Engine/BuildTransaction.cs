@@ -259,6 +259,13 @@ internal sealed class BuildTransaction : IDisposable
 
     private static void AddNotionResources(List<BuildResourceLease.Resource> resources, AppConfig config, string rootDir)
     {
+        // A Notion offline snapshot replaces the site's Notion cache (cacheMode/cacheDir) and
+        // publishes itself only after the build succeeded, so it is not a transaction resource.
+        if (NotionSnapshotScope.Current is not null)
+        {
+            return;
+        }
+
         foreach (var source in config.Content.Sources ?? [])
         {
             if (!string.Equals(source.Type, "notion", StringComparison.OrdinalIgnoreCase) || source.Notion is not { } notion) continue;
@@ -321,6 +328,12 @@ internal sealed class BuildTransaction : IDisposable
 
     private static void AddPagesIndexResource(List<BuildResourceLease.Resource> resources, AppConfig config, string rootDir)
     {
+        // With a Notion offline snapshot, pages_index neither reads nor writes its cache file.
+        if (NotionSnapshotScope.Current is not null)
+        {
+            return;
+        }
+
         if (config.Site.Plugins?.GetValueOrDefault("pages-index")?.Enabled != false && PagesIndexConfigHelper.HasNotionContent(config) && config.Theme.Params is { } parameters &&
             PagesIndexConfigHelper.TryGetMap(parameters, "pages_index", out var pages) && PagesIndexConfigHelper.TryGetMap(pages, "resolve_notion", out var resolve) && PagesIndexConfigHelper.TryGetBool(resolve, "enabled", false) && PagesIndexConfigHelper.TryGetStringList(resolve, "field_keys").Count > 0 && PagesIndexConfigHelper.TryGetInt(resolve, "max_items", 200) > 0)
         {

@@ -103,7 +103,8 @@ internal static class ProviderValidators
             throw new ConfigException($"{pathPrefix}.cacheDir must be a non-empty string when set.", DiagnosticCode.ConfigRequiredFieldMissing);
         }
 
-        if (validateToken)
+        // Offline builds read the Notion offline snapshot and never need a token.
+        if (validateToken && !NotionSnapshotScope.IsOffline)
         {
             var token = EnvironmentHelper.GetNotionToken();
             if (string.IsNullOrWhiteSpace(token))

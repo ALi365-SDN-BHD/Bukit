@@ -34,6 +34,12 @@ internal static class WorktreeBuildCoordinator
                 throw new InvalidDataException("Content snapshot hash or HEAD does not match the worker request.");
             }
 
+            // Workers read the parent's snapshot: the committed one offline, or the parent's
+            // staging directory while it records (only the parent commits).
+            using var notionSnapshot = string.IsNullOrWhiteSpace(request.Overrides.NotionSnapshotDir)
+                ? null
+                : NotionSnapshot.AttachWorker(request.Overrides.NotionSnapshotDir, request.Overrides.NotionOffline);
+            using var notionSnapshotScope = NotionSnapshot.Enter(notionSnapshot);
             var level = request.Overrides.IsCI
                 ? LogLevel.Warn
                 : ParseLogLevel(request.Config.Logging.Level);

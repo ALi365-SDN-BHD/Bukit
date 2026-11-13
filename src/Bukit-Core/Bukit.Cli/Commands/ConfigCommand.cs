@@ -1,6 +1,7 @@
 using Bukit.Cli.Shared;
 using Bukit.Cli.Shared.Cli.Binding;
 using Bukit.Config;
+using Bukit.Engine;
 using Bukit.Shared;
 
 namespace Bukit.Cli.Commands;
@@ -29,6 +30,27 @@ public static class ConfigCommand
 
     private static int Check(CliBoundCommand command, string logFormat)
     {
+        NotionSnapshot? snapshot;
+        try
+        {
+            snapshot = NotionSnapshotOptions.OpenForCheck(command);
+        }
+        catch (Exception ex) when (NotionSnapshot.IsSnapshotError(ex))
+        {
+            Console.WriteLine("✖ Config error");
+            Console.WriteLine(ex.Message);
+            return 1;
+        }
+
+        using (snapshot)
+        using (NotionSnapshot.Enter(snapshot))
+        {
+            return Check(command, logFormat, snapshot);
+        }
+    }
+
+    private static int Check(CliBoundCommand command, string logFormat, NotionSnapshot? snapshot)
+    {
         try
         {
             var resolved = ConfigPathResolver.Resolve(command.GetString("--config"), command.GetString("--site"));
@@ -41,8 +63,13 @@ public static class ConfigCommand
             }
 
             ConfigValidator.Validate(config);
+            snapshot?.EnsureDatabases(config);
 
             Console.WriteLine("✔ Config check passed");
+            if (snapshot is not null)
+            {
+                Console.WriteLine($"  notion: offline snapshot ({snapshot.Describe()})");
+            }
             Console.WriteLine($"  config: {resolved.FullConfigPath}");
             Console.WriteLine($"  root:   {resolved.RootDir}");
             Console.WriteLine($"  site:   {config.Site.Name}");
@@ -55,7 +82,7 @@ public static class ConfigCommand
             DoctorThemeChecker.CheckMediaPlaceholder(config, resolved.RootDir);
             return 0;
         }
-        catch (ConfigException ex)
+        catch (Exception ex) when (ex is ConfigException || NotionSnapshot.IsSnapshotError(ex))
         {
             Console.WriteLine("✖ Config error");
             Console.WriteLine(ex.Message);
@@ -110,7 +137,7 @@ public static class ConfigCommand
     private static void PrintUsage()
     {
         Console.WriteLine("Usage:");
-        Console.WriteLine("  bukit config check [--config <path>] [--site <name>] [--site-url <url>]");
+        Console.WriteLine("  bukit config check [--config <path>] [--site <name>] [--site-url <url>] [--notion-snapshot <dir> --notion-offline]");
         Console.WriteLine("  bukit config schema [--output <path>]");
     }
 }

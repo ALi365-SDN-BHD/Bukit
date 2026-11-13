@@ -26,6 +26,27 @@ public static class DoctorCommand
 
     internal static async Task<int> RunAsync(CliBoundCommand command, string logFormat)
     {
+        NotionSnapshot? snapshot;
+        try
+        {
+            snapshot = NotionSnapshotOptions.OpenForCheck(command);
+        }
+        catch (Exception ex) when (NotionSnapshot.IsSnapshotError(ex))
+        {
+            Console.WriteLine("✖ Notion offline snapshot error");
+            Console.WriteLine(ex.Message);
+            return 1;
+        }
+
+        using (snapshot)
+        using (NotionSnapshot.Enter(snapshot))
+        {
+            return await RunAsync(command, logFormat, snapshot).ConfigureAwait(false);
+        }
+    }
+
+    private static async Task<int> RunAsync(CliBoundCommand command, string logFormat, NotionSnapshot? snapshot)
+    {
         var resolved = ConfigPathResolver.Resolve(command.GetString("--config"), command.GetString("--site"));
         var rootDir = resolved.RootDir;
         var (config, logger) = CommandConfigLoader.Load(resolved.FullConfigPath, logFormat, isCi: false);
@@ -316,7 +337,24 @@ public static class DoctorCommand
             }
         }
 
-        if (HasNotionSource(config.Content) && config.Content.Sources is not null)
+        if (snapshot is { Offline: true } && config.Content.Sources is { Count: > 0 } &&
+            config.Content.Sources.Any(static s => s.Type.Equals("notion", StringComparison.OrdinalIgnoreCase) || s.Notion is not null))
+        {
+            // Offline: no token and no Notion network checks; the snapshot must cover every source.
+            try
+            {
+                snapshot.EnsureDatabases(config);
+            }
+            catch (Exception ex) when (NotionSnapshot.IsSnapshotError(ex))
+            {
+                Console.WriteLine("✖ Notion offline snapshot error");
+                Console.WriteLine(ex.Message);
+                return 1;
+            }
+
+            Console.WriteLine($"✔ Notion offline snapshot ({snapshot.Describe()}); Notion network checks skipped");
+        }
+        else if (HasNotionSource(config.Content) && config.Content.Sources is not null)
         {
             var token = EnvironmentHelper.GetNotionToken();
             if (string.IsNullOrWhiteSpace(token))
@@ -384,7 +422,7 @@ public static class DoctorCommand
             routedDocuments = [.. routesByLanguage.Values.SelectMany(routes => routes)];
             Console.WriteLine("✔ Routes valid");
         }
-        catch (Exception ex) when (ex is ConfigException or ContentException)
+        catch (Exception ex) when (ex is ConfigException or ContentException || NotionSnapshot.IsSnapshotError(ex))
         {
             Console.WriteLine("✖ Route inventory error");
             Console.WriteLine(ex.Message);

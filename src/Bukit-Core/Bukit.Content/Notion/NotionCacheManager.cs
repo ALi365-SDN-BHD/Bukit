@@ -3,6 +3,7 @@ using System.Globalization;
 using System.Text.Json;
 using Bukit.Notion.Rendering;
 using Bukit.Shared;
+using Bukit.Content.Notion.Snapshot;
 namespace Bukit.Content.Notion;
 
 internal static class NotionCacheManager
@@ -15,21 +16,41 @@ internal static class NotionCacheManager
 
     internal static PageHtmlCache? CreatePageHtmlCache(NotionContentSourceOptions options)
     {
-        var mode = NormalizeCacheMode(options.CacheMode);
+        // A Notion offline snapshot owns the body cache: recorded (readwrite) or read offline
+        // (readonly), whatever cacheMode/cacheDir the site configures.
+        var snapshot = options.Snapshot;
+        var mode = snapshot is null ? NormalizeCacheMode(options.CacheMode) : snapshot.Offline ? "readonly" : "readwrite";
         if (mode == "off")
         {
             return null;
         }
 
-        if (string.IsNullOrWhiteSpace(options.CacheDir))
+        var cacheDir = snapshot?.CacheDirectory ?? options.CacheDir;
+        if (string.IsNullOrWhiteSpace(cacheDir))
         {
             return null;
         }
 
-        var root = options.CacheDir!.Trim();
+        var root = cacheDir.Trim();
         var pagesDir = Path.Combine(root, "pages");
-        if (mode == "readwrite") Directory.CreateDirectory(pagesDir);
-        return new PageHtmlCache(mode, root, pagesDir);
+        if (mode == "readwrite")
+        {
+            try
+            {
+                Directory.CreateDirectory(pagesDir);
+            }
+            catch (Exception exception) when (snapshot is not null && exception is IOException or UnauthorizedAccessException)
+            {
+                // .NET I/O messages carry the path; the snapshot location is never printed.
+                throw new NotionSnapshotException("Notion snapshot entry could not be written.", exception);
+            }
+        }
+
+        return new PageHtmlCache(mode, root, pagesDir)
+        {
+            OfflineSnapshot = snapshot is { Offline: true },
+            PageUsed = snapshot is { Offline: false } ? snapshot.MarkBodyUsed : null
+        };
     }
 
     internal static string NormalizeCacheMode(string? mode)
@@ -42,8 +63,21 @@ internal static class NotionCacheManager
         };
     }
 
-    internal static async Task<string> GetOrRenderPageHtmlAsync(
+    internal static Task<string> GetOrRenderPageHtmlAsync(
         NotionBlocksRenderer renderer,
+        PageHtmlCache? cache,
+        string pageId,
+        string? lastEditedTime,
+        CancellationToken cancellationToken,
+        ILogger? logger = null)
+        => GetOrRenderPageHtmlAsync(() => renderer, cache, pageId, lastEditedTime, cancellationToken, logger);
+
+    /// <summary>
+    /// Returns the cached body or renders the page; <paramref name="rendererFactory"/> runs only
+    /// when the page must be rendered, so readonly and offline reads never need a transport.
+    /// </summary>
+    internal static async Task<string> GetOrRenderPageHtmlAsync(
+        Func<NotionBlocksRenderer> rendererFactory,
         PageHtmlCache? cache,
         string pageId,
         string? lastEditedTime,
@@ -52,8 +86,22 @@ internal static class NotionCacheManager
     {
         if (cache is null)
         {
-            return await renderer.RenderPageAsync(pageId, cancellationToken);
+            return await rendererFactory().RenderPageAsync(pageId, cancellationToken);
         }
+
+        var html = await GetOrRenderCachedPageHtmlAsync(rendererFactory, cache, pageId, lastEditedTime, logger, cancellationToken);
+        cache.PageUsed?.Invoke(pageId);
+        return html;
+    }
+
+    private static async Task<string> GetOrRenderCachedPageHtmlAsync(
+        Func<NotionBlocksRenderer> rendererFactory,
+        PageHtmlCache cache,
+        string pageId,
+        string? lastEditedTime,
+        ILogger? logger,
+        CancellationToken cancellationToken)
+    {
 
         var cachePath = Path.Combine(cache.PagesDir, $"{pageId}.json");
         if (File.Exists(cachePath))
@@ -77,11 +125,17 @@ internal static class NotionCacheManager
             }
         }
 
+        if (cache.OfflineSnapshot)
+        {
+            throw NotionSnapshotException.Missing($"rendered body for page '{pageId}' (edited after the formal build, or never rendered by it)");
+        }
+
         if (cache.Mode == "readonly")
         {
             throw new ContentException($"Notion cache miss in readonly mode for page: {pageId}");
         }
 
+        var renderer = rendererFactory();
         var html = await renderer.RenderPageAsync(pageId, cancellationToken);
         if (cache.Mode == "readwrite")
         {
@@ -109,7 +163,15 @@ internal static class NotionCacheManager
                 writer.WriteEndObject();
             }
 
-            await AtomicNotionCacheWriter.WriteJsonAsync(cachePath, buffer.WrittenMemory.ToArray(), cancellationToken);
+            try
+            {
+                await AtomicNotionCacheWriter.WriteJsonAsync(cachePath, buffer.WrittenMemory.ToArray(), cancellationToken);
+            }
+            catch (Exception exception) when (cache.PageUsed is not null && exception is IOException or UnauthorizedAccessException)
+            {
+                // Recording a snapshot: fail without printing the snapshot location.
+                throw new NotionSnapshotException("Notion snapshot entry could not be written.", exception);
+            }
         }
 
         return html;
@@ -208,6 +270,12 @@ internal static class NotionCacheManager
     internal sealed record PageHtmlCache(string Mode, string RootDir, string PagesDir)
     {
         private int _staleContractCount;
+
+        /// <summary>Readonly reads from a Notion offline snapshot: a miss names the snapshot.</summary>
+        internal bool OfflineSnapshot { get; init; }
+
+        /// <summary>Called with each page id whose body this build used (snapshot recording).</summary>
+        internal Action<string>? PageUsed { get; init; }
 
         internal int StaleContractCount => Volatile.Read(ref _staleContractCount);
 

@@ -1,4 +1,5 @@
 using Bukit.Config;
+using Bukit.Content.Notion.Snapshot;
 
 namespace Bukit.Content.Notion;
 
@@ -27,4 +28,10 @@ public sealed record NotionContentSourceOptions
     public NotionPropertyMapConfig? PropertyMap { get; init; }
     public bool AutoSummary { get; init; }
     public int AutoSummaryMaxLength { get; init; } = 200;
+
+    /// <summary>
+    /// The Notion offline snapshot this source records into (online) or reads from
+    /// (offline, no token and no network). Null keeps the regular Notion behavior.
+    /// </summary>
+    internal NotionSnapshotSession? Snapshot { get; init; }
 }

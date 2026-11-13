@@ -181,7 +181,14 @@ internal sealed class PagesIndexPlugin : IBukitPlugin, IDerivePagesAsyncPlugin
             return;
         }
 
+        var snapshot = Bukit.Content.Notion.Snapshot.NotionSnapshotSession.Current;
         var cacheMode = PagesIndexCacheHelper.NormalizeCacheMode(PagesIndexConfigHelper.TryGetString(resolveCfg, "cache_mode") ?? "readwrite");
+        if (snapshot is not null)
+        {
+            // With a Notion offline snapshot the pages come from (or are recorded into) the
+            // snapshot as raw data; the projected cache file in the site is neither read nor written.
+            cacheMode = "off";
+        }
         var cachePath = PagesIndexCacheHelper.ResolveCachePath(context.RootDir, PagesIndexConfigHelper.TryGetString(resolveCfg, "cache_path"));
         if (cacheMode != "off")
         {
@@ -229,8 +236,9 @@ internal sealed class PagesIndexPlugin : IBukitPlugin, IDerivePagesAsyncPlugin
             return;
         }
 
-        var token = Bukit.Shared.EnvironmentHelper.GetNotionToken();
-        if (string.IsNullOrWhiteSpace(token))
+        var offline = snapshot is { Offline: true };
+        var token = offline ? string.Empty : Bukit.Shared.EnvironmentHelper.GetNotionToken();
+        if (!offline && string.IsNullOrWhiteSpace(token))
         {
             return;
         }
@@ -248,13 +256,14 @@ internal sealed class PagesIndexPlugin : IBukitPlugin, IDerivePagesAsyncPlugin
         var opts = new NotionContentSourceOptions
         {
             DatabaseId = "dummy",
-            Token = token.Trim(),
+            Token = (token ?? string.Empty).Trim(),
             MaxRetries = maxRetries,
             MaxRps = maxRps,
-            RequestDelayMs = requestDelayMs
+            RequestDelayMs = requestDelayMs,
+            Snapshot = snapshot
         };
 
-        using var client = new NotionContentClient(opts);
+        using var client = NotionContentClient.Create(opts, context.Logger);
         using var sem = new SemaphoreSlim(concurrency, concurrency);
         var tasks = new Task<NotionFetchedPage?>[ids.Count];
         for (var i = 0; i < ids.Count; i++)
