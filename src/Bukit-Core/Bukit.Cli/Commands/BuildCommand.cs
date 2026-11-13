@@ -109,20 +109,60 @@ public static class BuildCommand
             Jobs = TryParsePositiveInt(command.GetString("--jobs"))
         };
 
+        // Recording writes a staging directory that replaces the snapshot only after the
+        // whole build succeeded; any failure (or cancellation) discards it.
+        using var snapshot = NotionSnapshotOptions.OpenForBuild(command);
+        using var snapshotScope = NotionSnapshotScope.Enter(snapshot?.Handle);
+        if (snapshot is not null)
+        {
+            overrides = overrides with { NotionSnapshotDir = snapshot.Directory, NotionOffline = snapshot.Offline };
+            logger.Info(snapshot.Offline
+                ? $"event=notion.snapshot.offline {snapshot.DescribeFields()}"
+                : "event=notion.snapshot.recording");
+            if (snapshot.Offline)
+            {
+                snapshot.EnsureDatabases(config);
+            }
+        }
+
+        await BuildCoreAsync(config, logger, resolved, logFormat, useWorktreeIsolation, overrides, cancellationToken).ConfigureAwait(false);
+        if (snapshot is { Offline: false })
+        {
+            snapshot.Commit();
+            logger.Info("event=notion.snapshot.saved");
+        }
+
+        return 0;
+    }
+
+    private static async Task BuildCoreAsync(
+        AppConfig config,
+        ILogger logger,
+        ResolvedConfigPath resolved,
+        string logFormat,
+        bool useWorktreeIsolation,
+        ConfigOverrides overrides,
+        CancellationToken cancellationToken)
+    {
         if (useWorktreeIsolation && I18nOutputMerger.GetLanguages(ConfigApplier.Apply(config, overrides).Site).Count > 1)
         {
-            return await WorktreeBuildCoordinator.RunAsync(
+            var exitCode = await WorktreeBuildCoordinator.RunAsync(
                 config,
                 resolved,
                 overrides,
                 logFormat,
                 logger,
                 cancellationToken).ConfigureAwait(false);
+            if (exitCode != 0)
+            {
+                throw new InvalidOperationException($"Multilingual build exited with code {exitCode}.");
+            }
+
+            return;
         }
 
         var engine = new SiteEngine(logger);
         await engine.BuildAsync(config, resolved.RootDir, overrides, cancellationToken);
-        return 0;
     }
 
     private static int? TryParsePositiveInt(string? text)

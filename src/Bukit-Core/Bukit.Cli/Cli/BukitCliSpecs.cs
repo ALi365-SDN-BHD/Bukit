@@ -25,7 +25,9 @@ public static partial class BukitCliSpecs
                 new CliOptionSpec("--cache-dir", "覆盖缓存目录"),
                 new CliOptionSpec("--metrics", "输出构建指标"),
                 new CliOptionSpec("--jobs", "并行渲染并发度", CliOptionType.Integer, ValueName: "n"),
-                new CliOptionSpec("--log-format", "日志格式", CliOptionType.String, AllowedValues: new[] { "text", "json" })
+                new CliOptionSpec("--log-format", "日志格式", CliOptionType.String, AllowedValues: new[] { "text", "json" }),
+                new CliOptionSpec("--notion-snapshot", "Notion 离线快照目录（构建时带 token 写入）", ValueName: "dir"),
+                new CliOptionSpec("--notion-offline", "只读 Notion 离线快照，不要 token、不联网", CliOptionType.Flag)
             });
 
         var doctor = new CliCommandSpec(
@@ -35,7 +37,9 @@ public static partial class BukitCliSpecs
             {
                 new CliOptionSpec("--config", "配置文件路径"),
                 new CliOptionSpec("--site", "多站点名"),
-                new CliOptionSpec("--site-url", "覆盖 site.url")
+                new CliOptionSpec("--site-url", "覆盖 site.url"),
+                new CliOptionSpec("--notion-snapshot", "Notion 离线快照目录（构建时带 token 写入）", ValueName: "dir"),
+                new CliOptionSpec("--notion-offline", "只读 Notion 离线快照，不要 token、不联网", CliOptionType.Flag)
             });
 
         var config = new CliCommandSpec(
@@ -57,7 +61,9 @@ public static partial class BukitCliSpecs
                     {
                         new CliOptionSpec("--config", "配置文件路径"),
                         new CliOptionSpec("--site", "多站点名"),
-                        new CliOptionSpec("--site-url", "覆盖 site.url")
+                        new CliOptionSpec("--site-url", "覆盖 site.url"),
+                        new CliOptionSpec("--notion-snapshot", "Notion 离线快照目录", ValueName: "dir"),
+                        new CliOptionSpec("--notion-offline", "只读 Notion 离线快照，不要 token、不联网", CliOptionType.Flag)
                     }),
                 new CliCommandSpec(
                     Name: "schema",

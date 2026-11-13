@@ -4,6 +4,7 @@ using Bukit.Engine.Abstractions.Content;
 using Bukit.Content.Media;
 using Bukit.Content.Markdown;
 using Bukit.Content.Notion;
+using Bukit.Content.Notion.Snapshot;
 using Bukit.Shared;
 
 namespace Bukit.Engine;
@@ -76,7 +77,7 @@ internal static class ContentProviderFactory
                 throw new ConfigException($"Unsupported content source type: {type}", DiagnosticCode.ConfigInvalidValue);
             }
 
-            return new CompositeContentProvider(providers, ContentModelSchemaFactory.FromConfig(config));
+            return new CompositeContentProvider(providers, ContentModelSchemaFactory.FromConfig(config)) { Logger = logger };
         }
 
         throw new ConfigException("content.sources is required in Bukit 1.0.", DiagnosticCode.ConfigRequiredFieldMissing);
@@ -131,8 +132,14 @@ internal static class ContentProviderFactory
 
     private static NotionContentSource CreateNotionProvider(string rootDir, NotionConfig notion, bool isCi, bool renderContent, ILogger logger, bool autoSummary = false, int autoSummaryMaxLength = 200)
     {
-        var token = EnvironmentHelper.GetNotionToken();
-        if (string.IsNullOrWhiteSpace(token))
+        var snapshot = NotionSnapshotSession.Current;
+        var token = snapshot is { Offline: true } ? string.Empty : EnvironmentHelper.GetNotionToken();
+        if (snapshot is { Offline: true })
+        {
+            // Offline: never a token, never the network; the snapshot must hold this database.
+            snapshot.EnsureDatabase(notion.DatabaseId);
+        }
+        else if (string.IsNullOrWhiteSpace(token))
         {
             throw new ConfigException("NOTION_TOKEN is required for notion provider and must come from environment variables.", DiagnosticCode.ConfigRequiredFieldMissing);
         }
@@ -148,11 +155,18 @@ internal static class ContentProviderFactory
             : string.IsNullOrWhiteSpace(notion.CacheDir)
                 ? Path.Combine(rootDir, ".cache", "notion")
                 : BuildPathUtils.MakeAbsolute(rootDir, notion.CacheDir);
+        if (snapshot is not null)
+        {
+            // --notion-snapshot overrides cacheMode/cacheDir: bodies live in the snapshot,
+            // never in the site directory.
+            cacheMode = snapshot.Offline ? "readonly" : "readwrite";
+            cacheDir = snapshot.CacheDirectory;
+        }
 
         return new NotionContentSource(new NotionContentSourceOptions
         {
             DatabaseId = notion.DatabaseId,
-            Token = token,
+            Token = token ?? string.Empty,
             PageSize = notion.PageSize,
             MaxItems = notion.MaxItems,
             RequestDelayMs = 0,
@@ -170,10 +184,11 @@ internal static class ContentProviderFactory
             IncludeSlugs = notion.IncludeSlugs,
             IncludeSlugProperty = notion.IncludeSlugProperty,
             CacheMode = cacheMode,
-            CacheDir = cacheDir is null ? null : BuildTransaction.Physical(cacheDir),
+            CacheDir = cacheDir is null ? null : snapshot is not null ? cacheDir : BuildTransaction.Physical(cacheDir),
             PropertyMap = notion.PropertyMap,
             AutoSummary = autoSummary,
-            AutoSummaryMaxLength = autoSummaryMaxLength
+            AutoSummaryMaxLength = autoSummaryMaxLength,
+            Snapshot = snapshot
         }, logger: logger);
     }
 

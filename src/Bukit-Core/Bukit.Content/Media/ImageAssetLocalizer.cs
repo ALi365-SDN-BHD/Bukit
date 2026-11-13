@@ -63,6 +63,8 @@ public sealed class ImageAssetLocalizer : IImageAssetLocalizer, IDisposable
     private readonly bool _keepOriginalOnFailure;
     private readonly MissingPlaceholderWarnings _missingPlaceholderWarnings = new();
     private readonly MediaHostFilter _hostFilter;
+    // Notion offline builds: reuse the media cache, never download.
+    private readonly bool _offline = NotionSnapshotScope.IsOffline;
     private int _disposeState;
 
     public IReadOnlyList<MediaFailure> Failures => _failures.ToArray();
@@ -204,6 +206,13 @@ public sealed class ImageAssetLocalizer : IImageAssetLocalizer, IDisposable
             _indexManager.RememberIndex(normalizedKey, legacyName);
             _cache.TryAdd(normalizedKey, legacyName);
             return _indexManager.CombineUrl(legacyName);
+        }
+
+        if (_offline)
+        {
+            // Offline builds make no network requests: media not in the cache keeps its URL.
+            _logger?.Info($"event=media.skip_offline source={UrlRedactor.Redact(source)}");
+            return original;
         }
 
         // Checked after the success lookups: once any reference to an object has downloaded, an

@@ -136,6 +136,11 @@ internal static class NotionRelationResolver
             {
                 throw;
             }
+            catch (Bukit.Shared.NotionSnapshotException)
+            {
+                // Offline: data the snapshot lacks is an error, never a silently dropped link.
+                throw;
+            }
             catch (Exception ex)
             {
                 logger?.Warn($"event=notion.relation.resolve_failed pageId={pageId} message={ex.Message}");

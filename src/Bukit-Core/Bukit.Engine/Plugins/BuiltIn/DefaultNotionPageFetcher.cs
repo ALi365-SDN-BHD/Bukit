@@ -14,7 +14,7 @@ internal sealed class DefaultNotionPageFetcher : INotionPageFetcher
         try
         {
             ArgumentNullException.ThrowIfNull(client);
-            var page = await NotionPageQuery.FetchAsync(client.Transport, pageId, cancellationToken);
+            var page = await NotionPageQuery.FetchAsync(client, pageId, cancellationToken);
             return new NotionFetchedPage(
                 page.PageId,
                 page.Title,
@@ -24,6 +24,11 @@ internal sealed class DefaultNotionPageFetcher : INotionPageFetcher
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
+            throw;
+        }
+        catch (Bukit.Shared.NotionSnapshotException)
+        {
+            // Offline: a page the snapshot lacks fails the build instead of vanishing from pages_index.
             throw;
         }
         catch (Exception exception)

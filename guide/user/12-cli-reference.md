@@ -6,10 +6,10 @@ This table is derived from `BukitCliSpecs.cs`.
 
 | Command | Purpose | Parameters |
 |---|---|---|
-| `build` | Build the site. | `--config`, `--site`, `--output`, `--base-url`, `--site-url`, `--clean`, `--no-clean`, `--draft`, `--ci`, `--incremental`, `--no-incremental`, `--cache-dir`, `--metrics`, `--jobs`, `--log-format` |
-| `doctor` | Diagnose config, content, theme, templates, and providers. | `--config`, `--site`, `--site-url` |
+| `build` | Build the site. | `--config`, `--site`, `--output`, `--base-url`, `--site-url`, `--clean`, `--no-clean`, `--draft`, `--ci`, `--incremental`, `--no-incremental`, `--cache-dir`, `--metrics`, `--jobs`, `--log-format`, `--notion-snapshot`, `--notion-offline` |
+| `doctor` | Diagnose config, content, theme, templates, and providers. | `--config`, `--site`, `--site-url`, `--notion-snapshot`, `--notion-offline` |
 | `config` | Parent command for config checks. | `--config`, `--site`, `--site-url`, `--output` |
-| `config check` | Validate config without building pages. | `--config`, `--site`, `--site-url` |
+| `config check` | Validate config without building pages. | `--config`, `--site`, `--site-url`, `--notion-snapshot`, `--notion-offline` |
 | `config schema` | Emit JSON Schema for `site.yaml`. | `--output` |
 | `preview` | Serve an existing output directory. | `--dir`, `--host`, `--port`, `--strict-port`, `--config`, `--site`, `--allow-lan`, `--public` |
 | `dev` | Build, watch files, serve output, and trigger LiveReload. | `--config`, `--site`, `--host`, `--port`, `--output`, `--no-watch`, `--allow-lan`, `--public` |
