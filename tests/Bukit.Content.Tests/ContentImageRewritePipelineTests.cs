@@ -172,6 +172,79 @@ public sealed class ContentImageRewritePipelineTests
         }
     }
 
+    [Theory]
+    [InlineData(false, "/assets/images/noneimg-news.jpg")]
+    [InlineData(true, "https://img.example/cover.jpg?sig=secret")]
+    public async Task RewriteAsync_FailedImage_KeepsOriginalOnlyWhenPlaceholderMissing(bool placeholderMissing, string expected)
+    {
+        var dir = Path.Combine(Path.GetTempPath(), $"bukit-media-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(dir);
+        try
+        {
+            var cfg = new MediaConfig
+            {
+                DownloadToLocal = true,
+                DownloadDir = dir,
+                UrlBase = "/assets/uploads",
+                DefaultImageUrl = "/assets/images/noneimg-news.jpg",
+                FieldKeys = new[] { "cover" },
+                MaxRetries = 0,
+                RetryBaseDelayMs = 0,
+                OnFailure = "placeholder",
+                PlaceholderMissing = placeholderMissing
+            };
+            var item = ContentDocument.Create(
+                id: "1",
+                title: "t",
+                slug: "news/first",
+                publishAt: DateTimeOffset.UtcNow,
+                contentHtml: "<img src=\"https://img.example/cover.jpg?sig=secret\" alt=\"\">",
+                fields: new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase)
+                {
+                    ["cover"] = new ContentField("text", "https://img.example/cover.jpg?sig=secret")
+                });
+            var logger = new WarningLogger();
+            using var localizer = new ImageAssetLocalizer(
+                cfg,
+                new NotFoundHandler(),
+                (_, _) => Task.FromResult(new[] { System.Net.IPAddress.Parse("93.184.216.34") }),
+                logger);
+            var pipeline = new ContentImageRewritePipeline(cfg, localizer);
+
+            var rewritten = Assert.Single(await pipeline.RewriteAsync(new[] { item }, CancellationToken.None));
+
+            Assert.Equal(expected, rewritten.CustomFields!["cover"].Value);
+            Assert.Contains($"src=\"{expected}\"", rewritten.Body.Html, StringComparison.Ordinal);
+            var warnings = logger.Warnings.Where(w => w.Contains(ImageAssetLocalizer.PlaceholderMissingEvent, StringComparison.Ordinal)).ToArray();
+            if (!placeholderMissing)
+            {
+                Assert.Empty(warnings);
+                return;
+            }
+
+            // The HTML and the field reference the same image on one page: one warning.
+            var warning = Assert.Single(warnings);
+            Assert.Contains("source=https://img.example/cover.jpg?<redacted-query> ", warning, StringComparison.Ordinal);
+            Assert.DoesNotContain("secret", warning, StringComparison.Ordinal);
+            Assert.Contains("page=\"news/first\"", warning, StringComparison.Ordinal);
+            Assert.Contains("placeholder=/assets/images/noneimg-news.jpg", warning, StringComparison.Ordinal);
+            Assert.Contains("content.media.onFailure: keep", warning, StringComparison.Ordinal);
+        }
+        finally
+        {
+            Directory.Delete(dir, recursive: true);
+        }
+    }
+
+    private sealed class WarningLogger : Bukit.Shared.ILogger
+    {
+        public System.Collections.Concurrent.ConcurrentQueue<string> Warnings { get; } = new();
+        public void Debug(string message) { }
+        public void Info(string message) { }
+        public void Warn(string message) => Warnings.Enqueue(message);
+        public void Error(string message) { }
+    }
+
     private sealed class NotFoundHandler : HttpMessageHandler
     {
         protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)

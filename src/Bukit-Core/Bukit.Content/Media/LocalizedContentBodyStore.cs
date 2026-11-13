@@ -28,6 +28,7 @@ public sealed class LocalizedContentBodyStore : IContentBodyStore, IAsyncDisposa
     public async Task<ContentBody> GetAsync(ContentDocument document, CancellationToken cancellationToken = default)
     {
         var body = await _inner.GetAsync(document, cancellationToken);
+        MediaPageContext.Enter(document);
         var html = await _pipeline.RewriteBodyHtmlAsync(body.Html, _downloadGate.Value, cancellationToken) ?? string.Empty;
         return body with { Html = html };
     }

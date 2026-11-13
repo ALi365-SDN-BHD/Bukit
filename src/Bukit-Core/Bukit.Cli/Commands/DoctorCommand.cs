@@ -259,6 +259,7 @@ public static class DoctorCommand
 
         DoctorThemeChecker.CheckThemeAssetDirs(config, rootDir);
         DoctorThemeChecker.CheckThemeAssetContent(config, rootDir);
+        DoctorThemeChecker.CheckMediaPlaceholder(config, rootDir);
 
         var cacheDir = Path.Combine(rootDir, ".cache");
         if (Directory.Exists(cacheDir))
