@@ -108,6 +108,16 @@ public sealed class ConfigPhase2ValidatorTests : IDisposable
     }
 
     [Fact]
+    public void Validate_UnsafeSingleLanguageTag_ShouldFail()
+    {
+        var ex = ValidateFails(WriteConfig("""
+              language: en_US
+            """));
+
+        Assert.Contains("site.language must use safe alphanumeric subtags", ex.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void Validate_DefaultLanguageOutsideLanguages_ShouldFail()
     {
         var ex = ValidateFails(WriteConfig("""

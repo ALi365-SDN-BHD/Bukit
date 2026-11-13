@@ -1,3 +1,4 @@
+using System.Text.RegularExpressions;
 using YamlDotNet.RepresentationModel;
 
 namespace Bukit.Importing;
@@ -345,22 +346,51 @@ internal static class SiteConfigGenerator
     private sealed record SiteConfigNotionTarget(string Key, string Collection, string DatabaseId, string Mode);
 
     // The explicit option wins. Otherwise the demo's own <html lang> is the best
-    // guess; fall back to Chinese, the importer's historical default.
+    // guess; fall back to Chinese, the importer's historical default. Bukit only
+    // accepts letters and digits in hyphen-separated subtags, so "en_US" becomes
+    // "en-US", page values that are still unsafe are skipped, and an unsafe
+    // --language is rejected instead of producing a site.yaml that cannot build.
     internal static string ResolveLanguage(string? configured, IReadOnlyList<DiscoveredPage>? pages)
     {
         if (!string.IsNullOrWhiteSpace(configured))
-            return configured.Trim();
+        {
+            return NormalizeLanguageTag(configured) ?? throw InvalidLanguageOption(configured);
+        }
 
         var language = pages?
-            .Select(page => page.Language?.Trim())
-            .Where(value => !string.IsNullOrWhiteSpace(value))
+            .Select(page => NormalizeLanguageTag(page.Language))
+            .Where(value => value is not null)
             .GroupBy(value => value!, StringComparer.OrdinalIgnoreCase)
             .OrderByDescending(group => group.Count())
             .ThenBy(group => group.Key, StringComparer.OrdinalIgnoreCase)
             .Select(group => group.Key)
             .FirstOrDefault();
 
-        return string.IsNullOrWhiteSpace(language) ? "zh" : language;
+        return language ?? "zh";
+    }
+
+    // Checked up front by HtmlDemoImporter.ValidateInput so a bad option fails
+    // before --force removes an existing theme or any file is written.
+    internal static void ValidateLanguageOption(string? configured)
+    {
+        if (!string.IsNullOrWhiteSpace(configured) && NormalizeLanguageTag(configured) is null)
+            throw InvalidLanguageOption(configured);
+    }
+
+    private static ImportException InvalidLanguageOption(string configured)
+        => new(
+            ImportErrorKind.UserInput,
+            $"--language must use letters and digits in hyphen-separated subtags, such as en or zh-CN: {configured.Trim()}");
+
+    private static string? NormalizeLanguageTag(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+            return null;
+
+        var candidate = value.Trim().Replace('_', '-');
+        return Regex.IsMatch(candidate, "^[A-Za-z0-9]+(?:-[A-Za-z0-9]+)*$", RegexOptions.CultureInvariant)
+            ? candidate
+            : null;
     }
 
     // An absolute --base-url names the site's address; baseUrl takes only its path.

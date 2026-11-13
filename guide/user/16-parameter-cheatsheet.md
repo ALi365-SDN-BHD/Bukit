@@ -17,7 +17,7 @@
 | Field | Default |
 |---|---|
 | `site.baseUrl` | `/` |
-| `site.language` | `zh-CN` |
+| `site.language` | `zh-CN` (hyphen-separated letters/digits, e.g. `en-US`) |
 | `site.timezone` | `Asia/Shanghai` |
 | `site.outputPathEncoding` | `none` |
 | `site.sitemapMode` | `split` |

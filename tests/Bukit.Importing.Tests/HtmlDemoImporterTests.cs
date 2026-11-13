@@ -83,8 +83,8 @@ public sealed class HtmlDemoImporterTests : IDisposable
 
         var layoutPath = Path.Combine(_tempDir, "themes", "base-layout-fields", "layouts", "layouts", "base.html");
         var content = File.ReadAllText(layoutPath);
-        Assert.Contains("{{ page.fields.seo_title.value }}", content);
-        Assert.Contains("{{ page.fields.seo_desc.value }}", content);
+        Assert.Contains("{{ page.fields.seo_title.value | html.escape }}", content);
+        Assert.Contains("{{ page.fields.seo_desc.value | html.escape }}", content);
         Assert.Contains("base_url = site.base_url", content);
         Assert.Contains("if base_url == \"/\"", content);
         Assert.DoesNotContain("style.css", content);
@@ -1814,7 +1814,7 @@ pages:
             ThemeName = "yaml-values",
             RootDir = _tempDir,
             Force = true,
-            Language = "zh: #1",
+            Language = "zh-CN",
             BaseUrl = "/base: #2"
         });
 
@@ -1822,9 +1822,76 @@ pages:
 
         // A generic "Home" title names no site, so the theme name is used.
         Assert.Equal("yaml-values", config.Site.Name);
-        Assert.Equal("zh: #1", config.Site.Language);
+        Assert.Equal("zh-CN", config.Site.Language);
         Assert.Equal("/base: #2", config.Site.BaseUrl);
         Assert.Equal("dist", config.Build.Output);
+    }
+
+    [Fact]
+    public void Import_PageLanguageWithUnderscore_IsNormalizedToSafeTag()
+    {
+        File.WriteAllText(Path.Combine(_tempDir, "index.html"),
+            "<html lang=\"en_US\"><head><title>Home</title></head><body><main><h1>Home</h1></main></body></html>");
+
+        HtmlDemoImporter.Import(new HtmlDemoImportOptions
+        {
+            InputPath = _tempDir,
+            ThemeName = "lang-normalized",
+            RootDir = _tempDir,
+            Force = true
+        });
+
+        var config = Bukit.Config.ConfigLoader.Load(Path.Combine(_tempDir, "sites", "lang-normalized", "site.yaml"));
+        Assert.Equal("en-US", config.Site.Language);
+        Bukit.Config.ConfigValidator.Validate(config);
+    }
+
+    [Fact]
+    public void Import_UnsafePageLanguage_FallsBackToDefault()
+    {
+        File.WriteAllText(Path.Combine(_tempDir, "index.html"),
+            "<html lang=\"en us\"><head><title>Home</title></head><body><main><h1>Home</h1></main></body></html>");
+
+        HtmlDemoImporter.Import(new HtmlDemoImportOptions
+        {
+            InputPath = _tempDir,
+            ThemeName = "lang-fallback",
+            RootDir = _tempDir,
+            Force = true
+        });
+
+        var config = Bukit.Config.ConfigLoader.Load(Path.Combine(_tempDir, "sites", "lang-fallback", "site.yaml"));
+        Assert.Equal("zh", config.Site.Language);
+    }
+
+    [Theory]
+    [InlineData("zh: #1", false)]
+    [InlineData("en/US", false)]
+    [InlineData("en/US", true)]
+    public void Import_UnsafeLanguageOption_IsRejectedBeforeWriting(string language, bool dryRun)
+    {
+        File.WriteAllText(Path.Combine(_tempDir, "index.html"),
+            "<html><head><title>Home</title></head><body><main><h1>Home</h1></main></body></html>");
+        var existingTheme = Path.Combine(_tempDir, "themes", "lang-rejected");
+        Directory.CreateDirectory(existingTheme);
+        File.WriteAllText(Path.Combine(existingTheme, "keep.txt"), "keep");
+
+        var ex = Assert.Throws<ImportException>(() => HtmlDemoImporter.Import(new HtmlDemoImportOptions
+        {
+            InputPath = _tempDir,
+            ThemeName = "lang-rejected",
+            RootDir = _tempDir,
+            Force = true,
+            DryRun = dryRun,
+            Language = language
+        }));
+
+        Assert.Equal(ImportErrorKind.UserInput, ex.Kind);
+        Assert.Contains("--language must use letters and digits", ex.Message, StringComparison.Ordinal);
+        Assert.True(File.Exists(Path.Combine(existingTheme, "keep.txt")));
+        Assert.Equal(new[] { "keep.txt" }, Directory.GetFiles(existingTheme).Select(Path.GetFileName).ToArray());
+        Assert.False(Directory.Exists(Path.Combine(_tempDir, "sites", "lang-rejected")));
+        Assert.False(Directory.Exists(Path.Combine(_tempDir, "content")));
     }
 
     [Fact]

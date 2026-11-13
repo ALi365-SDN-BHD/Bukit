@@ -220,6 +220,7 @@ public static class HtmlDemoImporter
             throw new ImportException(ImportErrorKind.UserInput, $"Missing index.html or index.htm in input directory: {options.InputPath}");
 
         ValidateThemeName(options.ThemeName);
+        SiteConfigGenerator.ValidateLanguageOption(options.Language);
 
         if (!options.DryRun)
         {

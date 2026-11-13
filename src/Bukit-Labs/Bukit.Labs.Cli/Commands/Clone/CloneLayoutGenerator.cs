@@ -50,7 +50,7 @@ internal static class CloneLayoutGenerator
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>{{ if page.seo }}{{ page.seo.title }}{{ else }}{{ page.title }}{{ end }}</title>
+  <title>{{ if page.seo }}{{ page.seo.title | html.escape }}{{ else }}{{ page.title | html.escape }}{{ end }}</title>
   <link rel="alternate" type="application/rss+xml" href="{{ base_url }}/rss.xml" />
   <link rel="sitemap" type="application/xml" href="{{ base_url }}/sitemap.xml" />
 __ASSETS__</head>
