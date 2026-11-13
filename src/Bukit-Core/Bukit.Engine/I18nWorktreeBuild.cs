@@ -85,6 +85,7 @@ public sealed partial class SiteEngine
             overrides,
             stagedMediaDir ?? plan.MediaCacheDir,
             cancellationToken).ConfigureAwait(false);
+        I18nLanguagePolicy.WarnIgnoredLegacyRedirects(config.Site, buildLogger);
         I18nLanguagePolicy.WarnDocumentLanguageIssues(content.Documents, config.Site, buildLogger);
 
         try

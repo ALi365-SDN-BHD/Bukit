@@ -412,6 +412,29 @@ public sealed class I18nWorktreeProtocolTests : IDisposable
             Path.Combine(_root, "manifest.json"), PrefixedSite));
     }
 
+    [Fact]
+    public async Task WorktreeBuild_WarnsWhenLegacyRedirectsAreIgnoredInThePrefixedLayout()
+    {
+        var root = Path.Combine(_root, "project");
+        var configPath = CreateSite(root);
+        var loaded = ConfigLoader.Load(configPath);
+        var config = loaded with { Site = loaded.Site with { DefaultLanguageLegacyRedirects = true } };
+        var overrides = new ConfigOverrides
+        {
+            Output = Path.Combine(_root, "staging-output"),
+            CacheDir = Path.Combine(_root, "staging-cache"),
+            Clean = false,
+            Jobs = 1
+        };
+        var logger = new WarningLogger();
+        var engine = new SiteEngine(logger, new CountingContentProviderFactory(), new DefaultSearchIndexBuilder());
+
+        await using var prepared = await engine.PrepareI18nWorktreeBuildAsync(
+            config, root, root, Path.Combine(root, "dist"), overrides, CancellationToken.None);
+
+        Assert.Single(logger.Warnings, message => message.Contains("event=i18n.config.legacy_redirects_ignored", StringComparison.Ordinal));
+    }
+
     private static string CreateSite(string root)
     {
         Directory.CreateDirectory(Path.Combine(root, "content", "en"));

@@ -36,4 +36,6 @@
 
 - `codex-workflow.py closure` 生成的专项命令：Config Release 过滤 194/194、Config 全项目 534/534、Engine Release 过滤（另加 `SiteEngineLogger`）684/684、Cli Worktree 过滤 68/68、Architecture 422/422；`public-api-drift.sh check`、drift 自测、skills/cli-docs/active-links/size-policy、两条 spec 与本变更 `openspec validate --strict` 全部通过。
 - 实施说明：多语言警告放在新方法 `I18nLanguagePolicy.WarnIgnoredLegacyRedirects`；符号链接逐段检查抽为 `BuildTransaction.RejectLinkSegments`，由 `RejectGeneratedOutputLinks` 与迁移派生共用（4.8 方案 a）；仓库无独立迁移清单文件，该项写入 `guide/user/11-i18n-seo.md` 的 "Migrating an existing site to the root layout" 小节。
-- 未运行：closure 列出的 Engine 与 Cli 全项目测试，以及任何全量 gate。
+- 全项目：Engine 3479/3479、Cli 1281 通过 / 5 跳过（0 失败）。
+- 独立审计（对照本文档逐条核对 T1–T20）后补齐：Worktree 构建路径的 `legacy_redirects_ignored` 警告（`I18nWorktreeBuild` 调用 + `I18nWorktreeProtocolTests` 用例）；T5 断言索引文件必须存在、用 `/404.html` 内容页覆盖 404 排除；T6 增加内容页与非首页列表路由占用、校验 `count=`；T17 增加 build-report 路由数与生成文件清单、`--metrics` 默认语言派生数；T20 按文档使用 `/about.html` 与 `/blog/post/` 内容页；T16 增加路径规范化次数线性增长断言；用户指南补"插件输出不应占用旧前缀"。
+- 未运行：任何全量或发布 gate。

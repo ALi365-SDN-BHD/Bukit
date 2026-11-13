@@ -24,6 +24,9 @@ internal static class I18nLegacyRedirectDeriver
     /// <summary>Test probe counting occupancy-set builds, so tests can assert one build per derive.</summary>
     internal static readonly AsyncLocal<StrongBox<int>?> OccupancyBuildsProbe = new();
 
+    /// <summary>Test probe counting occupancy path normalizations, so tests can assert linear growth with routes.</summary>
+    internal static readonly AsyncLocal<StrongBox<int>?> NormalizeCallsProbe = new();
+
     internal static void Derive(
         BuildVariantContext context,
         BuildContext pluginContext,
@@ -265,6 +268,14 @@ internal static class I18nLegacyRedirectDeriver
                (_context.ParentStaticDir is not null &&
                 DirectoryCopy.StaticSourceExists(_context.ParentStaticDir, path, _staticOptions));
 
-        private static string Normalize(string path) => BuildPathUtils.NormalizeRelPath(path).TrimStart('/');
+        private static string Normalize(string path)
+        {
+            if (NormalizeCallsProbe.Value is { } probe)
+            {
+                probe.Value++;
+            }
+
+            return BuildPathUtils.NormalizeRelPath(path).TrimStart('/');
+        }
     }
 }

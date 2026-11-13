@@ -57,6 +57,8 @@ Keep in mind:
 - Non-HTML files are not redirected: subscribers of `/<defaultLanguage>/rss.xml` need the
   new feed URL, and a moved sitemap must be resubmitted to search engines.
 - Taxonomy alias redirects are not migrated.
+- Plugin outputs should not use the old `/<defaultLanguage>/` prefix: a plugin file written
+  at a redirect's path fails the build.
 - Each redirect is a small file (about 0.5 KB), so the default-language file count roughly
   doubles. Route counts in `routes.json`, the build report, and `--metrics` grow by the
   same number, and the redirects appear in `publish-audit-report.json` as non-indexable.
