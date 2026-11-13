@@ -215,6 +215,10 @@ public class DependencyMatrixTests
             // Shared media localization rules (validation and runtime must agree).
             "Bukit.Config->Bukit.Content",
             "Bukit.Shared->Bukit.Engine.Assets",
+            // Secret store for --secrets-stdin stays internal: the CLI reads it, the plugin host masks it.
+            "Bukit.Shared->bukit",
+            "Bukit.Shared->Bukit.PluginHost",
+            "Bukit.Shared->Bukit.PluginHost.Tests",
             "Bukit.Content->Bukit.Engine.Assets",
             "Bukit.Rendering->Bukit.Engine.Audit",
             "Bukit.Engine.Abstractions->Bukit.Content",

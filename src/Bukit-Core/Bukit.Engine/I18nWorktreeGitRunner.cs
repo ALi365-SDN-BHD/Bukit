@@ -14,9 +14,10 @@ internal static class I18nWorktreeGitRunner
         ProcessStartInfo startInfo,
         TimeSpan timeout,
         ILogger logger,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        string? standardInput = null)
     {
-        var result = await ExternalToolProcessRunner.RunAsync(startInfo, timeout, logger, cancellationToken)
+        var result = await ExternalToolProcessRunner.RunAsync(startInfo, timeout, logger, cancellationToken, standardInput)
             .ConfigureAwait(false);
         return new I18nGitCommandResult(result.ExitCode, result.StandardOutput, result.StandardError);
     }

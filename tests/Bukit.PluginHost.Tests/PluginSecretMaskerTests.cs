@@ -1,4 +1,5 @@
 using Bukit.PluginHost;
+using Bukit.Shared;
 using Xunit;
 
 namespace Bukit.PluginHost.Tests;
@@ -113,5 +114,26 @@ public sealed class PluginSecretMaskerTests
             });
 
         Assert.Equal("public=/usr/local/bin", masked);
+    }
+
+    [Fact]
+    public void MaskText_MasksSecretsPassedOnStdin_EvenWithEmptyEnvironment()
+    {
+        SecretStore.Install(new Dictionary<string, string> { ["NOTION_TOKEN"] = "fake-stdin-masker-secret" });
+        try
+        {
+            Assert.Equal(
+                "stderr: *** rejected",
+                PluginSecretMasker.MaskText("stderr: fake-stdin-masker-secret rejected", new Dictionary<string, string>(StringComparer.Ordinal)));
+            Assert.Equal(
+                "*** and ***",
+                PluginSecretMasker.MaskText(
+                    "fake-stdin-masker-secret and env-secret",
+                    new Dictionary<string, string>(StringComparer.Ordinal) { ["API_KEY"] = "env-secret" }));
+        }
+        finally
+        {
+            SecretStore.Reset();
+        }
     }
 }

@@ -21,13 +21,19 @@ internal static class ExternalToolProcessRunner
         ProcessStartInfo startInfo,
         TimeSpan timeout,
         ILogger logger,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default,
+        string? standardInput = null)
     {
         ArgumentNullException.ThrowIfNull(startInfo);
         ArgumentNullException.ThrowIfNull(logger);
         if (timeout <= TimeSpan.Zero)
         {
             throw new ArgumentOutOfRangeException(nameof(timeout));
+        }
+
+        if (standardInput is not null)
+        {
+            startInfo.RedirectStandardInput = true;
         }
 
         using var process = new Process { StartInfo = startInfo };
@@ -38,6 +44,11 @@ internal static class ExternalToolProcessRunner
             throw new InvalidOperationException($"Unable to start external tool '{startInfo.FileName}'.");
         }
 
+        if (standardInput is not null)
+        {
+            WriteStandardInput(process, standardInput);
+        }
+
         try
         {
             return await RunCoreAsync(process, startInfo, timeout, logger, cancellationToken, pgidPath).ConfigureAwait(false);
@@ -45,6 +56,30 @@ internal static class ExternalToolProcessRunner
         finally
         {
             ExternalToolProcessTree.RemovePgidFile(pgidPath);
+        }
+    }
+
+    // Small payloads only (for example forwarded secrets): written in full, then stdin is closed
+    // so the child sees EOF. A child that exits early is reported through its exit code.
+    private static void WriteStandardInput(Process process, string standardInput)
+    {
+        try
+        {
+            process.StandardInput.Write(standardInput);
+            process.StandardInput.Flush();
+        }
+        catch (IOException)
+        {
+        }
+        finally
+        {
+            try
+            {
+                process.StandardInput.Close();
+            }
+            catch (IOException)
+            {
+            }
         }
     }
 

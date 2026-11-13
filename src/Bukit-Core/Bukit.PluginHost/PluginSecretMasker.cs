@@ -1,3 +1,5 @@
+using Bukit.Shared;
+
 namespace Bukit.PluginHost;
 
 internal static class PluginSecretMasker
@@ -32,13 +34,22 @@ internal static class PluginSecretMasker
     // values is accepted; do not switch to IsSecretKey here without a contract change.
     public static string MaskText(string value, IReadOnlyDictionary<string, string> environment)
     {
-        if (string.IsNullOrEmpty(value) || environment.Count == 0)
+        if (string.IsNullOrEmpty(value))
+        {
+            return value;
+        }
+
+        // Secrets passed with --secrets-stdin are masked too, even though they are never handed
+        // to plugins through the environment.
+        IReadOnlyCollection<string> stdinSecrets = SecretStore.StdinSecretValues;
+        if (environment.Count == 0 && stdinSecrets.Count == 0)
         {
             return value;
         }
 
         string masked = value;
         foreach (string secretValue in environment.Values
+                     .Concat(stdinSecrets)
                      .Where(secretValue => !string.IsNullOrEmpty(secretValue))
                      .Distinct(StringComparer.Ordinal)
                      .OrderByDescending(secretValue => secretValue.Length))
