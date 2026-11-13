@@ -80,7 +80,7 @@ the command; error objects are multi-line JSON, see `bukit-cli-reference`). Read
 | `Build output is not ready for deployment` | No completed build | Run a successful `bukit build` first. |
 | `GITHUB_TOKEN environment variable is required` | Token var unset | Set it or use `--token-env NAME`. |
 | `Non-fast-forward push rejected` | Target branch diverged | `--force` only if overwriting is intended. |
-| Page missing from llms.txt | Invalid front matter `geo` → `llms` curation | Look for build warnings `geo.llms_field_unknown`, `geo.llms_visibility_invalid`, `geo.llms_tier_invalid`, `geo.llms_priority_invalid`, `geo.llms_shape_invalid` (they fail the build under `strict`; released versions through 2.0.15 do not log them) and the publish audit warning `publish.llms_missing_route route=<url>`; check that the `llms` map uses only `visibility`, `tier`, and an integer `priority` (`bukit-geo`). |
+| Page missing from llms.txt | Invalid front matter `geo` → `llms` curation | Look for build warnings `geo.llms_field_unknown`, `geo.llms_visibility_invalid`, `geo.llms_tier_invalid`, `geo.llms_priority_invalid`, `geo.llms_shape_invalid` (they fail the build under `strict`; released versions through 2.0.15 do not log them) and the publish audit warning `publish.llms_missing_route route=<url>`; check that `geo` and `llms` are mappings (not, for example, `llms: false`) and that the `llms` map uses only `visibility`, `tier`, and an integer `priority` (`bukit-geo`). |
 
 ## Reports to inspect
 
