@@ -80,9 +80,9 @@ internal static class CloneFidelityGenerator
         sb.AppendLine("<head>");
         sb.AppendLine("  <meta charset=\"UTF-8\" />");
         sb.AppendLine("  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1\" />");
-        sb.AppendLine("  <title>{{ page.title }} | {{ site.title }}</title>");
+        sb.AppendLine("  <title>{{ page.title | html.escape }} | {{ site.title | html.escape }}</title>");
         sb.AppendLine("  {{ if page.seo }}");
-        sb.AppendLine("  <link rel=\"canonical\" href=\"{{ page.seo.canonical }}\" />");
+        sb.AppendLine("  <link rel=\"canonical\" href=\"{{ page.seo.canonical | html.escape }}\" />");
         sb.AppendLine("  {{ end }}");
         sb.AppendLine("</head>");
         sb.AppendLine("<body>");

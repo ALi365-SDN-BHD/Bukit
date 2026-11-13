@@ -197,15 +197,15 @@ internal static partial class ThemeGenerator
         sb.AppendLine("  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1\" />");
         sb.AppendLine("  " + BaseUrlPrelude);
         sb.AppendLine("  {{ if page.fields.seo_title }}");
-        sb.AppendLine("  <title>{{ page.fields.seo_title.value }} | {{ site.title }}</title>");
+        sb.AppendLine("  <title>{{ page.fields.seo_title.value | html.escape }} | {{ site.title | html.escape }}</title>");
         sb.AppendLine("  {{ else }}");
-        sb.AppendLine("  <title>{{ page.title }} | {{ site.title }}</title>");
+        sb.AppendLine("  <title>{{ page.title | html.escape }} | {{ site.title | html.escape }}</title>");
         sb.AppendLine("  {{ end }}");
         sb.AppendLine("  {{ if page.fields.seo_desc }}");
-        sb.AppendLine("  <meta name=\"description\" content=\"{{ page.fields.seo_desc.value }}\" />");
+        sb.AppendLine("  <meta name=\"description\" content=\"{{ page.fields.seo_desc.value | html.escape }}\" />");
         sb.AppendLine("  {{ end }}");
         sb.AppendLine("  {{ if page.seo }}");
-        sb.AppendLine("  <link rel=\"canonical\" href=\"{{ page.seo.canonical }}\" />");
+        sb.AppendLine("  <link rel=\"canonical\" href=\"{{ page.seo.canonical | html.escape }}\" />");
         sb.AppendLine("  {{ end }}");
         // Filled by the rendering page template; fallback templates leave it empty.
         sb.AppendLine("  {{ page_head }}");

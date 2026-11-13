@@ -45,8 +45,8 @@ content:
 | `site.url` | none | Absolute site URL for canonical URLs, feeds, sitemap, robots, and deploy output. |
 | `site.description` | none | Default description used by templates and SEO models. |
 | `site.baseUrl` | `/` | Base path for generated URLs. CLI `--base-url` can override it. |
-| `site.language` | `zh-CN` | Single-language default. |
-| `site.languages` | none | Enables language variants when set. |
+| `site.language` | `zh-CN` | Single-language default. Letters and digits in hyphen-separated subtags, such as `en` or `zh-CN` (not `en_US`). |
+| `site.languages` | none | Enables language variants when set. Same code format as `site.language`; `site.language` is then ignored. |
 | `site.defaultLanguage` | none | Language considered the root/default variant. |
 | `site.defaultLanguageInSubdir` | `true` | When `false`, the default language builds into the output root; other languages keep their code directories. |
 | `site.defaultLanguageRedirect` | `true` | Writes a noindex home redirect page so `/` does not 404 on static hosting. |

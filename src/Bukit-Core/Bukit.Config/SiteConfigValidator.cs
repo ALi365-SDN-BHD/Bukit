@@ -7,6 +7,9 @@ namespace Bukit.Config;
 
 internal static class SiteConfigValidator
 {
+    private static bool IsSafeLanguageTag(string language)
+        => Regex.IsMatch(language, "^[A-Za-z0-9]+(?:-[A-Za-z0-9]+)*$", RegexOptions.CultureInvariant);
+
     internal static void ValidateSite(SiteConfig site)
     {
         if (string.IsNullOrWhiteSpace(site.Name))
@@ -55,10 +58,7 @@ internal static class SiteConfigValidator
                 throw new ConfigException("site.languages must contain at least one language.");
             }
 
-            if (cleaned.Any(language => !Regex.IsMatch(
-                    language,
-                    "^[A-Za-z0-9]+(?:-[A-Za-z0-9]+)*$",
-                    RegexOptions.CultureInvariant)))
+            if (cleaned.Any(language => !IsSafeLanguageTag(language)))
             {
                 throw new ConfigException("site.languages must use safe alphanumeric subtags separated by hyphens.");
             }
@@ -74,6 +74,10 @@ internal static class SiteConfigValidator
             {
                 throw new ConfigException("site.defaultLanguage must be included in site.languages.");
             }
+        }
+        else if (!string.IsNullOrWhiteSpace(site.Language) && !IsSafeLanguageTag(site.Language.Trim()))
+        {
+            throw new ConfigException("site.language must use safe alphanumeric subtags separated by hyphens.");
         }
 
         var sitemapMode = (site.SitemapMode ?? "split").Trim().ToLowerInvariant();

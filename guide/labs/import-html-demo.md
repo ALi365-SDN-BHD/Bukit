@@ -113,7 +113,10 @@ publishing, or canonical links and the sitemap point at the placeholder.
 
 Each page draft takes its `<meta name="description">` as `seo_desc`.
 `site.language` comes from `--language` when passed, otherwise the most common
-`<html lang>` value, otherwise `zh`.
+`<html lang>` value, otherwise `zh`. Language codes use letters and digits in
+hyphen-separated subtags: `_` becomes `-` (`zh_CN` → `zh-CN`), page values that
+are still invalid are skipped, and an invalid `--language` fails before anything
+is written.
 
 For a sub-path deploy, pass `--base-url /corp/` (or `https://example.org/corp/`);
 links and assets are written to work under that path.
