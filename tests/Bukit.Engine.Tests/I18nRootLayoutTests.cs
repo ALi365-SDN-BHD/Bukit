@@ -341,6 +341,68 @@ public sealed class I18nRootLayoutTests
         Assert.Equal("User-agent: *\nAllow: /theme\n", File.ReadAllText(Path.Combine(site.Output, "robots.txt")));
     }
 
+    [Theory]
+    [InlineData("split")]
+    [InlineData("index")]
+    [InlineData("merged")]
+    public async Task PrefixedLayoutSearchUi_LoadsItsOwnLanguageIndex(string mode)
+    {
+        using var site = new SiteBuilder("i18n-site");
+        var config = site.Config with
+        {
+            Site = site.Config.Site with { Search = site.Config.Site.Search with { Mode = mode } }
+        };
+
+        await new SiteEngine(new ConsoleLogger(LogLevel.Error)).BuildAsync(config, site.Root,
+            new ConfigOverrides { Incremental = false });
+
+        foreach (var language in new[] { "en", "zh-CN" })
+        {
+            var ui = File.ReadAllText(Path.Combine(site.Output, language, "bukit-search.html"));
+            Assert.Contains($"data-search-url=\"/{language}/search.json\"", ui, StringComparison.Ordinal);
+            Assert.True(File.Exists(Path.Combine(site.Output, language, "search.json")));
+        }
+    }
+
+    [Fact]
+    public async Task RootLanguageSearchUi_IsOwnedAndRemovedWhenDisabled()
+    {
+        using var site = RootSite();
+        var engine = new SiteEngine(new ConsoleLogger(LogLevel.Error));
+        await engine.BuildAsync(site.Config, site.Root, new ConfigOverrides { Incremental = false });
+
+        Assert.Contains("data-search-url=\"/search.json\"",
+            File.ReadAllText(Path.Combine(site.Output, "bukit-search.html")), StringComparison.Ordinal);
+        Assert.Contains("data-search-url=\"/zh-CN/search.json\"",
+            File.ReadAllText(Path.Combine(site.Output, "zh-CN", "bukit-search.html")), StringComparison.Ordinal);
+        Assert.Contains("bukit-search.html",
+            BuildManifest.Load(Path.Combine(site.Root, ".cache", "build-manifest.json")).OwnedOutputs);
+
+        var off = site.Config with
+        {
+            Site = site.Config.Site with { Search = site.Config.Site.Search with { Ui = "off" } }
+        };
+        await engine.BuildAsync(off, site.Root, new ConfigOverrides { Incremental = false });
+
+        Assert.False(File.Exists(Path.Combine(site.Output, "bukit-search.html")));
+        Assert.False(File.Exists(Path.Combine(site.Output, "zh-CN", "bukit-search.html")));
+    }
+
+    [Fact]
+    public async Task RootLayoutSearchUi_KeepsTheProjectBaseUrl()
+    {
+        using var site = RootSite();
+        var config = site.Config with { Site = site.Config.Site with { BaseUrl = "/repo" } };
+
+        await new SiteEngine(new ConsoleLogger(LogLevel.Error)).BuildAsync(config, site.Root,
+            new ConfigOverrides { Incremental = false });
+
+        Assert.Contains("data-search-url=\"/repo/search.json\"",
+            File.ReadAllText(Path.Combine(site.Output, "bukit-search.html")), StringComparison.Ordinal);
+        Assert.Contains("data-search-url=\"/repo/zh-CN/search.json\"",
+            File.ReadAllText(Path.Combine(site.Output, "zh-CN", "bukit-search.html")), StringComparison.Ordinal);
+    }
+
     [Fact]
     public async Task StaticRobots_MiscasedNameConflictsInsteadOfReplacingGeneratedRobots()
     {

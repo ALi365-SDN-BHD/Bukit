@@ -4,6 +4,7 @@ using Bukit.Engine.Abstractions.Content;
 using Bukit.Engine.Abstractions.Plugins;
 using Bukit.Engine.Plugins;
 using Bukit.Engine.Plugins.BuiltIn;
+using Bukit.Engine.Tests.Infrastructure;
 using Bukit.Rendering;
 using Bukit.Routing;
 using Bukit.Engine.Abstractions.Routing;
@@ -36,7 +37,7 @@ public sealed class SearchIndexPluginExtendedTests
         return new SeoIndexEntry(route, route.Url, null, indexable, DateTimeOffset.UtcNow, null, null);
     }
 
-    private static string RenderSearchUi(SearchDetailConfig searchConfig)
+    private static string RenderSearchUi(SearchDetailConfig searchConfig, string baseUrl = "/")
     {
         var tempDir = Path.Combine(Path.GetTempPath(), "bukit_search_ui_" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(tempDir);
@@ -54,7 +55,8 @@ public sealed class SearchIndexPluginExtendedTests
                     },
                     Content = TestContent.Markdown()
                 },
-                tempDir);
+                tempDir,
+                baseUrl);
 
             return File.ReadAllText(Path.Combine(tempDir, "bukit-search.html"));
         }
@@ -62,6 +64,57 @@ public sealed class SearchIndexPluginExtendedTests
         {
             Directory.Delete(tempDir, recursive: true);
         }
+    }
+
+    [Theory]
+    [InlineData("/", "/search.json")]
+    [InlineData("", "/search.json")]
+    [InlineData("/repo", "/repo/search.json")]
+    [InlineData("/repo/", "/repo/search.json")]
+    [InlineData("/zh-CN", "/zh-CN/search.json")]
+    [InlineData("/repo/zh-CN/", "/repo/zh-CN/search.json")]
+    public void WriteSearchUi_PointsAtTheIndexOfItsBaseUrl(string baseUrl, string expected)
+    {
+        var searchUi = RenderSearchUi(new SearchDetailConfig(), baseUrl);
+
+        Assert.Contains($"data-search-url=\"{expected}\"", searchUi, StringComparison.Ordinal);
+        // Custom markup without the attribute keeps the historical fallback.
+        Assert.Contains("getAttribute('data-search-url')||'/search.json'", searchUi, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task SingleLanguageSiteWithBaseUrl_SearchUiLoadsTheBasePathIndex()
+    {
+        using var site = new SiteBuilder("basic-markdown-site");
+        var config = site.Config with { Site = site.Config.Site with { BaseUrl = "/repo" } };
+
+        await new SiteEngine(new ConsoleLogger(LogLevel.Error)).BuildAsync(config, site.Root,
+            new ConfigOverrides { Incremental = false });
+
+        Assert.Contains("data-search-url=\"/repo/search.json\"",
+            File.ReadAllText(Path.Combine(site.Output, "bukit-search.html")), StringComparison.Ordinal);
+        Assert.True(File.Exists(Path.Combine(site.Output, "search.json")));
+    }
+
+    [Fact]
+    public void WriteSearchUi_EncodesTheIndexUrlAttribute()
+    {
+        var searchUi = RenderSearchUi(new SearchDetailConfig(), "/a\"b&c");
+
+        Assert.Contains("data-search-url=\"/a&quot;b&amp;c/search.json\"", searchUi, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void WriteSearchUi_ReportsAnIndexThatFailsToLoad()
+    {
+        var searchUi = RenderSearchUi(new SearchDetailConfig());
+
+        Assert.Contains("if(!r.ok){throw new Error('HTTP '+r.status);}", searchUi, StringComparison.Ordinal);
+        Assert.Contains(".catch(function(){loadFailed=true;", searchUi, StringComparison.Ordinal);
+        Assert.Contains("if(loadFailed){showMessage('Search is unavailable');return;}", searchUi, StringComparison.Ordinal);
+        Assert.Contains("m.textContent=text", searchUi, StringComparison.Ordinal);
+        Assert.Contains("if(!Array.isArray(data)){throw new Error('Not a search index');}", searchUi, StringComparison.Ordinal);
+        Assert.Contains("items=data;if(input.value.trim()){search();}", searchUi, StringComparison.Ordinal);
     }
 
     [Fact]

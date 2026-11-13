@@ -72,7 +72,7 @@ internal static class PublicOutputLifecycle
         var searchPath = SearchPlanPath(root, isRootLanguage, searchMode);
         if (searchPath is not null) Add(searchPath, "search");
 
-        if (!root && !isRootLanguage && config.Site.Search.Ui?.Trim().ToLowerInvariant() is not (null or "false" or "off")) Add("bukit-search.html", "search-ui");
+        if (!root && config.Site.Search.Ui?.Trim().ToLowerInvariant() is not (null or "false" or "off")) Add("bukit-search.html", "search-ui");
 
         if (!string.IsNullOrWhiteSpace(config.Site.Url))
         {

@@ -150,7 +150,7 @@ internal static class SearchProjectionWriter
             context.BodyStore ?? NullContentBodyStore.Instance,
             context.ListRouteGraph,
             context.SeoModels);
-        SearchIndexPlugin.WriteSearchUi(context.Config, context.OutputDir);
+        SearchIndexPlugin.WriteSearchUi(context.Config, context.OutputDir, context.BaseUrl);
     }
 }
 

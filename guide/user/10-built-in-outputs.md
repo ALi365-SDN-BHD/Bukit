@@ -34,6 +34,18 @@ fragment. They do not create a formal HTML route and do not enable WebSite
 SearchAction structured data. A site that wants SearchAction must provide a
 complete final HTML search route and declare it with `site.search.route`.
 
+Each language writes its own `bukit-search.html` (at the output root for a
+single-language site or for the default language in the root layout, otherwise
+under `<lang>/`). The fragment loads the `search.json` of its own language from
+the input's `data-search-url` attribute, for example `/repo/zh-CN/search.json`
+when `baseUrl` is `/repo/`; it falls back to `/search.json` only when the
+attribute is removed. In `search.mode: merged` the fragment therefore searches
+its own language, not the root merged index. The generated file is rewritten on
+every build, so to search another index, copy its markup into a template and set
+`data-search-url` there to a `search.json`-style array. If the index cannot be
+loaded or is not such an array, the fragment shows "Search is unavailable"
+instead of empty results.
+
 The default search UI inserts content titles and snippets with text nodes and
 uses `<mark>` elements for matches. It does not interpret content fields as
 HTML. `site.search.maxContentLength` applies consistently to the `content`

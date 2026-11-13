@@ -31,8 +31,12 @@ internal sealed class SearchIndexPlugin : IBukitPlugin, IAfterBuildPlugin
             "var results=document.querySelector('.bukit-search-results');",
             "var items=[];",
             "var activeIndex=-1;",
+            "var loadFailed=false;",
+            "function showMessage(text){var m=document.createElement('div');m.className='bukit-search-empty';m.textContent=text;results.appendChild(m);}",
             "var searchUrl=input.getAttribute('data-search-url')||'/search.json';",
-            "fetch(searchUrl).then(function(r){return r.json();}).then(function(data){items=data;});",
+            "fetch(searchUrl).then(function(r){if(!r.ok){throw new Error('HTTP '+r.status);}return r.json();})",
+            ".then(function(data){if(!Array.isArray(data)){throw new Error('Not a search index');}items=data;if(input.value.trim()){search();}})",
+            ".catch(function(){loadFailed=true;results.replaceChildren();showMessage('Search is unavailable');});",
             "function appendHighlighted(parent,text,query){",
             "var value=String(text||'');",
             "if(!query){parent.appendChild(document.createTextNode(value));return;}",
@@ -48,6 +52,7 @@ internal sealed class SearchIndexPlugin : IBukitPlugin, IAfterBuildPlugin
             "function search(){",
             "var q=input.value.trim().toLowerCase();",
             "results.replaceChildren();activeIndex=-1;",
+            "if(loadFailed){showMessage('Search is unavailable');return;}",
             "if(!q||items.length===0)return;",
             "var matched=items.map(function(item,i){",
             "var ts=(item.title||'').toLowerCase().indexOf(q)>=0?10:0;",
@@ -57,8 +62,7 @@ internal sealed class SearchIndexPlugin : IBukitPlugin, IAfterBuildPlugin
             "}).filter(function(m){return m.score>0;})",
             ".sort(function(a,b){return b.score-a.score;}).slice(0,20);",
             "if(matched.length===0){",
-            "var empty=document.createElement('div');empty.className='bukit-search-empty';",
-            "empty.textContent='No results found';results.appendChild(empty);return;}",
+            "showMessage('No results found');return;}",
             "matched.forEach(function(m,i){",
             "var it=m.item;",
             "var d=document.createElement('a');",
@@ -111,7 +115,7 @@ internal sealed class SearchIndexPlugin : IBukitPlugin, IAfterBuildPlugin
             context.BodyStore,
             listRouteGraph,
             seoModels);
-        WriteSearchUi(_config, context.OutputDir);
+        WriteSearchUi(_config, context.OutputDir, context.BaseUrl);
     }
 
     private static bool TryResolveTemplate(BuildContext context, string kind, out string template)
@@ -128,7 +132,12 @@ internal sealed class SearchIndexPlugin : IBukitPlugin, IAfterBuildPlugin
         }
     }
 
-    internal static void WriteSearchUi(AppConfig config, string outputDir)
+    /// <summary>
+    /// Writes the embeddable search fragment. It loads the index of the language it is written
+    /// for, <c>&lt;baseUrl&gt;/search.json</c>, so base paths and per-language indexes resolve;
+    /// custom markup without <c>data-search-url</c> still falls back to <c>/search.json</c>.
+    /// </summary>
+    internal static void WriteSearchUi(AppConfig config, string outputDir, string baseUrl)
     {
         var searchConfig = config.Site.Search;
         var ui = searchConfig.Ui?.Trim().ToLowerInvariant();
@@ -162,7 +171,9 @@ internal sealed class SearchIndexPlugin : IBukitPlugin, IAfterBuildPlugin
         sb.Append(".bukit-search-empty{padding:20px;text-align:center;color:").Append(placeholderColor).AppendLine(";}");
         sb.AppendLine("</style>");
         sb.AppendLine("<div class=\"bukit-search\">");
-        sb.Append("  <input type=\"search\" class=\"bukit-search-input\" placeholder=\"").Append(placeholder).AppendLine("\" autocomplete=\"off\" />");
+        var searchUrl = HtmlEncoder.Default.Encode(SearchIndexBuilder.NormalizeSearchUrl(baseUrl, "/search.json"));
+        sb.Append("  <input type=\"search\" class=\"bukit-search-input\" placeholder=\"").Append(placeholder)
+            .Append("\" data-search-url=\"").Append(searchUrl).AppendLine("\" autocomplete=\"off\" />");
         sb.AppendLine("  <div class=\"bukit-search-results\"></div>");
         sb.AppendLine("</div>");
         sb.AppendLine("<script>");
