@@ -77,7 +77,7 @@ SiteEngine / WorktreeBuildRun
    - 设置时机：清单要到 `AssetPipeline.PrepareAsync` 之后才有值，不能放在设置 `MediaDownloadDir` 的路由阶段。在 `PrepareAsync` 之后、`VariantPluginStages.RunAfterBuildAsync` 之前，把清单和 scope 写入 `routePipelineResult.PluginContext`，AfterBuild 读到的是同一个 context。
    - key 与候选 URL：现有映射的 key 是站内 URL 路径 `{NormalizeBaseUrl(BaseUrl).TrimEnd('/')}/{sourceRelative}`，`RewriteCurrentHtmlWithWebp` 用 `TryNormalizeLocalImageUrl` 的结果查找。共用映射的 key 和候选 URL 共用一个前缀 `NormalizeBaseUrl(scope.RootBaseUrl).TrimEnd('/')`，只算一次。根 baseUrl 为 `/` 时 key 为 `/assets/hero.jpg`；不要直接拼 `RootBaseUrl + "/"`，否则会得到 `//assets/...`。也不能用 `GetRelativeIdentity(context.OutputDir, ...)`，会得到 `../assets/...`。
    - 原图宽度用 `ImageVariantGenerator.TryGetImageWidth`，它捕获坏图异常并记录 `image_processing.skip` 后返回 `false`，此时跳过该原图。不能用不捕获异常的 `TryReadImageWidth`。
-   - 有效性复用只读的 `ImageVariantFreshness.TryReadFreshness`，`outputDir` 传 `scope.OutputRoot`。共用映射不写入、修复或删除任何文件。
+   - 有效性先复用只读的 `ImageVariantFreshness.TryReadFreshness`（`outputDir` 传 `scope.OutputRoot`），再要求记录对当前源文件 `Matches`（源大小、mtime、SHA-256、quality、尺寸、格式、编码器）；源不可读时记录 `event=image_processing.skip`。共用映射不写入、修复或删除任何文件。
    - `AfterBuildAsync` 在本语言没有原图时会提前返回。共用映射要在提前返回之前构建；映射非空时仍执行 WebP 改写。
 9. **根前缀分支必须检查 scope。** `TryNormalizeLocalImageUrl` 新增的"接受 `asset_base_url + "/"`"分支，只在剩余路径满足 `scope.Contains` 时成立。根站点的 `asset_base_url` 规范化后是空串，不加检查会把任何站内图片都当作共用资源。
 10. **契约与工具约束。**
@@ -218,7 +218,7 @@ SiteEngine / WorktreeBuildRun
 - 测试：M2，非默认语言的清单只含 scope 内图片、不含 `assets/uploads/**`；测试插件在 AfterBuild 中读到的清单非空且与计划中被过滤的图片条目一致；默认语言和未开启时读不到这个 key。
 
 **T05.2 只读共用映射**
-- 改动：按第 1.3 节第 8 条构建共用映射（清单、key 与候选前缀、`TryGetImageWidth`、`TryReadFreshness`、提前返回之前构建）。
+- 改动：按第 1.3 节第 8 条构建共用映射（清单、key 与候选前缀、`TryGetImageWidth`、`TryReadFreshness` + `Matches`、提前返回之前构建）。
 - 测试：M6，新增：候选全部存在；部分缺失时只收录存在的；sidecar 哈希不符或缺失时不收录；共用资源根里用户自己的 `hero-480w.jpg` 既不当原图也不当候选；根 baseUrl 为 `/` 时 key 为 `/assets/hero.jpg`、候选不含 `//`，为 `/repo` 时 key 为 `/repo/assets/hero.jpg`，均能被 `TryNormalizeLocalImageUrl` 的结果命中；URL 不含 `../`；原图损坏时跳过、记录 `image_processing.skip`、构建成功。
 
 **T05.3 合并改写与地址识别**
