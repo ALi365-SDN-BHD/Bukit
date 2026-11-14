@@ -2,7 +2,7 @@
 
 All notable changes to Bukit will be documented in this file.
 
-## [Unreleased]
+## [2.2.0] - 2026-11-14
 
 - **Notion offline snapshots are checked by format version only**: the snapshot still records `bukitVersion` for diagnosis, but upgrading Bukit no longer invalidates it; only a change to `NotionSnapshotSession.FormatVersion` requires recording again. A recording build reuses the rendered bodies of an older snapshot, and bodies from another `NotionBlocksRenderer.ContractVersion` are rendered again.
 - **Notion and snapshot failures carry stable `BKT-0Bxx` codes**: Notion API 401/403/404/429/other HTTP/network/invalid JSON, a missing mapped property, and every offline snapshot failure now have a stable code. `build` writes it to the cli-error JSON; `config check` and `doctor` print `[BKT-0Bxx]`; a multilingual worker passes its code and reason to the parent. Top-level config, content and render errors now use the documented `BKT-xxxx` form instead of the enum name. A single-language build that fails on a snapshot exits 2; a multilingual worker failure keeps exit 1. The public `DiagnosticCode` enum gains 16 Notion members (0B01–0B08 and 0B10–0B17); the public API baseline is updated.
