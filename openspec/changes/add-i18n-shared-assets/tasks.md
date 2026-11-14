@@ -1,6 +1,6 @@
 # Tasks
 
-唯一实施清单。只有取得实际证据的事项才勾选。经用户确认 proposal.md 中的决策 A1–A5 后，作为单独的 Core 任务开展。
+唯一实施清单。只有取得实际证据的事项才勾选。经用户确认 proposal.md 中的决策 A1–A5 后，作为单独的 Core 任务开展。实施顺序、提交边界和专项测试以 `docs/plans/2026-11-14-add-i18n-shared-assets-implementation-plan.zh-CN.md` 为准。
 
 ## 0. 前置与核查
 
