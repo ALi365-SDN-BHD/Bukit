@@ -36,7 +36,10 @@ matching and de-duplication SHALL use the same case rules as output destination
 identity. When `paths` is not set, it SHALL default to `assets/`, plus the SCSS
 output directory when `theme.scss.enabled` is `true`, de-duplicated, omitting
 with a warning an SCSS output directory that normalizes to the output root. A
-configured list SHALL replace the default. The content media prefix, derived
+configured list SHALL replace the default. When sharing is enabled with two or
+more languages and every default prefix is inside the media prefix,
+configuration validation SHALL fail because the effective shared set would be
+empty. The content media prefix, derived
 from `content.media.urlBase`, SHALL always be excluded: an entry equal to or
 inside the media prefix SHALL fail configuration validation, and an entry
 containing the media prefix SHALL have it excluded internally. A path SHALL
@@ -60,6 +63,10 @@ implementation.
 #### Scenario: Media path under a shared prefix
 - **WHEN** sharing uses the default paths and `content.media.urlBase` is `/assets/uploads`
 - **THEN** `assets/css/a.css` belongs to the effective shared set and `assets/uploads/x.jpg` does not
+
+#### Scenario: Default prefixes covered by the media prefix
+- **WHEN** sharing is enabled with two or more languages, `sharedAssets.paths` is not set, and `content.media.urlBase` is `/assets` or `/`
+- **THEN** configuration validation fails because no default shared prefix remains outside the media prefix
 
 #### Scenario: Explicit media prefix rejected
 - **WHEN** `content.media.urlBase` is `/assets/uploads` and `sharedAssets.paths` is `[assets/uploads/]`
