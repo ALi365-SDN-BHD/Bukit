@@ -10,7 +10,13 @@ namespace Bukit.Engine.Audit;
 /// </summary>
 internal static class SeoTextAndImageRules
 {
-    internal static void AnalyzeModel(AppConfig config, string route, SeoModel model, string outputDir, List<SeoAuditIssue> issues)
+    internal static void AnalyzeModel(
+        AppConfig config,
+        string route,
+        SeoModel model,
+        string outputDir,
+        AuditOutputReadPaths readPaths,
+        List<SeoAuditIssue> issues)
     {
         if (string.IsNullOrWhiteSpace(model.Title))
         {
@@ -30,8 +36,10 @@ internal static class SeoTextAndImageRules
             issues.Add(new("warning", "seo.description_too_long", route, $"SEO description display width is {descriptionWidth}, recommended maximum is {SeoTextWidth.DescriptionMax}."));
         }
 
-        ImageMetadataReader.AnalyzeImage(config, "seo.og_image", route, model.Og.Image, outputDir, issues);
-        ImageMetadataReader.AnalyzeImage(config, "seo.twitter_image", route, model.Twitter.Image, outputDir, issues);
+        ImageMetadataReader.AnalyzeImage(config, "seo.og_image", route, model.Og.Image, outputDir, issues,
+            readPaths.SharedRootBaseUrl, readPaths.SharedOutputRoot, readPaths.IsSharedPath);
+        ImageMetadataReader.AnalyzeImage(config, "seo.twitter_image", route, model.Twitter.Image, outputDir, issues,
+            readPaths.SharedRootBaseUrl, readPaths.SharedOutputRoot, readPaths.IsSharedPath);
     }
 
     internal static void AnalyzeDocumentTitleWidth(string route, string actual, List<SeoAuditIssue> issues)

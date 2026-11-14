@@ -4,6 +4,8 @@ All notable changes to Bukit will be documented in this file.
 
 ## [Unreleased]
 
+- **Shared asset path entries are validated consistently**: `site.sharedAssets.paths` now rejects a leading `\` or a drive-letter prefix on every platform instead of accepting them on POSIX, fails on blank entries instead of dropping them, and normalizes `./fonts/` to `fonts/` so it can match. A leading `/` remains an absolute path and is rejected.
+
 ## [2.2.2] - 2026-11-15
 
 - **SEO image URLs keep one base prefix**: localized `record.Media` and custom image fields no longer repeat the language base in `og:image` or Twitter image URLs. This covers non-default languages and sites under a subpath such as `/repo`; shared placeholder URLs under the root base are also recognized.

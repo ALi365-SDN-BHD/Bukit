@@ -49,6 +49,63 @@ public sealed class SeoPublisherJsonLdTests
     }
 
     [Fact]
+    public void BuildForContent_SharedOrganizationLogoUsesRootBaseAndUrlKeepsLanguageBase()
+    {
+        var root = Path.Combine(Path.GetTempPath(), $"bukit-publisher-shared-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(root);
+        try
+        {
+            var organization = new SeoOrganizationConfig
+            {
+                Name = "丝路商讯",
+                Url = "/about/",
+                Logo = "/assets/images/social-default.png"
+            };
+            var baseConfig = CreateConfig("https://silushangxun.com", organization);
+            var config = baseConfig with
+            {
+                Site = baseConfig.Site with
+                {
+                    BaseUrl = "/repo",
+                    Languages = ["en", "zh-CN"],
+                    SharedAssets = new SharedAssetsConfig { Enabled = true }
+                }
+            };
+            var scope = SharedAssetScope.TryCreate(config, ["en", "zh-CN"], root, null);
+            Assert.NotNull(scope);
+            var fields = new Dictionary<string, object> { ["type"] = "post", ["schema_type"] = "BlogPosting" };
+            var document = ContentDocument.Create(
+                id: "shared-publisher",
+                title: "Shared publisher",
+                slug: "shared-publisher",
+                publishAt: new DateTimeOffset(2026, 7, 25, 0, 0, 0, TimeSpan.Zero),
+                contentHtml: "<p>Shared publisher</p>",
+                fields: ContentFieldReader.ToFieldMap(fields));
+            var route = new RouteInfo(
+                "/posts/shared-publisher/",
+                "posts/shared-publisher/index.html",
+                "pages/post.html");
+
+            var model = SeoModelBuilder.BuildForContent(
+                config, "/repo/zh-CN", document, route, sharedAssets: scope);
+            var documents = model.JsonLd.Select(static json => JsonDocument.Parse(json)).ToArray();
+            using var cleanup = new JsonDocumentsCleanup(documents);
+            var organizationNode = documents.Single(document =>
+                document.RootElement.TryGetProperty("@type", out var type) &&
+                type.GetString() == "Organization").RootElement;
+
+            Assert.Equal("https://silushangxun.com/repo/zh-CN/about/", organizationNode.GetProperty("url").GetString());
+            Assert.Equal(
+                "https://silushangxun.com/repo/assets/images/social-default.png",
+                organizationNode.GetProperty("logo").GetString());
+        }
+        finally
+        {
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
+    [Fact]
     public void BuildForContent_EmptySameAs_IsOmittedFromOrganizationAndPublisher()
     {
         var organization = new SeoOrganizationConfig

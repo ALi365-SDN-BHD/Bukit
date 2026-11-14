@@ -36,6 +36,15 @@ internal static class VariantReportStage
             context.Config.Site.Language,
             [context.StaticDir, context.ParentStaticDir],
             I18nOutputLayout.StaticCopyOptions(context.Config.Build));
+        if (auditReadPaths is not null && context.SharedAssets is { } sharedAssets)
+        {
+            auditReadPaths = auditReadPaths with
+            {
+                SharedRootBaseUrl = sharedAssets.RootBaseUrl,
+                SharedOutputRoot = sharedAssets.OutputRoot,
+                IsSharedPath = sharedAssets.Contains
+            };
+        }
         var result = new BuildReportPipeline().Execute(reportTimer, new BuildReportPipelineContext(
             Config: context.Config,
             Language: context.Config.Site.Language,

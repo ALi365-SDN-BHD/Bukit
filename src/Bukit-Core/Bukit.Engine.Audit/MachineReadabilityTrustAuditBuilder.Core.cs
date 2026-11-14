@@ -192,7 +192,7 @@ internal static partial class MachineReadabilityTrustAuditBuilder
 
             if (model is not null)
             {
-                AnalyzeRouteModel(config, entry, model, outputDir, seoIssues);
+                AnalyzeRouteModel(config, entry, model, outputDir, paths, seoIssues);
                 if (!string.Equals(model.Canonical, entry.Canonical, StringComparison.OrdinalIgnoreCase))
                 {
                     seoIssues.Add(Warning("seo.canonical_sitemap_mismatch", entry.Route.Url, $"Model canonical does not match SeoIndex canonical: {model.Canonical} != {entry.Canonical}."));

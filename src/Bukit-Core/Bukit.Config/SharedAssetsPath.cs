@@ -8,15 +8,23 @@ internal static class SharedAssetsPath
 {
     internal static string Normalize(string? value)
     {
-        var normalized = (value ?? string.Empty).Trim().Replace('\\', '/').Trim('/');
-        return normalized.Length == 0 || normalized == "." ? string.Empty : normalized + "/";
+        var segments = (value ?? string.Empty)
+            .Trim()
+            .Replace('\\', '/')
+            .Split('/', StringSplitOptions.RemoveEmptyEntries)
+            .Where(segment => !string.Equals(segment, ".", StringComparison.Ordinal));
+        var normalized = string.Join('/', segments);
+        return normalized.Length == 0 ? string.Empty : normalized + "/";
     }
 
     internal static bool IsRoot(string normalized) => normalized.Length == 0;
 
     internal static bool IsAbsolute(string value)
-        => Path.IsPathRooted(value) ||
-           (value.Length >= 2 && char.IsLetter(value[0]) && value[1] == ':');
+    {
+        var normalized = (value ?? string.Empty).Trim().Replace('\\', '/');
+        return normalized.StartsWith('/') ||
+               (normalized.Length >= 2 && char.IsLetter(normalized[0]) && normalized[1] == ':');
+    }
 
     internal static bool IsInside(string normalizedPath, string prefix)
         => normalizedPath.StartsWith(prefix, StringComparison.Ordinal);

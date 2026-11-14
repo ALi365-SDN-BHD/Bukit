@@ -222,10 +222,7 @@ internal static partial class SiteDefaultsApplier
                         pathsNode.Children[i]);
                 }
 
-                if (!string.IsNullOrWhiteSpace(scalar.Value))
-                {
-                    paths.Add(scalar.Value.Trim());
-                }
+                paths.Add((scalar.Value ?? string.Empty).Trim());
             }
         }
 

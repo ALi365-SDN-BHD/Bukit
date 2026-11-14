@@ -113,6 +113,14 @@ public sealed class I18nSharedAssetsTests
     {
         using var site = CreateSite();
         WriteSite(site, enabled: true, clean: true);
+        var sitePath = Path.Combine(site.Root, "site.yaml");
+        File.WriteAllText(sitePath, File.ReadAllText(sitePath).Replace(
+            "    - en\n    - zh-CN",
+            "    - zh-CN\n    - en",
+            StringComparison.Ordinal));
+        await site.BuildAsync(clean: true);
+        var before = SnapshotOutput(site.Output);
+
         site.Sandbox.Write("content/en/reserved.md", """
             ---
             title: Reserved
@@ -125,15 +133,17 @@ public sealed class I18nSharedAssetsTests
             """);
         var logger = new RecordingLogger();
 
-        await Assert.ThrowsAnyAsync<Exception>(() =>
+        var ex = await Assert.ThrowsAnyAsync<Exception>(() =>
             new Bukit.Engine.SiteEngine(logger).BuildAsync(
                 site.Config,
                 site.Root,
-                new ConfigOverrides { Incremental = false }));
+                new ConfigOverrides { Incremental = false, Jobs = 2 }));
 
+        Assert.Contains("reserved", ex.Message, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain(
             logger.Infos,
             message => message.Contains("event=build.variant.start language=zh-CN", StringComparison.Ordinal));
+        Assert.Equal(before, SnapshotOutput(site.Output));
     }
 
     [Fact]
@@ -204,10 +214,102 @@ public sealed class I18nSharedAssetsTests
     }
 
     [Fact]
-    public async Task SharedWebp_IsGeneratedOnceAndReusedAcrossLanguages()
+    public void SharedPlaceholder_DefaultLanguageStillRequiresPlannedOutput()
+    {
+        var root = Path.Combine(Path.GetTempPath(), $"bukit-placeholder-default-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(Path.Combine(root, "dist", "assets", "images"));
+        File.WriteAllText(Path.Combine(root, "dist", "assets", "images", "noneimg-news.jpg"), "placeholder");
+        try
+        {
+            var config = new AppConfig
+            {
+                Site = new SiteConfig
+                {
+                    Name = "t",
+                    Title = "t",
+                    BaseUrl = "/",
+                    Url = "https://example.com",
+                    Languages = ["en", "zh-CN"],
+                    SharedAssets = new SharedAssetsConfig { Enabled = true }
+                },
+                Content = new ContentConfig
+                {
+                    Media = new MediaConfig { DownloadToLocal = true, OnFailure = "placeholder" }
+                }
+            };
+            var scope = SharedAssetScope.TryCreate(config, ["en", "zh-CN"], Path.Combine(root, "dist"), null);
+            Assert.NotNull(scope);
+            var context = new BuildVariantContext(
+                config,
+                root,
+                new ConfigOverrides(),
+                [],
+                CanonicalContentGraph.Empty,
+                NullContentBodyStore.Instance,
+                Path.Combine(root, "dist"),
+                "/",
+                root,
+                root,
+                root,
+                Path.Combine(root, "media"),
+                new Dictionary<string, IReadOnlyList<Bukit.Rendering.SeoAlternateModel>>(),
+                "/",
+                "en",
+                "en",
+                DateTimeOffset.UnixEpoch,
+                SharedAssets: scope);
+            var output = new ContentMediaOutput(context);
+            var document = ContentDocument.Create(
+                "page",
+                "Page",
+                "page",
+                DateTimeOffset.UnixEpoch,
+                "<img src=\"/assets/images/noneimg-news.jpg\" />");
+            output.NormalizeDocument(document, collect: true);
+
+            Assert.Throws<IOException>(() => output.ValidateOutputs([]));
+        }
+        finally
+        {
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
+    [Fact]
+    public async Task SharingDisabledWithRepoBaseUrl_KeepsLanguageAssetUrls()
     {
         using var site = CreateSite();
-        WriteSite(site, enabled: true, clean: true);
+        WriteSite(site, enabled: false, clean: true, baseUrl: "/repo");
+        await site.BuildAsync(clean: true);
+
+        Assert.True(File.Exists(Path.Combine(site.Output, "assets", "style.css")));
+        Assert.True(File.Exists(Path.Combine(site.Output, "zh-CN", "assets", "style.css")));
+        Assert.Contains("href=\"/repo/zh-CN/assets/style.css\"", ReadFirstHtml(site.Output, "zh-CN"), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task RootBaseUrlChange_RerendersAndUsesRepoPrefix()
+    {
+        using var site = CreateSite();
+        WriteSite(site, enabled: true, clean: false, baseUrl: "/");
+        await site.BuildAsync(clean: true, incremental: true);
+
+        WriteSite(site, enabled: true, clean: false, baseUrl: "/repo");
+        var result = await site.BuildAsync(clean: false, incremental: true);
+
+        Assert.All(result.Variants, variant => Assert.True(variant.RenderedCount > 0));
+        var chinesePage = ReadFirstHtml(site.Output, "zh-CN");
+        Assert.Contains("href=\"/repo/assets/style.css\"", chinesePage, StringComparison.Ordinal);
+        Assert.DoesNotContain("/zh-CN/assets/style.css", chinesePage, StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData("/")]
+    [InlineData("/repo")]
+    public async Task SharedWebp_IsGeneratedOnceAndReusedAcrossLanguages(string baseUrl)
+    {
+        using var site = CreateSite();
+        WriteSite(site, enabled: true, clean: true, baseUrl: baseUrl);
         var source = Path.Combine(site.Root, "assets", "hero.jpg");
         Directory.CreateDirectory(Path.GetDirectoryName(source)!);
         using (var image = new SKBitmap(1000, 8))
@@ -226,22 +328,26 @@ public sealed class I18nSharedAssetsTests
             {{ if asset_base_url == "/" }}{{ asset_base_url = "" }}{{ end }}
             <!DOCTYPE html>
             <html lang="{{ site.language }}"><head><link rel="stylesheet" href="{{ asset_base_url }}/assets/style.css" /></head>
-            <body><img src="{{ asset_base_url }}/assets/hero.jpg" alt="" />{{ content }}</body></html>
+            <body><img src="{{ asset_base_url }}/assets/hero.jpg" alt="" /><img src="/images/a.jpg" alt="" />{{ content }}</body></html>
             """);
 
         await site.BuildAsync(clean: true);
 
         Assert.True(File.Exists(Path.Combine(site.Output, "assets", "hero-480w.webp")));
+        Assert.True(File.Exists(Path.Combine(site.Output, "assets", "hero-1000w.webp")));
         Assert.False(File.Exists(Path.Combine(site.Output, "zh-CN", "assets", "hero-480w.webp")));
+        var prefix = baseUrl.TrimEnd('/');
         foreach (var page in new[]
         {
             File.ReadAllText(Path.Combine(site.Output, "index.html")),
             File.ReadAllText(Path.Combine(site.Output, "zh-CN", "index.html"))
         })
         {
-            Assert.Contains("<picture>", page, StringComparison.Ordinal);
-            Assert.Contains("/assets/hero-480w.webp", page, StringComparison.Ordinal);
-            Assert.DoesNotContain("/zh-CN/assets/hero", page, StringComparison.Ordinal);
+            Assert.Equal(1, page.Split("<picture>", StringSplitOptions.None).Length - 1);
+            Assert.Contains($"{prefix}/assets/hero-480w.webp", page, StringComparison.Ordinal);
+            Assert.Contains($"{prefix}/assets/hero-1000w.webp", page, StringComparison.Ordinal);
+            Assert.Contains("src=\"/images/a.jpg\"", page, StringComparison.Ordinal);
+            Assert.DoesNotContain($"{prefix}/zh-CN/assets/hero", page, StringComparison.Ordinal);
         }
     }
 
@@ -273,6 +379,17 @@ public sealed class I18nSharedAssetsTests
     {
         using var site = CreateSite();
         WriteSite(site, enabled: true, clean: true, paths: "[assets/, fonts/]");
+        await site.BuildAsync(clean: true);
+
+        Assert.True(File.Exists(Path.Combine(site.Output, "fonts", "a.woff2")));
+        Assert.False(File.Exists(Path.Combine(site.Output, "zh-CN", "fonts", "a.woff2")));
+    }
+
+    [Fact]
+    public async Task ConfiguredStaticPrefix_WithDotSegment_SharesThatPrefix()
+    {
+        using var site = CreateSite();
+        WriteSite(site, enabled: true, clean: true, paths: "[./fonts/]");
         await site.BuildAsync(clean: true);
 
         Assert.True(File.Exists(Path.Combine(site.Output, "fonts", "a.woff2")));
@@ -354,6 +471,15 @@ public sealed class I18nSharedAssetsTests
         using var encoded = image.Encode(SKEncodedImageFormat.Jpeg, 90);
         File.WriteAllBytes(path, encoded.ToArray());
     }
+
+    private static Dictionary<string, string> SnapshotOutput(string output) =>
+        Directory.Exists(output)
+            ? Directory.GetFiles(output, "*", SearchOption.AllDirectories)
+                .ToDictionary(
+                    path => Path.GetRelativePath(output, path).Replace('\\', '/'),
+                    path => Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(File.ReadAllBytes(path))),
+                    StringComparer.Ordinal)
+            : new Dictionary<string, string>(StringComparer.Ordinal);
 
     private static string ReadFirstHtml(string output, string language)
     {

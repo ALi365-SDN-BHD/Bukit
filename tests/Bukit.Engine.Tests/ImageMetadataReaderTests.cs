@@ -513,6 +513,66 @@ public sealed class ImageMetadataReaderTests : IDisposable
         Assert.False(result);
     }
 
+    [Fact]
+    public void AnalyzeImage_SharedImageOnNonDefaultLanguage_UsesRootOutput()
+    {
+        var root = Path.Combine(_testDir, "dist");
+        var assets = Path.Combine(root, "assets");
+        Directory.CreateDirectory(assets);
+        File.WriteAllBytes(Path.Combine(assets, "og.png"),
+        [
+            0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A,
+            0x00, 0x00, 0x00, 0x0D,
+            0x49, 0x48, 0x44, 0x52,
+            0x00, 0x00, 0x01, 0x90,
+            0x00, 0x00, 0x00, 0xC8,
+            0x08, 0x06, 0x00, 0x00, 0x00
+        ]);
+
+        var baseConfig = CreateConfig();
+        var rootConfig = baseConfig with
+        {
+            Site = baseConfig.Site with
+            {
+                BaseUrl = "/",
+                Languages = ["en", "zh-CN"],
+                SharedAssets = new SharedAssetsConfig { Enabled = true }
+            }
+        };
+        var config = rootConfig with { Site = rootConfig.Site with { BaseUrl = "/zh-CN" } };
+        var scope = SharedAssetScope.TryCreate(rootConfig, ["en", "zh-CN"], root, null);
+        Assert.NotNull(scope);
+
+        var issues = new List<SeoAuditIssue>();
+        ImageMetadataReader.AnalyzeImage(
+            config,
+            "seo.og_image",
+            "/zh-CN/",
+            "https://example.com/assets/og.png",
+            Path.Combine(root, "zh-CN"),
+            issues,
+            scope.RootBaseUrl,
+            scope.OutputRoot,
+            scope.Contains);
+
+        Assert.DoesNotContain(issues, issue => issue.Code == "seo.og_image_external_unverified");
+        Assert.DoesNotContain(issues, issue => issue.Code == "seo.og_image_missing_file");
+
+        var unshared = new List<SeoAuditIssue>();
+        ImageMetadataReader.AnalyzeImage(
+            config,
+            "seo.og_image",
+            "/zh-CN/",
+            "https://example.com/images/logo.png",
+            Path.Combine(root, "zh-CN"),
+            unshared,
+            scope.RootBaseUrl,
+            scope.OutputRoot,
+            scope.Contains);
+
+        Assert.Contains(unshared, issue => issue.Code == "seo.og_image_external_unverified");
+    }
+
     private static AppConfig CreateConfig()
     {
         return new AppConfig

@@ -301,7 +301,7 @@ internal static class ImageMetadataReader
         return ((int)Math.Ceiling(parts[2]), (int)Math.Ceiling(parts[3]));
     }
 
-    internal static void AnalyzeImage(AppConfig config, string codePrefix, string routeUrl, string? image, string outputDir, List<SeoAuditIssue> issues)
+    internal static void AnalyzeImage(AppConfig config, string codePrefix, string routeUrl, string? image, string outputDir, List<SeoAuditIssue> issues, string? sharedRootBaseUrl = null, string? sharedOutputRoot = null, Func<string, bool>? isSharedPath = null)
     {
         if (string.IsNullOrWhiteSpace(image))
         {
@@ -313,6 +313,23 @@ internal static class ImageMetadataReader
             if (TryMapSiteUrlToOutputPath(config.Site.Url, config.Site.BaseUrl, image, outputDir, out var localPath))
             {
                 AnalyzeLocalImage(codePrefix, routeUrl, image, localPath, issues);
+            }
+            else if (sharedRootBaseUrl is not null &&
+                     sharedOutputRoot is not null &&
+                     isSharedPath is not null &&
+                     !string.Equals(
+                         BuildPathUtils.NormalizeBaseUrl(config.Site.BaseUrl),
+                         BuildPathUtils.NormalizeBaseUrl(sharedRootBaseUrl),
+                         StringComparison.Ordinal) &&
+                     TryMapSiteUrlToOutputPath(
+                         config.Site.Url,
+                         sharedRootBaseUrl,
+                         image,
+                         sharedOutputRoot,
+                         out var sharedPath) &&
+                     isSharedPath(Path.GetRelativePath(sharedOutputRoot, sharedPath)))
+            {
+                AnalyzeLocalImage(codePrefix, routeUrl, image, sharedPath, issues);
             }
             else
             {
