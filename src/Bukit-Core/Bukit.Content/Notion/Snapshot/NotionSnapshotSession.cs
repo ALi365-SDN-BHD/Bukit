@@ -128,10 +128,17 @@ internal sealed class NotionSnapshotSession : INotionSnapshotHandle, IDisposable
     public static NotionSnapshotSession OpenOffline(string directory)
     {
         var target = NormalizeTarget(directory);
-        var manifest = ReadValidManifest(target)
-            ?? throw new NotionSnapshotException(
-                $"Notion offline snapshot not found or incomplete. {NotionSnapshotException.RebuildHint}",
+        var manifest = ReadValidManifest(target);
+        if (manifest is null)
+        {
+            var interrupted = HasInterruptedCommitBackup(target);
+            throw new NotionSnapshotException(
+                interrupted
+                    ? $"Notion offline snapshot is missing or unreadable; an interrupted commit left a backup next to it. Restore the backup or record again. {NotionSnapshotException.RebuildHint}"
+                    : $"Notion offline snapshot not found or incomplete. {NotionSnapshotException.RebuildHint}",
                 DiagnosticCode.NotionSnapshotUnavailable);
+        }
+
         return new NotionSnapshotSession(target, offline: true, targetDirectory: null, ownsStaging: false, manifest);
     }
 
@@ -560,6 +567,8 @@ internal sealed class NotionSnapshotSession : INotionSnapshotHandle, IDisposable
     /// <summary>
     /// Removes leftovers of earlier runs next to <paramref name="target"/>: replaced snapshots
     /// whose deletion failed, and staging directories of runs that died more than a day ago.
+    /// A target without a manifest (a partial restore or a lost file) is not a committed
+    /// snapshot; keep <c>.old-*</c> because an interrupted commit may have left the only good copy.
     /// </summary>
     private static void RemoveAbandonedSiblings(string target)
     {
@@ -567,9 +576,12 @@ internal sealed class NotionSnapshotSession : INotionSnapshotHandle, IDisposable
         var name = Path.GetFileName(target);
         try
         {
-            foreach (var old in System.IO.Directory.EnumerateDirectories(parent, $".{name}.old-*"))
+            if (File.Exists(Path.Combine(target, ManifestFileName)))
             {
-                TryDeleteDirectory(old);
+                foreach (var old in System.IO.Directory.EnumerateDirectories(parent, $".{name}.old-*"))
+                {
+                    TryDeleteDirectory(old);
+                }
             }
 
             foreach (var staging in System.IO.Directory.EnumerateDirectories(parent, $".{name}.staging-*"))
@@ -582,6 +594,26 @@ internal sealed class NotionSnapshotSession : INotionSnapshotHandle, IDisposable
         }
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
         {
+        }
+    }
+
+    private static bool HasInterruptedCommitBackup(string target)
+    {
+        var parent = Path.GetDirectoryName(target);
+        if (parent is null)
+        {
+            return false;
+        }
+
+        try
+        {
+            return System.IO.Directory
+                .EnumerateDirectories(parent, $".{Path.GetFileName(target)}.old-*")
+                .Any();
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+        {
+            return false;
         }
     }
 

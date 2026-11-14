@@ -198,7 +198,11 @@ written to it.
 
 **When it is replaced.** A recording build writes to a staging directory next to
 `<dir>` and replaces `<dir>` only after the whole build succeeded; a failed or
-cancelled build keeps the previous snapshot. A recording build renders every
+cancelled build keeps the previous snapshot. If the process dies during the
+replacement, the previous snapshot stays as a hidden `.<dirname>.old-*` sibling
+in the parent directory; the next offline open reports `BKT-0B10` with a backup
+hint. A later successful recording creates the target again, and the recording
+after that removes the backup. A recording build renders every
 page (it is never incremental) so that every body is recorded. Bodies of pages
 the build no longer uses are dropped; unchanged bodies are reused from the
 previous snapshot instead of being fetched again. The

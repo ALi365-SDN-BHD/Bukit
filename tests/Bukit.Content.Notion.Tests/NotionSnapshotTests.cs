@@ -260,6 +260,88 @@ public sealed class NotionSnapshotTests : IDisposable
     }
 
     [Fact]
+    public async Task InterruptedCommit_KeepsTheBackupAndExplainsTheMissingSnapshot()
+    {
+        await LoadOnlineAsync(Options());
+        var parent = Path.GetDirectoryName(Target)!;
+        var name = Path.GetFileName(Target);
+        var backup = Path.Combine(parent, $".{name}.old-crash");
+        var staging = Path.Combine(parent, $".{name}.staging-crash");
+        Directory.Move(Target, backup);
+        Directory.CreateDirectory(staging);
+        try
+        {
+            using (NotionSnapshotSession.BeginWrite(Target))
+            {
+                Assert.True(Directory.Exists(backup));
+                Assert.True(Directory.Exists(staging));
+            }
+
+            Assert.True(Directory.Exists(backup));
+            using (var restored = NotionSnapshotSession.OpenOffline(backup))
+            {
+                Assert.NotNull(restored.Manifest);
+            }
+
+            var error = Assert.Throws<NotionSnapshotException>(() => NotionSnapshotSession.OpenOffline(Target));
+            Assert.Equal(DiagnosticCode.NotionSnapshotUnavailable, error.Code);
+            Assert.Contains("interrupted commit", error.Message, StringComparison.Ordinal);
+            Assert.DoesNotContain(parent, error.Message, StringComparison.Ordinal);
+
+            // A successful recording creates a new target; the next recording removes the old backup.
+            await LoadOnlineAsync(Options());
+            Assert.True(Directory.Exists(Target));
+            using (NotionSnapshotSession.BeginWrite(Target))
+            {
+            }
+
+            Assert.False(Directory.Exists(backup));
+        }
+        finally
+        {
+            if (Directory.Exists(staging))
+            {
+                Directory.Delete(staging, recursive: true);
+            }
+        }
+    }
+
+    [Fact]
+    public async Task ExistingTargetWithoutManifest_KeepsTheBackup()
+    {
+        await LoadOnlineAsync(Options());
+        var parent = Path.GetDirectoryName(Target)!;
+        var name = Path.GetFileName(Target);
+        var backup = Path.Combine(parent, $".{name}.old-crash");
+        Directory.Move(Target, backup);
+        Directory.CreateDirectory(Target);
+        try
+        {
+            using (NotionSnapshotSession.BeginWrite(Target))
+            {
+                Assert.True(Directory.Exists(backup));
+            }
+
+            Assert.True(Directory.Exists(backup));
+            using (var restored = NotionSnapshotSession.OpenOffline(backup))
+            {
+                Assert.NotNull(restored.Manifest);
+            }
+
+            var error = Assert.Throws<NotionSnapshotException>(() => NotionSnapshotSession.OpenOffline(Target));
+            Assert.Equal(DiagnosticCode.NotionSnapshotUnavailable, error.Code);
+            Assert.Contains("interrupted commit", error.Message, StringComparison.Ordinal);
+        }
+        finally
+        {
+            if (Directory.Exists(Target))
+            {
+                Directory.Delete(Target, recursive: true);
+            }
+        }
+    }
+
+    [Fact]
     public async Task ReRecording_ReusesBodiesAcrossBukitVersions_AndRerendersAnotherRenderer()
     {
         NotionSnapshotSession.BukitVersionOverride.Value = "0.0.0-other";
