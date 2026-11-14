@@ -195,10 +195,27 @@ internal sealed class I18nObjectJsonConverter : JsonConverter<object>
             JsonValueKind.False => false,
             JsonValueKind.Number when element.TryGetInt64(out var integer) => integer,
             JsonValueKind.Number => element.GetDouble(),
-            JsonValueKind.Array => element.EnumerateArray().Select(ReadElement).ToArray(),
+            JsonValueKind.Array => ReadArray(element),
             JsonValueKind.Object => element.EnumerateObject().ToDictionary(x => x.Name, x => ReadElement(x.Value), StringComparer.OrdinalIgnoreCase),
             _ => element.GetRawText()
         };
+
+    /// <summary>
+    /// Reads an array. A list of strings (relation ids, file URLs, tags) comes back as
+    /// <c>string[]</c>, so worker code that checks for <c>IEnumerable&lt;string&gt;</c> or
+    /// <c>IReadOnlyList&lt;string&gt;</c> sees what an in-process build sees; through array
+    /// covariance it still matches <c>IEnumerable&lt;object&gt;</c>.
+    /// </summary>
+    private static object ReadArray(JsonElement element)
+    {
+        var items = element.EnumerateArray().Select(ReadElement).ToArray();
+        if (items.Length == 0 || !items.All(static item => item is string))
+        {
+            return items;
+        }
+
+        return items.Select(static item => (string)item!).ToArray();
+    }
 
     private static void WriteValue(Utf8JsonWriter writer, object? value, JsonSerializerOptions options)
     {
