@@ -65,8 +65,9 @@ SiteEngine / WorktreeBuildRun
    - `RenderDependencyContext` 只有 `AppConfig` 和 `SiteModel`（`RenderDependencyContext.cs:6-11`），contributor 拿不到 scope。只哈希 `asset_base_url` 也不够：调整 `paths` 时 `asset_base_url` 不变，但 SEO 地址、占位图地址和 WebP 改写都会变。
    - 做法：`RenderDependencyContext` 新增可选的 `SharedAssetPrefixes`（规范化、排序后的列表）。`RenderDependencyHasher.ComputeSnapshot`（`RenderDependencyHasher.cs:37-50`）增加对应参数，由 `VariantRenderStage` 从 `BuildVariantContext.SharedAssets` 传入。contributor 不得自己调用 `TryCreate`。
    - 保持稳定：`SiteIdentityAndModesContributor` 只对非默认值写入哈希（如 `defaultLanguageInSubdir`）。共用设置照此处理：列表非空时才追加。未开启时现有站点的哈希不变，不会触发全量重渲染。
+   - `asset_base_url` 不单独写入哈希。`SiteModel` 不会整体进入哈希：`SiteIdentityAndModesContributor` 只写显式字段（`SiteIdentityAndModesContributor.cs:10-36`），`SiteModelDataContributor` 只写 `site.modules`、`site.data`、`site.data_index`。`asset_base_url` 完全由已入哈希的值推出：开启时等于根 baseUrl，而变体配置的 `site.baseUrl` 由根 baseUrl 和语言决定，`site.baseUrl`、`site.language`、`site.defaultLanguage` 都已写入；是否开启由 `SharedAssetPrefixes` 是否为空体现；关闭时它等于 `site.baseUrl`。无条件追加会改变未开启站点的哈希，因此不追加，改由用例直接断言"根 baseUrl 变化时非默认语言的哈希变化"。
 6. **SEO 地址。**
-   - 叶子调用点：`BuildMaybeAbsoluteUrl` 共有 8 处，即 `SeoModelBuilder.cs:141`，`SeoImageResolver.cs:26,36,43`，`SeoJsonLdBuilder.cs:310,315,499,707`。新增一个带 `SharedAssetScope?` 参数的重载，原签名转调它并传 `null`。站内相对地址去掉开头的 `/` 后，`scope.Contains` 为真时使用 `scope.RootBaseUrl`。
+   - 叶子调用点：`BuildMaybeAbsoluteUrl` 共有 8 处，即 `SeoModelBuilder.cs:141`，`SeoImageResolver.cs:26,36,43`，`SeoJsonLdBuilder.cs:310,315,499,707`。新增一个带 `SharedAssetScope?` 参数的重载，原签名转调它并传 `null`。站内相对地址用 `scope.ContainsSitePath`（第 14 条）判断，为真时使用 `scope.RootBaseUrl`，原地址的 query 和 fragment 原样保留。
    - 接线链：scope 必须沿 `VariantSeoStage` → `SeoPipeline.Execute`（`SeoPipeline.cs:22-36`）→ `SeoIndexBuilder.Build`（`SeoIndexBuilder.cs:43,84,137`）→ `SeoModelBuilder.BuildForContent` / `BuildForList` → `SeoImageResolver`、`SeoJsonLdBuilder.BuildJsonLd`（`SeoModelBuilder.cs:50,175`）一路传下去。每层新增可选参数，默认 `null`。
    - 不要从变体配置里反推根 baseUrl：变体配置的 `Site.BaseUrl` 已被改写成语言 baseUrl（`SiteEngine.cs:348-355`）。
 7. **占位图。**
@@ -80,7 +81,9 @@ SiteEngine / WorktreeBuildRun
      - 进程内构建和 Worktree 构建得到的清单相同。
    - 执行时机：共用映射在 `imageFiles.Count == 0` 的提前返回**之前**构建。提前返回的分支改为：共用映射非空时，仍然执行 `RewriteCurrentHtmlWithWebp`。
    - 候选：用 `ImageVariantPlan.CandidateWidths` 和 `VariantFileName` 推出候选文件；文件路径以 `scope.OutputRoot` 为根解析；改写用的 URL 为 `scope.RootBaseUrl` + 相对输出根的路径。不能沿用 `GetRelativeIdentity(context.OutputDir, ...)`，那样会得到 `../assets/...`。
-   - key 空间：`RewriteCurrentHtmlWithWebp` 按 `TryNormalizeLocalImageUrl` 的结果在映射中查找。T05.2 先确认 key 的语义（输出相对路径还是 URL 路径），共用映射使用同一个 key 空间，不新增第二套归一化逻辑。
+   - 清单的设置时机：`OmittedSharedItems` 要到 `AssetPipeline.PrepareAsync`（`VariantBuildPipeline.cs:127-130`）才有值，而 `BuildDataKeys.MediaDownloadDir` 在更早的 `VariantRouteStage.cs:52` 设置，不能放在同一处。`BuildDataKeys.SharedAssets` 在 `PrepareAsync` 之后、`VariantPluginStages.RunAfterBuildAsync`（`VariantBuildPipeline.cs:174`）之前写入 `routePipelineResult.PluginContext`，AfterBuild 读到的是同一个 context。
+   - key 空间：现有映射的 key 是站内 URL 路径 `{NormalizeBaseUrl(context.BaseUrl).TrimEnd('/')}/{sourceRelative}`（`ImageVariantGenerator.cs:269,318-319`），`RewriteCurrentHtmlWithWebp` 用 `TryNormalizeLocalImageUrl` 返回的路径查找（`ResponsiveImageHtmlTransform.cs:82`），后者已去掉 query 和 fragment（`:131-135`）。共用映射的 key 定为 `NormalizeBaseUrl(scope.RootBaseUrl).TrimEnd('/') + "/" + destination`，候选 URL 用同一个前缀。根 baseUrl 为 `/` 时前缀为空串，key 为 `/assets/hero.jpg`；为 `/repo` 时为 `/repo/assets/hero.jpg`。这个前缀只计算一次，key 和候选共用，不另写归一化。
+   - 原图宽度：`CandidateWidths(sizes, sourceWidth)` 需要原图宽度，用 `ImageVariantGenerator.TryReadImageWidth`（`ImageVariantGenerator.cs:43`）读取共用资源根中的原图；读取失败时跳过该原图并记录 debug 日志，不报错。
 9. **只读 freshness。** 复用现有的只读方法 `ImageVariantFreshness.TryReadFreshness(path, outputDir, sourceFile, ...)`（`ImageVariantFreshness.cs:18`），`outputDir` 传 `scope.OutputRoot`，不新增方法。共用映射不得写入、修复或删除任何文件。
 10. **架构约束。**
     - `BuiltInPluginSplitTests` 要求 ImageProcessing 下的辅助类型保持顶层、internal、不是插件。把 `"ImageVariantPlan"` 加进 `Responsibility_IsTopLevelInternalAndNotAPlugin` 的 `InlineData`，由测试强制约束，不靠人工检查。
@@ -98,12 +101,13 @@ SiteEngine / WorktreeBuildRun
     - `Includes`：配置的 `paths`，或默认的 `assets/` 加 SCSS 输出目录（只在 `theme.scss.enabled: true` 时加入；输出目录规范化后为根目录时不加入并警告）。
     - `Excludes`：媒体前缀。
     - `Contains(relativePath)`：**命中任一 `Includes` 前缀，且不命中任一 `Excludes` 前缀**，大小写规则使用上面的 comparer。不能实现成"前缀集合减去媒体前缀"后再做普通 `StartsWith`：`assets/uploads/x.jpg` 同样以 `assets/` 开头，会被误判为共用。
+    - `ContainsSitePath(sitePath)`：给 SEO 和占位图用的站内地址判断。去掉 query 和 fragment、`Uri.UnescapeDataString` 解码、去掉开头的 `/` 后调用 `Contains`。截断方式与 `ContentMediaOutput.RewriteUrl`（`ContentMediaOutput.cs:184-186`）一致，这样 `/assets/og.png?v=2` 也能命中。
     - `CanonicalPrefixes`：供渲染哈希使用的稳定表示，包含规范化排序后的 `Includes` 和 `Excludes`。
     - 另外暴露 `OutputRoot`（共用资源根）、`RootBaseUrl`（规范化后的站点根 baseUrl）和 `Comparer`。
 15. **`TryNormalizeLocalImageUrl` 的根前缀分支必须检查 scope。** 新增的"接受 `asset_base_url + "/"`"分支，只在去掉前缀后的路径满足 `scope.Contains` 时才成立。站点 baseUrl 是 `/` 时，`asset_base_url` 规范化后是空串，`"" + "/"` 会匹配所有站内地址；不加这个检查，中文页里任何 `/xxx.jpg` 都会被当成共用资源，到共用资源根中查找。
 16. **配置校验的生产入口**是 `ConfigValidator.Validate`（`ConfigValidator.cs:12-15`）。跨节规则（媒体前缀、SCSS 输出目录、`defaultLanguageInSubdir`）放在这里，才能同时读取 `content.media.urlBase` 和 `theme.scss`。`ConfigPhase2ValidatorTests` 只是测试类名。
 17. **`SiteModel.AssetBaseUrl` 的形态。**
-    - 声明：`public string? AssetBaseUrl { get; init; }`，非 required。仓库里有 43 处 `new SiteModel`（生产代码 1 处，测试 42 处），required 会让它们和外部构造方编译失败。
+    - 声明：`public string? AssetBaseUrl { get; init; }`，非 required。仓库里有 44 处 `new SiteModel`（生产代码 1 处，测试 43 处），required 会让它们和外部构造方编译失败。
     - 回退：`ScribanSiteModelMapper` 输出 `asset_base_url` 时用 `model.AssetBaseUrl ?? model.BaseUrl`，第三方自己构造的 `SiteModel` 也能得到正确值。
     - 赋值：`VariantDataSitePlanner.BuildSiteModel` 总是显式赋值，开启时为根 baseUrl，否则为语言 baseUrl。
 
@@ -221,7 +225,7 @@ SiteEngine / WorktreeBuildRun
 **T02.1 配置模型与读取**
 - 改动：
   - `AppConfig.cs` 新增 `public sealed record SharedAssetsConfig { bool Enabled = false; IReadOnlyList<string>? Paths }`，并新增 `SiteConfig.SharedAssets` 属性。
-  - `SiteDefaultsApplier` 读取 `site.sharedAssets`。
+  - `SiteDefaultsApplier` 新增 `ReadSharedAssetsConfig(siteNode)`；`ConfigLoader` 构造 `SiteConfig` 时（`ConfigLoader.cs:63-97`）赋值 `SharedAssets = SiteDefaultsApplier.ReadSharedAssetsConfig(siteNode)`。只改 `SiteDefaultsApplier` 不会被调用。
   - `ConfigStrictFieldValidator`：`SiteKeys` 加 `sharedAssets`，再为 `RequireOnly` 加 `enabled`、`paths`。
   - `ConfigJsonSchemaGenerator.SiteSchema` 加入对应 schema。
   - 公共 API：基线加入新类型和新属性，`GovernedTypeCount` 425 → 426。
@@ -237,7 +241,7 @@ SiteEngine / WorktreeBuildRun
   - 条目等于或位于媒体前缀之内时报错，提示媒体共用不受支持。
   - `enabled: true` 且 `defaultLanguageInSubdir: true` 时报错，信息中同时写出两个字段名。
   - 规范化规则（`\`→`/`、去开头 `/`、补结尾 `/`）只实现一次，供校验和 `SharedAssetScope` 共用，可以放在 `Bukit.Config` 的 internal helper 中，用 `InternalsVisibleTo` 或公开的静态方法提供，以现有工程的可见性约定为准。
-- 测试：`Bukit.Config.Tests`：`ConfigPhase2Validator|GeoAiBotModeValidation`。新增用例放在 `ConfigPhase2ValidatorTests`，覆盖上述每条规则的正反情况；另加一个用例：`theme.scss.enabled: false` 时，`theme.scss.outputDir` 不参与媒体前缀冲突的判断。
+- 测试：`Bukit.Config.Tests`：`ConfigPhase2Validator|GeoAiBotModeValidation`。新增用例放在 `ConfigPhase2ValidatorTests`，覆盖上述每条规则的正反情况。SCSS 启用与否只影响默认前缀推导，不是校验规则，对应用例在 T02.4。
 - 依赖：T02.1。
 
 **T02.3 忽略警告**
@@ -250,6 +254,7 @@ SiteEngine / WorktreeBuildRun
   - `TryCreate(config, languages, outputRoot, logger?)`。
   - `Includes` / `Excludes`：SCSS 输出目录只在 `theme.scss.enabled: true` 时加入默认值。
   - `Contains`：包含且不排除。
+  - `ContainsSitePath`：去 query / fragment、解码、去开头 `/` 后调用 `Contains`。
   - 另外实现 `CanonicalPrefixes`、`OutputRoot`、`RootBaseUrl`、`Comparer`。
 - 测试：新增 `tests/Bukit.Engine.Tests/SharedAssetScopeTests.cs`，覆盖：
   - 默认推导；自定义 `paths`。
@@ -259,6 +264,7 @@ SiteEngine / WorktreeBuildRun
   - 大小写不敏感文件系统上的去重；SCSS 输出在根目录时不纳入，且 `logger` 非空时记录一次警告、`logger` 为 `null` 时不记录。
   - 单语言、带前缀布局、未开启时返回 `null`。
   - `CanonicalPrefixes` 与 `paths` 的书写顺序无关。
+  - `ContainsSitePath`：`/assets/og.png?v=2`、`/assets/og.png#x`、`/assets/a%20b.png` 在 scope 内；`/assets/uploads/x.jpg?v=1` 不在。
 - 依赖：T02.3。
 
 **T02.5 阶段测试**
@@ -298,7 +304,7 @@ SiteEngine / WorktreeBuildRun
 
 **T03.4 `site.asset_base_url`**
 - 改动：
-  - `SiteModel` 新增 `public string? AssetBaseUrl { get; init; }`，非 required（第 1.3 节第 17 条）。现有 43 处 `new SiteModel` 不用改。
+  - `SiteModel` 新增 `public string? AssetBaseUrl { get; init; }`，非 required（第 1.3 节第 17 条）。现有 44 处 `new SiteModel` 不用改。
   - `VariantDataSitePlanner.BuildSiteModel` 总是显式赋值：开启时为 `scope.RootBaseUrl`，否则为语言 baseUrl。
   - `ScribanSiteModelMapper` 输出 `asset_base_url = model.AssetBaseUrl ?? model.BaseUrl`，规范化形式与 `base_url` 相同。
   - `ScribanModelKnownFields` 登记新字段。
@@ -315,7 +321,7 @@ SiteEngine / WorktreeBuildRun
   - 渲染哈希按第 1.3 节第 5 条接线：`RenderDependencyContext` 新增 `SharedAssetPrefixes`，`RenderDependencyHasher.ComputeSnapshot` 增加对应参数，`VariantRenderStage` 传入 `scope?.CanonicalPrefixes`，`SiteIdentityAndModesContributor` 在列表非空时追加。
 - 测试：
   - `Bukit.Rendering.Tests`：`StarterThemeTemplateResource`。新增 `site.base_url` 和 `site.asset_base_url` 都为 `/` 时样式表为 `/assets/style.css`（不是 `//assets/style.css`）；二者都为 `/repo` 时为 `/repo/assets/style.css`；共用开启、`base_url` 为 `/repo/zh-CN`、`asset_base_url` 为 `/repo` 时，样式表为 `/repo/assets/style.css`，RSS 为 `/repo/zh-CN/rss.xml`。
-  - `Bukit.Engine.Tests`：`RenderDependency|IncrementalEngineIdentity`，覆盖未开启时哈希与基线相同、开启后变化、`paths` 增加一个前缀时变化、前缀书写顺序不影响哈希。
+  - `Bukit.Engine.Tests`：`RenderDependency|IncrementalEngineIdentity`，覆盖未开启时哈希与基线相同、开启后变化、`paths` 增加一个前缀时变化、前缀书写顺序不影响哈希；开启时根 baseUrl 由 `/` 改为 `/repo`，非默认语言的哈希变化（第 1.3 节第 5 条：`asset_base_url` 不单独入哈希，由此断言覆盖）。
 - 依赖：T03.4。
 
 **T03.6 端到端与开关切换**
@@ -359,6 +365,7 @@ SiteEngine / WorktreeBuildRun
   - 规范场景"Default SEO image on a non-default language page"。
   - `og_image` 在 scope 内与 scope 外各一个。
   - `og_image` 为 `/assets/uploads/x.jpg`（媒体前缀内）时仍使用语言 baseUrl。
+  - `og_image` 为 `/assets/og.png?v=2` 时使用根 baseUrl，query 保留。
   - 作者图片在 scope 内。
   - 绝对 http 地址不变。
   - 未开启时与基线一致。
@@ -379,14 +386,15 @@ SiteEngine / WorktreeBuildRun
 ### 阶段 5：图片
 
 **T05.1 插件输入**
-- 改动：新增 `BuildDataKeys.SharedAssets`，内容为 scope 加上共用原图清单（`AssetOutputPlan.OmittedSharedItems` 中扩展名为 `.jpg`、`.jpeg`、`.png` 的 `Destination`）。只对非默认语言设置，设置位置与现有的 `BuildDataKeys.MediaDownloadDir` 相同。
-- 测试：`Bukit.Engine.Tests`：`VariantBuildPipeline`。非默认语言拿到的清单只含 scope 内的图片，不含 `assets/uploads/**`。
+- 改动：新增 `BuildDataKeys.SharedAssets`，内容为 scope 加上共用原图清单（`AssetOutputPlan.OmittedSharedItems` 中扩展名为 `.jpg`、`.jpeg`、`.png` 的 `Destination`）。只对非默认语言设置。**设置时机**：清单要等 `AssetPipeline.PrepareAsync`（`VariantBuildPipeline.cs:127-130`）创建 `AssetOutputPlan` 后才有值，不能放在设置 `MediaDownloadDir` 的 `VariantRouteStage.cs:52`。在 `PrepareAsync` 之后、`VariantPluginStages.RunAfterBuildAsync`（`:174`）之前，把 `assetPipelinePreparation.OutputPlan.OmittedSharedItems` 过滤成图片清单，与 scope 一起 `Set` 到 `routePipelineResult.PluginContext`（第 1.3 节第 8 条）。
+- 测试：`Bukit.Engine.Tests`：`VariantBuildPipeline`。非默认语言拿到的清单只含 scope 内的图片，不含 `assets/uploads/**`；用一个测试插件在 AfterBuild 中读取 `BuildDataKeys.SharedAssets`，断言清单非空且与计划中被过滤的图片条目一致；默认语言和未开启时读不到这个 key。
 - 依赖：T04.4。
 
 **T05.2 只读共用映射**
 - 改动（第 1.3 节第 8、9 条）：
-  - 先确认 `RewriteCurrentHtmlWithWebp` 映射的 key 语义，共用映射使用同一个 key 空间。
+  - key 按第 1.3 节第 8 条：`NormalizeBaseUrl(scope.RootBaseUrl).TrimEnd('/') + "/" + destination`，与现有映射同一个 URL 路径空间。
   - 原图只取自 `BuildDataKeys.SharedAssets` 中的清单，不扫描共用资源根。
+  - 原图宽度用 `ImageVariantGenerator.TryReadImageWidth` 从共用资源根读取，失败时跳过并记录 debug 日志。
   - 用 `ImageVariantPlan.CandidateWidths` 和 `VariantFileName` 推出 WebP 候选；文件以 `scope.OutputRoot` 为根解析；改写 URL 为 `scope.RootBaseUrl` + 相对输出根的路径。
   - 有效性用现有的 `ImageVariantFreshness.TryReadFreshness`，`outputDir` 传 `scope.OutputRoot`，不新增方法，也不写入或修复任何文件。
   - 共用映射在 `imageFiles.Count == 0` 的提前返回**之前**构建。
@@ -397,6 +405,8 @@ SiteEngine / WorktreeBuildRun
   - sidecar 缺失：不收录。
   - 共用资源根里有用户自己放的 `hero-480w.jpg`（不在清单中、没有 sidecar）：既不当作原图，也不当作候选。
   - 生成的 URL 以根 baseUrl 开头，不含 `../`。
+  - key：根 baseUrl 为 `/` 时为 `/assets/hero.jpg`，为 `/repo` 时为 `/repo/assets/hero.jpg`，均能被 `TryNormalizeLocalImageUrl` 的结果命中。
+  - 原图宽度读取失败：跳过该原图，不报错。
 - 依赖：T05.1。
 
 **T05.3 合并改写与地址识别**
@@ -426,11 +436,11 @@ SiteEngine / WorktreeBuildRun
 
 **T06.1 请求字段**
 - 改动：
-  - `I18nWorkerRequest` 末尾追加 `string? SharedAssetsRoot`。
+  - `I18nWorkerRequest` 末尾追加 `string? SharedAssetsRoot = null`。现有构造点 `WorktreeBuildRun.cs:334`、`I18nWorktreeProtocolTests.cs:255`、`I18nWorktreeNotionSnapshotTests.cs:177` 因默认值不用改；生产构造点 `WorktreeBuildRun.cs:334` 显式传入。
   - `WorktreeBuildRun.cs:334-353` 开启共用时传入 staging 根目录。
-  - Worker 侧在 `I18nWorktreeBuild.cs:183-230` 构造 `BuildVariantContext` 时，用 `TryCreate(request.Config, languages, request.SharedAssetsRoot, logger: null)` 创建 scope。传 `null` 是为了不在每个 Worker 中重复记录推导警告，警告只在父进程记录一次。
+  - Worker 侧在 `I18nWorktreeBuild.cs:183-230` 构造 `BuildVariantContext` 时，`request.SharedAssetsRoot` 为 `null`（共用关闭或旧请求）时 scope 直接为 `null`，不调用 `TryCreate`；否则用 `TryCreate(request.Config, languages, request.SharedAssetsRoot, logger: null)` 创建。`TryCreate` 内部要对 `outputRoot` 调 `OutputDestinationIdentityComparer`，不能传入 `null`。传 `null` 是为了不在每个 Worker 中重复记录推导警告，警告只在父进程记录一次。
   - 父进程在 `WorktreeBuildRun` 准备阶段用 staging 根目录和父进程 logger 调用一次 `TryCreate`，用于记录推导警告和调度判断。
-- 测试：`Bukit.Engine.Tests`：`I18nWorktree`。请求往返序列化时，新字段保留；缺失时还原为 `null`。
+- 测试：`Bukit.Engine.Tests`：`I18nWorktree`。请求往返序列化时，新字段保留；缺失时还原为 `null`，Worker 得到的 scope 为 `null`。
 - 依赖：T05.4。
 
 **T06.2 默认语言 Worker 先行**
@@ -520,6 +530,8 @@ SiteEngine / WorktreeBuildRun
 | Starter 主题在根 baseUrl 下输出 `//assets/...`，且未开启共用时也会出现 | T03.5 | 第 1.3 节第 13 条；`/`、`/repo` 和开启共用三组模板用例 |
 | 媒体前缀被误判为共用 | T02.4 起各阶段 | 第 1.3 节第 14 条"包含且不排除"；`assets/uploads/x.jpg` 不在 scope 内的精确用例 |
 | 非默认语言没有自有图片时，共用 WebP 不生效 | T05.2、T05.3 | 第 1.3 节第 8 条：清单取自计划，共用映射在提前返回之前构建；专门用例 |
+| 共用原图清单在 AfterBuild 读到时为空（设置得太早） | T05.1 | 第 1.3 节第 8 条：在 `PrepareAsync` 之后、`RunAfterBuildAsync` 之前设置；AfterBuild 读取用例 |
+| 共用映射与查找用的 key 归一化不一致 | T05.2、T05.3 | 第 1.3 节第 8 条写定 key；`/` 与 `/repo` 两组用例 |
 | 根 baseUrl 为 `/` 时，把任意站内图片当作共用资源 | T05.3 | 第 1.3 节第 15 条：根前缀分支要求 `scope.Contains` |
 | 遗漏某个 Core 拼地址的位置 | 阶段 4 | T04.1 先全仓检索列清单；8 个叶子调用点和接线链逐一测试 |
 | 只读映射引用不存在的变体 | T05.2、T05.3 | 只收录存在且 freshness 有效的候选；`warn` 失败用例 |
@@ -568,3 +580,4 @@ A1–A5 已全部采用推荐项，本节不再适用，保留作日后改选时
 | 初稿 | 2026-11-14 | 依据提案 v2 和代码核查编写；9 个阶段、35 个任务；决策 A1–A5 按推荐选项编写，待确认 |
 | 审计 1 | 2026-11-14 | 按外部审阅修订，共 36 个任务。严重问题：Starter 为 `asset_base_url` 单独映射 `/`（第 1.3 节第 13 条、T03.5）；共用原图清单改取计划中被过滤的条目，共用映射在提前返回之前构建，候选 URL 用根 baseUrl（第 8 条、T05.1–T05.3）；`Contains` 明确为"包含且不排除"（第 14 条、T02.4）。重要问题：渲染哈希经 `RenderDependencyContext` 接线（第 5 条）；`TryCreate` 增加输出根和 logger 并在站点层创建一次（第 14 条）；SEO 接线链拆为 T04.2，地址清单复核提前为 T04.1；`SiteModel.AssetBaseUrl` 定为可空、非 required，并回退到 `BaseUrl`（第 17 条）。次要问题：校验入口改为 `ConfigValidator.Validate`；T00.2 写出具体路径和命令；修正测试名；`ImageVariantPlan` 登记进架构测试；复用 `TryReadFreshness`；SCSS 输出目录只在启用时纳入默认值；占位图路径用 `GetSafeFullPath`。另补审阅未提的一条：根前缀分支须检查 `scope.Contains`（第 15 条）。未采纳"Worktree 漏记单语言警告"：Worktree 只在 2 种及以上语言时启用（`BuildCommand.cs:154`），单语言 + Worktree 的组合不会出现。同步修订 design.md（D2、D6–D9）、规范（改写 4 条要求的措辞，新增 7 个场景）和 tasks.md |
 | 决策确认 | 2026-11-14 | 用户确认 A1–A5 全部采用推荐项；T00.1 完成，提案、design.md、tasks.md 同步标注 |
+| 审计 2 | 2026-11-14 | 按第二轮外部审阅修订，任务数不变。严重问题：`BuildDataKeys.SharedAssets` 改为在 `PrepareAsync` 之后、`RunAfterBuildAsync` 之前设置（第 1.3 节第 8 条、T05.1），原写法"与 `MediaDownloadDir` 同处"拿不到清单。重要问题：明确 `asset_base_url` 不单独入哈希、由已入哈希的值推出，并加根 baseUrl 变化的断言（第 5 条、T03.5）；写定共用映射的 key（第 8 条、T05.2）。次要问题：T02.1 补 `ConfigLoader` 赋值；T02.2 去掉没有对应规则的 SCSS 用例；`new SiteModel` 计数改为 44；`I18nWorkerRequest.SharedAssetsRoot` 默认 `null`；Worker 字段为空时不调用 `TryCreate`；原图宽度用 `TryReadImageWidth`；新增 `ContainsSitePath` 处理 query、fragment 和编码（第 14 条）。全部 10 条均已对照代码核实并采纳。同步修订 design.md（D8、D9）、规范（增量要求改为"变化即改变哈希"，新增根 baseUrl 变化与带 query 的 SEO 图片 2 个场景）和 tasks.md |

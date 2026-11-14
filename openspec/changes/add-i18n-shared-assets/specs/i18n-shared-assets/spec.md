@@ -143,8 +143,8 @@ before joining paths, as it already does for `base_url`.
 ### Requirement: Core-generated site URLs follow the shared set
 When sharing is enabled, every site-relative URL that Bukit itself resolves to
 an absolute or base-prefixed URL, including SEO images, author images, and
-structured data URLs, SHALL use the site root base URL when its path falls
-within the effective shared set, and the current language base URL otherwise.
+structured data URLs, SHALL use the site root base URL when its path, without
+query string or fragment, falls within the effective shared set, and the current language base URL otherwise.
 In a non-default language, when the content media fallback image path falls
 within the effective shared set, its rewritten URL SHALL use the site root base
 URL and media validation SHALL require the file to exist under the shared asset
@@ -157,6 +157,10 @@ root instead of in that language's planned outputs.
 #### Scenario: Media fallback on a non-default language page
 - **WHEN** sharing uses the default paths, `site.baseUrl` is `/repo`, `defaultImageUrl` is `/assets/images/noneimg-news.jpg`, and a `zh-CN` page falls back to it
 - **THEN** the page references `/repo/assets/images/noneimg-news.jpg` and the Chinese media validation passes
+
+#### Scenario: Shared SEO image with a query string
+- **WHEN** sharing is enabled, `site.url` is `https://example.com`, `site.baseUrl` is `/repo`, and a `zh-CN` page sets `og_image` to `/assets/og.png?v=2`
+- **THEN** its `og:image` is `https://example.com/repo/assets/og.png?v=2`
 
 ### Requirement: Non-default languages reuse shared image variants read-only
 Variant size planning and file naming SHALL be a single function that
@@ -194,8 +198,8 @@ default language and its failure policy SHALL be unchanged.
 - **THEN** the Chinese page contains a WebP `<picture>` source for it
 
 ### Requirement: Shared asset settings affect incremental rendering
-The effective shared set and `site.asset_base_url` SHALL contribute to the
-render dependency hash. When sharing is not enabled, the hash input SHALL be
+A change to the effective shared set or to `site.asset_base_url` SHALL change
+the render dependency hash. When sharing is not enabled, the hash input SHALL be
 unchanged from before this change. After the setting changes between builds, every
 page SHALL be re-rendered, and the existing per-language stale output cleanup
 SHALL remove or restore non-default language copies without a protected clean.
@@ -211,6 +215,10 @@ SHALL remove or restore non-default language copies without a protected clean.
 #### Scenario: Changing shared paths on an incremental build
 - **WHEN** a site built with sharing enabled and `build.clean: false` is rebuilt with `sharedAssets.paths` changed from the default to `[assets/, fonts/]`
 - **THEN** every page is re-rendered
+
+#### Scenario: Changing the root base URL with sharing enabled
+- **WHEN** a site built with sharing enabled and `build.clean: false` is rebuilt with `site.baseUrl` changed from `/` to `/repo`
+- **THEN** every Chinese page is re-rendered and references `/repo/assets/style.css`
 
 ### Requirement: Worktree builds share assets like in-process builds
 In worktree builds with sharing enabled, the parent SHALL run the default
