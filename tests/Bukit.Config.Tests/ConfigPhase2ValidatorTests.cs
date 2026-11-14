@@ -146,6 +146,7 @@ public sealed class ConfigPhase2ValidatorTests : IDisposable
     public void Validate_DefaultSharedAssetsCoveredByMediaPrefix_ShouldFail()
     {
         var ex = ValidateFails(WriteConfig("""
+              languages: [en, zh-CN]
               sharedAssets:
                 enabled: true
             """, additional: """
@@ -169,6 +170,22 @@ public sealed class ConfigPhase2ValidatorTests : IDisposable
         ConfigValidator.Validate(config);
 
         Assert.False(config.Site.SharedAssets.Enabled);
+    }
+
+    [Fact]
+    public void Validate_SingleLanguageSharedAssetsWithMediaPrefixCoveringDefaults_ShouldPass()
+    {
+        var config = ConfigLoader.Load(WriteConfig("""
+              languages: [en]
+              sharedAssets:
+                enabled: true
+            """, additional: """
+              media:
+                urlBase: /assets
+            """));
+        ConfigValidator.Validate(config);
+
+        Assert.True(config.Site.SharedAssets.Enabled);
     }
 
     [Fact]

@@ -235,7 +235,7 @@ public static class ConfigValidator
         var mediaPrefix = SharedAssetsPath.Normalize(config.Content.Media.UrlBase);
         if (shared.Paths is null)
         {
-            if (shared.Enabled)
+            if (shared.Enabled && SiteLanguageResolver.Clean(config.Site.Languages).Count >= 2)
             {
                 var defaults = new List<string> { SharedAssetsPath.Normalize("assets/") };
                 if (config.Theme.Scss is { Enabled: true } scss)
