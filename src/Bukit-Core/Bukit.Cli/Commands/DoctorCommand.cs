@@ -34,7 +34,7 @@ public static class DoctorCommand
         catch (Exception ex) when (NotionSnapshot.IsSnapshotError(ex))
         {
             Console.WriteLine("✖ Notion offline snapshot error");
-            Console.WriteLine(ex.Message);
+            Console.WriteLine(NotionSnapshot.Format(ex));
             return 1;
         }
 
@@ -348,7 +348,7 @@ public static class DoctorCommand
             catch (Exception ex) when (NotionSnapshot.IsSnapshotError(ex))
             {
                 Console.WriteLine("✖ Notion offline snapshot error");
-                Console.WriteLine(ex.Message);
+                Console.WriteLine(NotionSnapshot.Format(ex));
                 return 1;
             }
 
@@ -425,7 +425,7 @@ public static class DoctorCommand
         catch (Exception ex) when (ex is ConfigException or ContentException || NotionSnapshot.IsSnapshotError(ex))
         {
             Console.WriteLine("✖ Route inventory error");
-            Console.WriteLine(ex.Message);
+            Console.WriteLine(NotionSnapshot.Format(ex));
             return 1;
         }
 

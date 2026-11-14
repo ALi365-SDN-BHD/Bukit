@@ -42,7 +42,10 @@ internal static class NotionCacheManager
             catch (Exception exception) when (snapshot is not null && exception is IOException or UnauthorizedAccessException)
             {
                 // .NET I/O messages carry the path; the snapshot location is never printed.
-                throw new NotionSnapshotException("Notion snapshot entry could not be written.", exception);
+                throw new NotionSnapshotException(
+                    "Notion snapshot entry could not be written.",
+                    exception,
+                    DiagnosticCode.NotionSnapshotWriteFailed);
             }
         }
 
@@ -127,7 +130,9 @@ internal static class NotionCacheManager
 
         if (cache.OfflineSnapshot)
         {
-            throw NotionSnapshotException.Missing($"rendered body for page '{pageId}' (edited after the formal build, or never rendered by it)");
+            throw NotionSnapshotException.Missing(
+                $"rendered body for page '{pageId}' (edited after the formal build, or never rendered by it)",
+                DiagnosticCode.NotionSnapshotBodyMissing);
         }
 
         if (cache.Mode == "readonly")
@@ -170,7 +175,10 @@ internal static class NotionCacheManager
             catch (Exception exception) when (cache.PageUsed is not null && exception is IOException or UnauthorizedAccessException)
             {
                 // Recording a snapshot: fail without printing the snapshot location.
-                throw new NotionSnapshotException("Notion snapshot entry could not be written.", exception);
+                throw new NotionSnapshotException(
+                    "Notion snapshot entry could not be written.",
+                    exception,
+                    DiagnosticCode.NotionSnapshotWriteFailed);
             }
         }
 

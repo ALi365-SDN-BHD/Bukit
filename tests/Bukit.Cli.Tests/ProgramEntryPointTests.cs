@@ -1,5 +1,6 @@
 using System.Reflection;
 using Bukit.Cli.Commands;
+using Bukit.Shared;
 using Xunit;
 
 namespace Bukit.Cli.Tests;
@@ -201,6 +202,40 @@ public sealed class ProgramEntryPointTests : IDisposable
     }
 
     [Fact]
+    public void UnhandledCodedBukitException_StaysCliError()
+    {
+        var programType = typeof(VersionCommand).Assembly.EntryPoint?.DeclaringType
+            ?? throw new InvalidOperationException("Missing Bukit.Cli entry point type.");
+        var render = programType
+            .GetMethods(BindingFlags.NonPublic | BindingFlags.Static)
+            .FirstOrDefault(method => method.Name.Contains("PrintUnhandledError", StringComparison.Ordinal));
+        Assert.NotNull(render);
+        using var stderr = new StringWriter();
+        var originalErr = Console.Error;
+
+        try
+        {
+            Console.SetError(stderr);
+            var exitCode = Assert.IsType<int>(render.Invoke(null,
+            [
+                "build",
+                new BukitException("asset output collision", DiagnosticCode.BuildAssetOutputCollision),
+                true
+            ]));
+
+            Assert.Equal(1, exitCode);
+        }
+        finally
+        {
+            Console.SetError(originalErr);
+        }
+
+        using var payload = System.Text.Json.JsonDocument.Parse(stderr.ToString().TrimEnd('\r', '\n'));
+        Assert.Equal("cli-error", payload.RootElement.GetProperty("errors")[0].GetProperty("code").GetString());
+        Assert.Contains("asset output collision", payload.RootElement.GetProperty("errors")[0].GetProperty("message").GetString());
+    }
+
+    [Fact]
     public async Task Main_BuildWithInvalidIntegerOption_ReturnsTwoAndPrintsUsage()
     {
         var result = await InvokeEntryPointAsync(["build", "--jobs", "NaN"]);
@@ -379,6 +414,49 @@ public sealed class ProgramEntryPointTests : IDisposable
     }
 
     [Fact]
+    public async Task Main_BuildConfigError_WritesBktCode()
+    {
+        string path = WriteCodedConfigError();
+        var result = await InvokeEntryPointAsync(["build", "--config", path, "--log-format=json"]);
+
+        Assert.Equal(2, result.ExitCode);
+        using var error = System.Text.Json.JsonDocument.Parse(result.StdErr);
+        Assert.Equal("BKT-0001", error.RootElement.GetProperty("errors")[0].GetProperty("code").GetString());
+    }
+
+    [Fact]
+    public async Task Main_ConfigCheck_CodedConfigError_WritesBktLine()
+    {
+        string path = WriteCodedConfigError();
+        var result = await InvokeEntryPointAsync(["config", "check", "--config", path, "--log-format=json"]);
+
+        Assert.Equal(1, result.ExitCode);
+        Assert.Contains("[BKT-0001]", result.StdOut, StringComparison.Ordinal);
+        Assert.Empty(result.StdErr);
+    }
+
+    [Fact]
+    public async Task Main_BuildSnapshotError_WritesBktCodeAndExitTwo()
+    {
+        string site = Path.Combine(
+            FindRepoRoot(),
+            "tests",
+            "fixtures",
+            "notion-snapshot-format-1",
+            "site",
+            "site.yaml");
+        string emptySnapshot = Path.Combine(_tempDir, "empty-snapshot");
+        Directory.CreateDirectory(emptySnapshot);
+
+        var result = await InvokeEntryPointAsync(
+            ["build", "--config", site, "--notion-snapshot", emptySnapshot, "--notion-offline", "--log-format=json"]);
+
+        Assert.Equal(2, result.ExitCode);
+        using var error = System.Text.Json.JsonDocument.Parse(result.StdErr);
+        Assert.Equal("BKT-0B10", error.RootElement.GetProperty("errors")[0].GetProperty("code").GetString());
+    }
+
+    [Fact]
     public async Task LoggerStartup_ValidationFailureAfterSuccessfulLoadDoesNotReplayBootstrap()
     {
         string path = WriteWarningConfig("error");
@@ -442,6 +520,32 @@ public sealed class ProgramEntryPointTests : IDisposable
         Assert.Equal(2, result.ExitCode);
         Assert.DoesNotContain("followSymlinks", result.StdErr, StringComparison.Ordinal);
         Assert.Contains("--log-format", result.StdErr, StringComparison.Ordinal);
+    }
+
+    private string WriteCodedConfigError()
+    {
+        string path = Path.Combine(_tempDir, "coded-config-error.yaml");
+        File.WriteAllText(path, """
+            site:
+              title: Test
+              url: https://example.com
+            content:
+              sources: []
+            """);
+        return path;
+    }
+
+    private static string FindRepoRoot()
+    {
+        for (var directory = new DirectoryInfo(AppContext.BaseDirectory); directory is not null; directory = directory.Parent)
+        {
+            if (File.Exists(Path.Combine(directory.FullName, "bukit-core.slnx")))
+            {
+                return directory.FullName;
+            }
+        }
+
+        throw new InvalidOperationException("Bukit repository root was not found.");
     }
 
     private static async Task<(int ExitCode, string StdOut, string StdErr)> InvokeEntryPointAsync(string[] args)

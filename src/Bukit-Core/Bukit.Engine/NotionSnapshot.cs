@@ -23,6 +23,18 @@ internal sealed class NotionSnapshot : IDisposable
     /// <summary>True for a snapshot failure: missing, unreadable, another format, or lacking data.</summary>
     public static bool IsSnapshotError(Exception exception) => exception is NotionSnapshotException;
 
+    /// <summary>The <c>[BKT-xxxx] message</c> form for commands that print text.</summary>
+    public static string Format(Exception exception)
+        => exception is BukitException bukitException
+            ? DiagnosticExceptionFormatter.Format(bukitException)
+            : exception.Message;
+
+    /// <summary>The <c>BKT-xxxx</c> code for a coded exception, or null.</summary>
+    public static string? CodeOf(Exception exception)
+        => exception is BukitException { Code: { } code }
+            ? DiagnosticCodeFormatter.Format(code)
+            : null;
+
     /// <summary>Directory read or written by this process. Never log it.</summary>
     public string Directory => _session.Directory;
 

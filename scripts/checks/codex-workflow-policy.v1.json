@@ -2079,6 +2079,20 @@
     },
     {
       "contractConsumerGlobs": [],
+      "id": "notion-error-codes-contract",
+      "matches": [
+        "docs/bukit-1.0-contract-matrix.zh-CN.md"
+      ],
+      "publicContract": true,
+      "resource": "static-parallel",
+      "specialtyTests": [
+        "bash scripts/checks/docs/active-links.sh",
+        "bash scripts/checks/docs/size-policy.sh",
+        "bash scripts/checks/public-api-drift.sh check"
+      ]
+    },
+    {
+      "contractConsumerGlobs": [],
       "id": "release-changelog",
       "matches": [
         "CHANGELOG.md",

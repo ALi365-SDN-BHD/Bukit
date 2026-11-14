@@ -1,3 +1,4 @@
+using System.Text.RegularExpressions;
 using Bukit.Cli.Shared;
 using Bukit.Config;
 using Bukit.Engine;
@@ -11,10 +12,15 @@ internal sealed class WorktreeBuildException(string code, string message, Except
     internal string Code { get; } = code;
 }
 
-internal static class WorktreeBuildCoordinator
+internal static partial class WorktreeBuildCoordinator
 {
     private const string WorkerEnvironmentVariable = "BUKIT_INTERNAL_I18N_WORKER_REQUEST";
     private static readonly TimeSpan WorkerTimeout = TimeSpan.FromHours(1);
+
+    [GeneratedRegex(
+        @"^Error: \[(BKT-[0-9A-F]{4})\] (.*)$",
+        RegexOptions.Multiline | RegexOptions.CultureInvariant)]
+    private static partial Regex WorkerFailureRegex();
 
     internal static bool IsWorker => !string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable(WorkerEnvironmentVariable));
 
@@ -63,8 +69,11 @@ internal static class WorktreeBuildCoordinator
         }
         catch (Exception ex) when (ex is not WorktreeBuildException)
         {
+            var code = ex is BukitException { Code: { } diagnosticCode }
+                ? DiagnosticCodeFormatter.Format(diagnosticCode)
+                : "i18n-worktree-worker-failed";
             throw new WorktreeBuildException(
-                "i18n-worktree-worker-failed",
+                code,
                 $"Internal multilingual build worker failed: {ex.Message}",
                 ex);
         }
@@ -134,10 +143,25 @@ internal static class WorktreeBuildCoordinator
         }
         if (result.ExitCode != 0)
         {
+            var failure = LastWorkerFailure(result.StandardError);
             throw new WorktreeBuildException(
-                "i18n-worktree-worker-failed",
-                $"Worker for language '{plan.Language}' exited with code {result.ExitCode}.");
+                failure?.Code ?? "i18n-worktree-worker-failed",
+                failure is null
+                    ? $"Worker for language '{plan.Language}' exited with code {result.ExitCode}."
+                    : $"Worker for language '{plan.Language}' failed: {failure.Value.Message}");
         }
+    }
+
+    internal static (string Code, string Message)? LastWorkerFailure(string standardError)
+    {
+        var matches = WorkerFailureRegex().Matches(standardError);
+        if (matches.Count == 0)
+        {
+            return null;
+        }
+
+        var match = matches[^1];
+        return (match.Groups[1].Value, match.Groups[2].Value.TrimEnd('\r'));
     }
 
     private static (string FileName, IReadOnlyList<string> PrefixArguments) SelfInvocation()

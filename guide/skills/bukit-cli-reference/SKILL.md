@@ -154,7 +154,9 @@ bukit completion fish > ~/.config/fish/completions/bukit.fish
 | 3 | Template render failure (`RenderException`). |
 
 `geo audit` exits 0 whatever the score; it fails only for a missing or invalid report (1)
-or bad usage/missing directory (2).
+or bad usage/missing directory (2). A single-language `build` that fails on a Notion
+snapshot exits 2; a multilingual worker failure exits 1, and its final cli-error keeps
+the worker's `BKT-0Bxx` code and reason.
 
 ## Environment variables
 
@@ -176,7 +178,7 @@ Logs go to stderr: `[info] ...` in text mode, one JSON object per line with
 ```json
 {"schema": "https://bukit.dev/schemas/cli-error.v1.json", "version": "1.0",
  "command": "build", "exitCode": 2,
- "errors": [{"code": "ContentCollectionMissing", "message": "...", "showUsage": false}]}
+ "errors": [{"code": "BKT-0504", "message": "...", "showUsage": false}]}
 ```
 
 `usage` appears only for usage errors (`showUsage: true`). Log lines are single-line
@@ -235,5 +237,5 @@ that cannot be loaded (missing, YAML error, unknown key) exits 2; a loaded confi
 fails validation prints `✖ Config error` and exits 1. With a Notion source, doctor
 validates `NOTION_TOKEN` in the config check: without it the first check fails with
 `✖ Config error` / `[BKT-0001] NOTION_TOKEN is required for notion provider ...`
-(exit 1). With the token set it calls the Notion API (`✖ Notion database check
-failed: <status>` or `✖ Notion request failed: ...`, exit 1).
+(exit 1). With the token set it calls the Notion API (`✖ [BKT-0B01] Notion database
+check failed: <status>` or `✖ [BKT-0B07] Notion request failed: ...`, exit 1).

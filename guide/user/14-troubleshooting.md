@@ -17,6 +17,30 @@ Common causes:
 | `NOTION_TOKEN is required` | Notion provider validation needs the token in the environment. |
 | `deploy.provider must be 'github-pages'` | Core has one deploy provider. |
 
+## Notion Fails
+
+`build` writes the stable `BKT-0Bxx` code in the cli-error JSON; `config check`
+and `doctor` print it as `[BKT-0Bxx]`. A single-language `build` exits 2 for a
+snapshot failure. A multilingual worker failure keeps exit 1, but its final
+cli-error keeps the worker's code and reason.
+
+| Code | Meaning |
+|---|---|
+| `BKT-0B01` | HTTP 401: the token is invalid or was revoked. |
+| `BKT-0B02` | HTTP 403: the integration may not read the database. |
+| `BKT-0B03` | HTTP 404: the database/page was not shared or does not exist. |
+| `BKT-0B04` | HTTP 429: rate-limited after all retries. |
+| `BKT-0B05` | A mapped property (filter, sort or slug) does not exist. |
+| `BKT-0B06` / `BKT-0B08` | Another Notion HTTP error / invalid JSON response. |
+| `BKT-0B07` | Network or timeout error. |
+| `BKT-0B10` | No usable snapshot, or another snapshot format. |
+| `BKT-0B11` | The snapshot lacks the database (changed `databaseId` or new source). |
+| `BKT-0B12` | The snapshot lacks a rendered body. |
+| `BKT-0B13` | The recorded queries do not match the filter/sort. |
+| `BKT-0B14` | Another snapshot entry is missing or unreadable. |
+| `BKT-0B15` | The snapshot could not be written. |
+| `BKT-0B16` / `BKT-0B17` | Invalid `--notion-snapshot` value / unsupported offline request. |
+
 ## Build Fails Before Rendering
 
 - Run `doctor` to inspect templates and providers.
@@ -33,7 +57,7 @@ These stable codes apply when an explicit `bukit build` has two or more `site.la
 | `i18n-worktree-git-required` | Git, a repository, or a resolvable `HEAD` is unavailable. |
 | `i18n-worktree-dirty` | The site directory or a build input has staged, unstaged, or untracked changes. Unrelated changes outside the site and build inputs are allowed. |
 | `i18n-worktree-input-untracked` | A required config/content/theme/static/plugin input is untracked, ignored, external, or crosses the repository through a symlink. |
-| `i18n-worktree-worker-failed` | A language Worker exited unsuccessfully or the isolated build failed. |
+| `i18n-worktree-worker-failed` | A language Worker failed without a coded Bukit error, or the isolated build failed. Notion worker failures keep their `BKT-0Bxx` code. |
 | `i18n-worktree-result-invalid` | The Worker result schema, hash, language, completion state, or output path failed validation. |
 | `i18n-worktree-cleanup-failed` | Bukit could not remove an owned temporary Worktree. |
 

@@ -88,6 +88,7 @@ internal static class NotionDatabaseSchemaResolver
         var available = string.Join(", ", map.Values.OrderBy(x => x, StringComparer.OrdinalIgnoreCase));
         throw new ContentException(
             $"{messagePrefix} '{propertyName}' not found (case-insensitive match). " +
-            $"Available properties: {available}.");
+            $"Available properties: {available}.",
+            DiagnosticCode.NotionPropertyMissing);
     }
 }

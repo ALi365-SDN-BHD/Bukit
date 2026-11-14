@@ -17,6 +17,8 @@ public sealed class BuildDiagnosticCodeTests
         Assert.True(Enum.IsDefined(typeof(DiagnosticCode), DiagnosticCode.ContentLoadFailed));
         Assert.True(Enum.IsDefined(typeof(DiagnosticCode), DiagnosticCode.BuildOutputUnsafe));
         Assert.True(Enum.IsDefined(typeof(DiagnosticCode), DiagnosticCode.PluginExecutionFailed));
+        Assert.True(Enum.IsDefined(typeof(DiagnosticCode), DiagnosticCode.NotionUnauthorized));
+        Assert.True(Enum.IsDefined(typeof(DiagnosticCode), DiagnosticCode.NotionSnapshotUnavailable));
     }
 
     [Fact]
@@ -59,6 +61,7 @@ public sealed class BuildDiagnosticCodeTests
         Assert.StartsWith("Geo", DiagnosticCode.GeoLlmsTxtMissing.ToString());
         Assert.StartsWith("Media", DiagnosticCode.MediaImageMissing.ToString());
         Assert.StartsWith("I18n", DiagnosticCode.I18nRootOutputConflict.ToString());
+        Assert.StartsWith("Notion", DiagnosticCode.NotionUnauthorized.ToString());
     }
 
     [Fact]
@@ -78,6 +81,7 @@ public sealed class BuildDiagnosticCodeTests
             ["Geo"] = (0x0810, 0x081F),
             ["Media"] = (0x0901, 0x09FF),
             ["I18n"] = (0x0A01, 0x0AFF),
+            ["Notion"] = (0x0B01, 0x0BFF),
         };
 
         foreach (DiagnosticCode code in Enum.GetValues<DiagnosticCode>())

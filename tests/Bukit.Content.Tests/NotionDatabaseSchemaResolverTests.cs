@@ -102,6 +102,7 @@ public sealed class NotionDatabaseSchemaResolverTests
         Assert.Contains("property 'Missing' not found", ex.Message);
         Assert.Contains("Published", ex.Message);
         Assert.Contains("Status", ex.Message);
+        Assert.Equal(DiagnosticCode.NotionPropertyMissing, ex.Code);
     }
 
     private static NotionContentClient CreateClient(NotionContentSourceOptions options, HttpMessageHandler handler)

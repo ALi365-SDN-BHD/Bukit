@@ -1239,12 +1239,25 @@ public sealed class WorktreeBuildCoordinatorTests : IDisposable
             [.. invocation, "--metrics", "reports/result.json"], root);
 
         Assert.NotEqual(0, result.ExitCode);
-        Assert.Contains(cacheLink ? "i18n-worktree-worker-failed" : "File transaction target is a directory", result.Output, StringComparison.Ordinal);
+        Assert.Contains(cacheLink ? "BKT-0302" : "File transaction target is a directory", result.Output, StringComparison.Ordinal);
         Assert.Equal(outputBefore, SnapshotPublishedOutputs(Path.Combine(root, "dist")));
         Assert.Equal(cacheBefore, SnapshotPublishedOutputs(Path.Combine(root, ".cache")));
         Assert.Equal("unchanged", File.ReadAllText(sentinel));
         var worktrees = await RunProcessAsync("git", ["worktree", "list", "--porcelain"], root);
         Assert.Single(worktrees.Output.Split('\n'), line => line.StartsWith("worktree ", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void LastWorkerFailure_ParsesTheLastBktLineAndKeepsTheFallback()
+    {
+        var parsed = WorktreeBuildCoordinator.LastWorkerFailure(
+            "Error: [BKT-0B11] Worker for language 'en' failed: reason\r\n");
+
+        Assert.NotNull(parsed);
+        Assert.Equal("BKT-0B11", parsed.Value.Code);
+        Assert.Equal("Worker for language 'en' failed: reason", parsed.Value.Message);
+        Assert.Null(WorktreeBuildCoordinator.LastWorkerFailure(
+            "Error: [i18n-worktree-result-invalid] no BKT code"));
     }
 
     [Fact]
@@ -1300,7 +1313,7 @@ public sealed class WorktreeBuildCoordinatorTests : IDisposable
             root);
 
         Assert.Equal(1, result.ExitCode);
-        Assert.Contains("i18n-worktree-worker-failed", result.Output, StringComparison.Ordinal);
+        Assert.Contains("BKT-0302", result.Output, StringComparison.Ordinal);
         Assert.Equal("old-output", File.ReadAllText(outputSentinel));
         Assert.Equal("old-cache", File.ReadAllText(cacheSentinel));
         var worktrees = await RunProcessAsync("git", ["worktree", "list", "--porcelain"], root);

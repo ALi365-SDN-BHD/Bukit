@@ -33,9 +33,33 @@ public sealed class DoctorNotionCheckerTests
 
         Assert.False(result);
         Assert.Equal(
-            $"✖ Notion database check failed: 401 Unauthorized{Environment.NewLine}",
+            $"✖ [BKT-0B01] Notion database check failed: 401 Unauthorized{Environment.NewLine}",
             output);
         Assert.DoesNotContain("sensitive", output, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task CheckNotionAsync_TransportFailure_HasNetworkCode()
+    {
+        using var client = CreateHealthClient(new HttpRequestException("network down"));
+
+        var (result, output) = await CaptureAsync(
+            () => DoctorNotionChecker.CheckNotionAsync(client, "database-id"));
+
+        Assert.False(result);
+        Assert.Contains("[BKT-0B07] Notion request failed:", output, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task CheckNotionSchemaAsync_HttpFailure_HasStatusHttpCode()
+    {
+        using var client = CreateHealthClient(HttpStatusCode.NotFound, "{}");
+        var config = new NotionConfig { DatabaseId = "database-id" };
+
+        var output = await CaptureAsync(
+            () => DoctorNotionChecker.CheckNotionSchemaAsync(client, config));
+
+        Assert.Contains("✖ [BKT-0B03] Cannot fetch database: 404", output, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -46,7 +70,7 @@ public sealed class DoctorNotionCheckerTests
         var output = await CaptureAsync(
             () => DoctorNotionChecker.CheckNotionConnectivityAsync(client));
 
-        Assert.Equal($"⚠ Notion API unreachable: HTTP 401{Environment.NewLine}", output);
+        Assert.Equal($"⚠ [BKT-0B01] Notion API unreachable: HTTP 401{Environment.NewLine}", output);
     }
 
     [Fact]
@@ -59,7 +83,7 @@ public sealed class DoctorNotionCheckerTests
             () => DoctorNotionChecker.CheckNotionConnectivityAsync(client));
 
         Assert.Equal(
-            $"⚠ Notion API connectivity check failed: Notion request failed due to a transport error.{Environment.NewLine}",
+            $"⚠ [BKT-0B07] Notion API connectivity check failed: Notion request failed due to a transport error.{Environment.NewLine}",
             output);
         Assert.DoesNotContain(secret, output, StringComparison.Ordinal);
     }
@@ -144,7 +168,7 @@ public sealed class DoctorNotionCheckerTests
         Assert.Equal(
             $"Notion Schema Check for database database-id:{Environment.NewLine}" +
             Environment.NewLine +
-            $"✖ Schema check failed: Notion returned invalid json.{Environment.NewLine}",
+            $"✖ [BKT-0B08] Schema check failed: Notion returned invalid json.{Environment.NewLine}",
             output);
     }
 

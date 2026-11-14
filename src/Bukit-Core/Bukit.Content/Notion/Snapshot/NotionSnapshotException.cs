@@ -12,16 +12,18 @@ internal sealed class NotionSnapshotException : BukitException
     internal const string RebuildHint =
         "Run a build with NOTION_TOKEN and --notion-snapshot (without --notion-offline) to refresh the snapshot.";
 
-    public NotionSnapshotException(string message)
-        : base(message, DiagnosticCode.ConfigInvalidValue)
+    public NotionSnapshotException(string message, DiagnosticCode code)
+        : base(message, code)
     {
     }
 
-    public NotionSnapshotException(string message, Exception innerException)
-        : base(message, innerException, DiagnosticCode.ConfigInvalidValue)
+    public NotionSnapshotException(string message, Exception innerException, DiagnosticCode code)
+        : base(message, innerException, code)
     {
     }
 
-    internal static NotionSnapshotException Missing(string what)
-        => new($"Notion offline snapshot has no {what}. {RebuildHint}");
+    internal static NotionSnapshotException Missing(
+        string what,
+        DiagnosticCode code = DiagnosticCode.NotionSnapshotEntryMissing)
+        => new($"Notion offline snapshot has no {what}. {RebuildHint}", code);
 }

@@ -107,7 +107,8 @@ internal sealed class NotionContentClient : IDisposable
     /// <summary>The Notion API transport; offline clients have none.</summary>
     internal NotionClient Transport => _client ?? throw new NotionSnapshotException(
         "Notion offline builds do not call the Notion API; this data must come from the offline snapshot. " +
-        NotionSnapshotException.RebuildHint);
+        NotionSnapshotException.RebuildHint,
+        DiagnosticCode.NotionSnapshotUnsupportedRequest);
 
     internal async Task<JsonDocument> PostAsync(
         string url,
@@ -126,7 +127,9 @@ internal sealed class NotionContentClient : IDisposable
         {
             if (!NotionApiPath.TryParseDatabaseQuery(path, out var offlineDatabaseId))
             {
-                throw new NotionSnapshotException("Notion offline builds only replay database queries.");
+                throw new NotionSnapshotException(
+                    "Notion offline builds only replay database queries.",
+                    DiagnosticCode.NotionSnapshotUnsupportedRequest);
             }
 
             var (document, serverTime) = _snapshot!.ReadQuery(offlineDatabaseId, json, _logger);
@@ -147,7 +150,7 @@ internal sealed class NotionContentClient : IDisposable
         }
         catch (NotionApiException exception)
         {
-            throw new ContentException(exception.Message, exception);
+            throw NotionErrorCodes.Wrap(exception);
         }
 
         if (_snapshot is not null && NotionApiPath.TryParseDatabaseQuery(path, out var databaseId))
@@ -180,7 +183,7 @@ internal sealed class NotionContentClient : IDisposable
                 _snapshot.RecordNotFound(path, (int)exception.StatusCode.Value);
             }
 
-            throw new ContentException(exception.Message, exception);
+            throw NotionErrorCodes.Wrap(exception);
         }
 
         if (_snapshot is not null)
@@ -220,10 +223,12 @@ internal sealed class NotionContentClient : IDisposable
                 NotionApiErrorKind.HttpStatus,
                 $"Notion request failed: {failure.StatusCode} (recorded in the offline snapshot)",
                 status);
-            throw new ContentException(apiException.Message, apiException);
+            throw NotionErrorCodes.Wrap(apiException);
         }
 
-        throw new NotionSnapshotException("Notion offline builds only read database schemas and pages from the snapshot.");
+        throw new NotionSnapshotException(
+            "Notion offline builds only read database schemas and pages from the snapshot.",
+            DiagnosticCode.NotionSnapshotUnsupportedRequest);
     }
 
     private static bool IsSnapshotRead(string path)

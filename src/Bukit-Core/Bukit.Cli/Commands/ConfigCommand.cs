@@ -38,7 +38,7 @@ public static class ConfigCommand
         catch (Exception ex) when (NotionSnapshot.IsSnapshotError(ex))
         {
             Console.WriteLine("✖ Config error");
-            Console.WriteLine(ex.Message);
+            Console.WriteLine(NotionSnapshot.Format(ex));
             return 1;
         }
 
@@ -85,7 +85,7 @@ public static class ConfigCommand
         catch (Exception ex) when (ex is ConfigException || NotionSnapshot.IsSnapshotError(ex))
         {
             Console.WriteLine("✖ Config error");
-            Console.WriteLine(ex.Message);
+            Console.WriteLine(NotionSnapshot.Format(ex));
             return 1;
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidOperationException)
