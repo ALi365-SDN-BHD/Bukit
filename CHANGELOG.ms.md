@@ -4,6 +4,8 @@ Semua perubahan penting kepada Bukit akan didokumenkan dalam fail ini.
 
 ## [Belum Dikeluarkan]
 
+- **Snapshot luar talian Notion hanya disemak mengikut versi format**: snapshot masih merekodkan `bukitVersion` untuk diagnosis, tetapi menaik taraf Bukit tidak lagi menjadikannya tidak sah; hanya perubahan `NotionSnapshotSession.FormatVersion` memerlukan rakaman semula. Binaan rakaman menggunakan semula badan yang telah dirender daripada snapshot lama; badan daripada `NotionBlocksRenderer.ContractVersion` yang berbeza dirender semula.
+
 ## [2.1.0] - 2026-11-14
 
 - **Perubahan besar: `site.languages` ialah satu-satunya tetapan bahasa**: `site.language` tidak lagi diterima dalam `site.yaml` dan gagal dengan `site.language was removed; write languages: [<code>] instead, for example languages: [en].` Tulis `languages: [en]` dan bukan `language: en`. Apabila `site.languages` tiada atau kosong, nilainya `[zh-CN]`; senarai yang semua entrinya kosong ialah ralat, dan `defaultLanguage` yang tiada dalam `site.languages` kini gagal dengan `site.defaultLanguage must be included in site.languages.` dan tidak lagi merekodkan `i18n.config.default_language_ignored`. Templat masih membaca bahasa semasa sebagai `{{ site.language }}`. `bukit labs init`, intent Labs dan pengimport demo HTML kini menulis `languages`; intent dengan `site.language` ditolak dan patut menggunakan `languages.supported: [<code>]`, dengan `languages.default` boleh ditinggalkan untuk satu bahasa. Kod yang menggunakan himpunan Labs secara terus juga perlu diubah: `SiteIntentSite.Language` dibuang dan `SiteIntentLanguages.Default` kini pilihan.

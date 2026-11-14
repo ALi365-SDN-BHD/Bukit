@@ -30,6 +30,12 @@ namespace Bukit.Content.Notion.Snapshot;
 /// </summary>
 internal sealed class NotionSnapshotSession : INotionSnapshotHandle, IDisposable
 {
+    /// <summary>
+    /// The snapshot layout and the meaning of its entries that this Bukit reads. Bump it when an
+    /// existing entry's meaning changes, when <c>NotionApiUrls.NotionVersion</c> changes, or when
+    /// the snapshot directory layout changes. Adding an entry that older snapshots lack does not
+    /// need a bump: reading it fails with a clear missing-entry error.
+    /// </summary>
     public const int FormatVersion = 1;
     internal const string ManifestFileName = "manifest.json";
     private const string ApiDir = "api";
@@ -68,7 +74,7 @@ internal sealed class NotionSnapshotSession : INotionSnapshotHandle, IDisposable
     /// <summary>The manifest read when the snapshot was opened offline.</summary>
     public NotionSnapshotManifest? Manifest { get; }
 
-    /// <summary>The Bukit identity recorded in and required of every snapshot.</summary>
+    /// <summary>The Bukit identity recorded in every snapshot for diagnosis; it is not a validation key.</summary>
     public static string BukitVersion { get; } =
         typeof(NotionSnapshotSession).Assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion ??
         typeof(NotionSnapshotSession).Assembly.GetName().Version?.ToString() ??
@@ -84,8 +90,8 @@ internal sealed class NotionSnapshotSession : INotionSnapshotHandle, IDisposable
 
     /// <summary>
     /// Starts recording a new snapshot for <paramref name="targetDirectory"/>. Rendered bodies of
-    /// the previous snapshot (same format and Bukit version) seed the staging directory so
-    /// unchanged pages are not fetched again; bodies this build does not use are dropped on commit.
+    /// the previous snapshot (same format) seed the staging directory so unchanged pages are not
+    /// fetched again; bodies this build does not use are dropped on commit.
     /// </summary>
     public static NotionSnapshotSession BeginWrite(string targetDirectory)
     {
@@ -523,12 +529,6 @@ internal sealed class NotionSnapshotSession : INotionSnapshotHandle, IDisposable
         {
             throw new NotionSnapshotException(
                 $"Notion offline snapshot format {manifest.Format} does not match the format {FormatVersion} this Bukit reads. {NotionSnapshotException.RebuildHint}");
-        }
-
-        if (!string.Equals(manifest.BukitVersion, CurrentBukitVersion, StringComparison.Ordinal))
-        {
-            throw new NotionSnapshotException(
-                $"Notion offline snapshot was written by Bukit {manifest.BukitVersion}, not {CurrentBukitVersion}. {NotionSnapshotException.RebuildHint}");
         }
 
         return manifest;

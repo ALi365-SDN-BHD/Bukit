@@ -1,0 +1,16 @@
+{
+  "object": "list",
+  "has_more": false,
+  "results": [
+    {
+      "object": "block",
+      "id": "article-2-body-1",
+      "type": "paragraph",
+      "paragraph": {
+        "rich_text": [
+          { "type": "text", "plain_text": "Body of draft two" }
+        ]
+      }
+    }
+  ]
+}

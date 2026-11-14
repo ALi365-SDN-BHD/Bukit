@@ -3,9 +3,9 @@ using Bukit.Shared;
 namespace Bukit.Content.Notion.Snapshot;
 
 /// <summary>
-/// The Notion offline snapshot is missing, unreadable, from another format or Bukit
-/// version, or lacks data the build needs. Never swallowed: offline builds fail instead of
-/// silently skipping Notion data. Messages never contain the snapshot path.
+/// The Notion offline snapshot is missing, unreadable, from another format, or lacks data
+/// the build needs. Never swallowed: offline builds fail instead of silently skipping Notion
+/// data. Messages never contain the snapshot path.
 /// </summary>
 internal sealed class NotionSnapshotException : BukitException
 {

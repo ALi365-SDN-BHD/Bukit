@@ -183,14 +183,14 @@ requires `--notion-snapshot`; `config check` and `doctor` only read a snapshot,
 so there `--notion-snapshot` also requires `--notion-offline`.
 
 **What it stores.** The raw Notion API answers of the formal build: the database
-schema, every page of the database query with all properties (drafts and fields
-the site does not show included) and Notion's server time, relation targets, the
-cross-source relation fallback, taxonomy select options and `pages_index` pages,
-plus the rendered page bodies. Recorded 403/404 answers are replayed as the same
-errors. Because the raw data is stored, a changed `propertyMap` or template works
-offline.
+schema, every page returned by the database query with all properties (a filtered
+query can still return drafts, and fields the site does not show are included) and
+Notion's server time, relation targets, the cross-source relation fallback, taxonomy
+select options and `pages_index` pages, plus the rendered page bodies. Recorded
+403/404 answers are replayed as the same errors. Because the raw data is stored, a
+changed `propertyMap` or template works offline.
 
-**Keep it private.** The snapshot holds more than the site publishes. Keep it
+**Keep it private.** The snapshot can hold more than the site publishes. Keep it
 outside the site and outside any checkout that tools or other people can read;
 `build` rejects a snapshot directory inside the site or its output directory.
 On Unix the directories are `0700` and the files `0600`. The token is never
@@ -202,8 +202,9 @@ cancelled build keeps the previous snapshot. A recording build renders every
 page (it is never incremental) so that every body is recorded. Bodies of pages
 the build no longer uses are dropped; unchanged bodies are reused from the
 previous snapshot instead of being fetched again. The
-snapshot records its format version and the Bukit version; a different version is
-an error, so upgrade Bukit and record again.
+snapshot records its format version and the Bukit version. Only the format version
+is checked; the Bukit version is diagnostic, so upgrading Bukit keeps the snapshot
+readable. A different format version is an error and needs a new recording.
 
 **Offline rules.**
 

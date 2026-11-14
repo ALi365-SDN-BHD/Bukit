@@ -4,6 +4,8 @@ All notable changes to Bukit will be documented in this file.
 
 ## [Unreleased]
 
+- **Notion offline snapshots are checked by format version only**: the snapshot still records `bukitVersion` for diagnosis, but upgrading Bukit no longer invalidates it; only a change to `NotionSnapshotSession.FormatVersion` requires recording again. A recording build reuses the rendered bodies of an older snapshot, and bodies from another `NotionBlocksRenderer.ContractVersion` are rendered again.
+
 ## [2.1.0] - 2026-11-14
 
 - **Breaking: `site.languages` is the only language setting**: `site.language` is no longer accepted in `site.yaml` and fails with `site.language was removed; write languages: [<code>] instead, for example languages: [en].` Write `languages: [en]` instead of `language: en`. When `site.languages` is missing or empty it means `[zh-CN]`; a list whose entries are all blank is an error, and a `defaultLanguage` that is not in `site.languages` now fails with `site.defaultLanguage must be included in site.languages.` instead of logging `i18n.config.default_language_ignored`. Templates still read the current language as `{{ site.language }}`. `bukit labs init`, Labs intents and the HTML demo importer now write `languages`; an intent with `site.language` is rejected and should use `languages.supported: [<code>]`, where `languages.default` may be omitted for one language. Code that uses the Labs assembly directly must also change: `SiteIntentSite.Language` is removed and `SiteIntentLanguages.Default` is now optional.

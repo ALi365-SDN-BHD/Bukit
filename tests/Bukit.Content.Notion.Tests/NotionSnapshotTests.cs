@@ -2,6 +2,7 @@ using System.Collections.Concurrent;
 using System.Net;
 using System.Text;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using Bukit.Content.Notion.Snapshot;
 using Bukit.Engine.Abstractions.Content;
 using Bukit.Shared;
@@ -188,15 +189,16 @@ public sealed class NotionSnapshotTests : IDisposable
     }
 
     [Fact]
-    public async Task OtherBukitVersionOrFormat_IsAnError()
+    public async Task OtherFormat_IsAnError()
     {
         await LoadOnlineAsync(Options());
 
         NotionSnapshotSession.BukitVersionOverride.Value = "0.0.0-other";
         try
         {
-            var error = Assert.Throws<NotionSnapshotException>(() => NotionSnapshotSession.OpenOffline(Target));
-            Assert.Contains("was written by Bukit", error.Message, StringComparison.Ordinal);
+            using var offline = NotionSnapshotSession.OpenOffline(Target);
+            Assert.NotNull(offline.Manifest);
+            Assert.NotEqual("0.0.0-other", offline.Manifest?.BukitVersion);
         }
         finally
         {
@@ -204,10 +206,53 @@ public sealed class NotionSnapshotTests : IDisposable
         }
 
         var manifestPath = Path.Combine(Target, "manifest.json");
-        var manifest = await File.ReadAllTextAsync(manifestPath);
-        await File.WriteAllTextAsync(manifestPath, manifest.Replace("\"format\": 1", "\"format\": 99", StringComparison.Ordinal));
+        var manifest = JsonNode.Parse(await File.ReadAllTextAsync(manifestPath))!.AsObject();
+        manifest["format"] = 99;
+        await File.WriteAllTextAsync(manifestPath, manifest.ToJsonString());
         Assert.Contains("format 99", Assert.Throws<NotionSnapshotException>(() => NotionSnapshotSession.OpenOffline(Target)).Message, StringComparison.Ordinal);
+
+        manifest.Remove("format");
+        await File.WriteAllTextAsync(manifestPath, manifest.ToJsonString());
+        Assert.Contains("format 0", Assert.Throws<NotionSnapshotException>(() => NotionSnapshotSession.OpenOffline(Target)).Message, StringComparison.Ordinal);
         Assert.Throws<NotionSnapshotException>(() => NotionSnapshotSession.OpenOffline(Path.Combine(_root, "absent")));
+    }
+
+    [Fact]
+    public async Task ReRecording_ReusesBodiesAcrossBukitVersions_AndRerendersAnotherRenderer()
+    {
+        NotionSnapshotSession.BukitVersionOverride.Value = "0.0.0-other";
+        try
+        {
+            await LoadOnlineAsync(Options());
+        }
+        finally
+        {
+            NotionSnapshotSession.BukitVersionOverride.Value = null;
+        }
+
+        var reusedApi = new FakeNotionApi();
+        await LoadOnlineAsync(Options(), reusedApi);
+        Assert.DoesNotContain(
+            reusedApi.Requests,
+            static request => request.StartsWith("GET /v1/blocks/page-1/children", StringComparison.Ordinal));
+        Assert.DoesNotContain(
+            reusedApi.Requests,
+            static request => request.StartsWith("GET /v1/blocks/page-2/children", StringComparison.Ordinal));
+
+        var bodyPath = Path.Combine(Target, "cache", "pages", "page-1.json");
+        var body = JsonNode.Parse(await File.ReadAllTextAsync(bodyPath))!.AsObject();
+        Assert.Equal(NotionCacheManager.CacheFormat, body["version"]!.GetValue<int>());
+        body["renderer"] = body["renderer"]!.GetValue<int>() + 1;
+        await File.WriteAllTextAsync(bodyPath, body.ToJsonString());
+
+        var rerenderedApi = new FakeNotionApi();
+        await LoadOnlineAsync(Options(), rerenderedApi);
+        Assert.Contains(
+            rerenderedApi.Requests,
+            static request => request.StartsWith("GET /v1/blocks/page-1/children", StringComparison.Ordinal));
+        Assert.DoesNotContain(
+            rerenderedApi.Requests,
+            static request => request.StartsWith("GET /v1/blocks/page-2/children", StringComparison.Ordinal));
     }
 
     [Fact]

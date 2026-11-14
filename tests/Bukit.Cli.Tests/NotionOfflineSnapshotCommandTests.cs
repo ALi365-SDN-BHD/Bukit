@@ -57,11 +57,31 @@ public sealed class NotionOfflineSnapshotCommandTests : IDisposable
         Environment.SetEnvironmentVariable(EnvironmentHelper.NotionTokenKey, _originalToken);
         foreach (var directory in new[] { _rootDir, _snapshotRoot })
         {
-            if (Directory.Exists(directory))
-            {
-                Directory.Delete(directory, recursive: true);
-            }
+            TestCleanup.DeleteDirectory(directory);
         }
+    }
+
+    [Fact]
+    public async Task CommittedFormatOneFixture_BuildsOfflineWithoutTokenOrRequests()
+    {
+        var fixture = Path.Combine(
+            FindRepoRoot(),
+            "tests",
+            "fixtures",
+            "notion-snapshot-format-1");
+        CopyDirectory(Path.Combine(fixture, "site"), _rootDir);
+        CopyDirectory(Path.Combine(fixture, "snapshot"), SnapshotDir);
+
+        Environment.SetEnvironmentVariable(EnvironmentHelper.NotionTokenKey, null);
+        var api = new FakeNotionApi();
+        NotionContentClient.TransportOverride.Value = () => api;
+
+        var (code, output) = await CaptureAsync(() => BuildCommand.RunInProcessAsync(CliTestHelper.CreateCommand("build",
+            ["build", "--config", _configPath, "--notion-snapshot", SnapshotDir, "--notion-offline"])));
+
+        Assert.True(code == 0, output);
+        Assert.True(File.Exists(Path.Combine(_rootDir, "dist", "posts", "article-one", "index.html")));
+        Assert.Empty(api.Requests);
     }
 
     [Fact]
@@ -239,6 +259,35 @@ public sealed class NotionOfflineSnapshotCommandTests : IDisposable
               output: dist
               listPageContentMode: auto
             """);
+
+    private static string FindRepoRoot()
+    {
+        for (var directory = new DirectoryInfo(AppContext.BaseDirectory); directory is not null; directory = directory.Parent)
+        {
+            if (File.Exists(Path.Combine(directory.FullName, "bukit-core.slnx")))
+            {
+                return directory.FullName;
+            }
+        }
+
+        throw new InvalidOperationException("Bukit repository root was not found.");
+    }
+
+    private static void CopyDirectory(string source, string target)
+    {
+        Directory.CreateDirectory(target);
+        foreach (var directory in Directory.GetDirectories(source, "*", SearchOption.AllDirectories))
+        {
+            Directory.CreateDirectory(Path.Combine(target, Path.GetRelativePath(source, directory)));
+        }
+
+        foreach (var file in Directory.GetFiles(source, "*", SearchOption.AllDirectories))
+        {
+            var destination = Path.Combine(target, Path.GetRelativePath(source, file));
+            Directory.CreateDirectory(Path.GetDirectoryName(destination)!);
+            File.Copy(file, destination, overwrite: true);
+        }
+    }
 
     private static async Task<(int Code, string Output)> CaptureAsync(Func<Task<int>> run)
     {

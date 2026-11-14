@@ -115,6 +115,7 @@ public sealed class G04D3BNotionStatsTests
                 "Bukit.Cli.Tests",
                 "Bukit.Content",
                 "Bukit.Content.Notion.Tests",
+                "Bukit.Engine.Tests",
                 "Bukit.Importing.Tests",
                 "Bukit.Notion.Tests",
                 "Bukit.Plugin.Import.Tests"

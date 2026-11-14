@@ -1,0 +1,18 @@
+{
+  "object": "page",
+  "id": "article-2",
+  "created_time": "2026-01-03T03:04:05.000Z",
+  "last_edited_time": "2026-05-16T12:00:00.000Z",
+  "url": "https://www.notion.so/article-2",
+  "properties": {
+    "Title": { "type": "title", "title": [ { "plain_text": "Draft Two" } ] },
+    "Slug": { "type": "rich_text", "rich_text": [ { "plain_text": "draft-two" } ] },
+    "Type": { "type": "select", "select": { "name": "post" } },
+    "PublishAt": { "type": "date", "date": { "start": "2026-05-16T10:30:00+00:00" } },
+    "Published": { "type": "checkbox", "checkbox": false },
+    "Summary": { "type": "rich_text", "rich_text": [ { "plain_text": "Summary two" } ] },
+    "Tags": { "type": "multi_select", "multi_select": [ { "name": "Guide" } ] },
+    "Author": { "type": "relation", "relation": [ { "id": "person-1" } ] },
+    "DraftNote": { "type": "rich_text", "rich_text": [ { "plain_text": "draft only" } ] }
+  }
+}

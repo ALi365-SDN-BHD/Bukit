@@ -65,6 +65,8 @@ tests/fixtures/*
 !tests/fixtures/workflow-evidence/**
 !tests/fixtures/plugin-contracts/
 !tests/fixtures/plugin-contracts/**
+!tests/fixtures/notion-snapshot-format-1/
+!tests/fixtures/notion-snapshot-format-1/**
 .smoke-all-run/
 examples/silkroad_biz24/
 .playwright-mcp/

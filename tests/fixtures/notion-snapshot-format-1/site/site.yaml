@@ -1,0 +1,77 @@
+site:
+  name: notion-snapshot-format-1
+  title: Notion Snapshot Format 1
+  url: https://example.test
+  languages: [en]
+  collections:
+    post:
+      permalink: /posts/{slug}/
+      template: pages/post.html
+    person:
+      permalink: /people/{slug}/
+      template: pages/person.html
+  seo:
+    enabled: false
+  analytics:
+    enabled: false
+content:
+  sources:
+    - type: notion
+      name: articles
+      collection: post
+      notion:
+        databaseId: 11111111-1111-4111-8111-111111111111
+        filterType: checkbox_true
+        filterProperty: Published
+        pageSize: 1
+        fieldPolicy:
+          mode: all
+        propertyMap:
+          Title: Title
+          Slug: Slug
+          Type: Type
+          PublishAt: PublishAt
+          Summary: Summary
+    - type: notion
+      name: people
+      collection: person
+      notion:
+        databaseId: 22222222-2222-4222-8222-222222222222
+        filterType: none
+        pageSize: 1
+        renderContent: false
+        fieldPolicy:
+          mode: all
+        propertyMap:
+          Title: Name
+          Slug: Slug
+          Type: Type
+  modelSchema:
+    relationMappings:
+      - rawKey: Author
+        relationType: reference
+        targetType: person
+        reference:
+          idField: id
+  media:
+    downloadToLocal: false
+build:
+  output: dist
+  clean: false
+  report:
+    enabled: false
+theme:
+  layouts: layouts
+  params:
+    pages_index:
+      resolve_notion:
+        enabled: true
+        field_keys: [author, menu]
+        cache_mode: readwrite
+        cache_path: pages-cache.json
+taxonomy:
+  kinds:
+    - key: tags
+      kind: tags
+      indexTemplate: pages/taxonomy-index.html
+      termTemplate: pages/taxonomy-term.html

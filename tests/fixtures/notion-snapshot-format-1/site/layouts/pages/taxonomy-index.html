@@ -1,0 +1,5 @@
+{% layout "layouts/base.html" %}
+<h1>Taxonomy</h1>
+{% for item in page.fields.terms.value %}
+<p><a href="{{ item.permalink }}">{{ item.name }} ({{ item.count }})</a></p>
+{% endfor %}

@@ -2063,6 +2063,22 @@
     },
     {
       "contractConsumerGlobs": [],
+      "id": "notion-snapshot-format-fixture",
+      "matches": [
+        ".gitignore",
+        "scripts/checks/codex-workflow-policy.v1.json",
+        "tests/fixtures/notion-snapshot-format-1/**"
+      ],
+      "publicContract": false,
+      "resource": "static-parallel",
+      "specialtyTests": [
+        "dotnet test tests/Bukit.Engine.Tests/Bukit.Engine.Tests.csproj --filter \"FullyQualifiedName~NotionSnapshot\"",
+        "dotnet test tests/Bukit.Cli.Tests/Bukit.Cli.Tests.csproj --filter \"FullyQualifiedName~NotionOffline\"",
+        "bash scripts/checks/codex-workflow-self-test.sh"
+      ]
+    },
+    {
+      "contractConsumerGlobs": [],
       "id": "release-changelog",
       "matches": [
         "CHANGELOG.md",
