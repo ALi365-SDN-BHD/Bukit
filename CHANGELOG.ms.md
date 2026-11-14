@@ -4,7 +4,7 @@ Semua perubahan penting kepada Bukit akan didokumenkan dalam fail ini.
 
 ## [Belum Dikeluarkan]
 
-## [2.2.0]
+## [2.2.0] - 2026-11-14
 
 - **Commit snapshot yang terganggu mengekalkan snapshot terakhir yang baik**: jika binaan rakaman dihentikan antara dua penamaan semula direktori, snapshot lama kekal di sebelah sasaran dan buka luar talian menerangkan bahawa sandaran wujud. Rakaman berjaya seterusnya mencipta atau menggantikan sasaran, dan rakaman kemudian membersihkan sandaran.
 - **Snapshot luar talian Notion hanya disemak mengikut versi format**: snapshot masih merekodkan `bukitVersion` untuk diagnosis, tetapi menaik taraf Bukit tidak lagi menjadikannya tidak sah; hanya perubahan `NotionSnapshotSession.FormatVersion` memerlukan rakaman semula. Binaan rakaman menggunakan semula badan yang telah dirender daripada snapshot lama; badan daripada `NotionBlocksRenderer.ContractVersion` yang berbeza dirender semula.

@@ -4,7 +4,7 @@ Bukit 所有重要变更都将记录在此文件中。
 
 ## [Unreleased]
 
-## [2.2.0]
+## [2.2.0] - 2026-11-14
 
 - **快照提交中断时保留最后一份可用快照**：录制构建在两次目录重命名之间被杀时，旧快照会留在目标旁边，离线打开会说明存在备份。下一次成功录制会生成新目标，之后再录制才清理旧备份。
 - **Notion 离线快照只校验格式版本**：快照仍记录 `bukitVersion` 供排查，但升级 Bukit 不再让快照失效；只有 `NotionSnapshotSession.FormatVersion` 变了才需要重新录制。录制构建会复用旧快照里渲染好的正文；渲染器版本（`NotionBlocksRenderer.ContractVersion`）不同的正文会重新渲染。

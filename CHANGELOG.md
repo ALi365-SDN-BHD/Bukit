@@ -4,7 +4,7 @@ All notable changes to Bukit will be documented in this file.
 
 ## [Unreleased]
 
-## [2.2.0]
+## [2.2.0] - 2026-11-14
 
 - **An interrupted snapshot commit keeps the last good snapshot**: if a recording build is killed between the two directory renames, the old snapshot stays next to the target and an offline open explains that a backup exists. The next successful recording creates or replaces the target, and a later recording removes the backup.
 - **Notion offline snapshots are checked by format version only**: the snapshot still records `bukitVersion` for diagnosis, but upgrading Bukit no longer invalidates it; only a change to `NotionSnapshotSession.FormatVersion` requires recording again. A recording build reuses the rendered bodies of an older snapshot, and bodies from another `NotionBlocksRenderer.ContractVersion` are rendered again.
