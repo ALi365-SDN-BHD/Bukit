@@ -76,7 +76,7 @@ for every routed page (noindex pages included). These follow `site.seo.diagnosti
 warning by default, a build failure (exit 2) under `strict`, silent under `off`. An empty
 `geo:` or `llms:` key counts as absent and reports nothing.
 
-These build diagnostics were added after 2.0.15. Released versions through 2.0.15 do
+These build diagnostics were added in 2.1.0. Versions through 2.0.15 do
 not run these checks: such pages are dropped from llms output silently, even under
 `strict`. There the only signal is the publish audit warning
 `publish.llms_missing_route route=<url>` (and `publish.llms_full_missing_route`).
