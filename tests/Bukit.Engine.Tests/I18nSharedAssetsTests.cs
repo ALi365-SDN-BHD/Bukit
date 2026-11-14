@@ -353,10 +353,15 @@ public sealed class I18nSharedAssetsTests
     }
 
     private static string ReadFirstHtml(string output, string language)
-        => File.ReadAllText(Directory.GetFiles(
-            Path.Combine(output, language),
-            "*.html",
-            SearchOption.AllDirectories).First());
+    {
+        var directory = Path.Combine(output, language);
+        var index = Path.Combine(directory, "index.html");
+        return File.Exists(index)
+            ? File.ReadAllText(index)
+            : File.ReadAllText(Directory.GetFiles(directory, "*.html", SearchOption.AllDirectories)
+                .Order(StringComparer.Ordinal)
+                .First());
+    }
 
     private sealed class RecordingLogger : ILogger
     {
