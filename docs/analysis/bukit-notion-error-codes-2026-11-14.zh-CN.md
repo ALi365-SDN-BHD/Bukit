@@ -32,10 +32,10 @@
 - 最终代码（`e4a84e1a`）：CLI 1,324 passed / 5 skipped（1,329 total）；Engine 3,584；Architecture 422。Shared 545、Content 694、Content.Notion 108 来自同一内容提交 `49512437`（`e4a84e1a` 未改这些项目/测试）。
 - `dotnet format`、analyzer ratchet 419/421、public-api-drift、docs、skills、`openspec validate --all` 29/29 通过。
 - 独立审查：0 Critical / 0 Important；3 个 Important 已闭环；3 个 Minor 记录（多语言 stdout/stderr 未拆分、D6 测试走反射、`LastWorkerFailure` 只测一行）。
-- 审计复核：9 条中 8 条成立；#3 修正为内联 `CodeFor`（已做）；#2/#5/#7 已做；#4/#8/#9 未做。
+- 审计复核：9 条中 8 条成立；#3 修正为内联 `CodeFor`（已做）；#2/#5/#7 已做；#4 在 #167（`f086ba2b`）完成；#8 在 #169（`f3bd5a6d`）完成；#9 由 #166（`4768785b`）修复，随 2.2.1 发布。
 
 ## 未纳入
 
 - **快照提交崩溃窗口**（`NotionSnapshotSession.RemoveAbandonedSiblings` / `Swap`）：`origin/main` 已存在，不是这两个提交引入。按 SOP 作为独立 Core 任务，发版前修：读路径不重命名；`OpenOffline` 发现目标缺失且有 `.old-*` 时报告具体原因；测试模拟两次重命名之间被杀。
-- 审计 #4/#8 是可选测试或健壮性项；#9（`ReadQuery` 目录竞态）已在 2.2.1 修复，见 CHANGELOG。
+- 审计 #4/#8 是可选测试项，现已分别由 #167、#169 完成；#9（`ReadQuery` 目录竞态）已在 2.2.1 修复，见 CHANGELOG。
 - 方案文档的 fixture 措辞（#6）在 BukitJalil 仓库单独改。
