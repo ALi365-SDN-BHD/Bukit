@@ -302,7 +302,26 @@ internal sealed class NotionSnapshotSession : INotionSnapshotHandle, IDisposable
         var queryDir = Path.Combine(databaseRoot, FingerprintKey(fingerprint));
         if (!System.IO.Directory.Exists(queryDir))
         {
-            var recorded = System.IO.Directory.GetDirectories(databaseRoot);
+            string[] recorded;
+            try
+            {
+                recorded = System.IO.Directory.GetDirectories(databaseRoot);
+            }
+            catch (DirectoryNotFoundException exception)
+            {
+                throw new NotionSnapshotException(
+                    $"Notion offline snapshot is missing or incomplete. {NotionSnapshotException.RebuildHint}",
+                    exception,
+                    DiagnosticCode.NotionSnapshotUnavailable);
+            }
+            catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+            {
+                throw new NotionSnapshotException(
+                    $"Notion offline snapshot has an unreadable query directory for database '{databaseId}'. {NotionSnapshotException.RebuildHint}",
+                    exception,
+                    DiagnosticCode.NotionSnapshotEntryMissing);
+            }
+
             if (recorded.Length != 1)
             {
                 throw new NotionSnapshotException(
