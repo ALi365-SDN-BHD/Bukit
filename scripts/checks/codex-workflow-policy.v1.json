@@ -42,8 +42,6 @@
       "id": "i18n-shared-assets-change",
       "matches": [
         "openspec/changes/archive/*-add-i18n-shared-assets/*",
-        "openspec/changes/fix-shared-assets-path-normalization/*.md",
-        "openspec/changes/fix-shared-assets-path-normalization/specs/i18n-shared-assets/spec.md",
         "openspec/changes/archive/*-fix-shared-assets-path-normalization/*.md",
         "openspec/changes/archive/*-fix-shared-assets-path-normalization/specs/i18n-shared-assets/spec.md",
         "openspec/specs/i18n-shared-assets/spec.md",
@@ -66,7 +64,6 @@
         "dotnet test tests/Bukit.Architecture.Tests/Bukit.Architecture.Tests.csproj -c Release --filter \"FullyQualifiedName~BuiltInPluginSplit|FullyQualifiedName~PublicApiBaseline\"",
         "bash scripts/checks/public-api-drift.sh check",
         "openspec validate i18n-shared-assets --type spec --strict --no-interactive",
-        "openspec validate fix-shared-assets-path-normalization --strict --no-interactive",
         "bash scripts/checks/docs/active-links.sh",
         "bash scripts/checks/docs/size-policy.sh"
       ],
