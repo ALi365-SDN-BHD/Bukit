@@ -16,13 +16,19 @@ internal sealed class SiteIdentityAndModesContributor : IRenderDependencyContrib
         writer.AppendLabeledCanonicalValue("site.language", site.Language);
         writer.AppendLabeledCanonicalValue("site.url", site.Url);
         writer.AppendLabeledCanonicalValue("site.buildYear", context.SiteModel.BuildYear);
+        // A single-language site hashes its language through site.language only, so writing
+        // languages: [en] for a site that had language: en (or adding defaultLanguage: en) keeps
+        // the hash, and upgrading such a site does not render every page again.
+        // The cleaned list (trimmed, without blanks or duplicates) is what the build uses.
+        var languages = I18nLanguagePolicy.GetLanguages(site);
+        var multilingual = languages.Count > 0;
         writer.AppendLabeledCanonicalValue(
             "site.languages",
-            site.Languages?.OrderBy(x => x, StringComparer.OrdinalIgnoreCase).ToList());
-        writer.AppendLabeledCanonicalValue("site.defaultLanguage", site.DefaultLanguage);
+            multilingual ? languages.OrderBy(x => x, StringComparer.OrdinalIgnoreCase).ToList() : null);
+        writer.AppendLabeledCanonicalValue("site.defaultLanguage", multilingual ? site.DefaultLanguage : null);
         // Only a multilingual site that moves its default language into a subdirectory hashes
         // the setting; the default (root) layout and single-language sites leave the hash unchanged.
-        if (site.DefaultLanguageInSubdir && I18nLanguagePolicy.GetLanguages(site).Count > 0)
+        if (site.DefaultLanguageInSubdir && multilingual)
         {
             writer.AppendLabeledCanonicalValue("site.defaultLanguageInSubdir", true);
         }

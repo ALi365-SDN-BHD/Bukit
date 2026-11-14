@@ -88,11 +88,13 @@ public sealed class IncrementalEngineIdentityTests
         var first = await BuildAsync(legacy, site.Root, "2.0.12+languages");
         Assert.True(first.Incremental.CacheMissCount > 0);
 
-        // site.languages is hashed as written, so writing the same one language still rebuilds once.
+        // A single-language site hashes only its language, so writing that one language as
+        // site.languages (with or without a matching defaultLanguage) keeps every page cached.
         var single = legacy with { Site = legacy.Site with { Languages = ["en"] } };
         var toSingle = await BuildAsync(single, site.Root, "2.0.12+languages");
-        Assert.Equal(0, toSingle.Incremental.CacheHitCount);
-        Assert.True(toSingle.Incremental.CacheMissCount > 0);
+        Assert.Equal(0, toSingle.Incremental.CacheMissCount);
+        var withDefault = single with { Site = single.Site with { DefaultLanguage = "en" } };
+        Assert.Equal(0, (await BuildAsync(withDefault, site.Root, "2.0.12+languages")).Incremental.CacheMissCount);
 
         var same = await BuildAsync(single, site.Root, "2.0.12+languages");
         Assert.Equal(0, same.Incremental.CacheMissCount);
