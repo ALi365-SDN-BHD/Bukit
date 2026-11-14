@@ -183,6 +183,7 @@ public static class DevCommand
         }
 
         AddIfExists(Path.Combine(rootDir, "content"));
+        AddIfExists(Path.Combine(rootDir, "data"));
         foreach (var source in config.Content.Sources ?? [])
         {
             if (source.Markdown is { } markdown)

@@ -218,9 +218,11 @@ public sealed class DevCommandTests(ITestOutputHelper output)
         try
         {
             var posts = Path.Combine(root, "posts");
+            var data = Path.Combine(root, "data");
             var childTheme = Path.Combine(root, "themes", "child");
             var parentTheme = Path.Combine(root, "themes", "base");
             Directory.CreateDirectory(posts);
+            Directory.CreateDirectory(data);
             Directory.CreateDirectory(childTheme);
             Directory.CreateDirectory(parentTheme);
             File.WriteAllText(Path.Combine(childTheme, "theme.yaml"), "name: child\nextends: base\n");
@@ -246,6 +248,7 @@ public sealed class DevCommandTests(ITestOutputHelper output)
             var dirs = DevCommand.ResolveWatchDirs(root, config, new ConsoleLogger(LogLevel.Warn));
 
             Assert.Contains(Path.GetFullPath(posts), dirs);
+            Assert.Contains(Path.GetFullPath(data), dirs);
             Assert.Contains(Path.GetFullPath(childTheme), dirs);
             Assert.Contains(Path.GetFullPath(parentTheme), dirs);
         }
