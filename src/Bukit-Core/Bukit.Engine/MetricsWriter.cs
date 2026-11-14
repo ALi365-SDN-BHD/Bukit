@@ -60,14 +60,18 @@ internal static class MetricsWriter
             writer.WriteString("defaultLanguage", config.Site.DefaultLanguage);
         }
         writer.WritePropertyName("languages");
-        if (config.Site.Languages is null)
+        // A config built in code may leave site.languages unset; record its one language, as a
+        // loaded config does, so the same site reports the same list however it was configured.
+        var languages = config.Site.Languages ??
+                        (string.IsNullOrWhiteSpace(config.Site.Language) ? null : [config.Site.Language.Trim()]);
+        if (languages is null)
         {
             writer.WriteNullValue();
         }
         else
         {
             writer.WriteStartArray();
-            foreach (var lang in config.Site.Languages)
+            foreach (var lang in languages)
             {
                 writer.WriteStringValue(lang);
             }

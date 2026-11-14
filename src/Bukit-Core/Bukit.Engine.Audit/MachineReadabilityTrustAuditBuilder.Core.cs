@@ -51,6 +51,7 @@ internal static partial class MachineReadabilityTrustAuditBuilder
                                    config.Site.Seo.Schema.SearchAction &&
                                    !string.IsNullOrWhiteSpace(config.Site.Search.Route);
 
+        var languageFallback = PublishDocumentBuilder.LanguageFallback(config.Site);
         var isInSitemapScope = SeoCompatibilityAuditRules.CreateSitemapScopeCheck(config.Site.Url, config.Site.BaseUrl);
         var isInSitemap = SeoCompatibilityAuditRules.CreateSitemapPresenceCheck(sitemapText);
         foreach (var (key, entry) in seoIndex.OrderBy(x => x.Value.Route.Url, StringComparer.OrdinalIgnoreCase))
@@ -74,7 +75,7 @@ internal static partial class MachineReadabilityTrustAuditBuilder
             var schemaTypes = model is null
                 ? Array.Empty<string>()
                 : SeoSchemaValidator.ExtractSchemaTypes(model.JsonLd, entry.Route.Url, jsonLdNotRendered ? [] : seoIssues, searchActionExpected);
-            var document = PublishDocumentBuilder.Build(entry, model, record, schemaTypes, config.Site.BaseUrl, projectionResults);
+            var document = PublishDocumentBuilder.Build(entry, model, record, schemaTypes, config.Site.BaseUrl, projectionResults, languageFallback);
             HtmlDocumentTitleInspection? titleInspection = null;
             if (!outputExists)
             {

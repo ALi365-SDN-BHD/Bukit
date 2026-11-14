@@ -104,6 +104,68 @@ public sealed class SingleLanguageSiteTests
         Assert.All(records, record => Assert.Equal("en", record.GetProperty("language").GetString()));
     }
 
+    // index.md has no language folder or front matter language, so its record language is "und".
+    [Theory]
+    [MemberData(nameof(LanguageForms))]
+    public async Task SingleLanguage_ProjectionsAndAgentManifestUseTheSiteLanguage(string languageYaml)
+    {
+        using var site = await BuildAsync(languageYaml);
+
+        using var manifest = JsonDocument.Parse(File.ReadAllText(Path.Combine(site.Output, "agent-manifest.json")));
+        var documents = manifest.RootElement.GetProperty("documents").EnumerateArray().ToList();
+        Assert.Contains(documents, document => document.GetProperty("route").GetString() == "/index/");
+        Assert.All(documents, document => Assert.Equal("en", document.GetProperty("language").GetString()));
+        var projections = Directory.EnumerateFiles(site.Output, "index.html.json", SearchOption.AllDirectories).ToList();
+        Assert.NotEmpty(projections);
+        Assert.All(projections, path =>
+        {
+            using var projection = JsonDocument.Parse(File.ReadAllText(path));
+            Assert.Equal("en", projection.RootElement.GetProperty("language").GetString());
+        });
+        Assert.All(Directory.EnumerateFiles(site.Output, "index.html.md", SearchOption.AllDirectories),
+            path => Assert.Contains("- Language: en\n", File.ReadAllText(path).ReplaceLineEndings("\n"), StringComparison.Ordinal));
+        var audit = File.ReadAllText(Path.Combine(site.Output, ".bukit", "publish-audit-report.json"));
+        Assert.DoesNotContain("publish.manifest_mismatch", audit, StringComparison.Ordinal);
+        Assert.DoesNotContain("publish.representation", audit, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task SingleLanguage_JsonFeedItemsUseTheSiteLanguage()
+    {
+        using var site = EnglishSite(LanguagesYaml);
+        var config = site.Config with
+        {
+            Site = site.Config.Site with
+            {
+                Url = "https://example.test",
+                Feed = site.Config.Site.Feed with { Formats = ["json"] }
+            }
+        };
+
+        await new SiteEngine(new ConsoleLogger(LogLevel.Error)).BuildAsync(config, site.Root,
+            new ConfigOverrides { Incremental = false });
+
+        using var feed = JsonDocument.Parse(File.ReadAllText(Path.Combine(site.Output, "feed", "feed.json")));
+        var items = feed.RootElement.GetProperty("items").EnumerateArray().ToList();
+        Assert.NotEmpty(items);
+        Assert.All(items, item => Assert.Equal("en", item.GetProperty("language").GetString()));
+    }
+
+    [Fact]
+    public async Task CodeBuiltConfigWithoutLanguages_MetricsRecordTheSiteLanguage()
+    {
+        using var site = EnglishSite(LanguagesYaml);
+        var config = site.Config with { Site = site.Config.Site with { Language = "en", Languages = null } };
+
+        await new SiteEngine(new ConsoleLogger(LogLevel.Error)).BuildAsync(config, site.Root,
+            new ConfigOverrides { Incremental = false, MetricsPath = "metrics.json" });
+
+        using var metrics = JsonDocument.Parse(File.ReadAllText(site.Sandbox.PathFor("metrics.json")));
+        var metricsSite = metrics.RootElement.GetProperty("site");
+        Assert.Equal("en", metricsSite.GetProperty("language").GetString());
+        Assert.Equal(["en"], metricsSite.GetProperty("languages").EnumerateArray().Select(item => item.GetString()));
+    }
+
     [Fact]
     public async Task CodeBuiltConfig_SiteLanguageComesFromSiteLanguages()
     {

@@ -5,6 +5,7 @@ using Bukit.Engine.Abstractions.Content;
 using Bukit.Engine.Abstractions.Plugins;
 using Bukit.Rendering;
 using Bukit.Engine.Abstractions.Routing;
+using Bukit.Engine.Primitives;
 
 namespace Bukit.Engine;
 
@@ -90,6 +91,7 @@ internal sealed class DefaultContentProjectionWriter : IContentProjectionWriter
             .ToList();
         if (routedDocuments.Count > 0)
         {
+            var languageFallback = ContentLanguageFallback.ForSite(context.Config.Site);
             return routedDocuments
                 .Select(document =>
                 {
@@ -102,7 +104,8 @@ internal sealed class DefaultContentProjectionWriter : IContentProjectionWriter
                         document.Route,
                         entry,
                         model,
-                        context.BaseUrl);
+                        context.BaseUrl,
+                        languageFallback);
                 })
                 .ToArray();
         }
@@ -128,7 +131,7 @@ internal sealed class DefaultContentProjectionWriter : IContentProjectionWriter
                 PublicContentProjectionPolicy.ResolvePublicId(record, route.Url),
                 PublicContentProjectionPolicy.ResolvePublicId(record, route.Url),
                 route.Url,
-                record.Presentation.Language,
+                documentContext.Language,
                 record.Trust.ReviewStatus,
                 PublicContentProjectionPolicy.SanitizeEntities(record).Select(x => x.Name).ToArray(),
                 BuildAgentManifestRepresentationEntries(route, entry, model, context.BaseUrl),
@@ -178,7 +181,12 @@ internal sealed record ContentProjectionDocumentContext(
     RouteInfo Route,
     SeoIndexEntry? SeoIndexEntry,
     SeoModel? SeoModel,
-    string BaseUrl = "/");
+    string BaseUrl = "/",
+    string? LanguageFallback = null)
+{
+    /// <summary>The page language, or the site language for an undetermined page of a single-language site.</summary>
+    internal string Language => ContentLanguageFallback.Resolve(Record.Presentation.Language, LanguageFallback)!;
+}
 
 internal sealed class JsonContentDocumentProjection : IPublishProjection
 {
@@ -209,7 +217,7 @@ internal sealed class JsonContentDocumentProjection : IPublishProjection
             Title: record.Presentation.Title,
             Summary: record.Presentation.Summary,
             Body: record.Presentation.Body,
-            Language: record.Presentation.Language,
+            Language: context.Language,
             Type: record.Identity.ContentType,
             Collection: record.Classification.Collection,
             Tags: record.Classification.Tags,
@@ -268,7 +276,7 @@ internal sealed class MarkdownContentDocumentProjection : IPublishProjection
         sb.AppendLine($"# {record.Presentation.Title}");
         sb.AppendLine();
         sb.AppendLine($"- Route: {route.Url}");
-        sb.AppendLine($"- Language: {record.Presentation.Language}");
+        sb.AppendLine($"- Language: {context.Language}");
         sb.AppendLine($"- Type: {record.Identity.ContentType}");
         sb.AppendLine($"- Review Status: {record.Trust.ReviewStatus}");
         if (!string.IsNullOrWhiteSpace(entry?.Canonical))

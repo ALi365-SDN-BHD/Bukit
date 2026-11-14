@@ -1,6 +1,7 @@
 using Bukit.Engine.Abstractions.Content;
 using Bukit.Engine.Abstractions.Plugins;
 using Bukit.Rendering;
+using Bukit.Engine.Primitives;
 
 namespace Bukit.Engine;
 
@@ -51,13 +52,17 @@ internal sealed record PublishSemanticOutlineItem(int Level, string Text);
 
 internal static class PublishDocumentBuilder
 {
+    /// <summary>The <c>languageFallback</c> for <see cref="Build"/>: see <see cref="ContentLanguageFallback.ForSite"/>.</summary>
+    internal static string? LanguageFallback(Bukit.Config.SiteConfig site) => ContentLanguageFallback.ForSite(site);
+
     internal static PublishDocument Build(
         SeoIndexEntry entry,
         SeoModel? model,
         ContentRecord? record,
         IReadOnlyList<string> schemaTypes,
         string baseUrl,
-        IReadOnlyList<PublishProjectionResult>? projectionResults)
+        IReadOnlyList<PublishProjectionResult>? projectionResults,
+        string? languageFallback = null)
     {
         return new PublishDocument(
             entry.Route.Url,
@@ -70,7 +75,7 @@ internal static class PublishDocumentBuilder
             NormalizeLastModified(entry.LastModified),
             model?.Title,
             model?.Description,
-            record?.Presentation.Language,
+            ContentLanguageFallback.Resolve(record?.Presentation.Language, record is null ? null : languageFallback),
             record?.Ownership.Author ?? model?.Article.Author,
             record?.Ownership.Organization,
             record?.Provenance.Source,
