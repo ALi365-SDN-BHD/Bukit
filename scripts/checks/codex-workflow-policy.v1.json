@@ -39,6 +39,43 @@
       "resource": "dotnet-serial"
     },
     {
+      "id": "i18n-shared-assets-change",
+      "matches": [
+        "openspec/changes/add-i18n-shared-assets/*",
+        "openspec/changes/archive/<date>-add-i18n-shared-assets/*",
+        "docs/plans/2026-11-14-add-i18n-shared-assets-implementation-plan.zh-CN.md",
+        "src/Bukit-Core/Bukit.Cli/Resources/StarterTheme/BaseLayout.html",
+        "tests/Bukit.Engine.Tests/ImageVariantPlanTests.cs",
+        "tests/Bukit.Engine.Tests/SharedAssetScopeTests.cs",
+        "tests/Bukit.Engine.Tests/I18nSharedAssetsTests.cs"
+      ],
+      "specialtyTests": [
+        "dotnet test tests/Bukit.Config.Tests/Bukit.Config.Tests.csproj -c Release --filter \"FullyQualifiedName~ConfigLoader|FullyQualifiedName~StrictYamlContract|FullyQualifiedName~ConfigSchemaNestedContract|FullyQualifiedName~ConfigContractDrift|FullyQualifiedName~ConfigJsonSchemaGenerator|FullyQualifiedName~ConfigPhase2Validator|FullyQualifiedName~GeoAiBotModeValidation|FullyQualifiedName~MediaConfigDefaults\"",
+        "dotnet test tests/Bukit.Engine.Tests/Bukit.Engine.Tests.csproj -c Release --filter \"FullyQualifiedName~SharedAssetScope|FullyQualifiedName~AssetPipeline|FullyQualifiedName~VariantBuildPipeline|FullyQualifiedName~SiteEngineLoggerTests|FullyQualifiedName~I18nLanguagePolicy\"",
+        "dotnet test tests/Bukit.Engine.Tests/Bukit.Engine.Tests.csproj -c Release --filter \"FullyQualifiedName~SiteEngineIntegrationTests|FullyQualifiedName~I18nSharedAssets|FullyQualifiedName~I18nRootLayout|FullyQualifiedName~RouteMetadataRendering\"",
+        "dotnet test tests/Bukit.Engine.Tests/Bukit.Engine.Tests.csproj -c Release --filter \"FullyQualifiedName~RenderDependency|FullyQualifiedName~IncrementalEngineIdentity|FullyQualifiedName~IncrementalRenderReads\"",
+        "dotnet test tests/Bukit.Engine.Tests/Bukit.Engine.Tests.csproj -c Release --filter \"FullyQualifiedName~SeoModelBuilder|FullyQualifiedName~SeoAuthorProfile|FullyQualifiedName~SeoPublisherJsonLd|FullyQualifiedName~SeoJsonLd|FullyQualifiedName~GeoSeoModelBuilder|FullyQualifiedName~MediaPlaceholderProbe\"",
+        "dotnet test tests/Bukit.Engine.Tests/Bukit.Engine.Tests.csproj -c Release --filter \"FullyQualifiedName~ImageVariantPlan|FullyQualifiedName~ImageProcessingPlugin|FullyQualifiedName~ImageSourceFingerprint\"",
+        "dotnet test tests/Bukit.Engine.Tests/Bukit.Engine.Tests.csproj -c Release --filter \"FullyQualifiedName~I18nWorktree\"",
+        "dotnet test tests/Bukit.Rendering.Tests/Bukit.Rendering.Tests.csproj -c Release --filter \"FullyQualifiedName~ScribanModelKnownFields|FullyQualifiedName~ScribanModelBinder|FullyQualifiedName~StarterThemeTemplateResource\"",
+        "dotnet test tests/Bukit.Cli.Tests/Bukit.Cli.Tests.csproj -c Release --filter \"FullyQualifiedName~WorktreeBuildCoordinator|FullyQualifiedName~NotionOfflineSnapshotMultilingual\"",
+        "dotnet test tests/Bukit.Architecture.Tests/Bukit.Architecture.Tests.csproj -c Release --filter \"FullyQualifiedName~BuiltInPluginSplit|FullyQualifiedName~PublicApiBaseline\"",
+        "bash scripts/checks/public-api-drift.sh check",
+        "openspec validate add-i18n-shared-assets --strict --no-interactive",
+        "bash scripts/checks/docs/active-links.sh",
+        "bash scripts/checks/docs/size-policy.sh"
+      ],
+      "contractConsumerGlobs": [
+        "src/Bukit-Core/Bukit.Config/AppConfig.cs",
+        "src/Bukit-Core/Bukit.Config/ConfigLoader.cs",
+        "src/Bukit-Core/Bukit.Engine/SharedAssetScope.cs",
+        "src/Bukit-Core/Bukit.Engine/BuildVariantContext.cs",
+        "src/Bukit-Core/Bukit.Rendering/Models.cs"
+      ],
+      "publicContract": true,
+      "resource": "dotnet-serial"
+    },
+    {
       "id": "unify-site-languages-change",
       "matches": [
         "openspec/changes/unify-site-languages/*",
