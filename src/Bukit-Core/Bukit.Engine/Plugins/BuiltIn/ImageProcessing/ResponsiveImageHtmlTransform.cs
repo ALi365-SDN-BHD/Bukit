@@ -55,9 +55,12 @@ internal sealed partial class ResponsiveImageHtmlTransform(
         string html,
         IReadOnlyDictionary<string, string> webpSrcsets,
         string baseUrl,
-        string? siteUrl)
+        string? siteUrl,
+        string? assetBaseUrl,
+        SharedAssetScope? sharedAssets)
     {
         var normalizedBaseUrl = BuildPathUtils.NormalizeBaseUrl(baseUrl).TrimEnd('/');
+        var normalizedAssetBaseUrl = BuildPathUtils.NormalizeBaseUrl(assetBaseUrl ?? baseUrl).TrimEnd('/');
         var siteUri = Uri.TryCreate(siteUrl, UriKind.Absolute, out var parsedSiteUri) ? parsedSiteUri : null;
         return HtmlElementRegex().Replace(html, match =>
         {
@@ -79,7 +82,7 @@ internal sealed partial class ResponsiveImageHtmlTransform(
                 ? match.Value.Replace($" {GeneratedSrcsetMarker}=\"\"", string.Empty, StringComparison.Ordinal)
                 : match.Value;
             var src = GetAttributeValue(attributes, "src");
-            if (src is null || !TryNormalizeLocalImageUrl(src, normalizedBaseUrl, siteUri, out var sourceUrl) ||
+            if (src is null || !TryNormalizeLocalImageUrl(src, normalizedBaseUrl, normalizedAssetBaseUrl, sharedAssets, siteUri, out var sourceUrl) ||
                 !webpSrcsets.TryGetValue(sourceUrl, out var webpSrcset))
             {
                 return fallbackTag;
@@ -110,6 +113,8 @@ internal sealed partial class ResponsiveImageHtmlTransform(
     private static bool TryNormalizeLocalImageUrl(
         string sourceUrl,
         string baseUrl,
+        string assetBaseUrl,
+        SharedAssetScope? sharedAssets,
         Uri? siteUri,
         out string normalized)
     {
@@ -143,7 +148,25 @@ internal sealed partial class ResponsiveImageHtmlTransform(
         normalized = path;
         if (baseUrl.Length > 0 && !normalized.StartsWith(baseUrl + "/", StringComparison.Ordinal))
         {
-            return false;
+            var relative = path;
+            if (assetBaseUrl.Length > 0)
+            {
+                if (!relative.StartsWith(assetBaseUrl + "/", StringComparison.Ordinal))
+                {
+                    return false;
+                }
+
+                relative = relative[(assetBaseUrl.Length + 1)..];
+            }
+            else
+            {
+                relative = relative.TrimStart('/');
+            }
+
+            if (sharedAssets is null || !sharedAssets.Contains(relative))
+            {
+                return false;
+            }
         }
         return true;
     }

@@ -128,6 +128,21 @@ internal sealed partial class VariantBuildPipeline
         var assetPipelinePreparation = await AssetPipeline.PrepareAsync(
             renderAssetPlan.AssetPipelineContext,
             cancellationToken);
+        if (context.SharedAssets is { } sharedAssets &&
+            !I18nOutputLayout.IsRootLanguageVariant(context.Config))
+        {
+            var imageDestinations = assetPipelinePreparation.OutputPlan.OmittedSharedItems
+                .Where(item => item.Category is AssetOutputCategory.Assets or AssetOutputCategory.Static)
+                .Where(item => item.Destination.EndsWith(".jpg", StringComparison.OrdinalIgnoreCase) ||
+                               item.Destination.EndsWith(".jpeg", StringComparison.OrdinalIgnoreCase) ||
+                               item.Destination.EndsWith(".png", StringComparison.OrdinalIgnoreCase))
+                .Select(item => item.Destination)
+                .ToArray();
+            routePipelineResult.PluginContext.Set(
+                BuildDataKeys.SharedAssets,
+                new SharedAssetBuildData(sharedAssets, imageDestinations));
+        }
+
         I18nReservedPrefixGuard.ValidateAssetPlan(context.Config, assetPipelinePreparation.OutputPlan.Items);
 
         // Remove only prior owned destinations before aggregate writers inspect existing files.

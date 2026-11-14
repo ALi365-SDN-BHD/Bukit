@@ -1902,6 +1902,84 @@ public sealed class ImageProcessingPluginTests
         }
     }
 
+    [Fact]
+    public async Task AfterBuild_SharedImage_ReusesDefaultWebpVariantsWhenLanguageHasNoImages()
+    {
+        var root = GetTempDir();
+        try
+        {
+            Directory.CreateDirectory(Path.Combine(root, "assets"));
+            var source = Path.Combine(root, "assets", "hero.jpg");
+            WriteValidImage(source, "shared", width: 1000);
+            var config = new AppConfig
+            {
+                Site = new SiteConfig
+                {
+                    Name = "t",
+                    Title = "t",
+                    BaseUrl = "/",
+                    Languages = ["en", "zh-CN"],
+                    SharedAssets = new SharedAssetsConfig { Enabled = true }
+                },
+                Content = TestContent.Markdown(),
+                Theme = new ThemeConfig
+                {
+                    Images = new ImageOptimizationConfig
+                    {
+                        Enabled = true,
+                        Formats = ["webp"],
+                        Sizes = [480],
+                        Quality = 80
+                    }
+                }
+            };
+
+            await new ImageProcessingPlugin(config).AfterBuildAsync(CreateContext(root));
+            var sharedBefore = SnapshotFiles(Path.Combine(root, "assets"));
+
+            var scope = SharedAssetScope.TryCreate(config, ["en", "zh-CN"], root, null);
+            Assert.NotNull(scope);
+            var languageOutput = Path.Combine(root, "zh-CN");
+            Directory.CreateDirectory(languageOutput);
+            var page = Path.Combine(languageOutput, "index.html");
+            await File.WriteAllTextAsync(page, "<img src=\"/assets/hero.jpg\" alt=\"\" />");
+            var languageContext = new BuildContext
+            {
+                RootDir = root,
+                OutputDir = languageOutput,
+                BaseUrl = "/zh-CN",
+                LayoutsDir = root,
+                RoutedDocuments = Array.Empty<RoutedContentDocument>(),
+                Logger = new ConsoleLogger(LogLevel.Error)
+            };
+            languageContext.Set(BuildDataKeys.CurrentHtmlOutputs, new[] { "index.html" });
+            languageContext.Set(
+                BuildDataKeys.SharedAssets,
+                new SharedAssetBuildData(scope, ["assets/hero.jpg"]));
+
+            await new ImageProcessingPlugin(config).AfterBuildAsync(languageContext);
+            Assert.Equal(sharedBefore, SnapshotFiles(Path.Combine(root, "assets")));
+
+            var html = await File.ReadAllTextAsync(page);
+            Assert.Contains("<picture>", html, StringComparison.Ordinal);
+            Assert.Contains("/assets/hero-480w.webp", html, StringComparison.Ordinal);
+            Assert.DoesNotContain("/zh-CN/assets/hero", html, StringComparison.Ordinal);
+        }
+        finally
+        {
+            TestCleanup.DeleteDirectory(root, recursive: true);
+        }
+    }
+
+    private static Dictionary<string, (long Length, DateTime LastWrite)> SnapshotFiles(string directory)
+        => Directory.Exists(directory)
+            ? Directory.GetFiles(directory, "*", SearchOption.AllDirectories)
+                .ToDictionary(
+                    path => Path.GetRelativePath(directory, path).Replace('\\', '/'),
+                    path => (new FileInfo(path).Length, File.GetLastWriteTimeUtc(path)),
+                    StringComparer.Ordinal)
+            : new Dictionary<string, (long, DateTime)>(StringComparer.Ordinal);
+
     private static void WriteValidImage(string path, string seed, int width = 1600)
     {
         var hash = 0;

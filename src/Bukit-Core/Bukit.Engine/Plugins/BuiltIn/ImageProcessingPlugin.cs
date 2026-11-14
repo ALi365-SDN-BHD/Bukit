@@ -55,10 +55,18 @@ internal sealed class ImageProcessingPlugin : IBukitPlugin, IAfterBuildAsyncPlug
         var webpEnabled = config.Formats?.Any(format =>
             string.Equals(format, "webp", StringComparison.OrdinalIgnoreCase)) == true;
         var generatedOutputs = new HashSet<PluginOutputTrackingInfo>();
+        var shared = context.TryGet(BuildDataKeys.SharedAssets, out var sharedData) ? sharedData : null;
+        var sharedWebp = webpEnabled && shared is not null
+            ? BuildSharedWebpMapping(context, shared, sizes, cancellationToken)
+            : new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
 
         if (imageFiles.Count == 0)
         {
-            if (!webpEnabled)
+            if (sharedWebp.Count > 0)
+            {
+                RewriteCurrentHtmlWithWebp(context, sharedWebp, shared!.Scope, cancellationToken);
+            }
+            else if (!webpEnabled)
             {
                 PreservePriorWebpOutputs(context, priorPluginOutputs, generatedOutputs);
             }
@@ -120,7 +128,11 @@ internal sealed class ImageProcessingPlugin : IBukitPlugin, IAfterBuildAsyncPlug
                 failureLimit,
                 failures,
                 cancellationToken);
-            RewriteCurrentHtmlWithWebp(context, webpSrcsets, cancellationToken);
+            foreach (var (key, value) in sharedWebp)
+            {
+                webpSrcsets.TryAdd(key, value);
+            }
+            RewriteCurrentHtmlWithWebp(context, webpSrcsets, shared?.Scope, cancellationToken);
         }
         else
         {
@@ -329,9 +341,57 @@ internal sealed class ImageProcessingPlugin : IBukitPlugin, IAfterBuildAsyncPlug
             .Where(f => !IsOwnedGeneratedVariant(context.OutputDir, f, priorPluginOutputs))];
     }
 
+    private static Dictionary<string, string> BuildSharedWebpMapping(
+        BuildContext context,
+        SharedAssetBuildData shared,
+        IReadOnlyList<int> sizes,
+        CancellationToken cancellationToken)
+    {
+        var srcsets = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        var prefix = shared.Scope.RootBaseUrl.TrimEnd('/');
+        foreach (var destination in shared.ImageDestinations)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            var source = FileWriter.GetSafeFullPath(shared.Scope.OutputRoot, destination);
+            if (!File.Exists(source) ||
+                !TryGetImageWidth(source, context.Logger, out var sourceWidth))
+            {
+                continue;
+            }
+
+            var candidates = new List<string>();
+            foreach (var width in ImageVariantPlan.CandidateWidths(sizes, sourceWidth))
+            {
+                var variant = ImageVariantPlan.VariantFileName(source, width, ".webp");
+                if (!File.Exists(variant) ||
+                    !TryReadFreshness(
+                        variant + FreshnessSuffix,
+                        shared.Scope.OutputRoot,
+                        source,
+                        variant,
+                        width,
+                        out _))
+                {
+                    continue;
+                }
+
+                var relative = GetRelativeIdentity(shared.Scope.OutputRoot, variant);
+                candidates.Add($"{prefix}/{relative} {width}w");
+            }
+
+            if (candidates.Count > 0)
+            {
+                srcsets[$"{prefix}/{destination}"] = string.Join(", ", candidates);
+            }
+        }
+
+        return srcsets;
+    }
+
     private void RewriteCurrentHtmlWithWebp(
         BuildContext context,
         IReadOnlyDictionary<string, string> webpSrcsets,
+        SharedAssetScope? sharedAssets,
         CancellationToken cancellationToken)
     {
         if (!context.TryGet(BuildDataKeys.CurrentHtmlOutputs, out var htmlOutputs))
@@ -354,7 +414,9 @@ internal sealed class ImageProcessingPlugin : IBukitPlugin, IAfterBuildAsyncPlug
                 html,
                 webpSrcsets,
                 context.BaseUrl,
-                _config.Site.Url);
+                _config.Site.Url,
+                sharedAssets?.RootBaseUrl,
+                sharedAssets);
             if (string.Equals(html, rewritten, StringComparison.Ordinal))
             {
                 continue;
