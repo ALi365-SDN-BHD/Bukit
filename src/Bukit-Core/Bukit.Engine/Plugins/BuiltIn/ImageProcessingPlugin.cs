@@ -56,8 +56,9 @@ internal sealed class ImageProcessingPlugin : IBukitPlugin, IAfterBuildAsyncPlug
             string.Equals(format, "webp", StringComparison.OrdinalIgnoreCase)) == true;
         var generatedOutputs = new HashSet<PluginOutputTrackingInfo>();
         var shared = context.TryGet(BuildDataKeys.SharedAssets, out var sharedData) ? sharedData : null;
+        var quality = config.Quality > 0 ? config.Quality : 80;
         var sharedWebp = webpEnabled && shared is not null
-            ? BuildSharedWebpMapping(context, shared, sizes, cancellationToken)
+            ? await BuildSharedWebpMappingAsync(context, shared, sizes, quality, cancellationToken)
             : new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
 
         if (imageFiles.Count == 0)
@@ -82,7 +83,6 @@ internal sealed class ImageProcessingPlugin : IBukitPlugin, IAfterBuildAsyncPlug
             priorPluginOutputs,
             cancellationToken);
 
-        var quality = config.Quality > 0 ? config.Quality : 80;
         string? tool = null;
         if (resizePlans.Count > 0)
         {
@@ -341,47 +341,73 @@ internal sealed class ImageProcessingPlugin : IBukitPlugin, IAfterBuildAsyncPlug
             .Where(f => !IsOwnedGeneratedVariant(context.OutputDir, f, priorPluginOutputs))];
     }
 
-    private static Dictionary<string, string> BuildSharedWebpMapping(
+    private static async Task<Dictionary<string, string>> BuildSharedWebpMappingAsync(
         BuildContext context,
         SharedAssetBuildData shared,
         IReadOnlyList<int> sizes,
+        int quality,
         CancellationToken cancellationToken)
     {
         var srcsets = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        var sourceHashes = new Dictionary<string, string>(StringComparer.Ordinal);
         var prefix = shared.Scope.RootBaseUrl.TrimEnd('/');
         foreach (var destination in shared.ImageDestinations)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            var source = FileWriter.GetSafeFullPath(shared.Scope.OutputRoot, destination);
-            if (!File.Exists(source) ||
-                !TryGetImageWidth(source, context.Logger, out var sourceWidth))
+            try
             {
-                continue;
-            }
-
-            var candidates = new List<string>();
-            foreach (var width in ImageVariantPlan.CandidateWidths(sizes, sourceWidth))
-            {
-                var variant = ImageVariantPlan.VariantFileName(source, width, ".webp");
-                if (!File.Exists(variant) ||
-                    !TryReadFreshness(
-                        variant + FreshnessSuffix,
-                        shared.Scope.OutputRoot,
-                        source,
-                        variant,
-                        width,
-                        out _))
+                var source = FileWriter.GetSafeFullPath(shared.Scope.OutputRoot, destination);
+                if (!File.Exists(source))
                 {
                     continue;
                 }
 
-                var relative = GetRelativeIdentity(shared.Scope.OutputRoot, variant);
-                candidates.Add($"{prefix}/{relative} {width}w");
-            }
+                if (!TryGetImageWidth(source, context.Logger, out var sourceWidth))
+                {
+                    context.Logger.Warn(
+                        $"event=image_processing.skip file={Path.GetFileName(source)} reason=unreadable_image");
+                    continue;
+                }
 
-            if (candidates.Count > 0)
+                var sourceInfo = new FileInfo(source);
+                var sourceSha256 = await GetOrComputeSourceSha256Async(source, sourceHashes, cancellationToken)
+                    .ConfigureAwait(false);
+                var candidates = new List<string>();
+                foreach (var width in ImageVariantPlan.CandidateWidths(sizes, sourceWidth))
+                {
+                    var variant = ImageVariantPlan.VariantFileName(source, width, ".webp");
+                    if (!File.Exists(variant) ||
+                        !TryReadFreshness(
+                            variant + FreshnessSuffix,
+                            shared.Scope.OutputRoot,
+                            source,
+                            variant,
+                            width,
+                            out var freshness) ||
+                        !freshness.Matches(
+                            sourceInfo,
+                            sourceSha256,
+                            quality,
+                            width,
+                            ".webp",
+                            ImageOptimizer.WebpEncoderIdentity))
+                    {
+                        continue;
+                    }
+
+                    var relative = GetRelativeIdentity(shared.Scope.OutputRoot, variant);
+                    candidates.Add($"{prefix}/{relative} {width}w");
+                }
+
+                if (candidates.Count > 0)
+                {
+                    srcsets[$"{prefix}/{destination}"] = string.Join(", ", candidates);
+                }
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
             {
-                srcsets[$"{prefix}/{destination}"] = string.Join(", ", candidates);
+                context.Logger.Warn(
+                    $"event=image_processing.skip file={Path.GetFileName(destination)} reason=unreadable_image");
             }
         }
 

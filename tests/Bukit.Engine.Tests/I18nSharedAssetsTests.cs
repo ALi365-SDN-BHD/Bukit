@@ -2,6 +2,7 @@ using Bukit.Config;
 using Bukit.Content;
 using Bukit.Engine.Abstractions.Content;
 using Bukit.Engine.Tests.Infrastructure;
+using SkiaSharp;
 using Bukit.Shared;
 using Xunit;
 
@@ -133,6 +134,48 @@ public sealed class I18nSharedAssetsTests
         finally
         {
             Directory.Delete(root, recursive: true);
+        }
+    }
+
+    [Fact]
+    public async Task SharedWebp_IsGeneratedOnceAndReusedAcrossLanguages()
+    {
+        using var site = CreateSite();
+        WriteSite(site, enabled: true, clean: true);
+        var source = Path.Combine(site.Root, "assets", "hero.jpg");
+        Directory.CreateDirectory(Path.GetDirectoryName(source)!);
+        using (var image = new SKBitmap(1000, 8))
+        {
+            image.Erase(SKColors.SteelBlue);
+            using var encoded = image.Encode(SKEncodedImageFormat.Jpeg, 90);
+            File.WriteAllBytes(source, encoded.ToArray());
+        }
+        var sitePath = Path.Combine(site.Root, "site.yaml");
+        File.WriteAllText(sitePath, File.ReadAllText(sitePath).Replace(
+            "theme:\n  layouts: layouts",
+            "theme:\n  layouts: layouts\n  images:\n    enabled: true\n    formats: [webp]\n    sizes: [480]",
+            StringComparison.Ordinal));
+        site.Sandbox.Write("layouts/layouts/base.html", """
+            {{ asset_base_url = site.asset_base_url }}
+            {{ if asset_base_url == "/" }}{{ asset_base_url = "" }}{{ end }}
+            <!DOCTYPE html>
+            <html lang="{{ site.language }}"><head><link rel="stylesheet" href="{{ asset_base_url }}/assets/style.css" /></head>
+            <body><img src="{{ asset_base_url }}/assets/hero.jpg" alt="" />{{ content }}</body></html>
+            """);
+
+        await site.BuildAsync(clean: true);
+
+        Assert.True(File.Exists(Path.Combine(site.Output, "assets", "hero-480w.webp")));
+        Assert.False(File.Exists(Path.Combine(site.Output, "zh-CN", "assets", "hero-480w.webp")));
+        foreach (var page in new[]
+        {
+            File.ReadAllText(Path.Combine(site.Output, "index.html")),
+            File.ReadAllText(Path.Combine(site.Output, "zh-CN", "index.html"))
+        })
+        {
+            Assert.Contains("<picture>", page, StringComparison.Ordinal);
+            Assert.Contains("/assets/hero-480w.webp", page, StringComparison.Ordinal);
+            Assert.DoesNotContain("/zh-CN/assets/hero", page, StringComparison.Ordinal);
         }
     }
 

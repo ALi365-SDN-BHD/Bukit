@@ -1971,6 +1971,154 @@ public sealed class ImageProcessingPluginTests
         }
     }
 
+    [Fact]
+    public async Task AfterBuild_SharedImage_StaleSourceIsNotReferenced()
+    {
+        var root = GetTempDir();
+        try
+        {
+            Directory.CreateDirectory(Path.Combine(root, "assets"));
+            var source = Path.Combine(root, "assets", "hero.jpg");
+            WriteValidImage(source, "original", width: 1000);
+            var config = SharedWebpConfig();
+            await new ImageProcessingPlugin(config).AfterBuildAsync(CreateContext(root));
+
+            WriteValidImage(source, "changed", width: 1000);
+            File.SetLastWriteTimeUtc(source, DateTime.UtcNow.AddSeconds(1));
+            var (languageContext, page) = SharedLanguageContext(
+                root, config, "/zh-CN", ["assets/hero.jpg"], "<img src=\"/assets/hero.jpg\" alt=\"\" />");
+
+            await new ImageProcessingPlugin(config).AfterBuildAsync(languageContext);
+
+            Assert.DoesNotContain("<picture>", await File.ReadAllTextAsync(page), StringComparison.Ordinal);
+        }
+        finally
+        {
+            TestCleanup.DeleteDirectory(root, recursive: true);
+        }
+    }
+
+    [Fact]
+    public async Task AfterBuild_SharedImage_RepoBaseKeepsSingleRootAndSkipsMissingCandidates()
+    {
+        var root = GetTempDir();
+        try
+        {
+            Directory.CreateDirectory(Path.Combine(root, "assets"));
+            var source = Path.Combine(root, "assets", "hero.jpg");
+            WriteValidImage(source, "repo", width: 1000);
+            var config = SharedWebpConfig(sizes: [480, 768], baseUrl: "/repo");
+            await new ImageProcessingPlugin(config).AfterBuildAsync(CreateContext(root));
+            File.Delete(Path.Combine(root, "assets", "hero-768w.webp"));
+            File.Delete(Path.Combine(root, "assets", "hero-768w.webp.bukit-freshness.json"));
+
+            var (languageContext, page) = SharedLanguageContext(
+                root,
+                config,
+                "/repo/zh-CN",
+                ["assets/hero.jpg"],
+                "<img src=\"/repo/assets/hero.jpg\" alt=\"\" />" +
+                "<img src=\"/assets/uploads/x.jpg\" alt=\"\" />" +
+                "<img src=\"/images/a.jpg\" alt=\"\" />");
+
+            await new ImageProcessingPlugin(config).AfterBuildAsync(languageContext);
+
+            var html = await File.ReadAllTextAsync(page);
+            Assert.Equal(1, CountOccurrences(html, "<picture>"));
+            Assert.Contains("/repo/assets/hero-480w.webp 480w", html, StringComparison.Ordinal);
+            Assert.Contains("/repo/assets/hero-1000w.webp 1000w", html, StringComparison.Ordinal);
+            Assert.DoesNotContain("768w", html, StringComparison.Ordinal);
+            Assert.DoesNotContain("//assets", html, StringComparison.Ordinal);
+        }
+        finally
+        {
+            TestCleanup.DeleteDirectory(root, recursive: true);
+        }
+    }
+
+    [Fact]
+    public async Task AfterBuild_SharedImage_CorruptSourceLogsSkipAndLeavesImage()
+    {
+        var root = GetTempDir();
+        try
+        {
+            Directory.CreateDirectory(Path.Combine(root, "assets"));
+            File.WriteAllText(Path.Combine(root, "assets", "broken.jpg"), "not an image");
+            var config = SharedWebpConfig();
+            var (languageContext, page) = SharedLanguageContext(
+                root,
+                config,
+                "/zh-CN",
+                ["assets/broken.jpg"],
+                "<img src=\"/assets/broken.jpg\" alt=\"\" />",
+                new ResizeWarningLogger(new ConsoleLogger(LogLevel.Error)));
+
+            await new ImageProcessingPlugin(config).AfterBuildAsync(languageContext);
+
+            Assert.Contains(
+                ((ResizeWarningLogger)languageContext.Logger).Warnings,
+                message => message.Contains("event=image_processing.skip", StringComparison.Ordinal));
+            var html = await File.ReadAllTextAsync(page);
+            Assert.DoesNotContain("<picture>", html, StringComparison.Ordinal);
+            Assert.Contains("src=\"/assets/broken.jpg\"", html, StringComparison.Ordinal);
+        }
+        finally
+        {
+            TestCleanup.DeleteDirectory(root, recursive: true);
+        }
+    }
+
+    private static AppConfig SharedWebpConfig(int[]? sizes = null, string baseUrl = "/") => new()
+    {
+        Site = new SiteConfig
+        {
+            Name = "t",
+            Title = "t",
+            BaseUrl = baseUrl,
+            Languages = ["en", "zh-CN"],
+            SharedAssets = new SharedAssetsConfig { Enabled = true }
+        },
+        Content = TestContent.Markdown(),
+        Theme = new ThemeConfig
+        {
+            Images = new ImageOptimizationConfig
+            {
+                Enabled = true,
+                Formats = ["webp"],
+                Sizes = sizes ?? [480],
+                Quality = 80
+            }
+        }
+    };
+
+    private static (BuildContext Context, string Page) SharedLanguageContext(
+        string root,
+        AppConfig config,
+        string baseUrl,
+        string[] destinations,
+        string html,
+        ILogger? logger = null)
+    {
+        var scope = SharedAssetScope.TryCreate(config, ["en", "zh-CN"], root, null);
+        Assert.NotNull(scope);
+        var languageOutput = Path.Combine(root, "zh-CN");
+        Directory.CreateDirectory(languageOutput);
+        var page = Path.Combine(languageOutput, "index.html");
+        File.WriteAllText(page, html);
+        var context = new BuildContext
+        {
+            RootDir = root,
+            OutputDir = languageOutput,
+            BaseUrl = baseUrl,
+            LayoutsDir = root,
+            RoutedDocuments = Array.Empty<RoutedContentDocument>(),
+            Logger = logger ?? new ConsoleLogger(LogLevel.Error)
+        };
+        context.Set(BuildDataKeys.CurrentHtmlOutputs, new[] { "index.html" });
+        context.Set(BuildDataKeys.SharedAssets, new SharedAssetBuildData(scope, destinations));
+        return (context, page);
+    }
+
     private static Dictionary<string, (long Length, DateTime LastWrite)> SnapshotFiles(string directory)
         => Directory.Exists(directory)
             ? Directory.GetFiles(directory, "*", SearchOption.AllDirectories)
