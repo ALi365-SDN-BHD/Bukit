@@ -4,6 +4,8 @@ Semua perubahan penting kepada Bukit akan didokumenkan dalam fail ini.
 
 ## [Belum Dikeluarkan]
 
+- **Aset tema dikongsi untuk tapak berbilang bahasa dengan susun atur akar**: `site.sharedAssets.enabled: true` (lalai mati) menyimpan aset tema, output SCSS, `assets/css/theme-tokens.css`, dan `static/assets/**` yang disalin sekali sahaja di output akar bahasa lalai. Bahasa bukan lalai tidak lagi menulis salinan itu dan merujuk akar melalui pemboleh ubah templat baharu `site.asset_base_url`; tema Starter menggunakannya untuk helaian gayanya. `site.sharedAssets.paths` menggantikan lalai `assets/` serta output SCSS yang diaktifkan, dan awalan media tidak boleh dikongsi. `enabled: true` dengan `defaultLanguageInSubdir: true` gagal pengesahan, dan tapak satu bahasa mengabaikan tetapan ini dengan `i18n.config.shared_assets_ignored`. Apabila `build.languageJobs > 1`, bahasa lalai dibina dahulu semasa perkongsian diaktifkan.
+
 ## [2.2.1] - 2026-11-14
 
 - **Direktori pertanyaan snapshot yang diganti atau tidak boleh dibaca kini ralat berkod**: binaan rakaman serentak boleh menggantikan snapshot antara semakan kewujudan dan bacaan direktori; binaan luar talian kini melaporkan `BKT-0B14` (atau `BKT-0B10` jika snapshot hilang) dan bukan ralat IO tanpa kod.

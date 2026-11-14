@@ -101,6 +101,37 @@ With the root layout, `split` writes the default language sitemap to the root
 `sitemap.xml`; `index` writes it to `/<lang>/sitemap.xml` with unprefixed page URLs
 and lists it from the root sitemap index.
 
+## Shared assets
+
+With the root layout (`defaultLanguageInSubdir: false`) a multilingual site can keep
+theme assets once instead of copying them into every language:
+
+```yaml
+site:
+  languages: [en, zh-CN]
+  defaultLanguage: en
+  sharedAssets:
+    enabled: true            # default false
+    paths: [assets/, fonts/] # optional; replaces assets/ + enabled SCSS output
+```
+
+- The default language owns `assets/`, the SCSS output, `assets/css/theme-tokens.css`,
+  and copied `static/assets/**`. Other languages do not write those entries; pages,
+  templated static files, plugin outputs, and media stay per language.
+- Templates must use `{{ site.asset_base_url }}` for shared files and
+  `{{ site.base_url }}` for per-language URLs. `asset_base_url` is the root base URL
+  (`/repo` or `/`) even in a non-default language (`/repo/zh-CN`). At the site root it
+  is `/`: map it to an empty string before appending, or you get `//assets/...`.
+- `paths` is a list of output prefixes. The media prefix (`content.media.urlBase`,
+  normally `/assets/uploads`) is always excluded and cannot be shared; validation fails
+  if a path is inside it. Empty lists, absolute paths, `..`, and a normalized root
+  are rejected.
+- `enabled: true` with `defaultLanguageInSubdir: true` is a validation error. A
+  single-language site ignores the setting with `event=i18n.config.shared_assets_ignored`.
+- With sharing enabled and `languageJobs > 1`, the default language builds first;
+  expect slightly longer wall time before parallel languages start.
+- Media images, fallbacks, and their variants are not shared in this version.
+
 ## hreflang
 
 Built when `site.url` is set and at least two languages share a group. `x-default`

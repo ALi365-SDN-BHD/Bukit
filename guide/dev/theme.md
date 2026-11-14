@@ -56,6 +56,16 @@ single-language site). Build links from `site.base_url` and page route URLs. A
 default-language `static/robots.txt` overrides generated robots; other static files
 that collide with root-owned outputs fail with `i18n-root-output-conflict`.
 
+When the site enables `site.sharedAssets`, theme assets, SCSS output, tokens, and
+copied `static/assets/**` are owned by the default language at the output root. Use
+`{{ site.asset_base_url }}` for those files and keep `{{ site.base_url }}` for
+per-language output such as pages, plugin output, media, and rendered static files.
+The asset base URL has the same normalization as `base_url`; at the site root it is
+`/`, so map it to an empty string before appending a path (otherwise `//assets/...`
+is emitted). See the Starter `BaseLayout.html` for the pattern. Do not hard-code a
+language prefix for shared files. CSS/JS that build URLs at runtime need the same
+rule; CSS root-absolute `url()` also cannot be rewritten by Bukit.
+
 The resolved layouts directory may contain `bukit.templates.yaml`. Capability
 manifests are cached by current content fingerprint, and static root/include/
 layout analysis is scoped to one decision call. A subsequent build observes a

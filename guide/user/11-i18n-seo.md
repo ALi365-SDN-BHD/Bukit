@@ -156,6 +156,42 @@ files whose ownership is unknown. If a backup is missing or output changed, Buki
 stops rather than deleting files. Preserve reported files and inspect them before
 retrying. This is not a power-loss guarantee.
 
+## Shared assets
+
+A root-layout multilingual site can keep one copy of theme assets instead of one per
+language:
+
+```yaml
+site:
+  languages: [en, zh-CN]
+  defaultLanguage: en
+  defaultLanguageInSubdir: false
+  sharedAssets:
+    enabled: true
+    # paths: [assets/, fonts/]   # optional; replaces the default
+```
+
+- The default language owns the shared files. It writes `dist/assets/**`, the SCSS
+  output, `assets/css/theme-tokens.css`, and copied `static/assets/**` once, and
+  records them in its own manifest. Other languages omit those copied/generated
+  entries; pages, templated static files, plugin outputs, and media are still written
+  per language.
+- `paths` is a list of output prefixes. When omitted it is `assets/` plus the enabled
+  SCSS output directory. The media prefix (`content.media.urlBase`, normally
+  `/assets/uploads`) is always excluded; put it in `paths` and validation fails.
+- Templates must reference shared theme assets through `site.asset_base_url`, not
+  `site.base_url`. It is the root base URL (`/repo` stays `/repo`, or `/` at the site
+  root) while the current language is still available as `site.base_url`. Map a `/`
+  value to an empty string before joining paths, exactly as the Starter theme does.
+- With `languageJobs > 1`, the default language builds first, then the other
+  languages run concurrently. This trades a little wall time for the guarantee that
+  shared files and image variants exist.
+- Media is not shared in this version. Media images, media fallbacks, and their
+  variants stay under each language's own base URL.
+- The setting is ignored, with `i18n.config.shared_assets_ignored`, on a
+  single-language site. `enabled: true` with `defaultLanguageInSubdir: true` is a
+  validation error because the prefixed layout has no root copy owner.
+
 ## SEO Config
 
 ```yaml

@@ -19,6 +19,8 @@
 | `site.baseUrl` | `/` |
 | `site.languages` | `[zh-CN]` (hyphen-separated letters/digits, e.g. `[en-US]`; one entry = single-language site) |
 | `site.defaultLanguageInSubdir` | `false` (default language at the output root; `true` prefixes every language) |
+| `site.sharedAssets.enabled` | `false`; root-layout multilingual sites share theme assets, SCSS output, tokens, and copied `static/assets/` through `site.asset_base_url` |
+| `site.sharedAssets.paths` | none; defaults to `assets/` plus the enabled SCSS output, always excluding `content.media.urlBase` |
 | `site.timezone` | `Asia/Shanghai` |
 | `site.outputPathEncoding` | `none` |
 | `site.sitemapMode` | `split` |

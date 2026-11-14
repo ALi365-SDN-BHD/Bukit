@@ -4,6 +4,8 @@ All notable changes to Bukit will be documented in this file.
 
 ## [Unreleased]
 
+- **Shared theme assets for multilingual root-layout sites**: `site.sharedAssets.enabled: true` (default off) keeps theme assets, SCSS output, `assets/css/theme-tokens.css`, and copied `static/assets/**` once under the default language's root output. Non-default languages stop writing their copies and reference the root through the new `site.asset_base_url` template variable; the Starter theme uses it for its stylesheet. `site.sharedAssets.paths` overrides the default `assets/` plus the enabled SCSS output, and the media prefix cannot be shared. `enabled: true` with `defaultLanguageInSubdir: true` fails validation, and a single-language site ignores the setting with `i18n.config.shared_assets_ignored`. With `build.languageJobs > 1`, the default language builds first when sharing is enabled.
+
 ## [2.2.1] - 2026-11-14
 
 - **A replaced or unreadable snapshot query directory is a coded error**: a concurrent recording build can replace the snapshot between the existence check and the directory read; an offline build now reports `BKT-0B14` (or `BKT-0B10` when the snapshot vanished) instead of an uncoded IO error.

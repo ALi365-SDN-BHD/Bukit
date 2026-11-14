@@ -50,6 +50,7 @@ content:
 | `site.defaultLanguageInSubdir` | `false` | With two or more languages, the default language builds into the output root and other languages keep their code directories. Set `true` to put every language, including the default, under `/<code>/`. Ignored (with a warning when `true`) for a single-language site. |
 | `site.defaultLanguageRedirect` | `true` | Writes a noindex home redirect page so `/` does not 404 on static hosting. |
 | `site.defaultLanguageLegacyRedirects` | `false` | With the root layout, writes a noindex redirect at the old `/<defaultLanguage>/...` path of every default-language HTML page, for static hosts that cannot issue 301s. |
+| `site.sharedAssets` | `enabled: false`, `paths: null` | Root-layout multilingual sites only. `enabled: true` keeps theme assets, SCSS output, tokens, and copied `static/assets/` once under the default language's root output; non-default languages reference them through `site.asset_base_url`. `paths` is an optional list of output prefixes; it replaces the default `assets/` plus the enabled SCSS output directory. The media prefix (`content.media.urlBase`) is always excluded. |
 | `site.timezone` | `Asia/Shanghai` | Must resolve to a valid time zone identifier. |
 | `site.outputPathEncoding` | `none` | `none`, `slug`, `urlencode`, or `sanitize`. |
 | `site.sitemapMode` | `split` | `split`, `merged`, or `index`. |
