@@ -17,7 +17,7 @@
 
 - 新增 `site.sharedAssets`：
   - `enabled`（布尔，默认 `false`，待决策 A1）。
-  - `paths`（输出路径前缀列表，可选）。不写时为 `assets/` 加 SCSS 输出目录。
+  - `paths`（输出路径前缀列表，可选）。不写时为 `assets/`，启用 SCSS 时再加 SCSS 输出目录。
 - 只支持根目录布局：`enabled: true` 与 `defaultLanguageInSubdir: true` 同时出现时配置校验失败。少于 2 种语言时忽略该设置，显式开启时给出警告。
 - **默认语言是共用资源的唯一归属方**：默认语言照常写出并在自己的 manifest 中归属 `dist/assets/` 等共用路径；其他语言的资源计划去掉落在共用集合内的复制型和生成型条目（主题 / 父主题 assets、SCSS 结果、tokens、复制型 static）。页面、渲染型 static、插件输出、投影和媒体不受影响。
 - 开启共用时，默认语言先构建完成，其他语言再按 `build.languageJobs` 并发构建；进程内与 Worktree 构建相同。

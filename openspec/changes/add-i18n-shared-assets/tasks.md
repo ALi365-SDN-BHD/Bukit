@@ -18,11 +18,11 @@
 ## 2. 配置
 
 - [ ] `SiteConfig.SharedAssets`（`Enabled`、`Paths`）；YAML 读取、严格字段白名单（`SiteKeys`、`RequireOnly`）、JSON Schema。
-- [ ] 默认值 `Enabled = false`；`Paths` 默认为 `assets/` 加 SCSS 输出目录（去重；SCSS 输出为根目录时不加入并警告）。
+- [ ] 默认值 `Enabled = false`；`Paths` 默认为 `assets/`，`theme.scss.enabled: true` 时再加 SCSS 输出目录（去重；SCSS 输出为根目录时不加入并警告）。
 - [ ] 条目规范化与校验：`\`→`/`、去开头 `/`、补结尾 `/`；空列表、绝对路径、`..`、规范化后为根目录的条目报错；大小写规则同 `OutputDestinationIdentityComparer`。
 - [ ] 媒体前缀：始终从有效共用集合中扣除；显式条目等于或位于媒体前缀之内时报错。
-- [ ] `enabled: true` 且 `defaultLanguageInSubdir: true` 时配置校验失败；少于 2 种语言且显式开启时记录 `i18n.config.shared_assets_ignored`。
-- [ ] 提供"有效共用集合"的单一实现（含匹配函数），供计划过滤、地址规则和图片插件共用。
+- [ ] `enabled: true` 且 `defaultLanguageInSubdir: true` 时 `ConfigValidator.Validate` 失败；少于 2 种语言且显式开启时记录 `i18n.config.shared_assets_ignored`。
+- [ ] 提供"有效共用集合"的单一实现 `SharedAssetScope`：`Contains` = 命中任一配置前缀且不命中媒体前缀；在站点层创建一次（Worker 不传 logger），供计划过滤、地址规则、图片插件、渲染哈希和 Worktree 共用。
 
 ## 3. 资源计划与构建顺序
 
@@ -32,21 +32,21 @@
 
 ## 4. 模板变量与 Core 拼出的地址
 
-- [ ] `SiteModel` 新增 `AssetBaseUrl`；`VariantDataSitePlanner.BuildSiteModel`、`ScribanSiteModelMapper`、`ScribanModelKnownFields` 接入 `site.asset_base_url`。
-- [ ] Starter 主题 `BaseLayout.html` 改用 `site.asset_base_url`。
-- [ ] `BuildMaybeAbsoluteUrl`：站内相对地址落在有效共用集合内时使用根 baseUrl；覆盖第 0 节列出的全部调用点。
-- [ ] `ContentMediaOutput`：非默认语言中占位图落在有效共用集合内时，`RewriteUrl` 使用根 baseUrl，`ValidateOutputs` 改查共用资源根中的文件。
+- [ ] `SiteModel` 新增可空、非 required 的 `AssetBaseUrl`；`VariantDataSitePlanner.BuildSiteModel` 显式赋值，`ScribanSiteModelMapper` 为空时回退到 `BaseUrl`，`ScribanModelKnownFields` 接入 `site.asset_base_url`。
+- [ ] Starter 主题 `BaseLayout.html` 的样式表改用 `site.asset_base_url`，并为它单独做 `/` → 空串映射（否则根 baseUrl 下输出 `//assets/...`）。
+- [ ] `BuildMaybeAbsoluteUrl`：站内相对地址落在有效共用集合内时使用根 baseUrl；覆盖第 0 节列出的全部调用点。scope 沿 `VariantSeoStage` → `SeoPipeline` → `SeoIndexBuilder` → `SeoModelBuilder` → `SeoImageResolver` / `SeoJsonLdBuilder` 传入。
+- [ ] `ContentMediaOutput`：非默认语言中占位图落在有效共用集合内时，`RewriteUrl` 使用根 baseUrl，`ValidateOutputs` 改查共用资源根中的文件（路径仍经 `FileWriter.GetSafeFullPath` 解析）。
 
 ## 5. 图片处理
 
-- [ ] 非默认语言 AfterBuild：用尺寸规划函数对共用原图只读构建共用 WebP 映射（文件存在且 freshness 有效才收录）；webp 改写使用"自身映射 ∪ 共用映射"。
-- [ ] `TryNormalizeLocalImageUrl` 接受 `asset_base_url + "/"` 前缀，并解析到共用资源根。
+- [ ] 非默认语言 AfterBuild：共用原图清单取自本语言资源计划中被过滤的图片条目（不扫描磁盘）；用尺寸规划函数只读构建共用 WebP 映射（文件存在且 `ImageVariantFreshness.TryReadFreshness` 有效才收录，URL 用根 baseUrl）；映射在"没有自有原图就提前返回"之前构建；webp 改写使用"自身映射 ∪ 共用映射"。
+- [ ] `TryNormalizeLocalImageUrl` 接受 `asset_base_url + "/"` 前缀且剩余路径落在有效共用集合内的地址，并解析到共用资源根。
 - [ ] 非默认语言不在共用资源根的有效共用集合内生成、改写或删除文件，不执行孤儿和 freshness 清理。
 - [ ] 默认语言的变体生成和失败策略不变。
 
 ## 6. 增量
 
-- [ ] `sharedAssets` 有效值和 `asset_base_url` 写入 `SiteIdentityAndModesContributor`。
+- [ ] 有效共用集合经 `RenderDependencyContext` 写入 `SiteIdentityAndModesContributor`，`asset_base_url` 随 `SiteModel` 进入哈希；未开启时哈希输入不变。
 
 ## 7. Worktree
 
@@ -55,14 +55,14 @@
 
 ## 8. 测试
 
-- [ ] Config：默认关闭、开启、自定义 `paths`、非法值、根前缀报错、规范化、大小写去重、SCSS 输出在根目录时警告且不纳入、显式媒体前缀报错、带前缀布局报错、单语言忽略并警告、Schema。
+- [ ] Config：默认关闭、开启、自定义 `paths`、非法值、根前缀报错、规范化、大小写去重、SCSS 未启用时不纳入、SCSS 输出在根目录时警告且不纳入、`assets/uploads/` 下的路径不属于共用集合、显式媒体前缀报错、带前缀布局报错、单语言忽略并警告、Schema。
 - [ ] Engine（根目录布局，`languages: [en, zh-CN]`）：
   - 计划过滤：`dist/assets/` 只有一份，`dist/zh-CN/assets/` 下没有主题资源；tokens 共用；`static/assets/` 共用，`static/fonts/` 不共用，加入 `paths` 后共用；插件在 `assets/` 下的输出照常按语言写出；媒体仍按语言输出；关闭时与现状一致。
   - 顺序：`languages: [zh-CN, en]`、`languageJobs: 2` 时默认语言先完成；默认语言失败时其他语言不启动且正式输出不变。
-  - `asset_base_url`：开启 / 关闭两种取值、`/repo`。
+  - `asset_base_url`：开启 / 关闭两种取值、`/repo`；Starter 主题在根 baseUrl `/` 下（开启与关闭）输出 `/assets/style.css`。
   - Core 地址：`seo.defaultImage`、`og_image`、作者图片落在共用集合内时使用根 baseUrl；占位图地址和 `media-validate` 在非默认语言中通过。
-  - 图片：共用主题图片变体只在 `dist/assets/` 下生成一次，两种语言页面的 WebP `<picture>` 指向根；非默认语言不在共用集合内写入或删除文件；`warn` 模式下默认语言变体失败时，非默认语言页面保留原 `<img>`；语言目录内图片的变体行为不变。
-  - 增量：`build.clean: false` 下开启和关闭各一次，非默认语言副本被删除 / 恢复，页面地址随之变化；只改一种语言时共用资源不重写。
+  - 图片：共用主题图片变体只在 `dist/assets/` 下生成一次，两种语言页面的 WebP `<picture>` 指向根；非默认语言不在共用集合内写入或删除文件；`warn` 模式下默认语言变体失败时，非默认语言页面保留原 `<img>`；语言目录内图片的变体行为不变；根 baseUrl 下 `/images/a.jpg` 不被当作共用资源；本语言没有自有图片时仍改写共用图片。
+  - 增量：`build.clean: false` 下开启和关闭各一次，非默认语言副本被删除 / 恢复，页面地址随之变化；只改 `paths` 时全部页面重新渲染；关闭时渲染哈希与现状一致；只改一种语言时共用资源不重写。
 - [ ] CLI（Worktree）：默认语言 Worker 先完成；Worker 收到共用资源根；与进程内构建的相对文件路径和内容一致。
 
 ## 9. 文档与契约
