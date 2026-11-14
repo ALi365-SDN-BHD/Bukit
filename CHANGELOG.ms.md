@@ -4,6 +4,10 @@ Semua perubahan penting kepada Bukit akan didokumenkan dalam fail ini.
 
 ## [Belum Dikeluarkan]
 
+- **URL imej SEO mengekalkan satu awalan base**: `record.Media` dan medan imej tersuai yang telah disetempatkan tidak lagi mengulang base bahasa dalam `og:image` atau URL imej Twitter. Ini merangkumi bahasa bukan lalai dan tapak di bawah sub-laluan seperti `/repo`; URL pemegang tempat dikongsi di bawah base akar juga dikenali.
+- **Set aset dikongsi lalai yang kosong ditolak**: `site.sharedAssets.enabled: true` tanpa `paths` kini gagal pengesahan apabila `content.media.urlBase` meliputi setiap awalan lalai (`assets/` atau output SCSS yang diaktifkan), dan tidak lagi berkongsi tiada apa secara senyap. Tapak satu bahasa mengekalkan amaran pengabaian yang didokumenkan.
+- **Pelayan dev memantau direktori akar `data/`**: `bukit dev` kini membina semula apabila fail di bawah `data/` akar tapak berubah, selaras dengan senarai input Worktree.
+
 - **Aset tema dikongsi untuk tapak berbilang bahasa dengan susun atur akar**: `site.sharedAssets.enabled: true` (lalai mati) menyimpan aset tema, output SCSS, `assets/css/theme-tokens.css`, dan `static/assets/**` yang disalin sekali sahaja di output akar bahasa lalai. Bahasa bukan lalai tidak lagi menulis salinan itu dan merujuk akar melalui pemboleh ubah templat baharu `site.asset_base_url`; tema Starter menggunakannya untuk helaian gayanya. `site.sharedAssets.paths` menggantikan lalai `assets/` serta output SCSS yang diaktifkan, dan awalan media tidak boleh dikongsi. `enabled: true` dengan `defaultLanguageInSubdir: true` sentiasa gagal pengesahan, termasuk pada tapak satu bahasa; tapak satu bahasa dengan susun atur akar mengabaikan perkongsian dengan `i18n.config.shared_assets_ignored`. Apabila perkongsian diaktifkan, keseluruhan binaan bahasa lalai selesai sebelum bahasa lain bermula, jadi dengan `build.languageJobs > 1` jangka masa dinding bertambah kira-kira satu binaan bahasa lalai.
 
 ## [2.2.1] - 2026-11-14

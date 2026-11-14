@@ -4,6 +4,10 @@ All notable changes to Bukit will be documented in this file.
 
 ## [Unreleased]
 
+- **SEO image URLs keep one base prefix**: localized `record.Media` and custom image fields no longer repeat the language base in `og:image` or Twitter image URLs. This covers non-default languages and sites under a subpath such as `/repo`; shared placeholder URLs under the root base are also recognized.
+- **An empty default shared asset set is rejected**: `site.sharedAssets.enabled: true` with no `paths` now fails validation when `content.media.urlBase` covers every default prefix (`assets/` or the enabled SCSS output), instead of silently sharing nothing. Single-language sites keep the documented ignore warning.
+- **The dev server watches the root `data/` directory**: `bukit dev` now rebuilds when files under the site's root `data/` change, matching the Worktree input list.
+
 - **Shared theme assets for multilingual root-layout sites**: `site.sharedAssets.enabled: true` (default off) keeps theme assets, SCSS output, `assets/css/theme-tokens.css`, and copied `static/assets/**` once under the default language's root output. Non-default languages stop writing their copies and reference the root through the new `site.asset_base_url` template variable; the Starter theme uses it for its stylesheet. `site.sharedAssets.paths` overrides the default `assets/` plus the enabled SCSS output, and the media prefix cannot be shared. `enabled: true` with `defaultLanguageInSubdir: true` always fails validation, including on a single-language site; a single-language root-layout site ignores sharing with `i18n.config.shared_assets_ignored`. When sharing is enabled the whole default-language build completes before other languages start, so with `build.languageJobs > 1` expect roughly one default-language build of added wall time.
 
 ## [2.2.1] - 2026-11-14

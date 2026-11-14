@@ -906,6 +906,138 @@ public sealed class SeoModelBuilderTests
     }
 
     [Fact]
+    public void BuildForContent_LocalizedMediaAndCustomFieldUrls_AreNotPrefixedTwice()
+    {
+        var config = CreateConfig(defaultImage: null) with
+        {
+            Site = CreateConfig(defaultImage: null).Site with { BaseUrl = "/repo" }
+        };
+        var route = new RouteInfo("/pages/photo/", "pages/photo/index.html", "pages/page.html");
+        var mediaDocument = ContentDocument.Create(
+            id: "localized-media",
+            title: "Localized media",
+            slug: "localized-media",
+            publishAt: DateTimeOffset.UtcNow,
+            contentHtml: null,
+            fields: ContentFieldReader.ToFieldMap(new Dictionary<string, object> { ["type"] = "page" }));
+        mediaDocument = mediaDocument with
+        {
+            Record = mediaDocument.Record with
+            {
+                Media = [new MediaAsset("image", "/repo/assets/uploads/photo.jpg")]
+            }
+        };
+        var fieldDocument = ContentDocument.Create(
+            id: "localized-field",
+            title: "Localized field",
+            slug: "localized-field",
+            publishAt: DateTimeOffset.UtcNow,
+            contentHtml: null,
+            fields: ContentFieldReader.ToFieldMap(new Dictionary<string, object>
+            {
+                ["type"] = "page",
+                ["og_image"] = "/repo/assets/uploads/photo.jpg"
+            }));
+
+        Assert.Equal(
+            "https://example.com/repo/assets/uploads/photo.jpg",
+            SeoModelBuilder.BuildForContent(config, "/repo", mediaDocument, route).Og.Image);
+        Assert.Equal(
+            "https://example.com/repo/assets/uploads/photo.jpg",
+            SeoModelBuilder.BuildForContent(config, "/repo", fieldDocument, route).Og.Image);
+        var nonDefaultDocument = mediaDocument with
+        {
+            Record = mediaDocument.Record with
+            {
+                Media = [new MediaAsset("image", "/repo/zh-CN/assets/uploads/photo.jpg")]
+            }
+        };
+        Assert.Equal(
+            "https://example.com/repo/zh-CN/assets/uploads/photo.jpg",
+            SeoModelBuilder.BuildForContent(config, "/repo/zh-CN", nonDefaultDocument, route).Og.Image);
+    }
+
+    [Fact]
+    public void BuildForContent_SharedFallbackAfterContentMediaRewrite_IsNotPrefixedTwice()
+    {
+        var root = Path.Combine(Path.GetTempPath(), $"bukit-seo-shared-fallback-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(Path.Combine(root, "dist", "assets", "images"));
+        Directory.CreateDirectory(Path.Combine(root, "dist", "zh-CN"));
+        File.WriteAllText(
+            Path.Combine(root, "dist", "assets", "images", "noneimg-news.jpg"),
+            "placeholder");
+        try
+        {
+            var config = CreateConfig() with
+            {
+                Site = CreateConfig().Site with
+                {
+                    BaseUrl = "/repo",
+                    Languages = ["en", "zh-CN"],
+                    SharedAssets = new SharedAssetsConfig { Enabled = true }
+                },
+                Content = new ContentConfig
+                {
+                    Media = new MediaConfig
+                    {
+                        DownloadToLocal = true,
+                        DefaultImageUrl = "/assets/images/noneimg-news.jpg",
+                        OnFailure = "placeholder"
+                    }
+                }
+            };
+            var scope = SharedAssetScope.TryCreate(config, ["en", "zh-CN"], Path.Combine(root, "dist"), null);
+            Assert.NotNull(scope);
+            var context = new BuildVariantContext(
+                config,
+                root,
+                new ConfigOverrides(),
+                [],
+                CanonicalContentGraph.Empty,
+                NullContentBodyStore.Instance,
+                Path.Combine(root, "dist", "zh-CN"),
+                "/repo/zh-CN",
+                root,
+                root,
+                root,
+                Path.Combine(root, "media"),
+                new Dictionary<string, IReadOnlyList<Bukit.Rendering.SeoAlternateModel>>(),
+                "/repo",
+                "zh-CN",
+                "en",
+                DateTimeOffset.UnixEpoch,
+                SharedAssets: scope);
+            var document = ContentDocument.Create(
+                "fallback",
+                "Fallback",
+                "fallback",
+                DateTimeOffset.UnixEpoch,
+                null);
+            document = document with
+            {
+                Record = document.Record with
+                {
+                    Media = [new MediaAsset("image", "/assets/images/noneimg-news.jpg")]
+                }
+            };
+            var normalized = new ContentMediaOutput(context).NormalizeDocument(document, collect: true);
+
+            var model = SeoModelBuilder.BuildForContent(
+                config,
+                "/repo/zh-CN",
+                normalized,
+                new RouteInfo("/fallback/", "fallback/index.html", "pages/page.html"),
+                sharedAssets: scope);
+
+            Assert.Equal("https://example.com/repo/assets/images/noneimg-news.jpg", model.Og.Image);
+        }
+        finally
+        {
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
+    [Fact]
     public void BuildForContent_ImageSource_SiteDefaultUsedAsLastResort()
     {
         var config = CreateConfig(defaultImage: "/images/default.jpg");

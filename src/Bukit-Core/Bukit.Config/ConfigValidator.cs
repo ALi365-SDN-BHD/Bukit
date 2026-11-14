@@ -232,8 +232,29 @@ public static class ConfigValidator
                 DiagnosticCode.ConfigInvalidValue);
         }
 
+        var mediaPrefix = SharedAssetsPath.Normalize(config.Content.Media.UrlBase);
         if (shared.Paths is null)
         {
+            if (shared.Enabled && SiteLanguageResolver.Clean(config.Site.Languages).Count >= 2)
+            {
+                var defaults = new List<string> { SharedAssetsPath.Normalize("assets/") };
+                if (config.Theme.Scss is { Enabled: true } scss)
+                {
+                    var scssOutput = SharedAssetsPath.Normalize(scss.OutputDir);
+                    if (!SharedAssetsPath.IsRoot(scssOutput))
+                    {
+                        defaults.Add(scssOutput);
+                    }
+                }
+
+                if (defaults.All(prefix => SharedAssetsPath.IsInside(prefix, mediaPrefix)))
+                {
+                    throw new ConfigException(
+                        "site.sharedAssets.paths is not set, but content.media.urlBase covers every default shared prefix. Set site.sharedAssets.paths to a prefix outside content.media.urlBase.",
+                        DiagnosticCode.ConfigInvalidValue);
+                }
+            }
+
             return;
         }
 
@@ -244,7 +265,6 @@ public static class ConfigValidator
                 DiagnosticCode.ConfigInvalidValue);
         }
 
-        var mediaPrefix = SharedAssetsPath.Normalize(config.Content.Media.UrlBase);
         for (var i = 0; i < shared.Paths.Count; i++)
         {
             var raw = shared.Paths[i] ?? string.Empty;
