@@ -261,7 +261,7 @@ public sealed partial class GitHubPagesDeployProvider
 
         auth.Broker.TakeLastDenial();
         using var proc = Process.Start(psi) ?? throw new InvalidOperationException("Failed to start git process.");
-        using var registration = auth.Broker.RegisterGitProcess(proc.Id);
+        using var registration = RegisterOrKill(auth, proc);
         var output = await WaitForGitProcessAndDrainAsync(proc, gitCommandTimeout, ct, commandLine);
         if (proc.ExitCode != 0)
         {
@@ -271,6 +271,25 @@ public sealed partial class GitHubPagesDeployProvider
         }
 
         return output.Stdout.Trim();
+    }
+
+    /// <summary>Registers git with the broker; a git the broker cannot identify is stopped at once.</summary>
+    private static IDisposable RegisterOrKill(GitAuthContext auth, Process proc)
+    {
+        IDisposable? registration = null;
+        try
+        {
+            registration = auth.Broker.RegisterGitProcess(proc.Id);
+        }
+        finally
+        {
+            if (registration is null)
+            {
+                TryKillProcessTree(proc);
+            }
+        }
+
+        return registration ?? throw new GitException("Could not register the git process with the credential broker.");
     }
 
     private static Task RunGitAsync(string gitPath, string? workingDir, TimeSpan gitCommandTimeout, CancellationToken ct, params string[] args)

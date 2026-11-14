@@ -7,8 +7,13 @@ namespace Bukit.Cli.Deploy;
 /// <summary>
 /// Where an authenticated git call may connect. Production allows only https://github.com
 /// with system certificates; tests replace it through <see cref="GitHubPagesDeployProvider.TransportPolicyOverride"/>.
+/// A test policy may also observe the broker's process queries through <paramref name="ProcessQuery"/>;
+/// production always uses the system query.
 /// </summary>
-internal sealed record GitTransportPolicy(GitCredentialTarget Target, IReadOnlyList<string> Protocols)
+internal sealed record GitTransportPolicy(
+    GitCredentialTarget Target,
+    IReadOnlyList<string> Protocols,
+    IGitCredentialProcessQuery? ProcessQuery = null)
 {
     internal static readonly GitTransportPolicy GitHub = new(GitCredentialTarget.GitHub, ["https"]);
 }
@@ -143,7 +148,7 @@ public sealed partial class GitHubPagesDeployProvider
 
             var broker = GitCredentialBroker.Start(
                 token,
-                new GitCredentialPeerPolicy(expectations, policy.Target, SystemGitCredentialProcessQuery.Instance, uid),
+                new GitCredentialPeerPolicy(expectations, policy.Target, policy.ProcessQuery ?? SystemGitCredentialProcessQuery.Instance, uid),
                 logger);
             var helper = BuildCredentialHelperCommand(self, assembly, broker.Endpoint);
             var arguments = new List<string>

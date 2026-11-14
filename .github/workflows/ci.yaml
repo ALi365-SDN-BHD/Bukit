@@ -308,9 +308,9 @@ jobs:
               "Bukit.Cli.Tests.GitHubPagesDeployProviderTests": 6,
           }
           provider_methods = [
-              "DeployAsync_RealLocalGitClonesAndPushesWithAskpassAlive",
-              "DeployAsync_RealLocalGitPushFailure_CleansReadOnlyObjectsAndAskpass",
-              "DeployAsync_RealLocalGitPushCancellation_CleansReadOnlyObjectsAndAskpass",
+              "DeployAsync_RealLocalGitClonesAndPushesWithBrokerHelper",
+              "DeployAsync_RealLocalGitPushFailure_CleansReadOnlyObjectsAndBroker",
+              "DeployAsync_RealLocalGitPushCancellation_CleansReadOnlyObjectsAndBroker",
               "DeployAsync_UserPagesRepoWithDotRemoteUrl_DeploysToRootGithubIoUrl",
               "DeployAsync_CancelDuringPush_PropagatesOperationCanceledException_AndCleansUp",
               "EnsureMetadataWriteTargetIsNotLink_RejectsRegularAndDanglingSymlinks",

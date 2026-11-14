@@ -418,6 +418,52 @@ public sealed class GitCredentialBrokerTests
         Assert.Contains("unavailable", stderr, StringComparison.Ordinal);
     }
 
+    /// <summary>Plan 3.7 test 13: a connection while no git call is registered gets nothing.</summary>
+    [UnixFact]
+    public async Task Broker_RefusesRealConnectionWhileNoGitIsRegistered()
+    {
+        var (policy, _) = CreateSelfAsHelperChain();
+        await using var broker = GitCredentialBroker.Start("secret-token", policy);
+
+        var response = await ExchangeAsync(broker.Endpoint, GitCredentialProtocol.Serialize(GitHubRequest));
+
+        Assert.Equal(GitCredentialDenial.Unregistered, response!.Deny);
+        Assert.Null(response.Password);
+    }
+
+    /// <summary>Plan 3.7 test 13: concurrent connections over the real socket share one grant limit.</summary>
+    [UnixFact]
+    public async Task Broker_GrantLimitHoldsForConcurrentRealConnections()
+    {
+        var (policy, _) = CreateSelfAsHelperChain();
+        Assert.NotNull(policy.Register(10));
+        await using var broker = GitCredentialBroker.Start("secret-token", policy);
+        var request = GitCredentialProtocol.Serialize(GitHubRequest);
+
+        var responses = new List<GitCredentialResponse?>();
+        for (var round = 0; round < 4; round++)
+        {
+            // The broker serves at most four connections at a time; extra ones are dropped.
+            responses.AddRange(await Task.WhenAll(Enumerable.Range(0, 4).Select(_ => TryExchangeAsync())));
+        }
+
+        Assert.Equal(GitCredentialPeerPolicy.DefaultMaxGrants, responses.Count(r => r?.Password == "secret-token"));
+        Assert.Contains(responses, r => r?.Deny == GitCredentialDenial.Limit);
+
+        async Task<GitCredentialResponse?> TryExchangeAsync()
+        {
+            try
+            {
+                return await ExchangeAsync(broker.Endpoint, request);
+            }
+            catch (Exception ex) when (ex is IOException or SocketException)
+            {
+                return null; // dropped while the broker was at its connection limit
+            }
+        }
+        Assert.All(responses.Where(r => r?.Password is null), r => Assert.True(r is null || r.Deny == GitCredentialDenial.Limit));
+    }
+
     [Fact]
     public void Broker_RejectsTokenWithLineBreak()
     {
