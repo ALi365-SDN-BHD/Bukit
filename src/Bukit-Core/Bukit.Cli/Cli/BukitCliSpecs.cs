@@ -27,7 +27,8 @@ public static partial class BukitCliSpecs
                 new CliOptionSpec("--jobs", "并行渲染并发度", CliOptionType.Integer, ValueName: "n"),
                 new CliOptionSpec("--log-format", "日志格式", CliOptionType.String, AllowedValues: new[] { "text", "json" }),
                 new CliOptionSpec("--notion-snapshot", "Notion 离线快照目录（构建时带 token 写入）", ValueName: "dir"),
-                new CliOptionSpec("--notion-offline", "只读 Notion 离线快照，不要 token、不联网", CliOptionType.Flag)
+                new CliOptionSpec("--notion-offline", "只读 Notion 离线快照，不要 token、不联网", CliOptionType.Flag),
+                new CliOptionSpec("--secrets-stdin", "从标准输入读取 JSON 密钥对象（如 NOTION_TOKEN），不经环境变量", CliOptionType.Flag)
             });
 
         var doctor = new CliCommandSpec(
@@ -39,7 +40,8 @@ public static partial class BukitCliSpecs
                 new CliOptionSpec("--site", "多站点名"),
                 new CliOptionSpec("--site-url", "覆盖 site.url"),
                 new CliOptionSpec("--notion-snapshot", "Notion 离线快照目录（构建时带 token 写入）", ValueName: "dir"),
-                new CliOptionSpec("--notion-offline", "只读 Notion 离线快照，不要 token、不联网", CliOptionType.Flag)
+                new CliOptionSpec("--notion-offline", "只读 Notion 离线快照，不要 token、不联网", CliOptionType.Flag),
+                new CliOptionSpec("--secrets-stdin", "从标准输入读取 JSON 密钥对象（如 NOTION_TOKEN），不经环境变量", CliOptionType.Flag)
             });
 
         var config = new CliCommandSpec(
@@ -63,7 +65,8 @@ public static partial class BukitCliSpecs
                         new CliOptionSpec("--site", "多站点名"),
                         new CliOptionSpec("--site-url", "覆盖 site.url"),
                         new CliOptionSpec("--notion-snapshot", "Notion 离线快照目录", ValueName: "dir"),
-                        new CliOptionSpec("--notion-offline", "只读 Notion 离线快照，不要 token、不联网", CliOptionType.Flag)
+                        new CliOptionSpec("--notion-offline", "只读 Notion 离线快照，不要 token、不联网", CliOptionType.Flag),
+                        new CliOptionSpec("--secrets-stdin", "从标准输入读取 JSON 密钥对象（如 NOTION_TOKEN），不经环境变量", CliOptionType.Flag)
                     }),
                 new CliCommandSpec(
                     Name: "schema",
@@ -101,7 +104,8 @@ public static partial class BukitCliSpecs
                 new CliOptionSpec("--output", "覆盖构建输出目录"),
                 new CliOptionSpec("--no-watch", "禁用文件监控，仅作为静态服务器", CliOptionType.Flag),
                 new CliOptionSpec("--allow-lan", "允许开发服务器监听非本机地址", CliOptionType.Flag),
-                new CliOptionSpec("--public", "--allow-lan 的别名", CliOptionType.Flag)
+                new CliOptionSpec("--public", "--allow-lan 的别名", CliOptionType.Flag),
+                new CliOptionSpec("--secrets-stdin", "从标准输入读取 JSON 密钥对象（如 NOTION_TOKEN），不经环境变量", CliOptionType.Flag)
             });
 
         var clean = new CliCommandSpec(
@@ -227,7 +231,8 @@ public static partial class BukitCliSpecs
                 new CliOptionSpec("--output", "覆盖构建输出目录"),
                 new CliOptionSpec("--branch", "GitHub Pages 目标分支"),
                 new CliOptionSpec("--repo", "部署目标仓库 owner/name（默认使用项目 origin 或 deploy.repo）", ValueName: "owner/name"),
-                new CliOptionSpec("--token-env", "读取 GitHub token 的环境变量名（默认 GITHUB_TOKEN）", ValueName: "name"),
+                new CliOptionSpec("--token-env", "GitHub token 的名称：先查 --secrets-stdin，再查环境变量（默认 GITHUB_TOKEN）", ValueName: "name"),
+                new CliOptionSpec("--secrets-stdin", "从标准输入读取 JSON 密钥对象（如 NOTION_TOKEN），不经环境变量", CliOptionType.Flag),
                 new CliOptionSpec("--message", "部署提交消息"),
                 new CliOptionSpec("--ci", "CI 模式", CliOptionType.Flag),
                 new CliOptionSpec("--force", "允许 non-fast-forward 时强制覆盖远端分支", CliOptionType.Flag)

@@ -2,6 +2,7 @@ using Xunit;
 
 namespace Bukit.Shared.Tests;
 
+[Collection(SecretStoreCollection.Name)]
 public sealed class EnvironmentHelperTests
 {
     [Theory]

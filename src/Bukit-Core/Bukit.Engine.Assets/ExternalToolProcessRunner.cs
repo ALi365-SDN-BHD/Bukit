@@ -17,17 +17,31 @@ internal static class ExternalToolProcessRunner
     private static readonly TimeSpan TerminationGracePeriod = TimeSpan.FromSeconds(2);
     private static readonly Encoding Utf8NoBom = new UTF8Encoding(encoderShouldEmitUTF8Identifier: false);
 
-    internal static async Task<ExternalToolProcessResult> RunAsync(
+    internal static Task<ExternalToolProcessResult> RunAsync(
         ProcessStartInfo startInfo,
         TimeSpan timeout,
         ILogger logger,
         CancellationToken cancellationToken = default)
+        => RunAsync(startInfo, timeout, logger, standardInput: null, cancellationToken);
+
+    /// <summary>Runs the tool, writing <paramref name="standardInput"/> (when not null) to its stdin and then closing it.</summary>
+    internal static async Task<ExternalToolProcessResult> RunAsync(
+        ProcessStartInfo startInfo,
+        TimeSpan timeout,
+        ILogger logger,
+        string? standardInput,
+        CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(startInfo);
         ArgumentNullException.ThrowIfNull(logger);
         if (timeout <= TimeSpan.Zero)
         {
             throw new ArgumentOutOfRangeException(nameof(timeout));
+        }
+
+        if (standardInput is not null)
+        {
+            startInfo.RedirectStandardInput = true;
         }
 
         using var process = new Process { StartInfo = startInfo };
@@ -38,6 +52,11 @@ internal static class ExternalToolProcessRunner
             throw new InvalidOperationException($"Unable to start external tool '{startInfo.FileName}'.");
         }
 
+        if (standardInput is not null)
+        {
+            WriteStandardInput(process, standardInput);
+        }
+
         try
         {
             return await RunCoreAsync(process, startInfo, timeout, logger, cancellationToken, pgidPath).ConfigureAwait(false);
@@ -45,6 +64,30 @@ internal static class ExternalToolProcessRunner
         finally
         {
             ExternalToolProcessTree.RemovePgidFile(pgidPath);
+        }
+    }
+
+    // Small payloads only (for example forwarded secrets): written in full, then stdin is closed
+    // so the child sees EOF. A child that exits early is reported through its exit code.
+    private static void WriteStandardInput(Process process, string standardInput)
+    {
+        try
+        {
+            process.StandardInput.Write(standardInput);
+            process.StandardInput.Flush();
+        }
+        catch (IOException)
+        {
+        }
+        finally
+        {
+            try
+            {
+                process.StandardInput.Close();
+            }
+            catch (IOException)
+            {
+            }
         }
     }
 

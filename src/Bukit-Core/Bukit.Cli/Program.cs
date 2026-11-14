@@ -6,7 +6,7 @@ using Bukit.Cli.Commands;
 using Bukit.Shared;
 
 var command = args.Length > 0 ? args[0] : null;
-var commandArgsRaw = args.Skip(1).ToArray();
+var commandArgsRaw = SecretsStdinOption.Strip([.. args.Skip(1)], out var secretsStdinRequested);
 var logFormat = ReadGlobalLogFormat(commandArgsRaw, new List<string>(commandArgsRaw.Length), keepLogFormat: false) ?? "text";
 var isJsonErrorMode = string.Equals(logFormat, "json", StringComparison.OrdinalIgnoreCase);
 
@@ -14,6 +14,16 @@ if (command is null || command is "help" or "--help" or "-h")
 {
     HelpPrinter.Print();
     return 0;
+}
+
+if (secretsStdinRequested)
+{
+    // Read secrets before any other work (plugin discovery, config load, child processes).
+    var secretsError = SecretsStdinOption.Load(command, commandArgsRaw);
+    if (secretsError is not null)
+    {
+        return PrintDiagnostics(command, 2, new[] { secretsError }, usage: null, isJsonErrorMode);
+    }
 }
 
 try
@@ -176,6 +186,8 @@ static string? ReadGlobalLogFormat(string[] args, List<string> outputArgs, bool 
 
 static int PrintDiagnostics(string? command, int exitCode, IReadOnlyList<CliDiagnostic> diagnostics, string? usage, bool isJsonErrorMode)
 {
+    // Defense in depth: a secret passed with --secrets-stdin never reaches an error message.
+    diagnostics = [.. diagnostics.Select(d => d with { Message = SecretStore.Redact(d.Message) })];
     var errors = diagnostics
         .Select(d => new CliErrorRenderer.CliErrorDiagnostic(d.Code, d.Message, d.ShowUsage))
         .ToList();

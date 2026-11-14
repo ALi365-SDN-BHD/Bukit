@@ -42,7 +42,8 @@ public sealed partial class GitHubPagesDeployProvider : IDeployProvider
             return new DeployResult { Success = false, Error = tokenEnvError! };
         }
 
-        var token = Environment.GetEnvironmentVariable(tokenEnv!);
+        // --token-env NAME resolves NAME from --secrets-stdin first, then the environment.
+        var token = SecretStore.Get(tokenEnv!);
         if (string.IsNullOrWhiteSpace(token))
         {
             return new DeployResult { Success = false, Error = $"{tokenEnv} environment variable is required for GitHub Pages deployment. Create a fine-grained token with 'Contents: Read and write' access to the target repository, or use the workflow GITHUB_TOKEN in GitHub Actions." };

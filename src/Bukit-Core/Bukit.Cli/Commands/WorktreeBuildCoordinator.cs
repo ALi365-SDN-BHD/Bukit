@@ -115,7 +115,15 @@ internal static class WorktreeBuildCoordinator
         }
         startInfo.ArgumentList.Add("build");
         startInfo.Environment[WorkerEnvironmentVariable] = plan.RequestPath;
-        var result = await I18nWorktreeGitRunner.RunAsync(startInfo, WorkerTimeout, logger, cancellationToken).ConfigureAwait(false);
+        // Secrets passed with --secrets-stdin are forwarded to the worker over its stdin, never
+        // through its environment or arguments.
+        string? secretsInput = null;
+        if (SecretStore.HasStdinSecrets)
+        {
+            startInfo.ArgumentList.Add(SecretStore.StdinFlag);
+            secretsInput = SecretStore.SerializeStdinSecrets();
+        }
+        var result = await I18nWorktreeGitRunner.RunAsync(startInfo, WorkerTimeout, logger, secretsInput, cancellationToken).ConfigureAwait(false);
         if (result.StandardOutput.Length > 0)
         {
             await Console.Out.WriteAsync(result.StandardOutput).ConfigureAwait(false);

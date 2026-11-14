@@ -8,8 +8,9 @@ public static class EnvironmentHelper
 
     private const int DefaultAutoSummaryMaxLength = 200;
 
+    // Routed through SecretStore so a token passed with --secrets-stdin wins over the environment.
     public static string? GetNotionToken()
-        => Environment.GetEnvironmentVariable(NotionTokenKey);
+        => SecretStore.Get(NotionTokenKey);
 
     public static bool IsAutoSummaryEnabled()
     {
