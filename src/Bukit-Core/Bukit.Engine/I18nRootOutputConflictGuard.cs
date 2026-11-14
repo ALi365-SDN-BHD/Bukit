@@ -81,14 +81,14 @@ internal static class I18nRootOutputConflictGuard
                     return null;
                 }
 
+                // Names differing only in case (case-sensitive filesystems): pick one by
+                // ordinal order so the reported conflict does not depend on listing order.
                 entries = Directory.EnumerateFileSystemEntries(current)
                     .Where(path => !DirectoryCopy.IsSymlink(path) ||
                         options.FollowSymlinks && DirectoryCopy.IsSafeStaticLink(path, root, options))
                     .GroupBy(Path.GetFileName, StringComparer.OrdinalIgnoreCase)
                     .ToDictionary(
                         group => group.Key!,
-                        // Names differing only in case (case-sensitive filesystems): pick one by
-                        // ordinal order so the reported conflict does not depend on listing order.
                         group => group.Order(StringComparer.Ordinal).First(),
                         StringComparer.OrdinalIgnoreCase);
                 listings[current] = entries;
