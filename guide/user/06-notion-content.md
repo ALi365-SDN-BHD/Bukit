@@ -160,3 +160,65 @@ older bodies already carry the current fingerprint and would otherwise be kept.
 A `readwrite` cache directory must not equal, contain, or sit inside a configured
 Markdown content source (or the reverse). Create writable Notion caches in a
 dedicated directory such as `.cache/notion`.
+
+## Offline Snapshot
+
+A Notion offline snapshot lets `build`, `config check` and `doctor` run with no
+`NOTION_TOKEN` and no network, for example to preview changes made by a tool
+that must not hold the token.
+
+```bash
+# Formal build with the token: records the snapshot.
+NOTION_TOKEN=... bukit build --notion-snapshot /path/outside/the/site/notion-snapshot
+
+# Later, with no token: reads only the snapshot.
+bukit config check --notion-snapshot /path/outside/the/site/notion-snapshot --notion-offline
+bukit doctor       --notion-snapshot /path/outside/the/site/notion-snapshot --notion-offline
+bukit build        --notion-snapshot /path/outside/the/site/notion-snapshot --notion-offline
+```
+
+`--notion-snapshot <dir>` overrides `cacheMode` and `cacheDir` of every Notion
+source, so no Notion cache is written into the site directory. `--notion-offline`
+requires `--notion-snapshot`; `config check` and `doctor` only read a snapshot,
+so there `--notion-snapshot` also requires `--notion-offline`.
+
+**What it stores.** The raw Notion API answers of the formal build: the database
+schema, every page of the database query with all properties (drafts and fields
+the site does not show included) and Notion's server time, relation targets, the
+cross-source relation fallback, taxonomy select options and `pages_index` pages,
+plus the rendered page bodies. Recorded 403/404 answers are replayed as the same
+errors. Because the raw data is stored, a changed `propertyMap` or template works
+offline.
+
+**Keep it private.** The snapshot holds more than the site publishes. Keep it
+outside the site and outside any checkout that tools or other people can read;
+`build` rejects a snapshot directory inside the site or its output directory.
+On Unix the directories are `0700` and the files `0600`. The token is never
+written to it.
+
+**When it is replaced.** A recording build writes to a staging directory next to
+`<dir>` and replaces `<dir>` only after the whole build succeeded; a failed or
+cancelled build keeps the previous snapshot. A recording build renders every
+page (it is never incremental) so that every body is recorded. Bodies of pages
+the build no longer uses are dropped; unchanged bodies are reused from the
+previous snapshot instead of being fetched again. The
+snapshot records its format version and the Bukit version; a different version is
+an error, so upgrade Bukit and record again.
+
+**Offline rules.**
+
+- No Notion client is created and no request is made. Anything the snapshot does
+  not hold is an error, never a silent skip: a `databaseId` it lacks (a changed ID
+  or a new Notion source), a page body edited after the formal build, a missing
+  relation target, taxonomy options or `pages_index` page.
+- A changed filter or sort still builds from the pages the formal build queried
+  and logs `event=notion.snapshot.query_changed`.
+- Signed file links are not checked for expiry, and Notion's server time comes
+  from the snapshot, so bodies and fingerprints match the formal build.
+- Images are not downloaded. Images already in the media cache (the build cache,
+  or `--cache-dir`) are reused, including Notion files whose signed link has since
+  expired; others keep their original URL. Videos, PDFs and other attachments keep
+  their signed links, which expire about an hour after the formal build.
+
+Every build logs one `event=content.source.loaded source=<name> count=<n>` line
+per content source.

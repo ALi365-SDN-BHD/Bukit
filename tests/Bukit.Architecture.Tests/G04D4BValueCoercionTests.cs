@@ -37,15 +37,20 @@ public sealed class G04D4BValueCoercionTests
             .Select(attribute => attribute.AssemblyName.Split(',')[0])
             .OrderBy(name => name, StringComparer.Ordinal)
             .ToArray();
+        // bukit, Bukit.PluginHost and their tests read the internal SecretStore (--secrets-stdin).
         Assert.Equal(
             [
+                "Bukit.Cli.Tests",
                 "Bukit.Content",
                 "Bukit.Content.Tests",
                 "Bukit.Engine",
                 "Bukit.Engine.Assets",
                 "Bukit.Engine.Tests",
+                "Bukit.PluginHost",
+                "Bukit.PluginHost.Tests",
                 "Bukit.Rendering",
-                "Bukit.Shared.Tests"
+                "Bukit.Shared.Tests",
+                "bukit"
             ],
             friends);
 

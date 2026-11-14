@@ -92,13 +92,15 @@ Useful options:
 | `--skip-build` | Deploy the existing output directory. |
 | `--output` | Override `build.output` for this invocation. |
 | `--base-url`, `--site-url` | Override generated URLs for deployment. |
-| `--token-env <NAME>` | Read the GitHub token from environment variable `NAME` instead of `GITHUB_TOKEN`. |
+| `--token-env <NAME>` | Read the GitHub token named `NAME` instead of `GITHUB_TOKEN`: from `--secrets-stdin` input first, then the environment. |
+| `--secrets-stdin` | Read tokens from one JSON object on stdin, such as `{"GITHUB_TOKEN":"…"}`, instead of the environment. See the CLI reference. |
 | `--force` | Allow forced branch update when explicitly intended. |
 
 ## Token
 
-Bukit reads the GitHub token only from an environment variable, never from
-`site.yaml` or a command-line value. By default the variable is `GITHUB_TOKEN`.
+Bukit reads the GitHub token from an environment variable, or from standard
+input with `--secrets-stdin`, never from `site.yaml` or a command-line value.
+By default the name is `GITHUB_TOKEN`.
 Use `--token-env NAME` when a run needs a different variable, for example when
 one job deploys with a token scoped to another repository.
 
@@ -122,6 +124,13 @@ one job deploys with a token scoped to another repository.
   installation token expires after about one hour, so do not store one as a
   secret: store the App ID and private key, create the token in the workflow,
   and pass it with `--token-env`.
+
+- With `--secrets-stdin`, write `{"GITHUB_TOKEN":"…"}` (or the name given to
+  `--token-env`) to Bukit's stdin. The stdin value wins over the environment
+  variable. Bukit then passes the token to each authenticated `git` process in
+  that process's environment (`BUKIT_GITHUB_TOKEN`, read by a temporary
+  `GIT_ASKPASS` script), so other programs of the same user can read it while
+  `git` runs.
 
 ## Publish Privacy Boundary
 

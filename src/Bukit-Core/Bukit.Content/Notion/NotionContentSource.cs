@@ -1,4 +1,5 @@
 using Bukit.Config;
+using Bukit.Content.Notion.Snapshot;
 using Bukit.Engine.Abstractions.Content;
 using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
@@ -18,7 +19,7 @@ public sealed class NotionContentSource : IContentProvider, INotionRelationFallb
     private readonly Func<NotionContentClient> _clientFactory;
 
     public NotionContentSource(NotionContentSourceOptions options, ILogger? logger = null)
-        : this(options, logger, () => new NotionContentClient(options))
+        : this(options, logger, () => NotionContentClient.Create(options, logger))
     {
     }
 
@@ -41,6 +42,13 @@ public sealed class NotionContentSource : IContentProvider, INotionRelationFallb
     {
         get
         {
+            // A snapshot is written to its own staging directory and published by the CLI
+            // after the build succeeded; the build transaction must not stage or swap it.
+            if (_options.Snapshot is not null)
+            {
+                return [];
+            }
+
             if (NotionCacheManager.NormalizeCacheMode(_options.CacheMode) != "readwrite" ||
                 string.IsNullOrWhiteSpace(_options.CacheDir))
             {
@@ -70,7 +78,12 @@ public sealed class NotionContentSource : IContentProvider, INotionRelationFallb
             throw new ContentException("Notion DatabaseId is required.");
         }
 
-        if (string.IsNullOrWhiteSpace(_options.Token))
+        if (_options.Snapshot is { Offline: true } offlineSnapshot)
+        {
+            // Offline: no token and no network; a database the snapshot lacks is a clear error.
+            offlineSnapshot.EnsureDatabase(_options.DatabaseId);
+        }
+        else if (string.IsNullOrWhiteSpace(_options.Token))
         {
             throw new ContentException("Notion Token is required.");
         }
@@ -111,7 +124,11 @@ public sealed class NotionContentSource : IContentProvider, INotionRelationFallb
         string? startCursor = null;
         var pagination = new NotionPaginationGuard();
         var pageHtmlCache = NotionCacheManager.CreatePageHtmlCache(_options);
-        var relationTargetCache = NotionRelationTargetCache.Create(_options.CacheMode, _options.CacheDir);
+        // With a snapshot, relation targets are re-projected from the raw pages it stores, so a
+        // changed propertyMap applies offline too; the projected relation cache is not used.
+        var relationTargetCache = _options.Snapshot is null
+            ? NotionRelationTargetCache.Create(_options.CacheMode, _options.CacheDir)
+            : null;
 
         try
         {
@@ -242,8 +259,9 @@ public sealed class NotionContentSource : IContentProvider, INotionRelationFallb
             try
             {
                 // Each page gets its own renderer; the transport (and rate limiter) is shared.
-                var renderer = new NotionBlocksRenderer(client.Transport);
-                return await NotionCacheManager.GetOrRenderPageHtmlAsync(renderer, pageHtmlCache, pageId, lastEditedTime, token, _logger).ConfigureAwait(false);
+                // Created only on a cache miss: offline clients have no transport.
+                return await NotionCacheManager.GetOrRenderPageHtmlAsync(
+                    () => new NotionBlocksRenderer(client.Transport), pageHtmlCache, pageId, lastEditedTime, token, _logger).ConfigureAwait(false);
             }
             finally
             {
@@ -483,6 +501,10 @@ public sealed class NotionContentSource : IContentProvider, INotionRelationFallb
                             ContentFieldReader.GetTextList(fields, "sameAs") ?? ContentFieldReader.GetTextList(fields, "same_as")));
                     }
                     catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+                    {
+                        throw;
+                    }
+                    catch (NotionSnapshotException)
                     {
                         throw;
                     }

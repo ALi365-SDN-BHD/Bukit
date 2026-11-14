@@ -6,13 +6,13 @@ This table is derived from `BukitCliSpecs.cs`.
 
 | Command | Purpose | Parameters |
 |---|---|---|
-| `build` | Build the site. | `--config`, `--site`, `--output`, `--base-url`, `--site-url`, `--clean`, `--no-clean`, `--draft`, `--ci`, `--incremental`, `--no-incremental`, `--cache-dir`, `--metrics`, `--jobs`, `--log-format` |
-| `doctor` | Diagnose config, content, theme, templates, and providers. | `--config`, `--site`, `--site-url` |
+| `build` | Build the site. | `--config`, `--site`, `--output`, `--base-url`, `--site-url`, `--clean`, `--no-clean`, `--draft`, `--ci`, `--incremental`, `--no-incremental`, `--cache-dir`, `--metrics`, `--jobs`, `--log-format`, `--notion-snapshot`, `--notion-offline`, `--secrets-stdin` |
+| `doctor` | Diagnose config, content, theme, templates, and providers. | `--config`, `--site`, `--site-url`, `--notion-snapshot`, `--notion-offline`, `--secrets-stdin` |
 | `config` | Parent command for config checks. | `--config`, `--site`, `--site-url`, `--output` |
-| `config check` | Validate config without building pages. | `--config`, `--site`, `--site-url` |
+| `config check` | Validate config without building pages. | `--config`, `--site`, `--site-url`, `--notion-snapshot`, `--notion-offline`, `--secrets-stdin` |
 | `config schema` | Emit JSON Schema for `site.yaml`. | `--output` |
 | `preview` | Serve an existing output directory. | `--dir`, `--host`, `--port`, `--strict-port`, `--config`, `--site`, `--allow-lan`, `--public` |
-| `dev` | Build, watch files, serve output, and trigger LiveReload. | `--config`, `--site`, `--host`, `--port`, `--output`, `--no-watch`, `--allow-lan`, `--public` |
+| `dev` | Build, watch files, serve output, and trigger LiveReload. | `--config`, `--site`, `--host`, `--port`, `--output`, `--no-watch`, `--allow-lan`, `--public`, `--secrets-stdin` |
 | `clean` | Remove output and cache directories. | `--dir`, `--config`, `--site` |
 | `version` | Print version. | none |
 | `completion` | Print shell completion. | `<shell>` |
@@ -28,7 +28,7 @@ This table is derived from `BukitCliSpecs.cs`.
 | `publish` | Parent command for publish audit reports. | `--dir`, `--report`, `--strict`, `--external` |
 | `publish audit` | Validate `.bukit/publish-audit-report.json`. | `--dir`, `--report`, `--strict`, `--external` |
 | `publish diff` | Compare publish audit reports. | `--baseline`, `--current`, `--max-new-errors`, `--max-new-warnings`, `--max-new-issues`, `--fail-on-new-code`, `--fail-on-route-removed`, `--fail-on-indexable-drop` |
-| `deploy` | Build if needed and deploy to GitHub Pages. | `--config`, `--site`, `--dry-run`, `--skip-build`, `--base-url`, `--site-url`, `--output`, `--branch`, `--repo`, `--token-env`, `--message`, `--ci`, `--force` |
+| `deploy` | Build if needed and deploy to GitHub Pages. | `--config`, `--site`, `--dry-run`, `--skip-build`, `--base-url`, `--site-url`, `--output`, `--branch`, `--repo`, `--token-env`, `--secrets-stdin`, `--message`, `--ci`, `--force` |
 
 `bukit deploy --dry-run` validates an existing build without rebuilding or
 requiring provider secrets. If the output directory is missing, it exits 1 and
@@ -67,13 +67,56 @@ bukit publish audit --dir dist --strict
 bukit deploy --dry-run
 ```
 
+## Passing Secrets on Standard Input
+
+`build`, `dev`, `doctor`, `config check`, and `deploy` accept `--secrets-stdin`.
+With it, Bukit reads tokens from standard input instead of the process
+environment. On macOS and Linux other programs of the same user can read a
+running process's environment; a token read from stdin stays in Bukit's memory.
+
+Bukit reads stdin to end of file before any other work. The input is one JSON
+object, at most 64 KiB, mapping a name to a non-empty string:
+
+```json
+{"NOTION_TOKEN":"<notion token>","GITHUB_TOKEN":"<github token>"}
+```
+
+- Names look like environment variable names: a letter or `_`, then letters,
+  digits, and `_`, up to 128 characters. Names Bukit does not use are ignored,
+  and `{}` is valid.
+- Each secret Bukit needs is looked up in the stdin object first, then in the
+  environment: `NOTION_TOKEN` for Notion sources, and for `deploy` the name
+  given by `--token-env` (default `GITHUB_TOKEN`). Without `--secrets-stdin`
+  nothing changes: tokens come from environment variables as before.
+- Bukit never copies stdin secrets into an environment, so `git`, Sass, image
+  tools, and plugin processes it starts do not inherit them. Multilingual build
+  workers receive them on their own stdin. Log lines and error messages replace
+  any stdin secret value with `***`.
+- Unusable input fails with exit code 2 and error code `secrets-stdin-invalid`
+  before anything else runs: empty input, invalid JSON or UTF-8, a value that is
+  not a non-empty string, an invalid or duplicate name, input over 64 KiB, stdin
+  attached to a terminal, or a command that does not take the flag. The message
+  never repeats the input.
+- Plugin commands do not take `--secrets-stdin`; plugins keep reading the
+  environment variables their manifest allows.
+- Known limit: during `deploy`, Bukit still hands the GitHub token to each
+  authenticated `git` process in that process's environment (read by a
+  temporary `GIT_ASKPASS` script). While `git` runs, other programs of the same
+  user can read it there.
+
+A program that starts Bukit writes the JSON to the child's stdin and closes it:
+
+```bash
+my-secret-tool print bukit-secrets | bukit build --config site.yaml --secrets-stdin
+```
+
 ## Exit Codes
 
 | Code | Meaning |
 |---:|---|
 | 0 | Success. |
 | 1 | General runtime failure. |
-| 2 | Command argument, config, or content setup error. |
+| 2 | Command argument, config, or content setup error, including invalid `--secrets-stdin` input. |
 | 3 | Render error. |
 
 `seo insights` refines the generic table: it returns `0` after writing the

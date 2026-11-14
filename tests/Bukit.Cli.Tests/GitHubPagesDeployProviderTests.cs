@@ -987,6 +987,42 @@ public sealed class GitHubPagesDeployProviderTests
     }
 
     [Fact]
+    public async Task DeployAsync_CustomTokenEnv_ResolvedFromSecretsStdinBeforeEnvironment()
+    {
+        using var scope = new GitHubPagesDeployTestScope();
+        scope.FakeGit.RemoteUrl = "https://github.com/ali/docs.git";
+        scope.FakeGit.PushMode = "forbidden";
+        scope.WriteOutputFile("index.html", "<h1>Hello</h1>");
+        using var cwd = new CurrentDirectoryScope(scope.WorktreeDir);
+        const string name = "BUKIT_TEST_DEPLOY_TOKEN_STDIN";
+        const string secret = "fake-stdin-deploy-secret";
+        var previous = Environment.GetEnvironmentVariable(name);
+        Environment.SetEnvironmentVariable(name, null);
+        scope.SetGithubToken(null);
+        try
+        {
+            var missing = await new GitHubPagesDeployProvider().DeployAsync(scope.CreateContext(tokenEnv: name), CancellationToken.None);
+            Assert.Contains($"{name} environment variable is required", missing.Error, StringComparison.Ordinal);
+
+            // --token-env NAME is looked up in the --secrets-stdin values first; reaching the push
+            // (and its 403) proves the stdin value was used although the variable is unset.
+            Bukit.Shared.SecretStore.Install(new Dictionary<string, string> { [name] = secret });
+            var result = await new GitHubPagesDeployProvider().DeployAsync(scope.CreateContext(tokenEnv: name), CancellationToken.None);
+
+            Assert.False(result.Success);
+            Assert.DoesNotContain("environment variable is required", result.Error, StringComparison.Ordinal);
+            Assert.Contains($"Ensure your {name} can write repository contents", result.Error, StringComparison.Ordinal);
+            Assert.DoesNotContain(secret, result.Error, StringComparison.Ordinal);
+            Assert.Null(Environment.GetEnvironmentVariable(name));
+        }
+        finally
+        {
+            Bukit.Shared.SecretStore.Reset();
+            Environment.SetEnvironmentVariable(name, previous);
+        }
+    }
+
+    [Fact]
     public void CopyDirectory_SkipsInternalBuildArtifactsAndPreservesPublicDotfiles()
     {
         var root = Path.Combine(Path.GetTempPath(), "bukit-gh-pages-copy-" + Guid.NewGuid().ToString("N"));

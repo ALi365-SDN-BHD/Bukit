@@ -4,6 +4,7 @@ using Bukit.Engine.Abstractions.Content;
 using Bukit.Content.Notion;
 using Bukit.Engine.Abstractions.Plugins;
 using Bukit.Shared;
+using Bukit.Content.Notion.Snapshot;
 namespace Bukit.Engine;
 
 internal static class TaxonomyTermsInjector
@@ -67,8 +68,10 @@ internal static class TaxonomyTermsInjector
         AppConfig config,
         CancellationToken cancellationToken)
     {
-        var token = EnvironmentHelper.GetNotionToken();
-        if (string.IsNullOrWhiteSpace(token))
+        var snapshot = Bukit.Content.Notion.Snapshot.NotionSnapshotSession.Current;
+        var offline = snapshot is { Offline: true };
+        var token = offline ? string.Empty : EnvironmentHelper.GetNotionToken();
+        if (!offline && string.IsNullOrWhiteSpace(token))
         {
             return;
         }
@@ -130,19 +133,25 @@ internal static class TaxonomyTermsInjector
             var options = new NotionContentSourceOptions
             {
                 DatabaseId = databaseId,
-                Token = token.Trim(),
+                Token = (token ?? string.Empty).Trim(),
                 MaxRetries = notion.MaxRetries ?? 5,
-                MaxRps = notion.MaxRps ?? 3
+                MaxRps = notion.MaxRps ?? 3,
+                Snapshot = snapshot
             };
 
             try
             {
-                using var client = new NotionContentClient(options);
+                using var client = NotionContentClient.Create(options, context.Logger);
                 var schemaOptions = await NotionDatabaseOptionReader.ReadAsync(
-                    client.Transport,
+                    client,
                     databaseId,
                     cancellationToken);
                 InjectNotionSchemaOptions(schemaOptions, keyToKind, context);
+            }
+            catch (NotionSnapshotException)
+            {
+                // Offline: missing options are an error, not a silently smaller term list.
+                throw;
             }
             catch (Exception ex) when (!cancellationToken.IsCancellationRequested)
             {

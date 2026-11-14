@@ -34,6 +34,12 @@ internal static class WorktreeBuildCoordinator
                 throw new InvalidDataException("Content snapshot hash or HEAD does not match the worker request.");
             }
 
+            // Workers read the parent's snapshot: the committed one offline, or the parent's
+            // staging directory while it records (only the parent commits).
+            using var notionSnapshot = string.IsNullOrWhiteSpace(request.Overrides.NotionSnapshotDir)
+                ? null
+                : NotionSnapshot.AttachWorker(request.Overrides.NotionSnapshotDir, request.Overrides.NotionOffline);
+            using var notionSnapshotScope = NotionSnapshot.Enter(notionSnapshot);
             var level = request.Overrides.IsCI
                 ? LogLevel.Warn
                 : ParseLogLevel(request.Config.Logging.Level);
@@ -109,7 +115,15 @@ internal static class WorktreeBuildCoordinator
         }
         startInfo.ArgumentList.Add("build");
         startInfo.Environment[WorkerEnvironmentVariable] = plan.RequestPath;
-        var result = await I18nWorktreeGitRunner.RunAsync(startInfo, WorkerTimeout, logger, cancellationToken).ConfigureAwait(false);
+        // Secrets passed with --secrets-stdin are forwarded to the worker over its stdin, never
+        // through its environment or arguments.
+        string? secretsInput = null;
+        if (SecretStore.HasStdinSecrets)
+        {
+            startInfo.ArgumentList.Add(SecretStore.StdinFlag);
+            secretsInput = SecretStore.SerializeStdinSecrets();
+        }
+        var result = await I18nWorktreeGitRunner.RunAsync(startInfo, WorkerTimeout, logger, secretsInput, cancellationToken).ConfigureAwait(false);
         if (result.StandardOutput.Length > 0)
         {
             await Console.Out.WriteAsync(result.StandardOutput).ConfigureAwait(false);

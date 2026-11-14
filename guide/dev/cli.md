@@ -8,13 +8,13 @@ loads dynamic plugin descriptors only when the command is not a Core command.
 
 | Command | Parameters |
 |---|---|
-| `build` | `--config`, `--site`, `--output`, `--base-url`, `--site-url`, `--clean`, `--no-clean`, `--draft`, `--ci`, `--incremental`, `--no-incremental`, `--cache-dir`, `--metrics`, `--jobs`, `--log-format` |
-| `doctor` | `--config`, `--site`, `--site-url` |
+| `build` | `--config`, `--site`, `--output`, `--base-url`, `--site-url`, `--clean`, `--no-clean`, `--draft`, `--ci`, `--incremental`, `--no-incremental`, `--cache-dir`, `--metrics`, `--jobs`, `--log-format`, `--notion-snapshot`, `--notion-offline`, `--secrets-stdin` |
+| `doctor` | `--config`, `--site`, `--site-url`, `--notion-snapshot`, `--notion-offline`, `--secrets-stdin` |
 | `config` | `--config`, `--site`, `--site-url`, `--output` |
-| `config check` | `--config`, `--site`, `--site-url` |
+| `config check` | `--config`, `--site`, `--site-url`, `--notion-snapshot`, `--notion-offline`, `--secrets-stdin` |
 | `config schema` | `--output` |
 | `preview` | `--dir`, `--host`, `--port`, `--strict-port`, `--config`, `--site`, `--allow-lan`, `--public` |
-| `dev` | `--config`, `--site`, `--host`, `--port`, `--output`, `--no-watch`, `--allow-lan`, `--public` |
+| `dev` | `--config`, `--site`, `--host`, `--port`, `--output`, `--no-watch`, `--allow-lan`, `--public`, `--secrets-stdin` |
 | `clean` | `--dir`, `--config`, `--site` |
 | `version` | none |
 | `completion` | `<shell>` |
@@ -30,13 +30,28 @@ loads dynamic plugin descriptors only when the command is not a Core command.
 | `publish` | `--dir`, `--report`, `--strict`, `--external` |
 | `publish audit` | `--dir`, `--report`, `--strict`, `--external` |
 | `publish diff` | `--baseline`, `--current`, `--max-new-errors`, `--max-new-warnings`, `--max-new-issues`, `--fail-on-new-code`, `--fail-on-route-removed`, `--fail-on-indexable-drop` |
-| `deploy` | `--config`, `--site`, `--dry-run`, `--skip-build`, `--base-url`, `--site-url`, `--output`, `--branch`, `--repo`, `--token-env`, `--message`, `--ci`, `--force` |
+| `deploy` | `--config`, `--site`, `--dry-run`, `--skip-build`, `--base-url`, `--site-url`, `--output`, `--branch`, `--repo`, `--token-env`, `--secrets-stdin`, `--message`, `--ci`, `--force` |
 
 ## Error Handling
 
 `ConfigException` and `ContentException` return exit code 2; `RenderException`
 returns 3; unexpected exceptions return 1. `--log-format json` is treated as a
 global error-rendering option and remains a build option only for `build`.
+
+## Secrets on stdin
+
+`Program.cs` strips the global `--secrets-stdin` flag before command resolution
+and, for `build`, `dev`, `doctor`, `config check`, and `deploy`, loads one JSON
+object (max 64 KiB) from stdin into `Bukit.Shared.SecretStore` before plugin
+discovery or config loading. Every token read goes through `SecretStore.Get`
+(stdin value first, then the environment); `EnvironmentHelper.GetNotionToken()`
+and the deploy `--token-env` lookup both use it. Stdin secrets are never written
+to an environment: the multilingual worker gets them over its stdin with
+`--secrets-stdin`, and `ConsoleLogger`, top-level CLI errors, and
+`PluginSecretMasker` redact their values. Invalid input returns exit 2 with
+`secrets-stdin-invalid`. Plugin commands do not accept the flag. The deploy
+provider still passes the GitHub token to authenticated `git` children through
+`BUKIT_GITHUB_TOKEN` in their environment (read by the `GIT_ASKPASS` script).
 
 ## Dynamic Commands
 

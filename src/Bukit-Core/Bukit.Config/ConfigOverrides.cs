@@ -18,6 +18,15 @@ public sealed record ConfigOverrides
     public string? CacheDir { get; init; }
     public string? MetricsPath { get; init; }
     public int? Jobs { get; init; }
+
+    /// <summary>
+    /// Notion offline snapshot directory this build reads (offline) or records into (the
+    /// staging directory). Carried to multilingual build workers; never logged.
+    /// </summary>
+    public string? NotionSnapshotDir { get; init; }
+
+    /// <summary>True when Notion data comes only from <see cref="NotionSnapshotDir"/>.</summary>
+    public bool NotionOffline { get; init; }
 }
 
 public static class ConfigApplier

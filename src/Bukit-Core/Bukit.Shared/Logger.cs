@@ -53,6 +53,9 @@ public sealed class ConsoleLogger : ILogger
             return;
         }
 
+        // Secrets passed with --secrets-stdin are never logged, even if a message embeds one.
+        message = SecretStore.Redact(message);
+
         if (_format == "json")
         {
             var buffer = new ArrayBufferWriter<byte>();

@@ -38,6 +38,9 @@ public sealed class CompositeContentProvider : IContentProvider
         _schema = schema;
     }
 
+    /// <summary>Receives one <c>event=content.source.loaded</c> line per source.</summary>
+    internal ILogger? Logger { get; init; }
+
     /// <summary>
     /// Read-only child identities used by build source/write overlap checks.
     /// </summary>
@@ -98,6 +101,7 @@ public sealed class CompositeContentProvider : IContentProvider
                 var result = await tasks[i];
                 var items = projectedSources[i].Documents;
                 orderedStores.Add((sourceKey, result.BodyStore));
+                Logger?.Info($"event=content.source.loaded source={sourceKey} count={items.Count}");
 
                 foreach (var item in items)
                 {

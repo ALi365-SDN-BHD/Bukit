@@ -47,15 +47,18 @@ Project selection, shared by most commands:
 - `--site <name>`: use `./sites/<name>.yaml`; root is the current directory.
   `--config` wins when both are given. Paths escaping `sites/` are rejected.
 - `--site-url <url>`: override `site.url` for this run.
+- `--notion-snapshot <dir>` (`build`): record a Notion offline snapshot outside the site; add
+  `--notion-offline` (`build`, `doctor`, `config check`) to read only that snapshot, with no
+  `NOTION_TOKEN` and no network.
 
 | Command | Options |
 |---|---|
-| `build` | `--config`, `--site`, `--output`, `--base-url`, `--site-url`, `--clean`, `--no-clean`, `--draft`, `--ci`, `--incremental`, `--no-incremental`, `--cache-dir`, `--metrics`, `--jobs`, `--log-format` |
-| `doctor` | `--config`, `--site`, `--site-url` |
-| `config check` | `--config`, `--site`, `--site-url` |
+| `build` | `--config`, `--site`, `--output`, `--base-url`, `--site-url`, `--clean`, `--no-clean`, `--draft`, `--ci`, `--incremental`, `--no-incremental`, `--cache-dir`, `--metrics`, `--jobs`, `--log-format`, `--notion-snapshot`, `--notion-offline`, `--secrets-stdin` |
+| `doctor` | `--config`, `--site`, `--site-url`, `--notion-snapshot`, `--notion-offline`, `--secrets-stdin` |
+| `config check` | `--config`, `--site`, `--site-url`, `--notion-snapshot`, `--notion-offline`, `--secrets-stdin` |
 | `config schema` | `--output` (file; stdout when omitted) |
 | `preview` | `--dir`, `--host`, `--port`, `--strict-port`, `--config`, `--site`, `--allow-lan`, `--public` |
-| `dev` | `--config`, `--site`, `--host`, `--port`, `--output`, `--no-watch`, `--allow-lan`, `--public` |
+| `dev` | `--config`, `--site`, `--host`, `--port`, `--output`, `--no-watch`, `--allow-lan`, `--public`, `--secrets-stdin` |
 | `clean` | `--dir`, `--config`, `--site` |
 | `version` | none |
 | `completion` | `<shell>`: `bash` (default), `zsh`, `fish` |
@@ -65,7 +68,7 @@ Project selection, shared by most commands:
 | `seo question-insights` | `--dir`, `--routes` (alias `--route-map`), `--targets`, `--observations`, `--rules`, `--out`, `--strict-join` |
 | `seo generative-insights`, `seo authority-insights` | `--dir`, `--routes` (alias `--route-map`), `--observations`, `--rules`, `--out`, `--strict-join` |
 | `geo audit` | `--dir` |
-| `deploy` | `--config`, `--site`, `--dry-run`, `--skip-build`, `--base-url`, `--site-url`, `--output`, `--branch`, `--repo`, `--token-env`, `--message`, `--ci`, `--force` |
+| `deploy` | `--config`, `--site`, `--dry-run`, `--skip-build`, `--base-url`, `--site-url`, `--output`, `--branch`, `--repo`, `--token-env`, `--secrets-stdin`, `--message`, `--ci`, `--force` |
 
 Bare `bukit seo`, `bukit publish`, `bukit geo`, and `bukit config` print usage and exit 2 (bare
 `bukit config` first prints `Unknown config command: default`).
@@ -119,11 +122,12 @@ Details: `bukit-build`. Servers: `bukit-local-server`. Audits and deploy:
 | `seo *-insights`, `seo insights` | `--strict-join` | off | Exit 1 on unmatched or ambiguous rows. | `bukit-seo-insights` |
 | `geo audit` | `--dir <dir>` | `dist` | Output directory. | `bukit-geo` |
 | `deploy` | `--dry-run` | off | Print the plan (info level) and exit 0. Checks only config (no provider secrets), `--repo`/`--token-env` syntax, and a completed non-empty output; not git, the token variable, branch/CNAME, the remote, or the publish/privacy scan, so exit 0 does not prove a deploy will succeed. | `bukit-publish-deploy` |
+| `build`, `dev`, `doctor`, `config check`, `deploy` | `--secrets-stdin` | off | Read one JSON object of name → string (max 64 KiB) from stdin, e.g. `{"NOTION_TOKEN":"…"}`; those values win over environment variables and are never put into a child's environment. Bad input → exit 2, `secrets-stdin-invalid`, input not echoed. | below |
 | `deploy` | `--skip-build` | off | Push the existing output. | `bukit-publish-deploy` |
 | `deploy` | `--base-url`, `--site-url`, `--output`, `--ci` | config | Passed to the internal clean build. `--output` also picks the directory pushed with `--skip-build`/`--dry-run` (relative to the project root). `--ci` sets the log level to `warn`, hiding the dry-run plan and success line. | `bukit-publish-deploy` |
 | `deploy` | `--branch <name>` | `deploy.branch` or `gh-pages` | Target branch. | `bukit-publish-deploy` |
 | `deploy` | `--repo <owner/name>` | `deploy.repo`, then `origin` | Target repository. | `bukit-publish-deploy` |
-| `deploy` | `--token-env <NAME>` | `GITHUB_TOKEN` | Variable holding the token. | `bukit-publish-deploy` |
+| `deploy` | `--token-env <NAME>` | `GITHUB_TOKEN` | Name of the token: looked up in `--secrets-stdin` input first, then the environment. | `bukit-publish-deploy` |
 | `deploy` | `--message <text>` | `deploy.message` or `bukit deploy` | Commit message. | `bukit-publish-deploy` |
 | `deploy` | `--force` | off | Overwrite a diverged branch. | `bukit-publish-deploy` |
 
@@ -157,8 +161,8 @@ or bad usage/missing directory (2).
 | Variable | Effect |
 |---|---|
 | `BUKIT_<SECTION>__<KEY>...` | Override any `site.yaml` scalar before validation. Segments are snake case mapped to camelCase: `BUKIT_SITE__BASE_URL=/docs/` sets `site.baseUrl`. Applies to every command that loads config. An empty value can fail validation for every command. |
-| `NOTION_TOKEN` | Required for Notion sources when secrets are validated (`build`, `dev`, `config check`, `doctor`, and `deploy` without `--skip-build`/`--dry-run`). |
-| `GITHUB_TOKEN` | Default deploy token; choose another variable with `--token-env NAME` (pass the name, never the value). |
+| `NOTION_TOKEN` | Required for Notion sources when secrets are validated (`build`, `dev`, `config check`, `doctor`, and `deploy` without `--skip-build`/`--dry-run`). A `NOTION_TOKEN` passed with `--secrets-stdin` wins over the variable. |
+| `GITHUB_TOKEN` | Default deploy token; choose another variable with `--token-env NAME` (pass the name, never the value). With `--secrets-stdin`, the same name is looked up in the stdin JSON first. During the push the token still reaches each `git` child through its environment (`BUKIT_GITHUB_TOKEN`, read by a temporary `GIT_ASKPASS` script). |
 | `BUKIT_DEPLOY_GIT_TIMEOUT_SECONDS` | Per-git-command deploy timeout, default 300, `0` = no limit. |
 | `BUKIT_BUILD_MODE=release\|profile`, `BUKIT_PROFILE`, `BUKIT_RELEASE` | Make `securityFailMode: auto` strict, like `--ci`. `BUKIT_PROFILE` counts with any non-empty value; `BUKIT_RELEASE` with any non-empty value except `0` or `false`. |
 | `BUKIT_TRACE_ID`, `BUKIT_SPAN_ID` | Added to JSON log lines. |
