@@ -47,10 +47,12 @@ public sealed class NotionOfflineSnapshotMultilingualTests : IDisposable
 
         var offline = await RunBukitAsync("build", "--config", ConfigPath, "--notion-snapshot", SnapshotDir, "--notion-offline");
 
-        Assert.True(offline.ExitCode == 0, offline.Output);
-        Assert.Contains("event=notion.snapshot.offline", offline.Output, StringComparison.Ordinal);
-        Assert.DoesNotContain("NOTION_TOKEN", offline.Output, StringComparison.Ordinal);
-        Assert.DoesNotContain(_snapshotRoot, offline.Output, StringComparison.Ordinal);
+        Assert.True(offline.ExitCode == 0, $"{offline.StdOut}\n{offline.StdErr}");
+        Assert.Contains("event=notion.snapshot.offline", offline.StdErr, StringComparison.Ordinal);
+        Assert.DoesNotContain("NOTION_TOKEN", offline.StdOut, StringComparison.Ordinal);
+        Assert.DoesNotContain("NOTION_TOKEN", offline.StdErr, StringComparison.Ordinal);
+        Assert.DoesNotContain(_snapshotRoot, offline.StdOut, StringComparison.Ordinal);
+        Assert.DoesNotContain(_snapshotRoot, offline.StdErr, StringComparison.Ordinal);
         var published = Published(Path.Combine(_root, "dist"));
         Assert.Equal(recorded.Keys.Order(StringComparer.Ordinal), published.Keys.Order(StringComparer.Ordinal));
         foreach (var (path, bytes) in recorded)
@@ -77,10 +79,10 @@ public sealed class NotionOfflineSnapshotMultilingualTests : IDisposable
         var offline = await RunBukitAsync("build", "--config", ConfigPath, "--notion-snapshot", SnapshotDir, "--notion-offline");
 
         Assert.NotEqual(0, offline.ExitCode);
-        Assert.Contains("Error: [BKT-0B14] Worker for language 'zh-CN' failed:", offline.Output, StringComparison.Ordinal);
-        Assert.Contains("Notion offline snapshot has no page 'rel-zh'", offline.Output, StringComparison.Ordinal);
-        Assert.Contains("Worker for language 'zh-CN'", offline.Output, StringComparison.Ordinal);
-        Assert.DoesNotContain(_snapshotRoot, offline.Output, StringComparison.Ordinal);
+        Assert.Contains("Error: [BKT-0B14] Worker for language 'zh-CN' failed:", offline.StdErr, StringComparison.Ordinal);
+        Assert.Contains("Notion offline snapshot has no page 'rel-zh'", offline.StdErr, StringComparison.Ordinal);
+        Assert.DoesNotContain(_snapshotRoot, offline.StdOut, StringComparison.Ordinal);
+        Assert.DoesNotContain(_snapshotRoot, offline.StdErr, StringComparison.Ordinal);
         // Nothing was published: the recorded site is untouched.
         var published = Published(Path.Combine(_root, "dist"));
         Assert.Equal(recorded.Keys.Order(StringComparer.Ordinal), published.Keys.Order(StringComparer.Ordinal));
@@ -105,9 +107,10 @@ public sealed class NotionOfflineSnapshotMultilingualTests : IDisposable
             "json");
 
         Assert.Equal(1, offline.ExitCode);
-        Assert.Contains("\"code\": \"BKT-0B14\"", offline.Output, StringComparison.Ordinal);
-        Assert.Contains("Notion offline snapshot has no page 'rel-zh'", offline.Output, StringComparison.Ordinal);
-        Assert.DoesNotContain(_snapshotRoot, offline.Output, StringComparison.Ordinal);
+        Assert.Contains("\"code\": \"BKT-0B14\"", offline.StdErr, StringComparison.Ordinal);
+        Assert.Contains("Notion offline snapshot has no page 'rel-zh'", offline.StdErr, StringComparison.Ordinal);
+        Assert.DoesNotContain(_snapshotRoot, offline.StdOut, StringComparison.Ordinal);
+        Assert.DoesNotContain(_snapshotRoot, offline.StdErr, StringComparison.Ordinal);
     }
 
     /// <summary>Records the snapshot with an in-process build and returns its published output.</summary>
@@ -226,15 +229,15 @@ public sealed class NotionOfflineSnapshotMultilingualTests : IDisposable
                  })
         {
             var result = await RunAsync("git", arguments, root);
-            Assert.True(result.ExitCode == 0, result.Output);
+            Assert.True(result.ExitCode == 0, $"{result.StdOut}\n{result.StdErr}");
         }
     }
 
     /// <summary>Runs the real CLI, whose language workers are child processes, without a token.</summary>
-    private Task<(int ExitCode, string Output)> RunBukitAsync(params string[] arguments)
+    private Task<(int ExitCode, string StdOut, string StdErr)> RunBukitAsync(params string[] arguments)
         => RunAsync("dotnet", [typeof(BuildCommand).Assembly.Location, .. arguments], _root);
 
-    private static async Task<(int ExitCode, string Output)> RunAsync(string fileName, IReadOnlyList<string> arguments, string workingDirectory)
+    private static async Task<(int ExitCode, string StdOut, string StdErr)> RunAsync(string fileName, IReadOnlyList<string> arguments, string workingDirectory)
     {
         var start = new ProcessStartInfo(fileName)
         {
@@ -254,7 +257,7 @@ public sealed class NotionOfflineSnapshotMultilingualTests : IDisposable
         var stdout = process.StandardOutput.ReadToEndAsync();
         var stderr = process.StandardError.ReadToEndAsync();
         await process.WaitForExitAsync();
-        return (process.ExitCode, await stdout + await stderr);
+        return (process.ExitCode, await stdout, await stderr);
     }
 
     private sealed class I18nNotionApi : HttpMessageHandler
