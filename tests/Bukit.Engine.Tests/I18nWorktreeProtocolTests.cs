@@ -43,7 +43,8 @@ public sealed class I18nWorktreeProtocolTests : IDisposable
             {
                 ["enabled"] = true,
                 ["items"] = new List<object> { "one", 2L }
-            })
+            }),
+            ["related"] = new("relation", new List<string> { "rel-a", "rel-b" })
         };
         var document = ContentDocument.Create(
             "page",
@@ -83,6 +84,11 @@ public sealed class I18nWorktreeProtocolTests : IDisposable
         var nested = Assert.IsAssignableFrom<IReadOnlyDictionary<string, object>>(restoredDocument.CustomFields["nested"].Value);
         Assert.Equal(true, nested["enabled"]);
         Assert.Equal(new object[] { "one", 2L }, Assert.IsAssignableFrom<IReadOnlyList<object>>(nested["items"]));
+        // Workers check string lists by type (pages_index relation ids, media URLs): a list of
+        // strings must come back as one, and still read as a list of objects.
+        var related = restoredDocument.CustomFields["related"].Value;
+        Assert.Equal(["rel-a", "rel-b"], Assert.IsAssignableFrom<IReadOnlyList<string>>(related));
+        Assert.IsAssignableFrom<IEnumerable<object>>(related);
     }
 
     [Fact]
