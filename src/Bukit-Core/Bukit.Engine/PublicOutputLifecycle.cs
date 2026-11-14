@@ -189,6 +189,30 @@ internal static class PublicOutputLifecycle
         }
     }
 
+    /// <summary>
+    /// Removes report directories under <c>.bukit/variants</c> that do not belong to the current root
+    /// language, such as <c>.bukit/variants/en</c> after a root-layout site changes its default language
+    /// from <c>en</c>. Both builds use the root layout, so no protected clean removes them. Only Bukit
+    /// writes language directories here, so any other language directory is a leftover.
+    /// </summary>
+    internal static void DeleteStaleRootVariantReports(string outputDir, I18nOutputLayout layout)
+    {
+        var variantsDir = FileWriter.GetSafeFullPath(outputDir, ".bukit/variants");
+        if (!Directory.Exists(variantsDir) || (File.GetAttributes(variantsDir) & FileAttributes.ReparsePoint) != 0) return;
+        foreach (var directory in Directory.EnumerateDirectories(variantsDir))
+        {
+            if (layout.IsRootLanguage(Path.GetFileName(directory)) ||
+                (File.GetAttributes(directory) & FileAttributes.ReparsePoint) != 0)
+            {
+                continue;
+            }
+
+            Directory.Delete(directory, recursive: true);
+        }
+
+        if (!Directory.EnumerateFileSystemEntries(variantsDir).Any()) Directory.Delete(variantsDir);
+    }
+
     internal static void DeleteOwnedFile(string outputDir, string path)
     {
         var full = FileWriter.GetSafeFullPath(outputDir, path);
@@ -237,6 +261,7 @@ internal static class PublicOutputLifecycle
         var current = items.Select(x => x.Destination).ToHashSet(OutputDestinationIdentityComparer.ForOutputRoot(outputDir));
         DeleteStale(outputDir, previous, current);
         DeleteRemovedVariantReports(outputDir, previous, variants, current);
+        if (site is not null) DeleteStaleRootVariantReports(outputDir, I18nOutputLayout.For(site));
         // Only a non-i18n build (no root outputs) shares its single variant's manifest; a root
         // layout with one configured language writes into the same directory but keeps them apart.
         var manifest = rootOutputs is null && variants.Count == 1 && variants[0].OutputDir == outputDir

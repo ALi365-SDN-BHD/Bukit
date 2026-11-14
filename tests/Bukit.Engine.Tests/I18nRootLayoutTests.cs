@@ -240,6 +240,26 @@ public sealed class I18nRootLayoutTests
     }
 
     [Fact]
+    public async Task RootLayout_ChangingTheDefaultLanguageRemovesTheOldRootLanguageReports()
+    {
+        // Both builds use the root layout, so no protected clean runs. The old root language's
+        // reports under .bukit/variants/<lang> must not stay behind once it moves to /<lang>/.
+        using var site = RootSite();
+        var engine = new SiteEngine(new ConsoleLogger(LogLevel.Error));
+        await engine.BuildAsync(site.Config, site.Root, new ConfigOverrides { Incremental = false });
+        Assert.True(Directory.Exists(Path.Combine(site.Output, ".bukit", "variants", "en")));
+
+        var chinese = site.Config with { Site = site.Config.Site with { DefaultLanguage = "zh-CN" } };
+        await engine.BuildAsync(chinese, site.Root, new ConfigOverrides { Incremental = false });
+
+        Assert.Equal(
+            ["zh-CN"],
+            Directory.EnumerateDirectories(Path.Combine(site.Output, ".bukit", "variants")).Select(Path.GetFileName));
+        Assert.NotEmpty(Directory.EnumerateFiles(Path.Combine(site.Output, ".bukit", "variants", "zh-CN"), "*", SearchOption.AllDirectories));
+        Assert.True(Directory.Exists(Path.Combine(site.Output, "en", ".bukit")));
+    }
+
+    [Fact]
     public async Task RootLayout_MetricsReportsRootOutputDirForDefaultLanguage()
     {
         using var site = RootSite();
