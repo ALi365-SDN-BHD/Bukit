@@ -114,7 +114,7 @@ Bukit 不改写主题 HTML，但 Core 自己生成的地址必须跟随共用规
 3. **非默认语言**：
    - 扫描自己的 `assets/` 和媒体目录的逻辑不变；去掉共用条目后，语言目录内一般只剩媒体。
    - **共用原图清单**取自本语言资源计划中被过滤掉的条目里扩展名为 jpg、jpeg、png 的那些，不扫描共用资源根。这样默认语言生成的变体不会混进清单，不需要默认语言 manifest 中的归属信息，也不会靠文件名模式把用户自己放的 `hero-480w.jpg` 误判成变体；进程内构建和 Worktree 构建得到的清单相同。
-   - 对这些原图**只读**地构建共用 WebP 映射：用尺寸规划函数算出候选文件名，只收录文件存在、且 freshness sidecar 对当前原图有效的变体。校验复用现有的只读方法 `ImageVariantFreshness.TryReadFreshness`，以共用资源根作为输出目录；sidecar 中的相对路径以默认语言输出目录为基准，也就是共用资源根。映射的 key 与现有映射同为站内 URL 路径：规范化的根 baseUrl 去掉结尾 `/` 后加 `/` 和相对共用资源根的路径（根 baseUrl 为 `/` 时为 `/assets/hero.jpg`），候选 URL 用同一前缀。原图宽度用现有的 `TryReadImageWidth` 从共用资源根读取，读取失败时跳过。
+   - 对这些原图**只读**地构建共用 WebP 映射：用尺寸规划函数算出候选文件名，只收录文件存在、且 freshness sidecar 对当前原图有效的变体。校验复用现有的只读方法 `ImageVariantFreshness.TryReadFreshness`，以共用资源根作为输出目录；sidecar 中的相对路径以默认语言输出目录为基准，也就是共用资源根。映射的 key 与现有映射同为站内 URL 路径：规范化的根 baseUrl 去掉结尾 `/` 后加 `/` 和相对共用资源根的路径（根 baseUrl 为 `/` 时为 `/assets/hero.jpg`），候选 URL 用同一前缀。原图宽度用现有的 `TryGetImageWidth` 从共用资源根读取，它会捕获坏图异常并记录跳过警告，此时跳过该原图。
    - 清单在资源计划创建之后、AfterBuild 之前写入插件上下文；`MediaDownloadDir` 的设置点在路由阶段，那时计划还不存在。
    - 共用映射在"本语言没有原图就提前返回"之前构建；本语言没有自有图片时，只要共用映射非空，仍然执行 webp 改写。改写映射为"本语言映射 ∪ 共用映射"。
    - `TryNormalizeLocalImageUrl` 同时接受本语言 `baseUrl + "/"` 开头的地址，以及 `asset_base_url + "/"` 开头**且剩余路径落在共用集合内**的地址，后者解析到共用资源根中的文件。必须检查共用集合：站点根 baseUrl 为 `/` 时 `asset_base_url` 规范化后是空串，不加检查就会把任何站内图片都当作共用资源。

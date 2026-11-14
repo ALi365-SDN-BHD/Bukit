@@ -39,7 +39,7 @@
 
 ## 5. 图片处理
 
-- [ ] 非默认语言 AfterBuild：共用原图清单取自本语言资源计划中被过滤的图片条目（不扫描磁盘），在 `AssetPipeline.PrepareAsync` 之后、AfterBuild 之前写入插件上下文；映射 key 为根 baseUrl 前缀加相对路径，原图宽度用 `TryReadImageWidth` 读取；用尺寸规划函数只读构建共用 WebP 映射（文件存在且 `ImageVariantFreshness.TryReadFreshness` 有效才收录，URL 用根 baseUrl）；映射在"没有自有原图就提前返回"之前构建；webp 改写使用"自身映射 ∪ 共用映射"。
+- [ ] 非默认语言 AfterBuild：共用原图清单取自本语言资源计划中被过滤的图片条目（不扫描磁盘），在 `AssetPipeline.PrepareAsync` 之后、AfterBuild 之前写入插件上下文；映射 key 和候选 URL 共用去掉结尾 `/` 的根 baseUrl 前缀，原图宽度用会捕获异常的 `TryGetImageWidth` 读取；用尺寸规划函数只读构建共用 WebP 映射（文件存在且 `ImageVariantFreshness.TryReadFreshness` 有效才收录，URL 用根 baseUrl）；映射在"没有自有原图就提前返回"之前构建；webp 改写使用"自身映射 ∪ 共用映射"。
 - [ ] `TryNormalizeLocalImageUrl` 接受 `asset_base_url + "/"` 前缀且剩余路径落在有效共用集合内的地址，并解析到共用资源根。
 - [ ] 非默认语言不在共用资源根的有效共用集合内生成、改写或删除文件，不执行孤儿和 freshness 清理。
 - [ ] 默认语言的变体生成和失败策略不变。

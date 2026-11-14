@@ -83,7 +83,7 @@ SiteEngine / WorktreeBuildRun
    - 候选：用 `ImageVariantPlan.CandidateWidths` 和 `VariantFileName` 推出候选文件；文件路径以 `scope.OutputRoot` 为根解析；改写用的 URL 为 `scope.RootBaseUrl` + 相对输出根的路径。不能沿用 `GetRelativeIdentity(context.OutputDir, ...)`，那样会得到 `../assets/...`。
    - 清单的设置时机：`OmittedSharedItems` 要到 `AssetPipeline.PrepareAsync`（`VariantBuildPipeline.cs:127-130`）才有值，而 `BuildDataKeys.MediaDownloadDir` 在更早的 `VariantRouteStage.cs:52` 设置，不能放在同一处。`BuildDataKeys.SharedAssets` 在 `PrepareAsync` 之后、`VariantPluginStages.RunAfterBuildAsync`（`VariantBuildPipeline.cs:174`）之前写入 `routePipelineResult.PluginContext`，AfterBuild 读到的是同一个 context。
    - key 空间：现有映射的 key 是站内 URL 路径 `{NormalizeBaseUrl(context.BaseUrl).TrimEnd('/')}/{sourceRelative}`（`ImageVariantGenerator.cs:269,318-319`），`RewriteCurrentHtmlWithWebp` 用 `TryNormalizeLocalImageUrl` 返回的路径查找（`ResponsiveImageHtmlTransform.cs:82`），后者已去掉 query 和 fragment（`:131-135`）。共用映射的 key 定为 `NormalizeBaseUrl(scope.RootBaseUrl).TrimEnd('/') + "/" + destination`，候选 URL 用同一个前缀。根 baseUrl 为 `/` 时前缀为空串，key 为 `/assets/hero.jpg`；为 `/repo` 时为 `/repo/assets/hero.jpg`。这个前缀只计算一次，key 和候选共用，不另写归一化。
-   - 原图宽度：`CandidateWidths(sizes, sourceWidth)` 需要原图宽度，用 `ImageVariantGenerator.TryReadImageWidth`（`ImageVariantGenerator.cs:43`）读取共用资源根中的原图；读取失败时跳过该原图并记录 debug 日志，不报错。
+   - 原图宽度：`CandidateWidths(sizes, sourceWidth)` 需要原图宽度，用 `ImageVariantGenerator.TryGetImageWidth`（`ImageVariantGenerator.cs:25`）读取共用资源根中的原图。不能直接用 `TryReadImageWidth`（`:43`）：它不捕获 IO、`InvalidDataException` 等异常，坏图会让非默认语言构建失败。`TryGetImageWidth` 捕获这些异常，记录现有的 `image_processing.skip` 警告并返回 `false`，此时跳过该原图。
 9. **只读 freshness。** 复用现有的只读方法 `ImageVariantFreshness.TryReadFreshness(path, outputDir, sourceFile, ...)`（`ImageVariantFreshness.cs:18`），`outputDir` 传 `scope.OutputRoot`，不新增方法。共用映射不得写入、修复或删除任何文件。
 10. **架构约束。**
     - `BuiltInPluginSplitTests` 要求 ImageProcessing 下的辅助类型保持顶层、internal、不是插件。把 `"ImageVariantPlan"` 加进 `Responsibility_IsTopLevelInternalAndNotAPlugin` 的 `InlineData`，由测试强制约束，不靠人工检查。
@@ -394,8 +394,8 @@ SiteEngine / WorktreeBuildRun
 - 改动（第 1.3 节第 8、9 条）：
   - key 按第 1.3 节第 8 条：`NormalizeBaseUrl(scope.RootBaseUrl).TrimEnd('/') + "/" + destination`，与现有映射同一个 URL 路径空间。
   - 原图只取自 `BuildDataKeys.SharedAssets` 中的清单，不扫描共用资源根。
-  - 原图宽度用 `ImageVariantGenerator.TryReadImageWidth` 从共用资源根读取，失败时跳过并记录 debug 日志。
-  - 用 `ImageVariantPlan.CandidateWidths` 和 `VariantFileName` 推出 WebP 候选；文件以 `scope.OutputRoot` 为根解析；改写 URL 为 `scope.RootBaseUrl` + 相对输出根的路径。
+  - 原图宽度用 `ImageVariantGenerator.TryGetImageWidth` 从共用资源根读取（不用不捕获异常的 `TryReadImageWidth`），返回 `false` 时跳过该原图。
+  - 用 `ImageVariantPlan.CandidateWidths` 和 `VariantFileName` 推出 WebP 候选；文件以 `scope.OutputRoot` 为根解析；key 和候选 URL 共用同一个前缀 `NormalizeBaseUrl(scope.RootBaseUrl).TrimEnd('/')`，后接 `/` 和相对输出根的路径，只计算一次。不要直接拼 `scope.RootBaseUrl + "/"`：根 baseUrl 为 `/` 时会得到 `//assets/...`。
   - 有效性用现有的 `ImageVariantFreshness.TryReadFreshness`，`outputDir` 传 `scope.OutputRoot`，不新增方法，也不写入或修复任何文件。
   - 共用映射在 `imageFiles.Count == 0` 的提前返回**之前**构建。
 - 测试：`Bukit.Engine.Tests`：`ImageProcessingPlugin`，新增用例：
@@ -406,7 +406,8 @@ SiteEngine / WorktreeBuildRun
   - 共用资源根里有用户自己放的 `hero-480w.jpg`（不在清单中、没有 sidecar）：既不当作原图，也不当作候选。
   - 生成的 URL 以根 baseUrl 开头，不含 `../`。
   - key：根 baseUrl 为 `/` 时为 `/assets/hero.jpg`，为 `/repo` 时为 `/repo/assets/hero.jpg`，均能被 `TryNormalizeLocalImageUrl` 的结果命中。
-  - 原图宽度读取失败：跳过该原图，不报错。
+  - 原图损坏（`InvalidDataException`）或读取失败：跳过该原图，记录 `image_processing.skip` 警告，构建成功。
+  - 根 baseUrl 为 `/` 时，候选 URL 以 `/assets/` 开头，不含 `//`。
 - 依赖：T05.1。
 
 **T05.3 合并改写与地址识别**
@@ -417,7 +418,8 @@ SiteEngine / WorktreeBuildRun
 - 测试：`Bukit.Engine.Tests`：`ImageProcessingPlugin|I18nSharedAssets`，新增用例：
   - 规范场景"Shared theme image on two language pages"（`/repo`）。
   - **非默认语言目录中没有任何自有图片时，中文页仍然得到共用 WebP `<picture>`。**
-  - 站点 baseUrl 为 `/` 时，中文页中不在 scope 内的 `/images/x.jpg` 不按共用资源处理；`/assets/uploads/x.jpg` 按本语言媒体处理。
+  - 站点 baseUrl 为 `/` 时，中文页中不在 scope 内的 `/images/x.jpg` 不按共用资源处理。
+  - 站点 baseUrl 为 `/` 时，中文页中的 `/zh-CN/assets/uploads/x.jpg` 走本语言媒体映射；`/assets/uploads/x.jpg`（默认语言的媒体）不属于共用集合，也不被当作本语言媒体，保持原 `<img>`。
   - 规范场景"Default language variant failure in warn mode"。
   - 已改写的 `<picture>` 再次经过改写时输出不变（复用现有的幂等测试方式）。
 - 依赖：T05.2。
@@ -581,3 +583,4 @@ A1–A5 已全部采用推荐项，本节不再适用，保留作日后改选时
 | 审计 1 | 2026-11-14 | 按外部审阅修订，共 36 个任务。严重问题：Starter 为 `asset_base_url` 单独映射 `/`（第 1.3 节第 13 条、T03.5）；共用原图清单改取计划中被过滤的条目，共用映射在提前返回之前构建，候选 URL 用根 baseUrl（第 8 条、T05.1–T05.3）；`Contains` 明确为"包含且不排除"（第 14 条、T02.4）。重要问题：渲染哈希经 `RenderDependencyContext` 接线（第 5 条）；`TryCreate` 增加输出根和 logger 并在站点层创建一次（第 14 条）；SEO 接线链拆为 T04.2，地址清单复核提前为 T04.1；`SiteModel.AssetBaseUrl` 定为可空、非 required，并回退到 `BaseUrl`（第 17 条）。次要问题：校验入口改为 `ConfigValidator.Validate`；T00.2 写出具体路径和命令；修正测试名；`ImageVariantPlan` 登记进架构测试；复用 `TryReadFreshness`；SCSS 输出目录只在启用时纳入默认值；占位图路径用 `GetSafeFullPath`。另补审阅未提的一条：根前缀分支须检查 `scope.Contains`（第 15 条）。未采纳"Worktree 漏记单语言警告"：Worktree 只在 2 种及以上语言时启用（`BuildCommand.cs:154`），单语言 + Worktree 的组合不会出现。同步修订 design.md（D2、D6–D9）、规范（改写 4 条要求的措辞，新增 7 个场景）和 tasks.md |
 | 决策确认 | 2026-11-14 | 用户确认 A1–A5 全部采用推荐项；T00.1 完成，提案、design.md、tasks.md 同步标注 |
 | 审计 2 | 2026-11-14 | 按第二轮外部审阅修订，任务数不变。严重问题：`BuildDataKeys.SharedAssets` 改为在 `PrepareAsync` 之后、`RunAfterBuildAsync` 之前设置（第 1.3 节第 8 条、T05.1），原写法"与 `MediaDownloadDir` 同处"拿不到清单。重要问题：明确 `asset_base_url` 不单独入哈希、由已入哈希的值推出，并加根 baseUrl 变化的断言（第 5 条、T03.5）；写定共用映射的 key（第 8 条、T05.2）。次要问题：T02.1 补 `ConfigLoader` 赋值；T02.2 去掉没有对应规则的 SCSS 用例；`new SiteModel` 计数改为 44；`I18nWorkerRequest.SharedAssetsRoot` 默认 `null`；Worker 字段为空时不调用 `TryCreate`；原图宽度用 `TryReadImageWidth`；新增 `ContainsSitePath` 处理 query、fragment 和编码（第 14 条）。全部 10 条均已对照代码核实并采纳。同步修订 design.md（D8、D9）、规范（增量要求改为"变化即改变哈希"，新增根 baseUrl 变化与带 query 的 SEO 图片 2 个场景）和 tasks.md |
+| 复核 | 2026-11-14 | 第三轮复核无严重或重要问题，收紧 3 处实施细节：原图宽度改用会捕获异常的 `TryGetImageWidth`（第 1.3 节第 8 条、T05.2）；T05.2 写明 key 和候选 URL 共用去掉结尾 `/` 的前缀，避免 `//assets/...`；T05.3 媒体用例区分 `/zh-CN/assets/uploads/` 与默认语言的 `/assets/uploads/` |
