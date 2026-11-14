@@ -14,7 +14,10 @@ internal sealed record AuditOutputReadPaths(
     string? AgentManifest,
     string? Robots,
     string? Llms,
-    string? LlmsFull)
+    string? LlmsFull,
+    string? SharedRootBaseUrl = null,
+    string? SharedOutputRoot = null,
+    Func<string, bool>? IsSharedPath = null)
 {
     /// <summary>
     /// Legacy read locations inside a language's own output directory. Feeds fall back to the

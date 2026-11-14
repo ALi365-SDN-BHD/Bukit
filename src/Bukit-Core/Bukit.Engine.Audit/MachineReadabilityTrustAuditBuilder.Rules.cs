@@ -2,6 +2,7 @@ using Bukit.Config;
 using Bukit.Engine.Abstractions.Plugins;
 using Bukit.Engine.Abstractions.Content;
 using Bukit.Engine.Audit;
+using Bukit.Engine.Primitives;
 using Bukit.Engine.PublishAuditRules;
 using Bukit.Rendering;
 
@@ -71,9 +72,10 @@ internal static partial class MachineReadabilityTrustAuditBuilder
         SeoIndexEntry entry,
         SeoModel model,
         string outputDir,
+        AuditOutputReadPaths readPaths,
         List<SeoAuditIssue> issues)
     {
-        SeoTextAndImageRules.AnalyzeModel(config, entry.Route.Url, model, outputDir, issues);
+        SeoTextAndImageRules.AnalyzeModel(config, entry.Route.Url, model, outputDir, readPaths, issues);
 
         if (string.IsNullOrWhiteSpace(config.Site.Url) && IsAbsoluteHttpUrl(model.Canonical))
         {

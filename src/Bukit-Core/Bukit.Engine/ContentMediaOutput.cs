@@ -127,7 +127,9 @@ internal sealed partial class ContentMediaOutput(BuildVariantContext context) : 
         }
         foreach (var relative in _fallbacks.Keys.Order(StringComparer.Ordinal))
         {
-            if (context.SharedAssets is { } sharedAssets && sharedAssets.ContainsSitePath(relative))
+            if (context.SharedAssets is { } sharedAssets &&
+                !string.Equals(_baseUrl, _rootBaseUrl, StringComparison.Ordinal) &&
+                sharedAssets.ContainsSitePath(relative))
             {
                 if (!File.Exists(FileWriter.GetSafeFullPath(sharedAssets.OutputRoot, relative)))
                     throw new IOException(MissingPlaceholderMessage(relative));
