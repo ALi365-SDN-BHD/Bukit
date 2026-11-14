@@ -28,4 +28,5 @@ internal sealed record BuildVariantContext(
     string? ParentStaticDir = null,
     string? UserLayoutsDir = null,
     string? ScssOutputDir = null,
-    string? TemplateIdentityRoot = null);
+    string? TemplateIdentityRoot = null,
+    SharedAssetScope? SharedAssets = null);

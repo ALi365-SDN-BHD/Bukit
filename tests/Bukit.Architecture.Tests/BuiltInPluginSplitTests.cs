@@ -24,6 +24,7 @@ public sealed class BuiltInPluginSplitTests
     [InlineData("ImageVariantGenerator")]
     [InlineData("ImageVariantFreshness")]
     [InlineData("ImageVariantOwnership")]
+    [InlineData("ImageVariantPlan")]
     [InlineData("ResponsiveImageHtmlTransform")]
     public void Responsibility_IsTopLevelInternalAndNotAPlugin(string name)
     {

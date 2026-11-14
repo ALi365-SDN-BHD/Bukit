@@ -184,7 +184,7 @@ public sealed class Ad03C6AggregateClosureTests
             {
                 ["cross-assembly-implementation"] = 255,
                 ["implementation-public"] = 40,
-                ["serialized-contract"] = 98,
+                ["serialized-contract"] = 99,
                 ["plugin-wire-contract"] = 23,
                 ["persisted-internal-format"] = 6,
                 ["aot-serialization-surface"] = 3
@@ -195,7 +195,7 @@ public sealed class Ad03C6AggregateClosureTests
             new Dictionary<string, int>(StringComparer.Ordinal)
             {
                 ["1.x-do-not-narrow"] = 257,
-                ["1.x-shape-stable"] = 119,
+                ["1.x-shape-stable"] = 120,
                 ["not-a-clr-contract"] = 40,
                 ["1.x-migration-safe"] = 6,
                 ["2.x-shape-stable"] = 2,
@@ -207,7 +207,7 @@ public sealed class Ad03C6AggregateClosureTests
             new Dictionary<string, int>(StringComparer.Ordinal)
             {
                 ["2.0-review"] = 300,
-                ["retain-1.x"] = 122,
+                ["retain-1.x"] = 123,
                 ["retain-2.x"] = 3
             });
     }
@@ -362,7 +362,7 @@ public sealed class Ad03C6AggregateClosureTests
             ReadText("docs/governance/bukit-core-2.0-consumer-declaration.md");
         string c0 = ReadText(C0Path);
 
-        Assert.Contains("425 public types", guide, StringComparison.Ordinal);
+        Assert.Contains($"{PublicApiBaselineFacts.GovernedTypeCount} public types", guide, StringComparison.Ordinal);
         Assert.DoesNotContain("443 public types", guide, StringComparison.Ordinal);
         Assert.Contains(
             "This records the historical G-04D4A state, not the current 2.0 public surface.",
@@ -380,7 +380,7 @@ public sealed class Ad03C6AggregateClosureTests
             "G-04D4A keeps all 13 `Bukit.Shared.Notion` model/record identities public",
             guide,
             StringComparison.Ordinal);
-        Assert.Contains("425 types", declaration, StringComparison.Ordinal);
+        Assert.Contains($"{PublicApiBaselineFacts.GovernedTypeCount} types", declaration, StringComparison.Ordinal);
         Assert.DoesNotContain("443 types", declaration, StringComparison.Ordinal);
         Assert.Contains(
             "This records the historical G-04D4A state, not the current 2.0 public surface.",

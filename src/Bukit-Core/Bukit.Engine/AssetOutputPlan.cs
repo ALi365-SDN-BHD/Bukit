@@ -31,14 +31,19 @@ internal sealed record AssetOutputItem(
 
 internal sealed class AssetOutputPlan
 {
-    private AssetOutputPlan(IReadOnlyList<AssetOutputItem> items, StringComparer destinationComparer)
+    private AssetOutputPlan(
+        IReadOnlyList<AssetOutputItem> items,
+        StringComparer destinationComparer,
+        IReadOnlyList<AssetOutputItem> omittedSharedItems)
     {
         Items = items;
         DestinationComparer = destinationComparer;
+        OmittedSharedItems = omittedSharedItems;
     }
 
     internal IReadOnlyList<AssetOutputItem> Items { get; }
     internal StringComparer DestinationComparer { get; }
+    internal IReadOnlyList<AssetOutputItem> OmittedSharedItems { get; }
 
     internal static AssetOutputPlan Create(
         AssetPipelineContext context,
@@ -138,10 +143,34 @@ internal sealed class AssetOutputPlan
             .ThenBy(item => item.Category)
             .ThenBy(item => item.Source, StringComparer.Ordinal)
             .ToArray();
+
+        var omittedSharedItems = new List<AssetOutputItem>();
+        if (context.OmittedSharedAssets is { } scope)
+        {
+            var kept = new List<AssetOutputItem>(items.Length);
+            foreach (var item in items)
+            {
+                if (ShouldOmitShared(item) && scope.Contains(item.Destination))
+                {
+                    omittedSharedItems.Add(item);
+                }
+                else
+                {
+                    kept.Add(item);
+                }
+            }
+
+            items = [.. kept];
+        }
+
         foreach (var item in items) FileWriter.GetSafeFullPath(context.OutputDir, item.Destination);
         Validate(items, comparer);
-        return new AssetOutputPlan(items, comparer);
+        return new AssetOutputPlan(items, comparer, omittedSharedItems);
     }
+
+    private static bool ShouldOmitShared(AssetOutputItem item)
+        => (item.Category is AssetOutputCategory.Assets or AssetOutputCategory.Tokens or AssetOutputCategory.Static) &&
+           (item.Operation is AssetOutputOperation.Copy or AssetOutputOperation.Generate);
 
     internal IReadOnlyList<AssetOutputItem> ForCategory(AssetOutputCategory category)
         => Items.Where(item => item.Category == category).ToArray();

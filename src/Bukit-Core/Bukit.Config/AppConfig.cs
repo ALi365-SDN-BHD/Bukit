@@ -56,6 +56,13 @@ public sealed record SiteConfig
     public SearchDetailConfig Search { get; init; } = new();
     public RelatedConfig Related { get; init; } = new();
     public IReadOnlyDictionary<string, IReadOnlyList<MenuConfig>>? Menus { get; init; }
+    public SharedAssetsConfig SharedAssets { get; init; } = new();
+}
+
+public sealed record SharedAssetsConfig
+{
+    public bool Enabled { get; init; }
+    public IReadOnlyList<string>? Paths { get; init; }
 }
 
 public sealed record SeoConfig

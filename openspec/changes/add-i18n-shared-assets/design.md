@@ -56,11 +56,12 @@
 
 ### D2. 有效共用集合
 
-- `paths` 是**输出路径前缀**（相对语言输出目录）。不写时为 `assets/` 加 SCSS 输出目录（去重）；写了则完全替换。
+- `paths` 是**输出路径前缀**（相对语言输出目录）。不写时为 `assets/` 加 SCSS 输出目录（只在 `theme.scss.enabled: true` 时加入，去重）；写了则完全替换。
 - 规范化：`\` 统一为 `/`，去掉开头的 `/`，补结尾 `/`。规范化后为根目录（如 `""`、`/`、`.`）的条目，以及空列表、绝对路径、含 `..` 的条目，配置校验报错。默认推导中 SCSS 输出目录为根目录时不加入，并记录警告。
 - 前缀匹配和去重使用 `OutputDestinationIdentityComparer` 的大小写规则。
 - **媒体前缀**（`content.media.urlBase` 去掉开头的 `/` 并补 `/`）始终从集合中扣除（A5）。显式条目等于媒体前缀或位于媒体前缀之内时报错，说明媒体共用不受支持；条目包含媒体前缀（如 `assets/` 包含 `assets/uploads/`）时，只在内部扣除。
-- **有效共用集合** = 配置前缀（或默认前缀）减去媒体前缀。下文的"共用集合"都指它。
+- **有效共用集合**：路径命中任一配置前缀（或默认前缀），且不命中媒体前缀时，才属于共用集合。不能实现成"前缀集合减去媒体前缀"后再做普通前缀匹配：`assets/uploads/x.jpg` 同样以 `assets/` 开头，会被误判为共用。下文的"共用集合"都指它。
+- 唯一实现是 Engine 内部的 `SharedAssetScope`。它在站点层创建一次（需要输出根来确定大小写规则），随语言构建上下文下传。计划过滤、地址规则、图片插件、渲染哈希和 Worktree 都只调用它。
 
 ### D3. 默认语言是唯一归属方（A2）
 
@@ -92,8 +93,9 @@
 
 - 开启共用：等于站点根 baseUrl（`NormalizeBaseUrl(site.BaseUrl)`，保留 `/repo`，不含语言段），来自现有 `BuildVariantContext.RootBaseUrl`。
 - 关闭共用或单语言站点：等于当前语言的 `base_url`。
-- 与 `base_url` 采用相同的规范化形式。
-- 接入点：`SiteModel` 新增属性（公共 API 基线）、`VariantDataSitePlanner.BuildSiteModel`、`ScribanSiteModelMapper`、`ScribanModelKnownFields`。
+- 与 `base_url` 采用相同的规范化形式。站点根 baseUrl 为 `/` 时，它也是 `/`。主题拼路径前要像处理 `base_url` 一样先映射为空串，否则会得到 `//assets/...`。
+- 接入点：`SiteModel` 新增 `string? AssetBaseUrl`（非 required，不影响现有构造代码；公共 API 基线）、`VariantDataSitePlanner.BuildSiteModel`（总是显式赋值）、`ScribanSiteModelMapper`（为空时回退到 `BaseUrl`）、`ScribanModelKnownFields`。
+- Starter 主题：`BaseLayout.html` 为 `asset_base_url` 单独增加 `/` → 空串的映射，样式表改用它，RSS 和 sitemap 链接继续用 `base_url`。
 
 ### D7. Core 拼出的站内地址
 
@@ -102,7 +104,8 @@ Bukit 不改写主题 HTML，但 Core 自己生成的地址必须跟随共用规
 - **SEO 地址**：`BuildMaybeAbsoluteUrl` 处理站内相对地址时，若去掉开头 `/` 后的路径落在共用集合内，使用根 baseUrl，否则使用语言 baseUrl。所有调用点（SEO 图片、作者图片和链接、JSON-LD）统一走这一规则。
 - **媒体占位图**：非默认语言中，占位图路径落在共用集合内时：
   - `RewriteUrl` 输出根 baseUrl + 占位图；
-  - `ValidateOutputs` 改为检查共用资源根中的文件是否存在，不再要求它出现在本语言的计划输出中。默认语言先构建（D5），文件此时已经存在。
+  - `ValidateOutputs` 改为检查共用资源根中的文件是否存在，不再要求它出现在本语言的计划输出中。默认语言先构建（D5），文件此时已经存在。路径继续用 `FileWriter.GetSafeFullPath` 解析，因为 `defaultImageUrl` 来自配置，属于信任边界。
+- SEO 地址需要的 scope 沿 `VariantSeoStage` → `SeoPipeline` → `SeoIndexBuilder` → `SeoModelBuilder` → `SeoImageResolver` / `SeoJsonLdBuilder` 逐层传入，不从变体配置反推根 baseUrl。
 
 ### D8. 图片处理
 
@@ -110,16 +113,18 @@ Bukit 不改写主题 HTML，但 Core 自己生成的地址必须跟随共用规
 2. **默认语言**：AfterBuild 行为不变，照常扫描 `dist/assets/` 并生成、归属、清理变体。
 3. **非默认语言**：
    - 扫描自己的 `assets/` 和媒体目录的逻辑不变；去掉共用条目后，语言目录内一般只剩媒体。
-   - 对共用集合内的原图，**只读**地构建共用 WebP 映射：用尺寸规划函数算出候选文件名，只收录文件存在、且 freshness sidecar 对当前原图有效的变体。freshness 路径相对默认语言输出目录，也就是共用资源根。
-   - webp 改写使用"本语言映射 ∪ 共用映射"。
-   - `TryNormalizeLocalImageUrl` 同时接受本语言 `baseUrl + "/"` 和 `asset_base_url + "/"` 开头的地址，后者解析到共用资源根中的文件。
+   - **共用原图清单**取自本语言资源计划中被过滤掉的条目里扩展名为 jpg、jpeg、png 的那些，不扫描共用资源根。这样默认语言生成的变体不会混进清单，不需要默认语言 manifest 中的归属信息，也不会靠文件名模式把用户自己放的 `hero-480w.jpg` 误判成变体；进程内构建和 Worktree 构建得到的清单相同。
+   - 对这些原图**只读**地构建共用 WebP 映射：用尺寸规划函数算出候选文件名，只收录文件存在、且 freshness sidecar 对当前原图有效的变体。校验复用现有的只读方法 `ImageVariantFreshness.TryReadFreshness`，以共用资源根作为输出目录；sidecar 中的相对路径以默认语言输出目录为基准，也就是共用资源根。映射的 key 与现有映射同为站内 URL 路径：规范化的根 baseUrl 去掉结尾 `/` 后加 `/` 和相对共用资源根的路径（根 baseUrl 为 `/` 时为 `/assets/hero.jpg`），候选 URL 用同一前缀。原图宽度用现有的 `TryGetImageWidth` 从共用资源根读取，它会捕获坏图异常并记录跳过警告，此时跳过该原图。
+   - 清单在资源计划创建之后、AfterBuild 之前写入插件上下文；`MediaDownloadDir` 的设置点在路由阶段，那时计划还不存在。
+   - 共用映射在"本语言没有原图就提前返回"之前构建；本语言没有自有图片时，只要共用映射非空，仍然执行 webp 改写。改写映射为"本语言映射 ∪ 共用映射"。
+   - `TryNormalizeLocalImageUrl` 同时接受本语言 `baseUrl + "/"` 开头的地址，以及 `asset_base_url + "/"` 开头**且剩余路径落在共用集合内**的地址，后者解析到共用资源根中的文件。必须检查共用集合：站点根 baseUrl 为 `/` 时 `asset_base_url` 规范化后是空串，不加检查就会把任何站内图片都当作共用资源。
    - 不在共用集合内生成、改写或删除任何文件，不对共用集合执行孤儿清理和 freshness 清理。
 4. **失败策略不变**：默认语言的变体生成失败仍受 `pluginFailMode` 控制。`warn` 模式下变体缺失时，非默认语言的只读映射不收录它，对应页面保留原 `<img>`，与 `responsive-next-gen-images` "HTML 引用必须由成功产物驱动"一致。
 5. `srcset` transform 只处理媒体，本版不变。`__image_srcsets` 没有消费方，保持现状。
 
 ### D9. 增量与开关切换
 
-- `sharedAssets` 的有效值（`enabled`、有效共用集合）和 `asset_base_url` 进入 `SiteIdentityAndModesContributor`。值变化时全部页面重新渲染，增量跳过的页面不会保留旧地址。
+- 有效共用集合（规范化、排序后的前缀列表）经 `RenderDependencyContext` 传给 `SiteIdentityAndModesContributor`，列表非空时才追加。`asset_base_url` 不单独写入：`SiteModel` 不会整体进入哈希，而它完全由已入哈希的值推出（开启时等于根 baseUrl，根 baseUrl 体现在变体的 `site.baseUrl` 中；是否开启体现在共用集合是否为空）。无条件追加会改变未开启站点的哈希。只哈希 `asset_base_url` 也不够：调整 `paths` 时它不变，但 SEO 地址、占位图地址和 WebP 改写都会变。值变化时全部页面重新渲染，增量跳过的页面不会保留旧地址。未开启时不追加任何内容，现有站点的哈希不变。
 - 开启：非默认语言上次归属的 `<lang>/assets/...` 不再出现在本次计划中，由现有过期清理删除。
 - 关闭：非默认语言重新计划并写出这些文件。
 - 默认语言的输出不变，不需要新增受保护清理条件。`build.clean` 默认 `true` 时 staging 本来就从空目录开始。
@@ -148,7 +153,7 @@ v1 中仍有价值的部分，即跨语言媒体引用并集、共用结果缓�
 
 ### 只在进程内传递 WebP 映射
 
-在进程内把默认语言的映射对象直接传给其他语言，可以省掉一次磁盘扫描，但 Worktree 仍需另一条路径。D8 统一从磁盘只读构建，两种构建只有一条代码路径。
+在进程内把默认语言的映射对象直接传给其他语言，可以省掉候选变体的存在性和 freshness 检查，但 Worktree 仍需另一条路径。D8 统一由计划中被过滤的原图条目加只读的磁盘检查构建映射，两种构建只有一条代码路径。
 
 ## Risks
 
@@ -163,5 +168,5 @@ v1 中仍有价值的部分，即跨语言媒体引用并集、共用结果缓�
 
 ## Open Questions
 
-- proposal.md 中的决策 A1–A5 待用户确认。
-- 媒体条目 `record.Media` 的地址在 `ContentMediaOutput` 中已带语言 baseUrl，`SeoImageResolver` 又经 `BuildAbsoluteUrl` 拼一次 baseUrl。实施时确认是否存在重复前缀（与本提案无关，有问题则另行记录）。
+- 无。proposal.md 中的决策 A1–A5 已于 2026-11-14 确认，全部采用推荐项。
+- 媒体条目 `record.Media` 的地址在 `ContentMediaOutput` 中已带语言 baseUrl，`SeoImageResolver` 又经 `BuildAbsoluteUrl` 拼一次 baseUrl。是否存在重复前缀与本提案无关，列为后续事项，不在本变更中确认或修复。

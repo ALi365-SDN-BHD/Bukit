@@ -271,6 +271,22 @@ public sealed class PluginRunnerTests
     }
 
     [Fact]
+    public async Task RunAfterBuild_PluginOutputInsideAssets_WritesToLanguageOutput()
+    {
+        var root = CreateTempRoot();
+        var (context, config) = CreateContext(root: root);
+        var plugin = new WritingAfterBuildPlugin();
+
+        await PluginRunner.RunAfterBuildAsync(
+            context,
+            PluginExecutionPolicy.From(config.Site),
+            [((IBukitPlugin)plugin, "test")],
+            CancellationToken.None);
+
+        Assert.True(File.Exists(Path.Combine(root, "dist", "assets", "plugin-data.json")));
+    }
+
+    [Fact]
     public async Task RunAfterBuild_RecordsPluginExecutionInfo()
     {
         var (ctx, config) = CreateContext(root: CreateTempRoot(), siteUrl: "https://example.com", plugins: DisableDerivePlugins());
@@ -538,6 +554,19 @@ public sealed class PluginRunnerTests
             Started.TrySetResult();
             await Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken);
             return Array.Empty<RoutedContentDocument>();
+        }
+    }
+
+    private sealed class WritingAfterBuildPlugin : IBukitPlugin, IAfterBuildAsyncPlugin
+    {
+        public string Name => "writing-after";
+        public string Version => "1.0.0";
+
+        public Task AfterBuildAsync(BuildContext context, CancellationToken cancellationToken = default)
+        {
+            var path = Path.Combine(context.OutputDir, "assets", "plugin-data.json");
+            Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+            return File.WriteAllTextAsync(path, "{}", cancellationToken);
         }
     }
 

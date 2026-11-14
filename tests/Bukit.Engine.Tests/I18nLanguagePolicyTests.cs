@@ -1,4 +1,5 @@
 using Bukit.Config;
+using Bukit.Shared;
 using Xunit;
 
 namespace Bukit.Engine.Tests;
@@ -51,5 +52,45 @@ public sealed class I18nLanguagePolicyTests
     public void GetLanguages_OneLanguageAfterCleaning_IsEmpty(string[] languages)
     {
         Assert.Empty(I18nLanguagePolicy.GetLanguages(Site(languages)));
+    }
+
+    [Fact]
+    public void WarnSharedAssetsWithoutLanguages_LogsOnlyForEnabledSingleLanguage()
+    {
+        var logger = new ListLogger();
+        I18nLanguagePolicy.WarnSharedAssetsWithoutLanguages(
+            Site(["en"]) with { SharedAssets = new SharedAssetsConfig { Enabled = true } },
+            logger);
+        Assert.Contains("event=i18n.config.shared_assets_ignored", logger.Warnings);
+
+        logger.Warnings.Clear();
+        I18nLanguagePolicy.WarnSharedAssetsWithoutLanguages(
+            Site(["en", "fr"]) with { SharedAssets = new SharedAssetsConfig { Enabled = true } },
+            logger);
+        Assert.Empty(logger.Warnings);
+
+        I18nLanguagePolicy.WarnSharedAssetsWithoutLanguages(
+            Site(["en"]) with { SharedAssets = new SharedAssetsConfig { Enabled = false } },
+            logger);
+        Assert.Empty(logger.Warnings);
+    }
+
+    private sealed class ListLogger : ILogger
+    {
+        internal List<string> Warnings { get; } = [];
+
+        public void Debug(string message)
+        {
+        }
+
+        public void Info(string message)
+        {
+        }
+
+        public void Warn(string message) => Warnings.Add(message);
+
+        public void Error(string message)
+        {
+        }
     }
 }

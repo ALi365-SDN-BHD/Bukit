@@ -12,6 +12,10 @@ namespace Bukit.Engine;
 /// <see cref="DataFiles"/> and <see cref="RelatedPages"/> are exposed as <c>site.data_files</c> and <c>site.related_pages</c>.
 /// Renaming a key changes template output and incremental build hashes.
 /// </summary>
+internal sealed record SharedAssetBuildData(
+    SharedAssetScope Scope,
+    IReadOnlyList<string> ImageDestinations);
+
 internal static class BuildDataKeys
 {
     /// <summary>Writer: VariantRouteStage, SiteEngine, VariantBuildPipeline.ListRoutes, SeoAlternatesService. Readers: PaginationPlugin, SitemapPlugin, SearchIndexPlugin.</summary>
@@ -19,6 +23,9 @@ internal static class BuildDataKeys
 
     /// <summary>Writer: VariantRouteStage. Reader: ImageProcessingPlugin (HTML transform).</summary>
     internal static readonly BuildDataKey<string> MediaDownloadDir = new("__media_download_dir");
+
+    /// <summary>Writer: VariantBuildPipeline after asset preparation. Reader: ImageProcessingPlugin (AfterBuild).</summary>
+    internal static readonly BuildDataKey<SharedAssetBuildData> SharedAssets = new("__shared_assets");
 
     /// <summary>Writer: PluginPipeline (from the previous build manifest). Reader: ImageProcessingPlugin.</summary>
     internal static readonly BuildDataKey<HashSet<PluginOutputTrackingInfo>> PriorPluginOutputs = new("__prior_plugin_outputs");

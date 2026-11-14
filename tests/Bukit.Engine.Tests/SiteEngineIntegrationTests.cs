@@ -1804,6 +1804,85 @@ public sealed partial class SiteEngineIntegrationTests
     }
 
     [Fact]
+    public async Task BuildAsync_SharedAssets_BuildsDefaultLanguageBeforeOthers()
+    {
+        var root = Path.Combine(Path.GetTempPath(), "bukit-shared-order", Guid.NewGuid().ToString("N"));
+        try
+        {
+            Directory.CreateDirectory(Path.Combine(root, "content"));
+            Directory.CreateDirectory(Path.Combine(root, "layouts", "layouts"));
+            Directory.CreateDirectory(Path.Combine(root, "layouts", "pages"));
+            File.WriteAllText(Path.Combine(root, "content", "page.en.md"), """
+                ---
+                type: page
+                collection: page
+                title: Hello
+                slug: hello
+                language: en
+                publishAt: 2026-01-01T00:00:00Z
+                ---
+                # Hello
+                """);
+            File.WriteAllText(Path.Combine(root, "content", "page.zh-CN.md"), """
+                ---
+                type: page
+                collection: page
+                title: 你好
+                slug: nihao
+                language: zh-CN
+                publishAt: 2026-01-01T00:00:00Z
+                ---
+                # 你好
+                """);
+            File.WriteAllText(Path.Combine(root, "layouts", "layouts", "base.html"),
+                "<!DOCTYPE html><html><head><title>{{ page.title }}</title></head><body>{{ content }}</body></html>");
+            File.WriteAllText(Path.Combine(root, "layouts", "pages", "page.html"),
+                "{% layout \"layouts/base.html\" %}\n{{ page.content }}");
+            File.WriteAllText(Path.Combine(root, "layouts", "pages", "index.html"),
+                "{% layout \"layouts/base.html\" %}\nIndex");
+            File.WriteAllText(Path.Combine(root, "layouts", "pages", "list.html"),
+                "{% layout \"layouts/base.html\" %}\nList");
+            WriteTestThemeTemplates(root);
+
+            var config = new AppConfig
+            {
+                Site = new SiteConfig
+                {
+                    Name = "t",
+                    Title = "T",
+                    Language = "en",
+                    DefaultLanguage = "en",
+                    Languages = ["zh-CN", "en"],
+                    BaseUrl = "/",
+                    Collections = TestCollections(),
+                    SharedAssets = new SharedAssetsConfig { Enabled = true }
+                },
+                Content = TestContent.Markdown() with
+                {
+                    Media = new MediaConfig { DownloadToLocal = false }
+                },
+                Build = new BuildConfig { Output = "dist", Clean = true, LanguageJobs = 2 },
+                Theme = new ThemeConfig { Layouts = "layouts" }
+            };
+            var logger = new TestLogger();
+            await new SiteEngine(logger).BuildAsync(config, root, new ConfigOverrides(), CancellationToken.None);
+
+            var infos = logger.Infos.ToArray();
+            var defaultDone = Array.FindIndex(infos, message =>
+                message.Contains("event=build.variant.done language=en", StringComparison.Ordinal));
+            var otherStart = Array.FindIndex(infos, message =>
+                message.Contains("event=build.variant.start language=zh-CN", StringComparison.Ordinal));
+            Assert.True(defaultDone >= 0, string.Join(Environment.NewLine, infos));
+            Assert.True(otherStart >= 0, string.Join(Environment.NewLine, infos));
+            Assert.True(defaultDone < otherStart, string.Join(Environment.NewLine, infos));
+        }
+        finally
+        {
+            CleanupDir(root);
+        }
+    }
+
+    [Fact]
     public async Task BuildAsync_ScssEnabled_PreservesSourceAndCompilesOnceAcrossLanguages()
     {
         if (OperatingSystem.IsWindows())

@@ -197,6 +197,9 @@ public sealed partial class SiteEngine
         };
         var bodyStore = new DictionaryContentBodyStore(snapshot.Bodies);
         var contentGraph = CanonicalContentGraphBuilder.BuildFromDocuments(snapshot.Documents);
+        var sharedAssets = request.SharedAssetsRoot is null
+            ? null
+            : SharedAssetScope.TryCreate(request.Config, languages, request.SharedAssetsRoot, logger: null);
         return new BuildVariantContext(
             variantConfig,
             request.RootDir,
@@ -225,7 +228,8 @@ public sealed partial class SiteEngine
             resolved.ParentStaticDir,
             resolved.UserLayoutsDir,
             request.ScssOutputDir,
-            request.ProjectRootDir);
+            request.ProjectRootDir,
+            SharedAssets: sharedAssets);
     }
 
     internal async Task<BuildResult> FinalizeI18nWorktreeBuildAsync(

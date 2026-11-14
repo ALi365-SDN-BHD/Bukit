@@ -30,6 +30,7 @@ public sealed class ScribanModelKnownFieldsTests
         Assert.Contains("url", fields);
         Assert.Contains("base_url", fields);
         Assert.Contains("base_path", fields);
+        Assert.Contains("asset_base_url", fields);
         Assert.Contains("build_year", fields);
         Assert.Contains("language", fields);
         Assert.Contains("params", fields);

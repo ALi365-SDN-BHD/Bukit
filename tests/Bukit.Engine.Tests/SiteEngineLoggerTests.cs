@@ -170,6 +170,62 @@ public sealed class SiteEngineLoggerTests
         Assert.True(File.Exists(Path.Combine(site.Output, "llms.txt")));
     }
 
+    [Fact]
+    public async Task SharedAssetsWithoutLanguages_WarnsAndLeavesPublicOutputUnchanged()
+    {
+        using var site = CreateSite();
+        var config = site.Config;
+        await CreateEngine(new RecordingLogger(new ConsoleLogger(LogLevel.Warn)))
+            .BuildAsync(config, site.Root, new ConfigOverrides { Incremental = false });
+        var baseline = PublicOutput(site.Output);
+
+        var enabled = config with
+        {
+            Site = config.Site with
+            {
+                SharedAssets = new SharedAssetsConfig { Enabled = true }
+            }
+        };
+        var logger = new RecordingLogger(new ConsoleLogger(LogLevel.Warn));
+        await CreateEngine(logger)
+            .BuildAsync(enabled, site.Root, new ConfigOverrides { Incremental = false });
+
+        Assert.Contains(
+            logger.Warnings,
+            message => message.Contains("event=i18n.config.shared_assets_ignored", StringComparison.Ordinal));
+        var current = PublicOutput(site.Output);
+        Assert.Equal(baseline.Keys.ToArray(), current.Keys.ToArray());
+        foreach (var (path, bytes) in baseline)
+        {
+            Assert.True(bytes.SequenceEqual(current[path]), path);
+        }
+    }
+
+    private static SortedDictionary<string, byte[]> PublicOutput(string root)
+    {
+        var files = new SortedDictionary<string, byte[]>(StringComparer.Ordinal);
+        foreach (var file in Directory.GetFiles(root, "*", SearchOption.AllDirectories))
+        {
+            var relative = Path.GetRelativePath(root, file).Replace('\\', '/');
+            if (relative.StartsWith(".bukit", StringComparison.Ordinal))
+            {
+                continue;
+            }
+
+            files[relative] = File.ReadAllBytes(file);
+        }
+
+        return files;
+    }
+
+    private static SiteEngine CreateEngine(ILogger logger)
+        => new(logger, new DefaultContentProviderFactory(), new DefaultSearchIndexBuilder(), null, new FixedTimeProvider());
+
+    private sealed class FixedTimeProvider : TimeProvider
+    {
+        public override DateTimeOffset GetUtcNow() => SiteBuilder.BuildTime;
+    }
+
     private static SiteBuilder CreateSite()
     {
         var site = new SiteBuilder();

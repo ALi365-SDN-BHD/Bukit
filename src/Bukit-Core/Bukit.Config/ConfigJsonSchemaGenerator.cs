@@ -78,7 +78,8 @@ public static class ConfigJsonSchemaGenerator
             ("pagination", PaginationGlobalSchema()),
             ("search", SearchDetailSchema()),
             ("related", RelatedSchema()),
-            ("menus", MenusSchema()));
+            ("menus", MenusSchema()),
+            ("sharedAssets", SharedAssetsSchema()));
         return schema;
     }
 
@@ -411,6 +412,11 @@ public static class ConfigJsonSchemaGenerator
             ("limit", IntSchema(1)),
             ("indices", Obj(("type", "array"), ("items", indexSchema))))));
     }
+
+    private static JsonObject SharedAssetsSchema()
+        => Obj(("type", "object"), ("properties", Obj(
+            ("enabled", BoolSchema(false)),
+            ("paths", StringArraySchema()))));
 
     private static JsonObject MenusSchema()
         => Obj(

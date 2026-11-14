@@ -33,23 +33,33 @@ language output directory. Entries SHALL be normalized by converting `\` to
 Configuration validation SHALL fail for an empty list, an absolute path, a path
 containing `..`, or an entry that normalizes to the output root. Prefix
 matching and de-duplication SHALL use the same case rules as output destination
-identity. When `paths` is not set, it SHALL default to the de-duplicated set of
-`assets/` and the SCSS output directory, omitting with a warning an SCSS output
-directory that normalizes to the output root. A configured list SHALL replace
-the default. The content media prefix, derived from `content.media.urlBase`,
-SHALL always be excluded: an entry equal to or inside the media prefix SHALL
-fail configuration validation, and an entry containing the media prefix SHALL
-have it excluded internally. The effective shared set SHALL be the configured
-or default prefixes minus the media prefix, and every rule that refers to
-shared paths SHALL apply to the effective shared set.
+identity. When `paths` is not set, it SHALL default to `assets/`, plus the SCSS
+output directory when `theme.scss.enabled` is `true`, de-duplicated, omitting
+with a warning an SCSS output directory that normalizes to the output root. A
+configured list SHALL replace the default. The content media prefix, derived
+from `content.media.urlBase`, SHALL always be excluded: an entry equal to or
+inside the media prefix SHALL fail configuration validation, and an entry
+containing the media prefix SHALL have it excluded internally. A path SHALL
+belong to the effective shared set only when it matches at least one configured
+or default prefix and does not match the media prefix. Every rule that refers
+to shared paths SHALL apply to the effective shared set through a single
+implementation.
 
 #### Scenario: Root prefix rejected
 - **WHEN** `sharedAssets.paths` is `[/]`
 - **THEN** configuration validation fails naming the entry
 
 #### Scenario: SCSS output at the root
-- **WHEN** `paths` is not set and the SCSS output directory is the output root
+- **WHEN** `paths` is not set, SCSS is enabled, and the SCSS output directory is the output root
 - **THEN** the SCSS output directory is not a default shared prefix and a warning is logged
+
+#### Scenario: SCSS disabled
+- **WHEN** `paths` is not set, `theme.scss.enabled` is `false`, and the SCSS output directory is `css/`
+- **THEN** the effective shared set contains only `assets/`
+
+#### Scenario: Media path under a shared prefix
+- **WHEN** sharing uses the default paths and `content.media.urlBase` is `/assets/uploads`
+- **THEN** `assets/css/a.css` belongs to the effective shared set and `assets/uploads/x.jpg` does not
 
 #### Scenario: Explicit media prefix rejected
 - **WHEN** `content.media.urlBase` is `/assets/uploads` and `sharedAssets.paths` is `[assets/uploads/]`
@@ -111,7 +121,8 @@ equal the site root base URL without a language segment, preserving a non-root
 base URL such as `/repo`. Otherwise it SHALL equal the current language
 `base_url`. It SHALL use the same normalization as `base_url`. Bukit SHALL NOT
 rewrite asset URLs written by templates. The Starter theme SHALL reference its
-assets through `site.asset_base_url`.
+assets through `site.asset_base_url`, mapping a value of `/` to an empty string
+before joining paths, as it already does for `base_url`.
 
 #### Scenario: Asset URL on a non-default language page
 - **WHEN** sharing is enabled, `site.baseUrl` is `/repo`, and a `zh-CN` page renders `{{ site.asset_base_url }}/assets/style.css`
@@ -121,11 +132,19 @@ assets through `site.asset_base_url`.
 - **WHEN** sharing is not enabled, `site.baseUrl` is `/repo`, and a `zh-CN` page renders `{{ site.asset_base_url }}/assets/style.css`
 - **THEN** the rendered URL is `/repo/zh-CN/assets/style.css`
 
+#### Scenario: Starter theme at the site root
+- **WHEN** sharing is enabled, `site.baseUrl` is `/`, and a `zh-CN` page is rendered with the Starter theme
+- **THEN** its stylesheet URL is `/assets/style.css`
+
+#### Scenario: Starter theme at the site root with sharing disabled
+- **WHEN** sharing is not enabled, `site.baseUrl` is `/`, and the `en` default language page is rendered with the Starter theme
+- **THEN** its stylesheet URL is `/assets/style.css`
+
 ### Requirement: Core-generated site URLs follow the shared set
 When sharing is enabled, every site-relative URL that Bukit itself resolves to
 an absolute or base-prefixed URL, including SEO images, author images, and
-structured data URLs, SHALL use the site root base URL when its path falls
-within the effective shared set, and the current language base URL otherwise.
+structured data URLs, SHALL use the site root base URL when its path, without
+query string or fragment, falls within the effective shared set, and the current language base URL otherwise.
 In a non-default language, when the content media fallback image path falls
 within the effective shared set, its rewritten URL SHALL use the site root base
 URL and media validation SHALL require the file to exist under the shared asset
@@ -139,17 +158,25 @@ root instead of in that language's planned outputs.
 - **WHEN** sharing uses the default paths, `site.baseUrl` is `/repo`, `defaultImageUrl` is `/assets/images/noneimg-news.jpg`, and a `zh-CN` page falls back to it
 - **THEN** the page references `/repo/assets/images/noneimg-news.jpg` and the Chinese media validation passes
 
+#### Scenario: Shared SEO image with a query string
+- **WHEN** sharing is enabled, `site.url` is `https://example.com`, `site.baseUrl` is `/repo`, and a `zh-CN` page sets `og_image` to `/assets/og.png?v=2`
+- **THEN** its `og:image` is `https://example.com/repo/assets/og.png?v=2`
+
 ### Requirement: Non-default languages reuse shared image variants read-only
 Variant size planning and file naming SHALL be a single function that
 distinguishes generated files from `srcset` and WebP candidates, and that is
 used by variant generation, WebP mapping, the `srcset` transform, and the
 shared mapping below. When sharing is enabled, a non-default language build
-SHALL build a shared WebP mapping for source images within the effective shared
-set by reading the shared asset root, including a candidate only when its file
-exists and its freshness record is valid for the current source. Its WebP
-picture rewrite SHALL use its own mapping combined with the shared mapping and
-SHALL accept image URLs prefixed by either its own base URL or
-`site.asset_base_url`. A non-default language build SHALL NOT create, modify,
+SHALL take its shared source images from the image entries omitted from its own
+asset plan, without scanning the shared asset root, and SHALL build a shared
+WebP mapping for them by reading the shared asset root, including a candidate
+only when its file exists and its freshness record is valid for the current
+source. Shared mapping URLs SHALL use the site root base URL. Its WebP picture
+rewrite SHALL use its own mapping combined with the shared mapping, SHALL run
+when the shared mapping is not empty even if the language has no image of its
+own, and SHALL accept image URLs prefixed by its own base URL, or prefixed by
+`site.asset_base_url` with a remaining path within the effective shared set. A
+non-default language build SHALL NOT create, modify,
 or delete any file within the effective shared set at the shared asset root,
 and SHALL NOT run orphan or freshness cleanup there. Variant generation for the
 default language and its failure policy SHALL be unchanged.
@@ -162,9 +189,18 @@ default language and its failure policy SHALL be unchanged.
 - **WHEN** sharing is enabled, `site.pluginFailMode` is `warn`, and generating the WebP variant of a shared image fails in the default language
 - **THEN** the Chinese page that uses the image keeps its original `<img>` and references no missing variant
 
+#### Scenario: Non-shared image at the site root
+- **WHEN** sharing uses the default paths, `site.baseUrl` is `/`, and a Chinese page references `/images/a.jpg`
+- **THEN** the image is not treated as shared and the Chinese build reads no file from the shared asset root for it
+
+#### Scenario: Language without its own images
+- **WHEN** sharing is enabled with WebP output and the Chinese build has no image of its own but its page uses the shared `/assets/hero.jpg`
+- **THEN** the Chinese page contains a WebP `<picture>` source for it
+
 ### Requirement: Shared asset settings affect incremental rendering
-The effective `sharedAssets` value and `site.asset_base_url` SHALL contribute to
-the render dependency hash. After the setting changes between builds, every
+A change to the effective shared set or to `site.asset_base_url` SHALL change
+the render dependency hash. When sharing is not enabled, the hash input SHALL be
+unchanged from before this change. After the setting changes between builds, every
 page SHALL be re-rendered, and the existing per-language stale output cleanup
 SHALL remove or restore non-default language copies without a protected clean.
 
@@ -175,6 +211,14 @@ SHALL remove or restore non-default language copies without a protected clean.
 #### Scenario: Disabling sharing on an incremental build
 - **WHEN** a site built with sharing enabled and `build.clean: false` is rebuilt with sharing disabled
 - **THEN** `dist/zh-CN/assets/style.css` exists again and Chinese pages rendered with the Starter theme reference `/zh-CN/assets/style.css`
+
+#### Scenario: Changing shared paths on an incremental build
+- **WHEN** a site built with sharing enabled and `build.clean: false` is rebuilt with `sharedAssets.paths` changed from the default to `[assets/, fonts/]`
+- **THEN** every page is re-rendered
+
+#### Scenario: Changing the root base URL with sharing enabled
+- **WHEN** a site built with sharing enabled and `build.clean: false` is rebuilt with `site.baseUrl` changed from `/` to `/repo`
+- **THEN** every Chinese page is re-rendered and references `/repo/assets/style.css`
 
 ### Requirement: Worktree builds share assets like in-process builds
 In worktree builds with sharing enabled, the parent SHALL run the default

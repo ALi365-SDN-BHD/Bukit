@@ -44,7 +44,8 @@ internal sealed record I18nWorkerRequest(
     string MediaDownloadDir,
     IReadOnlyDictionary<string, IReadOnlyList<SeoAlternateModel>> SeoAlternates,
     string SnapshotPath,
-    string ResultPath);
+    string ResultPath,
+    string? SharedAssetsRoot = null);
 
 internal sealed record I18nDerivedRouteSnapshot(RouteInfo Route, DateTimeOffset LastModified);
 

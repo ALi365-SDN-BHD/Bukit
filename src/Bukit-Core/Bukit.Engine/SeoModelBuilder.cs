@@ -19,7 +19,8 @@ internal static class SeoModelBuilder
         string? descriptionOverride = null,
         string? visibleTitleOverride = null,
         SearchActionDescriptor? searchAction = null,
-        BreadcrumbDescriptor? breadcrumb = null)
+        BreadcrumbDescriptor? breadcrumb = null,
+        SharedAssetScope? sharedAssets = null)
     {
         var record = document.Record;
         var fields = document.CustomFields;
@@ -32,7 +33,7 @@ internal static class SeoModelBuilder
             route.Url,
             FirstTextField(fields, "canonical"));
         var robots = BuildRobots(fields, document.Publish);
-        var resolvedImage = SeoImageResolver.ResolveForContent(config, baseUrl, document);
+        var resolvedImage = SeoImageResolver.ResolveForContent(config, baseUrl, document, sharedAssets);
         var image = resolvedImage.Url;
 
         var geo = SeoGeoMetaParser.ParseGeoMeta(document);
@@ -47,7 +48,25 @@ internal static class SeoModelBuilder
         var updated = record.Lifecycle.UpdatedAt;
         var resolvedAuthor = SeoAuthorResolver.Resolve(record, fields, geo.GeoAuthor, config.Site.Seo);
         var tags = record.Classification.Tags.Count > 0 ? record.Classification.Tags : ContentFieldReader.GetTextList(fields, "tags") ?? Array.Empty<string>();
-        var jsonLd = SeoJsonLdBuilder.BuildJsonLd(config, baseUrl, visibleTitle, description, canonical, image, route.Url, document, fields, isStructuredContent, isCollectionPage, geo, schemaType, record, resolvedAuthor, searchAction, breadcrumb);
+        var jsonLd = SeoJsonLdBuilder.BuildJsonLd(
+            config,
+            baseUrl,
+            visibleTitle,
+            description,
+            canonical,
+            image,
+            route.Url,
+            document,
+            fields,
+            isStructuredContent,
+            isCollectionPage,
+            geo,
+            schemaType,
+            record,
+            resolvedAuthor,
+            searchAction,
+            breadcrumb,
+            sharedAssets);
 
         return new SeoModel
         {
@@ -107,8 +126,9 @@ internal static class SeoModelBuilder
         IReadOnlyList<SeoAlternateModel>? alternates = null,
         SearchActionDescriptor? searchAction = null,
         BreadcrumbDescriptor? breadcrumb = null,
-        bool forceNoindexWhenEmpty = false)
-        => BuildForListCore(config, baseUrl, page, page.Url, prevUrl: null, nextUrl: null, alternates, searchAction, breadcrumb, forceNoindexWhenEmpty);
+        bool forceNoindexWhenEmpty = false,
+        SharedAssetScope? sharedAssets = null)
+        => BuildForListCore(config, baseUrl, page, page.Url, prevUrl: null, nextUrl: null, alternates, searchAction, breadcrumb, forceNoindexWhenEmpty, sharedAssets);
 
     internal static SeoModel BuildForList(
         AppConfig config,
@@ -118,8 +138,9 @@ internal static class SeoModelBuilder
         IReadOnlyList<SeoAlternateModel>? alternates = null,
         SearchActionDescriptor? searchAction = null,
         BreadcrumbDescriptor? breadcrumb = null,
-        bool forceNoindexWhenEmpty = false)
-        => BuildForListCore(config, baseUrl, page, route.CanonicalUrl, route.PrevUrl, route.NextUrl, alternates, searchAction, breadcrumb, forceNoindexWhenEmpty);
+        bool forceNoindexWhenEmpty = false,
+        SharedAssetScope? sharedAssets = null)
+        => BuildForListCore(config, baseUrl, page, route.CanonicalUrl, route.PrevUrl, route.NextUrl, alternates, searchAction, breadcrumb, forceNoindexWhenEmpty, sharedAssets);
 
     private static SeoModel BuildForListCore(
         AppConfig config,
@@ -131,14 +152,15 @@ internal static class SeoModelBuilder
         IReadOnlyList<SeoAlternateModel>? alternates,
         SearchActionDescriptor? searchAction,
         BreadcrumbDescriptor? breadcrumb,
-        bool forceNoindexWhenEmpty)
+        bool forceNoindexWhenEmpty,
+        SharedAssetScope? sharedAssets)
     {
         var title = page.Title;
         var description = DerivedDescription(page.Summary ?? config.Site.Description);
         var canonical = BuildAbsoluteUrl(config.Site.Url, baseUrl, canonicalUrl);
         var prev = string.IsNullOrWhiteSpace(prevUrl) ? null : BuildAbsoluteUrl(config.Site.Url, baseUrl, prevUrl);
         var next = string.IsNullOrWhiteSpace(nextUrl) ? null : BuildAbsoluteUrl(config.Site.Url, baseUrl, nextUrl);
-        var image = BuildMaybeAbsoluteUrl(config.Site.Url, baseUrl, config.Site.Seo.DefaultImage);
+        var image = BuildMaybeAbsoluteUrl(config.Site.Url, baseUrl, config.Site.Seo.DefaultImage, sharedAssets);
 
         return new SeoModel
         {
@@ -172,7 +194,7 @@ internal static class SeoModelBuilder
                 Site = config.Site.Seo.TwitterSite
             },
             Alternates = alternates ?? Array.Empty<SeoAlternateModel>(),
-            JsonLd = SeoJsonLdBuilder.BuildJsonLd(config, baseUrl, title, description, canonical, image, canonicalUrl, document: null, itemListFields: page.Fields, isPost: false, isCollectionPage: page.Url != "/", geo: SeoGeoMetaParser.ParsedGeoMeta.Empty, schemaType: null, record: null, resolvedAuthors: null, searchAction, breadcrumb)
+            JsonLd = SeoJsonLdBuilder.BuildJsonLd(config, baseUrl, title, description, canonical, image, canonicalUrl, document: null, itemListFields: page.Fields, isPost: false, isCollectionPage: page.Url != "/", geo: SeoGeoMetaParser.ParsedGeoMeta.Empty, schemaType: null, record: null, resolvedAuthors: null, searchAction, breadcrumb, sharedAssets)
         };
     }
 
@@ -392,7 +414,11 @@ internal static class SeoModelBuilder
         return null;
     }
 
-    internal static string? BuildMaybeAbsoluteUrl(string? siteUrl, string baseUrl, string? value)
+    internal static string? BuildMaybeAbsoluteUrl(
+        string? siteUrl,
+        string baseUrl,
+        string? value,
+        SharedAssetScope? sharedAssets = null)
     {
         if (string.IsNullOrWhiteSpace(value))
         {
@@ -406,7 +432,10 @@ internal static class SeoModelBuilder
             return trimmed;
         }
 
-        return BuildAbsoluteUrl(siteUrl, baseUrl, trimmed);
+        var effectiveBaseUrl = sharedAssets is not null && sharedAssets.ContainsSitePath(trimmed)
+            ? sharedAssets.RootBaseUrl
+            : baseUrl;
+        return BuildAbsoluteUrl(siteUrl, effectiveBaseUrl, trimmed);
     }
 
     internal static bool TryGetUpdateTime(ContentDocument document, out DateTimeOffset updated)

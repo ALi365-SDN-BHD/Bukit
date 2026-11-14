@@ -38,6 +38,50 @@ public sealed class SeoAuthorProfileTests
     }
 
     [Fact]
+    public void BuildForContent_SharedAuthorImageUsesRootBaseUrl()
+    {
+        var output = Path.Combine(Path.GetTempPath(), $"bukit-author-shared-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(output);
+        try
+        {
+            var config = CreateConfig() with
+            {
+                Site = CreateConfig().Site with
+                {
+                    BaseUrl = "/repo",
+                    Languages = ["zh-CN", "en"],
+                    SharedAssets = new SharedAssetsConfig { Enabled = true }
+                }
+            };
+            var scope = SharedAssetScope.TryCreate(config, ["zh-CN", "en"], output, null);
+            Assert.NotNull(scope);
+            var document = CreateDocument(
+                ("authoredby", Profiles(Profile(
+                    id: "author-1",
+                    title: "Aisha Tan",
+                    slug: "aisha-tan",
+                    type: "Person",
+                    image: "/assets/aisha.jpg"))));
+
+            var model = SeoModelBuilder.BuildForContent(
+                config,
+                "/repo/zh-CN",
+                document,
+                new RouteInfo("/posts/article/", "posts/article/index.html", "pages/post.html"),
+                sharedAssets: scope);
+
+            using var article = Article(model.JsonLd);
+            Assert.Equal(
+                "https://example.com/repo/assets/aisha.jpg",
+                article.RootElement.GetProperty("author").GetProperty("image").GetString());
+        }
+        finally
+        {
+            Directory.Delete(output, recursive: true);
+        }
+    }
+
+    [Fact]
     public void BuildForContent_ResolvedEditorialRelation_EmitsOrganizationProfile()
     {
         var document = CreateDocument(

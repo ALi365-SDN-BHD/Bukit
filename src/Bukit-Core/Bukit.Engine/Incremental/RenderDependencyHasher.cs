@@ -41,14 +41,16 @@ internal static class RenderDependencyHasher
         string analyticsRendererContractVersion = AnalyticsRendererContract.Version,
         IReadOnlyDictionary<string, IReadOnlyList<SeoAlternateModel>>? seoAlternates = null,
         string? imageSourceFingerprint = null,
-        Func<string>? pagesFingerprint = null)
+        Func<string>? pagesFingerprint = null,
+        IReadOnlyList<string>? sharedAssetPrefixes = null)
     {
         var context = new RenderDependencyContext(
             config,
             siteModel,
             executionMode,
             analyticsRendererContractVersion,
-            imageSourceFingerprint);
+            imageSourceFingerprint,
+            sharedAssetPrefixes);
 
         using var hasher = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
         var writer = new RenderDependencyHashWriter(hasher);

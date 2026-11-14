@@ -102,7 +102,8 @@ internal sealed partial class VariantBuildPipeline
             dataModules.SourceData,
             routePipelineResult.PluginContext.SnapshotData(),
             dataModules.DataIndex,
-            context.BuildStartedAt);
+            context.BuildStartedAt,
+            context.SharedAssets);
         var manifestSetup = VariantManifestPlanner.Create(
             context,
             context.Overrides,
@@ -127,6 +128,11 @@ internal sealed partial class VariantBuildPipeline
         var assetPipelinePreparation = await AssetPipeline.PrepareAsync(
             renderAssetPlan.AssetPipelineContext,
             cancellationToken);
+        AssetPipeline.SetSharedAssetPluginData(
+            context,
+            routePipelineResult.PluginContext,
+            assetPipelinePreparation.OutputPlan.OmittedSharedItems);
+
         I18nReservedPrefixGuard.ValidateAssetPlan(context.Config, assetPipelinePreparation.OutputPlan.Items);
 
         // Remove only prior owned destinations before aggregate writers inspect existing files.
@@ -190,6 +196,8 @@ internal sealed partial class VariantBuildPipeline
             I18nReservedPrefixGuard.ValidatePluginOutputs(
                 context.Config,
                 VariantReportStage.GetPluginOutputs(routePipelineResult.PluginContext));
+            // Plugin outputs join after the shared-asset plan filtered assets, so each
+            // language keeps its own plugin files instead of sharing them.
             var plannedOutputs = assetPipelinePreparation.OutputPlan.Items.Concat(
                 VariantReportStage.GetPluginOutputs(routePipelineResult.PluginContext).Select(output =>
                     new AssetOutputItem(output.Plugin, output.Path, AssetOutputCategory.Plugin, Operation: AssetOutputOperation.Generate))).ToArray();

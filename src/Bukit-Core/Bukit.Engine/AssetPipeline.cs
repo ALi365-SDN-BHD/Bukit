@@ -1,6 +1,7 @@
 using System.Collections.Concurrent;
 using System.Diagnostics;
 using Bukit.Config;
+using Bukit.Engine.Abstractions.Plugins;
 using Bukit.Engine.Incremental;
 using Bukit.Rendering;
 using Bukit.Theme;
@@ -29,7 +30,8 @@ internal sealed record AssetPipelineContext(
     ConcurrentDictionary<string, BuildManifestEntry>? ManifestEntries = null,
     string? ScssOutputDir = null,
     IReadOnlyList<AssetOutputItem>? ProjectionOutputs = null,
-    IReadOnlyList<AssetOutputItem>? MediaOutputs = null);
+    IReadOnlyList<AssetOutputItem>? MediaOutputs = null,
+    SharedAssetScope? OmittedSharedAssets = null);
 
 internal sealed record AssetPipelineResult(
     BuildStageMetrics StageMetrics);
@@ -47,6 +49,32 @@ internal sealed class AssetPipeline
     {
         var preparation = await PrepareAsync(ctx, cancellationToken);
         return await ExecutePreparedAsync(ctx, preparation, cancellationToken);
+    }
+
+    /// <summary>
+    /// Publishes the non-default language's shared image inventory for AfterBuild.
+    /// </summary>
+    internal static void SetSharedAssetPluginData(
+        BuildVariantContext variantContext,
+        BuildContext pluginContext,
+        IReadOnlyList<AssetOutputItem> omittedSharedItems)
+    {
+        if (variantContext.SharedAssets is not { } sharedAssets ||
+            I18nOutputLayout.IsRootLanguageVariant(variantContext.Config))
+        {
+            return;
+        }
+
+        var imageDestinations = omittedSharedItems
+            .Where(item => item.Category is AssetOutputCategory.Assets or AssetOutputCategory.Static)
+            .Where(item => item.Destination.EndsWith(".jpg", StringComparison.OrdinalIgnoreCase) ||
+                           item.Destination.EndsWith(".jpeg", StringComparison.OrdinalIgnoreCase) ||
+                           item.Destination.EndsWith(".png", StringComparison.OrdinalIgnoreCase))
+            .Select(item => item.Destination)
+            .ToArray();
+        pluginContext.Set(
+            BuildDataKeys.SharedAssets,
+            new SharedAssetBuildData(sharedAssets, imageDestinations));
     }
 
     internal static Task<AssetPipelinePreparation> PrepareAsync(
@@ -106,7 +134,7 @@ internal sealed class AssetPipeline
                 cancellationToken));
         }
 
-        if (tokens is not null)
+        if (tokens is not null && outputPlan.ForCategory(AssetOutputCategory.Tokens).Count > 0)
         {
             parallelTasks.Add(GenerateTokensAsync(ctx, tokens, cancellationToken));
         }

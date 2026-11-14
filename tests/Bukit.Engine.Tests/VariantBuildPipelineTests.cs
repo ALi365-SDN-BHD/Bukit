@@ -146,6 +146,32 @@ public sealed class VariantBuildPipelineTests : IDisposable
     }
 
     [Fact]
+    public void BuildSiteModel_UsesSharedAssetRootBaseUrlWhenSharingIsActive()
+    {
+        Directory.CreateDirectory(Path.Combine(_rootDir, "dist"));
+        var config = new AppConfig
+        {
+            Site = new SiteConfig
+            {
+                Name = "MySite",
+                Title = "My Title",
+                BaseUrl = "/repo",
+                Languages = ["en", "zh-CN"],
+                SharedAssets = new SharedAssetsConfig { Enabled = true }
+            },
+            Content = TestContent.Markdown()
+        };
+        var scope = SharedAssetScope.TryCreate(config, ["en", "zh-CN"], Path.Combine(_rootDir, "dist"), null);
+        Assert.NotNull(scope);
+
+        var model = VariantDataSitePlanner.BuildSiteModel(
+            config, "/repo/zh-CN", null, null, sharedAssets: scope);
+
+        Assert.Equal("/repo/zh-CN", model.BaseUrl);
+        Assert.Equal("/repo", model.AssetBaseUrl);
+    }
+
+    [Fact]
     public void BuildSiteModel_DerivesBuildYearFromConfiguredTimezone()
     {
         var config = CreateMinimalConfig() with

@@ -4,6 +4,8 @@ Bukit 所有重要变更都将记录在此文件中。
 
 ## [Unreleased]
 
+- **多语言根布局站点可共用主题资源**：`site.sharedAssets.enabled: true`（默认关闭）让主题资源、SCSS 输出、`assets/css/theme-tokens.css` 和复制的 `static/assets/**` 只在默认语言的根输出中保留一份。非默认语言不再写出这些副本，改用新的模板变量 `site.asset_base_url` 指向根；Starter 主题的样式表已改用它。`site.sharedAssets.paths` 可覆盖默认的 `assets/` 加上已启用的 SCSS 输出目录，媒体前缀不能共用。`enabled: true` 搭配 `defaultLanguageInSubdir: true` 在任何语言数量下都会校验失败，单语言站点也不例外；单语言根布局站点会忽略共用并记录 `i18n.config.shared_assets_ignored`。开启共用时，默认语言的整个构建先完成，因此 `build.languageJobs > 1` 时墙钟时间大约增加一次默认语言构建。
+
 ## [2.2.1] - 2026-11-14
 
 - **快照查询目录被替换或读不了时返回带码的错误**：并发录制构建可能在存在性检查和目录读取之间替换快照；离线构建现在报 `BKT-0B14`（快照整体消失时报 `BKT-0B10`），不再是未编码的 IO 错误。

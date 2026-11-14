@@ -149,17 +149,7 @@ internal static class ImageVariantOwnership
     {
         // Filename shape only. Generated identity itself must be proven by the
         // ownership/freshness manifest, see IsOwnedGeneratedVariant.
-        var stem = Path.GetFileNameWithoutExtension(path);
-        var suffixStart = stem.LastIndexOf('-');
-        if (suffixStart <= 0 || suffixStart == stem.Length - 2)
-        {
-            return false;
-        }
-
-        var suffix = stem[(suffixStart + 1)..];
-        return suffix.EndsWith('w')
-               && suffix.Length > 1
-               && int.TryParse(suffix.AsSpan(0, suffix.Length - 1), out _);
+        return ImageVariantPlan.TryParseVariantFileName(path, out _);
     }
 
     internal static bool IsOwnedGeneratedVariant(
@@ -224,13 +214,9 @@ internal static class ImageVariantOwnership
     }
 
     internal static bool IsExpectedVariantPath(string variantFile, int size, string format)
-    {
-        var extension = Path.GetExtension(variantFile);
-        var stem = Path.GetFileNameWithoutExtension(variantFile);
-        return string.Equals(extension.ToLowerInvariant(), format, StringComparison.Ordinal) &&
-               stem.Length > $"-{size}w".Length &&
-               stem.EndsWith($"-{size}w", StringComparison.Ordinal);
-    }
+        => string.Equals(Path.GetExtension(variantFile).ToLowerInvariant(), format, StringComparison.Ordinal) &&
+           ImageVariantPlan.TryParseVariantFileName(variantFile, out var parsedSize) &&
+           parsedSize == size;
 
     internal static void CleanupStaleVariants(
         string outputDir,
@@ -246,11 +232,7 @@ internal static class ImageVariantOwnership
 
         foreach (var existingFile in SafeFileEnumerator.EnumerateFiles(dir, $"{baseName}-*w{ext}"))
         {
-            var stem = Path.GetFileNameWithoutExtension(existingFile);
-            var suffix = stem.Substring(baseName.Length);
-            // Parse -NNNw pattern
-            if (suffix.Length > 2 && suffix[^1] == 'w'
-                && int.TryParse(suffix.AsSpan(1, suffix.Length - 2), out var parsedSize)
+            if (ImageVariantPlan.TryParseVariantFileName(existingFile, out var parsedSize)
                 && !currentSizeSet.Contains(parsedSize)
                 && HasPriorOwnership(
                     outputDir,

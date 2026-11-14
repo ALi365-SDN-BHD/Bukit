@@ -7,5 +7,5 @@ namespace Bukit.Architecture.Tests;
 internal static class PublicApiBaselineFacts
 {
     internal const int GovernedAssemblyCount = 18;
-    internal const int GovernedTypeCount = 425;
+    internal const int GovernedTypeCount = 426;
 }

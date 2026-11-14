@@ -16,8 +16,8 @@
 ## What Changes
 
 - 新增 `site.sharedAssets`：
-  - `enabled`（布尔，默认 `false`，待决策 A1）。
-  - `paths`（输出路径前缀列表，可选）。不写时为 `assets/` 加 SCSS 输出目录。
+  - `enabled`（布尔，默认 `false`，决策 A1）。
+  - `paths`（输出路径前缀列表，可选）。不写时为 `assets/`，启用 SCSS 时再加 SCSS 输出目录。
 - 只支持根目录布局：`enabled: true` 与 `defaultLanguageInSubdir: true` 同时出现时配置校验失败。少于 2 种语言时忽略该设置，显式开启时给出警告。
 - **默认语言是共用资源的唯一归属方**：默认语言照常写出并在自己的 manifest 中归属 `dist/assets/` 等共用路径；其他语言的资源计划去掉落在共用集合内的复制型和生成型条目（主题 / 父主题 assets、SCSS 结果、tokens、复制型 static）。页面、渲染型 static、插件输出、投影和媒体不受影响。
 - 开启共用时，默认语言先构建完成，其他语言再按 `build.languageJobs` 并发构建；进程内与 Worktree 构建相同。
@@ -38,11 +38,11 @@
   - `Bukit.Rendering`：`SiteModel`、`ScribanSiteModelMapper`、`ScribanModelKnownFields`。
   - `Bukit.Cli`：`WorktreeBuildRun`（Worker 顺序与请求）、Starter 主题 `BaseLayout.html`。
 - 规范：新增能力 `i18n-shared-assets`。Worktree 相关行为写在该能力中，不修改 `i18n-worktree-build` 现有要求（`languageJobs` 的上限语义不变）。
-- 公共契约：`SiteConfig` 和 `SiteModel` 新增属性，`site.yaml` 新增可选字段，模板新增一个变量，新增配置校验错误（`ConfigException`，不新增 `DiagnosticCode`）和警告事件 `i18n.config.shared_assets_ignored`。v1 的 `i18n-shared-asset-conflict` 不再需要。Worker 请求新增字段（父进程与 Worker 为同一二进制，不升 schema）。根 manifest 和语言 manifest 结构不变。
+- 公共契约：`SiteConfig` 和 `SiteModel` 新增属性，`site.yaml` 新增可选字段，模板新增一个变量，新增配置校验错误（`ConfigException`，不新增 `DiagnosticCode`）和警告事件 `i18n.config.shared_assets_ignored`、`i18n.config.shared_assets_path_ignored`。v1 的 `i18n-shared-asset-conflict` 不再需要。Worker 请求新增字段（父进程与 Worker 为同一二进制，不升 schema）。根 manifest 和语言 manifest 结构不变。
 - 兼容性：默认关闭，现有站点输出不变。开启后，仍用 `{{ base_url }}/assets/...` 的主题在非默认语言页面会找不到资源，主题作者说明须写明。
 - 跨仓影响：网站仓库无需改动。
 
-## 待用户确认的决策
+## 决策
 
 | # | 决策 | 选项 | 推荐 |
 |---|---|---|---|
@@ -52,11 +52,11 @@
 | A4 | 非资源输出落在共用前缀下（design.md D4） | a) 不处理，照常按语言输出；b) 报错 | a。这些输出本来就按 `base_url` 引用，没有物理冲突；v1 的报错规则只防"拼错前缀" |
 | A5 | 媒体共用 | a) 本提案不做，另立提案；b) 作为本提案第二步 | a。媒体会出现"只被非默认语言引用"的情况，需要跨语言引用并集和根目录归属，复杂度与本提案不在一个量级 |
 
-规范按推荐选项编写；任何一项选非推荐项时，须同步修改 design.md 对应决策、规范和 tasks。
+用户已于 2026-11-14 确认 A1–A5 全部采用推荐项，规范、design.md 和 tasks.md 均按此编写。
 
 ## Approval Scope
 
-- 本提案只是方案文档。实施属于 Core 任务，须经用户确认上表决策后再单独开展。
+- 本提案只是方案文档。实施属于 Core 任务，须在用户明确开始后单独开展。
 - commit、push、PR、发布和 full/release gate 均需另行授权。
 
 ## Non-Goals

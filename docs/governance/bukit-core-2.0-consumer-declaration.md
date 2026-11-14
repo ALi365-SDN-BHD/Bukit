@@ -8,7 +8,7 @@
 defines the current assembly and type inventory. Numerical statements in historical
 decision records below describe their recorded snapshots, not the current count.
 Historical 425-type / 14-assembly records are distinct from the new current
-425-type / 18-assembly inventory below. Earlier verification status is
+426-type / 18-assembly inventory below. Earlier verification status is
 recorded in the [approved quality-remediation plan](../superpowers/plans/2026-09-09-bukit-quality-remediation.md).
 
 ## Later independent template / Theme migration
@@ -57,6 +57,17 @@ publication, item3 integration or historical aggregate-test result is implied.
 Status: `closed`
 
 Target: `2.0.0`
+
+## Later independent shared-assets addition (2026-11-14)
+
+The separately approved multilingual shared-assets change adds public
+`Bukit.Config.SharedAssetsConfig`, `SiteConfig.SharedAssets`, and the optional
+`Bukit.Rendering.SiteModel.AssetBaseUrl`. `SharedAssetsConfig` is recorded as
+`serialized-contract / 1.x-shape-stable / retain-1.x` with `Enabled` and `Paths`.
+No existing public member is removed, narrowed, or reclassified; the current
+inventory is 426 types in 18 assemblies. The behavior is opt-in
+(`site.sharedAssets.enabled`, default false), and default output is unchanged
+when it is disabled.
 
 ## What This List Means
 

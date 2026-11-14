@@ -283,6 +283,45 @@ public sealed class RenderDependencyHasherTests
     }
 
     [Fact]
+    public void ComputeSnapshot_SharedAssetPrefixesChangeTheHash()
+    {
+        var config = CreateBaseConfig();
+        var baseline = RenderDependencyHasher.ComputeSnapshot(config, s_emptySiteModel).BaseHash;
+        var shared = RenderDependencyHasher.ComputeSnapshot(
+            config,
+            s_emptySiteModel,
+            sharedAssetPrefixes: ["assets/", "assets/uploads/"]).BaseHash;
+
+        Assert.NotEqual(baseline, shared);
+    }
+
+    [Fact]
+    public void ComputeSnapshot_RootBaseUrlChangeInvalidatesNonDefaultVariantHash()
+    {
+        var config = CreateBaseConfig() with
+        {
+            Site = CreateBaseConfig().Site with
+            {
+                BaseUrl = "/repo",
+                Languages = ["zh-CN", "en"],
+                DefaultLanguage = "en"
+            }
+        };
+        var variant = config with
+        {
+            Site = config.Site with { BaseUrl = "/repo/zh-CN", Language = "zh-CN" }
+        };
+        var changed = variant with
+        {
+            Site = variant.Site with { BaseUrl = "/repo2/zh-CN" }
+        };
+
+        Assert.NotEqual(
+            RenderDependencyHasher.ComputeSnapshot(variant, s_emptySiteModel).BaseHash,
+            RenderDependencyHasher.ComputeSnapshot(changed, s_emptySiteModel).BaseHash);
+    }
+
+    [Fact]
     public void Compute_ImageConfigurationChangesInvalidateRenderedHtml()
     {
         var config = CreateBaseConfig();

@@ -68,6 +68,7 @@ public sealed class ConfigSchemaNestedContractTests
         new("site/analytics/consent/google/defaults", "adStorage", "analyticsStorage", "adUserData", "adPersonalization"),
         new("site/analytics/providers[]", "type", "measurementId", "containerId", "domain", "snippetMode", "websiteId", "scriptUrl"),
         new("site/feed", "mode", "formats", "limit", "path"),
+        new("site/sharedAssets", "enabled", "paths"),
         new("site/search", "mode", "route", "ui", "uiTheme", "placeholderText", "maxContentLength"),
         new("site/related", "enabled", "threshold", "limit", "indices"),
         new("site/related/indices[]", "name", "weight"),

@@ -159,6 +159,7 @@ public sealed partial class SiteEngine
             var bodyStore = contentResult.BodyStore;
             var bodyCacheMetrics = contentResult.BodyCacheMetrics;
             I18nLanguagePolicy.WarnLayoutSettingsWithoutLanguages(effectiveConfig.Site, buildLogger);
+            I18nLanguagePolicy.WarnSharedAssetsWithoutLanguages(effectiveConfig.Site, buildLogger);
             I18nLanguagePolicy.WarnIgnoredLegacyRedirects(effectiveConfig.Site, buildLogger);
             I18nLanguagePolicy.WarnDocumentLanguageIssues(documents, effectiveConfig.Site, buildLogger);
 
@@ -316,6 +317,7 @@ public sealed partial class SiteEngine
         var layout = I18nOutputLayout.Create(config.Site, languages, rootBaseUrl);
         var templateResolver = new ThemeTemplateResolver(ThemeBootstrapper.BootstrapRequired(config, rootDir, buildLogger).Manifest);
         var seoAlternates = SeoAlternatesService.BuildSeoAlternates(config, documents, languages, defaultLanguage, rootBaseUrl, templateResolver, rootDir, layoutsDir);
+        var sharedAssets = SharedAssetScope.TryCreate(config, languages, outputDir, buildLogger);
         var results = new BuildVariantResult[languages.Count];
 
         var languageJobs = Math.Max(1, config.Build.LanguageJobs);
@@ -330,54 +332,73 @@ public sealed partial class SiteEngine
         // After any failure the other languages stop early; the default language always runs to
         // completion so a default-language reserved-prefix violation can still be the primary failure.
         using var stopOtherLanguages = new CancellationTokenSource();
-        await Parallel.ForEachAsync(
-            languages.Select((lang, i) => (lang, i)),
-            new ParallelOptions { MaxDegreeOfParallelism = languageJobs, CancellationToken = cancellationToken },
-            async (entry, parallelToken) =>
+        async ValueTask BuildLanguageAsync(string lang, int index, CancellationToken parallelToken)
+        {
+            using var languageCancellation = string.Equals(lang, defaultLanguage, StringComparison.OrdinalIgnoreCase)
+                ? null
+                : CancellationTokenSource.CreateLinkedTokenSource(parallelToken, stopOtherLanguages.Token);
+            var ct = languageCancellation?.Token ?? parallelToken;
+            try
             {
-                var (lang, i) = entry;
-                using var languageCancellation = string.Equals(lang, defaultLanguage, StringComparison.OrdinalIgnoreCase)
-                    ? null
-                    : CancellationTokenSource.CreateLinkedTokenSource(parallelToken, stopOtherLanguages.Token);
-                var ct = languageCancellation?.Token ?? parallelToken;
-                try
+                ct.ThrowIfCancellationRequested();
+                var variantLogger = buildLogger;
+                var baseUrl = layout.BaseUrl(lang);
+                var variantConfig = config with
                 {
-                    ct.ThrowIfCancellationRequested();
-                    var variantLogger = buildLogger;
-                    var baseUrl = layout.BaseUrl(lang);
-                    var variantConfig = config with
+                    Site = config.Site with
                     {
-                        Site = config.Site with
-                        {
-                            Language = lang,
-                            BaseUrl = baseUrl
-                        }
-                    };
+                        Language = lang,
+                        BaseUrl = baseUrl
+                    }
+                };
 
-                    var variantDocuments = I18nOutputMerger.FilterDocumentsByLanguage(documents, lang, defaultLanguage);
-                    var variantOutputDir = layout.OutputDir(outputDir, lang);
-                    variantLogger.Info($"event=build.variant.start language={lang} baseUrl={baseUrl} outputDir={BuildTransaction.Logical(variantOutputDir)}");
-                    var variantCtx = new BuildVariantContext(
-                        variantConfig, rootDir, overrides, variantDocuments, contentGraph, bodyStore, variantOutputDir, baseUrl,
-                        layoutsDir, assetsDir, staticDir, mediaCacheDir,
-                        SeoAlternates: seoAlternates,
-                        RootBaseUrl: rootBaseUrl, ManifestSuffix: lang, DefaultLanguage: defaultLanguage,
-                        BuildStartedAt: buildStartedAt,
-                        ParentLayoutsDir: parentLayoutsDir, ParentAssetsDir: parentAssetsDir, ParentStaticDir: parentStaticDir,
-                        UserLayoutsDir: userLayoutsDir, ScssOutputDir: scssOutputDir);
-                    results[i] = await BuildVariantAsync(variantCtx, templateHashCache, ct, variantLogger);
-                    variantLogger.Info($"event=build.variant.done language={lang} baseUrl={baseUrl} outputDir={BuildTransaction.Logical(variantOutputDir)}");
-                }
-                catch (OperationCanceledException) when (!parallelToken.IsCancellationRequested && stopOtherLanguages.IsCancellationRequested)
-                {
-                    // Stopped because another language already failed.
-                }
-                catch (Exception ex) when (ex is not OperationCanceledException)
-                {
-                    failures[lang] = ex;
-                    await stopOtherLanguages.CancelAsync();
-                }
-            });
+                var variantDocuments = I18nOutputMerger.FilterDocumentsByLanguage(documents, lang, defaultLanguage);
+                var variantOutputDir = layout.OutputDir(outputDir, lang);
+                variantLogger.Info($"event=build.variant.start language={lang} baseUrl={baseUrl} outputDir={BuildTransaction.Logical(variantOutputDir)}");
+                var variantCtx = new BuildVariantContext(
+                    variantConfig, rootDir, overrides, variantDocuments, contentGraph, bodyStore, variantOutputDir, baseUrl,
+                    layoutsDir, assetsDir, staticDir, mediaCacheDir,
+                    SeoAlternates: seoAlternates,
+                    RootBaseUrl: rootBaseUrl, ManifestSuffix: lang, DefaultLanguage: defaultLanguage,
+                    BuildStartedAt: buildStartedAt,
+                    ParentLayoutsDir: parentLayoutsDir, ParentAssetsDir: parentAssetsDir, ParentStaticDir: parentStaticDir,
+                    UserLayoutsDir: userLayoutsDir, ScssOutputDir: scssOutputDir,
+                    SharedAssets: sharedAssets);
+                results[index] = await BuildVariantAsync(variantCtx, templateHashCache, ct, variantLogger);
+                variantLogger.Info($"event=build.variant.done language={lang} baseUrl={baseUrl} outputDir={BuildTransaction.Logical(variantOutputDir)}");
+            }
+            catch (OperationCanceledException) when (!parallelToken.IsCancellationRequested && stopOtherLanguages.IsCancellationRequested)
+            {
+                // Stopped because another language already failed.
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                failures[lang] = ex;
+                await stopOtherLanguages.CancelAsync();
+            }
+        }
+
+        var defaultIndex = languages
+            .Select((language, index) => (language, index))
+            .First(entry => string.Equals(entry.language, defaultLanguage, StringComparison.OrdinalIgnoreCase))
+            .index;
+        if (sharedAssets is not null)
+        {
+            await BuildLanguageAsync(defaultLanguage, defaultIndex, cancellationToken);
+            if (!failures.IsEmpty)
+            {
+                throw I18nReservedPrefixGuard.SelectPrimaryFailure(failures, defaultLanguage);
+            }
+        }
+
+        var languagesToRun = sharedAssets is null
+            ? languages.Select((language, index) => (language, index))
+            : languages.Select((language, index) => (language, index))
+                .Where(entry => !string.Equals(entry.language, defaultLanguage, StringComparison.OrdinalIgnoreCase));
+        await Parallel.ForEachAsync(
+            languagesToRun,
+            new ParallelOptions { MaxDegreeOfParallelism = languageJobs, CancellationToken = cancellationToken },
+            async (entry, parallelToken) => await BuildLanguageAsync(entry.language, entry.index, parallelToken));
 
         if (!failures.IsEmpty)
         {
