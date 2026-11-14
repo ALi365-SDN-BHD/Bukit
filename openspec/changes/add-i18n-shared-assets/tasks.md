@@ -1,12 +1,12 @@
 # Tasks
 
-唯一实施清单。只有取得实际证据的事项才勾选。经用户确认 proposal.md 中的决策 A1–A5 后，作为单独的 Core 任务开展。实施顺序、提交边界和专项测试以 `docs/plans/2026-11-14-add-i18n-shared-assets-implementation-plan.zh-CN.md` 为准。
+唯一实施清单。只有取得实际证据的事项才勾选。proposal.md 中的决策 A1–A5 已确认（全部采用推荐项），实施须在用户明确开始后作为单独的 Core 任务开展。实施顺序、提交边界和专项测试以 `docs/plans/2026-11-14-add-i18n-shared-assets-implementation-plan.zh-CN.md` 为准。
 
 ## 0. 前置与核查
 
 - [x] 前置变更已实施并归档：`2026-11-12-add-i18n-default-language-root`、`2026-11-13-add-i18n-default-language-legacy-redirects`、`2026-11-13-add-i18n-root-layout-merged-search`、`2026-11-14-unify-site-languages`。
 - [x] 按 `main`（`e7651fb1`）核实现状，结论记入 design.md "Context"：webp 改写幂等（`ImageProcessingPluginTests.cs:567`）；`__image_srcsets` 没有消费方；`ImageSourceFingerprint` 各语言相同、不需要修改；构建前写入处于构建事务内；`build.clean` 默认 `true`，staging 从空目录开始；不支持按语言覆盖主题或 static；受保护清理的触发条件中没有站点哈希；根 manifest 与语言 manifest 共用 `BuildManifest`，版本写死为 3。
-- [ ] 用户确认决策 A1–A5；选非推荐项时同步修改 proposal、design、规范和本清单。
+- [x] 用户确认决策 A1–A5（2026-11-14，全部采用推荐项）。
 - [ ] 列出 Core 中所有把站内相对地址拼上语言 baseUrl 的位置（`BuildMaybeAbsoluteUrl` 全部调用点、`ContentMediaOutput` 占位图、其他 `_baseUrl` 拼接），确认 design.md D7 的覆盖范围。
 - [ ] 确认 `SeoImageResolver` 对 `record.Media` 地址是否重复拼接 baseUrl（与本提案无关，有问题另行记录）。
 
