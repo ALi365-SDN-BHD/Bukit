@@ -11,10 +11,10 @@ Bukit 所有重要变更都将记录在此文件中。
 - **单语言站点中没有语言的页面使用站点语言**：这类页面在 `agent-manifest.json`、每页的 `.json` 和 `.md` 投影以及 JSON Feed 条目中现在带站点语言，不再是 `und`，与 `search.json` 一致，发布审计也按此检查。多语言站点在这些位置仍为 `und`。
 - **发布审计优先使用完全相同的 agent manifest 路由**：只有加上页面第一个输出路径段后才匹配的条目（例如 `/posts/foo/` 匹配到 `/foo/`）可能先于页面自己的条目被选中，并误报 `publish.manifest_mismatch`。
 - **跳转页不再在每次修改内容后重新渲染**：别名页和根目录布局的旧首页跳转页被记录为读取所有共享集合，因此修改任何页面都会重新渲染它们。现在它们不读取任何集合，是否变化仍由跳转目标决定。
-- **删除的语言不再留下报告目录**：多语言站点变为单语言或删除一种语言后，原来的 `dist/<lang>/.bukit` 报告会随过期页面一起删除，`dist/<lang>/` 不再残留。
+- **删除的语言不再留下 `dist/<lang>/`**：多语言站点变为单语言或删除一种语言后，原来的 `dist/<lang>/.bukit` 报告会随过期页面一起删除，空的 `dist/<lang>/` 不再残留。
 - **默认语言在根目录时不再误报 `geo.llms_txt_missing`**：默认语言自己的审计曾报告 `llms.txt` 和 `llms-full.txt` 缺失，而根目录会在所有语言之后写入这两个文件。
 - **单语言站点的搜索记录使用站点语言**：`search.json` 中没有页面语言的记录现在带站点语言，不再是 `und`；只有不知道语言时才用 `und`。
-- **`metrics.json` 记录实际生效的语言**：未设置 `site.languages` 时（包括在代码中构建的配置），`site.languages` 由 `null` 变为 `["zh-CN"]`，`site.language` 是站点的默认语言（单语言站点就是那一种语言）。
+- **`metrics.json` 记录实际生效的语言**：`site.yaml` 未设置 `site.languages` 时，`site.languages` 由 `null` 变为 `["zh-CN"]`（在代码中构建且未设置 `Languages` 的配置记录 `[site.language]`），`site.language` 是站点的默认语言（单语言站点就是那一种语言）。
 - **合并审计的语言回退**：默认语言带前缀的多语言构建中，合并审计无法判断语言的路由现在回退到默认语言。
 - **合并发布审计为每个路由匹配它自己的译文**：多语言构建中，共用同一 ID 的译文按路由第一段匹配内容记录，匹配不上就退回 `site.language`，而多语言构建并不使用这个值。在 `/docs` 这类 `baseUrl` 下第一段是 `docs`；默认语言放在根目录时，它的路由没有语言段。这些路由因此可能取到另一种语言的记录：合并后的 `publish-audit-report.json` 和 `.bukit/seo-route-map.json` 显示该语言的语言、摘要、作者和日期，`seo-report.json` 中的表示和可信度检查也拿它比对，feed 窗口检查也用了它的发布日期。现在先去掉 base 路径再读取语言段，没有语言段的路由使用写在输出根目录的语言。生成的页面不变。
 - **缺少占位图时，图片下载失败不再导致构建失败**：默认 `content.media.onFailure: placeholder` 下，下载失败的图片会被换成 `content.media.defaultImageUrl`（默认 `/assets/images/noneimg-news.jpg`），主题和站点都没有这个文件时，构建会以 `Referenced localized media output is missing` 失败。现在 Bukit 在本地化图片前先检查主题和站点（含父主题）的 `static/`、`assets/` 目录。缺少占位图时，下载失败的图片保留原地址（与 `onFailure: keep` 相同），并按页面对每张图片记一次 `event=media.placeholder_missing`，写明图片地址（协议、主机和路径，不含 userinfo、查询串和片段）、所在页面、占位图路径和两种处理办法。占位图存在时照常使用，`onFailure` 的默认值不变。`bukit doctor` 和 `bukit config check` 会在 `onFailure: placeholder` 指向不存在的文件时给出警告。页面仍链接到缺失的占位图时（例如模板直接引用它），报错第一行仍为 `Referenced localized media output is missing: <路径>`，其后接一个空格、引用它的页面和处理办法；读取冒号后全部文字的工具需改为只读到第一个空白字符。
