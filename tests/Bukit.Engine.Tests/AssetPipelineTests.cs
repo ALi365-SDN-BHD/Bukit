@@ -928,6 +928,39 @@ public sealed class AssetPipelineTests
     }
 
     [Fact]
+    public async Task PrepareAsync_PluginOutputInsideSharedPrefix_IsKeptPerLanguage()
+    {
+        var root = CreateRoot();
+        var config = new AppConfig
+        {
+            Site = new SiteConfig
+            {
+                Name = "shared",
+                Title = "Shared",
+                Languages = ["en", "zh-CN"],
+                SharedAssets = new SharedAssetsConfig { Enabled = true }
+            },
+            Content = new ContentConfig()
+        };
+        var scope = SharedAssetScope.TryCreate(config, ["en", "zh-CN"], Path.Combine(root, "dist"), null);
+        Assert.NotNull(scope);
+        var pluginOutput = new AssetOutputItem(
+            "test-plugin",
+            "assets/plugin-data.json",
+            AssetOutputCategory.Plugin,
+            Operation: AssetOutputOperation.Generate);
+
+        var preparation = await AssetPipeline.PrepareAsync(CreateContext(
+            root,
+            new BuildManifest(),
+            projectionOutputs: [pluginOutput],
+            omittedSharedAssets: scope));
+
+        Assert.Contains(preparation.OutputPlan.Items, item => item.Destination == "assets/plugin-data.json");
+        Assert.DoesNotContain(preparation.OutputPlan.OmittedSharedItems, item => item.Destination == "assets/plugin-data.json");
+    }
+
+    [Fact]
     public async Task PrepareAsync_OmittedSharedAssets_FilterAssetsAndKeepOtherStatic()
     {
         var root = CreateRoot();
@@ -1010,7 +1043,8 @@ public sealed class AssetPipelineTests
         bool publishDotFiles = false,
         bool incrementalEnabled = false,
         IReadOnlyList<RenderEntry>? renderedEntries = null,
-        SharedAssetScope? omittedSharedAssets = null)
+        SharedAssetScope? omittedSharedAssets = null,
+        IReadOnlyList<AssetOutputItem>? projectionOutputs = null)
         => new(
             StaticDir: staticDir,
             ParentStaticDir: parentStaticDir,
@@ -1028,5 +1062,6 @@ public sealed class AssetPipelineTests
             PublishDotFiles: publishDotFiles,
             FollowSymlinks: followSymlinks,
             RenderEntries: renderedEntries,
+            ProjectionOutputs: projectionOutputs,
             OmittedSharedAssets: omittedSharedAssets);
 }

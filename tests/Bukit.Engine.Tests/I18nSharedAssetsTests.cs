@@ -243,7 +243,7 @@ public sealed class I18nSharedAssetsTests
     }
 
     [Fact]
-    public async Task SharingEnabled_MediaVariantsAndPluginOutputStayPerLanguage()
+    public async Task SharingEnabled_MediaVariantsStayPerLanguage()
     {
         using var site = CreateSite();
         WriteSite(site, enabled: true, clean: true);
