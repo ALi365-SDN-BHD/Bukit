@@ -37,5 +37,5 @@
 ## 未纳入
 
 - **快照提交崩溃窗口**（`NotionSnapshotSession.RemoveAbandonedSiblings` / `Swap`）：`origin/main` 已存在，不是这两个提交引入。按 SOP 作为独立 Core 任务，发版前修：读路径不重命名；`OpenOffline` 发现目标缺失且有 `.old-*` 时报告具体原因；测试模拟两次重命名之间被杀。
-- 审计 #4/#8/#9 是可选测试或健壮性项，未纳入本次。
+- 审计 #4/#8 是可选测试或健壮性项；#9（`ReadQuery` 目录竞态）已在 2.2.1 修复，见 CHANGELOG。
 - 方案文档的 fixture 措辞（#6）在 BukitJalil 仓库单独改。

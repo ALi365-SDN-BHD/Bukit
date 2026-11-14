@@ -4,6 +4,8 @@ All notable changes to Bukit will be documented in this file.
 
 ## [Unreleased]
 
+## [2.2.1] - 2026-11-14
+
 - **A replaced or unreadable snapshot query directory is a coded error**: a concurrent recording build can replace the snapshot between the existence check and the directory read; an offline build now reports `BKT-0B14` (or `BKT-0B10` when the snapshot vanished) instead of an uncoded IO error.
 
 ## [2.2.0] - 2026-11-14
