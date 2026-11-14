@@ -2,208 +2,166 @@
 
 ## Context
 
-现状（提案 B 实施前的代码，实施前须按 B 的最终代码复核）：
+以下事实于 2026-11-14 按 `main`（`e7651fb1`）逐条核实。
 
-| 资源 | 现在怎么生成 | 位置 |
+### 资源如何生成
+
+| 资源 | 现状 | 位置 |
 |---|---|---|
-| 主题 / 父主题 `assets/` | 每种语言复制到 `<lang>/assets/` | `AssetOutputPlan.Create`，目标相对 `context.OutputDir` |
-| SCSS 结果 | 只编译一次（`ScssOutputDir`），每种语言复制到 `ScssConfig.OutputDir`（默认 `assets`） | `AssetOutputPlan.Create`、`I18nWorktreeBuild` |
-| Theme tokens | 每种语言生成 `assets/css/theme-tokens.css`（`Operation: Generate`，没有源文件） | `AssetOutputPlan.Create` |
-| `static/` 复制型 | 每种语言复制到 `<lang>/`；输出路径可能落在 `assets/` 下 | `AssetOutputPlan.Create` |
-| `static/` 渲染型 | 路由完成后作为 `RenderEntryKind.Static` 渲染，内容可随语言变化 | `AssetOutputPlan.BuildRenderedStaticCopyDestinations` |
-| 内容媒体 | 下载缓存共享；渲染过程中收集引用（`_references`），按语言复制到 `content.media.urlBase` 下，地址改写为 `<语言 baseUrl><urlBase>/...`；报告阶段的 `media-validate`（`ValidateOutputs`）回读当前全部 HTML（含增量跳过的页面）补齐引用，并要求文件存在于语言输出目录 | `ContentMediaOutput`、`VariantReportRunner` |
-| 响应式 `srcset` | 渲染阶段的 HTML transform。从共享下载缓存读原图宽度，预先算出变体文件名，不依赖变体已生成；只处理 `<语言 baseUrl><urlBase>/` 开头的媒体图片 | `ResponsiveImageHtmlTransform`，由 `VariantAnalyticsTransformStage` 收集 |
-| 图片变体 | 语言 AfterBuild 扫描语言输出目录的 `assets/` 和媒体目录生成变体，记录 freshness 和插件归属（`PluginOutputTrackingInfo`，在语言 manifest 中），清理孤儿变体 | `ImageProcessingPlugin`、`ImageVariantGenerator`、`ImageVariantOwnership` |
-| webp 改写 | 语言 AfterBuild 生成 webp 后，`RewriteCurrentHtmlWithWebp` 改写当前 HTML 输出中的 `<picture>`；`TryNormalizeLocalImageUrl` 要求地址以当前语言 `baseUrl + "/"` 开头 | `ImageProcessingPlugin`、`ResponsiveImageHtmlTransform` |
-| 图片数据 | AfterBuild 中生成以 `/` 开头、不带 baseUrl 的 `srcset` 和 `url`；写入位置和消费方待核实 | `ImageProcessingPlugin`（约第 296 行） |
-| 模板引用 | `{{ base_url }}/assets/style.css` | Starter `BaseLayout.html` |
+| 主题 / 父主题 `assets/` | 每种语言复制到语言输出目录的 `assets/` | `AssetOutputPlan.Create`（`Category: Assets`） |
+| SCSS 结果 | `AssetSourceWorkspace` 只编译一次；每种语言复制到 `ScssConfig.OutputDir`（默认 `assets`） | `AssetOutputPlan.cs:87-94`、`AssetSourceWorkspace.cs:55-105` |
+| Theme tokens | 每种语言生成 `assets/css/theme-tokens.css`（`Operation: Generate`） | `AssetOutputPlan.cs:107-115` |
+| `static/` 复制型 | 每种语言复制到语言输出目录 | `AssetOutputPlan.Create`（`Category: Static`） |
+| `static/` 渲染型 | 只有站点 `static/` 下的 `*.html`，且配置了 `theme.staticTemplate`；输出为 `x/index.html`。集合只由目录和配置决定 | `RenderEntry.ForStaticDir`、`VariantRouteStage.cs:66-84` |
+| 内容媒体 | 按语言复制到 `content.media.urlBase` 下；地址改写为 `<语言 baseUrl><urlBase>/...` | `ContentMediaOutput` |
+| 媒体占位图 | `content.media.defaultImageUrl`，默认 `/assets/images/noneimg-news.jpg`；`RewriteUrl` 输出 `<语言 baseUrl>` + 占位图；`ValidateOutputs` 要求它在语言计划输出中并存在于语言输出目录 | `AppConfig.cs:434`、`ContentMediaOutput.cs:105-133,197-205` |
+| SEO 图片 | `og_image` / `cover` / `image`、`seo.defaultImage`、作者图片等站内相对地址，经 `BuildMaybeAbsoluteUrl` 加上**语言** baseUrl | `SeoImageResolver.cs:26-45`、`SeoModelBuilder.cs:141,395-410`、`SeoJsonLdBuilder.cs:310-315,499,707` |
+| 图片变体 | 语言 AfterBuild 扫描 `OutputDir/assets` 和 `OutputDir + urlBase` 生成变体；freshness sidecar 与变体同目录，路径相对语言输出目录；归属记在语言 manifest 的 `PluginOutputs`（`PluginOutputManifestEntry`） | `ImageProcessingPlugin.cs:307-331`、`ImageVariantOwnership`、`ImageVariantFreshness` |
+| 未归属变体 | 已存在但没有有效归属的变体只告警并跳过；只有"sidecar 在、变体缺失"计为失败；失败受 `pluginFailMode` 控制 | `ImageVariantGenerator.cs:99-111,365-369`、`PluginRunner.cs:482-492` |
+| webp 改写 | AfterBuild 对当前全部 HTML（含增量跳过的页面）改写裸 `<img>`；已有 `<picture>` 原样保留，幂等，有测试 | `ResponsiveImageHtmlTransform.cs:20-85`、`ImageProcessingPluginTests.cs:567` |
+| `TryNormalizeLocalImageUrl` | 要求地址以语言 `baseUrl + "/"` 开头；根 baseUrl 时接受任何路径 | `ResponsiveImageHtmlTransform.cs:110-149` |
+| 尺寸规划与命名 | 规划散落 4 处（降尺寸回退不含原图宽度；webp 和 srcset 含原图宽度），`{base}-{w}w{ext}` 命名约 5 处，反解析 3 处；宽度来源也不同（下载缓存 / 输出副本） | `ImageProcessingPlugin.cs:173,187`、`ImageVariantGenerator.cs:288`、`ResponsiveImageHtmlTransform.cs:172-177` 等 |
+| 图片数据 | 只写入 `__image_srcsets`，没有生产消费方 | `BuildDataKeys.cs:38-39` |
+| 模板引用 | `{{ base_url }}/assets/style.css` | Starter `BaseLayout.html:11` |
 
-语言管线的实际顺序（`VariantBuildPipeline`、`VariantReportRunner`）：
+### 布局、顺序与生命周期
 
-```
-渲染（含 HTML transform）→ 资源管线 → AfterBuild（变体、webp 改写）
-  → 校验计划输出 → 报告阶段（projections、media-validate、output-record、审计报告）
-所有语言完成后 → 保存各语言 manifest 和根 manifest（SiteEngine）
-```
-
-决定设计的约束：
-
-1. 报告阶段在每种语言自己的管线中、AfterBuild 之后执行。任何"等所有语言渲染完再做"的步骤，都会落在某些语言的报告阶段之后。**本设计不在语言管线中引入跨语言同步点**。
-2. 主题图片属于构建前已经确定的资源；媒体引用只有渲染后才知道。
-3. 渲染型 static 的目标路径要到路由之后才能确定。
-4. Worktree 模式下，Worker 在内部跑完整条语言管线。
+- 默认布局是根目录布局（`AppConfig.cs:42`）。默认语言的输出目录就是 `dist/`，其他语言是 `dist/<lang>/`。带前缀布局没有根目录保留路径机制。
+- 多语言的判定是"2 种及以上语言"（`I18nLanguagePolicy.GetLanguages`）。
+- 各语言配置只有 `Site.Language` 和 `Site.BaseUrl` 不同（`SiteEngine.cs:348-355`），主题、assets、static、SCSS、tokens 输入完全相同；不支持按语言覆盖主题或 static。
+- 进程内语言用 `Parallel.ForEachAsync` 按 `languageJobs`（默认 1）并发，顺序为 `languages` 列表顺序（`SiteEngine.cs:321-380`）。Worktree 同样按 `languageJobs` 调度 Worker（`WorktreeBuildRun.cs:440-445`），Worker 直接写入 staging 中自己的语言目录。
+- 语言管线：路由 → 资源计划和过期清理（`VariantBuildPipeline.cs:127-134`）→ 渲染（含 HTML transform）→ 资源管线 → AfterBuild → 校验计划输出 → 报告阶段。所有语言完成后进入根目录收尾（`CollectAndClean`、合并审计、安全检查），最后保存 manifest。
+- `build.clean` 默认 `true`，进程内和 Worktree 的 staging 都从空目录开始；`clean: false` 时复制上次输出。构建事务覆盖整个输出根。
+- 受保护清理只由 `build.clean`、manifest 版本不是 3、输出根变化、布局变化、上次构建未完成触发（`BuildPlanner.cs:103-127`）。渲染依赖哈希（`SiteIdentityAndModesContributor` 等）只决定是否重新渲染。
+- 语言的过期清理（`PrepareProjectionWrites`→`DeleteStale`、`TrackAssetPlanOutputs`）按该语言上次的 `OwnedOutputs` / `Assets` 删除本次不再计划的文件。
+- 根目录布局下，`I18nReservedPrefixGuard.ValidateAssetPlan` 已经拒绝默认语言资源落在其他语言代码目录下，所以语言代码 `assets` 与默认语言的 `assets/` 冲突时构建已经会失败。
 
 ## Goals
 
-- 多语言站点的共用资源只输出一份，默认开启。
-- 主题用同一个变量引用资源，开关切换不需要改模板。
-- 共用资源有唯一的归属方，增量清理不会误删。
-- 语言管线顺序不变，不引入跨语言同步点；进程内构建与 Worktree 构建输出一致。
+- 根目录布局的多语言站点，可以让主题资源、tokens 和 `static/assets/` 只输出一份。
+- 主题用同一个变量引用共用资源，开关切换不需要改模板。
+- 不新增归属方、不改 manifest 结构、不新增跨语言同步原语；进程内与 Worktree 构建输出一致。
+
+## Non-Goals
+
+见 proposal.md "Non-Goals"。
 
 ## Decisions
 
-### D1. 默认开启，可关闭
+### D1. 配置与适用范围
 
-`site.sharedAssets.enabled` 在 `languages` 非空时默认 `true`。没有存量站点，默认值直接取对多数站点最有利的选项。关闭后行为与当前完全相同。
+- `site.sharedAssets.enabled` 默认 `false`（A1）。
+- 少于 2 种语言时设置无效；显式 `enabled: true` 时记录警告 `event=i18n.config.shared_assets_ignored`，与 `WarnLayoutSettingsWithoutLanguages` 放在一起。
+- `enabled: true` 且 `defaultLanguageInSubdir: true` 时配置校验失败（`ConfigException`），提示改用根目录布局或关闭共用（A3）。
 
-### D2. 共用范围：输出路径前缀
+### D2. 有效共用集合
 
-`paths` 中的条目是**输出路径前缀**（相对语言输出目录，以 `/` 结尾）。不写时，默认值由 `assets/`、SCSS 输出目录、媒体输出前缀（`content.media.urlBase` 去掉开头的 `/`）去重得到。写了 `paths` 则完全替换默认值。
+- `paths` 是**输出路径前缀**（相对语言输出目录）。不写时为 `assets/` 加 SCSS 输出目录（去重）；写了则完全替换。
+- 规范化：`\` 统一为 `/`，去掉开头的 `/`，补结尾 `/`。规范化后为根目录（如 `""`、`/`、`.`）的条目，以及空列表、绝对路径、含 `..` 的条目，配置校验报错。默认推导中 SCSS 输出目录为根目录时不加入，并记录警告。
+- 前缀匹配和去重使用 `OutputDestinationIdentityComparer` 的大小写规则。
+- **媒体前缀**（`content.media.urlBase` 去掉开头的 `/` 并补 `/`）始终从集合中扣除（A5）。显式条目等于媒体前缀或位于媒体前缀之内时报错，说明媒体共用不受支持；条目包含媒体前缀（如 `assets/` 包含 `assets/uploads/`）时，只在内部扣除。
+- **有效共用集合** = 配置前缀（或默认前缀）减去媒体前缀。下文的"共用集合"都指它。
 
-规则：**复制型和生成型资源输出的路径落在有效共用集合内即共用**，与来源无关。
+### D3. 默认语言是唯一归属方（A2）
 
-- 输出到 `assets/` 下的复制型 static 文件默认共用；其他 static 文件默认不共用，可以把前缀加入 `paths`。
-- **渲染型输出永不共用**：页面和渲染型 static 落在有效共用集合内时，在路由完成后、该语言写出任何文件前报 `i18n-shared-asset-conflict`，指出源文件和前缀。
-- **插件输出不共用**：插件在 AfterBuild 产生的输出（`AssetOutputCategory.Plugin`）构建前无法得知，而且可能随语言变化。它们落在有效共用集合内时，在提交前报 `i18n-shared-asset-conflict`，指出插件名和输出路径。内置图片处理插件的共用变体按 D7 的共用流程生成，不属于此类插件输出，不受这条限制。
-  - 带前缀布局下，`<lang>/assets/...` 的页面在物理上不会与根目录的 `/assets/` 冲突，但仍然报错。这是有意的统一规则：共用前缀下的地址统一由 `asset_base_url` 解析；如果同一前缀下既有共用资源又有语言页面，主题和用户很容易拼错前缀。两种布局采用同一规则，也避免切换布局时行为突变。
+- 默认语言的资源计划、写入、manifest 归属和过期清理**完全不变**。它在根目录布局下本来就写 `dist/assets/` 等路径。
+- 非默认语言在资源计划中去掉满足以下全部条件的条目：
+  - `Category` 是 `Assets`、`Tokens` 或 `Static`；
+  - `Operation` 是 `Copy` 或 `Generate`；
+  - `Destination` 落在共用集合内。
+- 这些条目仍由默认语言输出（各语言输入相同，见 Context），所以不需要跨语言冲突检测。
+- 根 manifest、语言 manifest 结构不变，不升版本号。
 
-`paths` 不允许为空列表（用 `enabled: false` 表达"不共用"），不允许 `..`、绝对路径。
+### D4. 其他输出不受影响（A4）
 
-**条目规范化与校验**：
-- `\` 统一替换为 `/`，去掉开头的 `/`，没有结尾 `/` 时自动补上。
-- 规范化后为空（即根目录，如 `""`、`/`、`.`）的条目，配置校验报错。
-- 默认值推导时，若 SCSS 输出目录或媒体输出前缀规范化后为根目录，不加入默认值，并记录警告。
-- 前缀匹配和去重使用与 `OutputDestinationIdentityComparer` 相同的大小写规则；在不区分大小写的文件系统上，`Assets/` 与 `assets/` 视为同一前缀。
+页面、渲染型 static、插件输出、投影和媒体照常按语言输出，即使落在共用前缀下也不报错。理由：
 
-**有效共用集合**：配置的前缀（或默认推导的前缀）减去内部排除前缀（D11 第一步的媒体前缀）后得到的路径集合。下文凡是"共用位置""共用路径""不扫描/不清理/不得写入共用……"，均指有效共用集合。只有根目录保留路径（D8）按配置前缀的第一个路径段计算，不受排除前缀影响。
+- 删掉的只有复制型和生成型条目，剩余输出与默认语言的共用文件不在同一目录（非默认语言写 `dist/<lang>/...`），没有物理冲突。
+- 这些输出按语言变化，主题本来就应当用 `base_url` 引用它们。主题作者说明写明："`asset_base_url` 只用于共用集合内的复制型资源。"
 
-### D3. 共用资源的生成时机
+### D5. 构建顺序
 
-**阶段 1：构建前（根目录这一层，在任何语言构建之前）**
+- 开启共用时，默认语言先完整构建（含 AfterBuild 和报告阶段），之后其他语言再按 `languageJobs` 并发构建。
+- 进程内：在 `SiteEngine` 的语言调度中先单独运行默认语言，再对其余语言执行现有的 `Parallel.ForEachAsync`。默认语言失败时不启动其他语言。
+- Worktree：父进程先运行默认语言 Worker，成功后再并发运行其余 Worker。同时活动的 Worker 仍不超过 `languageJobs`，满足 `i18n-worktree-build` "两级并发语义必须保持明确"。
+- 关闭共用时调度不变。
+- 代价：`languageJobs > 1` 时，默认语言阶段不能与其他语言并行，总耗时约为"默认语言 + 其余语言中最慢的一个"。`languageJobs` 默认为 1，默认配置下没有额外代价。
+- 这是站点级的语言先后顺序，语言管线内部阶段顺序不变。
 
-1. 为每种语言计算资源计划（复用 `AssetOutputPlan` 的计算，不写文件），取落在有效共用集合内的条目：主题 / 父主题 assets、SCSS 结果、theme tokens、落在有效共用集合内的复制型 static。
-2. 冲突检测：
-   - 复制型条目：同一输出路径先比较源文件物理路径，相同即视为同一内容；不同时再比较内容哈希。
-   - 生成型条目（tokens）：比较生成后的内容哈希。
-   - 内容不同报 `i18n-shared-asset-conflict`，任何共用文件都不写。
-3. 写入 `<output>/<path>`，各语言资源计划去掉这些条目。
-4. 对有效共用集合内的原图生成变体（D7），产出**共用 webp 映射**和**共用变体清单**，传给各语言。
+### D6. `site.asset_base_url`
 
-**语言管线中：**
+- 开启共用：等于站点根 baseUrl（`NormalizeBaseUrl(site.BaseUrl)`，保留 `/repo`，不含语言段），来自现有 `BuildVariantContext.RootBaseUrl`。
+- 关闭共用或单语言站点：等于当前语言的 `base_url`。
+- 与 `base_url` 采用相同的规范化形式。
+- 接入点：`SiteModel` 新增属性（公共 API 基线）、`VariantDataSitePlanner.BuildSiteModel`、`ScribanSiteModelMapper`、`ScribanModelKnownFields`。
 
-- 渲染型输出的冲突检查在路由完成后、该语言写出任何文件前执行（D2）。此时构建前阶段已写出共用文件；构建失败时由构建事务保证正式输出不变（实施前确认构建前写入处于事务范围内，tasks 0）。
-- 共用媒体由各语言在自己的管线中写入共用位置，按目标路径去重（D6）。
-- 语言管线的阶段顺序不变。
+### D7. Core 拼出的站内地址
 
-**收尾（所有语言完成后，根目录这一层）：**
+Bukit 不改写主题 HTML，但 Core 自己生成的地址必须跟随共用规则：
 
-- 按所有语言的完整媒体引用并集确定共用媒体集合，处理归属和过期清理（D4、D6）。
-- Worktree 模式下，由父进程完成共用媒体的复制和存在性校验（D9）。
+- **SEO 地址**：`BuildMaybeAbsoluteUrl` 处理站内相对地址时，若去掉开头 `/` 后的路径落在共用集合内，使用根 baseUrl，否则使用语言 baseUrl。所有调用点（SEO 图片、作者图片和链接、JSON-LD）统一走这一规则。
+- **媒体占位图**：非默认语言中，占位图路径落在共用集合内时：
+  - `RewriteUrl` 输出根 baseUrl + 占位图；
+  - `ValidateOutputs` 改为检查共用资源根中的文件是否存在，不再要求它出现在本语言的计划输出中。默认语言先构建（D5），文件此时已经存在。
 
-### D4. 归属与清理
+### D8. 图片处理
 
-- 共用文件（阶段 1 文件、共用变体及 freshness sidecar、共用媒体及其变体）记入根目录计划输出和根 manifest，不出现在任何语言的 `OwnedOutputs` 中。
-- 根 manifest 新增根目录插件输出记录，结构与语言 manifest 中的插件输出记录（`PluginOutputTrackingInfo`）相同，供共用变体的 prior outputs 和孤儿清理使用。
-- **共用变体的 prior outputs 和 freshness 判断只读取根插件输出记录**，任何生成场景都如此：构建前生成的主题图片变体、进程内的共用结果缓存、Worktree 父进程。语言 manifest 中不出现也不读取共用变体的记录。否则从第二次构建起，已存在的共用变体都会被判为"未归属而被阻挡"，再叠加 D7 第 8 点的致命策略，构建将必然失败。根 manifest 版本号提升；旧根 manifest 没有该字段时按空集合还原，此时有效共用集合内的变体视为未归属，由受保护清理处理（没有存量站点，无需迁移）。
-- 共用文件不进入语言 manifest 的 `Assets` 文件集（`BuildManifest.Assets`），由根 manifest 记录。语言 `Assets` 集合只包含该语言自己的资源。实施前核查该集合的消费方（增量判断、清理），确认排除共用文件后不会误判变化或误删（tasks 0）。
-- 过期共用文件只在收尾时由根目录这一层按本次共用集合删除；语言清理不触及有效共用集合。
-- 根目录这一层写共用资源时**禁止**以裁剪模式对输出根目录调用 `DirectoryCopy.Sync`，只能按条目写入，或在有效共用集合的子目录内同步。用测试固定。
+1. **尺寸规划与命名**：抽成同一个纯函数，区分"要生成的文件"（降尺寸回退不含原图宽度）和"srcset / WebP 候选"（含原图宽度），并统一命名和反解析。生成器、webp 映射、`srcset` transform 和非默认语言的只读映射都调用它。这一步也可以作为独立的前置重构先做。
+2. **默认语言**：AfterBuild 行为不变，照常扫描 `dist/assets/` 并生成、归属、清理变体。
+3. **非默认语言**：
+   - 扫描自己的 `assets/` 和媒体目录的逻辑不变；去掉共用条目后，语言目录内一般只剩媒体。
+   - 对共用集合内的原图，**只读**地构建共用 WebP 映射：用尺寸规划函数算出候选文件名，只收录文件存在、且 freshness sidecar 对当前原图有效的变体。freshness 路径相对默认语言输出目录，也就是共用资源根。
+   - webp 改写使用"本语言映射 ∪ 共用映射"。
+   - `TryNormalizeLocalImageUrl` 同时接受本语言 `baseUrl + "/"` 和 `asset_base_url + "/"` 开头的地址，后者解析到共用资源根中的文件。
+   - 不在共用集合内生成、改写或删除任何文件，不对共用集合执行孤儿清理和 freshness 清理。
+4. **失败策略不变**：默认语言的变体生成失败仍受 `pluginFailMode` 控制。`warn` 模式下变体缺失时，非默认语言的只读映射不收录它，对应页面保留原 `<img>`，与 `responsive-next-gen-images` "HTML 引用必须由成功产物驱动"一致。
+5. `srcset` transform 只处理媒体，本版不变。`__image_srcsets` 没有消费方，保持现状。
 
-### D5. 模板变量 `site.asset_base_url`
+### D9. 增量与开关切换
 
-- 共用开启：等于站点根 baseUrl（保留 `/repo` 这类项目站点前缀，不含语言段）。
-- 共用关闭或单语言站点：等于当前语言的 `base_url`。
-- 绝对或相对形式与 `base_url` 一致。
+- `sharedAssets` 的有效值（`enabled`、有效共用集合）和 `asset_base_url` 进入 `SiteIdentityAndModesContributor`。值变化时全部页面重新渲染，增量跳过的页面不会保留旧地址。
+- 开启：非默认语言上次归属的 `<lang>/assets/...` 不再出现在本次计划中，由现有过期清理删除。
+- 关闭：非默认语言重新计划并写出这些文件。
+- 默认语言的输出不变，不需要新增受保护清理条件。`build.clean` 默认 `true` 时 staging 本来就从空目录开始。
 
-Core 不对 HTML 做隐式改写。不在共用范围内的资源，主题继续用 `base_url`。
+### D10. Worktree
 
-### D6. 媒体（第二步）
-
-- 地址改写使用 `asset_base_url + urlBase`；`RewriteUrl` 仍识别 `_baseUrl`、`_rootBaseUrl` 前缀的输入。
-- **进程内**：
-  - 每种语言在资源管线中把自己引用的媒体复制到共用位置，而不是语言目录。
-  - 写入按目标路径加锁去重：同一目标已由其他语言写入，且源文件物理路径相同，则不再复制。来自同一下载缓存的同一相对路径必然同源，所以正常情况下不会冲突；若源不同（不应发生），报 `i18n-shared-asset-conflict`。
-  - 媒体变体由该语言 AfterBuild 生成到共用位置，通过共用结果缓存复用（D7 第 4 点）。
-  - `media-validate` 照常在报告阶段执行，改为检查共用位置。
-- **完整引用**：每种语言的引用必须覆盖本次全部当前 HTML 输出，包括增量跳过的页面。沿用 `ValidateOutputs` 回读当前全部 HTML 的做法得到完整引用，并作为语言构建结果的一部分返回。
-- **收尾**：根目录这一层按完整引用并集，把共用媒体和媒体变体记入根 manifest，并删除不在并集中的过期共用媒体。某媒体文件只有在所有语言的完整引用中都不存在时才删除。
-- 用户把媒体前缀移出 `paths` 时，媒体保持按语言复制。
-
-### D7. 图片处理插件改造
-
-1. **抽取服务**：把"扫描原图、生成变体、freshness、归属、孤儿清理"抽成可以指定输出根、扫描范围和归属记录的服务。生成和 webp 映射的计算由服务提供；HTML 改写仍由调用方执行。
-2. **共用主题图片（第一步）**：在阶段 1 中，根目录这一层对有效共用集合内的原图调用该服务一次，以输出根目录为基准。prior outputs 读取上次的根插件输出记录（D4），本次归属写入根插件输出记录，同时产出共用 webp 映射和共用变体清单。
-3. **语言 AfterBuild**：
-   - 只扫描语言目录中不在有效共用集合内的原图，逻辑不变。第一步中媒体前缀被排除，语言仍照常扫描和清理自己的媒体目录。
-   - **不对有效共用集合执行孤儿清理和 freshness 清理**；共用变体的清理只在收尾时由根目录这一层依据根插件输出记录执行。
-   - webp 改写使用"该语言自己的 webp 映射 ∪ 共用 webp 映射"。
-   - 图片数据和 webp 映射收录共用变体时，以共用结果（第 2 点的共用清单或第 4 点的结果缓存）为准，不再要求变体出现在本语言的 `generatedOutputs` 中。
-   - `TryNormalizeLocalImageUrl` 同时接受当前语言 `baseUrl + "/"` 和 `asset_base_url + "/"` 开头的地址。
-4. **共用媒体图片（第二步）**：
-   - 语言 AfterBuild 对本语言引用的共用媒体图片，通过**按原图目标路径键控的共用结果缓存**获取变体。
-   - 第一个请求的语言负责生成（以输出根目录为基准，prior outputs 读取上次的根插件输出记录，D4），并把结果写入缓存：webp 候选、尺寸变体清单和归属信息。并发请求同一原图的其他语言等待生成完成，然后复用同一份结果。
-   - 各语言把复用的 webp 候选并入自己的改写映射和图片数据。
-   - 收尾时，根目录这一层按缓存中的全部结果把归属记入根 manifest。
-5. **srcset transform**：留在渲染阶段。共用媒体时，`TryResolveMediaSource` 的前缀从 `_baseUrl + _mediaUrlBase` 改为 `asset_base_url + _mediaUrlBase`，生成的 `srcset` 使用同一前缀。
-6. **幂等**：webp 改写必须幂等。增量跳过的页面里已经改写过的 `<picture>` 再次经过改写时，输出不变（实施前核实现有实现，tasks 0）。
-7. **生成参数与尺寸规划**：
-   - 变体尺寸、质量来自站点和主题配置，与语言无关。
-   - 尺寸规划（配置中小于原图宽度的尺寸，加上原图宽度本身）和变体文件命名，抽成同一个纯函数。实际生成、`srcset` transform 和 Worktree 的预测改写都调用它。
-   - 共用变体只在构建前（主题图片）或共用结果缓存（媒体）中生成一次。
-8. **共用变体失败策略**：共用变体的任何生成失败，或因未归属文件导致的生成被阻挡，**一律视为致命错误，不受 `site.pluginFailMode: warn` 影响**。理由有两点：共用位置由根目录这一层独占，出现阻挡说明状态异常；另外，只有失败必然导致构建失败时，预测改写才能保证与实际生成一致（D9）。非共用变体的失败策略保持不变。
-9. **图片数据**：实施前先核实写入位置和消费方（tasks 0）。只有确认没有消费方会再拼接 baseUrl 时，才把地址改为带 `asset_base_url` 或 `base_url`；否则保持现状，并在主题作者说明中写明共用模式下的用法。
-
-### D8. 根目录保留路径
-
-- 带前缀布局：共用前缀的第一个路径段（默认 `assets`）加入根目录保留路径；根目录聚合输出不得写入共用前缀。
-- 语言代码与共用前缀首段相同的检查，与提案 B 的保留前缀校验合并为同一实现。
-- 根目录默认语言布局（提案 B）：共用资源与默认语言输出在同一目录。默认语言落在有效共用集合内的复制型和生成型输出属于共用集合；渲染型输出按 D2 报错。
-
-### D9. Worktree 构建
-
-- **阶段 1**：父进程只依赖配置、主题和源文件即可计算各语言的阶段 1 计划。它在分发前完成冲突检查，写入 staging 根目录，并生成共用主题图片变体。共用 webp 映射和共用变体清单随任务传给 Worker。
-- **Worker（第一步）**：只写语言自己的输出，webp 改写使用传入的共用映射，不对共用原图生成变体。
-- **Worker（第二步）**：
-  - 不写共用路径。共用媒体及其变体不在 Worker 中复制或生成。
-  - 共用媒体的 `media-validate` 存在性检查在 Worker 中跳过，推迟到父进程。
-  - 共用媒体变体在 Worker 中按预测结果使用：调用 D7 第 7 点的尺寸规划函数，原图宽度从共享下载缓存读取，不依赖文件已生成。预测结果**同时**用于 webp 改写映射和图片数据，与进程内构建从共用结果缓存取得的内容一致。由于共用变体的失败必然导致构建失败（D7 第 8 点），预测结果与父进程实际生成的结果一致。
-  - 结果新增完整媒体引用（可选字段，缺失按空列表还原）。
-- **父进程收尾**：汇总引用并集，复制共用媒体，生成共用媒体变体（prior outputs 读取上次的根插件输出记录），执行共用媒体存在性校验，然后处理归属和清理。
-- 父进程 `ValidateOutputPaths` 拒绝任何写入有效共用集合的 Worker 结果。第一步中媒体前缀被排除，Worker 写入自己的媒体目录是合法的。
-- 若 tasks 0 核查发现有审计、发布检查或 projections 依赖本地图片或媒体文件存在，这些检查对共用媒体的部分在 Worktree 模式下同样推迟到父进程收尾时执行。
+- 父进程按 D5 的顺序调度 Worker。
+- Worker 请求新增共用资源根路径（staging 根目录，也就是默认语言 Worker 的输出目录）。父进程和 Worker 是同一二进制，不升 `i18n-worker-request.v1`。非默认语言 Worker 用它完成 D7 的占位图校验和 D8 的只读映射。
+- Worker 运行同一条语言管线，D3 的计划过滤在 Worker 内生效。父进程现有的 `ValidateOutputPaths` 和 `CollectAndClean` 冲突检查照常执行。
 - 进程内构建和 Worktree 构建产出相同的相对文件路径集合和相同内容。
 
-### D9a. 统计与报告
+## Alternatives
 
-- `BuildResult` 目前按语言输出目录下的 `assets` 和 `assets/uploads` 统计 `AssetCount`、`MediaCount`。共用开启时改为：
-  - 语言统计只计该语言目录内的非共用资源和媒体；
-  - 共用资源和共用媒体按根目录有效共用集合单独计数一次；
-  - 多语言汇总等于各语言非共用计数之和加共用计数，不重复计算。
-- build report 和 CLI 输出中的资源、媒体数量按上述口径展示。
+### v1：根目录归属层（已放弃）
 
-### D10. 增量构建
+v1（2026-11-13）让"根目录这一层"在构建前写出共用资源，在根 manifest 中新增插件输出记录并升版本号，收尾时按跨语言引用并集清理，同时覆盖两种布局和媒体。按当前代码核实后放弃，原因：
 
-`sharedAssets` 的有效值（`enabled` 和归一化后的 `paths`）写入站点哈希。值变化时走受保护清理；实施时确认受保护清理在带前缀布局下会删除根目录中的共用目录。
+- **会删掉自己刚写的共用文件**：根目录布局下，默认语言上次的 manifest 列着 `assets/...`。构建前写好的共用文件会被该语言的 `DeleteStale` / `TrackAssetPlanOutputs` 当作过期文件删除。
+- **升版本号会清空所有站点**：根 manifest 与语言 manifest 是同一个 `BuildManifest` 类型，`Record` 把版本写死为 3。升版本号会强制所有站点执行受保护清理，而 `PluginOutputs` 字段本来就存在。
+- **依赖不存在的机制**：v1 假设"站点哈希变化会触发受保护清理"、"带前缀布局有根目录保留路径"，代码中都不存在。
+- **防的冲突不会发生**：跨语言冲突检测保护的场景实际上不会出现（各语言输入相同）。
+- **新增致命失败**：v1 为了 Worktree 预测，把共用变体失败一律改成致命错误。这会让一张用户放置的 `hero-480w.jpg` 导致构建失败。
+- **不能单独交付**：v1 第一步遗漏了占位图和 SEO 图片地址，无法独立交付。
 
-### D11. 实施分步
+v1 中仍有价值的部分，即跨语言媒体引用并集、共用结果缓存、Worktree 预测，留给后续的媒体共用提案。
 
-两步交付，每步独立通过测试，都不改变语言管线的阶段顺序：
+### 只在进程内传递 WebP 映射
 
-1. **第一步**：
-   - 配置、模板变量、阶段 1（含 tokens）、渲染型 static 检查；
-   - 根 manifest 插件输出记录、图片服务抽取；
-   - 阶段 1 中的共用主题图片变体和共用 webp 映射；
-   - 语言 AfterBuild 合并映射；
-   - Worktree 阶段 1 与映射下发。
-
-   媒体暂不共用：媒体前缀作为内部排除前缀，从有效共用集合中扣除，即使位于 `assets/` 下也按语言输出。用户在 `paths` 中显式写了媒体前缀时，配置校验报错，说明媒体共用尚未支持。
-2. **第二步**：去掉媒体排除，实现 D6 和 D7 第 4、5 点，以及 D9 的第二步部分。
+在进程内把默认语言的映射对象直接传给其他语言，可以省掉一次磁盘扫描，但 Worktree 仍需另一条路径。D8 统一从磁盘只读构建，两种构建只有一条代码路径。
 
 ## Risks
 
 | 风险 | 缓解 |
 |---|---|
-| 主题仍用 `base_url` 拼共用资源 | 主题作者说明；Starter 主题示范 |
+| 主题仍用 `base_url` 拼共用资源 | 默认关闭；主题作者说明；Starter 主题示范 |
 | JS 运行时拼地址、CSS 根绝对路径 | 文档写明须使用 `asset_base_url` 或相对路径 |
-| 图片插件改造回归 | 语言原图路径保持原逻辑；变体、freshness、孤儿清理、webp 改写各有测试 |
-| 进程内并行写共用媒体 | 按目标路径加锁去重，同源不重复复制，异源报错 |
-| 后到的语言缺少共用变体结果 | 共用结果缓存：先到者生成，其余语言等待并复用 |
-| 语言清理误删共用变体 | 语言 AfterBuild 不清理有效共用集合，只在收尾时由根目录这一层清理 |
-| 增量构建引用不全导致误删媒体 | 完整引用回读当前全部 HTML；测试覆盖增量跳过场景 |
-| Worktree 预测文件名与实际生成不一致 | 预测与生成共用同一尺寸规划函数；共用变体失败一律致命；等价测试对比进程内构建 |
-| 根目录同步误删语言目录 | D4 禁止裁剪模式并用测试固定 |
-| 审计或安全检查按语言目录解析 `/assets/...` 误报 | 实施前逐项核查（tasks 0） |
+| `languageJobs > 1` 时默认语言阶段串行 | 在用户指南中说明；默认配置无影响 |
+| 非默认语言只读映射与默认语言实际产物不一致 | 共用同一尺寸规划函数；只收录存在且 freshness 有效的文件；进程内与 Worktree 等价测试 |
+| 遗漏某个 Core 拼地址的位置 | 实施前 grep 全部 `BuildMaybeAbsoluteUrl`、`_baseUrl` 拼接点并列入测试 |
+| 图片插件改造回归 | 默认语言路径不变；非默认语言只新增只读分支；变体、freshness、webp 改写各有测试 |
 
 ## Open Questions
 
-无。实施前按提案 B 的最终代码复核 D3、D8、D9 涉及的类型和方法名，并完成 tasks 0 中的核查。
+- proposal.md 中的决策 A1–A5 待用户确认。
+- 媒体条目 `record.Media` 的地址在 `ContentMediaOutput` 中已带语言 baseUrl，`SeoImageResolver` 又经 `BuildAbsoluteUrl` 拼一次 baseUrl。实施时确认是否存在重复前缀（与本提案无关，有问题则另行记录）。
