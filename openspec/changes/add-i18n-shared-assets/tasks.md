@@ -8,7 +8,6 @@
 - [x] 按 `main`（`e7651fb1`）核实现状，结论记入 design.md "Context"：webp 改写幂等（`ImageProcessingPluginTests.cs:567`）；`__image_srcsets` 没有消费方；`ImageSourceFingerprint` 各语言相同、不需要修改；构建前写入处于构建事务内；`build.clean` 默认 `true`，staging 从空目录开始；不支持按语言覆盖主题或 static；受保护清理的触发条件中没有站点哈希；根 manifest 与语言 manifest 共用 `BuildManifest`，版本写死为 3。
 - [x] 用户确认决策 A1–A5（2026-11-14，全部采用推荐项）。
 - [ ] 列出 Core 中所有把站内相对地址拼上语言 baseUrl 的位置（`BuildMaybeAbsoluteUrl` 全部调用点、`ContentMediaOutput` 占位图、其他 `_baseUrl` 拼接），确认 design.md D7 的覆盖范围。
-- [ ] 确认 `SeoImageResolver` 对 `record.Media` 地址是否重复拼接 baseUrl（与本提案无关，有问题另行记录）。
 
 ## 1. 尺寸规划纯函数（可作为独立前置重构）
 
@@ -74,3 +73,7 @@
 ## 10. 验证
 
 - [ ] Config、Engine、CLI 专项测试；API 漂移、格式检查；`openspec validate add-i18n-shared-assets --strict`；当前平台 AOT 二进制编译。
+
+## 后续（不在本变更内）
+
+不设勾选项，只作记录：`SeoImageResolver` 对 `record.Media` 地址是否重复拼接 baseUrl；百分号编码路径是否参与共用集合判断；`BuildResult` 计数；CDN 域名；媒体共用（A5）。

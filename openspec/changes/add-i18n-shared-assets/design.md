@@ -169,4 +169,4 @@ v1 中仍有价值的部分，即跨语言媒体引用并集、共用结果缓�
 ## Open Questions
 
 - 无。proposal.md 中的决策 A1–A5 已于 2026-11-14 确认，全部采用推荐项。
-- 媒体条目 `record.Media` 的地址在 `ContentMediaOutput` 中已带语言 baseUrl，`SeoImageResolver` 又经 `BuildAbsoluteUrl` 拼一次 baseUrl。实施时确认是否存在重复前缀（与本提案无关，有问题则另行记录）。
+- 媒体条目 `record.Media` 的地址在 `ContentMediaOutput` 中已带语言 baseUrl，`SeoImageResolver` 又经 `BuildAbsoluteUrl` 拼一次 baseUrl。是否存在重复前缀与本提案无关，列为后续事项，不在本变更中确认或修复。
