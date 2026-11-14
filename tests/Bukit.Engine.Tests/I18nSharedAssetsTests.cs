@@ -84,7 +84,7 @@ public sealed class I18nSharedAssetsTests
                 {
                     Name = "t",
                     Title = "t",
-                    BaseUrl = "/repo",
+                    BaseUrl = "/",
                     Url = "https://example.com",
                     Languages = ["en", "zh-CN"],
                     SharedAssets = new SharedAssetsConfig { Enabled = true }
@@ -104,13 +104,13 @@ public sealed class I18nSharedAssetsTests
                 CanonicalContentGraph.Empty,
                 NullContentBodyStore.Instance,
                 Path.Combine(root, "dist", "zh-CN"),
-                "/repo/zh-CN",
+                "/zh-CN",
                 root,
                 root,
                 root,
                 Path.Combine(root, "media"),
                 new Dictionary<string, IReadOnlyList<Bukit.Rendering.SeoAlternateModel>>(),
-                "/repo",
+                "/",
                 "zh-CN",
                 "en",
                 DateTimeOffset.UnixEpoch,
@@ -124,7 +124,7 @@ public sealed class I18nSharedAssetsTests
                 "<img src=\"/assets/images/noneimg-news.jpg\" />");
             var normalized = output.NormalizeDocument(document, collect: true);
 
-            Assert.Contains("src=\"/repo/assets/images/noneimg-news.jpg\"", normalized.Body.Html, StringComparison.Ordinal);
+            Assert.Contains("src=\"/assets/images/noneimg-news.jpg\"", normalized.Body.Html, StringComparison.Ordinal);
             output.ValidateOutputs([]);
 
             File.Delete(Path.Combine(root, "dist", "assets", "images", "noneimg-news.jpg"));

@@ -579,7 +579,7 @@ public sealed class SeoModelBuilderTests
                 {
                     ["type"] = "post",
                     ["collection"] = "post",
-                    ["og_image"] = "/assets/og.png"
+                    ["og_image"] = "/assets/og.png?v=2"
                 }));
 
             var model = SeoModelBuilder.BuildForContent(
@@ -589,7 +589,7 @@ public sealed class SeoModelBuilderTests
                 new RouteInfo("/post/", "post/index.html", "pages/post.html"),
                 sharedAssets: scope);
 
-            Assert.Equal("https://example.com/repo/assets/og.png", model.Og.Image);
+            Assert.Equal("https://example.com/repo/assets/og.png?v=2", model.Og.Image);
         }
         finally
         {
