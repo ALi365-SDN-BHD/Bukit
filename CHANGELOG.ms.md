@@ -4,6 +4,8 @@ Semua perubahan penting kepada Bukit akan didokumenkan dalam fail ini.
 
 ## [Belum Dikeluarkan]
 
+- **Direktori pertanyaan snapshot yang diganti atau tidak boleh dibaca kini ralat berkod**: binaan rakaman serentak boleh menggantikan snapshot antara semakan kewujudan dan bacaan direktori; binaan luar talian kini melaporkan `BKT-0B14` (atau `BKT-0B10` jika snapshot hilang) dan bukan ralat IO tanpa kod.
+
 ## [2.2.0] - 2026-11-14
 
 - **Commit snapshot yang terganggu mengekalkan snapshot terakhir yang baik**: jika binaan rakaman dihentikan antara dua penamaan semula direktori, snapshot lama kekal di sebelah sasaran dan buka luar talian menerangkan bahawa sandaran wujud. Rakaman berjaya seterusnya mencipta atau menggantikan sasaran, dan rakaman kemudian membersihkan sandaran.

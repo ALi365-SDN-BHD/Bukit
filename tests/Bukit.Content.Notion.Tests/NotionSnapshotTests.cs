@@ -226,6 +226,36 @@ public sealed class NotionSnapshotTests : IDisposable
     }
 
     [Fact]
+    public async Task UnreadableQueryDirectory_IsAnEntryMissingError()
+    {
+        if (OperatingSystem.IsWindows() || Environment.IsPrivilegedProcess)
+        {
+            return;
+        }
+
+        await LoadOnlineAsync(Options());
+        var database = Assert.Single(Directory.GetDirectories(Path.Combine(Target, "api", "databases")));
+        var queries = Path.Combine(database, "queries");
+        File.SetUnixFileMode(queries, UnixFileMode.None);
+        try
+        {
+            using var offlineSnapshot = NotionSnapshotSession.OpenOffline(Target);
+            var error = await Assert.ThrowsAsync<NotionSnapshotException>(() =>
+                LoadAsync(Options(offlineSnapshot, token: string.Empty) with { FilterProperty = "Featured" }));
+
+            Assert.Equal(DiagnosticCode.NotionSnapshotEntryMissing, error.Code);
+            Assert.Contains("unreadable query directory", error.Message, StringComparison.Ordinal);
+            Assert.DoesNotContain(_root, error.Message, StringComparison.Ordinal);
+        }
+        finally
+        {
+            File.SetUnixFileMode(
+                queries,
+                UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
+        }
+    }
+
+    [Fact]
     public async Task OtherFormat_IsAnError()
     {
         await LoadOnlineAsync(Options());
