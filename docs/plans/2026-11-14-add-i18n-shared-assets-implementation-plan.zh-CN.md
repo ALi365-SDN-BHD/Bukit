@@ -364,7 +364,7 @@ SiteEngine / WorktreeBuildRun
 - 测试：同 T04.2 的过滤。新增用例：
   - 规范场景"Default SEO image on a non-default language page"。
   - `og_image` 在 scope 内与 scope 外各一个。
-  - `og_image` 为 `/assets/uploads/x.jpg`（媒体前缀内）时仍使用语言 baseUrl。
+  - `og_image` 为 `/assets/uploads/x.jpg`（媒体前缀内）时仍使用语言 baseUrl。**测试层级**：这是 `SeoModelBuilder` 单元层断言，直接传入未经媒体规范化的字段值。完整构建中，`ContentMediaOutput.NormalizeDocument`（`ContentMediaOutput.cs:29-44`）会先把自定义字段里的 `/assets/uploads/x.jpg` 改写为 `/zh-CN/assets/uploads/x.jpg`，SEO 拿到的已是本语言地址。
   - `og_image` 为 `/assets/og.png?v=2` 时使用根 baseUrl，query 保留。
   - 作者图片在 scope 内。
   - 绝对 http 地址不变。
@@ -419,7 +419,9 @@ SiteEngine / WorktreeBuildRun
   - 规范场景"Shared theme image on two language pages"（`/repo`）。
   - **非默认语言目录中没有任何自有图片时，中文页仍然得到共用 WebP `<picture>`。**
   - 站点 baseUrl 为 `/` 时，中文页中不在 scope 内的 `/images/x.jpg` 不按共用资源处理。
-  - 站点 baseUrl 为 `/` 时，中文页中的 `/zh-CN/assets/uploads/x.jpg` 走本语言媒体映射；`/assets/uploads/x.jpg`（默认语言的媒体）不属于共用集合，也不被当作本语言媒体，保持原 `<img>`。
+  - 站点 baseUrl 为 `/` 时，中文页中的 `/zh-CN/assets/uploads/x.jpg` 走本语言媒体映射。
+  - 单元层（`TryNormalizeLocalImageUrl` 与 `SharedAssetScope`）：`/assets/uploads/x.jpg` 不属于共用集合，也不被当作本语言媒体，查不到映射，保持原 `<img>`。
+  - 完整构建层（`SiteEngine`）：`ContentMediaOutput.RewriteUrl` 的前缀列表含 `_rootBaseUrl + _mediaPrefix`（`ContentMediaOutput.cs:187`），中文页里的 `/assets/uploads/x.jpg` 会先被改写为 `/zh-CN/assets/uploads/x.jpg`，再走本语言媒体映射。断言改写后的地址与本语言 WebP，不断言保持原 `<img>`。
   - 规范场景"Default language variant failure in warn mode"。
   - 已改写的 `<picture>` 再次经过改写时输出不变（复用现有的幂等测试方式）。
 - 依赖：T05.2。
@@ -583,4 +585,4 @@ A1–A5 已全部采用推荐项，本节不再适用，保留作日后改选时
 | 审计 1 | 2026-11-14 | 按外部审阅修订，共 36 个任务。严重问题：Starter 为 `asset_base_url` 单独映射 `/`（第 1.3 节第 13 条、T03.5）；共用原图清单改取计划中被过滤的条目，共用映射在提前返回之前构建，候选 URL 用根 baseUrl（第 8 条、T05.1–T05.3）；`Contains` 明确为"包含且不排除"（第 14 条、T02.4）。重要问题：渲染哈希经 `RenderDependencyContext` 接线（第 5 条）；`TryCreate` 增加输出根和 logger 并在站点层创建一次（第 14 条）；SEO 接线链拆为 T04.2，地址清单复核提前为 T04.1；`SiteModel.AssetBaseUrl` 定为可空、非 required，并回退到 `BaseUrl`（第 17 条）。次要问题：校验入口改为 `ConfigValidator.Validate`；T00.2 写出具体路径和命令；修正测试名；`ImageVariantPlan` 登记进架构测试；复用 `TryReadFreshness`；SCSS 输出目录只在启用时纳入默认值；占位图路径用 `GetSafeFullPath`。另补审阅未提的一条：根前缀分支须检查 `scope.Contains`（第 15 条）。未采纳"Worktree 漏记单语言警告"：Worktree 只在 2 种及以上语言时启用（`BuildCommand.cs:154`），单语言 + Worktree 的组合不会出现。同步修订 design.md（D2、D6–D9）、规范（改写 4 条要求的措辞，新增 7 个场景）和 tasks.md |
 | 决策确认 | 2026-11-14 | 用户确认 A1–A5 全部采用推荐项；T00.1 完成，提案、design.md、tasks.md 同步标注 |
 | 审计 2 | 2026-11-14 | 按第二轮外部审阅修订，任务数不变。严重问题：`BuildDataKeys.SharedAssets` 改为在 `PrepareAsync` 之后、`RunAfterBuildAsync` 之前设置（第 1.3 节第 8 条、T05.1），原写法"与 `MediaDownloadDir` 同处"拿不到清单。重要问题：明确 `asset_base_url` 不单独入哈希、由已入哈希的值推出，并加根 baseUrl 变化的断言（第 5 条、T03.5）；写定共用映射的 key（第 8 条、T05.2）。次要问题：T02.1 补 `ConfigLoader` 赋值；T02.2 去掉没有对应规则的 SCSS 用例；`new SiteModel` 计数改为 44；`I18nWorkerRequest.SharedAssetsRoot` 默认 `null`；Worker 字段为空时不调用 `TryCreate`；原图宽度用 `TryReadImageWidth`；新增 `ContainsSitePath` 处理 query、fragment 和编码（第 14 条）。全部 10 条均已对照代码核实并采纳。同步修订 design.md（D8、D9）、规范（增量要求改为"变化即改变哈希"，新增根 baseUrl 变化与带 query 的 SEO 图片 2 个场景）和 tasks.md |
-| 复核 | 2026-11-14 | 第三轮复核无严重或重要问题，收紧 3 处实施细节：原图宽度改用会捕获异常的 `TryGetImageWidth`（第 1.3 节第 8 条、T05.2）；T05.2 写明 key 和候选 URL 共用去掉结尾 `/` 的前缀，避免 `//assets/...`；T05.3 媒体用例区分 `/zh-CN/assets/uploads/` 与默认语言的 `/assets/uploads/` |
+| 复核 | 2026-11-14 | 第三轮复核无严重或重要问题，收紧 3 处实施细节：原图宽度改用会捕获异常的 `TryGetImageWidth`（第 1.3 节第 8 条、T05.2）；T05.2 写明 key 和候选 URL 共用去掉结尾 `/` 的前缀，避免 `//assets/...`；T05.3 媒体用例区分 `/zh-CN/assets/uploads/` 与默认语言的 `/assets/uploads/`。再次复核后注明测试层级：T05.3 的 `/assets/uploads/x.jpg` 和 T04.3 的媒体前缀 `og_image` 在单元层与完整构建层的预期不同，完整构建中 `ContentMediaOutput` 会先改写为本语言媒体地址 |
