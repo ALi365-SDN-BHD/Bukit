@@ -169,7 +169,7 @@ internal sealed partial class ResponsiveImageHtmlTransform(
         }
 
         var attributes = string.Empty;
-        var applicableSizes = _sizes.Where(size => size < sourceWidth).ToArray();
+        var applicableSizes = ImageVariantPlan.GeneratedWidths(_sizes, sourceWidth).ToArray();
         if (applicableSizes.Length > 0 && !parsedAttributes.Any(attribute => attribute.Groups["name"].Value.Equals("srcset", StringComparison.OrdinalIgnoreCase)))
         {
             var candidates = applicableSizes
@@ -261,6 +261,6 @@ internal sealed partial class ResponsiveImageHtmlTransform(
     private static string BuildVariantUrl(string sourceUrl, int width)
     {
         var extensionAt = sourceUrl.LastIndexOf('.');
-        return $"{sourceUrl[..extensionAt]}-{width}w{sourceUrl[extensionAt..]}";
+        return ImageVariantPlan.VariantFileName(sourceUrl, width, sourceUrl[extensionAt..]);
     }
 }

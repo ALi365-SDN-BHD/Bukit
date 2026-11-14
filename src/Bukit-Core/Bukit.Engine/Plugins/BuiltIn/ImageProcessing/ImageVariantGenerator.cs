@@ -65,9 +65,8 @@ internal sealed class ImageVariantGenerator
         CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        var baseName = Path.GetFileNameWithoutExtension(imageFile);
         var ext = Path.GetExtension(imageFile);
-        var sizedFile = Path.Combine(Path.GetDirectoryName(imageFile)!, $"{baseName}-{size}w{ext}");
+        var sizedFile = ImageVariantPlan.VariantFileName(imageFile, size, ext);
         var freshnessFile = sizedFile + FreshnessSuffix;
         var variantExists = File.Exists(sizedFile);
         var sidecarExists = File.Exists(freshnessFile);
@@ -283,16 +282,15 @@ internal sealed class ImageVariantGenerator
 
             var sourceInfo = new FileInfo(imageFile);
             var sourceSha256 = await GetOrComputeSourceSha256Async(imageFile, sourceHashes, cancellationToken);
-            var baseName = Path.GetFileNameWithoutExtension(imageFile);
             var candidates = new List<string>();
-            foreach (var width in sizes.Where(size => size < sourceWidth).Append(sourceWidth).Distinct().Order())
+            foreach (var width in ImageVariantPlan.CandidateWidths(sizes, sourceWidth))
             {
                 if (failures.Count >= failureLimit)
                 {
                     break;
                 }
 
-                var webpFile = Path.Combine(Path.GetDirectoryName(imageFile)!, $"{baseName}-{width}w.webp");
+                var webpFile = ImageVariantPlan.VariantFileName(imageFile, width, ".webp");
                 if (!await GenerateOwnedWebpVariantAsync(
                     context,
                     imageFile,

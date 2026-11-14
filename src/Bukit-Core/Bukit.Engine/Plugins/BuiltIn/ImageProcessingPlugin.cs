@@ -170,7 +170,9 @@ internal sealed class ImageProcessingPlugin : IBukitPlugin, IAfterBuildAsyncPlug
         {
             cancellationToken.ThrowIfCancellationRequested();
             var hasWidth = TryGetImageWidth(imageFile, context.Logger, out var width);
-            var applicableSizes = hasWidth ? [.. sizes.Where(size => size < width)] : Array.Empty<int>();
+            IReadOnlyList<int> applicableSizes = hasWidth
+                ? ImageVariantPlan.GeneratedWidths(sizes, width)
+                : Array.Empty<int>();
             CleanupStaleVariants(
                 context.OutputDir,
                 imageFile,
@@ -184,12 +186,12 @@ internal sealed class ImageProcessingPlugin : IBukitPlugin, IAfterBuildAsyncPlug
                     CleanupStaleVariants(
                         context.OutputDir,
                         imageFile,
-                        [.. applicableSizes.Append(width).Distinct()],
+                        ImageVariantPlan.CandidateWidths(sizes, width),
                         priorPluginOutputs,
                         ".webp");
                 }
             }
-            if (applicableSizes.Length > 0)
+            if (applicableSizes.Count > 0)
             {
                 resizePlans[imageFile] = applicableSizes;
             }
@@ -261,16 +263,13 @@ internal sealed class ImageProcessingPlugin : IBukitPlugin, IAfterBuildAsyncPlug
         foreach (var imageFile in imageFiles)
         {
             var relPath = Path.GetRelativePath(context.OutputDir, imageFile);
-            var baseName = Path.GetFileNameWithoutExtension(imageFile);
             var ext = Path.GetExtension(imageFile);
 
             var srcsetParts = new List<string>();
             var existingSizes = new List<int>();
             foreach (var size in resizePlans.GetValueOrDefault(imageFile) ?? [])
             {
-                var sizedFile = Path.Combine(
-                    Path.GetDirectoryName(imageFile)!,
-                    $"{baseName}-{size}w{ext}");
+                var sizedFile = ImageVariantPlan.VariantFileName(imageFile, size, ext);
                 if (!File.Exists(sizedFile))
                 {
                     continue;
@@ -281,7 +280,7 @@ internal sealed class ImageProcessingPlugin : IBukitPlugin, IAfterBuildAsyncPlug
                     continue;
                 }
 
-                var sizedRel = Path.Combine(Path.GetDirectoryName(relPath) ?? "", $"{baseName}-{size}w{ext}")
+                var sizedRel = ImageVariantPlan.VariantFileName(relPath, size, ext)
                     .Replace("\\", "/", StringComparison.Ordinal);
                 srcsetParts.Add($"/{sizedRel} {size}w");
                 existingSizes.Add(size);
