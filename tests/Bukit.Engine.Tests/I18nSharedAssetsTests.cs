@@ -118,6 +118,7 @@ public sealed class I18nSharedAssetsTests
             "    - en\n    - zh-CN",
             "    - zh-CN\n    - en",
             StringComparison.Ordinal));
+        Assert.Equal<string>(["zh-CN", "en"], site.Config.Site.Languages ?? []);
         await site.BuildAsync(clean: true);
         var before = SnapshotOutput(site.Output);
 
