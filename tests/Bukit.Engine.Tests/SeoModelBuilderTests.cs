@@ -906,6 +906,58 @@ public sealed class SeoModelBuilderTests
     }
 
     [Fact]
+    public void BuildForContent_LocalizedMediaAndCustomFieldUrls_AreNotPrefixedTwice()
+    {
+        var config = CreateConfig(defaultImage: null) with
+        {
+            Site = CreateConfig(defaultImage: null).Site with { BaseUrl = "/repo" }
+        };
+        var route = new RouteInfo("/pages/photo/", "pages/photo/index.html", "pages/page.html");
+        var mediaDocument = ContentDocument.Create(
+            id: "localized-media",
+            title: "Localized media",
+            slug: "localized-media",
+            publishAt: DateTimeOffset.UtcNow,
+            contentHtml: null,
+            fields: ContentFieldReader.ToFieldMap(new Dictionary<string, object> { ["type"] = "page" }));
+        mediaDocument = mediaDocument with
+        {
+            Record = mediaDocument.Record with
+            {
+                Media = [new MediaAsset("image", "/repo/assets/uploads/photo.jpg")]
+            }
+        };
+        var fieldDocument = ContentDocument.Create(
+            id: "localized-field",
+            title: "Localized field",
+            slug: "localized-field",
+            publishAt: DateTimeOffset.UtcNow,
+            contentHtml: null,
+            fields: ContentFieldReader.ToFieldMap(new Dictionary<string, object>
+            {
+                ["type"] = "page",
+                ["og_image"] = "/repo/assets/uploads/photo.jpg"
+            }));
+
+        Assert.Equal(
+            "https://example.com/repo/assets/uploads/photo.jpg",
+            SeoModelBuilder.BuildForContent(config, "/repo", mediaDocument, route).Og.Image);
+        Assert.Equal(
+            "https://example.com/repo/assets/uploads/photo.jpg",
+            SeoModelBuilder.BuildForContent(config, "/repo", fieldDocument, route).Og.Image);
+        var nonDefaultDocument = mediaDocument with
+        {
+            Record = mediaDocument.Record with
+            {
+                Media = [new MediaAsset("image", "/repo/zh-CN/assets/uploads/photo.jpg")]
+            }
+        };
+        Assert.Equal(
+            "https://example.com/repo/zh-CN/assets/uploads/photo.jpg",
+            SeoModelBuilder.BuildForContent(config, "/repo/zh-CN", nonDefaultDocument, route).Og.Image);
+    }
+
+    [Fact]
     public void BuildForContent_ImageSource_SiteDefaultUsedAsLastResort()
     {
         var config = CreateConfig(defaultImage: "/images/default.jpg");

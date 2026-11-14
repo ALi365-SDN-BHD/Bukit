@@ -432,6 +432,14 @@ internal static class SeoModelBuilder
             return trimmed;
         }
 
+        var normalizedBaseUrl = NormalizeBaseUrl(baseUrl);
+        if (normalizedBaseUrl != "/" &&
+            (trimmed.Equals(normalizedBaseUrl, StringComparison.Ordinal) ||
+             trimmed.StartsWith(normalizedBaseUrl + "/", StringComparison.Ordinal)))
+        {
+            return BuildSiteAbsoluteUrl(siteUrl, trimmed);
+        }
+
         var effectiveBaseUrl = sharedAssets is not null && sharedAssets.ContainsSitePath(trimmed)
             ? sharedAssets.RootBaseUrl
             : baseUrl;
