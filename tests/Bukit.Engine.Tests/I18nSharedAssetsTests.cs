@@ -63,7 +63,10 @@ public sealed class I18nSharedAssetsTests
     {
         using var site = CreateSite();
         WriteSite(site, enabled: true, clean: false);
-        await site.BuildAsync(clean: true);
+        await site.BuildAsync(clean: true, incremental: true);
+
+        var unchanged = await site.BuildAsync(clean: false, incremental: true);
+        Assert.All(unchanged.Variants, variant => Assert.True(variant.SkippedCount > 0));
 
         WriteSite(site, enabled: true, clean: false, paths: "[assets/, fonts/]");
         var result = await site.BuildAsync(clean: false, incremental: true);
@@ -293,7 +296,7 @@ public sealed class I18nSharedAssetsTests
     {
         using var site = CreateSite();
         WriteSite(site, enabled: false, clean: true);
-        await site.BuildAsync(clean: true);
+        await site.BuildAsync(clean: true, incremental: true);
         Assert.True(File.Exists(Path.Combine(site.Output, "zh-CN", "assets", "style.css")));
 
         WriteSite(site, enabled: true, clean: false);

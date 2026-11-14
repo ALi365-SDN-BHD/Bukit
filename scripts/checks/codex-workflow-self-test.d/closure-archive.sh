@@ -12,6 +12,24 @@ for core_five_findings_archive_path in \
   assert_closure_mapping "$closure_fixture" "$core_five_findings_archive_path" '["openspec validate --all --strict --no-interactive"]' false
 done
 
+for i18n_shared_assets_path in \
+  openspec/changes/archive/2026-11-15-add-i18n-shared-assets/tasks.md \
+  openspec/specs/i18n-shared-assets/spec.md; do
+  expect_exit 0 "${tool[@]}" closure \
+    --repo "$closure_fixture" \
+    --policy scripts/checks/codex-workflow-policy.v1.json \
+    --changed "$i18n_shared_assets_path"
+  python3 - "$command_output" "$i18n_shared_assets_path" <<'PY_CONTRACT'
+import json
+import sys
+result = json.loads(sys.argv[1])
+changed = sys.argv[2]
+assert changed not in result["unmappedFiles"], result
+assert changed in result["publicContractFiles"], result
+assert "openspec validate i18n-shared-assets --type spec --strict --no-interactive" in result["specialtyTests"], result
+PY_CONTRACT
+done
+
 assert_closure_mapping "$closure_fixture" openspec/specs/core-deployment-identity/spec.md '["dotnet test tests/Bukit.Cli.Tests/Bukit.Cli.Tests.csproj"]' false
 assert_closure_mapping "$closure_fixture" openspec/specs/notion-load-resource-lifecycle/spec.md '["dotnet test tests/Bukit.Content.Notion.Tests/Bukit.Content.Notion.Tests.csproj", "dotnet test tests/Bukit.Content.Tests/Bukit.Content.Tests.csproj"]' false
 expect_exit 0 "${tool[@]}" closure --repo "$closure_fixture" --policy scripts/checks/codex-workflow-policy.v1.json --changed openspec/specs/core-report-contracts/spec.md

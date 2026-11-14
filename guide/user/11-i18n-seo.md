@@ -182,6 +182,8 @@ site:
 - `paths` is a list of output prefixes. When omitted it is `assets/` plus the enabled
   SCSS output directory. The media prefix (`content.media.urlBase`, normally
   `/assets/uploads`) is always excluded; put it in `paths` and validation fails.
+  When every default prefix is inside the media prefix, validation fails; set
+  `paths` to a prefix outside it.
 - Templates must reference shared theme assets through `site.asset_base_url`, not
   `site.base_url`. It is the root base URL (`/repo` stays `/repo`, or `/` at the site
   root) while the current language is still available as `site.base_url`. Map a `/`
