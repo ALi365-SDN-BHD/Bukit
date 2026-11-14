@@ -61,7 +61,7 @@
   - `asset_base_url`：开启 / 关闭两种取值、`/repo`；Starter 主题在根 baseUrl `/` 下（开启与关闭）输出 `/assets/style.css`。
   - Core 地址：`seo.defaultImage`、`og_image`（含带 query 的 `/assets/og.png?v=2`）、作者图片落在共用集合内时使用根 baseUrl；占位图地址和 `media-validate` 在非默认语言中通过。
   - 图片：共用主题图片变体只在 `dist/assets/` 下生成一次，两种语言页面的 WebP `<picture>` 指向根；非默认语言不在共用集合内写入或删除文件；`warn` 模式下默认语言变体失败时，非默认语言页面保留原 `<img>`；语言目录内图片的变体行为不变；根 baseUrl 下 `/images/a.jpg` 不被当作共用资源；本语言没有自有图片时仍改写共用图片。
-  - 代理覆盖说明：`warn` 模式默认语言变体失败的完整构建路径尚未单独提交测试，现由共用变体全部缺失的负向测试和插件级 `warn` 测试代理；插件输出保留由 `PrepareAsync_PluginOutputInsideSharedPrefix_IsKeptPerLanguage` 覆盖，媒体按语言输出由 `AssetPipelineTests` 计划保留用例和媒体变体端到端用例覆盖。
+  - 覆盖与代理说明：插件输出保留由 `PrepareAsync_PluginOutputInsideSharedPrefix_IsKeptPerLanguage` 和 `RunAfterBuild_PluginOutputInsideAssets_WritesToLanguageOutput` 两个测试组合覆盖；媒体按语言输出由 `AssetPipelineTests` 计划保留用例和媒体变体端到端用例覆盖；`warn` 模式默认语言变体失败的完整构建路径仍为代理覆盖，由共用变体缺失负向测试和插件级 `warn` 测试代表。
   - 增量：`build.clean: false` 下开启和关闭各一次，非默认语言副本被删除 / 恢复，页面地址随之变化；只改 `paths` 时全部页面重新渲染；关闭时渲染哈希与现状一致；只改一种语言时共用资源不重写。
 - [x] CLI（Worktree）：默认语言 Worker 先完成；Worker 收到共用资源根；与进程内构建的相对文件路径和内容一致。
 
