@@ -71,6 +71,16 @@ internal static class I18nLanguagePolicy
             $"event=i18n.config.default_language_layout_ignored defaultLanguageInSubdir={site.DefaultLanguageInSubdir.ToString().ToLowerInvariant()} defaultLanguageRedirect={site.DefaultLanguageRedirect.ToString().ToLowerInvariant()} defaultLanguageLegacyRedirects={site.DefaultLanguageLegacyRedirects.ToString().ToLowerInvariant()}");
     }
 
+    internal static void WarnSharedAssetsWithoutLanguages(SiteConfig site, ILogger logger)
+    {
+        if (GetLanguages(site).Count > 0 || !site.SharedAssets.Enabled)
+        {
+            return;
+        }
+
+        logger.Warn("event=i18n.config.shared_assets_ignored");
+    }
+
     /// <summary>Legacy redirects only exist once the default language of a multilingual site has moved to the root.</summary>
     internal static void WarnIgnoredLegacyRedirects(SiteConfig site, ILogger logger)
     {

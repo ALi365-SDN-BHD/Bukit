@@ -120,6 +120,7 @@ public static class ConfigValidator
         }
 
         ValidateScss(config.Theme.Scss);
+        ValidateSharedAssets(config);
 
         var componentValidation = (config.Theme.ComponentValidation ?? "off").Trim().ToLowerInvariant();
         if (componentValidation is not ("off" or "warn" or "strict"))
@@ -217,6 +218,64 @@ public static class ConfigValidator
             for (var i = 0; i < kinds.Count; i++)
             {
                 ValidateTaxonomyKindConfig($"taxonomy.kinds[{i}]", kinds[i]);
+            }
+        }
+    }
+
+    private static void ValidateSharedAssets(AppConfig config)
+    {
+        var shared = config.Site.SharedAssets;
+        if (shared.Enabled && config.Site.DefaultLanguageInSubdir)
+        {
+            throw new ConfigException(
+                "site.sharedAssets.enabled requires a root default language; site.defaultLanguageInSubdir must be false when shared assets are enabled.",
+                DiagnosticCode.ConfigInvalidValue);
+        }
+
+        if (shared.Paths is null)
+        {
+            return;
+        }
+
+        if (shared.Paths.Count == 0)
+        {
+            throw new ConfigException(
+                "site.sharedAssets.paths must not be an empty list.",
+                DiagnosticCode.ConfigInvalidValue);
+        }
+
+        var mediaPrefix = SharedAssetsPath.Normalize(config.Content.Media.UrlBase);
+        for (var i = 0; i < shared.Paths.Count; i++)
+        {
+            var raw = shared.Paths[i] ?? string.Empty;
+            var field = $"site.sharedAssets.paths[{i}]";
+            if (SharedAssetsPath.IsAbsolute(raw))
+            {
+                throw new ConfigException(
+                    $"{field} must be a relative output path prefix.",
+                    DiagnosticCode.ConfigInvalidValue);
+            }
+
+            var normalized = SharedAssetsPath.Normalize(raw);
+            if (SharedAssetsPath.ContainsParentSegment(normalized))
+            {
+                throw new ConfigException(
+                    $"{field} must not contain '..' path traversal segments.",
+                    DiagnosticCode.ConfigPathTraversal);
+            }
+
+            if (SharedAssetsPath.IsRoot(normalized))
+            {
+                throw new ConfigException(
+                    $"{field} must not normalize to the output root.",
+                    DiagnosticCode.ConfigInvalidValue);
+            }
+
+            if (SharedAssetsPath.IsInside(normalized, mediaPrefix))
+            {
+                throw new ConfigException(
+                    $"{field} '{raw}' is inside content.media.urlBase; media sharing is not supported.",
+                    DiagnosticCode.ConfigInvalidValue);
             }
         }
     }

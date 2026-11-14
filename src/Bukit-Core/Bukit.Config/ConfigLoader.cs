@@ -93,7 +93,8 @@ public static class ConfigLoader
             Pagination = SiteDefaultsApplier.ReadPaginationConfig(siteNode),
             Search = SiteDefaultsApplier.ReadSearchConfig(siteNode),
             Related = SiteDefaultsApplier.ReadRelatedConfig(siteNode),
-            Menus = SiteDefaultsApplier.ReadMenus(siteNode)
+            Menus = SiteDefaultsApplier.ReadMenus(siteNode),
+            SharedAssets = SiteDefaultsApplier.ReadSharedAssetsConfig(siteNode)
         };
 
         var sources = ConfigCollectionReader.ReadSources(contentNode);

@@ -85,6 +85,99 @@ public sealed class ConfigPhase2ValidatorTests : IDisposable
         Assert.Equal("info", config.Logging.Level);
         Assert.Equal("assets/uploads", config.Content.Media.DownloadDir);
         Assert.True(config.Content.Media.BlockPrivateNetworks);
+        Assert.False(config.Site.SharedAssets.Enabled);
+        Assert.Null(config.Site.SharedAssets.Paths);
+    }
+
+    [Fact]
+    public void Load_SharedAssetsPaths_ShouldRead()
+    {
+        var config = ConfigLoader.Load(WriteConfig("""
+              sharedAssets:
+                enabled: true
+                paths: [assets/, fonts/]
+            """));
+        ConfigValidator.Validate(config);
+
+        Assert.True(config.Site.SharedAssets.Enabled);
+        Assert.Equal(["assets/", "fonts/"], config.Site.SharedAssets.Paths);
+    }
+
+    [Fact]
+    public void Validate_EmptySharedAssetsPaths_ShouldFail()
+    {
+        var ex = ValidateFails(WriteConfig("""
+              sharedAssets:
+                enabled: true
+                paths: []
+            """));
+
+        Assert.Contains("site.sharedAssets.paths must not be an empty list", ex.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Load_UnknownSharedAssetsField_ShouldFail()
+    {
+        var path = WriteConfig("""
+              sharedAssets:
+                enabled: true
+                unknown: true
+            """);
+
+        Assert.Throws<ConfigException>(() => ConfigLoader.Load(path));
+    }
+
+    [Theory]
+    [InlineData("/assets/")]
+    [InlineData("../assets/")]
+    [InlineData("/")]
+    public void Validate_InvalidSharedAssetsPath_ShouldFail(string path)
+    {
+        var ex = ValidateFails(WriteConfig($"""
+              sharedAssets:
+                enabled: true
+                paths: [{path}]
+            """));
+
+        Assert.Contains("site.sharedAssets.paths[0]", ex.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Validate_SharedAssetsInsideMediaPrefix_ShouldFail()
+    {
+        var ex = ValidateFails(WriteConfig("""
+              sharedAssets:
+                enabled: true
+                paths: [assets/uploads/]
+            """));
+
+        Assert.Contains("media sharing is not supported", ex.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Validate_SharedAssetsContainingMediaPrefix_ShouldPass()
+    {
+        var config = ConfigLoader.Load(WriteConfig("""
+              sharedAssets:
+                enabled: true
+                paths: [assets/]
+            """));
+        ConfigValidator.Validate(config);
+
+        Assert.True(config.Site.SharedAssets.Enabled);
+    }
+
+    [Fact]
+    public void Validate_SharedAssetsWithPrefixedDefaultLanguage_ShouldFail()
+    {
+        var ex = ValidateFails(WriteConfig("""
+              sharedAssets:
+                enabled: true
+              defaultLanguageInSubdir: true
+            """));
+
+        Assert.Contains("site.sharedAssets.enabled", ex.Message, StringComparison.Ordinal);
+        Assert.Contains("site.defaultLanguageInSubdir", ex.Message, StringComparison.Ordinal);
     }
 
     [Fact]

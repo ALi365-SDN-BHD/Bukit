@@ -1852,6 +1852,28 @@
     },
     {
       "assembly": "Bukit.Config",
+      "name": "Bukit.Config.SharedAssetsConfig",
+      "owner": "Configuration",
+      "classification": "serialized-contract",
+      "compatibility": "1.x-shape-stable",
+      "migrationHorizon": "retain-1.x",
+      "signature": "public sealed class Bukit.Config.SharedAssetsConfig : System.IEquatable\u003CBukit.Config.SharedAssetsConfig~\u003E~",
+      "publicMembers": [
+        "public .ctor()",
+        "public Bukit.Config.SharedAssetsConfig! \u003CClone\u003E$()",
+        "public System.Boolean Enabled { get; init; }",
+        "public System.Collections.Generic.IReadOnlyList\u003CSystem.String!\u003E? Paths { get; init; }",
+        "public static System.Boolean op_Equality(Bukit.Config.SharedAssetsConfig? left, Bukit.Config.SharedAssetsConfig? right)",
+        "public static System.Boolean op_Inequality(Bukit.Config.SharedAssetsConfig? left, Bukit.Config.SharedAssetsConfig? right)",
+        "public virtual System.Boolean Equals(System.Object? obj)",
+        "public virtual System.Int32 GetHashCode()",
+        "public virtual System.String! ToString()",
+        "public virtual final System.Boolean Equals(Bukit.Config.SharedAssetsConfig? other)"
+      ],
+      "protectedMembers": []
+    },
+    {
+      "assembly": "Bukit.Config",
       "name": "Bukit.Config.SiteConfig",
       "owner": "Configuration",
       "classification": "serialized-contract",
@@ -1866,6 +1888,7 @@
         "public Bukit.Config.RelatedConfig! Related { get; init; }",
         "public Bukit.Config.SearchDetailConfig! Search { get; init; }",
         "public Bukit.Config.SeoConfig! Seo { get; init; }",
+        "public Bukit.Config.SharedAssetsConfig! SharedAssets { get; init; }",
         "public Bukit.Config.SiteConfig! \u003CClone\u003E$()",
         "public Bukit.Config.SitemapDetailConfig! SitemapDetail { get; init; }",
         "public System.Boolean AutoSummary { get; init; }",

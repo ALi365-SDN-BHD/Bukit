@@ -13,7 +13,7 @@ internal static class ConfigStrictFieldValidator
         "defaultLanguageInSubdir", "defaultLanguageRedirect", "defaultLanguageLegacyRedirects", "sitemapMode",
         "searchIncludeDerived", "pluginFailMode", "deriveConflictPolicy",
         "timezone", "permalinks", "collections", "plugins", "feed",
-        "sitemapDetail", "pagination", "search", "related", "menus");
+        "sitemapDetail", "pagination", "search", "related", "menus", "sharedAssets");
     private static readonly HashSet<string> ContentKeys = Set("sources", "media", "modelSchema", "routeMetadata", "ordering");
     private static readonly HashSet<string> BuildKeys = Set(
         "output", "clean", "draft", "listPageContentMode", "schemaFailMode", "fingerprintMode",
@@ -51,6 +51,13 @@ internal static class ConfigStrictFieldValidator
         }
 
         RequireOnly(site, SiteKeys, "site");
+        if (Map(site, "sharedAssets") is { } sharedAssets)
+        {
+            RequireOnly(sharedAssets, Set("enabled", "paths"), "site.sharedAssets");
+            RequireBooleanIfPresent(sharedAssets, "enabled", "site.sharedAssets.enabled");
+            _ = Seq(sharedAssets, "paths", "site.sharedAssets.paths");
+        }
+
         if (Map(site, "collections") is { } collections)
         {
             foreach (var (name, collection) in MappingChildren(collections, "site.collections"))

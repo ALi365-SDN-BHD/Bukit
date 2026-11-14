@@ -200,6 +200,42 @@ internal static partial class SiteDefaultsApplier
         return providers;
     }
 
+    internal static SharedAssetsConfig ReadSharedAssetsConfig(YamlMappingNode siteNode)
+    {
+        var sharedNode = ConfigYamlHelpers.GetOptionalMapping(siteNode, "sharedAssets");
+        if (sharedNode is null)
+        {
+            return new SharedAssetsConfig();
+        }
+
+        var paths = new List<string>();
+        var pathsNode = ConfigYamlHelpers.GetOptionalSequence(sharedNode, "paths", "site.sharedAssets");
+        if (pathsNode is not null)
+        {
+            for (var i = 0; i < pathsNode.Children.Count; i++)
+            {
+                if (pathsNode.Children[i] is not YamlScalarNode scalar)
+                {
+                    throw ConfigYamlHelpers.NodeKindMismatch(
+                        $"site.sharedAssets.paths[{i}]",
+                        "scalar",
+                        pathsNode.Children[i]);
+                }
+
+                if (!string.IsNullOrWhiteSpace(scalar.Value))
+                {
+                    paths.Add(scalar.Value.Trim());
+                }
+            }
+        }
+
+        return new SharedAssetsConfig
+        {
+            Enabled = ConfigYamlHelpers.GetOptionalBool(sharedNode, "enabled") ?? false,
+            Paths = pathsNode is null ? null : paths
+        };
+    }
+
     internal static FeedConfig ReadFeedConfig(YamlMappingNode siteNode)
     {
         var feedNode = ConfigYamlHelpers.GetOptionalMapping(siteNode, "feed");
