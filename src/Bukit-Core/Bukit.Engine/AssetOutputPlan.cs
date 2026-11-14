@@ -160,7 +160,7 @@ internal sealed class AssetOutputPlan
                 }
             }
 
-            items = kept.ToArray();
+            items = [.. kept];
         }
 
         foreach (var item in items) FileWriter.GetSafeFullPath(context.OutputDir, item.Destination);

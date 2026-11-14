@@ -184,7 +184,7 @@ internal sealed class ImageProcessingPlugin : IBukitPlugin, IAfterBuildAsyncPlug
             var hasWidth = TryGetImageWidth(imageFile, context.Logger, out var width);
             IReadOnlyList<int> applicableSizes = hasWidth
                 ? ImageVariantPlan.GeneratedWidths(sizes, width)
-                : Array.Empty<int>();
+                : [];
             CleanupStaleVariants(
                 context.OutputDir,
                 imageFile,

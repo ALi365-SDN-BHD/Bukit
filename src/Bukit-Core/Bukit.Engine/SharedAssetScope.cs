@@ -104,7 +104,7 @@ internal sealed class SharedAssetScope
         return Contains(path);
     }
 
-    private static IReadOnlyList<string> ReadIncludes(
+    private static List<string> ReadIncludes(
         AppConfig config,
         ILogger? logger,
         StringComparer comparer)
@@ -138,7 +138,7 @@ internal sealed class SharedAssetScope
         return includes;
     }
 
-    private static IReadOnlyList<string> ReadExcludes(AppConfig config, StringComparer comparer)
+    private static List<string> ReadExcludes(AppConfig config, StringComparer comparer)
     {
         var excludes = new List<string>();
         var media = SharedAssetsPath.Normalize(
