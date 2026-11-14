@@ -59,7 +59,8 @@ internal static class VariantDataSitePlanner
         IReadOnlyDictionary<string, object>? sourceData,
         IReadOnlyDictionary<string, object>? pluginData = null,
         IReadOnlyDictionary<string, object>? dataIndex = null,
-        DateTimeOffset? buildStartedAt = null)
+        DateTimeOffset? buildStartedAt = null,
+        SharedAssetScope? sharedAssets = null)
     {
         var reservedSource = config.Content.RouteMetadata?.Source;
         var data = ExcludeReservedSource(MergeSiteData(sourceData, pluginData), reservedSource);
@@ -72,6 +73,7 @@ internal static class VariantDataSitePlanner
             Url = config.Site.Url,
             Description = config.Site.Description,
             BaseUrl = baseUrl,
+            AssetBaseUrl = sharedAssets?.RootBaseUrl ?? baseUrl,
             Language = config.Site.Language,
             BuildYear = TimeZoneInfo.ConvertTime(buildInstant, buildTimezone).Year,
             Params = config.Theme.Params,

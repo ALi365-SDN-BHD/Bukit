@@ -65,7 +65,11 @@ internal static class VariantRenderAssetPlanner
             ProjectionOutputs: PublicOutputLifecycle.ProjectionPlan(
                 context.Config,
                 renderDocuments.Select(x => x.Route),
-                language: context.Config.Site.Language));
+                language: context.Config.Site.Language),
+            OmittedSharedAssets: context.SharedAssets is { } scope &&
+                !I18nOutputLayout.IsRootLanguageVariant(context.Config)
+                    ? scope
+                    : null);
 
         return new VariantRenderAssetPlan(
             renderDocuments,

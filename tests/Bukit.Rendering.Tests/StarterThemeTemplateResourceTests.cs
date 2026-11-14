@@ -176,6 +176,36 @@ public sealed class StarterThemeTemplateResourceTests : IDisposable
     }
 
     [Theory]
+    [InlineData("", "", "/assets/style.css", "/rss.xml")]
+    [InlineData("/", "/", "/assets/style.css", "/rss.xml")]
+    [InlineData("/repo", "/repo", "/repo/assets/style.css", "/repo/rss.xml")]
+    [InlineData("/repo/zh-CN", "/repo", "/repo/assets/style.css", "/repo/zh-CN/rss.xml")]
+    public void StarterBaseLayout_UsesAssetBaseUrlAndKeepsLanguageUrl(
+        string baseUrl,
+        string assetBaseUrl,
+        string expectedStylesheet,
+        string expectedFeed)
+    {
+        var renderer = new ScribanTemplateRenderer(_layoutsDir);
+        var html = renderer.RenderPage("layouts/base.html", new PageModel
+        {
+            Site = new SiteModel
+            {
+                Name = "starter-test",
+                Title = "Starter Test",
+                BaseUrl = baseUrl,
+                AssetBaseUrl = assetBaseUrl,
+                Language = "zh-CN"
+            },
+            Page = new PageInfo { Title = "Page", Url = "/page/", Content = "" }
+        });
+
+        Assert.Contains($"href=\"{expectedStylesheet}\"", html, StringComparison.Ordinal);
+        Assert.Contains($"href=\"{expectedFeed}\"", html, StringComparison.Ordinal);
+        Assert.DoesNotContain("//assets/style.css", html, StringComparison.Ordinal);
+    }
+
+    [Theory]
     [InlineData("zh-CN", "const siteLanguage = \"zh-CN\".toLowerCase();")]
     [InlineData("x\"</script>", "const siteLanguage = \"x\\\"\\u003C/script>\".toLowerCase();")]
     public void StarterSearchTemplate_FiltersRecordsBySiteLanguage(string language, string expectedDeclaration)

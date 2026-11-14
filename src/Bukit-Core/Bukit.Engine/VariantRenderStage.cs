@@ -50,7 +50,8 @@ internal static class VariantRenderStage
                 context.Overrides.ExecutionMode,
                 seoAlternates: seoStage.SeoAlternates,
                 imageSourceFingerprint: imageSourceFingerprint,
-                pagesFingerprint: () => ComputePagesFingerprint(renderAssetPlan.RenderDocuments, routeMetadata))
+                pagesFingerprint: () => ComputePagesFingerprint(renderAssetPlan.RenderDocuments, routeMetadata),
+                sharedAssetPrefixes: context.SharedAssets?.CanonicalPrefixes)
             : null;
         var renderDependencyHash = dependencySnapshot?.BaseHash ?? string.Empty;
         renderDependencyHashStopwatch.Stop();

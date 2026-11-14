@@ -8,6 +8,7 @@ public sealed record SiteModel
     public string? Url { get; init; }
     public string? Description { get; init; }
     public required string BaseUrl { get; init; }
+    public string? AssetBaseUrl { get; init; }
     public required string Language { get; init; }
     public int BuildYear { get; init; }
     public IReadOnlyDictionary<string, object>? Params { get; init; }

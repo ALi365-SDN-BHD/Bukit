@@ -13,6 +13,11 @@ internal sealed class SiteIdentityAndModesContributor : IRenderDependencyContrib
         writer.AppendLabeledCanonicalValue("site.title", site.Title);
         writer.AppendLabeledCanonicalValue("site.description", site.Description);
         writer.AppendLabeledCanonicalValue("site.baseUrl", site.BaseUrl);
+        if (context.SharedAssetPrefixes is { Count: > 0 } sharedAssetPrefixes)
+        {
+            writer.AppendLabeledCanonicalValue("site.sharedAssets", sharedAssetPrefixes);
+        }
+
         writer.AppendLabeledCanonicalValue("site.language", site.Language);
         writer.AppendLabeledCanonicalValue("site.url", site.Url);
         writer.AppendLabeledCanonicalValue("site.buildYear", context.SiteModel.BuildYear);

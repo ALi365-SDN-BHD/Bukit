@@ -8,4 +8,5 @@ internal sealed record RenderDependencyContext(
     SiteModel SiteModel,
     BuildExecutionMode ExecutionMode,
     string AnalyticsRendererContractVersion,
-    string? ImageSourceFingerprint = null);
+    string? ImageSourceFingerprint = null,
+    IReadOnlyList<string>? SharedAssetPrefixes = null);

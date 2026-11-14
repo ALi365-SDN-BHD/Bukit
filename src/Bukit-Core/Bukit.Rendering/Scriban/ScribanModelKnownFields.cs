@@ -31,6 +31,7 @@ internal static class ScribanModelKnownFields
         public const string Description = "description";
         public const string BaseUrl = "base_url";
         public const string BasePath = "base_path";
+        public const string AssetBaseUrl = "asset_base_url";
         public const string Language = "language";
         public const string BuildYear = "build_year";
         public const string Params = "params";
@@ -95,7 +96,7 @@ internal static class ScribanModelKnownFields
     private static readonly HashSet<string> _siteFields = new(StringComparer.OrdinalIgnoreCase)
     {
         SiteFields.Name, SiteFields.Title, SiteFields.Url,
-        SiteFields.Description, SiteFields.BaseUrl, SiteFields.BasePath,
+        SiteFields.Description, SiteFields.BaseUrl, SiteFields.BasePath, SiteFields.AssetBaseUrl,
         SiteFields.Language, SiteFields.BuildYear,
         SiteFields.Params, SiteFields.Modules, SiteFields.Data, SiteFields.DataIndex
     };

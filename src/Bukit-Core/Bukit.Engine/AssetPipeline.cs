@@ -29,7 +29,8 @@ internal sealed record AssetPipelineContext(
     ConcurrentDictionary<string, BuildManifestEntry>? ManifestEntries = null,
     string? ScssOutputDir = null,
     IReadOnlyList<AssetOutputItem>? ProjectionOutputs = null,
-    IReadOnlyList<AssetOutputItem>? MediaOutputs = null);
+    IReadOnlyList<AssetOutputItem>? MediaOutputs = null,
+    SharedAssetScope? OmittedSharedAssets = null);
 
 internal sealed record AssetPipelineResult(
     BuildStageMetrics StageMetrics);
@@ -106,7 +107,7 @@ internal sealed class AssetPipeline
                 cancellationToken));
         }
 
-        if (tokens is not null)
+        if (tokens is not null && outputPlan.ForCategory(AssetOutputCategory.Tokens).Count > 0)
         {
             parallelTasks.Add(GenerateTokensAsync(ctx, tokens, cancellationToken));
         }

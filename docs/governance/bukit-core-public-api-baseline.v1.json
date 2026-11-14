@@ -7318,6 +7318,7 @@
         "public System.String! Language { get; init; }",
         "public System.String! Name { get; init; }",
         "public System.String! Title { get; init; }",
+        "public System.String? AssetBaseUrl { get; init; }",
         "public System.String? Description { get; init; }",
         "public System.String? Url { get; init; }",
         "public static System.Boolean op_Equality(Bukit.Rendering.SiteModel? left, Bukit.Rendering.SiteModel? right)",

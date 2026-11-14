@@ -895,6 +895,85 @@ public sealed class AssetPipelineTests
         public void Error(string message) { }
     }
 
+    [Fact]
+    public async Task ExecutePreparedAsync_OmittedSharedAssets_DoesNotWriteTokens()
+    {
+        var root = CreateRoot();
+        var themeRoot = Path.Combine(root, "theme");
+        Directory.CreateDirectory(themeRoot);
+        File.WriteAllText(Path.Combine(themeRoot, "tokens.yaml"), "colors:\n  primary: '#000'\n");
+        var config = new AppConfig
+        {
+            Site = new SiteConfig
+            {
+                Name = "shared",
+                Title = "Shared",
+                Languages = ["en", "zh-CN"],
+                SharedAssets = new SharedAssetsConfig { Enabled = true }
+            },
+            Content = new ContentConfig()
+        };
+        var scope = SharedAssetScope.TryCreate(config, ["en", "zh-CN"], Path.Combine(root, "dist"), null);
+        Assert.NotNull(scope);
+        var context = CreateContext(root, new BuildManifest(), themeRoot: themeRoot, omittedSharedAssets: scope);
+        var preparation = await AssetPipeline.PrepareAsync(context);
+
+        Assert.Contains(preparation.OutputPlan.OmittedSharedItems,
+            item => item.Destination == "assets/css/theme-tokens.css");
+        Assert.DoesNotContain(preparation.OutputPlan.Items,
+            item => item.Destination == "assets/css/theme-tokens.css");
+
+        await AssetPipeline.ExecutePreparedAsync(context, preparation);
+        Assert.False(File.Exists(Path.Combine(root, "dist", "assets", "css", "theme-tokens.css")));
+    }
+
+    [Fact]
+    public async Task PrepareAsync_OmittedSharedAssets_FilterAssetsAndKeepOtherStatic()
+    {
+        var root = CreateRoot();
+        var assetsDir = Path.Combine(root, "assets");
+        var staticDir = Path.Combine(root, "static");
+        var mediaDir = Path.Combine(root, "media");
+        Directory.CreateDirectory(Path.Combine(assetsDir, "css"));
+        Directory.CreateDirectory(Path.Combine(staticDir, "assets"));
+        Directory.CreateDirectory(Path.Combine(staticDir, "fonts"));
+        Directory.CreateDirectory(mediaDir);
+        File.WriteAllText(Path.Combine(assetsDir, "css", "main.css"), "asset");
+        File.WriteAllText(Path.Combine(staticDir, "assets", "logo.svg"), "logo");
+        File.WriteAllText(Path.Combine(staticDir, "fonts", "a.woff2"), "font");
+        File.WriteAllText(Path.Combine(mediaDir, "photo.jpg"), "media");
+
+        var config = new AppConfig
+        {
+            Site = new SiteConfig
+            {
+                Name = "shared",
+                Title = "Shared",
+                Languages = ["en", "zh-CN"],
+                SharedAssets = new SharedAssetsConfig { Enabled = true }
+            },
+            Content = new ContentConfig()
+        };
+        var scope = SharedAssetScope.TryCreate(config, ["en", "zh-CN"], Path.Combine(root, "dist"), null);
+        Assert.NotNull(scope);
+
+        var preparation = await AssetPipeline.PrepareAsync(CreateContext(
+            root,
+            new BuildManifest(),
+            staticDir: staticDir,
+            assetsDir: assetsDir,
+            mediaDir: mediaDir,
+            omittedSharedAssets: scope));
+
+        Assert.DoesNotContain(preparation.OutputPlan.Items, item => item.Destination == "assets/css/main.css");
+        Assert.DoesNotContain(preparation.OutputPlan.Items, item => item.Destination == "assets/logo.svg");
+        Assert.Contains(preparation.OutputPlan.Items, item => item.Destination == "fonts/a.woff2");
+        Assert.Contains(preparation.OutputPlan.Items, item => item.Destination == "assets/uploads/photo.jpg");
+        Assert.Contains(preparation.OutputPlan.OmittedSharedItems, item => item.Destination == "assets/css/main.css");
+        Assert.Contains(preparation.OutputPlan.OmittedSharedItems, item => item.Destination == "assets/logo.svg");
+        Assert.DoesNotContain(preparation.OutputPlan.OmittedSharedItems, item => item.Destination == "fonts/a.woff2");
+    }
+
     private static string CreateRoot()
     {
         var root = Path.Combine(Path.GetTempPath(), "bukit-asset-collision-tests", Guid.NewGuid().ToString("N"));
@@ -930,7 +1009,8 @@ public sealed class AssetPipelineTests
         bool followSymlinks = false,
         bool publishDotFiles = false,
         bool incrementalEnabled = false,
-        IReadOnlyList<RenderEntry>? renderedEntries = null)
+        IReadOnlyList<RenderEntry>? renderedEntries = null,
+        SharedAssetScope? omittedSharedAssets = null)
         => new(
             StaticDir: staticDir,
             ParentStaticDir: parentStaticDir,
@@ -947,5 +1027,6 @@ public sealed class AssetPipelineTests
             Logger: new RecordingLogger(),
             PublishDotFiles: publishDotFiles,
             FollowSymlinks: followSymlinks,
-            RenderEntries: renderedEntries);
+            RenderEntries: renderedEntries,
+            OmittedSharedAssets: omittedSharedAssets);
 }

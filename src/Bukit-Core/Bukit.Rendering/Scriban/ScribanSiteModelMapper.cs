@@ -14,6 +14,7 @@ internal static class ScribanSiteModelMapper
         obj.SetValue("description", model.Description, readOnly: true);
         obj.SetValue("base_url", model.BaseUrl, readOnly: true);
         obj.SetValue("base_path", model.BaseUrl, readOnly: true);
+        obj.SetValue("asset_base_url", model.AssetBaseUrl ?? model.BaseUrl, readOnly: true);
         obj.SetValue("language", model.Language, readOnly: true);
         obj.SetValue("build_year", model.BuildYear, readOnly: true);
         if (model.Params is not null)
