@@ -6,10 +6,8 @@ using Bukit.Shared;
 namespace Bukit.Engine;
 
 /// <remarks>
-/// <see cref="SiteEngine"/> and <see cref="ContentPipeline"/> derive <see cref="SiteConfig.Language"/>
-/// from <c>site.languages</c> before calling this factory. Callers that use it directly with a
-/// config built in code should pass a config from <see cref="ConfigLoader"/>, or set
-/// <see cref="SiteConfig.Language"/> to the default language themselves.
+/// A config built in code may set only <c>site.languages</c>: the factory derives
+/// <see cref="SiteConfig.Language"/> from it, as <see cref="ConfigLoader"/> does.
 /// </remarks>
 public sealed class DefaultContentProviderFactory : IContentProviderFactory
 {
