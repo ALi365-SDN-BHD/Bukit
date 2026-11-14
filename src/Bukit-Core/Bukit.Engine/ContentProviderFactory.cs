@@ -13,6 +13,9 @@ internal static class ContentProviderFactory
 {
     internal static IContentProvider Create(AppConfig config, string rootDir, bool isCi, ILogger logger)
     {
+        // DefaultContentProviderFactory is public: a config built in code may not have the site
+        // language derived from site.languages yet. A loaded or engine-normalized config is unchanged.
+        var site = I18nLanguagePolicy.NormalizeSite(config.Site);
         if (config.Content.Sources is { Count: > 0 } sources)
         {
             var typeCounts = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
@@ -55,8 +58,8 @@ internal static class ContentProviderFactory
                 {
                     var md = s.Markdown ?? new MarkdownConfig();
                     var contentDir = BuildPathUtils.MakeAbsolute(rootDir, md.Dir);
-                    var languages = I18nOutputMerger.GetLanguages(config.Site);
-                    var defaultLanguage = I18nOutputMerger.GetDefaultLanguage(config.Site, languages);
+                    var languages = I18nOutputMerger.GetLanguages(site);
+                    var defaultLanguage = I18nOutputMerger.GetDefaultLanguage(site, languages);
                     providers.Add((key, mode, s.Collection, s.AddToCollections, new MarkdownFolderProvider(new MarkdownFolderProviderOptions(contentDir, md.DefaultType, md.MaxItems, md.IncludePaths, md.IncludeGlobs, config.Site.AutoSummary, config.Site.AutoSummaryMaxLength) { Languages = languages.Count > 0 ? languages : null, DefaultLanguage = defaultLanguage }, logger)));
                     continue;
                 }
