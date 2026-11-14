@@ -1,5 +1,6 @@
 using System.Net.Sockets;
 using System.Text;
+using Bukit.Cli.Commands;
 using Bukit.Cli.Deploy;
 using Bukit.Shared.Processes;
 using Xunit;
@@ -323,6 +324,106 @@ public sealed class GitCredentialBrokerTests
 
         Assert.True(started.Elapsed < TimeSpan.FromSeconds(5));
         Assert.False(Directory.Exists(broker.Directory));
+    }
+
+    // ---- helper command against an in-process broker ----
+
+    private static (GitCredentialPeerPolicy Policy, FakeQuery Query) CreateSelfAsHelperChain()
+    {
+        // The test process plays the helper: test <- remote-http(20) <- git(10).
+        var self = Environment.ProcessId;
+        var query = new FakeQuery()
+            .Add(10, 1, 100, Git)
+            .Add(20, 10, 110, RemoteHttp)
+            .Add(self, 20, 120, Bukit);
+        return (CreatePolicy(query), query);
+    }
+
+    private static async Task<(int Exit, string Stdout, string Stderr)> RunHelperAsync(string[] args, string stdin)
+    {
+        var output = new MemoryStream();
+        var error = new StringWriter();
+        var exit = await GitCredentialCommand.RunAsync(args, new MemoryStream(Encoding.UTF8.GetBytes(stdin)), output, error);
+        return (exit, Encoding.UTF8.GetString(output.ToArray()), error.ToString());
+    }
+
+    [UnixFact]
+    public async Task Helper_PrintsCredentialAndIgnoresNewerProtocolKeys()
+    {
+        var (policy, _) = CreateSelfAsHelperChain();
+        Assert.NotNull(policy.Register(10));
+        await using var broker = GitCredentialBroker.Start("secret-token", policy);
+
+        var (exit, stdout, stderr) = await RunHelperAsync(
+            [broker.Endpoint, "get"],
+            "capability[]=authtype\nprotocol=https\nhost=github.com\nwwwauth[]=Basic realm=\"GitHub\"\npassword_expiry_utc=1\n\nignored=after-blank\n");
+
+        Assert.Equal(0, exit);
+        Assert.Equal("username=x-access-token\npassword=secret-token\n\n", stdout);
+        Assert.Empty(stderr);
+    }
+
+    [UnixFact]
+    public async Task Helper_RetriesWhileGitIsNotYetRegistered()
+    {
+        var (policy, _) = CreateSelfAsHelperChain();
+        await using var broker = GitCredentialBroker.Start("secret-token", policy);
+        var registration = Task.Run(async () =>
+        {
+            await Task.Delay(300);
+            return policy.Register(10);
+        });
+
+        var (_, stdout, _) = await RunHelperAsync([broker.Endpoint, "get"], "protocol=https\nhost=github.com\n\n");
+
+        Assert.NotNull(await registration);
+        Assert.Contains("password=secret-token", stdout, StringComparison.Ordinal);
+    }
+
+    [UnixFact]
+    public async Task Helper_PrintsNothingWhenRefused()
+    {
+        var (policy, _) = CreateSelfAsHelperChain();
+        Assert.NotNull(policy.Register(10));
+        await using var broker = GitCredentialBroker.Start("secret-token", policy);
+
+        var (exit, stdout, stderr) = await RunHelperAsync([broker.Endpoint, "get"], "protocol=https\nhost=evil.example\n\n");
+
+        Assert.Equal(0, exit);
+        Assert.Empty(stdout);
+        Assert.Contains("host", stderr, StringComparison.Ordinal);
+        Assert.Equal(GitCredentialDenial.Host, broker.TakeLastDenial());
+    }
+
+    [Theory]
+    [InlineData("store")]
+    [InlineData("erase")]
+    public async Task Helper_StoreAndEraseDoNothing(string action)
+    {
+        var (exit, stdout, _) = await RunHelperAsync(["/nonexistent/c.sock", action], "protocol=https\nhost=github.com\npassword=x\n\n");
+
+        Assert.Equal(0, exit);
+        Assert.Empty(stdout);
+    }
+
+    [Fact]
+    public async Task Helper_RejectsWrongArgumentsAndUnreachableBroker()
+    {
+        Assert.Equal(2, (await RunHelperAsync([], string.Empty)).Exit);
+        Assert.Equal(2, (await RunHelperAsync(["only-endpoint"], string.Empty)).Exit);
+
+        var (exit, stdout, stderr) = await RunHelperAsync([OperatingSystem.IsWindows() ? "bukit-cred-missing" : "/nonexistent/c.sock", "get"], "protocol=https\nhost=github.com\n\n");
+        Assert.Equal(0, exit);
+        Assert.Empty(stdout);
+        Assert.Contains("unavailable", stderr, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Broker_RejectsTokenWithLineBreak()
+    {
+        var (policy, _) = CreateStandardChain();
+
+        Assert.Throws<ArgumentException>(() => GitCredentialBroker.Start("tok\nen", policy));
     }
 
     private static ProcessIdentity Capture(GitCredentialPeerPolicy policy, int pid)

@@ -35,6 +35,7 @@ internal sealed class GitCredentialBroker : IAsyncDisposable
     private readonly Socket? _listener;
     private readonly ConcurrentDictionary<Task, byte> _connections = new();
     private Task _acceptLoop = Task.CompletedTask;
+    private string? _lastDenial;
     private int _active;
     private int _disposed;
 
@@ -58,6 +59,11 @@ internal sealed class GitCredentialBroker : IAsyncDisposable
     {
         ArgumentException.ThrowIfNullOrEmpty(token);
         ArgumentNullException.ThrowIfNull(policy);
+        // A line break would let the token inject extra git credential protocol lines.
+        if (token.AsSpan().IndexOfAny('\n', '\r', '\0') >= 0)
+        {
+            throw new ArgumentException("The deploy token must not contain line breaks or NUL characters.", nameof(token));
+        }
 
         GitCredentialBroker broker;
         if (OperatingSystem.IsWindows())
@@ -87,6 +93,9 @@ internal sealed class GitCredentialBroker : IAsyncDisposable
         broker._acceptLoop = Task.Run(broker.AcceptSocketsAsync);
         return broker;
     }
+
+    /// <summary>The most recent refusal since the last call, for the deploy error (plan Q5).</summary>
+    internal string? TakeLastDenial() => Interlocked.Exchange(ref _lastDenial, null);
 
     /// <summary>Trusts a started git process until the returned handle is disposed.</summary>
     internal IDisposable? RegisterGitProcess(int gitPid) => _policy.Register(gitPid);
@@ -315,19 +324,22 @@ internal sealed class GitCredentialBroker : IAsyncDisposable
             : !peerKnown ? GitCredentialDecision.Deny(GitCredentialDenial.Executable, $"{peerPid}")
             : _policy.Evaluate(peer, peerUid, request);
 
+        // A grant decided while stopping is withheld: the deploy no longer waits for it.
+        var denial = decision.Granted && _stop.IsCancellationRequested ? GitCredentialDenial.Unregistered : decision.Denial;
         GitCredentialResponse response;
-        if (decision.Granted && !_stop.IsCancellationRequested)
+        if (denial is null)
         {
             response = new GitCredentialResponse(GitCredentialProtocol.Version, GitCredentialProtocol.Username, _token);
         }
         else
         {
-            if (decision.Denial != GitCredentialDenial.Unregistered)
+            Volatile.Write(ref _lastDenial, denial);
+            if (denial != GitCredentialDenial.Unregistered)
             {
-                _logger?.Warn($"event=deploy.credential.denied reason={decision.Denial} pid={peerPid} chain={decision.Chain ?? "-"}");
+                _logger?.Warn($"event=deploy.credential.denied reason={denial} pid={peerPid} chain={decision.Chain ?? "-"}");
             }
 
-            response = new GitCredentialResponse(GitCredentialProtocol.Version, Deny: decision.Denial);
+            response = new GitCredentialResponse(GitCredentialProtocol.Version, Deny: denial);
         }
 
         await stream.WriteAsync(GitCredentialProtocol.Serialize(response), timeout.Token).ConfigureAwait(false);
