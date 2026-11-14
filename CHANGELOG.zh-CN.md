@@ -6,6 +6,7 @@ Bukit 所有重要变更都将记录在此文件中。
 
 ## [2.2.0]
 
+- **快照提交中断时保留最后一份可用快照**：录制构建在两次目录重命名之间被杀时，旧快照会留在目标旁边，离线打开会说明存在备份。下一次成功录制会生成新目标，之后再录制才清理旧备份。
 - **Notion 离线快照只校验格式版本**：快照仍记录 `bukitVersion` 供排查，但升级 Bukit 不再让快照失效；只有 `NotionSnapshotSession.FormatVersion` 变了才需要重新录制。录制构建会复用旧快照里渲染好的正文；渲染器版本（`NotionBlocksRenderer.ContractVersion`）不同的正文会重新渲染。
 - **Notion 和快照失败带稳定错误码 `BKT-0Bxx`**：Notion 接口的 401/403/404/429/其他 HTTP/网络/无效 JSON、映射字段不存在，以及每类离线快照失败都有稳定错误码。`build` 写进 cli-error JSON；`config check` 和 `doctor` 打印 `[BKT-0Bxx]`；多语言子进程把码和原因传给父进程。顶层配置、内容和渲染错误的 `code` 改用文档约定的 `BKT-xxxx` 写法，不再用枚举名。单语言 `build` 的快照错误退出码是 2；多语言子进程失败保持 1。公开枚举 `DiagnosticCode` 新增 16 个 Notion 成员（0B01–0B08、0B10–0B17），public API 基线已更新。
 
