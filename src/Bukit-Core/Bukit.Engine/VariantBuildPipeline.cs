@@ -196,6 +196,8 @@ internal sealed partial class VariantBuildPipeline
             I18nReservedPrefixGuard.ValidatePluginOutputs(
                 context.Config,
                 VariantReportStage.GetPluginOutputs(routePipelineResult.PluginContext));
+            // Plugin outputs join after the shared-asset plan filtered assets, so each
+            // language keeps its own plugin files instead of sharing them.
             var plannedOutputs = assetPipelinePreparation.OutputPlan.Items.Concat(
                 VariantReportStage.GetPluginOutputs(routePipelineResult.PluginContext).Select(output =>
                     new AssetOutputItem(output.Plugin, output.Path, AssetOutputCategory.Plugin, Operation: AssetOutputOperation.Generate))).ToArray();
