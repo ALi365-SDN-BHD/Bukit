@@ -948,9 +948,28 @@ public sealed class WorktreeBuildCoordinatorTests : IDisposable
         var path = Path.Combine(root, "site.yaml");
         File.WriteAllText(path, File.ReadAllText(path)
             .Replace("  defaultLanguage: en\n",
-                "  defaultLanguage: en\n  sharedAssets:\n    enabled: true\n", StringComparison.Ordinal));
+                "  defaultLanguage: en\n  sharedAssets:\n    enabled: true\n", StringComparison.Ordinal)
+            .Replace("  sitemapMode: merged\n",
+                "  sitemapMode: merged\n  seo:\n    defaultImage: /assets/og.png\n", StringComparison.Ordinal)
+            .Replace("theme:\n  layouts: layouts",
+                "theme:\n  layouts: layouts\n  images:\n    enabled: true\n    formats: [webp]\n    sizes: [480]",
+                StringComparison.Ordinal));
+        File.WriteAllText(Path.Combine(root, "layouts", "layouts", "base.html"), """
+            {{ asset_base_url = site.asset_base_url }}
+            {{ if asset_base_url == "/" }}{{ asset_base_url = "" }}{{ end }}
+            <!doctype html><html><head><title>{{ page.title }}</title>
+            <link rel="stylesheet" href="{{ asset_base_url }}/assets/style.css" /></head>
+            <body><img src="{{ asset_base_url }}/assets/hero.png" alt="" />{{ content }}</body></html>
+            """);
+        foreach (var page in new[] { "index.html", "page.html" })
+        {
+            File.WriteAllText(Path.Combine(root, "layouts", "pages", page),
+                "{% layout \"layouts/base.html\" %}\n{{ content }}");
+        }
         Directory.CreateDirectory(Path.Combine(root, "assets"));
         File.WriteAllText(Path.Combine(root, "assets", "style.css"), "body {}");
+        WriteWidePng(Path.Combine(root, "assets", "hero.png"));
+        WriteWidePng(Path.Combine(root, "assets", "og.png"));
         Directory.CreateDirectory(Path.Combine(root, "static", "assets"));
         Directory.CreateDirectory(Path.Combine(root, "static", "fonts"));
         File.WriteAllText(Path.Combine(root, "static", "assets", "logo.svg"), "<svg/>");
@@ -961,13 +980,106 @@ public sealed class WorktreeBuildCoordinatorTests : IDisposable
         var expected = SnapshotPublishedOutputs(Path.Combine(root, "dist"));
         Assert.True(File.Exists(Path.Combine(root, "dist", "assets", "style.css")));
         Assert.False(File.Exists(Path.Combine(root, "dist", "zh-CN", "assets", "style.css")));
+        Assert.True(File.Exists(Path.Combine(root, "dist", "assets", "hero-480w.webp")));
+        Assert.True(File.Exists(Path.Combine(root, "dist", "assets", "hero-480w.webp.bukit-freshness.json")));
+        Assert.False(File.Exists(Path.Combine(root, "dist", "zh-CN", "assets", "hero-480w.webp")));
+        foreach (var html in new[]
+        {
+            File.ReadAllText(Path.Combine(root, "dist", "index.html")),
+            File.ReadAllText(Path.Combine(root, "dist", "zh-CN", "index.html"))
+        })
+        {
+            Assert.Contains("<picture>", html, StringComparison.Ordinal);
+            Assert.Contains("/assets/hero-480w.webp", html, StringComparison.Ordinal);
+            Assert.Contains("https://example.test/assets/og.png", html, StringComparison.Ordinal);
+            Assert.DoesNotContain("https://example.test/zh-CN/assets/og.png", html, StringComparison.Ordinal);
+        }
         TestCleanup.DeleteDirectory(Path.Combine(root, "dist"), recursive: true);
         TestCleanup.DeleteDirectory(Path.Combine(root, ".cache"), recursive: true);
 
         var worktree = await RunProcessAsync("dotnet", [typeof(BuildCommand).Assembly.Location, "build", "--config", site], root);
         Assert.True(worktree.ExitCode == 0, worktree.Output);
-        Assert.Equal(expected, SnapshotPublishedOutputs(Path.Combine(root, "dist")));
+        var filteredExpected = expected
+            .Where(pair => !pair.Key.EndsWith(".bukit-freshness.json", StringComparison.Ordinal))
+            .ToDictionary(pair => pair.Key, pair => pair.Value, StringComparer.Ordinal);
+        var actual = SnapshotPublishedOutputs(Path.Combine(root, "dist"))
+            .Where(pair => !pair.Key.EndsWith(".bukit-freshness.json", StringComparison.Ordinal))
+            .ToDictionary(pair => pair.Key, pair => pair.Value, StringComparer.Ordinal);
+        Assert.Equal(
+            filteredExpected.Keys.Order(StringComparer.Ordinal),
+            actual.Keys.Order(StringComparer.Ordinal));
+        foreach (var (file, bytes) in filteredExpected)
+        {
+            Assert.True(
+                bytes.SequenceEqual(actual[file]),
+                $"{file} differs: {Encoding.UTF8.GetString(bytes)} VS {Encoding.UTF8.GetString(actual[file])}");
+        }
         Assert.False(File.Exists(Path.Combine(root, "dist", "zh-CN", "assets", "style.css")));
+    }
+
+    [Fact]
+    public async Task WorktreeBuild_SharedAssets_BuildsDefaultWorkerBeforeListedLanguages()
+    {
+        var root = Path.Combine(_root, "shared-assets-order");
+        var site = CreateSite(root);
+        var path = Path.Combine(root, "site.yaml");
+        File.WriteAllText(path, File.ReadAllText(path)
+            .Replace("languages: [en, zh-CN]", "languages: [zh-CN, en]", StringComparison.Ordinal)
+            .Replace("  defaultLanguage: en\n",
+                "  defaultLanguage: en\n  sharedAssets:\n    enabled: true\n", StringComparison.Ordinal));
+        await InitializeRepositoryAsync(root);
+
+        var result = await RunProcessAsync("dotnet",
+            [typeof(BuildCommand).Assembly.Location, "build", "--config", site], root);
+
+        Assert.True(result.ExitCode == 0, result.Output);
+        var defaultDone = result.Output.IndexOf("event=build.variant.done language=en", StringComparison.Ordinal);
+        var otherStart = result.Output.IndexOf("event=build.variant.start language=zh-CN", StringComparison.Ordinal);
+        Assert.True(defaultDone >= 0, result.Output);
+        Assert.True(otherStart >= 0, result.Output);
+        Assert.True(defaultDone < otherStart, result.Output);
+    }
+
+    [Fact]
+    public async Task WorktreeBuild_SharedAssets_DefaultWorkerFailureKeepsPublishedOutput()
+    {
+        var root = Path.Combine(_root, "shared-assets-failure");
+        var site = CreateSite(root);
+        var path = Path.Combine(root, "site.yaml");
+        File.WriteAllText(path, File.ReadAllText(path)
+            .Replace("languages: [en, zh-CN]", "languages: [zh-CN, en]", StringComparison.Ordinal)
+            .Replace("  defaultLanguage: en\n",
+                "  defaultLanguage: en\n  sharedAssets:\n    enabled: true\n", StringComparison.Ordinal));
+        await InitializeRepositoryAsync(root);
+        Assert.Equal(0, (await RunProcessAsync("dotnet",
+            [typeof(BuildCommand).Assembly.Location, "build", "--config", site], root)).ExitCode);
+        var expected = SnapshotPublishedOutputs(Path.Combine(root, "dist"));
+
+        var reserved = Path.Combine(root, "content", "en", "reserved.md");
+        File.WriteAllText(reserved, """
+            ---
+            title: Reserved
+            collection: page
+            language: en
+            route:
+              url: /zh-CN/reserved/
+            ---
+            Reserved page.
+            """);
+        Assert.Equal(0, (await RunProcessAsync("git", ["add", "."], root)).ExitCode);
+        Assert.Equal(0, (await RunProcessAsync("git", ["commit", "-m", "reserved"], root)).ExitCode);
+
+        var failed = await RunProcessAsync("dotnet",
+            [typeof(BuildCommand).Assembly.Location, "build", "--config", site], root);
+
+        Assert.NotEqual(0, failed.ExitCode);
+        Assert.DoesNotContain("event=build.variant.start language=zh-CN", failed.Output, StringComparison.Ordinal);
+        var actual = SnapshotPublishedOutputs(Path.Combine(root, "dist"));
+        Assert.Equal(expected.Keys.Order(StringComparer.Ordinal), actual.Keys.Order(StringComparer.Ordinal));
+        foreach (var (file, bytes) in expected)
+        {
+            Assert.True(bytes.SequenceEqual(actual[file]), file);
+        }
     }
 
     [Fact]
@@ -1568,6 +1680,13 @@ public sealed class WorktreeBuildCoordinatorTests : IDisposable
         Assert.True(File.Exists(Path.Combine(root, "dist", "en", "index.html")));
         Assert.True(File.Exists(Path.Combine(root, "reports", "stats.json")));
         Assert.True(File.Exists(Path.Combine(root, "reports", "stats.html")));
+    }
+
+    private static void WriteWidePng(string path)
+    {
+        const string base64 =
+            "iVBORw0KGgoAAAANSUhEUgAAA+gAAAAICAIAAADlbUKsAAAAQ0lEQVR42u3WMREAMAgAsVIhCEMdUnHBMSQSfvrI6gcAANz2JQAAAOMOAAAYdwAAMO4AAIBxBwAAjDsAABh3AABg0wDiPQEoZuijkwAAAABJRU5ErkJggg==";
+        File.WriteAllBytes(path, Convert.FromBase64String(base64));
     }
 
     private static string SnapshotHashes(string directory)
