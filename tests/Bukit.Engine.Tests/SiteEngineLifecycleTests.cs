@@ -156,6 +156,9 @@ public sealed partial class SiteEngineIntegrationTests
             Assert.True(File.Exists(Path.Combine(root, "dist", "content/companies/acme/index.html.json")));
             Assert.DoesNotContain(OutputSnapshot.Public(Path.Combine(root, "dist"), "en", "zh").Entries.Keys,
                 path => path.StartsWith("en/", StringComparison.Ordinal));
+            // The former language directories' private reports go too, so no dist/en/ stays behind.
+            Assert.False(Directory.Exists(Path.Combine(root, "dist", "en", ".bukit")));
+            Assert.False(Directory.Exists(Path.Combine(root, "dist", "zh", ".bukit")));
         }
         finally { CleanupDir(root); }
     }

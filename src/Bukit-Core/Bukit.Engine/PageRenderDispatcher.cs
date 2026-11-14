@@ -211,6 +211,9 @@ internal static class PageRenderDispatcher
                         var html = string.IsNullOrEmpty(route.Template) || rawRedirect
                             ? content
                             : RenderReadTracking.Render(dependencySnapshot, () => renderer.RenderPage(route.Template, pageModel), out pageReads);
+                        // A redirect page is written as is, without a template or HTML transform, so it reads
+                        // no shared collection: only its content hash (the target) decides when it renders again.
+                        if (rawRedirect) pageReads = [];
                         stageMetrics.AddElapsedTicks("renderCall", Stopwatch.GetTimestamp() - renderCallStarted);
                         if (!rawRedirect && htmlTransformPipeline is not null)
                         {

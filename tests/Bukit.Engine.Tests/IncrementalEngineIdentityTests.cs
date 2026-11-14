@@ -123,16 +123,16 @@ public sealed class IncrementalEngineIdentityTests
         };
         var first = await BuildAsync(config, site.Root, "2.0.12+legacy");
 
-        // Every page of the first build stays cached except the legacy home redirect, which
-        // shares the redirect set's dependencies; a site hash change would render them all.
+        // Every page of the first build stays cached, including the legacy home redirect, which
+        // reads no shared collection; a site hash change would render them all.
         var enabled = config with { Site = config.Site with { DefaultLanguageLegacyRedirects = true } };
         var toggled = await BuildAsync(enabled, site.Root, "2.0.12+legacy");
-        Assert.Equal(first.Incremental.CacheMissCount - 1, toggled.Incremental.CacheHitCount);
+        Assert.Equal(first.Incremental.CacheMissCount, toggled.Incremental.CacheHitCount);
 
         var same = await BuildAsync(enabled, site.Root, "2.0.12+legacy");
         Assert.Equal(0, same.Incremental.CacheMissCount);
         var disabled = await BuildAsync(config, site.Root, "2.0.12+legacy");
-        Assert.Equal(1, disabled.Incremental.CacheMissCount);
+        Assert.Equal(0, disabled.Incremental.CacheMissCount);
     }
 
     private static int ListReasons(SiteBuilder site, string reason)

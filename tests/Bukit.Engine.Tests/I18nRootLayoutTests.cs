@@ -1625,8 +1625,9 @@ public sealed class I18nRootLayoutTests
         Assert.True(IsRedirectPage(Path.Combine(site.Output, "en", "index.html")));
         Assert.True(File.Exists(Path.Combine(site.Output, "about", "index.html")));
         Assert.Equal(chineseBefore, File.ReadAllBytes(Path.Combine(site.Output, "zh-CN", "index.html")));
-        // Only the legacy home redirect renders again: it shares the redirect set's dependencies.
-        Assert.Equal(1, result.Incremental.CacheMissCount);
+        // Nothing renders again: redirect pages read no shared collection, so removing the
+        // derived redirects leaves the legacy home redirect cached.
+        Assert.Equal(0, result.Incremental.CacheMissCount);
     }
 
     [Fact]
@@ -1822,12 +1823,12 @@ public sealed class I18nRootLayoutTests
             WithLegacyRedirects(site.Config), site.Root, new ConfigOverrides { Incremental = true, Clean = false });
         var summary = Assert.Single(logger.Infos, message => message.Contains("event=i18n.legacy_redirects.derived", StringComparison.Ordinal));
         var count = int.Parse(summary.Split(' ').Single(part => part.StartsWith("count=", StringComparison.Ordinal))["count=".Length..]);
-        // The new redirects render, plus the existing legacy home redirect; no ordinary page does.
-        Assert.Equal(count + 1, enabled.Incremental.CacheMissCount);
+        // Only the new redirects render; the legacy home redirect and every ordinary page stay cached.
+        Assert.Equal(count, enabled.Incremental.CacheMissCount);
         Assert.Equal(before, OrdinaryEntries(site));
 
         var disabled = await engine.BuildAsync(site.Config, site.Root, new ConfigOverrides { Incremental = true, Clean = false });
-        Assert.Equal(1, disabled.Incremental.CacheMissCount);
+        Assert.Equal(0, disabled.Incremental.CacheMissCount);
         Assert.Equal(before, OrdinaryEntries(site));
     }
 
