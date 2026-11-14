@@ -13,7 +13,7 @@ release-cadence commitments.
 defines the current assembly and type inventory. Numerical statements in historical
 decision records below describe their recorded snapshots, not the current count.
 Historical 425-type / 14-assembly records are distinct from the new current
-425-type / 18-assembly inventory below. Earlier verification status is
+426-type / 18-assembly inventory below. Earlier verification status is
 recorded in the [approved quality-remediation plan](../../docs/superpowers/plans/2026-09-09-bukit-quality-remediation.md).
 
 ### Later independent template / Theme migration
@@ -52,8 +52,10 @@ reflection/serializer/assembly-qualified bindings and recompilation. Private,
 unindexed, binary-only and undisclosed consumers remain unknown; this is not
 evidence that all consumers are safe or a general CLR SDK promise.
 
-Current inventory: **425 public types / 18 assemblies**, zero candidates
-(426→425 / 19→18 for this independent change). Current distributions include
+Current inventory: **426 public types / 18 assemblies**, zero candidates.
+The Notion migration moved the then-current 426→425 / 19→18; the later
+shared-assets addition adds one serialized-contract type without changing the
+assembly count. Current distributions include
 implementation-public 40, 1.x-do-not-narrow 257 and 2.0-review 300; other
 distribution values and all 423 unrelated type entries are unchanged.
 Source/options metadata and options' 31 public members remain unchanged; the
@@ -74,6 +76,17 @@ shapes, template objects, report schemas, and the `bukit-plugin-v1` process
 protocol. Bukit does not currently distribute a general-purpose Core CLR SDK.
 Third-party process plugins exchange JSON and do not reference Bukit CLR
 assemblies.
+
+### Later independent shared-assets additive change (2026-11-14)
+
+The separately approved multilingual shared-assets change adds public
+`Bukit.Config.SharedAssetsConfig`, `SiteConfig.SharedAssets`, and the optional
+`Bukit.Rendering.SiteModel.AssetBaseUrl`. `SharedAssetsConfig` is recorded as
+`serialized-contract / 1.x-shape-stable / retain-1.x` with `Enabled` and `Paths`.
+No existing public member is removed, narrowed, or reclassified; the inventory
+moves from 425 to 426 types in 18 assemblies. The behavior is opt-in
+(`site.sharedAssets.enabled`, default false), and default output is unchanged
+when it is disabled.
 
 ## Notion Assembly Distribution Boundary
 

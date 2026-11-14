@@ -130,7 +130,7 @@ site:
   single-language site ignores the setting with `event=i18n.config.shared_assets_ignored`.
 - With sharing enabled and `languageJobs > 1`, the default language builds first;
   expect slightly longer wall time before parallel languages start.
-- Media images, fallbacks, and their variants are not shared in this version.
+- Media images and their variants are not shared in this version. A fallback/placeholder whose path lies in the shared set (the default `/assets/images/noneimg-news.jpg`) is owned by the default language and referenced from the root.
 
 ## hreflang
 

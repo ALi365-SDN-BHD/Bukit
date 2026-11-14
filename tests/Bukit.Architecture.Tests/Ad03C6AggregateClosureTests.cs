@@ -362,7 +362,7 @@ public sealed class Ad03C6AggregateClosureTests
             ReadText("docs/governance/bukit-core-2.0-consumer-declaration.md");
         string c0 = ReadText(C0Path);
 
-        Assert.Contains("425 public types", guide, StringComparison.Ordinal);
+        Assert.Contains($"{PublicApiBaselineFacts.GovernedTypeCount} public types", guide, StringComparison.Ordinal);
         Assert.DoesNotContain("443 public types", guide, StringComparison.Ordinal);
         Assert.Contains(
             "This records the historical G-04D4A state, not the current 2.0 public surface.",
@@ -380,7 +380,7 @@ public sealed class Ad03C6AggregateClosureTests
             "G-04D4A keeps all 13 `Bukit.Shared.Notion` model/record identities public",
             guide,
             StringComparison.Ordinal);
-        Assert.Contains("425 types", declaration, StringComparison.Ordinal);
+        Assert.Contains($"{PublicApiBaselineFacts.GovernedTypeCount} types", declaration, StringComparison.Ordinal);
         Assert.DoesNotContain("443 types", declaration, StringComparison.Ordinal);
         Assert.Contains(
             "This records the historical G-04D4A state, not the current 2.0 public surface.",

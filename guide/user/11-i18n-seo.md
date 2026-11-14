@@ -186,8 +186,10 @@ site:
 - With `languageJobs > 1`, the default language builds first, then the other
   languages run concurrently. This trades a little wall time for the guarantee that
   shared files and image variants exist.
-- Media is not shared in this version. Media images, media fallbacks, and their
-  variants stay under each language's own base URL.
+- Media images and their variants are not shared in this version; they stay under
+  each language's own base URL. The one exception is a fallback/placeholder whose
+  path lies in the shared set (the default `/assets/images/noneimg-news.jpg`):
+  the default language owns it and other languages reference the root.
 - The setting is ignored, with `i18n.config.shared_assets_ignored`, on a
   single-language site. `enabled: true` with `defaultLanguageInSubdir: true` is a
   validation error because the prefixed layout has no root copy owner.
