@@ -30,6 +30,9 @@ public sealed class NotionSnapshotCompatibilityTests : IDisposable
     private static readonly Regex s_notionBody = new(
         "<!--notion-body-->.*?<!--/notion-body-->",
         RegexOptions.Singleline | RegexOptions.CultureInvariant);
+    private static readonly Regex s_feedBody = new(
+        "<content:encoded>.*?</content:encoded>",
+        RegexOptions.Singleline | RegexOptions.CultureInvariant);
 
     private readonly string _root = Path.Combine(
         Path.GetTempPath(),
@@ -104,47 +107,12 @@ public sealed class NotionSnapshotCompatibilityTests : IDisposable
             var offlineOutput = Path.Combine(offlineSite, "dist");
             var online = OutputSnapshot.Public(onlineOutput, "en");
             var offline = OutputSnapshot.Public(offlineOutput, "en");
-            Assert.Equal(online.Entries.Keys, offline.Entries.Keys);
-
             var expectedMismatch = ReadFixtureRenderer(snapshotCopy) != NotionBlocksRenderer.ContractVersion;
             var actualMismatch = offlineLogger.Warnings.Any(
                 static message => message.Contains("event=notion.cache.renderer_mismatch", StringComparison.Ordinal));
             Assert.Equal(expectedMismatch, actualMismatch);
 
-            foreach (var key in online.Entries.Keys)
-            {
-                var expected = online.Entries[key].Bytes;
-                var actual = offline.Entries[key].Bytes;
-                if (!expectedMismatch)
-                {
-                    Assert.True(
-                        expected.AsSpan().SequenceEqual(actual),
-                        $"Offline output differs: {key}");
-                    continue;
-                }
-
-                // The content projections and the search index embed the rendered body; only the
-                // HTML pages can be compared after removing the body when the renderer differs.
-                if (key.StartsWith("content/", StringComparison.Ordinal) ||
-                    string.Equals(key, "search.json", StringComparison.Ordinal))
-                {
-                    continue;
-                }
-
-                var expectedText = Encoding.UTF8.GetString(expected);
-                var actualText = Encoding.UTF8.GetString(actual);
-                if (!expectedText.Contains("<!--notion-body-->", StringComparison.Ordinal))
-                {
-                    Assert.True(
-                        expected.AsSpan().SequenceEqual(actual),
-                        $"Offline output differs: {key}");
-                    continue;
-                }
-
-                Assert.Equal(
-                    s_notionBody.Replace(expectedText, string.Empty),
-                    s_notionBody.Replace(actualText, string.Empty));
-            }
+            AssertPublicParity(online, offline, expectedMismatch);
 
             // The draft page exists in api/pages/article-2.json, but the Published query filter
             // excludes it; neither the snapshot nor the published output can contain it.
@@ -163,6 +131,80 @@ public sealed class NotionSnapshotCompatibilityTests : IDisposable
             Assert.Contains("GET /v1/pages/missing-person", onlineApi.Requests);
             Assert.Contains("Menu One", File.ReadAllText(Path.Combine(offlineOutput, "index.html")), StringComparison.Ordinal);
             Assert.Contains("Person One", File.ReadAllText(Path.Combine(offlineOutput, "posts", "article-one", "index.html")), StringComparison.Ordinal);
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable(EnvironmentHelper.NotionTokenKey, originalToken);
+        }
+    }
+
+    [Fact]
+    public void WithoutEmbeddedBody_MasksDocumentBodiesButKeepsListRouteContent()
+    {
+        const string search = """
+            [
+              {"id":"post","title":"Post","url":"/posts/post/","content":"body text","snippet":"body text","type":"post","contentType":"post"},
+              {"id":"summary","title":"Summary","url":"/posts/summary/","summary":"Summary text","content":"body text","snippet":"Summary text","type":"post","contentType":"post"},
+              {"id":"tag","title":"Tag","url":"/tags/tag/","content":"tag list","snippet":"tag list","type":"tag","contentType":"list"}
+            ]
+            """;
+
+        var masked = WithoutEmbeddedBody("search.json", Encoding.UTF8.GetBytes(search));
+        var items = JsonNode.Parse(masked)!.AsArray();
+
+        Assert.Equal(string.Empty, (string?)items[0]!["content"]);
+        Assert.Equal(string.Empty, (string?)items[0]!["snippet"]);
+        Assert.Equal(string.Empty, (string?)items[1]!["content"]);
+        Assert.Equal("Summary text", (string?)items[1]!["snippet"]);
+        Assert.Equal("tag list", (string?)items[2]!["content"]);
+        Assert.Equal("tag list", (string?)items[2]!["snippet"]);
+    }
+
+    [Fact]
+    public async Task OfflineBuild_WithOlderRenderer_ReusesTheBodyAndMatchesAfterMasking()
+    {
+        var fixture = FixtureRoot;
+        var onlineSite = CopyToTemp(Path.Combine(fixture, "site"), "old-renderer-online-site");
+        var offlineSite = CopyToTemp(Path.Combine(fixture, "site"), "old-renderer-offline-site");
+        var snapshotCopy = CopyToTemp(Path.Combine(fixture, "snapshot"), "old-renderer-snapshot");
+        RewriteBody(
+            Path.Combine(snapshotCopy, "cache", "pages", "article-1.json"),
+            NotionBlocksRenderer.ContractVersion - 1,
+            "<p>Body rendered by an older contract</p>");
+        var originalToken = Environment.GetEnvironmentVariable(EnvironmentHelper.NotionTokenKey);
+        try
+        {
+            Environment.SetEnvironmentVariable(EnvironmentHelper.NotionTokenKey, FixtureToken);
+
+            var onlineApi = new DirectoryNotionApi(Path.Combine(fixture, "api"));
+            await BuildAsync(onlineSite, snapshot: null, onlineApi);
+            Assert.Empty(onlineApi.UnexpectedRequests);
+
+            var offlineApi = new DirectoryNotionApi(Path.Combine(fixture, "api"));
+            TestLogger offlineLogger;
+            using (var snapshot = NotionSnapshotSession.OpenOffline(snapshotCopy))
+            {
+                offlineLogger = await BuildAsync(offlineSite, snapshot, offlineApi);
+            }
+
+            Assert.Empty(offlineApi.Requests);
+            Assert.Contains(
+                offlineLogger.Warnings,
+                static message => message.Contains("event=notion.cache.renderer_mismatch", StringComparison.Ordinal));
+
+            var online = OutputSnapshot.Public(Path.Combine(onlineSite, "dist"), "en");
+            var offline = OutputSnapshot.Public(Path.Combine(offlineSite, "dist"), "en");
+
+            var contentKey = "content/posts/article-one/index.html.json";
+            Assert.False(
+                online.Entries[contentKey].Bytes.AsSpan().SequenceEqual(offline.Entries[contentKey].Bytes),
+                "The old renderer body must change the content projection.");
+            AssertPublicParity(online, offline, expectedMismatch: true);
+
+            Assert.Contains(
+                "Body rendered by an older contract",
+                File.ReadAllText(Path.Combine(offlineSite, "dist", "posts", "article-one", "index.html")),
+                StringComparison.Ordinal);
         }
         finally
         {
@@ -270,6 +312,92 @@ public sealed class NotionSnapshotCompatibilityTests : IDisposable
             Directory.CreateDirectory(Path.GetDirectoryName(destination)!);
             File.Copy(file, destination, overwrite: true);
         }
+    }
+
+    private static void RewriteBody(string path, int renderer, string html)
+    {
+        var body = JsonNode.Parse(File.ReadAllText(path))!.AsObject();
+        body["renderer"] = renderer;
+        body["html"] = html;
+        File.WriteAllText(path, body.ToJsonString(new JsonSerializerOptions { WriteIndented = true }) + "\n");
+    }
+
+    private static void AssertPublicParity(OutputSnapshot online, OutputSnapshot offline, bool expectedMismatch)
+    {
+        Assert.Equal(online.Entries.Keys, offline.Entries.Keys);
+        foreach (var key in online.Entries.Keys)
+        {
+            var expected = online.Entries[key].Bytes;
+            var actual = offline.Entries[key].Bytes;
+            if (!expectedMismatch)
+            {
+                Assert.True(expected.AsSpan().SequenceEqual(actual), $"Offline output differs: {key}");
+                continue;
+            }
+
+            var expectedText = Encoding.UTF8.GetString(expected);
+            var actualText = Encoding.UTF8.GetString(actual);
+            if (key.StartsWith("content/", StringComparison.Ordinal) ||
+                string.Equals(key, "search.json", StringComparison.Ordinal))
+            {
+                // Content projections and the search index embed the rendered body.
+                Assert.Equal(WithoutEmbeddedBody(key, expected), WithoutEmbeddedBody(key, actual));
+            }
+            else if (key.EndsWith(".xml", StringComparison.Ordinal))
+            {
+                // RSS feeds embed the rendered body in content:encoded.
+                Assert.Equal(s_feedBody.Replace(expectedText, string.Empty), s_feedBody.Replace(actualText, string.Empty));
+            }
+            else if (expectedText.Contains("<!--notion-body-->", StringComparison.Ordinal))
+            {
+                Assert.Equal(
+                    s_notionBody.Replace(expectedText, string.Empty),
+                    s_notionBody.Replace(actualText, string.Empty));
+            }
+            else
+            {
+                Assert.True(expected.AsSpan().SequenceEqual(actual), $"Offline output differs: {key}");
+            }
+        }
+    }
+
+    private static string WithoutEmbeddedBody(string key, byte[] bytes)
+    {
+        var text = Encoding.UTF8.GetString(bytes);
+        if (string.Equals(key, "search.json", StringComparison.Ordinal))
+        {
+            var items = JsonNode.Parse(text)!.AsArray();
+            foreach (var item in items)
+            {
+                var entry = item!.AsObject();
+                // List routes build their content from the title and summary, not a body.
+                if (string.Equals((string?)entry["contentType"], "list", StringComparison.Ordinal))
+                {
+                    continue;
+                }
+
+                // The snippet is the summary when one exists; otherwise it is body text.
+                if (!entry.ContainsKey("summary") && entry.ContainsKey("snippet"))
+                {
+                    entry["snippet"] = string.Empty;
+                }
+
+                entry["content"] = string.Empty;
+            }
+
+            return items.ToJsonString();
+        }
+
+        if (key.EndsWith(".json", StringComparison.Ordinal))
+        {
+            var projection = JsonNode.Parse(text)!.AsObject();
+            projection["body"] = string.Empty;
+            return projection.ToJsonString();
+        }
+
+        var normalized = text.ReplaceLineEndings("\n");
+        var body = normalized.IndexOf("\n## Body\n", StringComparison.Ordinal);
+        return body < 0 ? normalized : normalized[..body];
     }
 
     private static int ReadFixtureRenderer(string snapshotDirectory)
