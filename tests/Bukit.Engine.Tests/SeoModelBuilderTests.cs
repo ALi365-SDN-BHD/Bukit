@@ -552,6 +552,52 @@ public sealed class SeoModelBuilderTests
     }
 
     [Fact]
+    public void BuildForContent_UsesRootBaseUrlForSharedOgImage()
+    {
+        var output = Path.Combine(Path.GetTempPath(), $"bukit-seo-content-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(output);
+        try
+        {
+            var config = CreateConfig() with
+            {
+                Site = CreateConfig().Site with
+                {
+                    BaseUrl = "/repo",
+                    Languages = ["zh-CN", "en"],
+                    SharedAssets = new SharedAssetsConfig { Enabled = true }
+                }
+            };
+            var scope = SharedAssetScope.TryCreate(config, ["zh-CN", "en"], output, null);
+            Assert.NotNull(scope);
+            var document = ContentDocument.Create(
+                "post",
+                "Post",
+                "post",
+                DateTimeOffset.UtcNow,
+                "<p>Post</p>",
+                ContentFieldReader.ToFieldMap(new Dictionary<string, object>
+                {
+                    ["type"] = "post",
+                    ["collection"] = "post",
+                    ["og_image"] = "/assets/og.png"
+                }));
+
+            var model = SeoModelBuilder.BuildForContent(
+                config,
+                "/repo/zh-CN",
+                document,
+                new RouteInfo("/post/", "post/index.html", "pages/post.html"),
+                sharedAssets: scope);
+
+            Assert.Equal("https://example.com/repo/assets/og.png", model.Og.Image);
+        }
+        finally
+        {
+            Directory.Delete(output, recursive: true);
+        }
+    }
+
+    [Fact]
     public void BuildForList_FallsBackToSiteDescription()
     {
         var config = CreateConfig();

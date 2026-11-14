@@ -1,4 +1,6 @@
 using Bukit.Config;
+using Bukit.Content;
+using Bukit.Engine.Abstractions.Content;
 using Bukit.Engine.Tests.Infrastructure;
 using Bukit.Shared;
 using Xunit;
@@ -65,6 +67,73 @@ public sealed class I18nSharedAssetsTests
         Assert.DoesNotContain(
             logger.Infos,
             message => message.Contains("event=build.variant.start language=zh-CN", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void SharedPlaceholder_UsesRootBaseAndValidatesSharedRoot()
+    {
+        var root = Path.Combine(Path.GetTempPath(), $"bukit-placeholder-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(Path.Combine(root, "dist", "assets", "images"));
+        Directory.CreateDirectory(Path.Combine(root, "dist", "zh-CN"));
+        File.WriteAllText(Path.Combine(root, "dist", "assets", "images", "noneimg-news.jpg"), "placeholder");
+        try
+        {
+            var config = new AppConfig
+            {
+                Site = new SiteConfig
+                {
+                    Name = "t",
+                    Title = "t",
+                    BaseUrl = "/repo",
+                    Url = "https://example.com",
+                    Languages = ["en", "zh-CN"],
+                    SharedAssets = new SharedAssetsConfig { Enabled = true }
+                },
+                Content = new ContentConfig
+                {
+                    Media = new MediaConfig { DownloadToLocal = true, OnFailure = "placeholder" }
+                }
+            };
+            var scope = SharedAssetScope.TryCreate(config, ["en", "zh-CN"], Path.Combine(root, "dist"), null);
+            Assert.NotNull(scope);
+            var context = new BuildVariantContext(
+                config,
+                root,
+                new ConfigOverrides(),
+                [],
+                CanonicalContentGraph.Empty,
+                NullContentBodyStore.Instance,
+                Path.Combine(root, "dist", "zh-CN"),
+                "/repo/zh-CN",
+                root,
+                root,
+                root,
+                Path.Combine(root, "media"),
+                new Dictionary<string, IReadOnlyList<Bukit.Rendering.SeoAlternateModel>>(),
+                "/repo",
+                "zh-CN",
+                "en",
+                DateTimeOffset.UnixEpoch,
+                SharedAssets: scope);
+            var output = new ContentMediaOutput(context);
+            var document = ContentDocument.Create(
+                "page",
+                "Page",
+                "page",
+                DateTimeOffset.UnixEpoch,
+                "<img src=\"/assets/images/noneimg-news.jpg\" />");
+            var normalized = output.NormalizeDocument(document, collect: true);
+
+            Assert.Contains("src=\"/repo/assets/images/noneimg-news.jpg\"", normalized.Body.Html, StringComparison.Ordinal);
+            output.ValidateOutputs([]);
+
+            File.Delete(Path.Combine(root, "dist", "assets", "images", "noneimg-news.jpg"));
+            Assert.Throws<IOException>(() => output.ValidateOutputs([]));
+        }
+        finally
+        {
+            Directory.Delete(root, recursive: true);
+        }
     }
 
     [Fact]

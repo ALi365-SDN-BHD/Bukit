@@ -210,7 +210,7 @@ internal sealed partial class ContentMediaOutput(BuildVariantContext context) : 
                     _fallbackPages.GetOrAdd(fallback.TrimStart('/'), _ => new(StringComparer.Ordinal)).TryAdd(page, 0);
             }
             return (context.SharedAssets is { } sharedAssets && sharedAssets.ContainsSitePath(fallback)
-                ? sharedAssets.RootBaseUrl
+                ? _rootBaseUrl
                 : _baseUrl) + fallback + suffix;
         }
         return value;
