@@ -4,6 +4,8 @@ All notable changes to Bukit will be documented in this file.
 
 ## [Unreleased]
 
+## [2.2.2] - 2026-11-15
+
 - **SEO image URLs keep one base prefix**: localized `record.Media` and custom image fields no longer repeat the language base in `og:image` or Twitter image URLs. This covers non-default languages and sites under a subpath such as `/repo`; shared placeholder URLs under the root base are also recognized.
 - **An empty default shared asset set is rejected**: `site.sharedAssets.enabled: true` with no `paths` now fails validation when `content.media.urlBase` covers every default prefix (`assets/` or the enabled SCSS output), instead of silently sharing nothing. Single-language sites keep the documented ignore warning.
 - **The dev server watches the root `data/` directory**: `bukit dev` now rebuilds when files under the site's root `data/` change, matching the Worktree input list.

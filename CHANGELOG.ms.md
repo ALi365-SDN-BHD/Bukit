@@ -4,6 +4,8 @@ Semua perubahan penting kepada Bukit akan didokumenkan dalam fail ini.
 
 ## [Belum Dikeluarkan]
 
+## [2.2.2] - 2026-11-15
+
 - **URL imej SEO mengekalkan satu awalan base**: `record.Media` dan medan imej tersuai yang telah disetempatkan tidak lagi mengulang base bahasa dalam `og:image` atau URL imej Twitter. Ini merangkumi bahasa bukan lalai dan tapak di bawah sub-laluan seperti `/repo`; URL pemegang tempat dikongsi di bawah base akar juga dikenali.
 - **Set aset dikongsi lalai yang kosong ditolak**: `site.sharedAssets.enabled: true` tanpa `paths` kini gagal pengesahan apabila `content.media.urlBase` meliputi setiap awalan lalai (`assets/` atau output SCSS yang diaktifkan), dan tidak lagi berkongsi tiada apa secara senyap. Tapak satu bahasa mengekalkan amaran pengabaian yang didokumenkan.
 - **Pelayan dev memantau direktori akar `data/`**: `bukit dev` kini membina semula apabila fail di bawah `data/` akar tapak berubah, selaras dengan senarai input Worktree.

@@ -4,6 +4,8 @@ Bukit 所有重要变更都将记录在此文件中。
 
 ## [Unreleased]
 
+## [2.2.2] - 2026-11-15
+
 - **SEO 图片地址只保留一层 base 前缀**：已本地化的 `record.Media` 和自定义图片字段不再在 `og:image`、Twitter 图片地址中重复语言 base。覆盖非默认语言和 `/repo` 这类子路径站点；根 base 下的共用占位图地址也能正确识别。
 - **默认共用资源集为空时直接报错**：`site.sharedAssets.enabled: true` 且未写 `paths` 时，如果 `content.media.urlBase` 覆盖全部默认前缀（`assets/` 或已启用的 SCSS 输出），现在会校验失败，不再静默地什么也不共用。单语言站点仍按文档记录忽略警告。
 - **开发服务器监听根 `data/` 目录**：`bukit dev` 现在会在站点根 `data/` 下文件变化时重新构建，与 Worktree 输入清单一致。
