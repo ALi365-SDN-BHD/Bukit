@@ -2,7 +2,7 @@
 
 - 状态：**待实施**。决策 D1–D6 已于 2026-11-14 确认；实施须作为单独的 Core 任务，在用户明确开始后进行。
 - 日期：2026-11-14
-- 依据：规范性提案 `openspec/changes/unify-site-languages/`（proposal、design、specs、tasks）
+- 依据：规范性提案 `openspec/changes/unify-site-languages/`（proposal、design、specs、tasks），已归档到 `openspec/changes/archive/2026-11-14-unify-site-languages/`
 - 代码基线：`38b32568`（main，本计划写作时）
 - 范围：只覆盖 Core、Labs、Plugins 的实现、测试和文档。commit、push、PR、发布、full/release gate 均需另行授权。
 

@@ -42,6 +42,7 @@
       "id": "unify-site-languages-change",
       "matches": [
         "openspec/changes/unify-site-languages/*",
+        "openspec/changes/archive/2026-11-14-unify-site-languages/*",
         "docs/plans/2026-11-14-unify-site-languages-implementation-plan.zh-CN.md",
         "tests/fixtures/*-site/site.yaml",
         "tests/Bukit.Engine.Tests/Fixtures/SrbizTask4/sites/wp2-task4-trust-fixture/site.yaml",
