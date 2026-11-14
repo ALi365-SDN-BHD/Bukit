@@ -1972,6 +1972,44 @@ public sealed class ImageProcessingPluginTests
     }
 
     [Fact]
+    public async Task AfterBuild_SharedImage_MergesLanguageAndSharedWebpVariants()
+    {
+        var root = GetTempDir();
+        try
+        {
+            Directory.CreateDirectory(Path.Combine(root, "assets"));
+            WriteValidImage(Path.Combine(root, "assets", "hero.jpg"), "shared", width: 1000);
+            var config = SharedWebpConfig();
+            await new ImageProcessingPlugin(config).AfterBuildAsync(CreateContext(root));
+
+            var ownSource = Path.Combine(root, "zh-CN", "assets", "own.jpg");
+            Directory.CreateDirectory(Path.GetDirectoryName(ownSource)!);
+            WriteValidImage(ownSource, "own", width: 1000);
+
+            var (languageContext, page) = SharedLanguageContext(
+                root,
+                config,
+                "/zh-CN",
+                ["assets/hero.jpg"],
+                "<img src=\"/assets/hero.jpg\" alt=\"\" />" +
+                "<img src=\"/zh-CN/assets/own.jpg\" alt=\"\" />");
+
+            await new ImageProcessingPlugin(config).AfterBuildAsync(languageContext);
+
+            var html = await File.ReadAllTextAsync(page);
+            Assert.Equal(2, CountOccurrences(html, "<picture>"));
+            Assert.Contains("/assets/hero-480w.webp", html, StringComparison.Ordinal);
+            Assert.Contains("/zh-CN/assets/own-480w.webp", html, StringComparison.Ordinal);
+            Assert.True(File.Exists(Path.Combine(root, "zh-CN", "assets", "own-480w.webp")));
+            Assert.DoesNotContain("/zh-CN/assets/hero", html, StringComparison.Ordinal);
+        }
+        finally
+        {
+            TestCleanup.DeleteDirectory(root, recursive: true);
+        }
+    }
+
+    [Fact]
     public async Task AfterBuild_SharedImage_StaleSourceIsNotReferenced()
     {
         var root = GetTempDir();

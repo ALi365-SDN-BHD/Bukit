@@ -41,8 +41,8 @@
     {
       "id": "i18n-shared-assets-change",
       "matches": [
-        "openspec/changes/add-i18n-shared-assets/*",
-        "openspec/changes/archive/<date>-add-i18n-shared-assets/*",
+        "openspec/changes/archive/*-add-i18n-shared-assets/*",
+        "openspec/specs/i18n-shared-assets/spec.md",
         "docs/plans/2026-11-14-add-i18n-shared-assets-implementation-plan.zh-CN.md",
         "src/Bukit-Core/Bukit.Cli/Resources/StarterTheme/BaseLayout.html",
         "tests/Bukit.Engine.Tests/ImageVariantPlanTests.cs",
@@ -61,7 +61,7 @@
         "dotnet test tests/Bukit.Cli.Tests/Bukit.Cli.Tests.csproj -c Release --filter \"FullyQualifiedName~WorktreeBuildCoordinator|FullyQualifiedName~NotionOfflineSnapshotMultilingual\"",
         "dotnet test tests/Bukit.Architecture.Tests/Bukit.Architecture.Tests.csproj -c Release --filter \"FullyQualifiedName~BuiltInPluginSplit|FullyQualifiedName~PublicApiBaseline\"",
         "bash scripts/checks/public-api-drift.sh check",
-        "openspec validate add-i18n-shared-assets --strict --no-interactive",
+        "openspec validate i18n-shared-assets --type spec --strict --no-interactive",
         "bash scripts/checks/docs/active-links.sh",
         "bash scripts/checks/docs/size-policy.sh"
       ],
