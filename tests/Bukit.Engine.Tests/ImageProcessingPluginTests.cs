@@ -1949,7 +1949,7 @@ public sealed class ImageProcessingPluginTests
                 OutputDir = languageOutput,
                 BaseUrl = "/zh-CN",
                 LayoutsDir = root,
-                RoutedDocuments = Array.Empty<RoutedContentDocument>(),
+                RoutedDocuments = [],
                 Logger = new ConsoleLogger(LogLevel.Error)
             };
             languageContext.Set(BuildDataKeys.CurrentHtmlOutputs, new[] { "index.html" });
@@ -2111,7 +2111,7 @@ public sealed class ImageProcessingPluginTests
             OutputDir = languageOutput,
             BaseUrl = baseUrl,
             LayoutsDir = root,
-            RoutedDocuments = Array.Empty<RoutedContentDocument>(),
+            RoutedDocuments = [],
             Logger = logger ?? new ConsoleLogger(LogLevel.Error)
         };
         context.Set(BuildDataKeys.CurrentHtmlOutputs, new[] { "index.html" });
