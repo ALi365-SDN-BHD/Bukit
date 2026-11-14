@@ -127,6 +127,13 @@ internal sealed partial class ContentMediaOutput(BuildVariantContext context) : 
         }
         foreach (var relative in _fallbacks.Keys.Order(StringComparer.Ordinal))
         {
+            if (context.SharedAssets is { } sharedAssets && sharedAssets.ContainsSitePath(relative))
+            {
+                if (!File.Exists(FileWriter.GetSafeFullPath(sharedAssets.OutputRoot, relative)))
+                    throw new IOException(MissingPlaceholderMessage(relative));
+                continue;
+            }
+
             if (!planned.Contains(relative) || !File.Exists(FileWriter.GetSafeFullPath(context.OutputDir, relative)))
                 throw new IOException(MissingPlaceholderMessage(relative));
         }
@@ -202,7 +209,9 @@ internal sealed partial class ContentMediaOutput(BuildVariantContext context) : 
                 if (_validatingPage is { } page)
                     _fallbackPages.GetOrAdd(fallback.TrimStart('/'), _ => new(StringComparer.Ordinal)).TryAdd(page, 0);
             }
-            return _baseUrl + fallback + suffix;
+            return (context.SharedAssets is { } sharedAssets && sharedAssets.ContainsSitePath(fallback)
+                ? sharedAssets.RootBaseUrl
+                : _baseUrl) + fallback + suffix;
         }
         return value;
     }

@@ -24,7 +24,8 @@ internal static class SeoJsonLdBuilder
         ContentRecord? record,
         ResolvedSeoAuthors? resolvedAuthors = null,
         SearchActionDescriptor? searchAction = null,
-        BreadcrumbDescriptor? breadcrumb = null)
+        BreadcrumbDescriptor? breadcrumb = null,
+        SharedAssetScope? sharedAssets = null)
     {
         var result = new List<string>();
         var siteHome = SeoModelBuilder.BuildAbsoluteUrl(config.Site.Url, baseUrl, "/");
@@ -48,7 +49,7 @@ internal static class SeoJsonLdBuilder
 
         result.Add(ToJson(website));
 
-        var organizationNode = BuildOrganizationNode(config, baseUrl);
+        var organizationNode = BuildOrganizationNode(config, baseUrl, sharedAssets);
         if (organizationNode is not null)
         {
             var standaloneOrganization = new Dictionary<string, object?>
@@ -143,13 +144,14 @@ internal static class SeoJsonLdBuilder
                     organizationNode,
                     effectiveAuthors,
                     config.Site.Url,
-                    baseUrl);
+                    baseUrl,
+                    sharedAssets);
             }
         }
 
         if (!isPost && record is not null && IsCompanyContent(record, schemaType))
         {
-            var entity = BuildCompanyEntityNode(record, schemaType, config.Site.Url, baseUrl);
+            var entity = BuildCompanyEntityNode(record, schemaType, config.Site.Url, baseUrl, sharedAssets);
             if (entity is not null && !MatchesOrganization(organizationNode, entity))
             {
                 result.Add(ToJson(entity));
@@ -171,7 +173,7 @@ internal static class SeoJsonLdBuilder
             BuildSpeakableJsonLd(result, canonical, geo.SpeakableXPath);
         }
 
-        var itemList = BuildItemList(config, baseUrl, itemListFields);
+        var itemList = BuildItemList(config, baseUrl, itemListFields, sharedAssets);
         if (isCollectionPage && itemList is not null)
         {
             result.Add(ToJson(itemList));
@@ -194,7 +196,8 @@ internal static class SeoJsonLdBuilder
         IReadOnlyDictionary<string, object?>? organizationNode,
         ResolvedSeoAuthors resolvedAuthors,
         string? siteUrl,
-        string baseUrl)
+        string baseUrl,
+        SharedAssetScope? sharedAssets)
     {
         var article = new Dictionary<string, object?>
         {
@@ -266,7 +269,7 @@ internal static class SeoJsonLdBuilder
         if (resolvedAuthors.Authors.Count > 0)
         {
             var authorNodes = resolvedAuthors.Authors
-                .Select(author => BuildAuthorNode(author, siteUrl, baseUrl))
+                .Select(author => BuildAuthorNode(author, siteUrl, baseUrl, sharedAssets))
                 .ToArray();
             article["author"] = authorNodes.Length == 1
                 ? authorNodes[0]
@@ -298,7 +301,8 @@ internal static class SeoJsonLdBuilder
     private static Dictionary<string, object?> BuildAuthorNode(
         ResolvedSeoAuthor author,
         string? siteUrl,
-        string baseUrl)
+        string baseUrl,
+        SharedAssetScope? sharedAssets)
     {
         var node = new Dictionary<string, object?>
         {
@@ -307,12 +311,12 @@ internal static class SeoJsonLdBuilder
         };
         if (!string.IsNullOrWhiteSpace(author.Url))
         {
-            node["url"] = SeoModelBuilder.BuildMaybeAbsoluteUrl(siteUrl, baseUrl, author.Url);
+            node["url"] = SeoModelBuilder.BuildMaybeAbsoluteUrl(siteUrl, baseUrl, author.Url, sharedAssets);
         }
 
         if (!string.IsNullOrWhiteSpace(author.Image))
         {
-            node["image"] = SeoModelBuilder.BuildMaybeAbsoluteUrl(siteUrl, baseUrl, author.Image);
+            node["image"] = SeoModelBuilder.BuildMaybeAbsoluteUrl(siteUrl, baseUrl, author.Image, sharedAssets);
         }
 
         if (author.SameAs.Count > 0)
@@ -325,7 +329,8 @@ internal static class SeoJsonLdBuilder
 
     private static IReadOnlyDictionary<string, object?>? BuildOrganizationNode(
         AppConfig config,
-        string baseUrl)
+        string baseUrl,
+        SharedAssetScope? sharedAssets)
     {
         if (config.Site.Seo.Organization is not { } organization ||
             (string.IsNullOrWhiteSpace(organization.Name) &&
@@ -346,13 +351,13 @@ internal static class SeoJsonLdBuilder
                 : organization.Name.Trim()
         };
 
-        var url = BuildAbsoluteHttpUrl(config.Site.Url, baseUrl, organization.Url);
+        var url = BuildAbsoluteHttpUrl(config.Site.Url, baseUrl, organization.Url, sharedAssets);
         if (url is not null)
         {
             node["url"] = url;
         }
 
-        var logo = BuildAbsoluteHttpUrl(config.Site.Url, baseUrl, organization.Logo);
+        var logo = BuildAbsoluteHttpUrl(config.Site.Url, baseUrl, organization.Logo, sharedAssets);
         if (logo is not null)
         {
             node["logo"] = logo;
@@ -382,7 +387,8 @@ internal static class SeoJsonLdBuilder
         ContentRecord record,
         string? schemaType,
         string? siteUrl,
-        string baseUrl)
+        string baseUrl,
+        SharedAssetScope? sharedAssets)
     {
         var entity = PublicContentProjectionPolicy.SanitizeEntities(record)
             .FirstOrDefault(item => string.Equals(item.Type, "company", StringComparison.OrdinalIgnoreCase));
@@ -409,14 +415,14 @@ internal static class SeoJsonLdBuilder
             node["description"] = description.Trim();
         }
 
-        var url = BuildAbsoluteHttpUrl(siteUrl, baseUrl, entity.Url);
+        var url = BuildAbsoluteHttpUrl(siteUrl, baseUrl, entity.Url, sharedAssets);
         if (url is not null)
         {
             node["url"] = url;
         }
 
         var sameAs = (entity.SameAs ?? Array.Empty<string>())
-            .Select(value => BuildAbsoluteHttpUrl(siteUrl, baseUrl, value))
+            .Select(value => BuildAbsoluteHttpUrl(siteUrl, baseUrl, value, sharedAssets))
             .Where(static value => value is not null)
             .Cast<string>()
             .Distinct(StringComparer.Ordinal)
@@ -476,7 +482,7 @@ internal static class SeoJsonLdBuilder
         return false;
     }
 
-    private static string? BuildAbsoluteHttpUrl(string? siteUrl, string baseUrl, string? value)
+    private static string? BuildAbsoluteHttpUrl(string? siteUrl, string baseUrl, string? value, SharedAssetScope? sharedAssets)
     {
         if (string.IsNullOrWhiteSpace(value))
         {
@@ -496,7 +502,7 @@ internal static class SeoJsonLdBuilder
                 : null;
         }
 
-        var candidate = SeoModelBuilder.BuildMaybeAbsoluteUrl(siteUrl, baseUrl, trimmed);
+        var candidate = SeoModelBuilder.BuildMaybeAbsoluteUrl(siteUrl, baseUrl, trimmed, sharedAssets);
         return Uri.TryCreate(candidate, UriKind.Absolute, out var uri) &&
                uri.Scheme is "http" or "https"
             ? candidate
@@ -666,7 +672,8 @@ internal static class SeoJsonLdBuilder
     internal static IReadOnlyDictionary<string, object?>? BuildItemList(
         AppConfig config,
         string baseUrl,
-        IReadOnlyDictionary<string, ContentField>? fields)
+        IReadOnlyDictionary<string, ContentField>? fields,
+        SharedAssetScope? sharedAssets = null)
     {
         if (fields is null || fields.Count == 0)
         {
@@ -704,7 +711,7 @@ internal static class SeoJsonLdBuilder
 
             if (!string.IsNullOrWhiteSpace(url))
             {
-                entry["url"] = SeoModelBuilder.BuildMaybeAbsoluteUrl(config.Site.Url, baseUrl, url);
+                entry["url"] = SeoModelBuilder.BuildMaybeAbsoluteUrl(config.Site.Url, baseUrl, url, sharedAssets);
             }
 
             elements.Add(entry);

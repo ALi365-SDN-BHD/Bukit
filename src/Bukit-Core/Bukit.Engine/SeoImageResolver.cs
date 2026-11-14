@@ -11,7 +11,8 @@ internal static class SeoImageResolver
     internal static ResolvedSeoImage ResolveForContent(
         AppConfig config,
         string baseUrl,
-        ContentDocument document)
+        ContentDocument document,
+        SharedAssetScope? sharedAssets = null)
     {
         var fields = document.CustomFields;
         var record = document.Record;
@@ -23,7 +24,7 @@ internal static class SeoImageResolver
         if (explicitImage is not null)
         {
             return new ResolvedSeoImage(
-                SeoModelBuilder.BuildMaybeAbsoluteUrl(config.Site.Url, baseUrl, explicitImage),
+                SeoModelBuilder.BuildMaybeAbsoluteUrl(config.Site.Url, baseUrl, explicitImage, sharedAssets),
                 SeoImageSource.ExplicitField);
         }
 
@@ -33,14 +34,14 @@ internal static class SeoImageResolver
         if (mediaImage is not null)
         {
             return new ResolvedSeoImage(
-                SeoModelBuilder.BuildMaybeAbsoluteUrl(config.Site.Url, baseUrl, mediaImage),
+                SeoModelBuilder.BuildMaybeAbsoluteUrl(config.Site.Url, baseUrl, mediaImage, sharedAssets),
                 SeoImageSource.ContentMedia);
         }
 
         if (!string.IsNullOrWhiteSpace(config.Site.Seo.DefaultImage))
         {
             return new ResolvedSeoImage(
-                SeoModelBuilder.BuildMaybeAbsoluteUrl(config.Site.Url, baseUrl, config.Site.Seo.DefaultImage),
+                SeoModelBuilder.BuildMaybeAbsoluteUrl(config.Site.Url, baseUrl, config.Site.Seo.DefaultImage, sharedAssets),
                 SeoImageSource.SiteDefault);
         }
 

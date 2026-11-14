@@ -16,7 +16,8 @@ public sealed class I18nSharedAssetsTests
 
         Assert.True(File.Exists(Path.Combine(site.Output, "assets", "style.css")));
         Assert.True(File.Exists(Path.Combine(site.Output, "zh-CN", "assets", "style.css")));
-        Assert.Contains("href=\"/zh-CN/assets/style.css\"", ReadFirstHtml(site.Output, "zh-CN"), StringComparison.Ordinal);
+        var chinesePage = ReadFirstHtml(site.Output, "zh-CN");
+        Assert.Contains("href=\"/zh-CN/assets/style.css\"", chinesePage, StringComparison.Ordinal);
     }
 
     [Fact]

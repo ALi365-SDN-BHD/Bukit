@@ -31,9 +31,10 @@ internal sealed class SeoPipeline
         IReadOnlyDictionary<string, RouteMetadataEntry>? routeMetadata = null,
         SearchActionDescriptor? searchAction = null,
         BreadcrumbDescriptorCatalog? breadcrumbs = null,
-        DateTimeOffset? now = null)
+        DateTimeOffset? now = null,
+        SharedAssetScope? sharedAssets = null)
     {
-        var seoIndex = SeoIndexBuilder.Build(config, baseUrl, renderQueue, listRoutes, seoAlternates, listRouteGraph, routeMetadata, searchAction, breadcrumbs, now);
+        var seoIndex = SeoIndexBuilder.Build(config, baseUrl, renderQueue, listRoutes, seoAlternates, listRouteGraph, routeMetadata, searchAction, breadcrumbs, now, sharedAssets);
         SeoDiagnostics.AnalyzeIndex(config, seoIndex.Entries, seoIndex.Models, logger);
         AnalyzeLlmsCuration(config, renderQueue, logger);
 
@@ -57,7 +58,8 @@ internal sealed class SeoPipeline
                 route,
                 SeoPipeline.GetSeoAlternates(seoAlternates, SeoModelBuilder.BuildAlternateKey(document, route)),
                 searchAction: searchAction,
-                breadcrumb: breadcrumbs?.Find(route.Url))
+                breadcrumb: breadcrumbs?.Find(route.Url),
+                sharedAssets: sharedAssets)
             : null;
 
         Func<RouteInfo, PageInfo, SeoModel>? listSeoBuilder = shouldProvideSeoModel
@@ -78,7 +80,8 @@ internal sealed class SeoPipeline
                         graphRoute,
                         SeoPipeline.GetSeoAlternates(seoAlternates, SeoModelBuilder.BuildListAlternateKey(graphRoute.ToRouteInfo())),
                         searchAction,
-                        breadcrumbs?.Find(route.Url));
+                        breadcrumbs?.Find(route.Url),
+                        sharedAssets: sharedAssets);
                 }
 
                 return SeoModelBuilder.BuildForList(
@@ -87,7 +90,8 @@ internal sealed class SeoPipeline
                     page,
                     SeoPipeline.GetSeoAlternates(seoAlternates, SeoModelBuilder.BuildListAlternateKey(route)),
                     searchAction,
-                    breadcrumbs?.Find(route.Url));
+                    breadcrumbs?.Find(route.Url),
+                    sharedAssets: sharedAssets);
             }
         : null;
 

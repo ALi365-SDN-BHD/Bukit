@@ -24,7 +24,8 @@ internal static class SeoIndexBuilder
         IReadOnlyDictionary<string, RouteMetadataEntry>? routeMetadata = null,
         SearchActionDescriptor? searchAction = null,
         BreadcrumbDescriptorCatalog? breadcrumbs = null,
-        DateTimeOffset? now = null)
+        DateTimeOffset? now = null,
+        SharedAssetScope? sharedAssets = null)
     {
         var entries = new Dictionary<string, SeoIndexEntry>(StringComparer.OrdinalIgnoreCase);
         var models = new Dictionary<string, SeoModel>(StringComparer.OrdinalIgnoreCase);
@@ -50,7 +51,8 @@ internal static class SeoIndexBuilder
                 metadata?.SeoDescription ?? metadata?.Summary,
                 metadata?.Title,
                 searchAction,
-                breadcrumbs?.Find(route.Url));
+                breadcrumbs?.Find(route.Url),
+                sharedAssets);
             var key = BuildPathUtils.NormalizeRelPath(route.OutputPath);
             models[key] = model;
             entries[key] = new SeoIndexEntry(
@@ -69,7 +71,7 @@ internal static class SeoIndexBuilder
         {
             foreach (var route in listRouteGraph.Routes)
             {
-                AddGraphRoute(config, baseUrl, routed, alternates, entries, models, route, searchAction, breadcrumbs);
+                AddGraphRoute(config, baseUrl, routed, alternates, entries, models, route, searchAction, breadcrumbs, sharedAssets);
             }
 
             return new SeoIndexBuildResult(entries, models);
@@ -88,7 +90,8 @@ internal static class SeoIndexBuilder
                 alternates.TryGetValue(alternateKey, out var alts) ? alts : null,
                 searchAction,
                 breadcrumbs?.Find(route.Url),
-                CollectionIndexabilityPolicy.ShouldNoIndex(config, ListRouteKind.CollectionList, collection, ResolveListItems(config, route, routed).Count));
+                CollectionIndexabilityPolicy.ShouldNoIndex(config, ListRouteKind.CollectionList, collection, ResolveListItems(config, route, routed).Count),
+                sharedAssets);
             models[key] = model;
             entries[key] = new SeoIndexEntry(
                 route,
@@ -114,7 +117,8 @@ internal static class SeoIndexBuilder
         Dictionary<string, SeoModel> models,
         ListRoutePlan route,
         SearchActionDescriptor? searchAction,
-        BreadcrumbDescriptorCatalog? breadcrumbs)
+        BreadcrumbDescriptorCatalog? breadcrumbs,
+        SharedAssetScope? sharedAssets)
     {
         var routeInfo = route.ToRouteInfo();
         var key = BuildPathUtils.NormalizeRelPath(route.OutputPath);
@@ -142,7 +146,8 @@ internal static class SeoIndexBuilder
             alternates.TryGetValue(alternateKey, out var alts) ? alts : null,
             searchAction,
             breadcrumbs?.Find(route.Url),
-            forceNoindexWhenEmpty);
+            forceNoindexWhenEmpty,
+            sharedAssets);
         models[key] = model;
         entries[key] = new SeoIndexEntry(
             routeInfo,

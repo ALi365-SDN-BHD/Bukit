@@ -510,6 +510,48 @@ public sealed class SeoModelBuilderTests
     }
 
     [Fact]
+    public void BuildForList_UsesRootBaseUrlForSharedImagesAndQueryStrings()
+    {
+        var output = Path.Combine(Path.GetTempPath(), $"bukit-seo-shared-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(output);
+        try
+        {
+            var config = CreateConfig(defaultImage: "/assets/og.png") with
+            {
+                Site = CreateConfig(defaultImage: "/assets/og.png").Site with
+                {
+                    BaseUrl = "/repo",
+                    Languages = ["zh-CN", "en"],
+                    SharedAssets = new SharedAssetsConfig { Enabled = true }
+                }
+            };
+            var scope = SharedAssetScope.TryCreate(config, ["zh-CN", "en"], output, null);
+            Assert.NotNull(scope);
+            var page = new PageInfo { Title = "Blog", Url = "/blog/", Content = "" };
+
+            Assert.Equal(
+                "https://example.com/repo/assets/og.png",
+                SeoModelBuilder.BuildForList(config, "/repo/zh-CN", page, sharedAssets: scope).Og.Image);
+            Assert.Equal(
+                "https://example.com/repo/zh-CN/assets/uploads/photo.jpg",
+                SeoModelBuilder.BuildForList(config with
+                {
+                    Site = config.Site with { Seo = config.Site.Seo with { DefaultImage = "/assets/uploads/photo.jpg" } }
+                }, "/repo/zh-CN", page, sharedAssets: scope).Og.Image);
+            Assert.Equal(
+                "https://example.com/repo/assets/og.png?v=2",
+                SeoModelBuilder.BuildForList(config with
+                {
+                    Site = config.Site with { Seo = config.Site.Seo with { DefaultImage = "/assets/og.png?v=2" } }
+                }, "/repo/zh-CN", page, sharedAssets: scope).Og.Image);
+        }
+        finally
+        {
+            Directory.Delete(output, recursive: true);
+        }
+    }
+
+    [Fact]
     public void BuildForList_FallsBackToSiteDescription()
     {
         var config = CreateConfig();
