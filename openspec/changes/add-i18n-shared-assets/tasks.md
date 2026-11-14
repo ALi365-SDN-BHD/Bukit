@@ -55,7 +55,7 @@
 ## 8. 测试
 
 - [x] Config：默认关闭、开启、自定义 `paths`、非法值、根前缀报错、规范化、大小写去重、SCSS 未启用时不纳入、SCSS 输出在根目录时警告且不纳入、`assets/uploads/` 下的路径不属于共用集合、显式媒体前缀报错、带前缀布局报错、单语言忽略并警告、Schema。
-- [ ] Engine（根目录布局，`languages: [en, zh-CN]`）：
+- [x] Engine（根目录布局，`languages: [en, zh-CN]`）：
   - 计划过滤：`dist/assets/` 只有一份，`dist/zh-CN/assets/` 下没有主题资源；tokens 共用；`static/assets/` 共用，`static/fonts/` 不共用，加入 `paths` 后共用；插件在 `assets/` 下的输出照常按语言写出；媒体仍按语言输出；关闭时与现状一致。
   - 顺序：`languages: [zh-CN, en]`、`languageJobs: 2` 时默认语言先完成；默认语言失败时其他语言不启动且正式输出不变。
   - `asset_base_url`：开启 / 关闭两种取值、`/repo`；Starter 主题在根 baseUrl `/` 下（开启与关闭）输出 `/assets/style.css`。

@@ -1999,6 +1999,41 @@ public sealed class ImageProcessingPluginTests
     }
 
     [Fact]
+    public async Task AfterBuild_SharedImage_AllVariantsMissingLeavesImageInPlace()
+    {
+        var root = GetTempDir();
+        try
+        {
+            Directory.CreateDirectory(Path.Combine(root, "assets"));
+            var source = Path.Combine(root, "assets", "hero.jpg");
+            WriteValidImage(source, "missing", width: 1000);
+            var config = SharedWebpConfig(sizes: [480]);
+            await new ImageProcessingPlugin(config).AfterBuildAsync(CreateContext(root));
+            foreach (var variant in Directory.GetFiles(Path.Combine(root, "assets"), "hero-*.webp"))
+            {
+                File.Delete(variant);
+                File.Delete(variant + ".bukit-freshness.json");
+            }
+            var (languageContext, page) = SharedLanguageContext(
+                root,
+                config,
+                "/zh-CN",
+                ["assets/hero.jpg"],
+                "<img src=\"/assets/hero.jpg\" alt=\"\" />");
+
+            await new ImageProcessingPlugin(config).AfterBuildAsync(languageContext);
+
+            var html = await File.ReadAllTextAsync(page);
+            Assert.DoesNotContain("<picture>", html, StringComparison.Ordinal);
+            Assert.Contains("src=\"/assets/hero.jpg\"", html, StringComparison.Ordinal);
+        }
+        finally
+        {
+            TestCleanup.DeleteDirectory(root, recursive: true);
+        }
+    }
+
+    [Fact]
     public async Task AfterBuild_SharedImage_RepoBaseKeepsSingleRootAndSkipsMissingCandidates()
     {
         var root = GetTempDir();

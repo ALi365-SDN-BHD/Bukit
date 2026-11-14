@@ -40,6 +40,65 @@ public sealed class I18nSharedAssetsTests
         var chinesePage = ReadFirstHtml(site.Output, "zh-CN");
         Assert.Contains("href=\"/assets/style.css\"", chinesePage, StringComparison.Ordinal);
         Assert.DoesNotContain("href=\"/zh-CN/assets/style.css\"", chinesePage, StringComparison.Ordinal);
+        Assert.True(File.Exists(Path.Combine(site.Output, "search.json")));
+        Assert.True(File.Exists(Path.Combine(site.Output, "zh-CN", "search.json")));
+    }
+
+    [Fact]
+    public async Task SharingEnabled_GeneratesThemeTokensOnceAtRoot()
+    {
+        using var site = CreateSite();
+        WriteSite(site, enabled: true, clean: true);
+        site.Sandbox.Write("layouts/theme.yaml", "name: shared-token-test\nversion: 1.0.0\nengine: bukit\n");
+        site.Sandbox.Write("layouts/tokens.yaml", "colors:\n  brand: '#123456'\n");
+
+        await site.BuildAsync(clean: true);
+
+        Assert.True(File.Exists(Path.Combine(site.Output, "assets", "css", "theme-tokens.css")));
+        Assert.False(File.Exists(Path.Combine(site.Output, "zh-CN", "assets", "css", "theme-tokens.css")));
+    }
+
+    [Fact]
+    public async Task IncrementalPathsChange_RerendersBothLanguages()
+    {
+        using var site = CreateSite();
+        WriteSite(site, enabled: true, clean: false);
+        await site.BuildAsync(clean: true);
+
+        WriteSite(site, enabled: true, clean: false, paths: "[assets/, fonts/]");
+        var result = await site.BuildAsync(clean: false, incremental: true);
+
+        Assert.All(result.Variants, variant => Assert.True(variant.RenderedCount > 0));
+        Assert.True(File.Exists(Path.Combine(site.Output, "fonts", "a.woff2")));
+        Assert.False(File.Exists(Path.Combine(site.Output, "zh-CN", "fonts", "a.woff2")));
+    }
+
+    [Fact]
+    public async Task IncrementalOneLanguageChange_DoesNotRewriteSharedAssets()
+    {
+        using var site = CreateSite();
+        WriteSite(site, enabled: true, clean: false);
+        await site.BuildAsync(clean: true);
+        var shared = Path.Combine(site.Output, "assets", "style.css");
+        var beforeBytes = File.ReadAllBytes(shared);
+        var beforeWrite = File.GetLastWriteTimeUtc(shared);
+
+        site.Sandbox.Write("content/zh/index.md", """
+            ---
+            title: Chinese Page
+            collection: page
+            language: zh-CN
+            ---
+            Updated Chinese body.
+            """);
+        await site.BuildAsync(clean: false, incremental: true);
+
+        var chineseHtml = string.Join("\n", Directory
+            .GetFiles(Path.Combine(site.Output, "zh-CN"), "*.html", SearchOption.AllDirectories)
+            .Select(File.ReadAllText));
+        Assert.Contains("Updated Chinese body.", chineseHtml, StringComparison.Ordinal);
+        Assert.Equal(beforeBytes, File.ReadAllBytes(shared));
+        Assert.Equal(beforeWrite, File.GetLastWriteTimeUtc(shared));
     }
 
     [Fact]
