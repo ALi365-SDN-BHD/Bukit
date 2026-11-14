@@ -941,6 +941,36 @@ public sealed class WorktreeBuildCoordinatorTests : IDisposable
     }
 
     [Fact]
+    public async Task WorktreeBuild_MatchesInProcessOutputs_ForSharedAssets()
+    {
+        var root = Path.Combine(_root, "shared-assets-equivalence");
+        var site = CreateSite(root);
+        var path = Path.Combine(root, "site.yaml");
+        File.WriteAllText(path, File.ReadAllText(path)
+            .Replace("  defaultLanguage: en\n",
+                "  defaultLanguage: en\n  sharedAssets:\n    enabled: true\n", StringComparison.Ordinal));
+        Directory.CreateDirectory(Path.Combine(root, "assets"));
+        File.WriteAllText(Path.Combine(root, "assets", "style.css"), "body {}");
+        Directory.CreateDirectory(Path.Combine(root, "static", "assets"));
+        Directory.CreateDirectory(Path.Combine(root, "static", "fonts"));
+        File.WriteAllText(Path.Combine(root, "static", "assets", "logo.svg"), "<svg/>");
+        File.WriteAllText(Path.Combine(root, "static", "fonts", "a.woff2"), "font");
+        await InitializeRepositoryAsync(root);
+
+        Assert.Equal(0, await BuildCommand.RunInProcessAsync(Command(site)));
+        var expected = SnapshotPublishedOutputs(Path.Combine(root, "dist"));
+        Assert.True(File.Exists(Path.Combine(root, "dist", "assets", "style.css")));
+        Assert.False(File.Exists(Path.Combine(root, "dist", "zh-CN", "assets", "style.css")));
+        TestCleanup.DeleteDirectory(Path.Combine(root, "dist"), recursive: true);
+        TestCleanup.DeleteDirectory(Path.Combine(root, ".cache"), recursive: true);
+
+        var worktree = await RunProcessAsync("dotnet", [typeof(BuildCommand).Assembly.Location, "build", "--config", site], root);
+        Assert.True(worktree.ExitCode == 0, worktree.Output);
+        Assert.Equal(expected, SnapshotPublishedOutputs(Path.Combine(root, "dist")));
+        Assert.False(File.Exists(Path.Combine(root, "dist", "zh-CN", "assets", "style.css")));
+    }
+
+    [Fact]
     public async Task WorktreeBuild_MatchesInProcessOutputs_ForRootDefaultLanguageMergedSearch()
     {
         var root = Path.Combine(_root, "root-layout-merged-search-equivalence");

@@ -38,6 +38,7 @@ internal sealed class WorktreeBuildRun
     private List<WorkerPlan> _workerPlans = [];
     private MetricsPaths? _metrics;
     private I18nPreparedBuild? _prepared;
+    private SharedAssetScope? _sharedAssets;
     private BuildVariantResult[] _variants = [];
     private string? _contentHash;
     private int _warningCount;
@@ -314,6 +315,11 @@ internal sealed class WorktreeBuildRun
         CancellationToken cancellationToken)
     {
         _workerPlans = new List<WorkerPlan>(_languages.Count);
+        _sharedAssets = SharedAssetScope.TryCreate(
+            _effectiveConfig,
+            _languages,
+            _stagingOutputDir,
+            _logger);
         var layout = I18nOutputLayout.For(_effectiveConfig.Site);
         foreach (var language in _languages)
         {
@@ -350,7 +356,8 @@ internal sealed class WorktreeBuildRun
                 _stagedMediaDir ?? prepared.Plan.MediaCacheDir,
                 prepared.SeoAlternates,
                 snapshotPath,
-                resultPath);
+                resultPath,
+                _sharedAssets is null ? null : _stagingOutputDir);
             await I18nWorktreeProtocolStore.WriteRequestAsync(requestPath, request, cancellationToken).ConfigureAwait(false);
             _workerPlans.Add(new WorkerPlan(language, requestPath, resultPath, outputDir));
         }
@@ -366,40 +373,59 @@ internal sealed class WorktreeBuildRun
         var failures = new System.Collections.Concurrent.ConcurrentDictionary<string, Exception>(StringComparer.OrdinalIgnoreCase);
         try
         {
+            async ValueTask RunWorkerAsync(WorkerPlan plan, int index, CancellationToken parallelToken)
+            {
+                using var workerCancellation = string.Equals(plan.Language, defaultLanguage, StringComparison.OrdinalIgnoreCase)
+                    ? null
+                    : CancellationTokenSource.CreateLinkedTokenSource(parallelToken, stopOtherWorkers.Token);
+                var ct = workerCancellation?.Token ?? parallelToken;
+                try
+                {
+                    ct.ThrowIfCancellationRequested();
+                    await WorktreeBuildCoordinator.RunWorkerProcessAsync(plan, _logger, ct).ConfigureAwait(false);
+                    snapshots[index] = await I18nWorktreeProtocolStore.ReadResultAsync(plan.ResultPath, ct).ConfigureAwait(false);
+                }
+                catch (OperationCanceledException) when (!parallelToken.IsCancellationRequested && stopOtherWorkers.IsCancellationRequested)
+                {
+                    // Stopped because another worker already failed.
+                }
+                catch (Exception ex) when (ex is not OperationCanceledException)
+                {
+                    failures[plan.Language] = ex is WorktreeBuildException
+                        ? ex
+                        : new WorktreeBuildException(
+                            "i18n-worktree-result-invalid",
+                            $"Worker result for language '{plan.Language}' is invalid: {ex.Message}",
+                            ex);
+                    await stopOtherWorkers.CancelAsync().ConfigureAwait(false);
+                }
+            }
+
+            var defaultPlan = _workerPlans
+                .Select((plan, index) => (plan, index))
+                .First(item => string.Equals(item.plan.Language, defaultLanguage, StringComparison.OrdinalIgnoreCase));
+            if (_sharedAssets is not null)
+            {
+                await RunWorkerAsync(defaultPlan.plan, defaultPlan.index, workersCancellation.Token).ConfigureAwait(false);
+                if (!failures.IsEmpty)
+                {
+                    ThrowIfWorkersFailed(failures);
+                }
+            }
+
+            var plans = _sharedAssets is null
+                ? _workerPlans.Select((plan, index) => (plan, index))
+                : _workerPlans.Select((plan, index) => (plan, index))
+                    .Where(item => !string.Equals(item.plan.Language, defaultLanguage, StringComparison.OrdinalIgnoreCase));
             await Parallel.ForEachAsync(
-                _workerPlans.Select((plan, index) => (plan, index)),
+                plans,
                 new ParallelOptions
                 {
                     MaxDegreeOfParallelism = languageJobs,
                     CancellationToken = workersCancellation.Token
                 },
-                async (item, parallelToken) =>
-                {
-                    using var workerCancellation = string.Equals(item.plan.Language, defaultLanguage, StringComparison.OrdinalIgnoreCase)
-                        ? null
-                        : CancellationTokenSource.CreateLinkedTokenSource(parallelToken, stopOtherWorkers.Token);
-                    var ct = workerCancellation?.Token ?? parallelToken;
-                    try
-                    {
-                        ct.ThrowIfCancellationRequested();
-                        await WorktreeBuildCoordinator.RunWorkerProcessAsync(item.plan, _logger, ct).ConfigureAwait(false);
-                        snapshots[item.index] = await I18nWorktreeProtocolStore.ReadResultAsync(item.plan.ResultPath, ct).ConfigureAwait(false);
-                    }
-                    catch (OperationCanceledException) when (!parallelToken.IsCancellationRequested && stopOtherWorkers.IsCancellationRequested)
-                    {
-                        // Stopped because another worker already failed.
-                    }
-                    catch (Exception ex) when (ex is not OperationCanceledException)
-                    {
-                        failures[item.plan.Language] = ex is WorktreeBuildException
-                            ? ex
-                            : new WorktreeBuildException(
-                                "i18n-worktree-result-invalid",
-                                $"Worker result for language '{item.plan.Language}' is invalid: {ex.Message}",
-                                ex);
-                        await stopOtherWorkers.CancelAsync().ConfigureAwait(false);
-                    }
-                }).ConfigureAwait(false);
+                async (item, parallelToken) => await RunWorkerAsync(item.plan, item.index, parallelToken).ConfigureAwait(false))
+                .ConfigureAwait(false);
         }
         catch
         {

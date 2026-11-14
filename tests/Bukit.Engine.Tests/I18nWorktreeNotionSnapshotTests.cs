@@ -179,9 +179,10 @@ public sealed class I18nWorktreeNotionSnapshotTests : IDisposable
                 I18nWorktreeProtocol.RequestSchema, "head", configHash, contentHash, language, "text",
                 configPath, root, root, config, overrides, output, Path.Combine(root, "worker-cache", language),
                 prepared.AssetsDir, prepared.ScssOutputDir, prepared.Plan.MediaCacheDir, prepared.SeoAlternates,
-                contentPath, Path.Combine(root, "result-" + language + ".json")), CancellationToken.None);
+                contentPath, Path.Combine(root, "result-" + language + ".json"), root), CancellationToken.None);
             var request = await I18nWorktreeProtocolStore.ReadRequestAsync(requestPath, CancellationToken.None);
             Assert.Equal(configHash, I18nWorktreeProtocol.ComputeConfigHash(request.Config, request.Overrides));
+            Assert.Equal(root, request.SharedAssetsRoot);
 
             // The worker opens the snapshot its request names, as WorktreeBuildCoordinator does.
             BuildVariantResult result;
