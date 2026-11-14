@@ -90,7 +90,7 @@ SiteEngine / WorktreeBuildRun
 ## 2. 执行方式
 
 - **阶段 0 准备**（T00，一个任务完成）：
-  - 在 `scripts/checks/codex-workflow-policy.v1.json` 新增规则 `i18n-shared-assets-change`（参照 `unify-site-languages-change`）。`matches` 为本提案目录、本计划、`src/Bukit-Core/Bukit.Cli/Resources/StarterTheme/BaseLayout.html` 和三个新测试文件 `tests/Bukit.Engine.Tests/{ImageVariantPlan,SharedAssetScope,I18nSharedAssets}Tests.cs`；`specialtyTests` 为第 3 节矩阵 M1–M9 的命令加 M11。现有规则 `i18n-default-language-root-change` 把 `I18nWorktreeProtocol` 过滤用在了 `Bukit.Cli.Tests` 上，而这个类在 `Bukit.Engine.Tests`，不要照抄。然后跑 `bash scripts/checks/codex-workflow-self-test.sh`，`codex-workflow.py closure` 不得有未映射文件。
+  - 在 `scripts/checks/codex-workflow-policy.v1.json` 新增规则 `i18n-shared-assets-change`（参照 `unify-site-languages-change`）。`matches` 为本提案目录、本计划、`src/Bukit-Core/Bukit.Cli/Resources/StarterTheme/BaseLayout.html` 和三个新测试文件 `tests/Bukit.Engine.Tests/{ImageVariantPlan,SharedAssetScope,I18nSharedAssets}Tests.cs`；`specialtyTests` 为第 3 节矩阵 M1–M11 的命令，与基线取证范围一致。现有规则 `i18n-default-language-root-change` 把 `I18nWorktreeProtocol` 过滤用在了 `Bukit.Cli.Tests` 上，而这个类在 `Bukit.Engine.Tests`，不要照抄。然后跑 `bash scripts/checks/codex-workflow-self-test.sh`，`codex-workflow.py closure` 不得有未映射文件。
   - `codex-workflow.py classify` 分类：`dotnet test` 为 `dotnet-serial`；含并发和 Worktree 的测试单独运行。
   - 在未改动的基线上跑 M1–M10 并 `cache record`。
   - `codex-workflow.py queue init` 写入 T01.1–T08；实施者 acquire 后才写文件。
@@ -268,7 +268,7 @@ SiteEngine / WorktreeBuildRun
 | Core-generated site URLs follow the shared set | 0、4 | T04.1–T04.4 | T04.3、T04.4 |
 | Non-default languages reuse shared image variants read-only | 1、5 | T01.1–T01.2、T05.1–T05.4 | T01.1、T05.1–T05.4 |
 | Shared asset settings affect incremental rendering | 6 | T03.5 | T03.5、T03.6 |
-| Worktree builds share assets like in-process builds | 7 | T06.1–T06.2 | T06.3 |
+| Worktree builds share assets like in-process builds | 7 | T06.1–T06.2 | T06.1–T06.3 |
 
 tasks.md 第 8 节（测试）分布在上表各任务中，第 9 节对应 T07.1–T07.3，第 10 节对应 T08。
 

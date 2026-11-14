@@ -72,7 +72,7 @@
 
 ## 10. 验证
 
-- [ ] Config、Engine、CLI 专项测试；API 漂移、格式检查；`openspec validate add-i18n-shared-assets --strict`；当前平台 AOT 二进制编译。
+- [ ] Config、Engine、CLI 专项测试；API 漂移、格式检查；`openspec validate add-i18n-shared-assets --strict --no-interactive`；当前平台 AOT 二进制编译。
 
 ## 后续（不在本变更内）
 
