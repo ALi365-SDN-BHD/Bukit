@@ -259,8 +259,5 @@ internal sealed partial class ResponsiveImageHtmlTransform(
     }
 
     private static string BuildVariantUrl(string sourceUrl, int width)
-    {
-        var extensionAt = sourceUrl.LastIndexOf('.');
-        return ImageVariantPlan.VariantFileName(sourceUrl, width, sourceUrl[extensionAt..]);
-    }
+        => ImageVariantPlan.VariantUrl(sourceUrl, width);
 }

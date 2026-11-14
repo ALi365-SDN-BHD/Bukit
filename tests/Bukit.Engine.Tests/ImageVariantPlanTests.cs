@@ -38,12 +38,21 @@ public sealed class ImageVariantPlanTests
         Assert.Equal("/assets/hero-480w.webp", ImageVariantPlan.VariantFileName("/assets/hero.jpg", 480, ".webp"));
         Assert.Equal("hero-480w.JPG", ImageVariantPlan.VariantFileName("hero.jpg", 480, ".JPG"));
         Assert.Equal("/assets/hero.v1-480w.jpg", ImageVariantPlan.VariantFileName("/assets/hero.v1.jpg", 480, ".jpg"));
-        Assert.Equal("/assets/hero.v1-480w.jpg?x=1", ImageVariantPlan.VariantFileName("/assets/hero.v1.jpg?x=1", 480, ".jpg?x=1"));
+    }
+
+    [Theory]
+    [InlineData("/assets/hero.v1.jpg", 480, "/assets/hero.v1-480w.jpg")]
+    [InlineData("/assets/hero.v1.jpg?fit=cover/1", 480, "/assets/hero.v1-480w.jpg?fit=cover/1")]
+    [InlineData("https://site.test/assets/hero.jpg#large/1", 768, "https://site.test/assets/hero-768w.jpg#large/1")]
+    public void VariantUrl_PreservesUrlSeparatorsAndSuffix(string source, int width, string expected)
+    {
+        Assert.Equal(expected, ImageVariantPlan.VariantUrl(source, width));
     }
 
     [Theory]
     [InlineData("hero-480w.jpg", 480)]
     [InlineData("/tmp/assets/hero-1200w.webp", 1200)]
+    [InlineData("/tmp/assets/hero.v1-480w.jpg", 480)]
     [InlineData("hero-1w.jpg", 1)]
     [InlineData("hero-00480w.jpg", 480)]
     public void TryParseVariantFileName_ReadsWidth(string path, int expected)

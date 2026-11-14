@@ -18,6 +18,17 @@ internal static class ImageVariantPlan
         return string.IsNullOrEmpty(directory) ? fileName : Path.Combine(directory, fileName);
     }
 
+    // URL paths must keep '/' on every OS and must not let a query/fragment slash
+    // become part of the file name.
+    internal static string VariantUrl(string sourceUrl, int width)
+    {
+        var suffixAt = sourceUrl.IndexOfAny(['?', '#']);
+        var suffix = suffixAt < 0 ? string.Empty : sourceUrl[suffixAt..];
+        var path = suffixAt < 0 ? sourceUrl : sourceUrl[..suffixAt];
+        var extensionAt = path.LastIndexOf('.');
+        return $"{path[..extensionAt]}-{width}w{path[extensionAt..]}{suffix}";
+    }
+
     internal static bool TryParseVariantFileName(string path, out int width)
     {
         width = 0;
