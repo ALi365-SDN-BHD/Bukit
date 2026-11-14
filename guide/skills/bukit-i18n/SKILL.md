@@ -125,9 +125,10 @@ site:
   is `/`: map it to an empty string before appending, or you get `//assets/...`.
 - `paths` is a list of output prefixes. The media prefix (`content.media.urlBase`,
   normally `/assets/uploads`) is always excluded and cannot be shared; validation fails
-  if a path is inside it. Empty lists, absolute paths, `..`, and a normalized root
-  are rejected. When `paths` is omitted and the media prefix covers every default
-  prefix, validation fails; set `paths` outside it.
+  if a path is inside it. Empty lists, blank entries, absolute paths (a leading `/` or
+  `\`, a drive letter, or a UNC prefix), `..`, and a normalized root are rejected.
+  `.` segments are normalized, so `./fonts/` means `fonts/`. When `paths` is omitted and
+  the media prefix covers every default prefix, validation fails; set `paths` outside it.
 - `enabled: true` with `defaultLanguageInSubdir: true` is a validation error at any
   language count. A single-language root-layout site ignores the setting with
   `event=i18n.config.shared_assets_ignored`.

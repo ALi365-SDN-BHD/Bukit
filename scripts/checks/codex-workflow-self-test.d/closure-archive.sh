@@ -14,6 +14,8 @@ done
 
 for i18n_shared_assets_path in \
   openspec/changes/archive/2026-11-15-add-i18n-shared-assets/tasks.md \
+  openspec/changes/archive/2026-11-15-fix-shared-assets-path-normalization/tasks.md \
+  openspec/changes/fix-shared-assets-path-normalization/tasks.md \
   openspec/specs/i18n-shared-assets/spec.md; do
   expect_exit 0 "${tool[@]}" closure \
     --repo "$closure_fixture" \

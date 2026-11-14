@@ -4,6 +4,8 @@ Semua perubahan penting kepada Bukit akan didokumenkan dalam fail ini.
 
 ## [Belum Dikeluarkan]
 
+- **Entri laluan aset dikongsi disahkan secara konsisten**: `site.sharedAssets.paths` kini menolak awalan `\` atau huruf pemacu pada setiap platform dan bukan lagi menerimanya pada POSIX, gagal pada entri kosong dan bukan membuangnya secara senyap, serta menormalkan `./fonts/` kepada `fonts/` supaya ia sepadan. Awalan `/` kekal sebagai laluan mutlak dan ditolak.
+
 ## [2.2.2] - 2026-11-15
 
 - **URL imej SEO mengekalkan satu awalan base**: `record.Media` dan medan imej tersuai yang telah disetempatkan tidak lagi mengulang base bahasa dalam `og:image` atau URL imej Twitter. Ini merangkumi bahasa bukan lalai dan tapak di bawah sub-laluan seperti `/repo`; URL pemegang tempat dikongsi di bawah base akar juga dikenali.

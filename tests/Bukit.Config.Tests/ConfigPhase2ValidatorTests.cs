@@ -129,6 +129,9 @@ public sealed class ConfigPhase2ValidatorTests : IDisposable
 
     [Theory]
     [InlineData("/assets/")]
+    [InlineData("\\assets\\")]
+    [InlineData("C:\\assets")]
+    [InlineData("//server/share")]
     [InlineData("../assets/")]
     [InlineData("/")]
     public void Validate_InvalidSharedAssetsPath_ShouldFail(string path)
@@ -140,6 +143,31 @@ public sealed class ConfigPhase2ValidatorTests : IDisposable
             """));
 
         Assert.Contains("site.sharedAssets.paths[0]", ex.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Validate_DotSegmentSharedAssetsPath_ShouldPass()
+    {
+        var config = ConfigLoader.Load(WriteConfig("""
+              sharedAssets:
+                enabled: true
+                paths: [./fonts/]
+            """));
+        ConfigValidator.Validate(config);
+
+        Assert.Equal(["./fonts/"], config.Site.SharedAssets.Paths);
+    }
+
+    [Fact]
+    public void Validate_BlankSharedAssetsPath_ShouldFail()
+    {
+        var ex = ValidateFails(WriteConfig("""
+              sharedAssets:
+                enabled: true
+                paths: [assets/, ""]
+            """));
+
+        Assert.Contains("site.sharedAssets.paths[1] must not be blank", ex.Message, StringComparison.Ordinal);
     }
 
     [Fact]

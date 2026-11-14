@@ -269,6 +269,13 @@ public static class ConfigValidator
         {
             var raw = shared.Paths[i] ?? string.Empty;
             var field = $"site.sharedAssets.paths[{i}]";
+            if (string.IsNullOrWhiteSpace(raw))
+            {
+                throw new ConfigException(
+                    $"{field} must not be blank.",
+                    DiagnosticCode.ConfigInvalidValue);
+            }
+
             if (SharedAssetsPath.IsAbsolute(raw))
             {
                 throw new ConfigException(
