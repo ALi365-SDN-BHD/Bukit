@@ -288,6 +288,15 @@
 | 7. 文档 | T07.1–T07.3 |
 
 
+## 6. 实施时与计划不一致之处
+
+| 任务 | 计划 | 实际 | 原因 |
+|---|---|---|---|
+| T04.3 | 删除 `SiteConfigValidator` 的单语言 `site.language` 规则 | 保留，只对没写 `Languages` 的代码构造配置生效 | YAML 已不能写 `site.language`，但公开的 `SiteConfig.Language` 仍可在代码中赋值。这条规则拦截 `../outside`、`x"><script>`、`en\nadmin` 这类会拼进路径、HTML 和日志的值；引擎在 `BuildPlanner`、`BuildTransaction` 中都会调用 `ConfigValidator.Validate`，由 `Validate_SingleLanguageIsNotSafeTag_Throws` 覆盖 |
+| T04.1–T04.6 | 文档改动放在阶段 7 | 部分改动提前到阶段 4 的提交 | `ConfigContractDriftTests` 在 README、`guide/` 出现未知的 `site.yaml` 字段（包括行内的 `site.language`）时会失败；阶段 4 必须是一个全绿的提交。提前的是最小改动：三份 README 的示例，`guide/user` 的 04、11、16，4 个 skill，并删除 11-i18n-seo.md 中 `default_language_ignored` 一行；完整修订仍在阶段 7 |
+| T01.2、T02.2 | 只在 `SiteEngine.BuildCoreAsync` 和 `ContentPipeline.ExecuteAsync` 规范化 | 公开的 `RouteInventoryValidator.BuildContentRoutesAsync` 也先规范化站点语言 | 阶段 2 核实调用方时发现，这个入口不经过上面两处。代码构造的 `Languages = ["fr"]` 配置会让 `Language` 停在 `zh-CN`，丢掉法语页面。规范化对已规范化的配置不产生变化，公开 API 签名不变，有专门测试，去掉规范化即失败 |
+| T02.6 | 单项时重复 key 警告不再出现 | 单项站点仍会出现重复 key 警告，与旧的单语言站点相同 | `WarnDocumentLanguageIssues` 按语言加 key 分组，旧单语言站点本来就会报警告（与 main 一致）；单项就是单语言站点，所以行为保持一致。`SingleEntryLanguagesWarnsLikeASingleLanguageSite` 断言两者警告相同，它锁定的是现状，改动前后都会通过 |
+
 ## 修订记录
 
 | 轮次 | 日期 | 内容 |
@@ -296,3 +305,4 @@
 | 确认 | 2026-11-14 | T03.2：intent 删除 `site.language`，单语言写 `languages.supported: [x]`，单项时 `languages.default` 可省略 |
 | 审计 1 | 2026-11-14 | 加载器也推导语言（T01.1），引擎入口改为 `BuildCoreAsync` 和 `ContentPipeline.ExecuteAsync`，新增 SDK 任务（T01.3），阶段 1 共 4 个任务；阶段 2、4、6 各为一个提交；T00.4 改用同一语言目录下的同名文件锁定 slug，`ContentProviderFactory` 并入 T02.1；固定 `metrics.json` 规则；补 `WorktreeBuildCoordinatorTests`、`ConfigLoaderFullCoverageTests`、Stage7 快照、`guide/dev/plugins.md`；修正 `SiteEngineLifecycle` 过滤；测试站点 `site.yaml` 补闭包映射，加 `classify` |
 | 复审 1 | 2026-11-14 | SDK 改动移入 T02.1（阶段 1 时单项仍是多语言，会改变 SDK 输出），阶段 1 回到 3 个任务，共 34 个任务；`SiteConfig.Language` 统一为默认语言（多语言站点也是）；规范化放在 `BuildCoreAsync` 开头；补 Stage7 快照映射、`ContentPipeline` 行号、`CloneWorkflow` 过滤 |
+| 实施记录 | 2026-11-14 | 新增第 6 节，记录实施时与计划不一致的 4 处 |
