@@ -42,7 +42,8 @@ public sealed class WorktreeBuildCoordinatorTests : IDisposable
         var result = await BuildCommand.RunAsync(Command(site));
 
         Assert.Equal(0, result);
-        Assert.True(File.Exists(Path.Combine(root, "dist", "en", "index.html")));
+        Assert.True(File.Exists(Path.Combine(root, "dist", "index.html")));
+        Assert.False(File.Exists(Path.Combine(root, "dist", "en", "index.html")));
     }
 
     [Theory]
@@ -285,7 +286,9 @@ public sealed class WorktreeBuildCoordinatorTests : IDisposable
         var stored = Assert.Single(Directory.GetFiles(mediaDir, "*.png"));
         Assert.Equal(image, await File.ReadAllBytesAsync(stored));
         Assert.True(File.Exists(Path.Combine(mediaDir, ".media-index.json")));
-        Assert.Contains(Directory.EnumerateFiles(Path.Combine(root, "dist", "en"), "*.png", SearchOption.AllDirectories),
+        // The English page builds at the output root by default; zh-CN has its own subdirectory.
+        Assert.Contains(Directory.EnumerateFiles(Path.Combine(root, "dist"), "*.png", SearchOption.AllDirectories)
+                .Where(path => !Path.GetRelativePath(Path.Combine(root, "dist"), path).StartsWith("zh-CN", StringComparison.Ordinal)),
             path => File.ReadAllBytes(path).SequenceEqual(image));
         listener.Stop();
         var offline = await RunProcessAsync("dotnet", [typeof(BuildCommand).Assembly.Location, "build", "--config", site], root);
@@ -867,8 +870,9 @@ public sealed class WorktreeBuildCoordinatorTests : IDisposable
         var exitCode = await BuildCommand.RunInProcessAsync(Command(site));
 
         Assert.Equal(0, exitCode);
+        // The default language builds at the output root, so content/index.md and content/en/index.md keep distinct slugs.
+        Assert.True(File.Exists(Path.Combine(root, "dist", "index", "index.html")));
         Assert.True(File.Exists(Path.Combine(root, "dist", "en", "index", "index.html")));
-        Assert.True(File.Exists(Path.Combine(root, "dist", "en", "en", "index", "index.html")));
     }
 
     [Fact]
@@ -887,6 +891,8 @@ public sealed class WorktreeBuildCoordinatorTests : IDisposable
     {
         var root = Path.Combine(_root, "equivalence");
         var site = CreateSite(root);
+        File.WriteAllText(site, File.ReadAllText(site)
+            .Replace("  defaultLanguage: en\n", "  defaultLanguage: en\n  defaultLanguageInSubdir: true\n", StringComparison.Ordinal));
         await InitializeRepositoryAsync(root);
 
         Assert.Equal(0, await BuildCommand.RunInProcessAsync(Command(site)));
@@ -1033,15 +1039,19 @@ public sealed class WorktreeBuildCoordinatorTests : IDisposable
     {
         var root = Path.Combine(_root, "layout-switch");
         var site = CreateSite(root);
+        var path = Path.Combine(root, "site.yaml");
+        // The first build opts into the prefixed layout so the second build is a real subdir -> root switch.
+        File.WriteAllText(path, File.ReadAllText(path)
+            .Replace("  defaultLanguage: en\n", "  defaultLanguage: en\n  defaultLanguageInSubdir: true\n", StringComparison.Ordinal));
         await InitializeRepositoryAsync(root);
 
         var prefixed = await RunProcessAsync("dotnet", [typeof(BuildCommand).Assembly.Location, "build", "--config", site], root);
         Assert.True(prefixed.ExitCode == 0, prefixed.Output);
-        Assert.True(File.Exists(Path.Combine(root, "dist", "en", "index.html")));
+        var prefixedHome = File.ReadAllText(Path.Combine(root, "dist", "en", "index.html"));
+        Assert.DoesNotContain("http-equiv=\"refresh\"", prefixedHome, StringComparison.OrdinalIgnoreCase);
 
-        var path = Path.Combine(root, "site.yaml");
         File.WriteAllText(path, File.ReadAllText(path)
-            .Replace("  defaultLanguage: en\n", "  defaultLanguage: en\n  defaultLanguageInSubdir: false\n", StringComparison.Ordinal)
+            .Replace("  defaultLanguageInSubdir: true\n", "  defaultLanguageInSubdir: false\n", StringComparison.Ordinal)
             .Replace("  sitemapMode: merged\n", "  sitemapMode: split\n", StringComparison.Ordinal)
             .Replace("  search:\n    mode: merged\n", "  search:\n    mode: split\n", StringComparison.Ordinal));
         Assert.Equal(0, (await RunProcessAsync("git", ["add", "site.yaml"], root)).ExitCode);

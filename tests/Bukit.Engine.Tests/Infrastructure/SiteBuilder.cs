@@ -21,7 +21,7 @@ internal sealed class SiteBuilder : IDisposable
                 site:
                   name: phase0
                   title: Phase 0
-                  language: en
+                  languages: [en]
                   collections:
                     page:
                       permalink: /{slug}/

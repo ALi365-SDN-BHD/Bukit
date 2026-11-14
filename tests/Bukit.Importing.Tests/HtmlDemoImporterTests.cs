@@ -1026,7 +1026,11 @@ public sealed class HtmlDemoImporterTests : IDisposable
 
         var site = File.ReadAllText(Path.Combine(_tempDir, "sites", "lang-en", "site.yaml"));
         var seed = File.ReadAllText(Path.Combine(_tempDir, "sites", "lang-en", "notion-seed", "pages.json"));
-        Assert.Contains("language: en", site, StringComparison.Ordinal);
+        // The generated site config writes site.languages with one entry and no site.language.
+        var config = Bukit.Config.ConfigLoader.Load(Path.Combine(_tempDir, "sites", "lang-en", "site.yaml"));
+        Assert.Equal(["en"], config.Site.Languages);
+        Assert.Equal("en", config.Site.Language);
+        Assert.DoesNotMatch(@"(?m)^\s*language:", site);
         Assert.Contains("\"language\": \"en\"", seed, StringComparison.Ordinal);
     }
 

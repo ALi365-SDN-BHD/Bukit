@@ -61,7 +61,7 @@ public sealed class ConfigLoaderFullCoverageTests : IDisposable
     }
 
     [Fact]
-    public void Load_SiteLanguages_EmptyList_ReturnsNull()
+    public void Load_SiteLanguages_EmptyList_DefaultsToZhCn()
     {
         var yaml = """
             site:
@@ -77,7 +77,8 @@ public sealed class ConfigLoaderFullCoverageTests : IDisposable
         var path = WriteTempYaml(yaml);
         var config = ConfigLoader.Load(path);
 
-        Assert.Null(config.Site.Languages);
+        Assert.Equal(["zh-CN"], config.Site.Languages);
+        Assert.Equal("zh-CN", config.Site.Language);
     }
 
     [Fact]

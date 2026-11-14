@@ -96,13 +96,28 @@ public sealed class SiteEngineLoggerTests
     }
 
     [Fact]
+    public async Task DefaultLanguageLayoutWithoutLanguages_IsSilentByDefault()
+    {
+        // defaultLanguageInSubdir defaults to false, so a single-language site must not warn on every build.
+        using var site = CreateSite();
+        var logger = new RecordingLogger(new ConsoleLogger(LogLevel.Error));
+
+        var result = await new SiteEngine(logger).BuildAsync(Configure(site.Config, false), site.Root,
+            new ConfigOverrides { Incremental = false });
+
+        Assert.DoesNotContain(logger.Warnings, message => message.Contains("event=i18n.config.default_language_layout_ignored", StringComparison.Ordinal));
+        Assert.True(File.Exists(Path.Combine(site.Output, "hello", "index.html")));
+        Assert.Equal(0, result.Summary.ErrorCount);
+    }
+
+    [Fact]
     public async Task DefaultLanguageLayoutWithoutLanguages_WarnsAndOutputIsUnchanged()
     {
         using var site = CreateSite();
         var logger = new RecordingLogger(new ConsoleLogger(LogLevel.Error));
         var config = Configure(site.Config, false) with
         {
-            Site = Configure(site.Config, false).Site with { DefaultLanguageInSubdir = false }
+            Site = Configure(site.Config, false).Site with { DefaultLanguageInSubdir = true }
         };
 
         var result = await new SiteEngine(logger).BuildAsync(config, site.Root,
@@ -112,6 +127,47 @@ public sealed class SiteEngineLoggerTests
         Assert.True(File.Exists(Path.Combine(site.Output, "hello", "index.html")));
         Assert.Equal(0, result.Summary.ErrorCount);
         AssertReport(site, result);
+    }
+
+    [Fact]
+    public async Task DefaultLanguageLayoutWithOneLanguage_WarnsAndBuildsAtTheRoot()
+    {
+        // One entry in site.languages is a single-language site, so the layout setting is ignored.
+        using var site = CreateSite();
+        var logger = new RecordingLogger(new ConsoleLogger(LogLevel.Error));
+        var config = Configure(site.Config, false) with
+        {
+            Site = Configure(site.Config, false).Site with { Languages = ["en"], DefaultLanguageInSubdir = true }
+        };
+
+        var result = await new SiteEngine(logger).BuildAsync(config, site.Root,
+            new ConfigOverrides { Incremental = false });
+
+        Assert.Contains(logger.Warnings, message => message.Contains("event=i18n.config.default_language_layout_ignored", StringComparison.Ordinal));
+        Assert.True(File.Exists(Path.Combine(site.Output, "hello", "index.html")));
+        Assert.False(Directory.Exists(Path.Combine(site.Output, "en")));
+        Assert.Equal(0, result.Summary.ErrorCount);
+        AssertReport(site, result);
+    }
+
+    [Fact]
+    public async Task RootLayout_LogsOnlyOneSymlinkWarningPerLanguage()
+    {
+        // The default language at the root does not own llms.txt (the root writes it after every
+        // language), so its audit must not also warn geo.llms_txt_missing.
+        using var site = CreateSite();
+        var config = Configure(site.Config, true);
+        config = config with { Site = config.Site with { DefaultLanguageInSubdir = false } };
+        site.Sandbox.Write("outside.txt", "not published");
+        string link = site.Sandbox.Link("static/link.txt", site.Sandbox.PathFor("outside.txt"), directory: false);
+        var logger = new RecordingLogger(new ConsoleLogger(LogLevel.Error));
+
+        var result = await new SiteEngine(logger).BuildAsync(config, site.Root, new ConfigOverrides { Incremental = false });
+
+        Assert.Equal(2, logger.Warnings.Count);
+        Assert.All(logger.Warnings, message => Assert.Equal("Skipping symlink: " + link, message));
+        Assert.Equal(2, result.Summary.WarningCount);
+        Assert.True(File.Exists(Path.Combine(site.Output, "llms.txt")));
     }
 
     private static SiteBuilder CreateSite()
@@ -164,7 +220,9 @@ public sealed class SiteEngineLoggerTests
             Seo = new SeoConfig { Enabled = false },
             Analytics = new AnalyticsConfig { Enabled = false },
             Languages = multilingual ? ["en", "zh"] : null,
-            DefaultLanguage = multilingual ? "en" : null
+            DefaultLanguage = multilingual ? "en" : null,
+            // Prefixed layout; RootLayout_LogsOnlyOneSymlinkWarningPerLanguage covers the root layout.
+            DefaultLanguageInSubdir = multilingual
         },
         Build = config.Build with { LanguageJobs = multilingual ? 2 : 1 }
     };

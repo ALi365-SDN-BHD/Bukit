@@ -22,7 +22,7 @@ public sealed class SeoIndexBuilderTests
                 Name = "test",
                 Title = "Test Site",
                 Url = "https://example.com",
-                Language = "zh-CN",
+                Languages = ["zh-CN"],
                 Seo = new SeoConfig
                 {
                     Enabled = seoEnabled,

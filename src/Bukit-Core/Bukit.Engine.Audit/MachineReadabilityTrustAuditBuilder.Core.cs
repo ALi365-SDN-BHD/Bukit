@@ -51,6 +51,7 @@ internal static partial class MachineReadabilityTrustAuditBuilder
                                    config.Site.Seo.Schema.SearchAction &&
                                    !string.IsNullOrWhiteSpace(config.Site.Search.Route);
 
+        var languageFallback = PublishDocumentBuilder.LanguageFallback(config.Site);
         var isInSitemapScope = SeoCompatibilityAuditRules.CreateSitemapScopeCheck(config.Site.Url, config.Site.BaseUrl);
         var isInSitemap = SeoCompatibilityAuditRules.CreateSitemapPresenceCheck(sitemapText);
         foreach (var (key, entry) in seoIndex.OrderBy(x => x.Value.Route.Url, StringComparer.OrdinalIgnoreCase))
@@ -74,7 +75,7 @@ internal static partial class MachineReadabilityTrustAuditBuilder
             var schemaTypes = model is null
                 ? Array.Empty<string>()
                 : SeoSchemaValidator.ExtractSchemaTypes(model.JsonLd, entry.Route.Url, jsonLdNotRendered ? [] : seoIssues, searchActionExpected);
-            var document = PublishDocumentBuilder.Build(entry, model, record, schemaTypes, config.Site.BaseUrl, projectionResults);
+            var document = PublishDocumentBuilder.Build(entry, model, record, schemaTypes, config.Site.BaseUrl, projectionResults, languageFallback);
             HtmlDocumentTitleInspection? titleInspection = null;
             if (!outputExists)
             {
@@ -255,13 +256,15 @@ internal static partial class MachineReadabilityTrustAuditBuilder
         var llmsTxtGenerated = paths.Llms is not null && File.Exists(paths.Llms);
         var llmsFullTxtGenerated = paths.LlmsFull is not null && File.Exists(paths.LlmsFull);
 
-        if (config.Site.Seo.Geo.Enabled && config.Site.Seo.Geo.LlmsTxt && !llmsTxtGenerated)
+        // No read path means another writer owns the file (the root writes llms files for a root
+        // default language after every language), so this audit cannot report it as missing.
+        if (config.Site.Seo.Geo.Enabled && config.Site.Seo.Geo.LlmsTxt && paths.Llms is not null && !llmsTxtGenerated)
         {
             seoIssues.Add(new SeoAuditIssue("warning", "geo.llms_txt_missing", null,
                 "llms.txt was not generated. Ensure GEO is enabled and content has indexable routes."));
         }
 
-        if (config.Site.Seo.Geo.Enabled && config.Site.Seo.Geo.LlmsFullTxt && !llmsFullTxtGenerated)
+        if (config.Site.Seo.Geo.Enabled && config.Site.Seo.Geo.LlmsFullTxt && paths.LlmsFull is not null && !llmsFullTxtGenerated)
         {
             seoIssues.Add(new SeoAuditIssue("warning", "geo.llms_full_txt_missing", null,
                 "llms-full.txt was not generated. Check that llmsFullTxt is enabled and content is indexable."));

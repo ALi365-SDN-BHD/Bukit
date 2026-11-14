@@ -21,7 +21,7 @@ public sealed class BuildReportPipelineTests
         var logger = new RecordingLogger();
         var config = new AppConfig
         {
-            Site = new SiteConfig { Name = "test", Title = "Test", Language = "en" },
+            Site = new SiteConfig { Name = "test", Title = "Test", Languages = ["en"] },
             Content = TestContent.Markdown()
         };
         var pipeline = new BuildReportPipeline();

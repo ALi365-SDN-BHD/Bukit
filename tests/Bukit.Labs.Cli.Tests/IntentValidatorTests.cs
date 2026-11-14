@@ -49,6 +49,42 @@ public sealed class IntentValidatorTests : IDisposable
         Assert.False(result.IsValid);
     }
 
+    public static TheoryData<string?, string[], string?> LanguageCases => new()
+    {
+        { null, new[] { "en" }, null },
+        { "en", new[] { "en" }, null },
+        { "EN", new[] { "en" }, null },
+        { "fr", new[] { "en" }, "languages.default must be included in languages.supported." },
+        { null, new[] { "en", "zh-CN" }, "languages.default is required when languages.supported has more than one language." },
+        { "zh-CN", new[] { "en", "zh-CN" }, null }
+    };
+
+    [Theory]
+    [MemberData(nameof(LanguageCases))]
+    public void Validate_Languages_DefaultIsOptionalOnlyForOneLanguage(string? defaultLanguage, string[] supported, string? expectedError)
+    {
+        var intent = new SiteIntent
+        {
+            Site = new SiteIntentSite { Name = "site", Title = "Site", BaseUrl = "/" },
+            Languages = new SiteIntentLanguages { Default = defaultLanguage, Supported = supported },
+            Content = new SiteIntentContent { Kind = "markdown" },
+            Theme = new SiteIntentTheme { Name = "starter" }
+        };
+
+        var errors = IntentValidator.Validate(intent, _rootDir).Errors
+            .Where(error => error.StartsWith("languages.", StringComparison.Ordinal))
+            .ToList();
+
+        if (expectedError is null)
+        {
+            Assert.Empty(errors);
+        }
+        else
+        {
+            Assert.Equal([expectedError], errors);
+        }
+    }
+
     [Fact]
     public void Validate_NotionIntentWithoutDatabaseId_ReturnsErrorAndTokenWarning()
     {

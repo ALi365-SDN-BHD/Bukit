@@ -57,8 +57,8 @@ public sealed class ConfigPhase2ValidatorTests : IDisposable
 
         Assert.Equal("/", config.Site.BaseUrl);
         Assert.Equal("zh-CN", config.Site.Language);
-        Assert.Null(config.Site.Languages);
-        Assert.True(config.Site.DefaultLanguageInSubdir);
+        Assert.Equal(["zh-CN"], config.Site.Languages);
+        Assert.False(config.Site.DefaultLanguageInSubdir);
         Assert.True(config.Site.DefaultLanguageRedirect);
         Assert.False(config.Site.DefaultLanguageLegacyRedirects);
         Assert.Null(config.Site.DefaultLanguage);
@@ -111,10 +111,33 @@ public sealed class ConfigPhase2ValidatorTests : IDisposable
     public void Validate_UnsafeSingleLanguageTag_ShouldFail()
     {
         var ex = ValidateFails(WriteConfig("""
-              language: en_US
+              languages: [en_US]
             """));
 
-        Assert.Contains("site.language must use safe alphanumeric subtags", ex.Message, StringComparison.Ordinal);
+        Assert.Contains("site.languages must use safe alphanumeric subtags", ex.Message, StringComparison.Ordinal);
+    }
+
+    // One language means the default language is that entry (D6): omitting it or writing the
+    // same language passes, any other language fails, and so does defaultLanguage without languages.
+    [Theory]
+    [InlineData("languages: [en]", true)]
+    [InlineData("languages: [en]\n  defaultLanguage: en", true)]
+    [InlineData("languages: [en]\n  defaultLanguage: fr", false)]
+    [InlineData("defaultLanguage: en", false)]
+    public void Validate_SingleLanguageDefaultLanguage(string languageYaml, bool valid)
+    {
+        var config = ConfigLoader.Load(WriteConfig("  " + languageYaml));
+
+        if (valid)
+        {
+            ConfigValidator.Validate(config);
+            Assert.Equal("en", config.Site.Language);
+        }
+        else
+        {
+            var ex = Assert.Throws<ConfigException>(() => ConfigValidator.Validate(config));
+            Assert.Equal("site.defaultLanguage must be included in site.languages.", ex.Message);
+        }
     }
 
     [Fact]

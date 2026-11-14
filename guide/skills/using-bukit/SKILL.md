@@ -80,8 +80,8 @@ the next step.
 
 ## Pitfalls that affect most new sites
 
-- `site.language` defaults to `zh-CN`; pages tagged with another language are dropped
-  unless you set it.
+- `site.languages` defaults to `[zh-CN]`; pages tagged with another language are dropped
+  unless you list it, for example `languages: [en]`.
 - With `site.collections`, set `collection:` on every content source.
 - Only `publishAt` is a publish date; `date:` is not.
 - `content/index.md` is not the home page; `/` is the home list template.

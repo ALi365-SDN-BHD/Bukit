@@ -17,13 +17,22 @@ public sealed record SiteIntentSite
     public string BaseUrl { get; init; } = "/";
     public string? Url { get; init; }
     public string? Type { get; init; }
-    public string? Language { get; init; }
 }
 
 public sealed record SiteIntentLanguages
 {
-    public required string Default { get; init; }
+    /// <summary>The default language. May be omitted when <see cref="Supported"/> has one language.</summary>
+    public string? Default { get; init; }
     public required IReadOnlyList<string> Supported { get; init; }
+
+    /// <summary>The supported languages, trimmed, without blank entries.</summary>
+    public IReadOnlyList<string> CleanSupported =>
+        Supported.Where(x => !string.IsNullOrWhiteSpace(x)).Select(x => x.Trim()).ToList();
+
+    /// <summary><see cref="Default"/> when set, otherwise the only supported language.</summary>
+    public string? ResolvedDefault => !string.IsNullOrWhiteSpace(Default)
+        ? Default.Trim()
+        : CleanSupported.Count == 1 ? CleanSupported[0] : null;
 }
 
 public sealed record SiteIntentContent

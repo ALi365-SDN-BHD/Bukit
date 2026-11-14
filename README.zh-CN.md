@@ -93,7 +93,7 @@ site:
   title: My Site
   url: https://example.com
   baseUrl: /
-  language: en
+  languages: [en]   # 只写一项即单语言站点；不写时为 [zh-CN]
   collections:
     page:
       permalink: /{slug}/

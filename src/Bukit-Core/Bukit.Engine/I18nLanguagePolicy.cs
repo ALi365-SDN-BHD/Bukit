@@ -7,31 +7,21 @@ namespace Bukit.Engine;
 
 internal static class I18nLanguagePolicy
 {
+    /// <summary>
+    /// Returns the languages of a multilingual site. A site with fewer than two languages is a
+    /// single-language site and gets an empty list; its language is <see cref="SiteConfig.Language"/>.
+    /// </summary>
     internal static IReadOnlyList<string> GetLanguages(SiteConfig site)
     {
-        if (site.Languages is not { Count: > 0 } langs)
-        {
-            return Array.Empty<string>();
-        }
-
-        var cleaned = langs.Where(x => !string.IsNullOrWhiteSpace(x)).Select(x => x.Trim()).ToList();
-        if (cleaned.Count == 0)
-        {
-            return Array.Empty<string>();
-        }
-
-        var result = new List<string>();
-        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        foreach (var language in cleaned)
-        {
-            if (seen.Add(language))
-            {
-                result.Add(language);
-            }
-        }
-
-        return result;
+        var languages = SiteLanguageResolver.Clean(site.Languages);
+        return languages.Count < 2 ? Array.Empty<string>() : languages;
     }
+
+    /// <summary>
+    /// Derives <see cref="SiteConfig.Language"/> from <c>site.languages</c> for configs built in
+    /// code rather than by <see cref="ConfigLoader"/>, so every build reads the same site language.
+    /// </summary>
+    internal static SiteConfig NormalizeSite(SiteConfig site) => SiteLanguageResolver.WithDerivedLanguage(site);
 
     internal static string GetDefaultLanguage(SiteConfig site, IReadOnlyList<string> languages)
     {
@@ -45,10 +35,10 @@ internal static class I18nLanguagePolicy
             return languages[0];
         }
 
+        // Return the list's spelling, matching SiteLanguageResolver.
         var defaultLanguage = site.DefaultLanguage.Trim();
-        return languages.Contains(defaultLanguage, StringComparer.OrdinalIgnoreCase)
-            ? defaultLanguage
-            : languages[0];
+        return languages.FirstOrDefault(language => string.Equals(language, defaultLanguage, StringComparison.OrdinalIgnoreCase))
+            ?? languages[0];
     }
 
     internal static string CombineBaseUrlWithLanguage(string baseUrl, string language)
@@ -70,8 +60,9 @@ internal static class I18nLanguagePolicy
 
     internal static void WarnLayoutSettingsWithoutLanguages(SiteConfig site, ILogger logger)
     {
+        // Defaults: defaultLanguageInSubdir false, defaultLanguageRedirect true, legacy redirects false.
         if (GetLanguages(site).Count > 0 ||
-            (site.DefaultLanguageInSubdir && site.DefaultLanguageRedirect && !site.DefaultLanguageLegacyRedirects))
+            (!site.DefaultLanguageInSubdir && site.DefaultLanguageRedirect && !site.DefaultLanguageLegacyRedirects))
         {
             return;
         }
@@ -96,12 +87,6 @@ internal static class I18nLanguagePolicy
         ILogger logger)
     {
         var languages = GetLanguages(site);
-        if (languages.Count == 0 && !string.IsNullOrWhiteSpace(site.DefaultLanguage))
-        {
-            logger.Warn(
-                $"event=i18n.config.default_language_ignored defaultLanguage={site.DefaultLanguage.Trim()} language={site.Language}");
-        }
-
         var configured = languages.Count > 0
             ? languages
             : [site.Language.Trim()];

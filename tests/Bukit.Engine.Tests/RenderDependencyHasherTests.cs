@@ -909,16 +909,41 @@ public sealed class RenderDependencyHasherTests
     [Fact]
     public void Compute_DifferentDefaultLanguage_ProducesDifferentHash()
     {
-        var config1 = CreateBaseConfig();
-        var config2 = CreateBaseConfig() with
+        var multilingual = CreateBaseConfig() with
         {
-            Site = CreateBaseConfig().Site with { DefaultLanguage = "zh" }
+            Site = CreateBaseConfig().Site with { Languages = ["en", "zh"], DefaultLanguage = "en" }
         };
+        var config2 = multilingual with { Site = multilingual.Site with { DefaultLanguage = "zh" } };
 
-        var hash1 = RenderDependencyHasher.Compute(config1, s_emptySiteModel);
+        var hash1 = RenderDependencyHasher.Compute(multilingual, s_emptySiteModel);
         var hash2 = RenderDependencyHasher.Compute(config2, s_emptySiteModel);
 
         Assert.NotEqual(hash1, hash2);
+    }
+
+    [Fact]
+    public void Compute_LanguagesThatCleanToTheSameList_ProduceTheSameHash()
+    {
+        var clean = CreateBaseConfig() with { Site = CreateBaseConfig().Site with { Languages = ["en", "fr"], DefaultLanguage = "en" } };
+        var messy = clean with { Site = clean.Site with { Languages = [" en ", "fr", "EN", ""] } };
+
+        Assert.Equal(RenderDependencyHasher.Compute(clean, s_emptySiteModel), RenderDependencyHasher.Compute(messy, s_emptySiteModel));
+    }
+
+    [Fact]
+    public void Compute_SingleLanguageSite_HashesOnlyTheSiteLanguage()
+    {
+        // languages: [en] with or without defaultLanguage: en is the same site as language: en.
+        var legacy = CreateBaseConfig() with { Site = CreateBaseConfig().Site with { Language = "en", Languages = null, DefaultLanguage = null } };
+        var listed = legacy with { Site = legacy.Site with { Languages = ["en"] } };
+        var withDefault = listed with { Site = listed.Site with { DefaultLanguage = "en" } };
+        var other = listed with { Site = listed.Site with { Language = "fr", Languages = ["fr"] } };
+
+        var hash = RenderDependencyHasher.Compute(legacy, s_emptySiteModel);
+
+        Assert.Equal(hash, RenderDependencyHasher.Compute(listed, s_emptySiteModel));
+        Assert.Equal(hash, RenderDependencyHasher.Compute(withDefault, s_emptySiteModel));
+        Assert.NotEqual(hash, RenderDependencyHasher.Compute(other, s_emptySiteModel));
     }
 
     [Fact]

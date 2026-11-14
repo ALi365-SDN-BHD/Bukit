@@ -96,7 +96,7 @@ site:
   title: My Site
   url: https://example.com
   baseUrl: /
-  language: en
+  languages: [en]   # one entry = single-language site; omitted = [zh-CN]
   collections:
     page:
       permalink: /{slug}/

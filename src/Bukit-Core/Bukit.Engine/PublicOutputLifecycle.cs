@@ -152,6 +152,43 @@ internal static class PublicOutputLifecycle
         }
     }
 
+    /// <summary>
+    /// Removes the private reports (<c>&lt;dir&gt;/.bukit</c>) of a language directory the previous build
+    /// wrote and this build no longer writes, such as <c>dist/en/.bukit</c> after a multilingual site
+    /// becomes single-language. Its public files are removed as stale outputs, but reports are not
+    /// owned outputs, so the directory would otherwise stay behind.
+    /// </summary>
+    internal static void DeleteRemovedVariantReports(
+        string outputDir,
+        BuildManifest previous,
+        IReadOnlyList<BuildVariantResult> variants,
+        IReadOnlySet<string> current)
+    {
+        if (!SameRoot(previous, outputDir)) return;
+        var variantDirs = variants
+            .Select(variant => BuildPathUtils.NormalizeRelPath(Path.GetRelativePath(outputDir, variant.OutputDir)))
+            .ToHashSet(OutputDestinationIdentityComparer.ForOutputRoot(outputDir));
+        var previousDirs = previous.OwnedOutputs
+            .Where(path => path.Contains('/', StringComparison.Ordinal))
+            .Select(path => path[..path.IndexOf('/', StringComparison.Ordinal)])
+            .Distinct(OutputDestinationIdentityComparer.ForOutputRoot(outputDir));
+        foreach (var directory in previousDirs)
+        {
+            var reports = directory + "/.bukit";
+            if (variantDirs.Contains(directory) ||
+                current.Any(path => path.StartsWith(reports + "/", PlatformPathHelper.PathComparison)))
+            {
+                continue;
+            }
+
+            var full = FileWriter.GetSafeFullPath(outputDir, reports);
+            if (!Directory.Exists(full) || (File.GetAttributes(full) & FileAttributes.ReparsePoint) != 0) continue;
+            Directory.Delete(full, recursive: true);
+            var parent = Path.GetDirectoryName(full)!;
+            if (Directory.Exists(parent) && !Directory.EnumerateFileSystemEntries(parent).Any()) Directory.Delete(parent);
+        }
+    }
+
     internal static void DeleteOwnedFile(string outputDir, string path)
     {
         var full = FileWriter.GetSafeFullPath(outputDir, path);
@@ -197,7 +234,9 @@ internal static class PublicOutputLifecycle
         })).Concat(rootOutputs ?? []).ToArray();
         AssetOutputPlan.Validate(items, OutputDestinationIdentityComparer.ForOutputRoot(outputDir));
         var previous = BuildManifest.Load(ManifestPath(rootDir, overrides), logger);
-        DeleteStale(outputDir, previous, items.Select(x => x.Destination).ToHashSet(OutputDestinationIdentityComparer.ForOutputRoot(outputDir)));
+        var current = items.Select(x => x.Destination).ToHashSet(OutputDestinationIdentityComparer.ForOutputRoot(outputDir));
+        DeleteStale(outputDir, previous, current);
+        DeleteRemovedVariantReports(outputDir, previous, variants, current);
         // Only a non-i18n build (no root outputs) shares its single variant's manifest; a root
         // layout with one configured language writes into the same directory but keeps them apart.
         var manifest = rootOutputs is null && variants.Count == 1 && variants[0].OutputDir == outputDir

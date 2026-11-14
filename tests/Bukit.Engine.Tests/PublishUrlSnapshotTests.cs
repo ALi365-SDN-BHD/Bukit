@@ -28,7 +28,7 @@ public sealed class PublishUrlSnapshotTests
                     Title = "Bukit",
                     Url = "https://silushangxun.com/",
                     BaseUrl = "/",
-                    Language = "zh-CN"
+                    Languages = ["zh-CN"]
                 },
                 Content = TestContent.Markdown(),
                 Build = new BuildConfig
@@ -292,7 +292,7 @@ public sealed class PublishUrlSnapshotTests
                 Title = "Bukit",
                 Url = "https://silushangxun.com/",
                 BaseUrl = "/",
-                Language = "zh-CN"
+                Languages = ["zh-CN"]
             },
             Content = TestContent.Markdown(),
             Build = new BuildConfig { Report = new BuildReportConfig { Enabled = true } }

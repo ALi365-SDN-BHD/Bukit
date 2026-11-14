@@ -142,6 +142,7 @@ public sealed partial class SiteEngine
     private async Task<BuildResult> BuildCoreAsync(AppConfig config, string rootDir, ConfigOverrides overrides, CancellationToken cancellationToken,
         IReadOnlyList<string>? contentSourceRoots = null, IReadOnlyList<string>? extraWriteTargets = null)
     {
+        config = config with { Site = I18nLanguagePolicy.NormalizeSite(config.Site) };
         using var transaction = BuildTransaction.Begin(config, rootDir, overrides, _logger, cancellationToken: cancellationToken,
             contentSourceRoots: contentSourceRoots, extraWriteTargets: extraWriteTargets);
         overrides = overrides with { CacheDir = transaction.CacheDir };

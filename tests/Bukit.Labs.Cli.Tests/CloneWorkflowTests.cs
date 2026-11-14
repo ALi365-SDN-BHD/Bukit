@@ -125,6 +125,30 @@ theme:
     }
 
     [Fact]
+    public async Task CloneFidelityRunner_RunAsync_WritesASingleLanguageSiteConfig()
+    {
+        var htmlDir = Path.Combine(_rootDir, "fidelity-html");
+        Directory.CreateDirectory(htmlDir);
+        File.WriteAllText(Path.Combine(htmlDir, "index.html"), "<html><body><main>Home</main></body></html>");
+
+        var result = await CommandTestSupport.CaptureAsync(() =>
+            CloneFidelityRunner.RunAsync(
+                _rootDir,
+                "fidelity-languages",
+                htmlDir,
+                force: false,
+                use: false,
+                new CliBoundCommand(new Dictionary<string, string?>(), [])));
+
+        Assert.Equal(0, result.ExitCode);
+        var path = Path.Combine(_rootDir, "site.yaml");
+        Assert.DoesNotMatch(@"(?m)^\s*language:", File.ReadAllText(path));
+        var config = Bukit.Config.ConfigLoader.Load(path);
+        Assert.Equal(["zh-CN"], config.Site.Languages);
+        Assert.Equal("zh-CN", config.Site.Language);
+    }
+
+    [Fact]
     public async Task CloneScreenshotComparer_CanDiffAndInferAffectedSections()
     {
         var targetDir = Path.Combine(_rootDir, "target");

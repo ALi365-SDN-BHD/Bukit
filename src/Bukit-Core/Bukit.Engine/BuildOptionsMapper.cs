@@ -12,7 +12,7 @@ internal static class BuildOptionsMapper
             {
                 Name = options.SiteTitle,
                 Title = options.SiteTitle,
-                Language = "en",
+                Languages = ["en"],
                 BaseUrl = options.BaseUrl,
                 Url = options.SiteUrl,
                 OutputPathEncoding = options.OutputPathEncoding,

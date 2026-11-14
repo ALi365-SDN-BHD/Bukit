@@ -71,6 +71,12 @@ When the user asks to run the SOP over a task queue, execute this loop:
 - "Auto-authorized" applies only to actions inside the defined queue. It never overrides the red lines in this file: protected areas, Website/Core isolation, verification boundaries, and the single-writer workflow.
 - No drift: work only on queue items, in order. Record out-of-scope findings and do not act on them. An item whose design decisions the user has not confirmed becomes a proposal, not an implementation.
 - Each item ends in its own commit with its evidence and metrics recorded. Push, PR, merge and full/release gates still follow explicit user instructions.
+- When writing C# code:
+  1. Correctness and security first: validate parameters at boundaries; treat external input (paths, URLs, HTML, configuration) as untrusted; never swallow exceptions; never remove error handling or tests to shorten code.
+  2. No redundant code: do not duplicate existing helpers, leave dead code, or keep redundant state; remove abstractions that can be removed. Judge concision by readability, not line count.
+  3. Optimize only hot paths: avoid unnecessary allocations, repeated I/O, and multiple enumeration; prefer loops and `Span` on hot paths and readability on cold paths. Back each optimization with a measurement or a stated reason.
+  4. Use modern C#, but let clarity decide: within the project's target framework (net10.0) and LangVersion, prefer newer syntax that makes intent clearer or safer. Check compatibility before changing the shape of a public API.
+  5. Tools decide: code must pass `dotnet-format`, the analyzer ratchet, and public-api-drift, and complexity must not exceed the baseline.
 
 ## Failure boundary
 

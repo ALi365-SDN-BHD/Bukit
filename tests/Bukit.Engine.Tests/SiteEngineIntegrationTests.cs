@@ -208,7 +208,7 @@ public sealed partial class SiteEngineIntegrationTests
                   name: test-site
                   title: Test Site
                   baseUrl: /
-                  language: en
+                  languages: [en]
                 content:
                   sources:
                     - type: markdown
@@ -329,7 +329,7 @@ public sealed partial class SiteEngineIntegrationTests
                     Name = "test-site",
                     Title = "Test Site",
                     BaseUrl = "/",
-                    Language = "en",
+                    Languages = ["en"],
                     Collections = TestCollections()
                 },
                 Content = ContentConfigFactory.FromSources(
@@ -475,7 +475,7 @@ public sealed partial class SiteEngineIntegrationTests
                     Title = "Test Site",
                     Url = "https://example.com",
                     BaseUrl = "/",
-                    Language = "en",
+                    Languages = ["en"],
                     Collections = TestCollections()
                 },
                 Content = TestContent.Markdown(collection: "post"),
@@ -637,7 +637,7 @@ public sealed partial class SiteEngineIntegrationTests
                     Name = "test-site",
                     Title = "Test Site",
                     BaseUrl = "/",
-                    Language = "en",
+                    Languages = ["en"],
                     Collections = TestCollections()
                 },
                 Content = TestContent.Markdown(),
@@ -715,7 +715,7 @@ public sealed partial class SiteEngineIntegrationTests
                     Name = "test-site",
                     Title = "Test Site",
                     BaseUrl = "/",
-                    Language = "en",
+                    Languages = ["en"],
                     Collections = TestCollections()
                 },
                 Content = TestContent.Markdown(collection: "post"),
@@ -762,7 +762,7 @@ public sealed partial class SiteEngineIntegrationTests
                   description: Site fallback description
                   url: https://example.com/
                   baseUrl: /docs/
-                  language: en
+                  languages: [en]
                   collections:
                     post:
                       permalink: /blog/{slug}/
@@ -881,7 +881,7 @@ public sealed partial class SiteEngineIntegrationTests
                   name: test-site
                   title: Test Site
                   url: https://example.com/
-                  language: en
+                  languages: [en]
                   collections:
                     post:
                       permalink: /blog/{slug}/
@@ -966,7 +966,7 @@ public sealed partial class SiteEngineIntegrationTests
                   description: Site <fallback> & description
                   url: https://example.com/
                   baseUrl: /docs/
-                  language: en-US
+                  languages: [en-US]
                   feed:
                     formats: [rss, atom, json]
                   collections:
@@ -1368,7 +1368,7 @@ public sealed partial class SiteEngineIntegrationTests
                   description: Strong SEO fallback
                   url: https://example.com
                   baseUrl: /docs/
-                  language: en-US
+                  languages: [en-US]
                   collections:
                     post:
                       permalink: /articles/{slug}/
@@ -1606,7 +1606,7 @@ public sealed partial class SiteEngineIntegrationTests
             File.WriteAllText(Path.Combine(root, "layouts", "pages", "list.html"), "List");
             var config = new AppConfig
             {
-                Site = new SiteConfig { Name = "t", Title = "T", Language = "en", BaseUrl = "/", Collections = TestCollections() },
+                Site = new SiteConfig { Name = "t", Title = "T", Languages = ["en"], BaseUrl = "/", Collections = TestCollections() },
                 Content = TestContent.Markdown(collection: "post") with
                 {
                     Media = new MediaConfig { DownloadToLocal = false }
@@ -1873,6 +1873,7 @@ public sealed partial class SiteEngineIntegrationTests
                     Language = "en",
                     DefaultLanguage = "en",
                     Languages = ["en", "fr", "de"],
+                    DefaultLanguageInSubdir = true,
                     Collections = TestCollections(),
                     Seo = new SeoConfig { Enabled = false },
                     Analytics = new AnalyticsConfig { Enabled = false }
@@ -2078,9 +2079,9 @@ public sealed partial class SiteEngineIntegrationTests
                   title: I18n SEO
                   url: https://example.com
                   baseUrl: /
-                  language: en-US
                   languages: [en-US, ms-MY]
                   defaultLanguage: en-US
+                  defaultLanguageInSubdir: true
                   sitemapMode: merged
                   collections:
                     page:
@@ -2560,7 +2561,7 @@ public sealed partial class SiteEngineIntegrationTests
                   name: t
                   title: T
                   baseUrl: /
-                  language: en
+                  languages: [en]
                 content:
                   sources:
                     - type: markdown
@@ -2576,7 +2577,7 @@ public sealed partial class SiteEngineIntegrationTests
 
             var config = new AppConfig
             {
-                Site = new SiteConfig { Name = "t", Title = "T", BaseUrl = "/", Language = "en", Collections = TestCollections() },
+                Site = new SiteConfig { Name = "t", Title = "T", BaseUrl = "/", Languages = ["en"], Collections = TestCollections() },
                 Content = TestContent.Markdown(),
                 Build = new BuildConfig { Output = "dist", Clean = true },
             };
@@ -2864,7 +2865,7 @@ public sealed partial class SiteEngineIntegrationTests
 
             var config = new AppConfig
             {
-                Site = new SiteConfig { Name = "t", Title = "T", BaseUrl = "/", Language = "en", Collections = TestCollections() },
+                Site = new SiteConfig { Name = "t", Title = "T", BaseUrl = "/", Languages = ["en"], Collections = TestCollections() },
                 Content = TestContent.Markdown() with
                 {
                     Media = new MediaConfig { DownloadToLocal = false }
@@ -2923,7 +2924,7 @@ public sealed partial class SiteEngineIntegrationTests
 
             var config = new AppConfig
             {
-                Site = new SiteConfig { Name = "t", Title = "T", BaseUrl = "/", Language = "en", Collections = TestCollections() },
+                Site = new SiteConfig { Name = "t", Title = "T", BaseUrl = "/", Languages = ["en"], Collections = TestCollections() },
                 Content = TestContent.Markdown() with
                 {
                     Media = new MediaConfig { DownloadToLocal = false }
@@ -3038,7 +3039,7 @@ public sealed partial class SiteEngineIntegrationTests
 
             var config = new AppConfig
             {
-                Site = new SiteConfig { Name = "t", Title = "T", BaseUrl = "/", Language = "en", Collections = TestCollections() },
+                Site = new SiteConfig { Name = "t", Title = "T", BaseUrl = "/", Languages = ["en"], Collections = TestCollections() },
                 Content = TestContent.Markdown() with
                 {
                     Media = new MediaConfig { DownloadToLocal = false }
@@ -3109,7 +3110,7 @@ public sealed partial class SiteEngineIntegrationTests
                     Name = "t",
                     Title = "T",
                     BaseUrl = "/",
-                    Language = "en",
+                    Languages = ["en"],
                     Collections = new Dictionary<string, CollectionConfig>
                     {
                         ["post"] = new()
@@ -3175,7 +3176,7 @@ public sealed partial class SiteEngineIntegrationTests
 
             var config = new AppConfig
             {
-                Site = new SiteConfig { Name = "t", Title = "T", BaseUrl = "/", Language = "en", Collections = TestCollections() },
+                Site = new SiteConfig { Name = "t", Title = "T", BaseUrl = "/", Languages = ["en"], Collections = TestCollections() },
                 Content = TestContent.Markdown() with
                 {
                     Media = new MediaConfig { DownloadToLocal = false }
@@ -4465,9 +4466,9 @@ public sealed partial class SiteEngineIntegrationTests
                   title: Filtered List I18n
                   url: https://example.com
                   baseUrl: /
-                  language: en
                   languages: [en, zh]
                   defaultLanguage: en
+                  defaultLanguageInSubdir: true
                   sitemapMode: merged
                   collections:
                     company:
@@ -4583,9 +4584,9 @@ public sealed partial class SiteEngineIntegrationTests
                   title: I18n Orphan
                   url: https://example.com
                   baseUrl: /
-                  language: en
                   languages: [en, zh]
                   defaultLanguage: en
+                  defaultLanguageInSubdir: true
                   sitemapMode: merged
                   search:
                     mode: merged
@@ -4722,9 +4723,9 @@ public sealed partial class SiteEngineIntegrationTests
                   title: I18n Search
                   url: https://example.com
                   baseUrl: /
-                  language: en
                   languages: [en, zh]
                   defaultLanguage: en
+                  defaultLanguageInSubdir: true
                   sitemapMode: merged
                   search:
                     mode: merged
@@ -4850,9 +4851,9 @@ public sealed partial class SiteEngineIntegrationTests
                   title: Pagination I18n
                   url: https://example.com
                   baseUrl: /
-                  language: en
                   languages: [en, zh]
                   defaultLanguage: en
+                  defaultLanguageInSubdir: true
                 content:
                   sources:
                     - type: markdown
@@ -5034,7 +5035,7 @@ public sealed partial class SiteEngineIntegrationTests
                     Name = "test-site",
                     Title = "Test Site",
                     BaseUrl = "/",
-                    Language = "en",
+                    Languages = ["en"],
                     Collections = TestCollections()
                 },
                 Content = TestContent.Markdown(collection: "post"),
@@ -5990,6 +5991,7 @@ public sealed partial class SiteEngineIntegrationTests
                 Language = "en",
                 DefaultLanguage = multiLanguage ? "en" : null,
                 Languages = multiLanguage ? ["en", "zh"] : null,
+                DefaultLanguageInSubdir = multiLanguage,
                 Collections = TestCollections(),
                 Seo = new SeoConfig { Enabled = false },
                 Analytics = new AnalyticsConfig { Enabled = false }

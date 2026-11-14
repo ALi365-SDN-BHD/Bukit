@@ -38,7 +38,6 @@ public sealed class IntentApplierTests : IDisposable
               title: Demo Site
               base_url: /
               url: https://example.com
-              language: en
             languages:
               default: en
               supported:
@@ -75,7 +74,7 @@ public sealed class IntentApplierTests : IDisposable
         Assert.Equal("Demo Site", GetScalar(site, "title"));
         Assert.Equal("/", GetScalar(site, "baseUrl"));
         Assert.Equal("https://example.com", GetScalar(site, "url"));
-        Assert.Equal("en", GetScalar(site, "language"));
+        Assert.False(site.Children.ContainsKey(new YamlScalarNode("language")));
         Assert.Equal("en", GetScalar(site, "defaultLanguage"));
 
         var languages = GetSequence(site, "languages");
@@ -148,6 +147,70 @@ public sealed class IntentApplierTests : IDisposable
         var sources = GetSequence(GetMapping(root, "content"), "sources");
         var postSource = GetSourceByName(sources, "post");
         Assert.Equal("content", GetScalar(GetMapping(postSource, "markdown"), "dir"));
+
+        // Without a languages section no language key is written; the site uses the Core default.
+        var site = GetMapping(root, "site");
+        Assert.False(site.Children.ContainsKey(new YamlScalarNode("language")));
+        Assert.False(site.Children.ContainsKey(new YamlScalarNode("languages")));
+        Assert.False(site.Children.ContainsKey(new YamlScalarNode("defaultLanguage")));
+    }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData("  default: en\n")]
+    public void Apply_SingleLanguageIntent_WritesOnlyLanguages(string defaultLine)
+    {
+        using var scope = new CurrentDirectoryScope(_rootDir);
+
+        var generatedDir = Path.Combine(_rootDir, "generated");
+        Directory.CreateDirectory(Path.Combine(generatedDir, "themes", "starter"));
+        Directory.CreateDirectory(Path.Combine(generatedDir, "content"));
+
+        var intentPath = WriteIntent(
+            "site:\n  name: demo\n  title: Demo Site\n  base_url: /\n" +
+            "languages:\n" + defaultLine + "  supported: [en]\n" +
+            "content:\n  kind: markdown\n  markdown:\n    dir: content\n" +
+            "theme:\n  name: starter\n");
+
+        var outPath = Path.Combine(generatedDir, "site.yaml");
+
+        var (validation, _) = IntentApplier.Apply(intentPath, outPath);
+
+        Assert.True(validation.IsValid, string.Join(Environment.NewLine, validation.Errors));
+        var site = GetMapping(LoadYamlRoot(outPath), "site");
+        Assert.Equal(["en"], GetSequence(site, "languages").Children.Select(GetScalarValue));
+        Assert.False(site.Children.ContainsKey(new YamlScalarNode("language")));
+        Assert.False(site.Children.ContainsKey(new YamlScalarNode("defaultLanguage")));
+
+        var loaded = Bukit.Config.ConfigLoader.Load(outPath);
+        Assert.Equal("en", loaded.Site.Language);
+        Assert.Equal(["en"], loaded.Site.Languages);
+    }
+
+    [Fact]
+    public void Apply_IntentWithSiteLanguage_IsRejected()
+    {
+        using var scope = new CurrentDirectoryScope(_rootDir);
+
+        var intentPath = WriteIntent(
+            """
+            site:
+              name: demo
+              title: Demo Site
+              base_url: /
+              language: en
+            content:
+              kind: markdown
+            theme:
+              name: starter
+            """);
+
+        var outPath = Path.Combine(_rootDir, "generated", "site.yaml");
+
+        var error = Assert.Throws<InvalidOperationException>(() => IntentApplier.Apply(intentPath, outPath));
+        Assert.Contains("site.language", error.Message, StringComparison.Ordinal);
+        Assert.Contains("languages.supported: [<code>]", error.Message, StringComparison.Ordinal);
+        Assert.False(File.Exists(outPath));
     }
 
     [Fact]

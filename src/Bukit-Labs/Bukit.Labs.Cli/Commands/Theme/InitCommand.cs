@@ -309,7 +309,7 @@ site:
   url: https://example.com
   seo:
     defaultImage: /assets/og-default.gif
-  language: zh-CN
+  languages: [zh-CN]
   timezone: Asia/Shanghai
   collections:
 {{collections}}
@@ -348,7 +348,7 @@ site:
   url: https://example.com
   seo:
     defaultImage: /assets/og-default.gif
-  language: zh-CN
+  languages: [zh-CN]
   timezone: Asia/Shanghai
   collections:
 {{collections}}

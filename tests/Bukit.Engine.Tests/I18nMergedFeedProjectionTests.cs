@@ -35,9 +35,9 @@ public sealed class I18nMergedFeedProjectionTests
                   title: Merged Feeds
                   url: https://example.com
                   baseUrl: /
-                  language: en
                   languages: [en, zh]
                   defaultLanguage: en
+                  defaultLanguageInSubdir: true
                   feed:
                     formats: [rss, atom, json]
                     limit: 1
@@ -147,7 +147,7 @@ public sealed class I18nMergedFeedProjectionTests
                   title: Thin Feeds
                   url: https://example.com
                   baseUrl: /
-                  language: en
+                  languages: [en]
                   feed:
                     formats: [rss, atom, json]
                   collections:
@@ -266,9 +266,9 @@ public sealed class I18nMergedFeedProjectionTests
                   title: Root Geo
                   url: https://example.com
                   baseUrl: /
-                  language: en
                   languages: [en, zh]
                   defaultLanguage: en
+                  defaultLanguageInSubdir: true
                   seo:
                     robotsTxt:
                       enabled: true

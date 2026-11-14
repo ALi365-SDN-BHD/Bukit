@@ -24,7 +24,7 @@ public sealed class BuildPlannerCleanErrorTests
 
             var config = new AppConfig
             {
-                Site = new SiteConfig { Name = "t", Title = "T", Language = "en", BaseUrl = "/" },
+                Site = new SiteConfig { Name = "t", Title = "T", Languages = ["en"], BaseUrl = "/" },
                 Content = TestContent.Markdown() with { Media = new MediaConfig { DownloadToLocal = false } },
                 Build = new BuildConfig { Output = "dist", Clean = true },
                 Theme = new ThemeConfig { Name = "site" }
@@ -66,7 +66,7 @@ public sealed class BuildPlannerCleanErrorTests
 
             var config = new AppConfig
             {
-                Site = new SiteConfig { Name = "t", Title = "T", Language = "en", BaseUrl = "/" },
+                Site = new SiteConfig { Name = "t", Title = "T", Languages = ["en"], BaseUrl = "/" },
                 Content = TestContent.Markdown() with { Media = new MediaConfig { DownloadToLocal = false } },
                 Build = new BuildConfig { Output = "dist", Clean = true },
                 Theme = new ThemeConfig { Layouts = "layouts" }
@@ -113,7 +113,7 @@ public sealed class BuildPlannerCleanErrorTests
 
             var config = new AppConfig
             {
-                Site = new SiteConfig { Name = "t", Title = "T", Language = "en", BaseUrl = "/" },
+                Site = new SiteConfig { Name = "t", Title = "T", Languages = ["en"], BaseUrl = "/" },
                 Content = TestContent.Markdown() with { Media = new MediaConfig { DownloadToLocal = false } },
                 Build = new BuildConfig { Output = ".git", Clean = true },
                 Theme = new ThemeConfig { Layouts = "layouts" }
@@ -157,7 +157,7 @@ public sealed class BuildPlannerCleanErrorTests
 
             var config = new AppConfig
             {
-                Site = new SiteConfig { Name = "t", Title = "T", Language = "en", BaseUrl = "/" },
+                Site = new SiteConfig { Name = "t", Title = "T", Languages = ["en"], BaseUrl = "/" },
                 Content = TestContent.Markdown() with { Media = new MediaConfig { DownloadToLocal = false } },
                 Build = new BuildConfig { Output = "dist", Clean = false },
                 Theme = new ThemeConfig { Layouts = "layouts" }
@@ -212,7 +212,7 @@ public sealed class BuildPlannerCleanErrorTests
 
             var config = new AppConfig
             {
-                Site = new SiteConfig { Name = "t", Title = "T", Language = "en", BaseUrl = "/" },
+                Site = new SiteConfig { Name = "t", Title = "T", Languages = ["en"], BaseUrl = "/" },
                 Content = TestContent.Markdown() with { Media = new MediaConfig { DownloadToLocal = false } },
                 Build = new BuildConfig { Output = ".git", Clean = false },
                 Theme = new ThemeConfig { Layouts = "layouts" }

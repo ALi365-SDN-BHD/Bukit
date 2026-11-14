@@ -17,8 +17,8 @@ public sealed class I18nRootLayoutTests
     {
         var site = new SiteBuilder("i18n-site");
         var path = site.Sandbox.PathFor("site.yaml");
-        var yaml = File.ReadAllText(path)
-            .Replace("  defaultLanguage: en\n", "  defaultLanguage: en\n  defaultLanguageInSubdir: false\n", StringComparison.Ordinal)
+        var yaml = File.ReadAllText(path).ReplaceLineEndings("\n")
+            .Replace("  defaultLanguageInSubdir: true\n", "  defaultLanguageInSubdir: false\n", StringComparison.Ordinal)
             .Replace("  search:\n    mode: merged\n", "  search:\n    mode: split\n", StringComparison.Ordinal)
             .Replace("  sitemapMode: merged\n", "  sitemapMode: split\n", StringComparison.Ordinal);
         if (extraSite.Length > 0)
@@ -29,6 +29,65 @@ public sealed class I18nRootLayoutTests
         File.WriteAllText(path, yaml);
         return site;
     }
+
+    [Fact]
+    public async Task DefaultLayout_AddingASecondLanguageKeepsDefaultLanguageUrls()
+    {
+        // Spec scenario "Adding a second language keeps default-language URLs": defaultLanguageInSubdir is not set.
+        using var site = new SiteBuilder();
+        site.Markdown("hello", "Hello", "Body");
+        var engine = new SiteEngine(new ConsoleLogger(LogLevel.Error));
+        var single = site.Config with { Site = site.Config.Site with { Languages = ["en"], DefaultLanguage = null } };
+
+        await engine.BuildAsync(single, site.Root, new ConfigOverrides { Incremental = false });
+        var before = EnglishPages(site.Output);
+        Assert.Contains(Path.Combine("hello", "index.html"), before);
+        Assert.Contains(SearchFiles(site.Output), text => text.Contains("\"url\":\"/hello/\"", StringComparison.Ordinal));
+
+        var multilingual = site.Config with { Site = site.Config.Site with { Languages = ["en", "zh-CN"], DefaultLanguage = "en" } };
+        await engine.BuildAsync(multilingual, site.Root, new ConfigOverrides { Incremental = false });
+
+        Assert.Subset(EnglishPages(site.Output), before);
+        Assert.False(File.Exists(Path.Combine(site.Output, "en", "hello", "index.html")));
+        Assert.Contains(SearchFiles(site.Output), text => text.Contains("\"url\":\"/hello/\"", StringComparison.Ordinal));
+        Assert.DoesNotContain(SearchFiles(site.Output), text => text.Contains("/en/hello/", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task DefaultLayout_MergedModes_AuditMatchesEachTranslationInTheMergedManifest()
+    {
+        // The merged agent manifest at the root lists /index/ (en) and /zh-CN/index/ (zh-CN). The zh-CN page
+        // must be compared with its own entry, not the English one that matches after adding its prefix.
+        using var site = new SiteBuilder("i18n-site");
+        var path = site.Sandbox.PathFor("site.yaml");
+        File.WriteAllText(path, File.ReadAllText(path).ReplaceLineEndings("\n")
+            .Replace("  defaultLanguageInSubdir: true\n", string.Empty, StringComparison.Ordinal));
+        Assert.False(site.Config.Site.DefaultLanguageInSubdir);
+        Assert.Equal("merged", site.Config.Site.Search.Mode);
+
+        await new SiteEngine(new ConsoleLogger(LogLevel.Error)).BuildAsync(site.Config, site.Root,
+            new ConfigOverrides { Incremental = false });
+
+        var manifest = File.ReadAllText(Path.Combine(site.Output, "agent-manifest.json"));
+        Assert.Contains("\"/zh-CN/index/\"", manifest, StringComparison.Ordinal);
+        var audit = File.ReadAllText(Path.Combine(site.Output, ".bukit", "publish-audit-report.json"));
+        Assert.Contains("/zh-CN/index/", audit, StringComparison.Ordinal);
+        Assert.DoesNotContain("publish.manifest_mismatch", audit, StringComparison.Ordinal);
+    }
+
+    private static HashSet<string> EnglishPages(string output) =>
+        Directory.EnumerateFiles(output, "*.html", SearchOption.AllDirectories)
+            .Select(path => Path.GetRelativePath(output, path))
+            .Where(path => !path.StartsWith(".bukit", StringComparison.Ordinal) &&
+                           !path.StartsWith("zh-CN", StringComparison.Ordinal) &&
+                           !path.StartsWith("en" + Path.DirectorySeparatorChar, StringComparison.Ordinal))
+            .ToHashSet(StringComparer.Ordinal);
+
+    private static string[] SearchFiles(string output) =>
+        Directory.EnumerateFiles(output, "search*.json", SearchOption.AllDirectories)
+            .Where(path => !Path.GetRelativePath(output, path).StartsWith(".bukit", StringComparison.Ordinal))
+            .Select(File.ReadAllText)
+            .ToArray();
 
     [Fact]
     public async Task RootLayout_LegacyHomeRedirectIsNotIndexed()
@@ -634,8 +693,9 @@ public sealed class I18nRootLayoutTests
     }
 
     [Fact]
-    public async Task SingleLanguageRootLayout_KeepsLanguageAndRootManifestsApart()
+    public async Task SingleEntryLanguages_BuildsAsASingleLanguageSiteWithOneManifest()
     {
+        // One entry in site.languages is a single-language site, not a one-language multilingual site.
         using var site = RootSite();
         var config = site.Config with
         {
@@ -645,10 +705,10 @@ public sealed class I18nRootLayoutTests
         await engine.BuildAsync(config, site.Root, new ConfigOverrides { Incremental = false });
 
         var cache = Path.Combine(site.Root, ".cache");
-        var languageManifest = BuildManifest.Load(Path.Combine(cache, "build-manifest.en.json"));
+        Assert.False(File.Exists(Path.Combine(cache, "build-manifest.en.json")));
         var rootManifest = BuildManifest.Load(Path.Combine(cache, "build-manifest.json"));
         Assert.Contains("agent-manifest.json", rootManifest.OwnedOutputs);
-        Assert.DoesNotContain("agent-manifest.json", languageManifest.OwnedOutputs);
+        Assert.Contains("index.html", rootManifest.OwnedOutputs);
 
         await engine.BuildAsync(config, site.Root, new ConfigOverrides());
         Assert.True(File.Exists(Path.Combine(site.Output, "agent-manifest.json")));
@@ -1320,8 +1380,8 @@ public sealed class I18nRootLayoutTests
     {
         using var site = new SiteBuilder("i18n-site");
         var path = site.Sandbox.PathFor("site.yaml");
-        File.WriteAllText(path, File.ReadAllText(path)
-            .Replace("  defaultLanguage: en\n", "  defaultLanguage: en\n  defaultLanguageInSubdir: false\n", StringComparison.Ordinal)
+        File.WriteAllText(path, File.ReadAllText(path).ReplaceLineEndings("\n")
+            .Replace("  defaultLanguageInSubdir: true\n", "  defaultLanguageInSubdir: false\n", StringComparison.Ordinal)
             .Replace("  sitemapMode: merged\n", "  sitemapMode: index\n", StringComparison.Ordinal)
             .Replace("  search:\n    mode: merged\n", "  search:\n    mode: split\n", StringComparison.Ordinal));
 
@@ -1352,8 +1412,8 @@ public sealed class I18nRootLayoutTests
     {
         var site = new SiteBuilder("taxonomy-site");
         var path = site.Sandbox.PathFor("site.yaml");
-        File.WriteAllText(path, File.ReadAllText(path)
-            .Replace("  language: en\n", "  language: en\n  languages:\n    - en\n    - zh-CN\n  defaultLanguage: en\n  defaultLanguageInSubdir: false\n", StringComparison.Ordinal));
+        File.WriteAllText(path, File.ReadAllText(path).ReplaceLineEndings("\n")
+            .Replace("  languages: [en]\n", "  languages:\n    - en\n    - zh-CN\n  defaultLanguage: en\n  defaultLanguageInSubdir: false\n", StringComparison.Ordinal));
         return site;
     }
 
@@ -1565,8 +1625,9 @@ public sealed class I18nRootLayoutTests
         Assert.True(IsRedirectPage(Path.Combine(site.Output, "en", "index.html")));
         Assert.True(File.Exists(Path.Combine(site.Output, "about", "index.html")));
         Assert.Equal(chineseBefore, File.ReadAllBytes(Path.Combine(site.Output, "zh-CN", "index.html")));
-        // Only the legacy home redirect renders again: it shares the redirect set's dependencies.
-        Assert.Equal(1, result.Incremental.CacheMissCount);
+        // Nothing renders again: redirect pages read no shared collection, so removing the
+        // derived redirects leaves the legacy home redirect cached.
+        Assert.Equal(0, result.Incremental.CacheMissCount);
     }
 
     [Fact]
@@ -1762,12 +1823,12 @@ public sealed class I18nRootLayoutTests
             WithLegacyRedirects(site.Config), site.Root, new ConfigOverrides { Incremental = true, Clean = false });
         var summary = Assert.Single(logger.Infos, message => message.Contains("event=i18n.legacy_redirects.derived", StringComparison.Ordinal));
         var count = int.Parse(summary.Split(' ').Single(part => part.StartsWith("count=", StringComparison.Ordinal))["count=".Length..]);
-        // The new redirects render, plus the existing legacy home redirect; no ordinary page does.
-        Assert.Equal(count + 1, enabled.Incremental.CacheMissCount);
+        // Only the new redirects render; the legacy home redirect and every ordinary page stay cached.
+        Assert.Equal(count, enabled.Incremental.CacheMissCount);
         Assert.Equal(before, OrdinaryEntries(site));
 
         var disabled = await engine.BuildAsync(site.Config, site.Root, new ConfigOverrides { Incremental = true, Clean = false });
-        Assert.Equal(1, disabled.Incremental.CacheMissCount);
+        Assert.Equal(0, disabled.Incremental.CacheMissCount);
         Assert.Equal(before, OrdinaryEntries(site));
     }
 

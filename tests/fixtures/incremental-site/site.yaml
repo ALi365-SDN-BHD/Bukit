@@ -1,7 +1,7 @@
 site:
   name: incremental-test
   title: Incremental Test
-  language: en
+  languages: [en]
   collections:
     page:
       permalink: /{slug}/

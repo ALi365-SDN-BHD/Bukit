@@ -1,6 +1,6 @@
 ---
 name: bukit-i18n
-description: Use for Bukit language settings — single-language filtering with site.language, multilingual builds with site.languages, per-page language and i18nKey, output folders per language, merged sitemap/feed/search modes, hreflang, and translated UI strings.
+description: Use for Bukit language settings — site.languages (one entry = single-language site, two or more = multilingual build), per-page language and i18nKey, output folders per language, merged sitemap/feed/search modes, hreflang, and translated UI strings.
 ---
 
 # Bukit i18n
@@ -9,12 +9,12 @@ description: Use for Bukit language settings — single-language filtering with 
 
 ```yaml
 site:
-  language: en     # default zh-CN
+  languages: [en]  # one language = single-language site; default [zh-CN]
 ```
 
-Documents whose front matter `language` differs from `site.language` are dropped
+Documents whose front matter `language` differs from the site language are dropped
 with an `i18n.document.language_unknown` warning; untagged documents are kept.
-Always set `site.language` for non-Chinese sites. A site that intentionally picks
+Always set `site.languages` for non-Chinese sites; the old `language` key was removed. A site that intentionally picks
 one language from a mixed-language source will warn about the other languages on
 every build; warnings are capped at five per kind plus one summary line.
 
@@ -27,7 +27,7 @@ site:
   url: https://example.com      # required for sitemaps, feeds, hreflang
   languages: [en, zh-CN]        # codes like en, zh-CN; zh_CN is rejected
   defaultLanguage: en           # must be in languages; default first entry
-  defaultLanguageInSubdir: true # false puts the default language at the output root
+  defaultLanguageInSubdir: false # default; true puts every language under /<lang>/
   defaultLanguageRedirect: true # legacy home redirect page
   defaultLanguageLegacyRedirects: false # true: redirect every old /<default>/... page
   sitemapMode: merged           # split | merged | index
@@ -57,10 +57,11 @@ collection: page
 
 ## Output layout
 
-With `defaultLanguageInSubdir: true` (the default), every language including the
-default builds into `dist/<lang>/` with base `<baseUrl>/<lang>`. With
-`defaultLanguageInSubdir: false` the default language builds into `dist/` with the
-site root base URL, and the other languages keep their codes. In both layouts the
+With `defaultLanguageInSubdir: false` (the default), the default language builds into
+`dist/` with the site root base URL and the other languages keep their codes, so adding
+a second language keeps the default-language URLs. With `true`, every language
+including the default builds into `dist/<lang>/` with base `<baseUrl>/<lang>`; sites
+that relied on the old prefixed default must set it to keep their URLs. In both layouts the
 root holds the aggregate files (sitemap, feeds, search index, `llms.txt`,
 `robots.txt`, `agent-manifest.json`).
 
@@ -94,7 +95,7 @@ index is `/<defaultLang>/search.json`.
 |---|---|---|---|
 | `sitemapMode` | per-language sitemaps | one root sitemap with `xhtml:link` alternates; per-language ones suppressed | per-language sitemaps plus a root sitemap index |
 | `site.feed.mode` | per-language feeds | root feeds only | — |
-| `site.search.mode` | `/<lang>/search.json` only | adds root `search.json` | adds root `search.index.json` |
+| `site.search.mode` | per-language `search.json` only (the root one belongs to a root default language) | adds root `search.json` | adds root `search.index.json` |
 
 With the root layout, `split` writes the default language sitemap to the root
 `sitemap.xml`; `index` writes it to `/<lang>/sitemap.xml` with unprefixed page URLs
@@ -108,7 +109,7 @@ theme-written ones; templates can read `page.seo.alternates`.
 
 ## UI strings
 
-There is no `t()` helper or `i18n/` folder. Branch on `site.language` or load strings
+There is no `t()` helper or `i18n/` folder. Branch on `{{ site.language }}` or load strings
 from `data/<lang>/*.yaml`, exposed as `site.data_files.<lang>.<file>`:
 
 ```scriban

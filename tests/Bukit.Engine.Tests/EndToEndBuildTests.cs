@@ -34,7 +34,7 @@ public sealed class EndToEndBuildTests : IDisposable
               name: e2e-test
               title: E2E Test Site
               url: https://example.com
-              language: en
+              languages: [en]
             content:
               sources:
                 - type: markdown
@@ -79,7 +79,7 @@ public sealed class EndToEndBuildTests : IDisposable
               name: full-test
               title: Full Test
               url: https://example.com
-              language: en
+              languages: [en]
             content:
               sources:
                 - type: markdown

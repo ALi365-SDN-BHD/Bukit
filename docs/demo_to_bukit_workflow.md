@@ -398,7 +398,7 @@ site:
   title: "丝路商讯"
   description: "连接中国与马来西亚商业机会的商务资讯与企业目录平台"
   base_url: "https://example.com"
-  language: "zh"
+  languages: ["zh"]
   theme: "silkroadbiz"
 
 source:
@@ -796,7 +796,7 @@ bukit import html-demo ./demo \
 | `--force` | 忽略部分警告继续导入 | `false` |
 | `--dry-run` | 只分析不写入文件 | `false` |
 | `--report` | 生成导入报告 | `true` |
-| `--language` | 默认语言 | `zh` |
+| `--language` | 站点语言（写入 `languages: [<code>]`） | `zh` |
 | `--base-url` | 默认站点 URL | 空 |
 | `--strict` | 严格模式，遇到高风险问题直接失败 | `false` |
 
@@ -1335,7 +1335,7 @@ site:
   title: "silkroadbiz"
   description: "Generated from HTML Demo"
   baseUrl: "/"
-  language: "zh"
+  languages: ["zh"]
   seo:
     renderMode: inject
   collections:

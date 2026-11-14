@@ -1,7 +1,7 @@
 site:
   name: bukit-basic-test
   title: Basic Test
-  language: en
+  languages: [en]
   collections:
     page:
       permalink: /{slug}/

@@ -269,7 +269,7 @@ public sealed class TestInfrastructureTests
             var result = await site.BuildAsync();
             var end = DateTimeOffset.UtcNow;
             AssertScenario(site, fixture, result);
-            var snapshot = OutputSnapshot.Public(site.Output, site.Config.Site.Languages?.ToArray() ?? []);
+            var snapshot = OutputSnapshot.Public(site.Output, I18nLanguagePolicy.GetLanguages(site.Config.Site).ToArray());
             Assert.NotEmpty(snapshot.Entries);
             if (first is null) first = snapshot;
             else first.AssertEqual(snapshot);

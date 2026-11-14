@@ -20,7 +20,7 @@ public sealed class GeoSeoModelBuilderTests
                 Name = "GeoTest",
                 Title = "Geo Test Site",
                 Url = "https://example.com",
-                Language = "zh-CN",
+                Languages = ["zh-CN"],
                 Seo = new SeoConfig
                 {
                     Enabled = true,

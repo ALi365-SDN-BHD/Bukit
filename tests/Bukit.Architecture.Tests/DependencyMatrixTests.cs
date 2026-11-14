@@ -214,6 +214,8 @@ public class DependencyMatrixTests
             "Bukit.Shared->Bukit.Content",
             // Shared media localization rules (validation and runtime must agree).
             "Bukit.Config->Bukit.Content",
+            // Shared site language rules (SiteLanguageResolver) for public projections and the publish audit.
+            "Bukit.Config->Bukit.Engine.Primitives",
             "Bukit.Shared->Bukit.Engine.Assets",
             // Secret store for --secrets-stdin stays internal: the CLI reads it, the plugin host masks it.
             "Bukit.Shared->bukit",

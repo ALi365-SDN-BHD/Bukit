@@ -44,6 +44,26 @@ public sealed class SiteEngineSourceProtectionTests : IDisposable
     }
 
     [Fact]
+    public async Task PublicEntry_ProviderBuildIsASingleLanguageSiteAtTheOutputRoot()
+    {
+        // The SDK sets site.languages to one language; that must build at the output root
+        // with no language directory and no redirect page.
+        var output = Path.Combine(_root, "dist");
+        Directory.CreateDirectory(Path.Combine(_root, "layouts", "pages"));
+        File.WriteAllText(Path.Combine(_root, "layouts", "pages", "index.html"), "{{ page.content }}");
+        File.WriteAllText(Path.Combine(_root, "layouts", "pages", "page.html"), "{{ page.content }}");
+
+        await new SiteEngine(_logger).BuildAsync(new EmptyProvider(), Options(output), CancellationToken.None);
+
+        Assert.True(File.Exists(Path.Combine(output, ".bukit-output-marker")));
+        Assert.False(Directory.Exists(Path.Combine(output, "en")));
+        foreach (var html in Directory.EnumerateFiles(output, "*.html", SearchOption.AllDirectories))
+        {
+            Assert.DoesNotContain("http-equiv=\"refresh\"", File.ReadAllText(html), StringComparison.OrdinalIgnoreCase);
+        }
+    }
+
+    [Fact]
     public async Task PublicEntry_InMemoryProviderWithContentNamedOutputIsNotRejected()
     {
         var output = Path.Combine(_root, "content");
@@ -204,7 +224,7 @@ public sealed class SiteEngineSourceProtectionTests : IDisposable
                 Name = "composite",
                 Title = "Composite",
                 BaseUrl = "/",
-                Language = "en",
+                Languages = ["en"],
                 Seo = new SeoConfig { Enabled = false },
                 Collections = new Dictionary<string, CollectionConfig>(StringComparer.OrdinalIgnoreCase)
                 {
@@ -243,7 +263,7 @@ public sealed class SiteEngineSourceProtectionTests : IDisposable
                 Name = "multi",
                 Title = "Multi",
                 BaseUrl = "/",
-                Language = "en",
+                Languages = ["en"],
                 Seo = new SeoConfig { Enabled = false },
                 Collections = new Dictionary<string, CollectionConfig>(StringComparer.OrdinalIgnoreCase)
                 {

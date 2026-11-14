@@ -44,7 +44,7 @@ internal static class RssProjectionWriter
 
         var posts = CollectFeedPosts(context);
         var limit = ResolveFeedLimit(context);
-        JsonFeedGenerator.Generate(context.OutputDir, context.Config.Site.Url!, context.BaseUrl, context.Config.Site.Title, posts, $"{context.Config.Site.Feed.Path}/feed.json", limit, context.Config.Site.Description);
+        JsonFeedGenerator.Generate(context.OutputDir, context.Config.Site.Url!, context.BaseUrl, context.Config.Site.Title, WithSiteLanguage(context, posts), $"{context.Config.Site.Feed.Path}/feed.json", limit, context.Config.Site.Description);
         WriteCollectionJsonFeeds(context, limit);
     }
 
@@ -82,11 +82,21 @@ internal static class RssProjectionWriter
         }
     }
 
+    // JSON Feed items name their language: an undetermined page of a single-language site uses the
+    // site language, as its content projections and agent manifest entry do.
+    private static IReadOnlyList<RssGenerator.Post> WithSiteLanguage(PublishProjectionContext context, IReadOnlyList<RssGenerator.Post> posts)
+    {
+        var fallback = ContentLanguageFallback.ForSite(context.Config.Site);
+        return fallback is null
+            ? posts
+            : [.. posts.Select(post => post with { Language = ContentLanguageFallback.Resolve(post.Language, fallback) })];
+    }
+
     private static void WriteCollectionJsonFeeds(PublishProjectionContext context, int limit)
     {
         foreach (var (_, _, posts, feedBase, title, description) in ResolveCollectionFeeds(context))
         {
-            JsonFeedGenerator.Generate(context.OutputDir, context.Config.Site.Url!, context.BaseUrl, title, posts, $"{feedBase}/feed.json", limit, description);
+            JsonFeedGenerator.Generate(context.OutputDir, context.Config.Site.Url!, context.BaseUrl, title, WithSiteLanguage(context, posts), $"{feedBase}/feed.json", limit, description);
         }
     }
 

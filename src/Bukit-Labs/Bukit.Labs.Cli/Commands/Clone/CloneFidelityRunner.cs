@@ -76,7 +76,7 @@ internal static class CloneFidelityRunner
         sb.AppendLine($"  name: {themeName}");
         sb.AppendLine($"  title: {themeName}");
         sb.AppendLine("  baseUrl: /");
-        sb.AppendLine("  language: zh-CN");
+        sb.AppendLine("  languages: [zh-CN]");
         sb.AppendLine("  seo:");
         sb.AppendLine("    renderMode: 'off'");
         sb.AppendLine("  collections:");

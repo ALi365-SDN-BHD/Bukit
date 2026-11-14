@@ -36,6 +36,26 @@ public sealed class IncrementalRenderReadsTests
     }
 
     [Fact]
+    public async Task RootLayout_EditingOneArticleDoesNotRerenderTheLegacyHomeRedirect()
+    {
+        using var site = CreateSite();
+        AppConfig Root(AppConfig config) => config with
+        {
+            Site = config.Site with { Languages = ["en", "zh"], DefaultLanguage = "en", DefaultLanguageInSubdir = false }
+        };
+        await BuildAsync(site, configure: Root);
+        Assert.True(File.Exists(Path.Combine(site.Output, "en", "index.html")));
+        Assert.Equal(0, (await BuildAsync(site, configure: Root)).Incremental.CacheMissCount);
+
+        site.Sandbox.Write("content/b.md", Article("b", "B renamed"));
+        var edited = await BuildAsync(site, configure: Root);
+
+        // The same three pages as in the prefixed layout; the redirect page en/index.html reads nothing.
+        Assert.Equal(3, edited.Incremental.CacheMissCount);
+        Assert.False(RenderReasons(site).ContainsKey("render_dependency_changed"));
+    }
+
+    [Fact]
     public async Task DataFileChange_RendersOnlyPagesThatReadIt()
     {
         using var site = CreateSite();
@@ -172,7 +192,8 @@ public sealed class IncrementalRenderReadsTests
         {
             config = config with
             {
-                Site = config.Site with { Languages = ["en", "zh"], DefaultLanguage = "en" },
+                // The prefixed layout; RootLayout_EditingOneArticleDoesNotRerenderTheLegacyHomeRedirect covers the root layout.
+                Site = config.Site with { Languages = ["en", "zh"], DefaultLanguage = "en", DefaultLanguageInSubdir = true },
                 Build = config.Build with { LanguageJobs = 2 }
             };
         }

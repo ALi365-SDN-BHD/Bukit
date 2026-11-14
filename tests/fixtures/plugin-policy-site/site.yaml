@@ -1,7 +1,7 @@
 site:
   name: plugin-policy-test
   title: Plugin Policy Test
-  language: en
+  languages: [en]
   collections:
     page:
       permalink: /{slug}/

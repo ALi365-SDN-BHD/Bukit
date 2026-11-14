@@ -137,6 +137,10 @@ public sealed class RepresentationAuditRulesTests : IDisposable
     [InlineData("{\"items\": []}", "publish.manifest_invalid")]
     [InlineData("{\"documents\": {}}", "publish.manifest_invalid")]
     [InlineData("{\"documents\": [{\"route\": \"/posts/post-1/\", \"id\": \"post-1\", \"canonicalId\": \"post-1\", \"language\": \"en\", \"reviewStatus\": null}]}", null)]
+    // /post-1/ matches /posts/post-1/ only through the first-segment fallback; the later exact entry must win.
+    [InlineData("{\"documents\": [{\"route\": \"/post-1/\", \"id\": \"other\", \"canonicalId\": \"other\", \"language\": \"en\"}, {\"route\": \"/posts/post-1/\", \"id\": \"post-1\", \"canonicalId\": \"post-1\", \"language\": \"en\", \"reviewStatus\": null}]}", null)]
+    // An exact entry with the wrong language still wins over a later prefix-only entry and is reported.
+    [InlineData("{\"documents\": [{\"route\": \"/posts/post-1/\", \"id\": \"post-1\", \"canonicalId\": \"post-1\", \"language\": \"de\"}, {\"route\": \"/post-1/\", \"id\": \"post-1\", \"canonicalId\": \"post-1\", \"language\": \"en\"}]}", "publish.manifest_mismatch")]
     [InlineData("{\"documents\": [{\"route\": \"/posts/post-1/\", \"id\": \"other\", \"language\": \"de\"}]}", "publish.manifest_mismatch")]
     [InlineData("{\"documents\": [{\"route\": \"/elsewhere/\", \"canonicalId\": \"post-1\", \"language\": \"en\"}]}", "publish.manifest_mismatch")]
     public void Analyze_SharedManifestSnapshot_ReportsSameIssuesAsPerDocumentParse(string? manifest, string? expectedCode)

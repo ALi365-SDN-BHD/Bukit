@@ -1,7 +1,7 @@
 site:
   name: dotfile-test
   title: Dotfile Leak Test
-  language: en
+  languages: [en]
   collections:
     page:
       permalink: /{slug}/

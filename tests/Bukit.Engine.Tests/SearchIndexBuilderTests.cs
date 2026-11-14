@@ -13,6 +13,34 @@ namespace Bukit.Engine.Tests;
 
 public sealed class SearchIndexBuilderTests
 {
+    [Theory]
+    [InlineData("en", "en")]
+    [InlineData(" zh-CN ", "zh-CN")]
+    [InlineData("", "und")]
+    public void RecordLanguageFallback_IsTheLanguageBeingBuilt(string siteLanguage, string expected)
+    {
+        // A single-language build uses the site language; "und" only when no language is known.
+        var config = new AppConfig
+        {
+            Site = new SiteConfig { Name = "t", Title = "t", Language = siteLanguage },
+            Content = TestContent.Markdown()
+        };
+
+        Assert.Equal(expected, SearchIndexBuilder.RecordLanguageFallback(config));
+    }
+
+    [Fact]
+    public void RecordLanguageFallback_MultilingualVariant_IsTheVariantLanguage()
+    {
+        var config = new AppConfig
+        {
+            Site = new SiteConfig { Name = "t", Title = "t", Language = "zh-CN", Languages = ["en", "zh-CN"], DefaultLanguage = "en" },
+            Content = TestContent.Markdown()
+        };
+
+        Assert.Equal("zh-CN", SearchIndexBuilder.RecordLanguageFallback(config));
+    }
+
     [Fact]
     public void StripHtmlToText_BasicHtml_StripsTagsAndJoinsWithSpace()
     {

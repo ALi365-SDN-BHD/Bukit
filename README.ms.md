@@ -97,7 +97,7 @@ site:
   title: My Site
   url: https://example.com
   baseUrl: /
-  language: en
+  languages: [en]   # satu entri = laman satu bahasa; jika tiada = [zh-CN]
   collections:
     page:
       permalink: /{slug}/

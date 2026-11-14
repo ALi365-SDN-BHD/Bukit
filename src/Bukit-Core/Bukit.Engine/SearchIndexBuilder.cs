@@ -6,26 +6,25 @@ using Bukit.Engine.Abstractions.Plugins;
 using Bukit.Rendering;
 using Bukit.Routing;
 using Bukit.Engine.Abstractions.Routing;
+using Bukit.Engine.Primitives;
 namespace Bukit.Engine;
 
 internal static class SearchIndexBuilder
 {
-    private const string UndeterminedLanguage = "und";
 
     /// <summary>
-    /// Language for search records without their own: the variant language in a multilingual
-    /// build, where an undetermined page belongs to the variant that rendered it, otherwise
-    /// <c>und</c>.
+    /// Language for search records without their own: the language being built. That is the
+    /// variant language in a multilingual build, where an undetermined page belongs to the
+    /// variant that rendered it, and the site language in a single-language build. <c>und</c>
+    /// only when no language is known.
     /// </summary>
     internal static string RecordLanguageFallback(AppConfig config)
-        => I18nOutputLayout.For(config.Site).IsMultilingual && !string.IsNullOrWhiteSpace(config.Site.Language)
-            ? config.Site.Language.Trim()
-            : UndeterminedLanguage;
+        => string.IsNullOrWhiteSpace(config.Site.Language)
+            ? ContentLanguageFallback.Undetermined
+            : config.Site.Language.Trim();
 
     private static string RecordLanguage(string? language, string fallback)
-        => string.IsNullOrWhiteSpace(language) || string.Equals(language, UndeterminedLanguage, StringComparison.OrdinalIgnoreCase)
-            ? fallback
-            : language;
+        => ContentLanguageFallback.Resolve(language, fallback) ?? fallback;
 
     internal static void GenerateMergedSearchIndex(
         string outputDir,
@@ -79,7 +78,7 @@ internal static class SearchIndexBuilder
         IContentBodyStore bodyStore,
         ListRouteGraph? listRouteGraph = null,
         IReadOnlyDictionary<string, SeoModel>? seoModels = null,
-        string languageFallback = UndeterminedLanguage)
+        string languageFallback = ContentLanguageFallback.Undetermined)
     {
         var outPath = Path.Combine(outputDir, "search.json");
         Directory.CreateDirectory(outputDir);
@@ -121,7 +120,7 @@ internal static class SearchIndexBuilder
         IContentBodyStore bodyStore,
         bool emitSnippet,
         int maxContentLength,
-        string languageFallback = UndeterminedLanguage)
+        string languageFallback = ContentLanguageFallback.Undetermined)
     {
         var record = document.Record;
         var publicId = PublicContentProjectionPolicy.ResolvePublicId(record, NormalizeSearchUrl(baseUrl, route.Url));
@@ -212,7 +211,7 @@ internal static class SearchIndexBuilder
         IReadOnlyDictionary<string, SeoModel>? seoModels,
         bool emitSnippet,
         int maxContentLength,
-        string languageFallback = UndeterminedLanguage)
+        string languageFallback = ContentLanguageFallback.Undetermined)
     {
         SeoModel? seo = null;
         if (seoModels is not null)

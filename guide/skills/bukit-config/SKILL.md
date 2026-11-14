@@ -14,7 +14,7 @@ unknown keys fail with `Unknown config field '<path>.<key>'.`
 site:
   name: example            # required
   title: Example           # required
-  language: en             # default is zh-CN; see "Language" below
+  languages: [en]          # default is [zh-CN]; see "Language" below
   url: https://example.com # needed for sitemap, feeds, robots, absolute canonicals
   collections:
     page:
@@ -53,8 +53,9 @@ theme:
 | `url` | none | Must start with `http://` or `https://`. |
 | `description` | none | Used by SEO, llms.txt. |
 | `baseUrl` | `/` | Must start with `/`; use `/repo/` for a GitHub project page. CLI `--base-url` overrides. |
-| `language` | `zh-CN` | Single-language content filter. |
-| `languages`, `defaultLanguage` | none | Multilingual builds (`bukit-i18n`). |
+| `languages` | `[zh-CN]` | The only language setting: one entry = single-language site, two or more = multilingual build (`bukit-i18n`). |
+| `defaultLanguage` | first entry | Must be in `languages`. |
+| `defaultLanguageInSubdir` | `false` | `true` puts the default language under `/<lang>/` too. |
 | `timezone` | `Asia/Shanghai` | Must be a valid time zone identifier. |
 | `autoSummary`, `autoSummaryMaxLength` | `false`, `200` | Generate missing summaries (1–5000). |
 | `collections`, `permalinks` | none | Routing (`bukit-routing`). |
@@ -71,10 +72,11 @@ and `site.sitemapDetail` (`defaultPriority`, `defaultChangefreq`, `imageEnabled`
 
 ## Language
 
-Without `site.languages`, the build keeps only documents whose front matter
-`language` matches `site.language` (untagged documents are kept). Because the default
-is `zh-CN`, an English site that tags pages `language: en` must set `site.language:
-en`, or those pages silently disappear.
+`site.languages` is the only language setting; the old `language` key was removed. With one
+entry the site is single-language and keeps only documents whose front matter
+`language` matches it (untagged documents are kept). Because the default is `[zh-CN]`,
+an English site that tags pages `language: en` must set `languages: [en]`, or those
+pages silently disappear.
 
 ## `build` keys
 
@@ -152,7 +154,6 @@ templates, or content files, so route conflicts and template errors appear only 
 
 - Using snake_case in `site.yaml` (it is camelCase) or camelCase in `theme.yaml` (it is
   snake_case).
-- Forgetting `site.language` on a non-Chinese single-language site.
 - Defining `site.collections` but not setting `collection:` on each content source
   (see `bukit-content`).
 - Keeping removed keys such as `googleAnalyticsId` or `disableInPreview`.

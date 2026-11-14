@@ -449,6 +449,7 @@ public sealed class I18nWorktreeProtocolTests : IDisposable
               url: https://example.test
               languages: [en, zh-CN]
               defaultLanguage: en
+              defaultLanguageInSubdir: true
               collections:
                 page:
                   permalink: /{slug}/

@@ -94,18 +94,18 @@ public static class IntentApplier
             Collections = BuildDefaultCollections()
         };
 
+        // site.languages is the only language setting; defaultLanguage is written only for
+        // two or more languages. Without a languages section the site uses the Core default.
         if (intent.Languages is not null)
         {
+            var supported = intent.Languages.CleanSupported;
+            var defaultLanguage = intent.Languages.ResolvedDefault!;
             site = site with
             {
-                Languages = intent.Languages.Supported.Select(x => x.Trim()).ToList(),
-                DefaultLanguage = intent.Languages.Default.Trim(),
-                Language = intent.Languages.Default.Trim()
+                Languages = supported,
+                DefaultLanguage = supported.Count > 1 ? defaultLanguage : null,
+                Language = defaultLanguage
             };
-        }
-        else if (!string.IsNullOrWhiteSpace(intent.Site.Language))
-        {
-            site = site with { Language = intent.Site.Language.Trim() };
         }
 
         var contentKind = intent.Content.Kind.Trim().ToLowerInvariant();
@@ -158,11 +158,6 @@ public static class IntentApplier
         if (!string.IsNullOrWhiteSpace(config.Site.Url))
         {
             site.Add("url", config.Site.Url);
-        }
-
-        if (!string.IsNullOrWhiteSpace(config.Site.Language))
-        {
-            site.Add("language", config.Site.Language);
         }
 
         if (config.Site.Languages is { Count: > 0 })

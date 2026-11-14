@@ -256,7 +256,7 @@ public sealed class SeoRouteMapWriterTests : IDisposable
                 Title = "Test",
                 Url = string.Empty,
                 BaseUrl = "/",
-                Language = "zh-CN"
+                Languages = ["zh-CN"]
             },
             Content = TestContent.Markdown()
         };

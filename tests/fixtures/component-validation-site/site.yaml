@@ -1,7 +1,7 @@
 site:
   name: component-test
   title: Component Test
-  language: en
+  languages: [en]
   collections:
     page:
       permalink: /{slug}/

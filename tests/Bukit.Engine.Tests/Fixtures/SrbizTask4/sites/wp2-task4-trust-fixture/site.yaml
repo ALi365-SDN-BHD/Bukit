@@ -4,7 +4,7 @@ site:
   url: https://trust-fixture.invalid/
   description: 仅用于验证 WP2 Task 4 文章与企业信任信息合同。
   baseUrl: /
-  language: zh-CN
+  languages: [zh-CN]
   timezone: Asia/Kuala_Lumpur
   outputPathEncoding: none
   seo:

@@ -90,6 +90,43 @@ public sealed class SiteEngineHelperTests
     }
 
     [Fact]
+    public async Task BuildContentRoutesAsync_CodeBuiltSingleEntryLanguages_RoutesPagesInThatLanguage()
+    {
+        // The config is built in code, so the public entry must derive the site language from
+        // site.languages; otherwise it stays at the zh-CN default and fr pages are filtered out.
+        var root = Path.Combine(Path.GetTempPath(), "bukit-route-inventory", Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(Path.Combine(root, "content"));
+        File.WriteAllText(Path.Combine(root, "content", "post-1.md"), """
+            ---
+            title: Post
+            type: article
+            collection: post
+            language: fr
+            ---
+            Body
+            """);
+
+        try
+        {
+            var config = RouteConfig();
+            config = config with
+            {
+                Site = config.Site with { Languages = ["fr"] },
+                Content = TestContent.Markdown(collection: "post")
+            };
+
+            var routes = await RouteInventoryValidator.BuildContentRoutesAsync(
+                config, root, false, new NoOpLogger());
+
+            Assert.Single(routes);
+        }
+        finally
+        {
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
+    [Fact]
     public void SlugifySeoSegment_SimpleText_KeepsLetters()
     {
         var result = SlugHelper.Slugify("Hello World");

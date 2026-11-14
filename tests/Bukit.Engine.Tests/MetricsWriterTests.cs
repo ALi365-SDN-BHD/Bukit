@@ -26,7 +26,7 @@ public sealed class MetricsWriterTests
                 Name = "bukit",
                 Title = "Bukit",
                 BaseUrl = "/",
-                Language = "zh-CN"
+                Languages = ["zh-CN"]
             },
             Content = TestContent.Markdown()
         };

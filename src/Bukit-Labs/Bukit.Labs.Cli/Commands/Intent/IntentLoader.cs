@@ -20,6 +20,12 @@ public static class IntentLoader
         }
 
         var siteNode = GetMapping(root, "site");
+        if (siteNode.Children.ContainsKey(new YamlScalarNode("language")))
+        {
+            throw new InvalidOperationException(
+                "Invalid intent: site.language is no longer supported. Use languages.supported: [<code>] instead.");
+        }
+
         var contentNode = GetMapping(root, "content");
         var themeNode = GetMapping(root, "theme");
 
@@ -35,14 +41,13 @@ public static class IntentLoader
                 Title = GetRequiredString(siteNode, "title"),
                 BaseUrl = GetOptionalString(siteNode, "base_url") ?? "/",
                 Url = GetOptionalString(siteNode, "url"),
-                Type = GetOptionalString(siteNode, "type"),
-                Language = GetOptionalString(siteNode, "language")
+                Type = GetOptionalString(siteNode, "type")
             },
             Languages = languagesNode is null
                 ? null
                 : new SiteIntentLanguages
                 {
-                    Default = GetRequiredString(languagesNode, "default"),
+                    Default = GetOptionalString(languagesNode, "default"),
                     Supported = ReadStringList(languagesNode, "supported")
                 },
             Content = ReadContent(contentNode),

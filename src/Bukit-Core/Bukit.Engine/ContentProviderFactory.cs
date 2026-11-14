@@ -57,7 +57,7 @@ internal static class ContentProviderFactory
                     var contentDir = BuildPathUtils.MakeAbsolute(rootDir, md.Dir);
                     var languages = I18nOutputMerger.GetLanguages(config.Site);
                     var defaultLanguage = I18nOutputMerger.GetDefaultLanguage(config.Site, languages);
-                    providers.Add((key, mode, s.Collection, s.AddToCollections, new MarkdownFolderProvider(new MarkdownFolderProviderOptions(contentDir, md.DefaultType, md.MaxItems, md.IncludePaths, md.IncludeGlobs, config.Site.AutoSummary, config.Site.AutoSummaryMaxLength) { Languages = config.Site.Languages, DefaultLanguage = defaultLanguage }, logger)));
+                    providers.Add((key, mode, s.Collection, s.AddToCollections, new MarkdownFolderProvider(new MarkdownFolderProviderOptions(contentDir, md.DefaultType, md.MaxItems, md.IncludePaths, md.IncludeGlobs, config.Site.AutoSummary, config.Site.AutoSummaryMaxLength) { Languages = languages.Count > 0 ? languages : null, DefaultLanguage = defaultLanguage }, logger)));
                     continue;
                 }
 
