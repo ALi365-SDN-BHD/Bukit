@@ -1,123 +1,76 @@
 # Tasks
 
-唯一实施清单。只有取得实际证据的事项才勾选。须在提案 `add-i18n-default-language-root` 实施并验收完成后，经用户确认作为单独的 Core 任务开展。分两步交付（design.md D11），每步独立通过专项测试，都不改变语言管线的阶段顺序。
+唯一实施清单。只有取得实际证据的事项才勾选。经用户确认 proposal.md 中的决策 A1–A5 后，作为单独的 Core 任务开展。
 
 ## 0. 前置与核查
 
-- [x] 提案 B 已实施并验收（`openspec/changes/archive/2026-11-12-add-i18n-default-language-root`；后续 `2026-11-13-add-i18n-default-language-legacy-redirects` 已归档，`add-i18n-root-layout-merged-search` 已实施）。
-- [ ] 按 B 的最终代码复核 design.md D3、D8、D9，必要时更新本提案并重新 strict 校验；复核范围包括迁移跳转（`I18nLegacyRedirectDeriver`）和根目录布局合并搜索（`I18nOutputLayout.SearchRelativePath`）。
-- [ ] 以 B 合入后的 `i18n-worktree-build` 规范为基准，补写该能力的 MODIFIED delta（任务下发共用 webp 映射、Worker 结果新增完整媒体引用、Worker 不得写共用路径、父进程收尾复制媒体并做存在性校验）。
-- [ ] 核查按语言目录解析站内地址的检查是否会把 `/assets/...` 误报：站内链接审计、`PublicOutputPrivacyCheck`、`BuildTransaction.RejectGeneratedOutputLinks`、SEO/发布审计的图片检查（`Bukit.Engine.Audit/ImageMetadataReader.cs` 的 `TryMapSiteUrlToOutputPath` 按语言 baseUrl 和语言输出目录解析图片地址，共用后的 `/assets/...` 会被误报为缺失），记录结论和需要的修改。
-- [ ] 核查审计、发布检查和 projections 中哪些依赖本地图片或媒体文件存在，确定 Worktree 模式下需要推迟到父进程的检查清单。
-- [ ] 核实 `RewriteCurrentHtmlWithWebp` 对已改写 HTML 是否幂等；不幂等时补充修改和测试。
-- [ ] 确认受保护清理在带前缀布局下会删除根目录共用目录。
-- [ ] 核查 `BuildManifest.Assets` 文件集的消费方（增量判断、清理），确认排除共用文件后不会误判变化或误删。
-- [ ] 核查 `ImageSourceFingerprint` 在语言中的用途：共用主题图片改在构建前生成后，语言指纹是否应排除有效共用集合，避免共用图片变化导致语言被判定为有变化。
-- [ ] 核查 Worktree staging 是否带有上次正式输出中的共用文件：若没有，共用变体每次都会重新生成。在 design.md 中注明这一代价，或规定父进程先把上次的共用变体和 freshness 文件复制到 staging。
-- [ ] 确认构建前写入的共用文件处于构建事务范围内，后续任何失败（含渲染型输出冲突）都不改变正式输出。
-- [ ] 核实图片处理插件产出的图片数据写到哪里、由谁消费，据此决定 design.md D7 第 9 点。
-- [ ] 确认 Bukit 是否支持按语言覆盖主题或 static 配置；不支持时在 design.md 中注明阶段 1 冲突只可能来自 static 同名文件。
+- [x] 前置变更已实施并归档：`2026-11-12-add-i18n-default-language-root`、`2026-11-13-add-i18n-default-language-legacy-redirects`、`2026-11-13-add-i18n-root-layout-merged-search`、`2026-11-14-unify-site-languages`。
+- [x] 按 `main`（`e7651fb1`）核实现状，结论记入 design.md "Context"：webp 改写幂等（`ImageProcessingPluginTests.cs:567`）；`__image_srcsets` 没有消费方；`ImageSourceFingerprint` 各语言相同、不需要修改；构建前写入处于构建事务内；`build.clean` 默认 `true`，staging 从空目录开始；不支持按语言覆盖主题或 static；受保护清理的触发条件中没有站点哈希；根 manifest 与语言 manifest 共用 `BuildManifest`，版本写死为 3。
+- [ ] 用户确认决策 A1–A5；选非推荐项时同步修改 proposal、design、规范和本清单。
+- [ ] 列出 Core 中所有把站内相对地址拼上语言 baseUrl 的位置（`BuildMaybeAbsoluteUrl` 全部调用点、`ContentMediaOutput` 占位图、其他 `_baseUrl` 拼接），确认 design.md D7 的覆盖范围。
+- [ ] 确认 `SeoImageResolver` 对 `record.Media` 地址是否重复拼接 baseUrl（与本提案无关，有问题另行记录）。
 
-## 第一步：主题资源与共用主题图片变体
+## 1. 尺寸规划纯函数（可作为独立前置重构）
 
-### 1. 配置
+- [ ] 把尺寸规划和 `{base}-{w}w{ext}` 命名、反解析抽成同一个纯函数，区分"要生成的文件"和"srcset / WebP 候选"。
+- [ ] `ImageProcessingPlugin`、`ImageVariantGenerator`、`ImageVariantOwnership`、`ResponsiveImageHtmlTransform` 改为调用它，行为不变；补充等价测试。
 
-- [ ] `SiteConfig.SharedAssets`（`Enabled`、`Paths`）；YAML 读取、严格字段白名单、JSON Schema。
-- [ ] 默认值：`languages` 非空时 `Enabled = true`；`Paths` 由 `assets/`、SCSS 输出目录、媒体 `urlBase` 推导去重。
-- [ ] 条目规范化（`\`→`/`、去开头 `/`、补结尾 `/`）；规范化后为根目录的条目报错；默认推导中为根目录的 SCSS 或媒体前缀不加入并警告；前缀匹配使用 `OutputDestinationIdentityComparer` 的大小写规则。
-- [ ] 实现"有效共用集合"（配置前缀减去内部排除前缀），扫描、清理、写入限制、Worker 越界检查统一使用它；根目录保留路径按配置前缀首段计算。
-- [ ] 媒体前缀作为内部排除前缀；用户在 `paths` 中显式写媒体前缀时报错。
-- [ ] 校验：空列表、`..`、绝对路径报错；语言代码与共用前缀首段相同报错（与提案 B 保留前缀校验合并实现）。
-- [ ] 有效值写入增量站点哈希。
+## 2. 配置
 
-### 2. 阶段 1 计划与输出
+- [ ] `SiteConfig.SharedAssets`（`Enabled`、`Paths`）；YAML 读取、严格字段白名单（`SiteKeys`、`RequireOnly`）、JSON Schema。
+- [ ] 默认值 `Enabled = false`；`Paths` 默认为 `assets/` 加 SCSS 输出目录（去重；SCSS 输出为根目录时不加入并警告）。
+- [ ] 条目规范化与校验：`\`→`/`、去开头 `/`、补结尾 `/`；空列表、绝对路径、`..`、规范化后为根目录的条目报错；大小写规则同 `OutputDestinationIdentityComparer`。
+- [ ] 媒体前缀：始终从有效共用集合中扣除；显式条目等于或位于媒体前缀之内时报错。
+- [ ] `enabled: true` 且 `defaultLanguageInSubdir: true` 时配置校验失败；少于 2 种语言且显式开启时记录 `i18n.config.shared_assets_ignored`。
+- [ ] 提供"有效共用集合"的单一实现（含匹配函数），供计划过滤、地址规则和图片插件共用。
 
-- [ ] 为每种语言计算阶段 1 计划（主题 / 父主题 assets、SCSS 结果、tokens、匹配前缀的复制型 static），不写文件。
-- [ ] 冲突检测：复制型先比较源文件物理路径、不同再比较哈希；生成型（tokens）比较内容哈希；冲突报 `i18n-shared-asset-conflict`，任何共用文件都不写。
-- [ ] 路由完成后检查渲染型输出是否落在共用前缀下（两种布局都检查），写文件前报错。
-- [ ] 根目录这一层写共用资源，记入根目录计划输出和根 manifest；各语言计划去掉共用条目。
-- [ ] 禁止以裁剪模式同步输出根目录，加测试。
-- [ ] 共用过期文件在收尾时由根目录这一层清理；语言清理不触及有效共用集合。
-- [ ] 共用文件不进入语言 manifest 的 `Assets` 集合，由根 manifest 记录。
-- [ ] 插件 AfterBuild 输出落在有效共用集合内时，提交前报 `i18n-shared-asset-conflict`；内置图片共用变体除外。
-- [ ] `BuildResult` 统计：语言只计非共用资源和媒体，共用部分按根目录单独计数一次，汇总不重复；build report 和 CLI 输出按此口径展示。
+## 3. 资源计划与构建顺序
 
-### 3. 模板变量
+- [ ] 非默认语言的资源计划去掉 `Category ∈ {Assets, Tokens, Static}`、`Operation ∈ {Copy, Generate}` 且目标落在有效共用集合内的条目；默认语言不变。
+- [ ] `BuildVariantContext` 新增共用资源根路径（关闭时为空）。
+- [ ] `SiteEngine`：开启共用时先单独构建默认语言，成功后其余语言按 `languageJobs` 并发；默认语言失败时不启动其他语言。关闭时调度不变。
 
-- [ ] 模板上下文新增 `site.asset_base_url`，形式（绝对或相对）与 `base_url` 一致。
-- [ ] Starter 主题 `BaseLayout.html` 改用 `asset_base_url`。
+## 4. 模板变量与 Core 拼出的地址
 
-### 4. 根 manifest 与图片处理插件
+- [ ] `SiteModel` 新增 `AssetBaseUrl`；`VariantDataSitePlanner.BuildSiteModel`、`ScribanSiteModelMapper`、`ScribanModelKnownFields` 接入 `site.asset_base_url`。
+- [ ] Starter 主题 `BaseLayout.html` 改用 `site.asset_base_url`。
+- [ ] `BuildMaybeAbsoluteUrl`：站内相对地址落在有效共用集合内时使用根 baseUrl；覆盖第 0 节列出的全部调用点。
+- [ ] `ContentMediaOutput`：非默认语言中占位图落在有效共用集合内时，`RewriteUrl` 使用根 baseUrl，`ValidateOutputs` 改查共用资源根中的文件。
 
-- [ ] 根 manifest 新增插件输出记录并提升版本号；旧版本按空集合还原。
-- [ ] 共用变体的 prior outputs 和 freshness 只读取根插件输出记录（构建前、共用结果缓存、Worktree 父进程三处），语言 manifest 不记录也不读取共用变体。
-- [ ] 把变体生成、freshness、归属、孤儿清理和 webp 映射计算抽成可以指定输出根、扫描范围和归属记录的服务。
-- [ ] 尺寸规划和变体命名抽成同一纯函数，供生成、`srcset` transform 和 Worktree 预测改写共用。
-- [ ] 共用变体生成失败或被阻挡一律致命，不受 `pluginFailMode: warn` 影响；非共用变体策略不变。
-- [ ] 语言 AfterBuild 不对共用前缀执行孤儿清理和 freshness 清理。
-- [ ] 图片数据和 webp 映射收录共用变体时以共用结果为准。
-- [ ] 阶段 1：根目录这一层对共用前缀下的主题原图生成变体一次，归属写入根 manifest，产出共用 webp 映射和变体清单。
-- [ ] 语言 AfterBuild 只扫描语言目录中不在共用前缀下的原图；webp 改写使用"自身映射 ∪ 共用映射"；`TryNormalizeLocalImageUrl` 接受 `asset_base_url` 前缀。
-- [ ] 按 tasks 0 的核查结果处理图片数据地址。
+## 5. 图片处理
 
-### 5. Worktree（第一步）
+- [ ] 非默认语言 AfterBuild：用尺寸规划函数对共用原图只读构建共用 WebP 映射（文件存在且 freshness 有效才收录）；webp 改写使用"自身映射 ∪ 共用映射"。
+- [ ] `TryNormalizeLocalImageUrl` 接受 `asset_base_url + "/"` 前缀，并解析到共用资源根。
+- [ ] 非默认语言不在共用资源根的有效共用集合内生成、改写或删除文件，不执行孤儿和 freshness 清理。
+- [ ] 默认语言的变体生成和失败策略不变。
 
-- [ ] 父进程分发前完成阶段 1 和共用主题图片变体，写入 staging 根目录。
-- [ ] 共用 webp 映射随任务下发；Worker 不对共用原图生成变体。
-- [ ] `I18nWorktreeProtocol.ValidateOutputPaths` 拒绝写入共用前缀的 Worker 结果。
+## 6. 增量
 
-### 6. 测试（第一步）
+- [ ] `sharedAssets` 有效值和 `asset_base_url` 写入 `SiteIdentityAndModesContributor`。
 
-- [ ] Config：默认值推导、关闭、自定义 `paths`、非法值、根前缀报错、条目规范化、大小写去重、SCSS 输出在根目录时警告且不纳入默认值、显式媒体前缀报错、语言代码与共用前缀首段同名报错、Schema、哈希。
-- [ ] Engine：
-  - 共用资源：`dist/assets/` 只有一份，语言目录无 `assets/`；tokens 共用；复制型 `static/assets/` 共用，`static/fonts/` 不共用，加入 `paths` 后共用；渲染型 static 和页面落在共用前缀下时报错（两种布局）；关闭共用时与现状一致。
-  - `asset_base_url`：两种取值、`/repo`、绝对和相对形式。
-  - 冲突与写入：冲突报错且不写共用文件；同源复制型不计算哈希；tokens 按内容比较；裁剪模式禁用。
-  - 增量：只改一种语言时共用资源不重写；webp 改写幂等。
-  - 归属：连续两次无变化构建都成功，第二次不重新生成任何共用变体；第一步中语言仍扫描、清理自己的媒体目录，Worker 写自己的媒体目录不被拒绝。
-  - 失败策略：warn 模式下共用变体失败仍然报错且正式输出不变；渲染型输出冲突时正式输出不变；语言 AfterBuild 不清理共用前缀。
-  - 图片：主题图片变体只生成一次，两种语言页面的 webp `<picture>` 指向根；孤儿共用变体清理；语言目录内图片的变体行为不变。
-  - 媒体在第一步仍按语言输出。
-  - 插件输出：第三方插件写入 `assets/` 时报错且正式输出不变；内置图片共用变体不受影响。
-  - 统计：两种语言共用 10 个主题资源时，各语言计 0、共用计 10、汇总计 10。
-  - 保留路径：两种布局下语言代码与共用前缀首段同名都报错；带前缀布局下根目录聚合输出写入共用前缀时构建失败且正式输出不变。
-  - 带前缀布局与根目录默认语言布局各一组。
-- [ ] CLI（Worktree）：父进程生成阶段 1 和共用变体、下发映射；越界写共用路径被拒绝；与进程内构建的相对文件路径和内容一致。
+## 7. Worktree
 
-## 第二步：媒体共用
+- [ ] `WorktreeBuildRun`：开启共用时先运行默认语言 Worker，成功后再并发运行其余 Worker（不超过 `languageJobs`）。
+- [ ] `I18nWorkerRequest` 新增共用资源根路径（staging 根目录），Worker 写入 `BuildVariantContext`。
 
-### 7. 媒体
+## 8. 测试
 
-- [ ] 去掉媒体排除前缀和显式媒体前缀报错。
-- [ ] `ContentMediaOutput`：地址改写使用 `asset_base_url + urlBase`。
-- [ ] 进程内：各语言把引用的媒体写入共用位置，按目标路径加锁去重（同源跳过、异源报错）；`media-validate` 改为检查共用位置。
-- [ ] 语言构建末尾回读当前全部 HTML（含增量跳过的页面），得到完整引用并随结果返回。
-- [ ] 收尾：根目录这一层按完整引用并集记入根 manifest，删除不在并集中的共用媒体。
-- [ ] `srcset` transform 的 `TryResolveMediaSource` 使用 `asset_base_url + urlBase` 前缀。
+- [ ] Config：默认关闭、开启、自定义 `paths`、非法值、根前缀报错、规范化、大小写去重、SCSS 输出在根目录时警告且不纳入、显式媒体前缀报错、带前缀布局报错、单语言忽略并警告、Schema。
+- [ ] Engine（根目录布局，`languages: [en, zh-CN]`）：
+  - 计划过滤：`dist/assets/` 只有一份，`dist/zh-CN/assets/` 下没有主题资源；tokens 共用；`static/assets/` 共用，`static/fonts/` 不共用，加入 `paths` 后共用；插件在 `assets/` 下的输出照常按语言写出；媒体仍按语言输出；关闭时与现状一致。
+  - 顺序：`languages: [zh-CN, en]`、`languageJobs: 2` 时默认语言先完成；默认语言失败时其他语言不启动且正式输出不变。
+  - `asset_base_url`：开启 / 关闭两种取值、`/repo`。
+  - Core 地址：`seo.defaultImage`、`og_image`、作者图片落在共用集合内时使用根 baseUrl；占位图地址和 `media-validate` 在非默认语言中通过。
+  - 图片：共用主题图片变体只在 `dist/assets/` 下生成一次，两种语言页面的 WebP `<picture>` 指向根；非默认语言不在共用集合内写入或删除文件；`warn` 模式下默认语言变体失败时，非默认语言页面保留原 `<img>`；语言目录内图片的变体行为不变。
+  - 增量：`build.clean: false` 下开启和关闭各一次，非默认语言副本被删除 / 恢复，页面地址随之变化；只改一种语言时共用资源不重写。
+- [ ] CLI（Worktree）：默认语言 Worker 先完成；Worker 收到共用资源根；与进程内构建的相对文件路径和内容一致。
 
-### 8. 媒体图片变体
-
-- [ ] 共用结果缓存（按原图目标路径键控）：先到的语言生成并写入缓存，并发请求的语言等待并复用 webp 候选、尺寸清单和归属信息；复用结果并入该语言改写映射和图片数据。
-- [ ] 收尾时把共用媒体变体按并集记入根 manifest 插件输出记录；孤儿清理基于根记录。
-
-### 9. Worktree（第二步）
-
-- [ ] Worker 不复制共用媒体、不生成共用媒体变体；共用媒体存在性检查和 tasks 0 确定的相关检查推迟到父进程。
-- [ ] Worker 用尺寸规划函数预测共用媒体变体，同时用于 webp 改写和图片数据。
-- [ ] Worker 结果新增完整媒体引用可选字段（缺失按空列表还原）。
-- [ ] 父进程收尾：复制共用媒体、生成共用媒体变体、执行推迟的检查、记录归属。
-
-### 10. 测试（第二步）
-
-- [ ] Engine：媒体只复制一次；并行语言同时写同一媒体时只写一次；并行语言引用同一媒体图片时变体只生成一次，后到语言复用结果、webp `<picture>` 和图片数据完整；异源同目标报错；一种语言删除引用、另一种仍引用时不删；增量跳过的页面保留引用；`urlBase: /media` 时共用到 `dist/media/`；`srcset` 带 `/repo/assets/uploads/` 前缀；共用媒体变体只生成一次，webp 改写正确；各语言 `media-validate` 通过。
-- [ ] CLI（Worktree）：Worker 图片数据包含预测的共用媒体变体且与进程内构建一致；连续两次构建父进程不重新生成共用变体；完整引用回传与并集复制；推迟的存在性检查在缺失源文件时失败且正式输出不变；预测文件名的 webp 改写与进程内构建一致；相对文件路径和内容一致。
-
-## 11. 文档与契约
+## 9. 文档与契约
 
 - [ ] i18n skill、用户指南 `11-i18n-seo.md`、`04-site-yaml-config.md`、开发文档 `config-site-yaml.md`、参数速查。
-- [ ] 主题作者说明：共用资源用 `asset_base_url`；JS 拼地址和 CSS 根绝对路径的注意事项；渲染型输出不能放在共用前缀下（含理由）；按语言区分的资源应排除出 `paths`；图片数据的用法。
-- [ ] 中英马 CHANGELOG、公共 API 基线、verification closure 策略。
+- [ ] 主题作者说明：共用资源用 `asset_base_url`，按语言变化的输出用 `base_url`；JS 拼地址和 CSS 根绝对路径的注意事项；只支持根目录布局；`languageJobs > 1` 时默认语言先构建。
+- [ ] 中英马 CHANGELOG、公共 API 基线（`SiteConfig`、`SiteModel`）、verification closure 策略。
 
-## 12. 验证
+## 10. 验证
 
-- [ ] 每步：Config、Engine、CLI 专项测试；API 漂移、格式检查；`openspec validate add-i18n-shared-assets --strict`；当前平台 AOT 二进制编译。
+- [ ] Config、Engine、CLI 专项测试；API 漂移、格式检查；`openspec validate add-i18n-shared-assets --strict`；当前平台 AOT 二进制编译。
