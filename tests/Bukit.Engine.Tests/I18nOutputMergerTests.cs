@@ -339,13 +339,16 @@ public sealed class I18nOutputMergerTests
     public void WarnDocumentLanguageIssues_SingleEntryLanguagesWarnsLikeASingleLanguageSite()
     {
         // One entry is a single-language site: the same warnings as a site with only site.language.
-        var single = new SiteConfig { Name = "t", Title = "t", Language = "en", Languages = ["en"] };
+        // The engine normalizes code-built configs, so the site language comes from site.languages.
+        var single = I18nLanguagePolicy.NormalizeSite(new SiteConfig { Name = "t", Title = "t", Languages = ["en"] });
         var legacy = new SiteConfig { Name = "t", Title = "t", Language = "en" };
         var documents = new[]
         {
             CreateItemWithMeta("1", "en", new Dictionary<string, object> { ["i18nKey"] = "about" }),
             CreateItemWithMeta("2", "en", new Dictionary<string, object> { ["i18nKey"] = "about" }),
-            CreateItemWithMeta("3", "fr", new Dictionary<string, object>())
+            CreateItemWithMeta("3", "fr", new Dictionary<string, object>()),
+            // No language: falls back to the site language and joins the "about" group.
+            CreateItemWithMeta("4", null, new Dictionary<string, object> { ["i18nKey"] = "about" })
         };
         var singleLogger = new ListLogger();
         var legacyLogger = new ListLogger();
@@ -353,12 +356,13 @@ public sealed class I18nOutputMergerTests
         I18nLanguagePolicy.WarnDocumentLanguageIssues(documents, single, singleLogger);
         I18nLanguagePolicy.WarnDocumentLanguageIssues(documents, legacy, legacyLogger);
 
-        Assert.Equal(legacyLogger.Warnings, singleLogger.Warnings);
-        Assert.Contains(singleLogger.Warnings, message =>
-            message.Contains("i18n.document.i18n_key_duplicate", StringComparison.Ordinal));
-        Assert.Contains(singleLogger.Warnings, message =>
-            message.Contains("i18n.document.language_unknown", StringComparison.Ordinal) &&
-            message.Contains("configured=en", StringComparison.Ordinal));
+        string[] expected =
+        [
+            "event=i18n.document.language_unknown id=3 language=fr configured=en",
+            "event=i18n.document.i18n_key_duplicate language=en key=about ids=1,2,4"
+        ];
+        Assert.Equal(expected, singleLogger.Warnings);
+        Assert.Equal(expected, legacyLogger.Warnings);
     }
 
     [Fact]
