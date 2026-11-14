@@ -143,6 +143,35 @@ public sealed class ConfigPhase2ValidatorTests : IDisposable
     }
 
     [Fact]
+    public void Validate_DefaultSharedAssetsCoveredByMediaPrefix_ShouldFail()
+    {
+        var ex = ValidateFails(WriteConfig("""
+              sharedAssets:
+                enabled: true
+            """, additional: """
+              media:
+                urlBase: /assets
+            """));
+
+        Assert.Contains("covers every default shared prefix", ex.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Validate_DisabledSharedAssetsWithMediaPrefixCoveringDefaults_ShouldPass()
+    {
+        var config = ConfigLoader.Load(WriteConfig("""
+              sharedAssets:
+                enabled: false
+            """, additional: """
+              media:
+                urlBase: /assets
+            """));
+        ConfigValidator.Validate(config);
+
+        Assert.False(config.Site.SharedAssets.Enabled);
+    }
+
+    [Fact]
     public void Validate_SharedAssetsInsideMediaPrefix_ShouldFail()
     {
         var ex = ValidateFails(WriteConfig("""
