@@ -11,9 +11,6 @@ namespace Bukit.Engine;
 /// </summary>
 internal static class NotionDiagnostics
 {
-    internal static DiagnosticCode CodeFor(NotionApiErrorKind? kind, HttpStatusCode? status)
-        => NotionErrorCodes.For(kind, status);
-
     internal static string Format(NotionApiErrorKind? kind, HttpStatusCode? status)
-        => DiagnosticCodeFormatter.Format(CodeFor(kind, status));
+        => DiagnosticCodeFormatter.Format(NotionErrorCodes.For(kind, status));
 }

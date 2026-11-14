@@ -57,7 +57,7 @@ These stable codes apply when an explicit `bukit build` has two or more `site.la
 | `i18n-worktree-git-required` | Git, a repository, or a resolvable `HEAD` is unavailable. |
 | `i18n-worktree-dirty` | The site directory or a build input has staged, unstaged, or untracked changes. Unrelated changes outside the site and build inputs are allowed. |
 | `i18n-worktree-input-untracked` | A required config/content/theme/static/plugin input is untracked, ignored, external, or crosses the repository through a symlink. |
-| `i18n-worktree-worker-failed` | A language Worker failed without a coded Bukit error, or the isolated build failed. Notion worker failures keep their `BKT-0Bxx` code. |
+| `i18n-worktree-worker-failed` | A language Worker failed without a coded Bukit error, or the isolated build failed. Coded worker failures keep their `BKT-xxxx` code. |
 | `i18n-worktree-result-invalid` | The Worker result schema, hash, language, completion state, or output path failed validation. |
 | `i18n-worktree-cleanup-failed` | Bukit could not remove an owned temporary Worktree. |
 

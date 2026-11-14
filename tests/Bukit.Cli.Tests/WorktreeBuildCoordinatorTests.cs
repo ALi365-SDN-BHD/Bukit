@@ -1251,6 +1251,7 @@ public sealed class WorktreeBuildCoordinatorTests : IDisposable
     public void LastWorkerFailure_ParsesTheLastBktLineAndKeepsTheFallback()
     {
         var parsed = WorktreeBuildCoordinator.LastWorkerFailure(
+            "Error: [BKT-0B01] first failure\r\n" +
             "Error: [BKT-0B11] Worker for language 'en' failed: reason\r\n");
 
         Assert.NotNull(parsed);

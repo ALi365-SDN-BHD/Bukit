@@ -236,6 +236,21 @@ public sealed class ProgramEntryPointTests : IDisposable
     }
 
     [Fact]
+    public async Task Main_BuildAssetCollision_StaysExitOneAndCliError()
+    {
+        string path = WriteAssetCollisionSite();
+        var result = await InvokeEntryPointAsync(["build", "--config", path, "--log-format=json"]);
+
+        Assert.Equal(1, result.ExitCode);
+        using var error = System.Text.Json.JsonDocument.Parse(result.StdErr);
+        Assert.Equal("cli-error", error.RootElement.GetProperty("errors")[0].GetProperty("code").GetString());
+        Assert.Contains(
+            "Asset output collision",
+            error.RootElement.GetProperty("errors")[0].GetProperty("message").GetString(),
+            StringComparison.Ordinal);
+    }
+
+    [Fact]
     public async Task Main_BuildWithInvalidIntegerOption_ReturnsTwoAndPrintsUsage()
     {
         var result = await InvokeEntryPointAsync(["build", "--jobs", "NaN"]);
@@ -532,6 +547,32 @@ public sealed class ProgramEntryPointTests : IDisposable
             content:
               sources: []
             """);
+        return path;
+    }
+
+    private string WriteAssetCollisionSite()
+    {
+        string path = Path.Combine(_tempDir, "asset-collision.yaml");
+        File.WriteAllText(path, """
+            site:
+              name: test
+              title: Test
+              url: https://example.com
+            content:
+              sources:
+                - type: markdown
+                  name: page
+                  collection: page
+                  markdown:
+                    dir: content
+            logging:
+              level: warn
+            """);
+        Directory.CreateDirectory(Path.Combine(_tempDir, "content"));
+        Directory.CreateDirectory(Path.Combine(_tempDir, "static", "assets", "css"));
+        Directory.CreateDirectory(Path.Combine(_tempDir, "assets", "css"));
+        File.WriteAllText(Path.Combine(_tempDir, "static", "assets", "css", "main.css"), "static");
+        File.WriteAllText(Path.Combine(_tempDir, "assets", "css", "main.css"), "asset");
         return path;
     }
 

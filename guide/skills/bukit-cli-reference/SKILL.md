@@ -156,7 +156,7 @@ bukit completion fish > ~/.config/fish/completions/bukit.fish
 `geo audit` exits 0 whatever the score; it fails only for a missing or invalid report (1)
 or bad usage/missing directory (2). A single-language `build` that fails on a Notion
 snapshot exits 2; a multilingual worker failure exits 1, and its final cli-error keeps
-the worker's `BKT-0Bxx` code and reason.
+the worker's `BKT-xxxx` code and reason.
 
 ## Environment variables
 
