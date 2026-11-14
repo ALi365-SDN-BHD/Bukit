@@ -1027,6 +1027,9 @@ public sealed class WorktreeBuildCoordinatorTests : IDisposable
             .Replace("languages: [en, zh-CN]", "languages: [zh-CN, en]", StringComparison.Ordinal)
             .Replace("  defaultLanguage: en\n",
                 "  defaultLanguage: en\n  sharedAssets:\n    enabled: true\n", StringComparison.Ordinal));
+        var yaml = File.ReadAllText(path);
+        Assert.Contains("languages: [zh-CN, en]", yaml, StringComparison.Ordinal);
+        Assert.Contains("sharedAssets:\n    enabled: true", yaml, StringComparison.Ordinal);
         await InitializeRepositoryAsync(root);
 
         var result = await RunProcessAsync("dotnet",
@@ -1073,6 +1076,8 @@ public sealed class WorktreeBuildCoordinatorTests : IDisposable
             [typeof(BuildCommand).Assembly.Location, "build", "--config", site], root);
 
         Assert.NotEqual(0, failed.ExitCode);
+        Assert.Contains("event=build.variant.start language=en", failed.Output, StringComparison.Ordinal);
+        Assert.Contains("reserved", failed.Output, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain("event=build.variant.start language=zh-CN", failed.Output, StringComparison.Ordinal);
         var actual = SnapshotPublishedOutputs(Path.Combine(root, "dist"));
         Assert.Equal(expected.Keys.Order(StringComparer.Ordinal), actual.Keys.Order(StringComparer.Ordinal));
