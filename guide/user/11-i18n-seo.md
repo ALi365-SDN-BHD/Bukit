@@ -105,6 +105,8 @@ The build reports these warnings:
 | `i18n.document.i18n_key_duplicate` | Two pages in the same language use the same `i18nKey`; hreflang and merged sitemap alternates can point to only one of them. |
 | `i18n.config.default_language_layout_ignored` | `site.defaultLanguageInSubdir` is `true`, `site.defaultLanguageRedirect` is `false`, or `site.defaultLanguageLegacyRedirects` is `true`, but `site.languages` has fewer than two languages, so the single-language output is unchanged. |
 | `i18n.config.legacy_redirects_ignored` | `site.defaultLanguageLegacyRedirects` is `true` but the default language is still prefixed (`defaultLanguageInSubdir: true`), so there are no old URLs to redirect. |
+| `i18n.config.shared_assets_ignored` | `site.sharedAssets.enabled` is `true` on a single-language root-layout site, so sharing is ignored. |
+| `i18n.config.shared_assets_path_ignored` | The enabled SCSS output directory normalizes to the output root, so it is not added to the shared set. |
 
 Warnings are capped at five per kind, followed by one summary line. A single-language
 site that intentionally selects one language from a mixed-language source will warn
@@ -171,9 +173,10 @@ site:
     # paths: [assets/, fonts/]   # optional; replaces the default
 ```
 
-- The default language owns the shared files. It writes `dist/assets/**`, the SCSS
-  output, `assets/css/theme-tokens.css`, and copied `static/assets/**` once, and
-  records them in its own manifest. Other languages omit those copied/generated
+- The default language owns the shared files. It writes the copied/generated theme
+  assets, SCSS output, tokens, and static outputs inside the shared prefixes once
+  (default `assets/`, excluding the media prefix), and records them in its own
+  manifest. Other languages omit those copied/generated
   entries; pages, templated static files, plugin outputs, and media are still written
   per language.
 - `paths` is a list of output prefixes. When omitted it is `assets/` plus the enabled
@@ -183,16 +186,19 @@ site:
   `site.base_url`. It is the root base URL (`/repo` stays `/repo`, or `/` at the site
   root) while the current language is still available as `site.base_url`. Map a `/`
   value to an empty string before joining paths, exactly as the Starter theme does.
-- With `languageJobs > 1`, the default language builds first, then the other
-  languages run concurrently. This trades a little wall time for the guarantee that
-  shared files and image variants exist.
+- When sharing is enabled, the whole default-language build runs before any other
+  language starts. With parallel languages (`languageJobs > 1`) this adds roughly
+  one default-language build to wall time; it is not just an asset-copy delay. The
+  benefit is that shared files and image variants exist before the others run.
 - Media images and their variants are not shared in this version; they stay under
   each language's own base URL. The one exception is a fallback/placeholder whose
   path lies in the shared set (the default `/assets/images/noneimg-news.jpg`):
   the default language owns it and other languages reference the root.
-- The setting is ignored, with `i18n.config.shared_assets_ignored`, on a
-  single-language site. `enabled: true` with `defaultLanguageInSubdir: true` is a
-  validation error because the prefixed layout has no root copy owner.
+- On a single-language site with the root layout, sharing is ignored with
+  `i18n.config.shared_assets_ignored`. The `enabled: true` with
+  `defaultLanguageInSubdir: true` validation error applies regardless of language
+  count, including a single-language site, because the prefixed layout has no root
+  copy owner.
 
 ## SEO Config
 

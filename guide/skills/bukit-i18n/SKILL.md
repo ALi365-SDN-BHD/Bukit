@@ -1,6 +1,6 @@
 ---
 name: bukit-i18n
-description: Use for Bukit language settings — site.languages (one entry = single-language site, two or more = multilingual build), per-page language and i18nKey, output folders per language, merged sitemap/feed/search modes, hreflang, and translated UI strings.
+description: Use for Bukit language settings — site.languages (one entry = single-language site, two or more = multilingual build), per-page language and i18nKey, output folders per language, shared theme assets (site.sharedAssets, site.asset_base_url), merged sitemap/feed/search modes, hreflang, and translated UI strings.
 ---
 
 # Bukit i18n
@@ -115,9 +115,10 @@ site:
     paths: [assets/, fonts/] # optional; replaces assets/ + enabled SCSS output
 ```
 
-- The default language owns `assets/`, the SCSS output, `assets/css/theme-tokens.css`,
-  and copied `static/assets/**`. Other languages do not write those entries; pages,
-  templated static files, plugin outputs, and media stay per language.
+- The default language owns the copied/generated theme assets, SCSS output, tokens,
+  and static outputs inside the shared prefixes (default `assets/`, excluding the
+  media prefix). Other languages do not write those entries; pages, templated static
+  files, plugin outputs, and media stay per language.
 - Templates must use `{{ site.asset_base_url }}` for shared files and
   `{{ site.base_url }}` for per-language URLs. `asset_base_url` is the root base URL
   (`/repo` or `/`) even in a non-default language (`/repo/zh-CN`). At the site root it
@@ -126,10 +127,12 @@ site:
   normally `/assets/uploads`) is always excluded and cannot be shared; validation fails
   if a path is inside it. Empty lists, absolute paths, `..`, and a normalized root
   are rejected.
-- `enabled: true` with `defaultLanguageInSubdir: true` is a validation error. A
-  single-language site ignores the setting with `event=i18n.config.shared_assets_ignored`.
-- With sharing enabled and `languageJobs > 1`, the default language builds first;
-  expect slightly longer wall time before parallel languages start.
+- `enabled: true` with `defaultLanguageInSubdir: true` is a validation error at any
+  language count. A single-language root-layout site ignores the setting with
+  `event=i18n.config.shared_assets_ignored`.
+- When sharing is enabled, the whole default-language build completes before other
+  languages start. With `languageJobs > 1` expect roughly one default-language build
+  of added wall time before parallel languages begin.
 - Media images and their variants are not shared in this version. A fallback/placeholder whose path lies in the shared set (the default `/assets/images/noneimg-news.jpg`) is owned by the default language and referenced from the root.
 
 ## hreflang

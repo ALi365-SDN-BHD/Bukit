@@ -1,6 +1,6 @@
 # 多语言共用资源（`add-i18n-shared-assets` v2）：实施方案与任务计划
 
-- 状态：**已实施（2026-11-14）**。决策 A1–A5 已于 2026-11-14 确认，全部采用推荐项：默认关闭、默认语言归属、只支持根目录布局、非资源输出照常按语言输出、媒体另立提案。阶段 1–8 已执行，矩阵 F 通过；openspec `tasks.md` 中未取得提交测试证据的 Engine 场景保持未勾选。最终证据见阶段报告。
+- 状态：**已实施（2026-11-14）**。决策 A1–A5 已于 2026-11-14 确认，全部采用推荐项：默认关闭、默认语言归属、只支持根目录布局、非资源输出照常按语言输出、媒体另立提案。阶段 1–8 已执行，矩阵 F 通过；openspec `tasks.md` 中的 Engine 场景已勾选。最终证据见阶段报告。
 - 依据：`openspec/changes/add-i18n-shared-assets/`（proposal、design、specs、tasks）。设计理由、被放弃的方案和代码现状核查见 design.md，本计划只写"改什么、按什么顺序、怎么验收"。
 - 代码基线：`e7651fb1`。正文用文件和符号定位，基线行号集中在附录 A，实施时以符号为准。
 - 范围：Core 的实现、测试和文档。commit、push、PR、发布、full/release gate 均需另行授权。
@@ -250,7 +250,7 @@ SiteEngine / WorktreeBuildRun
 
 **T07.2 主题作者说明**：`guide/dev/theme.md` 写明共用资源用 `asset_base_url`、按语言变化的输出用 `base_url`；根 baseUrl 为 `/` 时先映射为空串（附 Starter 写法）；JS 运行时拼地址和 CSS 根绝对路径 `url()` 的注意事项；只支持根目录布局。
 
-**T07.3 CHANGELOG**：三语 CHANGELOG 的 Unreleased 写明新增 `site.sharedAssets`（默认关闭）和 `site.asset_base_url`、Starter 主题改用 `asset_base_url`、开启后非默认语言不再有自己的 `assets/`。
+**T07.3 CHANGELOG**：三语 CHANGELOG 的 Unreleased 写明新增 `site.sharedAssets`（默认关闭）和 `site.asset_base_url`、Starter 主题改用 `asset_base_url`、开启后非默认语言不再写出共用前缀内的副本。
 
 ### 阶段 8
 
