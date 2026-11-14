@@ -38,7 +38,7 @@
   - `Bukit.Rendering`：`SiteModel`、`ScribanSiteModelMapper`、`ScribanModelKnownFields`。
   - `Bukit.Cli`：`WorktreeBuildRun`（Worker 顺序与请求）、Starter 主题 `BaseLayout.html`。
 - 规范：新增能力 `i18n-shared-assets`。Worktree 相关行为写在该能力中，不修改 `i18n-worktree-build` 现有要求（`languageJobs` 的上限语义不变）。
-- 公共契约：`SiteConfig` 和 `SiteModel` 新增属性，`site.yaml` 新增可选字段，模板新增一个变量，新增配置校验错误（`ConfigException`，不新增 `DiagnosticCode`）和警告事件 `i18n.config.shared_assets_ignored`。v1 的 `i18n-shared-asset-conflict` 不再需要。Worker 请求新增字段（父进程与 Worker 为同一二进制，不升 schema）。根 manifest 和语言 manifest 结构不变。
+- 公共契约：`SiteConfig` 和 `SiteModel` 新增属性，`site.yaml` 新增可选字段，模板新增一个变量，新增配置校验错误（`ConfigException`，不新增 `DiagnosticCode`）和警告事件 `i18n.config.shared_assets_ignored`、`i18n.config.shared_assets_path_ignored`。v1 的 `i18n-shared-asset-conflict` 不再需要。Worker 请求新增字段（父进程与 Worker 为同一二进制，不升 schema）。根 manifest 和语言 manifest 结构不变。
 - 兼容性：默认关闭，现有站点输出不变。开启后，仍用 `{{ base_url }}/assets/...` 的主题在非默认语言页面会找不到资源，主题作者说明须写明。
 - 跨仓影响：网站仓库无需改动。
 

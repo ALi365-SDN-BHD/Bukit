@@ -68,7 +68,11 @@ public sealed class I18nSharedAssetsTests
         WriteSite(site, enabled: true, clean: false, paths: "[assets/, fonts/]");
         var result = await site.BuildAsync(clean: false, incremental: true);
 
-        Assert.All(result.Variants, variant => Assert.True(variant.RenderedCount > 0));
+        Assert.All(result.Variants, variant =>
+        {
+            Assert.True(variant.RenderedCount > 0);
+            Assert.Equal(0, variant.SkippedCount);
+        });
         Assert.True(File.Exists(Path.Combine(site.Output, "fonts", "a.woff2")));
         Assert.False(File.Exists(Path.Combine(site.Output, "zh-CN", "fonts", "a.woff2")));
     }
@@ -239,6 +243,29 @@ public sealed class I18nSharedAssetsTests
     }
 
     [Fact]
+    public async Task SharingEnabled_MediaVariantsAndPluginOutputStayPerLanguage()
+    {
+        using var site = CreateSite();
+        WriteSite(site, enabled: true, clean: true);
+        Directory.CreateDirectory(Path.Combine(site.Root, "assets", "uploads"));
+        WriteJpeg(Path.Combine(site.Root, "assets", "uploads", "photo.jpg"), 1000);
+        var sitePath = Path.Combine(site.Root, "site.yaml");
+        File.WriteAllText(sitePath, File.ReadAllText(sitePath).Replace(
+            "theme:\n  layouts: layouts",
+            "theme:\n  layouts: layouts\n  images:\n    enabled: true\n    formats: [webp]\n    sizes: [480]",
+            StringComparison.Ordinal));
+
+        await site.BuildAsync(clean: true);
+
+        Assert.True(File.Exists(Path.Combine(site.Output, "assets", "style.css")));
+        Assert.False(File.Exists(Path.Combine(site.Output, "zh-CN", "assets", "style.css")));
+        Assert.True(File.Exists(Path.Combine(site.Output, "assets", "uploads", "photo.jpg")));
+        Assert.True(File.Exists(Path.Combine(site.Output, "assets", "uploads", "photo-480w.webp")));
+        Assert.True(File.Exists(Path.Combine(site.Output, "zh-CN", "assets", "uploads", "photo.jpg")));
+        Assert.True(File.Exists(Path.Combine(site.Output, "zh-CN", "assets", "uploads", "photo-480w.webp")));
+    }
+
+    [Fact]
     public async Task ConfiguredStaticPrefix_SharesThatPrefixToo()
     {
         using var site = CreateSite();
@@ -314,6 +341,15 @@ public sealed class I18nSharedAssetsTests
                 {{(string.IsNullOrEmpty(paths) ? string.Empty : $"    paths: {paths}")}}
                 """, StringComparison.Ordinal);
         File.WriteAllText(path, yaml);
+    }
+
+    private static void WriteJpeg(string path, int width)
+    {
+        Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+        using var image = new SKBitmap(width, 8);
+        image.Erase(SKColors.SteelBlue);
+        using var encoded = image.Encode(SKEncodedImageFormat.Jpeg, 90);
+        File.WriteAllBytes(path, encoded.ToArray());
     }
 
     private static string ReadFirstHtml(string output, string language)
