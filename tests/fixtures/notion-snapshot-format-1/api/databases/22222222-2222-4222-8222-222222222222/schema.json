@@ -1,0 +1,10 @@
+{
+  "object": "database",
+  "id": "22222222-2222-4222-8222-222222222222",
+  "properties": {
+    "Name": { "type": "title" },
+    "Slug": { "type": "rich_text" },
+    "Type": { "type": "select" },
+    "Role": { "type": "rich_text" }
+  }
+}

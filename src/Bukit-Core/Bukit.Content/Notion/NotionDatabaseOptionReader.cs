@@ -29,7 +29,7 @@ internal static class NotionDatabaseOptionReader
         }
         catch (NotionApiException exception)
         {
-            throw new ContentException(exception.Message, exception);
+            throw NotionErrorCodes.Wrap(exception);
         }
     }
 

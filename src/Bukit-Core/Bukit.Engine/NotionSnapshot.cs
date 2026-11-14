@@ -20,8 +20,20 @@ internal sealed class NotionSnapshot : IDisposable
     /// </summary>
     public static IDisposable Enter(NotionSnapshot? snapshot) => NotionSnapshotScope.Enter(snapshot?._session);
 
-    /// <summary>True for a snapshot failure: missing, unreadable, another version, or lacking data.</summary>
+    /// <summary>True for a snapshot failure: missing, unreadable, another format, or lacking data.</summary>
     public static bool IsSnapshotError(Exception exception) => exception is NotionSnapshotException;
+
+    /// <summary>The <c>[BKT-xxxx] message</c> form for commands that print text.</summary>
+    public static string Format(Exception exception)
+        => exception is BukitException bukitException
+            ? DiagnosticExceptionFormatter.Format(bukitException)
+            : exception.Message;
+
+    /// <summary>The <c>BKT-xxxx</c> code for a coded exception, or null.</summary>
+    public static string? CodeOf(Exception exception)
+        => exception is BukitException { Code: { } code }
+            ? DiagnosticCodeFormatter.Format(code)
+            : null;
 
     /// <summary>Directory read or written by this process. Never log it.</summary>
     public string Directory => _session.Directory;
@@ -60,13 +72,13 @@ internal sealed class NotionSnapshot : IDisposable
     /// <summary>Snapshot identity as log fields, without its location.</summary>
     public string DescribeFields()
         => _session.Manifest is { } manifest
-            ? $"format={manifest.Format} recorded_at={manifest.CreatedAt.ToUniversalTime():yyyy-MM-dd'T'HH:mm:ss'Z'} databases={manifest.Databases.Count}"
+            ? $"format={manifest.Format} bukitVersion={manifest.BukitVersion} recorded_at={manifest.CreatedAt.ToUniversalTime():yyyy-MM-dd'T'HH:mm:ss'Z'} databases={manifest.Databases.Count}"
             : "format=recording";
 
     /// <summary>Snapshot identity without its location (the path is never printed).</summary>
     public string Describe()
         => _session.Manifest is { } manifest
-            ? $"format {manifest.Format}, recorded {manifest.CreatedAt.ToUniversalTime():yyyy-MM-dd'T'HH:mm:ss'Z'}, databases {manifest.Databases.Count}"
+            ? $"format {manifest.Format}, Bukit {manifest.BukitVersion}, recorded {manifest.CreatedAt.ToUniversalTime():yyyy-MM-dd'T'HH:mm:ss'Z'}, databases {manifest.Databases.Count}"
             : "recording";
 
     public void Dispose() => _session.Dispose();

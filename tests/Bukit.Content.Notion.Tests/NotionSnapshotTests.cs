@@ -2,8 +2,10 @@ using System.Collections.Concurrent;
 using System.Net;
 using System.Text;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using Bukit.Content.Notion.Snapshot;
 using Bukit.Engine.Abstractions.Content;
+using Bukit.Notion;
 using Bukit.Shared;
 using Xunit;
 
@@ -88,6 +90,7 @@ public sealed class NotionSnapshotTests : IDisposable
         var error = Assert.Throws<NotionSnapshotException>(() => recording.RecordPage("p1", page.RootElement));
 
         Assert.DoesNotContain(_root, error.Message, StringComparison.Ordinal);
+        Assert.Equal(DiagnosticCode.NotionSnapshotWriteFailed, error.Code);
         Assert.IsAssignableFrom<IOException>(error.InnerException);
     }
 
@@ -100,7 +103,8 @@ public sealed class NotionSnapshotTests : IDisposable
         }
 
         using var offline = NotionSnapshotSession.OpenOffline(Target);
-        Assert.Throws<NotionSnapshotException>(() => offline.ReadDatabaseSchema("a/b"));
+        var error = Assert.Throws<NotionSnapshotException>(() => offline.ReadDatabaseSchema("a/b"));
+        Assert.Equal(DiagnosticCode.NotionSnapshotEntryMissing, error.Code);
     }
 
     [Fact]
@@ -149,6 +153,7 @@ public sealed class NotionSnapshotTests : IDisposable
         var error = await Assert.ThrowsAsync<NotionSnapshotException>(() =>
             LoadAsync(Options(offlineSnapshot, token: string.Empty) with { DatabaseId = "99999999-0000-4000-8000-000000000000" }));
         Assert.Contains("no data for database", error.Message, StringComparison.Ordinal);
+        Assert.Equal(DiagnosticCode.NotionSnapshotDatabaseMissing, error.Code);
         Assert.DoesNotContain(Target, error.Message, StringComparison.Ordinal);
     }
 
@@ -161,6 +166,7 @@ public sealed class NotionSnapshotTests : IDisposable
 
         var error = await Assert.ThrowsAsync<NotionSnapshotException>(() => LoadAsync(Options(offlineSnapshot, token: string.Empty)));
         Assert.Contains("rendered body for page 'page-1'", error.Message, StringComparison.Ordinal);
+        Assert.Equal(DiagnosticCode.NotionSnapshotBodyMissing, error.Code);
     }
 
     [Fact]
@@ -172,6 +178,7 @@ public sealed class NotionSnapshotTests : IDisposable
 
         var error = await Assert.ThrowsAsync<NotionSnapshotException>(() => LoadAsync(Options(offlineSnapshot, token: string.Empty)));
         Assert.Contains("page 'rel-1'", error.Message, StringComparison.Ordinal);
+        Assert.Equal(DiagnosticCode.NotionSnapshotEntryMissing, error.Code);
     }
 
     [Fact]
@@ -185,18 +192,50 @@ public sealed class NotionSnapshotTests : IDisposable
         var offline = await LoadAsync(Options(offlineSnapshot, token: string.Empty));
 
         Assert.Equal(online, offline);
+
+        using var client = NotionContentClient.Create(Options(offlineSnapshot, token: string.Empty));
+        var replayed = await Assert.ThrowsAsync<ContentException>(
+            () => client.GetAsync(NotionApiUrls.Pages("rel-1"), CancellationToken.None));
+        Assert.Equal(DiagnosticCode.NotionNotFound, replayed.Code);
     }
 
     [Fact]
-    public async Task OtherBukitVersionOrFormat_IsAnError()
+    public async Task MultipleQueriesWithoutAMatch_IsAQueryMismatch()
+    {
+        await LoadOnlineAsync(Options());
+        var database = Assert.Single(Directory.GetDirectories(Path.Combine(Target, "api", "databases")));
+        var queries = Path.Combine(database, "queries");
+        Assert.Single(Directory.GetDirectories(queries));
+        Directory.CreateDirectory(Path.Combine(queries, "another-query"));
+        using var offlineSnapshot = NotionSnapshotSession.OpenOffline(Target);
+
+        var error = await Assert.ThrowsAsync<NotionSnapshotException>(() =>
+            LoadAsync(Options(offlineSnapshot, token: string.Empty) with { FilterProperty = "Featured" }));
+
+        Assert.Equal(DiagnosticCode.NotionSnapshotQueryMismatch, error.Code);
+    }
+
+    [Fact]
+    public void FilesystemRoot_IsAnOptionError()
+    {
+        var root = Path.GetPathRoot(Path.GetTempPath())!;
+
+        var error = Assert.Throws<NotionSnapshotException>(() => NotionSnapshotSession.OpenOffline(root));
+
+        Assert.Equal(DiagnosticCode.NotionSnapshotOptionInvalid, error.Code);
+    }
+
+    [Fact]
+    public async Task OtherFormat_IsAnError()
     {
         await LoadOnlineAsync(Options());
 
         NotionSnapshotSession.BukitVersionOverride.Value = "0.0.0-other";
         try
         {
-            var error = Assert.Throws<NotionSnapshotException>(() => NotionSnapshotSession.OpenOffline(Target));
-            Assert.Contains("was written by Bukit", error.Message, StringComparison.Ordinal);
+            using var offline = NotionSnapshotSession.OpenOffline(Target);
+            Assert.NotNull(offline.Manifest);
+            Assert.NotEqual("0.0.0-other", offline.Manifest?.BukitVersion);
         }
         finally
         {
@@ -204,10 +243,58 @@ public sealed class NotionSnapshotTests : IDisposable
         }
 
         var manifestPath = Path.Combine(Target, "manifest.json");
-        var manifest = await File.ReadAllTextAsync(manifestPath);
-        await File.WriteAllTextAsync(manifestPath, manifest.Replace("\"format\": 1", "\"format\": 99", StringComparison.Ordinal));
-        Assert.Contains("format 99", Assert.Throws<NotionSnapshotException>(() => NotionSnapshotSession.OpenOffline(Target)).Message, StringComparison.Ordinal);
-        Assert.Throws<NotionSnapshotException>(() => NotionSnapshotSession.OpenOffline(Path.Combine(_root, "absent")));
+        var manifest = JsonNode.Parse(await File.ReadAllTextAsync(manifestPath))!.AsObject();
+        manifest["format"] = 99;
+        await File.WriteAllTextAsync(manifestPath, manifest.ToJsonString());
+        var wrongFormat = Assert.Throws<NotionSnapshotException>(() => NotionSnapshotSession.OpenOffline(Target));
+        Assert.Contains("format 99", wrongFormat.Message, StringComparison.Ordinal);
+        Assert.Equal(DiagnosticCode.NotionSnapshotUnavailable, wrongFormat.Code);
+
+        manifest.Remove("format");
+        await File.WriteAllTextAsync(manifestPath, manifest.ToJsonString());
+        var missingFormat = Assert.Throws<NotionSnapshotException>(() => NotionSnapshotSession.OpenOffline(Target));
+        Assert.Contains("format 0", missingFormat.Message, StringComparison.Ordinal);
+        Assert.Equal(DiagnosticCode.NotionSnapshotUnavailable, missingFormat.Code);
+        var absent = Assert.Throws<NotionSnapshotException>(() => NotionSnapshotSession.OpenOffline(Path.Combine(_root, "absent")));
+        Assert.Equal(DiagnosticCode.NotionSnapshotUnavailable, absent.Code);
+    }
+
+    [Fact]
+    public async Task ReRecording_ReusesBodiesAcrossBukitVersions_AndRerendersAnotherRenderer()
+    {
+        NotionSnapshotSession.BukitVersionOverride.Value = "0.0.0-other";
+        try
+        {
+            await LoadOnlineAsync(Options());
+        }
+        finally
+        {
+            NotionSnapshotSession.BukitVersionOverride.Value = null;
+        }
+
+        var reusedApi = new FakeNotionApi();
+        await LoadOnlineAsync(Options(), reusedApi);
+        Assert.DoesNotContain(
+            reusedApi.Requests,
+            static request => request.StartsWith("GET /v1/blocks/page-1/children", StringComparison.Ordinal));
+        Assert.DoesNotContain(
+            reusedApi.Requests,
+            static request => request.StartsWith("GET /v1/blocks/page-2/children", StringComparison.Ordinal));
+
+        var bodyPath = Path.Combine(Target, "cache", "pages", "page-1.json");
+        var body = JsonNode.Parse(await File.ReadAllTextAsync(bodyPath))!.AsObject();
+        Assert.Equal(NotionCacheManager.CacheFormat, body["version"]!.GetValue<int>());
+        body["renderer"] = body["renderer"]!.GetValue<int>() + 1;
+        await File.WriteAllTextAsync(bodyPath, body.ToJsonString());
+
+        var rerenderedApi = new FakeNotionApi();
+        await LoadOnlineAsync(Options(), rerenderedApi);
+        Assert.Contains(
+            rerenderedApi.Requests,
+            static request => request.StartsWith("GET /v1/blocks/page-1/children", StringComparison.Ordinal));
+        Assert.DoesNotContain(
+            rerenderedApi.Requests,
+            static request => request.StartsWith("GET /v1/blocks/page-2/children", StringComparison.Ordinal));
     }
 
     [Fact]
@@ -234,7 +321,8 @@ public sealed class NotionSnapshotTests : IDisposable
         using var client = NotionContentClient.Create(Options(offline, token: string.Empty));
 
         Assert.True(client.IsOffline);
-        Assert.Throws<NotionSnapshotException>(() => client.Transport);
+        var unsupported = Assert.Throws<NotionSnapshotException>(() => client.Transport);
+        Assert.Equal(DiagnosticCode.NotionSnapshotUnsupportedRequest, unsupported.Code);
     }
 
     private async Task<string> LoadOnlineAsync(NotionContentSourceOptions options, FakeNotionApi? api = null)

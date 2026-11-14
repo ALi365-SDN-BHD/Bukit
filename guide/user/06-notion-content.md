@@ -183,14 +183,14 @@ requires `--notion-snapshot`; `config check` and `doctor` only read a snapshot,
 so there `--notion-snapshot` also requires `--notion-offline`.
 
 **What it stores.** The raw Notion API answers of the formal build: the database
-schema, every page of the database query with all properties (drafts and fields
-the site does not show included) and Notion's server time, relation targets, the
-cross-source relation fallback, taxonomy select options and `pages_index` pages,
-plus the rendered page bodies. Recorded 403/404 answers are replayed as the same
-errors. Because the raw data is stored, a changed `propertyMap` or template works
-offline.
+schema, every page returned by the database query with all properties (a filtered
+query can still return drafts, and fields the site does not show are included) and
+Notion's server time, relation targets, the cross-source relation fallback, taxonomy
+select options and `pages_index` pages, plus the rendered page bodies. Recorded
+403/404 answers are replayed as the same errors. Because the raw data is stored, a
+changed `propertyMap` or template works offline.
 
-**Keep it private.** The snapshot holds more than the site publishes. Keep it
+**Keep it private.** The snapshot can hold more than the site publishes. Keep it
 outside the site and outside any checkout that tools or other people can read;
 `build` rejects a snapshot directory inside the site or its output directory.
 On Unix the directories are `0700` and the files `0600`. The token is never
@@ -202,8 +202,9 @@ cancelled build keeps the previous snapshot. A recording build renders every
 page (it is never incremental) so that every body is recorded. Bodies of pages
 the build no longer uses are dropped; unchanged bodies are reused from the
 previous snapshot instead of being fetched again. The
-snapshot records its format version and the Bukit version; a different version is
-an error, so upgrade Bukit and record again.
+snapshot records its format version and the Bukit version. Only the format version
+is checked; the Bukit version is diagnostic, so upgrading Bukit keeps the snapshot
+readable. A different format version is an error and needs a new recording.
 
 **Offline rules.**
 
@@ -222,3 +223,26 @@ an error, so upgrade Bukit and record again.
 
 Every build logs one `event=content.source.loaded source=<name> count=<n>` line
 per content source.
+
+**Error codes.** Notion and snapshot failures use stable `BKT-0Bxx` codes. A
+failed `build` puts the code in the cli-error JSON; `config check` and `doctor`
+print it as `[BKT-0Bxx]` on the text line.
+
+| Code | Meaning |
+|---|---|
+| `BKT-0B01` | Notion rejected the token (HTTP 401). |
+| `BKT-0B02` | The integration may not read the database (HTTP 403). |
+| `BKT-0B03` | The database or page was not found (HTTP 404). |
+| `BKT-0B04` | Notion rate-limited the request and the retries ran out (HTTP 429). |
+| `BKT-0B05` | A mapped database property (filter, sort or slug) does not exist. |
+| `BKT-0B06` | Another Notion HTTP error (400, 5xx). |
+| `BKT-0B07` | A network or timeout error. |
+| `BKT-0B08` | Notion returned invalid JSON. |
+| `BKT-0B10` | The snapshot is missing, unreadable, or another format. |
+| `BKT-0B11` | The snapshot has no data for a database (a changed `databaseId` or a new source). |
+| `BKT-0B12` | The snapshot has no rendered body for a page. |
+| `BKT-0B13` | The recorded queries do not match the current filter or sort. |
+| `BKT-0B14` | Another snapshot entry is missing or unreadable. |
+| `BKT-0B15` | The snapshot could not be written. |
+| `BKT-0B16` | The `--notion-snapshot` directory value is invalid. |
+| `BKT-0B17` | The offline build does not support that request. |

@@ -30,6 +30,12 @@ namespace Bukit.Content.Notion.Snapshot;
 /// </summary>
 internal sealed class NotionSnapshotSession : INotionSnapshotHandle, IDisposable
 {
+    /// <summary>
+    /// The snapshot layout and the meaning of its entries that this Bukit reads. Bump it when an
+    /// existing entry's meaning changes, when <c>NotionApiUrls.NotionVersion</c> changes, or when
+    /// the snapshot directory layout changes. Adding an entry that older snapshots lack does not
+    /// need a bump: reading it fails with a clear missing-entry error.
+    /// </summary>
     public const int FormatVersion = 1;
     internal const string ManifestFileName = "manifest.json";
     private const string ApiDir = "api";
@@ -68,7 +74,7 @@ internal sealed class NotionSnapshotSession : INotionSnapshotHandle, IDisposable
     /// <summary>The manifest read when the snapshot was opened offline.</summary>
     public NotionSnapshotManifest? Manifest { get; }
 
-    /// <summary>The Bukit identity recorded in and required of every snapshot.</summary>
+    /// <summary>The Bukit identity recorded in every snapshot for diagnosis; it is not a validation key.</summary>
     public static string BukitVersion { get; } =
         typeof(NotionSnapshotSession).Assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion ??
         typeof(NotionSnapshotSession).Assembly.GetName().Version?.ToString() ??
@@ -84,8 +90,8 @@ internal sealed class NotionSnapshotSession : INotionSnapshotHandle, IDisposable
 
     /// <summary>
     /// Starts recording a new snapshot for <paramref name="targetDirectory"/>. Rendered bodies of
-    /// the previous snapshot (same format and Bukit version) seed the staging directory so
-    /// unchanged pages are not fetched again; bodies this build does not use are dropped on commit.
+    /// the previous snapshot (same format) seed the staging directory so unchanged pages are not
+    /// fetched again; bodies this build does not use are dropped on commit.
     /// </summary>
     public static NotionSnapshotSession BeginWrite(string targetDirectory)
     {
@@ -101,7 +107,10 @@ internal sealed class NotionSnapshotSession : INotionSnapshotHandle, IDisposable
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
         {
             // .NET I/O messages carry the path; the snapshot location is never printed.
-            throw new NotionSnapshotException("Notion snapshot directory could not be created.", exception);
+            throw new NotionSnapshotException(
+                "Notion snapshot directory could not be created.",
+                exception,
+                DiagnosticCode.NotionSnapshotWriteFailed);
         }
         try
         {
@@ -121,7 +130,8 @@ internal sealed class NotionSnapshotSession : INotionSnapshotHandle, IDisposable
         var target = NormalizeTarget(directory);
         var manifest = ReadValidManifest(target)
             ?? throw new NotionSnapshotException(
-                $"Notion offline snapshot not found or incomplete. {NotionSnapshotException.RebuildHint}");
+                $"Notion offline snapshot not found or incomplete. {NotionSnapshotException.RebuildHint}",
+                DiagnosticCode.NotionSnapshotUnavailable);
         return new NotionSnapshotSession(target, offline: true, targetDirectory: null, ownsStaging: false, manifest);
     }
 
@@ -151,7 +161,8 @@ internal sealed class NotionSnapshotSession : INotionSnapshotHandle, IDisposable
 
         throw new NotionSnapshotException(
             $"Notion offline snapshot has no data for database '{databaseId}' (a changed databaseId or a new Notion source). " +
-            "Apply the change and run a build with NOTION_TOKEN and --notion-snapshot to record it.");
+            "Apply the change and run a build with NOTION_TOKEN and --notion-snapshot to record it.",
+            DiagnosticCode.NotionSnapshotDatabaseMissing);
     }
 
     // ---- recording -------------------------------------------------------------------
@@ -234,7 +245,10 @@ internal sealed class NotionSnapshotSession : INotionSnapshotHandle, IDisposable
         }
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
         {
-            throw new NotionSnapshotException("Notion snapshot could not be saved; the previous snapshot is kept.", exception);
+            throw new NotionSnapshotException(
+                "Notion snapshot could not be saved; the previous snapshot is kept.",
+                exception,
+                DiagnosticCode.NotionSnapshotWriteFailed);
         }
 
         _committed = true;
@@ -286,7 +300,8 @@ internal sealed class NotionSnapshotSession : INotionSnapshotHandle, IDisposable
             {
                 throw new NotionSnapshotException(
                     $"Notion offline snapshot holds {recorded.Length} different queries for database '{databaseId}' and none matches the current filter and sort. " +
-                    NotionSnapshotException.RebuildHint);
+                    NotionSnapshotException.RebuildHint,
+                    DiagnosticCode.NotionSnapshotQueryMismatch);
             }
 
             queryDir = recorded[0];
@@ -306,7 +321,8 @@ internal sealed class NotionSnapshotSession : INotionSnapshotHandle, IDisposable
             !DateTimeOffset.TryParse(serverTimeElement.GetString(), CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind, out var serverTime))
         {
             throw new NotionSnapshotException(
-                $"Notion offline snapshot has an unreadable query page for database '{databaseId}'. {NotionSnapshotException.RebuildHint}");
+                $"Notion offline snapshot has an unreadable query page for database '{databaseId}'. {NotionSnapshotException.RebuildHint}",
+                DiagnosticCode.NotionSnapshotEntryMissing);
         }
 
         return (JsonDocument.Parse(response.GetRawText()), serverTime);
@@ -361,7 +377,10 @@ internal sealed class NotionSnapshotSession : INotionSnapshotHandle, IDisposable
         }
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or JsonException)
         {
-            throw new NotionSnapshotException($"Notion offline snapshot has an unreadable entry. {NotionSnapshotException.RebuildHint}", exception);
+            throw new NotionSnapshotException(
+                $"Notion offline snapshot has an unreadable entry. {NotionSnapshotException.RebuildHint}",
+                exception,
+                DiagnosticCode.NotionSnapshotEntryMissing);
         }
 
         throw new NotionSnapshotRecordedFailure(status);
@@ -380,7 +399,10 @@ internal sealed class NotionSnapshotSession : INotionSnapshotHandle, IDisposable
         }
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or JsonException)
         {
-            throw new NotionSnapshotException($"Notion offline snapshot has an unreadable {what}. {NotionSnapshotException.RebuildHint}", exception);
+            throw new NotionSnapshotException(
+                $"Notion offline snapshot has an unreadable {what}. {NotionSnapshotException.RebuildHint}",
+                exception,
+                DiagnosticCode.NotionSnapshotEntryMissing);
         }
     }
 
@@ -449,7 +471,10 @@ internal sealed class NotionSnapshotSession : INotionSnapshotHandle, IDisposable
         {
             // Fails the build: a snapshot missing what the site used must never be committed,
             // and catch-all warnings in relation or taxonomy code would otherwise swallow it.
-            throw new NotionSnapshotException("Notion snapshot entry could not be written.", exception);
+            throw new NotionSnapshotException(
+                "Notion snapshot entry could not be written.",
+                exception,
+                DiagnosticCode.NotionSnapshotWriteFailed);
         }
     }
 
@@ -516,19 +541,17 @@ internal sealed class NotionSnapshotSession : INotionSnapshotHandle, IDisposable
         }
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or JsonException)
         {
-            throw new NotionSnapshotException($"Notion offline snapshot manifest is unreadable. {NotionSnapshotException.RebuildHint}", exception);
+            throw new NotionSnapshotException(
+                $"Notion offline snapshot manifest is unreadable. {NotionSnapshotException.RebuildHint}",
+                exception,
+                DiagnosticCode.NotionSnapshotUnavailable);
         }
 
         if (manifest.Format != FormatVersion)
         {
             throw new NotionSnapshotException(
-                $"Notion offline snapshot format {manifest.Format} does not match the format {FormatVersion} this Bukit reads. {NotionSnapshotException.RebuildHint}");
-        }
-
-        if (!string.Equals(manifest.BukitVersion, CurrentBukitVersion, StringComparison.Ordinal))
-        {
-            throw new NotionSnapshotException(
-                $"Notion offline snapshot was written by Bukit {manifest.BukitVersion}, not {CurrentBukitVersion}. {NotionSnapshotException.RebuildHint}");
+                $"Notion offline snapshot format {manifest.Format} does not match the format {FormatVersion} this Bukit reads. {NotionSnapshotException.RebuildHint}",
+                DiagnosticCode.NotionSnapshotUnavailable);
         }
 
         return manifest;
@@ -664,13 +687,17 @@ internal sealed class NotionSnapshotSession : INotionSnapshotHandle, IDisposable
     {
         if (string.IsNullOrWhiteSpace(directory))
         {
-            throw new NotionSnapshotException("--notion-snapshot needs a directory.");
+            throw new NotionSnapshotException(
+                "--notion-snapshot needs a directory.",
+                DiagnosticCode.NotionSnapshotOptionInvalid);
         }
 
         var full = Path.TrimEndingDirectorySeparator(Path.GetFullPath(directory.Trim()));
         if (Path.GetDirectoryName(full) is null || string.IsNullOrEmpty(Path.GetFileName(full)))
         {
-            throw new NotionSnapshotException("--notion-snapshot cannot be a filesystem root.");
+            throw new NotionSnapshotException(
+                "--notion-snapshot cannot be a filesystem root.",
+                DiagnosticCode.NotionSnapshotOptionInvalid);
         }
 
         return full;

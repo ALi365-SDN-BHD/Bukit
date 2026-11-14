@@ -123,15 +123,17 @@
 | 范围 | 类别 | 状态 |
 |------|------|------|
 | BKT-000x | Config | 已分配 0001-0007 |
-| BKT-010x | Theme | 已分配 0100-0104 |
+| BKT-010x | Theme | 已分配 0100-0104（0100 是主题校验消息码，不是 `DiagnosticCode` 成员） |
 | BKT-020x | Route | 已分配 0201-0209 |
 | BKT-030x | Render | 已分配 0301-0399 |
 | BKT-040x | Schema | 已分配 0401-0402 |
-| BKT-050x | Content | 已分配 0501-0503 |
+| BKT-050x | Content | 已分配 0501-0504 |
 | BKT-060x | Build | 已分配 0601-0604；0604 为 asset/render output collision |
 | BKT-070x | Plugin | 已分配 0701-0707 |
 | BKT-080x | SEO/GEO | 已分配 0801-0812 |
 | BKT-090x | Media | 已分配 0901-0904 |
+| BKT-0Axx | I18n | 已分配 0A01-0A02 |
+| BKT-0Bxx | Notion | 已分配 0B01-0B08、0B10-0B17 |
 
 ## 旧行为处理策略
 

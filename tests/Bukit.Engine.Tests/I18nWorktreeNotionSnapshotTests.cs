@@ -129,6 +129,7 @@ public sealed class I18nWorktreeNotionSnapshotTests : IDisposable
             BuildAsync(Path.Combine(_root, "offline"), Overrides("offline", SnapshotDir, offline: true), offlineApi, finishedLanguages));
 
         Assert.Contains("Notion offline snapshot has no page 'rel-zh'", error.Message, StringComparison.Ordinal);
+        Assert.Equal(DiagnosticCode.NotionSnapshotEntryMissing, error.Code);
         Assert.Equal(["en"], finishedLanguages);
         Assert.Empty(offlineApi.Requests);
     }

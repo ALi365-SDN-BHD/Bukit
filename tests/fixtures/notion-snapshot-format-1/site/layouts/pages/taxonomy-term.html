@@ -1,0 +1,7 @@
+{% layout "layouts/base.html" %}
+<h1>{{ taxonomy.term }}</h1>
+<ul>
+{% for item in taxonomy.pages %}
+<li><a href="{{ item.url }}">{{ item.title }}</a></li>
+{% endfor %}
+</ul>

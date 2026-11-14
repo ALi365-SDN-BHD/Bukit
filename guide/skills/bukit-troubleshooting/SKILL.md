@@ -22,14 +22,15 @@ the command; error objects are multi-line JSON, see `bukit-cli-reference`). Read
 
 ## Reading errors
 
-- `build` prints `Error: <message>` on stderr with no code; exit codes are listed in
-  `bukit-cli-reference` (2 usage/config/content, 3 render, 1 command-level failure).
-- Only `doctor` and `clean` prefix messages with `[BKT-XXXX]`. In `--log-format json`
-  output the `code` field is the diagnostic name (e.g. `ContentCollectionMissing`,
-  `RouteConflict`), not the number. Match the message text first.
+- `build` puts the stable `BKT-xxxx` code in the cli-error JSON (`--log-format json`).
+  Text mode prints `Error: <message>`; exit codes are listed in `bukit-cli-reference`
+  (2 usage/config/content, 3 render, 1 command-level failure).
+- `config check` and `doctor` prefix messages with `[BKT-xxxx]` (a doctor failure is
+  `✖ [BKT-xxxx] ...`, a warning is `⚠ [BKT-xxxx] ...`). The cli-error `code` is also
+  `BKT-xxxx`, not the diagnostic name.
 - BKT number ranges: `0001`–`0007` config, `01xx` theme, `02xx` routes, `03xx`
   templates, `04xx` schema, `05xx` content, `06xx` build output, `07xx` plugins,
-  `08xx` SEO/GEO, `09xx` media.
+  `08xx` SEO/GEO, `09xx` media, `0Axx` I18n, `0Bxx` Notion.
 - Build log events have the form `event=<name> key=value ...`. More than five warnings
   of one kind are collapsed into `event=diagnostics.summary`.
 
@@ -71,6 +72,8 @@ the command; error objects are multi-line JSON, see `bukit-cli-reference`). Read
 | SCSS not compiled, Sass installed | `event=scss.error file=... reason=...` | Fix the Sass error in `detail`. |
 | `event=taxonomy.term.decoded` | Percent-encoded tag or category value | Write the decoded text in the source (`hint=fix_option_in_notion`: fix the Notion option). |
 | `event=notion.relation.resolve_failed` / `notion.cache.read_failed` | A Notion relation target or cached page could not be read | Read the `message`; check the integration's access to the related database. |
+| `BKT-0B01`–`0B08` Notion failure (401/403/404/429/property/HTTP/network/invalid JSON) | A Notion read failed | Follow the code: replace the token, share the database, wait/raise `maxRps`, add the mapped property, or check the network. |
+| `BKT-0B10`–`0B17` snapshot failure | The offline snapshot is missing, from another format, incomplete, unreadable or unsupported | `0B10`/`0B14`: record the snapshot again; `0B11`/`0B12`/`0B13`: apply the change and build again; `0B15`: check disk space/permissions; `0B16`/`0B17`: fix the option or report the unsupported request. |
 | `NOTION_TOKEN is required ...` | Env var missing | Export `NOTION_TOKEN` (`bukit-content-model`). |
 | `SEO report not found under ... Run a full build first.` | Audit `--dir` defaults to `dist` | Pass `--dir <build.output>`. |
 | Links 404 in `preview`/`dev` | Servers ignore `baseUrl` | `bukit build --base-url /` then `bukit preview`; for dev use `BUKIT_SITE__BASE_URL=/ bukit dev`. |

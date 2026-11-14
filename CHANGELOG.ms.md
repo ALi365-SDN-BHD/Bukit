@@ -4,6 +4,11 @@ Semua perubahan penting kepada Bukit akan didokumenkan dalam fail ini.
 
 ## [Belum Dikeluarkan]
 
+## [2.2.0]
+
+- **Snapshot luar talian Notion hanya disemak mengikut versi format**: snapshot masih merekodkan `bukitVersion` untuk diagnosis, tetapi menaik taraf Bukit tidak lagi menjadikannya tidak sah; hanya perubahan `NotionSnapshotSession.FormatVersion` memerlukan rakaman semula. Binaan rakaman menggunakan semula badan yang telah dirender daripada snapshot lama; badan daripada `NotionBlocksRenderer.ContractVersion` yang berbeza dirender semula.
+- **Kegagalan Notion dan snapshot membawa kod stabil `BKT-0Bxx`**: kegagalan API Notion 401/403/404/429/HTTP lain/rangkaian/JSON tidak sah, sifat terpeta yang tiada, dan setiap kegagalan snapshot luar talian kini mempunyai kod stabil. `build` menulisnya ke JSON cli-error; `config check` dan `doctor` mencetak `[BKT-0Bxx]`; pekerja berbilang bahasa menyalurkan kod dan sebab kepada induk. Ralat konfigurasi, kandungan dan render peringkat atas kini menggunakan bentuk `BKT-xxxx` yang didokumenkan, bukan nama enum. Binaan satu bahasa yang gagal pada snapshot keluar dengan 2; kegagalan pekerja berbilang bahasa kekal 1. Enum awam `DiagnosticCode` mendapat 16 ahli Notion (0B01–0B08 dan 0B10–0B17); garis dasar API awam dikemas kini.
+
 ## [2.1.0] - 2026-11-14
 
 - **Perubahan besar: `site.languages` ialah satu-satunya tetapan bahasa**: `site.language` tidak lagi diterima dalam `site.yaml` dan gagal dengan `site.language was removed; write languages: [<code>] instead, for example languages: [en].` Tulis `languages: [en]` dan bukan `language: en`. Apabila `site.languages` tiada atau kosong, nilainya `[zh-CN]`; senarai yang semua entrinya kosong ialah ralat, dan `defaultLanguage` yang tiada dalam `site.languages` kini gagal dengan `site.defaultLanguage must be included in site.languages.` dan tidak lagi merekodkan `i18n.config.default_language_ignored`. Templat masih membaca bahasa semasa sebagai `{{ site.language }}`. `bukit labs init`, intent Labs dan pengimport demo HTML kini menulis `languages`; intent dengan `site.language` ditolak dan patut menggunakan `languages.supported: [<code>]`, dengan `languages.default` boleh ditinggalkan untuk satu bahasa. Kod yang menggunakan himpunan Labs secara terus juga perlu diubah: `SiteIntentSite.Language` dibuang dan `SiteIntentLanguages.Default` kini pilihan.

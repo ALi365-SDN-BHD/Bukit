@@ -68,4 +68,22 @@ public enum DiagnosticCode
 
     I18nRootOutputConflict = 0x0A01,
     I18nRouteReservedLanguagePrefix = 0x0A02,
+
+    NotionUnauthorized = 0x0B01,
+    NotionForbidden = 0x0B02,
+    NotionNotFound = 0x0B03,
+    NotionRateLimited = 0x0B04,
+    NotionPropertyMissing = 0x0B05,
+    NotionRequestFailed = 0x0B06,
+    NotionNetwork = 0x0B07,
+    NotionInvalidResponse = 0x0B08,
+
+    NotionSnapshotUnavailable = 0x0B10,
+    NotionSnapshotDatabaseMissing = 0x0B11,
+    NotionSnapshotBodyMissing = 0x0B12,
+    NotionSnapshotQueryMismatch = 0x0B13,
+    NotionSnapshotEntryMissing = 0x0B14,
+    NotionSnapshotWriteFailed = 0x0B15,
+    NotionSnapshotOptionInvalid = 0x0B16,
+    NotionSnapshotUnsupportedRequest = 0x0B17,
 }

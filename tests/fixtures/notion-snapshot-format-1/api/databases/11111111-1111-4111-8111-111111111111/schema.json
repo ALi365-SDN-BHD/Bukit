@@ -1,0 +1,24 @@
+{
+  "object": "database",
+  "id": "11111111-1111-4111-8111-111111111111",
+  "properties": {
+    "Title": { "type": "title" },
+    "Slug": { "type": "rich_text" },
+    "Type": { "type": "select" },
+    "PublishAt": { "type": "date" },
+    "Published": { "type": "checkbox" },
+    "Summary": { "type": "rich_text" },
+    "Tags": {
+      "type": "multi_select",
+      "multi_select": {
+        "options": [
+          { "name": "News" },
+          { "name": "Guide" }
+        ]
+      }
+    },
+    "Author": { "type": "relation" },
+    "Menu": { "type": "relation" },
+    "DraftNote": { "type": "rich_text" }
+  }
+}

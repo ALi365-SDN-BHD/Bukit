@@ -77,12 +77,37 @@ public sealed class NotionOfflineSnapshotMultilingualTests : IDisposable
         var offline = await RunBukitAsync("build", "--config", ConfigPath, "--notion-snapshot", SnapshotDir, "--notion-offline");
 
         Assert.NotEqual(0, offline.ExitCode);
+        Assert.Contains("Error: [BKT-0B14] Worker for language 'zh-CN' failed:", offline.Output, StringComparison.Ordinal);
         Assert.Contains("Notion offline snapshot has no page 'rel-zh'", offline.Output, StringComparison.Ordinal);
         Assert.Contains("Worker for language 'zh-CN'", offline.Output, StringComparison.Ordinal);
         Assert.DoesNotContain(_snapshotRoot, offline.Output, StringComparison.Ordinal);
         // Nothing was published: the recorded site is untouched.
         var published = Published(Path.Combine(_root, "dist"));
         Assert.Equal(recorded.Keys.Order(StringComparer.Ordinal), published.Keys.Order(StringComparer.Ordinal));
+    }
+
+    [Fact]
+    public async Task OfflineWorktreeBuild_WorkerFailureCarriesItsCodeInJson()
+    {
+        CreateSite();
+        await InitializeRepositoryAsync(_root);
+        await RecordAsync();
+
+        File.Delete(Path.Combine(SnapshotDir, "api", "pages", "relzh.json"));
+        var offline = await RunBukitAsync(
+            "build",
+            "--config",
+            ConfigPath,
+            "--notion-snapshot",
+            SnapshotDir,
+            "--notion-offline",
+            "--log-format",
+            "json");
+
+        Assert.Equal(1, offline.ExitCode);
+        Assert.Contains("\"code\": \"BKT-0B14\"", offline.Output, StringComparison.Ordinal);
+        Assert.Contains("Notion offline snapshot has no page 'rel-zh'", offline.Output, StringComparison.Ordinal);
+        Assert.DoesNotContain(_snapshotRoot, offline.Output, StringComparison.Ordinal);
     }
 
     /// <summary>Records the snapshot with an in-process build and returns its published output.</summary>

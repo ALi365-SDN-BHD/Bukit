@@ -71,23 +71,28 @@ catch (CommandArgumentException ex)
 }
 catch (ConfigException ex)
 {
-    PrintError(command, 2, ex, isJsonErrorMode, ex.Code.HasValue ? ex.Code.Value.ToString() : null);
+    PrintError(command, 2, ex, isJsonErrorMode, ProgramErrorCodes.Format(ex.Code));
     return 2;
 }
 catch (ContentException ex)
 {
-    PrintError(command, 2, ex, isJsonErrorMode, ex.Code.HasValue ? ex.Code.Value.ToString() : null);
+    PrintError(command, 2, ex, isJsonErrorMode, ProgramErrorCodes.Format(ex.Code));
     return 2;
 }
 catch (RenderException ex)
 {
-    PrintError(command, 3, ex, isJsonErrorMode, ex.Code.HasValue ? ex.Code.Value.ToString() : null);
+    PrintError(command, 3, ex, isJsonErrorMode, ProgramErrorCodes.Format(ex.Code));
     return 3;
 }
 catch (WorktreeBuildException ex)
 {
     PrintError(command, 1, ex, isJsonErrorMode, ex.Code);
     return 1;
+}
+catch (Exception ex) when (ProgramErrorCodes.IsSnapshot(ex))
+{
+    PrintError(command, 2, ex, isJsonErrorMode, ProgramErrorCodes.SnapshotCode(ex));
+    return 2;
 }
 catch (Exception ex)
 {

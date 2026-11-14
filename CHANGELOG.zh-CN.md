@@ -4,6 +4,11 @@ Bukit 所有重要变更都将记录在此文件中。
 
 ## [Unreleased]
 
+## [2.2.0]
+
+- **Notion 离线快照只校验格式版本**：快照仍记录 `bukitVersion` 供排查，但升级 Bukit 不再让快照失效；只有 `NotionSnapshotSession.FormatVersion` 变了才需要重新录制。录制构建会复用旧快照里渲染好的正文；渲染器版本（`NotionBlocksRenderer.ContractVersion`）不同的正文会重新渲染。
+- **Notion 和快照失败带稳定错误码 `BKT-0Bxx`**：Notion 接口的 401/403/404/429/其他 HTTP/网络/无效 JSON、映射字段不存在，以及每类离线快照失败都有稳定错误码。`build` 写进 cli-error JSON；`config check` 和 `doctor` 打印 `[BKT-0Bxx]`；多语言子进程把码和原因传给父进程。顶层配置、内容和渲染错误的 `code` 改用文档约定的 `BKT-xxxx` 写法，不再用枚举名。单语言 `build` 的快照错误退出码是 2；多语言子进程失败保持 1。公开枚举 `DiagnosticCode` 新增 16 个 Notion 成员（0B01–0B08、0B10–0B17），public API 基线已更新。
+
 ## [2.1.0] - 2026-11-14
 
 - **破坏性变更：`site.languages` 是唯一的语言配置**：`site.yaml` 不再接受 `site.language`，写了会报错 `site.language was removed; write languages: [<code>] instead, for example languages: [en].`。请把 `language: en` 改成 `languages: [en]`。`site.languages` 不写或为空时等于 `[zh-CN]`；所有条目都是空白的列表会报错；`defaultLanguage` 不在 `site.languages` 中时报错 `site.defaultLanguage must be included in site.languages.`，不再记录 `i18n.config.default_language_ignored`。模板仍用 `{{ site.language }}` 读取当前语言。`bukit labs init`、Labs intent 和 HTML 演示导入器现在写 `languages`；含 `site.language` 的 intent 会被拒绝，应改为 `languages.supported: [<code>]`，只有一种语言时可以省略 `languages.default`。直接在进程内使用 Labs 程序集的代码也要修改：`SiteIntentSite.Language` 已删除，`SiteIntentLanguages.Default` 改为可选。
