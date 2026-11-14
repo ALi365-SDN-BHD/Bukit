@@ -259,6 +259,14 @@ internal static class SeoModelBuilder
             ? string.Empty
             : language.Trim().Replace('-', '_');
 
+    private static bool IsAlreadyPrefixed(string value, string baseUrl)
+    {
+        var normalized = NormalizeBaseUrl(baseUrl);
+        return normalized != "/" &&
+               (value.Equals(normalized, StringComparison.Ordinal) ||
+                value.StartsWith(normalized + "/", StringComparison.Ordinal));
+    }
+
     private static string BuildSiteAbsoluteUrl(string? siteUrl, string path)
         => string.IsNullOrWhiteSpace(siteUrl)
             ? path
@@ -433,9 +441,12 @@ internal static class SeoModelBuilder
         }
 
         var normalizedBaseUrl = NormalizeBaseUrl(baseUrl);
-        if (normalizedBaseUrl != "/" &&
-            (trimmed.Equals(normalizedBaseUrl, StringComparison.Ordinal) ||
-             trimmed.StartsWith(normalizedBaseUrl + "/", StringComparison.Ordinal)))
+        if (IsAlreadyPrefixed(trimmed, normalizedBaseUrl))
+        {
+            return BuildSiteAbsoluteUrl(siteUrl, trimmed);
+        }
+
+        if (sharedAssets is not null && IsAlreadyPrefixed(trimmed, sharedAssets.RootBaseUrl))
         {
             return BuildSiteAbsoluteUrl(siteUrl, trimmed);
         }
