@@ -19,14 +19,15 @@
 > **Tech Stack:** .NET 10 / C#、项目内 `CliCommandSpec`、YamlDotNet
 > `YamlStream` / RepresentationModel、xUnit、OpenSpec、Bash 检查脚本。
 >
-> **状态：** G0 已批准 Path A（2026-11-16）；实施待工作区清理后从 T00 开始。
-> 本文件只定义实施，不包含实施结果。
+> **状态：** G0 已批准 Path A（2026-11-16）；T01–T07 已执行，OpenSpec 已归档为
+> `2026-11-16-add-bukit-new-command`。本文件保留原实施定义和验证证据。
 > **修订：** v6（2026-11-15，吸收 v5 复核：暂存区自动拦截 + 所有提交带
 > pathspec、BukitJalil consumer contract 追加 `new` 行、历史工作区快照移入
 > 附录 C；v5 已吸收 v4 复核，v4 已吸收 v3 复核 #1–#3，v3 已吸收 v2 复核
 > #1–#8，v2 已吸收审计 #1–#17，#18 记为已知债务）。
-> **依据：** `openspec/changes/add-bukit-new-command/`（proposal、design、
-> specs、tasks）。任务清单以 `tasks.md` 为唯一勾选来源。
+> **依据：** `openspec/changes/archive/2026-11-16-add-bukit-new-command/`
+> （proposal、design、specs、tasks）。任务清单以归档的 `tasks.md` 为唯一
+> 勾选来源。
 > **代码基线：** v2.2.3。正文用文件和符号定位，不依赖行号。
 > **范围：** Bukit Core 的 CLI、资源、测试、文档、白名单和 OpenSpec。
 > BukitJalil 的迁移单列为 Part B，需另行授权。

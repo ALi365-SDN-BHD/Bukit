@@ -85,5 +85,6 @@
       Cli、Config、Rendering、Architecture 测试，按输出执行，不要截断。
 - [x] 如获授权：Native AOT `bukit` 构建并跑一次 `bukit new`。
 - [x] 一次 delta-only 统一审查；Critical/Important 修复后复验。
-- [ ] 待发布/明确批准后同步 `openspec/specs/cli-scaffold/spec.md` 并归档变更；
-      归档以实际证据为前提。当前保留 active change，避免提前归档未发布契约。
+- [x] 已同步 `openspec/specs/cli-scaffold/spec.md` 并归档为
+      `2026-11-16-add-bukit-new-command`（2026-11-16）。归档以实际测试和
+      审查证据为前提。
