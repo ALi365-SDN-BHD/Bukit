@@ -282,7 +282,7 @@ public sealed partial class GitHubPagesDeployProvider
         }
 
         var candidates = WindowsGitShellCandidates(execPath, File.Exists)
-            ?? throw new GitException($"git's exec path '{execPath}' is not in a recognised Git for Windows layout (<git>\\mingw64\\libexec\\git-core); refusing to run the deploy credential helper.");
+            ?? throw new GitException($"git's exec path '{execPath}' is not in a recognised Git for Windows layout (<git>\\ucrt64 or mingw64\\libexec\\git-core); refusing to run the deploy credential helper.");
         string? shellDirectory = null;
         foreach (var candidate in candidates)
         {
@@ -298,11 +298,12 @@ public sealed partial class GitHubPagesDeployProvider
             : (shells, shellDirectory);
     }
 
-    private static readonly string[] WindowsGitPlatformDirectories = ["mingw64", "clangarm64", "mingw32"];
+    // Current Git for Windows ships ucrt64 (seen on the windows-2025 runner); older builds mingw64; Arm64 clangarm64.
+    private static readonly string[] WindowsGitPlatformDirectories = ["ucrt64", "mingw64", "clangarm64", "mingw32"];
 
     /// <summary>
     /// The existing shells of the Git for Windows installation that owns <paramref name="execPath"/>,
-    /// or null when the path is not <c>&lt;root&gt;\{mingw64|clangarm64|mingw32}\libexec\git-core</c>
+    /// or null when the path is not <c>&lt;root&gt;\{ucrt64|mingw64|clangarm64|mingw32}\libexec\git-core</c>
     /// with a git marker in that root. The root is never searched for upwards: a Git without
     /// <c>usr\bin</c> (MinGit) would otherwise reach a user-writable directory such as
     /// <c>C:\usr\bin</c>, whose shell would then be trusted and put first on PATH.

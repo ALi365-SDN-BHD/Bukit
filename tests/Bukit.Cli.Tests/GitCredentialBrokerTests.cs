@@ -622,6 +622,8 @@ public sealed class GitCredentialBrokerTests
 
         Assert.Equal([usrSh], GitHubPagesDeployProvider.WindowsGitShellCandidates(execPath, new HashSet<string> { marker, usrSh }.Contains));
         Assert.Equal([usrSh], GitHubPagesDeployProvider.WindowsGitShellCandidates(execPath + Path.DirectorySeparatorChar, new HashSet<string> { mingwMarker, usrSh }.Contains));
+        // Current Git for Windows (the windows-2025 runner) uses ucrt64.
+        Assert.Equal([usrSh], GitHubPagesDeployProvider.WindowsGitShellCandidates(Path.Combine(root, "ucrt64", "libexec", "git-core"), new HashSet<string> { marker, usrSh }.Contains));
         // Installation found but without a shell: empty, and the deploy fails closed.
         Assert.Empty(GitHubPagesDeployProvider.WindowsGitShellCandidates(execPath, new HashSet<string> { marker }.Contains)!);
         // No git marker in the root (e.g. a lookalike tree): refused.
