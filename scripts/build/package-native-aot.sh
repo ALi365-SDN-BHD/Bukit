@@ -74,22 +74,21 @@ publish_args=(
 )
 
 if [[ "$rid" == osx-* ]]; then
-  # ld64 embeds a random LC_UUID and signs over it on every link, so two clean
-  # macOS publishes differ. -no_uuid removes the random load command.
+  # Apple's linker races when it assigns the GOT slot that its default "fast"
+  # objc_msgSend stubs load from, so identical inputs link to one of two
+  # images. LC_UUID is a content hash and the ad-hoc signature covers both, so
+  # they only follow that 3-byte swap. Small stubs branch to the shared
+  # _objc_msgSend stub instead and link deterministically; ILC output is
+  # already stable, so neither -no_uuid nor single-threaded ILC is needed.
   linker_targets="$build_root/deterministic-linker.targets"
   cat > "$linker_targets" <<'EOF'
 <Project>
   <ItemGroup>
-    <ExtraLinkerArg Include="-no_uuid" />
+    <ExtraLinkerArg Include="-objc_stubs_small" />
   </ItemGroup>
 </Project>
 EOF
-  publish_args+=(
-    -p:CustomAfterMicrosoftCommonTargets="$linker_targets"
-    # ILC's parallel emission can reorder GOT entries; single-threaded ILC
-    # keeps the rest of the native image stable.
-    -p:IlcSingleThreaded=true
-  )
+  publish_args+=(-p:CustomAfterMicrosoftCommonTargets="$linker_targets")
 fi
 
 dotnet "${publish_args[@]}" >&2

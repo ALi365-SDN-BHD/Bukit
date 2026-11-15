@@ -10,10 +10,15 @@ cat > "$fake_bin/dotnet" <<'FAKE_DOTNET'
 set -euo pipefail
 
 printf '%s\n' "$@" > "${FAKE_DOTNET_ARGS:?}"
+rm -f -- "$FAKE_DOTNET_ARGS.targets"
 output=""
 rid=""
 while [[ $# -gt 0 ]]; do
-  if [[ "$1" == "-o" ]]; then
+  if [[ "$1" == -p:CustomAfterMicrosoftCommonTargets=* ]]; then
+    # The targets file lives in the build root, which packaging removes.
+    cp -- "${1#*=}" "$FAKE_DOTNET_ARGS.targets"
+    shift
+  elif [[ "$1" == "-o" ]]; then
     output="${2:-}"
     shift 2
   elif [[ "$1" == "-r" ]]; then

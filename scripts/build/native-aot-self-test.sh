@@ -36,14 +36,17 @@ canonical_output_root="$(cd "$output_root" && pwd -P)"
 }
 grep -Fx -- "-p:PathMap=$(pwd -P)=/_/src%2C$artifacts_root=/_/build" \
   "$FAKE_DOTNET_ARGS" >/dev/null
-if grep -F -- '-p:CustomAfterMicrosoftCommonTargets=' "$FAKE_DOTNET_ARGS" >/dev/null ||
-   grep -Fx -- '-p:IlcSingleThreaded=true' "$FAKE_DOTNET_ARGS" >/dev/null; then
+if grep -F -- '-p:CustomAfterMicrosoftCommonTargets=' "$FAKE_DOTNET_ARGS" >/dev/null; then
   echo "native-aot self-test: non-macOS packaging passed the macOS reproducibility hook" >&2
   exit 1
 fi
 osx_archive="$(bash scripts/build/package-native-aot.sh 1.2.3 osx-arm64 "$scratch/osx" Release)"
 grep -F -- '-p:CustomAfterMicrosoftCommonTargets=' "$FAKE_DOTNET_ARGS" >/dev/null
-grep -Fx -- '-p:IlcSingleThreaded=true' "$FAKE_DOTNET_ARGS" >/dev/null
+grep -Fq -- '<ExtraLinkerArg Include="-objc_stubs_small" />' "$FAKE_DOTNET_ARGS.targets"
+if grep -Fq -e '-no_uuid' -e 'IlcSingleThreaded' "$FAKE_DOTNET_ARGS.targets" "$FAKE_DOTNET_ARGS"; then
+  echo "native-aot self-test: -no_uuid/IlcSingleThreaded only mask the macOS linker race" >&2
+  exit 1
+fi
 [[ -s "$osx_archive" ]] || {
   echo "native-aot self-test: macOS archive is empty" >&2
   exit 1
