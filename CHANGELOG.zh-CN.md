@@ -4,8 +4,13 @@ Bukit 所有重要变更都将记录在此文件中。
 
 ## [Unreleased]
 
-- **`bukit new` 生成可构建的初始网站**：`bukit new <dir> [--title <文本>] [--language <标签>]` 写入 `site.yaml`、Markdown 内容和内嵌 starter 主题；不执行 git、构建或网络请求。生成的网站通过 `config check`、`doctor` 和 `build`。
+## [2.2.5] - 2026-11-16
+
 - **Starter 主题改版**：改为更简洁的内容型布局，深色模式跟随系统设置，窄屏有折叠菜单（不运行 JavaScript 时链接照常显示）。界面文字读 `theme.params.labels.*`，缺省时用英文；`bukit new --language zh-CN`（以及其他简体中文标签，包括 `zh-Hans-HK`）写入中文文字。以 `/` 开头的导航模块链接和标签索引链接现在带上 `site.baseUrl`，内容标题、摘要和标签做 HTML 转义，列表卡片不再显示 `country`、`industry`。已有网站使用自己的主题副本，不受影响；如果把新模板复制到子路径网站，而导航链接里已经写了 base 路径，要把链接里的这段前缀删掉。
+
+## [2.2.4] - 2026-11-16
+
+- **`bukit new` 生成可构建的初始网站**：`bukit new <dir> [--title <文本>] [--language <标签>]` 写入 `site.yaml`、Markdown 内容和内嵌 starter 主题；不执行 git、构建或网络请求。生成的网站通过 `config check`、`doctor` 和 `build`。
 
 ## [2.2.3] - 2026-11-15
 
