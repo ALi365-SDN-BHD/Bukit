@@ -532,7 +532,8 @@ public sealed class GitCredentialBrokerTests
         Assert.All(rules, rule =>
         {
             Assert.Equal(AccessControlType.Allow, rule.AccessControlType);
-            Assert.Equal(identity.User, rule.IdentityReference);
+            // CurrentUserOnly grants the token owner: the user, or BUILTIN\Administrators when elevated.
+            Assert.Equal(identity.Owner, rule.IdentityReference);
         });
 
         await client.WriteAsync(GitCredentialProtocol.Serialize(GitHubRequest));

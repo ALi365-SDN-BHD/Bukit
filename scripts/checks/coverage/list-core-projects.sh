@@ -14,8 +14,8 @@ case "$(uname -s)" in
       Bukit.Cli.Tests.DeployWindowsRegressionTests.ResolveGit_Windows_PrefersNativeGitOverEarlierBatchWrapper \
       Bukit.Cli.Tests.DeployWindowsRegressionTests.ResolveGit_Windows_RejectsBatchOnlyPath \
       Bukit.Cli.Tests.DeployWindowsRegressionTests.CleanupDeploymentDirectory_LockedFileReportsWarningWithoutLeakingPath \
-      Bukit.Cli.Tests.GitHubPagesDeployProviderTests.DeployAsync_RealLocalGitPushFailure_CleansReadOnlyObjectsAndAskpass \
-      Bukit.Cli.Tests.GitHubPagesDeployProviderTests.DeployAsync_RealLocalGitPushCancellation_CleansReadOnlyObjectsAndAskpass; do
+      Bukit.Cli.Tests.GitHubPagesDeployProviderTests.DeployAsync_RealLocalGitPushFailure_CleansReadOnlyObjectsAndBroker \
+      Bukit.Cli.Tests.GitHubPagesDeployProviderTests.DeployAsync_RealLocalGitPushCancellation_CleansReadOnlyObjectsAndBroker; do
       cli_filter+="FullyQualifiedName!=${method}&"
     done
     cli_filter="${cli_filter%&}"
