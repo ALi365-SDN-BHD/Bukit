@@ -1,4 +1,10 @@
+using System.Diagnostics;
+using System.IO.Pipes;
 using System.Net.Sockets;
+using System.Reflection;
+using System.Runtime.Versioning;
+using System.Security.AccessControl;
+using System.Security.Principal;
 using System.Text;
 using Bukit.Cli.Commands;
 using Bukit.Cli.Deploy;
@@ -328,7 +334,7 @@ public sealed class GitCredentialBrokerTests
 
     // ---- helper command against an in-process broker ----
 
-    private static (GitCredentialPeerPolicy Policy, FakeQuery Query) CreateSelfAsHelperChain()
+    private static (GitCredentialPeerPolicy Policy, FakeQuery Query) CreateSelfAsHelperChain(uint? uid = Uid)
     {
         // The test process plays the helper: test <- remote-http(20) <- git(10).
         var self = Environment.ProcessId;
@@ -336,7 +342,7 @@ public sealed class GitCredentialBrokerTests
             .Add(10, 1, 100, Git)
             .Add(20, 10, 110, RemoteHttp)
             .Add(self, 20, 120, Bukit);
-        return (CreatePolicy(query), query);
+        return (CreatePolicy(query, uid: uid), query);
     }
 
     private static async Task<(int Exit, string Stdout, string Stderr)> RunHelperAsync(string[] args, string stdin)
@@ -502,6 +508,135 @@ public sealed class GitCredentialBrokerTests
         Assert.Equal(GitCredentialDenial.Peer, policy.Evaluate(Capture(policy, 30), Uid, GitHubRequest).Denial);
     }
 
+    // ---- Windows named pipe (plan 3.7 test 12) ----
+
+    /// <summary>Plan 3.7 test 12: the pipe DACL admits only the current user, and the broker sees this process as a local peer.</summary>
+    [WindowsFact]
+    [SupportedOSPlatform("windows")]
+    public async Task Broker_WindowsPipeAdmitsOnlyCurrentUserAndReportsLocalPeer()
+    {
+        var query = new RecordingQuery();
+        var policy = new GitCredentialPeerPolicy(
+            new GitCredentialPeerExpectations(Bukit, null, new HashSet<string> { RemoteHttp }, new HashSet<string> { Sh }),
+            GitCredentialTarget.GitHub,
+            query,
+            currentUserId: null);
+        Assert.NotNull(policy.Register(Environment.ProcessId));
+        await using var broker = GitCredentialBroker.Start("secret-token", policy);
+        await using var client = new NamedPipeClientStream(".", broker.Endpoint, PipeDirection.InOut, PipeOptions.Asynchronous);
+        await client.ConnectAsync(10_000);
+
+        using var identity = WindowsIdentity.GetCurrent();
+        var rules = client.GetAccessControl().GetAccessRules(true, true, typeof(SecurityIdentifier)).Cast<PipeAccessRule>().ToList();
+        Assert.NotEmpty(rules);
+        Assert.All(rules, rule =>
+        {
+            Assert.Equal(AccessControlType.Allow, rule.AccessControlType);
+            Assert.Equal(identity.User, rule.IdentityReference);
+        });
+
+        await client.WriteAsync(GitCredentialProtocol.Serialize(GitHubRequest));
+        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+        var line = await GitCredentialProtocol.ReadLineAsync(client, cts.Token);
+        var response = GitCredentialProtocol.ParseResponse(line!);
+
+        // A remote peer is dropped without an answer; a local one reaches the chain check with its real pid.
+        Assert.Equal(GitCredentialDenial.Executable, response!.Deny);
+        Assert.Null(response.Password);
+        lock (query.ExecutableQueries)
+        {
+            Assert.Contains(Environment.ProcessId, query.ExecutableQueries);
+        }
+    }
+
+    /// <summary>Plan 3.7 test 12: GetNamedPipeClientComputerNameW reports a client on this machine as local.</summary>
+    [WindowsFact]
+    [SupportedOSPlatform("windows")]
+    public async Task ProcessInspector_WindowsNamedPipeClientIsLocalWithOwnPid()
+    {
+        var name = "bukit-test-" + Guid.NewGuid().ToString("N");
+        await using var server = new NamedPipeServerStream(name, PipeDirection.InOut, 1, PipeTransmissionMode.Byte, PipeOptions.Asynchronous | PipeOptions.CurrentUserOnly);
+        await using var client = new NamedPipeClientStream(".", name, PipeDirection.InOut, PipeOptions.Asynchronous);
+        var accepted = server.WaitForConnectionAsync();
+        await client.ConnectAsync(10_000);
+        await accepted.WaitAsync(TimeSpan.FromSeconds(10));
+
+        Assert.True(ProcessInspector.TryGetNamedPipeClient(server.SafePipeHandle.DangerousGetHandle(), out var pid, out var isRemote));
+        Assert.Equal(Environment.ProcessId, pid);
+        Assert.False(isRemote);
+    }
+
+    /// <summary>Plan 3.7 test 12: the helper command gets a token over the real named pipe.</summary>
+    [WindowsFact]
+    [SupportedOSPlatform("windows")]
+    public async Task Helper_WindowsPrintsCredentialOverNamedPipe()
+    {
+        var (policy, _) = CreateSelfAsHelperChain(uid: null);
+        Assert.NotNull(policy.Register(10));
+        await using var broker = GitCredentialBroker.Start("secret-token", policy);
+
+        var (exit, stdout, stderr) = await RunHelperAsync([broker.Endpoint, "get"], "protocol=https\nhost=github.com\n\n");
+
+        Assert.Equal(0, exit);
+        Assert.Equal("username=x-access-token\npassword=secret-token\n\n", stdout);
+        Assert.Empty(stderr);
+    }
+
+    /// <summary>
+    /// Plan 3.7 tests 2 and 12: on Windows, a helper path with spaces, <c>&amp;</c>, parentheses and
+    /// backslashes reaches the helper unchanged when git for Windows runs the value through its sh.
+    /// </summary>
+    [WindowsFact]
+    [SupportedOSPlatform("windows")]
+    public async Task CredentialHelperCommand_WindowsQuotedPathsReachHelperUnchangedThroughRealGit()
+    {
+        var root = Directory.CreateTempSubdirectory("bukit-helper-quote-").FullName;
+        try
+        {
+            var dir = Directory.CreateDirectory(Path.Combine(root, "a b & (c)")).FullName;
+            var stub = Path.Combine(dir, "helper stub");
+            var argsLog = Path.Combine(dir, "args (1).log");
+            File.WriteAllText(stub, $"#!/bin/sh\nfor a in \"$@\"; do printf '%s\\n' \"$a\"; done > {GitHubPagesDeployProvider.ShellQuote(argsLog)}\nprintf 'username=u\\npassword=p\\n'\n");
+            const string endpoint = "bukit-cred-x y&(z)";
+            var helper = GitHubPagesDeployProvider.BuildCredentialHelperCommand(stub, null, endpoint);
+            var emptyConfig = Path.Combine(root, "empty.gitconfig");
+            File.WriteAllText(emptyConfig, string.Empty);
+
+            var resolveGit = typeof(GitHubPagesDeployProvider).GetMethod("ResolveGit", BindingFlags.NonPublic | BindingFlags.Static)!;
+            var git = (string)resolveGit.Invoke(null, [null])!;
+            var psi = new ProcessStartInfo(git)
+            {
+                RedirectStandardInput = true,
+                RedirectStandardOutput = true,
+                RedirectStandardError = true,
+                UseShellExecute = false,
+                WorkingDirectory = root,
+            };
+            foreach (var arg in new[] { "-c", "credential.helper=", "-c", $"credential.helper={helper}", "credential", "fill" })
+            {
+                psi.ArgumentList.Add(arg);
+            }
+
+            psi.Environment["GIT_CONFIG_NOSYSTEM"] = "1";
+            psi.Environment["GIT_CONFIG_GLOBAL"] = emptyConfig;
+            psi.Environment["GIT_TERMINAL_PROMPT"] = "0";
+            using var proc = Process.Start(psi)!;
+            await proc.StandardInput.WriteAsync("protocol=https\nhost=example.com\n\n");
+            proc.StandardInput.Close();
+            var stdout = proc.StandardOutput.ReadToEndAsync();
+            var stderr = proc.StandardError.ReadToEndAsync();
+            await proc.WaitForExitAsync().WaitAsync(TimeSpan.FromSeconds(30));
+
+            Assert.True(proc.ExitCode == 0, await stderr);
+            Assert.Contains("password=p", await stdout, StringComparison.Ordinal);
+            Assert.Equal(["__git-credential", endpoint, "get"], File.ReadAllLines(argsLog));
+        }
+        finally
+        {
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
     private static async Task<GitCredentialResponse?> ExchangeAsync(string socketPath, byte[] request)
     {
         using var socket = new Socket(AddressFamily.Unix, SocketType.Stream, ProtocolType.Unspecified);
@@ -529,12 +664,12 @@ public sealed class GitCredentialBrokerTests
         return (policy, query);
     }
 
-    private static GitCredentialPeerPolicy CreatePolicy(FakeQuery query, int maxDepth = GitCredentialPeerPolicy.DefaultMaxDepth) =>
+    private static GitCredentialPeerPolicy CreatePolicy(FakeQuery query, int maxDepth = GitCredentialPeerPolicy.DefaultMaxDepth, uint? uid = Uid) =>
         new(
             new GitCredentialPeerExpectations(Bukit, null, new HashSet<string> { RemoteHttp }, new HashSet<string> { Sh }),
             GitCredentialTarget.GitHub,
             query,
-            Uid,
+            uid,
             maxDepth);
 
     private sealed class FakeQuery : IGitCredentialProcessQuery
