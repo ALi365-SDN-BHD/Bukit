@@ -89,6 +89,56 @@ public sealed class StarterThemeTemplateResourceTests : IDisposable
     }
 
     [Fact]
+    public void StarterTheme_DoesNotContainLegacyBrandPlaceholder()
+    {
+        var source = Path.Combine(
+            FindRepositoryRoot(),
+            "src", "Bukit-Core", "Bukit.Cli", "Resources", "StarterTheme",
+            "HeaderPartial.html");
+        var header = File.ReadAllText(source);
+
+        Assert.DoesNotContain("{{--", header, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void StarterHeaderFooterAndIndex_EscapeSiteSettings()
+    {
+        CopyResource("HeaderPartial.html", "partials/header.html");
+        CopyResource("FooterPartial.html", "partials/footer.html");
+        CopyResource("IndexTemplate.html", "pages/index.html");
+        var renderer = new ScribanTemplateRenderer(_layoutsDir);
+        var site = new SiteModel
+        {
+            Name = "starter-test",
+            Title = "A & B",
+            Description = "About & more",
+            BaseUrl = "",
+            Language = "en",
+            Params = new Dictionary<string, object>
+            {
+                ["brand"] = "A & B",
+                ["footer_text"] = "A & B",
+                ["latest_heading"] = "Latest & best"
+            }
+        };
+        var page = new PageModel
+        {
+            Site = site,
+            Page = new PageInfo { Title = "Home", Url = "/", Content = "" }
+        };
+
+        var header = renderer.RenderPage("partials/header.html", page);
+        var footer = renderer.RenderPage("partials/footer.html", page);
+        var index = renderer.RenderPage("pages/index.html", page);
+
+        Assert.Contains("A &amp; B", header, StringComparison.Ordinal);
+        Assert.Contains("A &amp; B", footer, StringComparison.Ordinal);
+        Assert.Contains("A &amp; B", index, StringComparison.Ordinal);
+        Assert.Contains("About &amp; more", index, StringComparison.Ordinal);
+        Assert.Contains("Latest &amp; best", index, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void StarterTaxonomyTermTemplate_UsesRoutePrefixForAncestorBreadcrumb()
     {
         var renderer = new ScribanTemplateRenderer(_layoutsDir);
