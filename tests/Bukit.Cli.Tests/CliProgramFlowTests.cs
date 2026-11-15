@@ -15,6 +15,14 @@ public sealed class CliProgramFlowTests
     }
 
     [Fact]
+    public void Specs_And_Descriptors_IncludeNew()
+    {
+        Assert.NotNull(BukitCliSpecs.CreateRegistry().Resolve("new"));
+        Assert.NotNull(BukitCliDescriptors.ResolveDescriptor(
+            BukitCliDescriptors.CreateDescriptors(), "new"));
+    }
+
+    [Fact]
     public void Specs_IncludeCoreQualityGateCommands()
     {
         var registry = BukitCliSpecs.CreateRegistry();
