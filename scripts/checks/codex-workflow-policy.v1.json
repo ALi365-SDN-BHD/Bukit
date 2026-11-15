@@ -2379,7 +2379,7 @@
         "bash scripts/checks/cli-docs-sync.sh",
         "bash scripts/checks/docs-consistency.sh",
         "bash scripts/checks/docs/no-core-drift.sh",
-        "openspec validate add-bukit-new-command --strict --no-interactive"
+        "openspec validate cli-scaffold --type spec --strict --no-interactive"
       ],
       "contractConsumerGlobs": [],
       "publicContract": false,

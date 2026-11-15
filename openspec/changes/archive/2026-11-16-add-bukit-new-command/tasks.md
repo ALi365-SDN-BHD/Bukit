@@ -80,7 +80,7 @@
 
 ## 6. OpenSpec 与验证
 
-- [x] `openspec validate add-bukit-new-command --strict --no-interactive`。
+- [x] `openspec validate cli-scaffold --type spec --strict --no-interactive`（归档后）。
 - [x] 运行 closure 输出的 `specialtyTests` 并集；现有 policy 可能要求完整的
       Cli、Config、Rendering、Architecture 测试，按输出执行，不要截断。
 - [x] 如获授权：Native AOT `bukit` 构建并跑一次 `bukit new`。

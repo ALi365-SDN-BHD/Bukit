@@ -425,7 +425,7 @@ Expected：`git status --short` 只出现本变更的文件；两条 `git diff -
     "bash scripts/checks/dotnet-format.sh",
     "bash scripts/checks/public-api-drift.sh check",
     "bash scripts/checks/code-analysis-ratchet.sh check",
-    "openspec validate add-bukit-new-command --strict --no-interactive"
+    "openspec validate cli-scaffold --type spec --strict --no-interactive"
   ],
   "contractConsumerGlobs": [
     "src/Bukit-Core/Bukit.Cli/Cli/BukitCliSpecs.cs",
@@ -1400,7 +1400,7 @@ git commit -m "docs: document bukit new" -- \
 **Step 1：校验**
 
 ```bash
-openspec validate add-bukit-new-command --strict --no-interactive
+openspec validate cli-scaffold --type spec --strict --no-interactive
 ```
 
 Expected: valid。
@@ -1485,7 +1485,7 @@ python3 scripts/checks/codex-workflow.py metrics report \
 | N6 | `Bukit.Labs.Cli.Tests` | `FullyQualifiedName~StarterThemeScaffold`（Shared 里的主题资源被 Labs 读取） |
 | N7 | 脚本 | `bash scripts/checks/cli-docs-sync.sh`；`bash scripts/checks/docs-consistency.sh`；`bash scripts/checks/docs/no-core-drift.sh`；`bash scripts/checks/readme-sync.sh`；`bash guide/skills/scripts/validate-skills-strict.sh` |
 | N8 | 脚本 | `bash scripts/checks/dotnet-format.sh`；`public-api-drift.sh check`；`code-analysis-ratchet.sh check` |
-| N9 | OpenSpec | `openspec validate add-bukit-new-command --strict --no-interactive` |
+| N9 | OpenSpec | `openspec validate cli-scaffold --type spec --strict --no-interactive` |
 | N10 | Native AOT / CLI | `bash scripts/build/native-aot.sh ...`，然后 `bukit new` + `config check` + `build` |
 
 只跑这些专项；不跑 full/release gate。N10 需授权。
