@@ -60,12 +60,14 @@ pending_archive="$build_root/$archive_base.${archive##*.}"
 # MSBuild sees native paths. Git Bash on Windows reports /d/a/... for what the
 # compiler knows as D:\a\..., and a PathMap in the former form matches nothing,
 # so the random build root ends up inside every managed assembly.
+# Decide by the host rather than by whether a cygpath happens to be on PATH:
+# a stray cygpath on Linux or macOS would turn every path into a Windows one.
+host_os="$(uname -s)"
 native_path() {
-  if command -v cygpath >/dev/null 2>&1; then
-    cygpath -w "$1"
-  else
-    printf '%s\n' "$1"
-  fi
+  case "$host_os" in
+    MINGW*|MSYS*|CYGWIN*) cygpath -w "$1" ;;
+    *) printf '%s\n' "$1" ;;
+  esac
 }
 
 publish_args=(
@@ -129,10 +131,7 @@ exe="$publish_dir/bukit"
 }
 
 if [[ "$rid" == win-* ]]; then
-  archive_for_pwsh="$pending_archive"
-  if command -v cygpath >/dev/null 2>&1; then
-    archive_for_pwsh="$(cygpath -w "$pending_archive")"
-  fi
+  archive_for_pwsh="$(native_path "$pending_archive")"
 
   if command -v pwsh >/dev/null 2>&1; then
     pwsh_cmd="pwsh"
