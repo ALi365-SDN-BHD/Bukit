@@ -2,7 +2,10 @@ using System.Buffers.Binary;
 using System.Collections.Concurrent;
 using System.IO.Pipes;
 using System.Net.Sockets;
+using System.Runtime.Versioning;
+using System.Security.AccessControl;
 using System.Security.Cryptography;
+using System.Security.Principal;
 using Bukit.Shared;
 using Bukit.Shared.Processes;
 
@@ -38,6 +41,7 @@ internal sealed class GitCredentialBroker : IAsyncDisposable
     private string? _lastDenial;
     private int _active;
     private int _disposed;
+    private int _pipeCreated;
 
     private GitCredentialBroker(string token, GitCredentialPeerPolicy policy, ILogger? logger, string endpoint, string? directory, Socket? listener)
     {
@@ -183,6 +187,7 @@ internal sealed class GitCredentialBroker : IAsyncDisposable
         }
     }
 
+    [SupportedOSPlatform("windows")]
     private async Task AcceptPipesAsync()
     {
         var ct = _stop.Token;
@@ -208,6 +213,7 @@ internal sealed class GitCredentialBroker : IAsyncDisposable
         }
     }
 
+    [SupportedOSPlatform("windows")]
     private async Task ListenOnceAsync(TaskCompletionSource connected, CancellationToken ct)
     {
         try
@@ -234,15 +240,36 @@ internal sealed class GitCredentialBroker : IAsyncDisposable
     }
 
     /// <summary>
-    /// CurrentUserOnly sets an ACL for the current user's SID. .NET rejects any other option
-    /// bit (there is no PIPE_REJECT_REMOTE_CLIENTS), so remote clients are refused after connect.
+    /// The ACL names only the current user's SID. <see cref="PipeOptions.CurrentUserOnly"/> is not
+    /// used: it grants the token owner, which is BUILTIN\Administrators in an elevated process.
+    /// .NET rejects any other option bit (there is no PIPE_REJECT_REMOTE_CLIENTS), so remote
+    /// clients are refused after connect.
     /// </summary>
-    private NamedPipeServerStream CreatePipe() => new(
-        Endpoint,
-        PipeDirection.InOut,
-        MaxConcurrentConnections,
-        PipeTransmissionMode.Byte,
-        PipeOptions.Asynchronous | PipeOptions.CurrentUserOnly);
+    [SupportedOSPlatform("windows")]
+    private NamedPipeServerStream CreatePipe()
+    {
+        using var identity = WindowsIdentity.GetCurrent();
+        var user = identity.User ?? throw new InvalidOperationException("The current Windows user has no SID.");
+        var security = new PipeSecurity();
+        security.SetAccessRuleProtection(isProtected: true, preserveInheritance: false);
+        // CreateNewInstance lets the accept loop open the next instance while one is in use.
+        security.AddAccessRule(new PipeAccessRule(user, PipeAccessRights.ReadWrite | PipeAccessRights.CreateNewInstance, AccessControlType.Allow));
+        security.SetOwner(user);
+        // The first instance must create the name: an existing pipe of that name is not ours.
+        // The accept loop opens instances one at a time, so the flag needs no lock.
+        var first = Volatile.Read(ref _pipeCreated) == 0;
+        var pipe = NamedPipeServerStreamAcl.Create(
+            Endpoint,
+            PipeDirection.InOut,
+            MaxConcurrentConnections,
+            PipeTransmissionMode.Byte,
+            first ? PipeOptions.Asynchronous | PipeOptions.FirstPipeInstance : PipeOptions.Asynchronous,
+            inBufferSize: 0,
+            outBufferSize: 0,
+            security);
+        Volatile.Write(ref _pipeCreated, 1);
+        return pipe;
+    }
 
     private async Task ServePipeAsync(NamedPipeServerStream pipe)
     {
@@ -329,6 +356,9 @@ internal sealed class GitCredentialBroker : IAsyncDisposable
         GitCredentialResponse response;
         if (denial is null)
         {
+            // A refusal before this grant (e.g. the helper's retry while git was not yet
+            // registered) is not why a later git failure happened.
+            Volatile.Write(ref _lastDenial, null);
             response = new GitCredentialResponse(GitCredentialProtocol.Version, GitCredentialProtocol.Username, _token);
         }
         else
@@ -375,7 +405,7 @@ internal sealed class GitCredentialBroker : IAsyncDisposable
         return (BinaryPrimitives.ReadInt32LittleEndian(cred), BinaryPrimitives.ReadUInt32LittleEndian(cred[4..]));
     }
 
-    [System.Runtime.Versioning.UnsupportedOSPlatform("windows")]
+    [UnsupportedOSPlatform("windows")]
     private static string CreatePrivateDirectory()
     {
         var limit = OperatingSystem.IsMacOS() ? MacSocketPathLimit : LinuxSocketPathLimit;

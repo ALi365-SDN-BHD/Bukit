@@ -378,7 +378,7 @@ jobs:
         run: |
           dotnet test tests/Bukit.Shared.Tests/Bukit.Shared.Tests.csproj -c Release --filter "FullyQualifiedName~ProcessInspectorTests" --logger "trx;LogFileName=process-inspector.trx" --results-directory TestResults/windows-git
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          dotnet test tests/Bukit.Cli.Tests/Bukit.Cli.Tests.csproj -c Release --filter "FullyQualifiedName~GitCredentialBrokerTests" --logger "trx;LogFileName=credential-broker.trx" --results-directory TestResults/windows-git
+          dotnet test tests/Bukit.Cli.Tests/Bukit.Cli.Tests.csproj -c Release --filter "FullyQualifiedName~GitCredentialBrokerTests|FullyQualifiedName~GitCredentialBrokerWindowsIntegrationTests" --logger "trx;LogFileName=credential-broker.trx" --results-directory TestResults/windows-git
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - uses: actions/upload-artifact@v7
         if: always()

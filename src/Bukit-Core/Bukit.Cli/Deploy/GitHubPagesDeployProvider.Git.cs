@@ -259,6 +259,13 @@ public sealed partial class GitHubPagesDeployProvider
             psi.Environment.Remove(name);
         }
 
+        if (auth.ShellDirectory is { } shellDirectory)
+        {
+            psi.Environment["PATH"] = psi.Environment.TryGetValue("PATH", out var path) && !string.IsNullOrEmpty(path)
+                ? shellDirectory + Path.PathSeparator + path
+                : shellDirectory;
+        }
+
         auth.Broker.TakeLastDenial();
         using var proc = Process.Start(psi) ?? throw new InvalidOperationException("Failed to start git process.");
         using var registration = RegisterOrKill(auth, proc);
@@ -392,6 +399,7 @@ public sealed partial class GitHubPagesDeployProvider
     /// visible before any branch query, fetch or push.
     /// </summary>
     private static async Task EnsureTransportTargetAsync(
+        GitSandbox sandbox,
         string gitPath,
         string workingDir,
         string remoteName,
@@ -399,7 +407,9 @@ public sealed partial class GitHubPagesDeployProvider
         TimeSpan timeout,
         CancellationToken ct)
     {
-        var rewrites = await RunGitAllowFailureAsync(gitPath, workingDir, timeout, ct,
+        // Query with the transport's own sandbox: global and system rewrites never reach the
+        // sandboxed fetch and push, so only the config those calls read is checked.
+        var rewrites = await RunGitAllowFailureAsync(sandbox, gitPath, workingDir, timeout, ct,
             "config", "--includes", "--null", "--get-regexp", "^url\\..*\\.(insteadof|pushinsteadof)$");
         if (rewrites.ExitCode == 0)
         {
@@ -418,7 +428,7 @@ public sealed partial class GitHubPagesDeployProvider
                     // userinfo credentials.
                     throw new GitException(
                         "Refusing to deploy because an active URL rewrite would change the GitHub Pages transport target. " +
-                        "Remove the matching insteadOf/pushInsteadOf rule from local, worktree, included, global or system Git config.");
+                        "Remove the matching insteadOf/pushInsteadOf rule from the temporary repository's local, worktree or included Git config.");
                 }
             }
         }
@@ -429,7 +439,7 @@ public sealed partial class GitHubPagesDeployProvider
 
         foreach (var key in new[] { $"remote.{remoteName}.url", $"remote.{remoteName}.pushurl" })
         {
-            var values = await RunGitAllowFailureAsync(gitPath, workingDir, timeout, ct,
+            var values = await RunGitAllowFailureAsync(sandbox, gitPath, workingDir, timeout, ct,
                 "config", "--local", "--includes", "--null", "--get-all", key);
             if (values.ExitCode == 1)
             {
