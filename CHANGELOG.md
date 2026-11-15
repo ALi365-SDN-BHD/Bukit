@@ -4,6 +4,8 @@ All notable changes to Bukit will be documented in this file.
 
 ## [Unreleased]
 
+- **The macOS Native AOT binary is reproducible**: two clean `osx-arm64` packages now produce an identical `bukit`. Apple's linker assigned one `objc_msgSend` stub slot nondeterministically, so the release binary's checksum could change between builds of the same commit; packaging now links with `-objc_stubs_small`. The binary keeps its `LC_UUID`.
+
 - **Shared asset path entries are validated consistently**: `site.sharedAssets.paths` now rejects a leading `\` or a drive-letter prefix on every platform instead of accepting them on POSIX, fails on blank entries instead of dropping them, and normalizes `./fonts/` to `fonts/` so it can match. A leading `/` remains an absolute path and is rejected.
 
 ## [2.2.2] - 2026-11-15

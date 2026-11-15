@@ -4,6 +4,8 @@ Semua perubahan penting kepada Bukit akan didokumenkan dalam fail ini.
 
 ## [Belum Dikeluarkan]
 
+- **Binari Native AOT macOS boleh dihasilkan semula**: dua pakej `osx-arm64` yang bersih kini menghasilkan `bukit` yang sama. Sebelum ini pemaut Apple menetapkan satu slot stub `objc_msgSend` secara tidak tentu, jadi checksum binari keluaran boleh berubah antara dua binaan bagi commit yang sama; pembungkusan kini memaut dengan `-objc_stubs_small`. Binari mengekalkan `LC_UUID`.
+
 - **Entri laluan aset dikongsi disahkan secara konsisten**: `site.sharedAssets.paths` kini menolak awalan `\` atau huruf pemacu pada setiap platform dan bukan lagi menerimanya pada POSIX, gagal pada entri kosong dan bukan membuangnya secara senyap, serta menormalkan `./fonts/` kepada `fonts/` supaya ia sepadan. Awalan `/` kekal sebagai laluan mutlak dan ditolak.
 
 ## [2.2.2] - 2026-11-15

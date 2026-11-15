@@ -92,6 +92,17 @@ This entrypoint requires two or three arguments and also defaults to `Release`.
 It packages twice with one commit and source timestamp, compares both publish
 trees, and exits 0 only when they are identical. Wrong arity or an invalid
 delegated version/RID exits 2; a tree mismatch or build failure is nonzero.
+Set `BUKIT_REPRO_ROUNDS` to an integer from 2 to 10 to publish that many times
+and compare every later tree with the first; unset or empty means 2, and any
+other value exits 2. Set `BUKIT_REPRO_REFERENCE` to an already packaged publish
+directory to compare every fresh publish with that tree instead; a missing
+directory exits 2. The reference must come from the same commit and version,
+and from a run with the same `GITHUB_SHA` value, because the packaging script
+embeds it as the source revision.
+
+The release workflow's `package-macos` job packages first, then compares the
+packaged tree with two more clean publishes, so the uploaded binary is one of
+the three compared images.
 
 The injected contract checks do not replace the real host-RID reproducibility
 run:
@@ -100,6 +111,26 @@ run:
 bash scripts/build/native-aot-self-test.sh
 bash scripts/build/build-repro-self-test.sh
 ```
+
+### macOS linker determinism
+
+For `osx-*` RIDs the packaging script passes `-objc_stubs_small` to the linker
+through ILCompiler's `ExtraLinkerArg` item. Apple's linker otherwise assigns
+the GOT slot used by its default `objc_msgSend` stubs nondeterministically, so
+identical inputs link to one of two images. They differ by three bytes in
+`__TEXT`; `LC_UUID` is a content hash and the ad-hoc signature covers both, so
+the visible difference is about 83 bytes in `bukit` only.
+
+- ILC output is already byte-identical between clean builds. Do not add
+  `-no_uuid` or `IlcSingleThreaded=true`: they hide part of the difference or
+  slow the build without removing it, and `-no_uuid` drops the `LC_UUID` that
+  crash symbolication needs.
+- `-reproducible` and `-ld_classic` do not remove the race either.
+- The race shows up in roughly half of the links, so one passing
+  `build-repro.sh` run is weak evidence. After changing the SDK, Xcode, or the
+  linker arguments, run it with `BUKIT_REPRO_ROUNDS=3` or more.
+- This was measured with the Command Line Tools linker `ld-1167.5` and
+  ILCompiler 10.0.14. A different Xcode needs the same check again.
 
 ## Release Asset Order
 
