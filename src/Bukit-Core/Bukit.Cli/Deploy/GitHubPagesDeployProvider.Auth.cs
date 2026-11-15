@@ -273,9 +273,12 @@ public sealed partial class GitHubPagesDeployProvider
         var shells = new HashSet<string>(OperatingSystem.IsWindows() ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal);
         if (!OperatingSystem.IsWindows())
         {
-            if (ProcessInspector.TryRealPath("/bin/sh") is { } sh)
+            foreach (var path in UnixShellPaths(OperatingSystem.IsMacOS()))
             {
-                shells.Add(sh);
+                if (ProcessInspector.TryRealPath(path) is { } real)
+                {
+                    shells.Add(real);
+                }
             }
 
             return (shells, null);
@@ -297,6 +300,16 @@ public sealed partial class GitHubPagesDeployProvider
             ? throw new GitException("Git for Windows' own sh.exe was not found in its installation; it is needed to run the deploy credential helper.")
             : (shells, shellDirectory);
     }
+
+    /// <summary>
+    /// The paths whose real paths are the expected Unix shells. On macOS <c>/bin/sh</c> is a
+    /// trampoline that execs the shell named by the <c>/private/var/select/sh</c> symlink, so the
+    /// running image is that target, never <c>/bin/sh</c> itself; only that one target is added.
+    /// </summary>
+    internal static IReadOnlyList<string> UnixShellPaths(bool isMacOS) =>
+        isMacOS ? ["/bin/sh", MacOSSelectedShell] : ["/bin/sh"];
+
+    internal const string MacOSSelectedShell = "/private/var/select/sh";
 
     // Current Git for Windows ships ucrt64 (seen on the windows-2025 runner); older builds mingw64; Arm64 clangarm64.
     private static readonly string[] WindowsGitPlatformDirectories = ["ucrt64", "mingw64", "clangarm64", "mingw32"];

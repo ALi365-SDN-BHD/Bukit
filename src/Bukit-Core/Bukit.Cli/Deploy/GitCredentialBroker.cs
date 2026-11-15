@@ -41,7 +41,7 @@ internal sealed class GitCredentialBroker : IAsyncDisposable
     private string? _lastDenial;
     private int _active;
     private int _disposed;
-    private int _pipeCreated;
+    private int _livePipes;
 
     private GitCredentialBroker(string token, GitCredentialPeerPolicy policy, ILogger? logger, string endpoint, string? directory, Socket? listener)
     {
@@ -218,10 +218,20 @@ internal sealed class GitCredentialBroker : IAsyncDisposable
     {
         try
         {
-            await using var pipe = CreatePipe();
-            await pipe.WaitForConnectionAsync(ct).ConfigureAwait(false);
-            connected.TrySetResult();
-            await ServePipeAsync(pipe).ConfigureAwait(false);
+            var pipe = CreatePipe();
+            try
+            {
+                await pipe.WaitForConnectionAsync(ct).ConfigureAwait(false);
+                connected.TrySetResult();
+                await ServePipeAsync(pipe).ConfigureAwait(false);
+            }
+            finally
+            {
+                // Uncount before closing: a create that races this close then still demands
+                // FirstPipeInstance and fails closed rather than joining a pipe someone else made.
+                Interlocked.Decrement(ref _livePipes);
+                await pipe.DisposeAsync().ConfigureAwait(false);
+            }
         }
         catch (Exception ex) when (ex is OperationCanceledException or ObjectDisposedException || ct.IsCancellationRequested)
         {
@@ -255,21 +265,24 @@ internal sealed class GitCredentialBroker : IAsyncDisposable
         // CreateNewInstance lets the accept loop open the next instance while one is in use.
         security.AddAccessRule(new PipeAccessRule(user, PipeAccessRights.ReadWrite | PipeAccessRights.CreateNewInstance, AccessControlType.Allow));
         security.SetOwner(user);
-        // The first instance must create the name: an existing pipe of that name is not ours.
-        // The accept loop opens instances one at a time, so the flag needs no lock.
-        var first = Volatile.Read(ref _pipeCreated) == 0;
+        // Whenever none of our instances is alive the name must be created anew: an existing
+        // pipe of that name is not ours. The accept loop creates instances one at a time.
         var pipe = NamedPipeServerStreamAcl.Create(
             Endpoint,
             PipeDirection.InOut,
             MaxConcurrentConnections,
             PipeTransmissionMode.Byte,
-            first ? PipeOptions.Asynchronous | PipeOptions.FirstPipeInstance : PipeOptions.Asynchronous,
+            PipeOptionsFor(Volatile.Read(ref _livePipes)),
             inBufferSize: 0,
             outBufferSize: 0,
             security);
-        Volatile.Write(ref _pipeCreated, 1);
+        Interlocked.Increment(ref _livePipes);
         return pipe;
     }
+
+    /// <summary>The options for a new pipe instance given how many of the broker's instances are alive.</summary>
+    internal static PipeOptions PipeOptionsFor(int livePipes) =>
+        livePipes == 0 ? PipeOptions.Asynchronous | PipeOptions.FirstPipeInstance : PipeOptions.Asynchronous;
 
     private async Task ServePipeAsync(NamedPipeServerStream pipe)
     {

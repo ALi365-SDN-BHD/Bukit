@@ -608,6 +608,43 @@ public sealed class GitCredentialBrokerTests
     }
 
     /// <summary>
+    /// macOS /bin/sh execs the shell its select symlink names, so that one target is expected too;
+    /// other platforms expect only /bin/sh.
+    /// </summary>
+    [Fact]
+    public void UnixShellPaths_AddOnlyTheMacOSSelectedShell()
+    {
+        Assert.Equal(["/bin/sh"], GitHubPagesDeployProvider.UnixShellPaths(isMacOS: false));
+        Assert.Equal(["/bin/sh", "/private/var/select/sh"], GitHubPagesDeployProvider.UnixShellPaths(isMacOS: true));
+    }
+
+    [Fact]
+    public void UnixShellPaths_MacOSSelectedShellResolvesToAKnownShell()
+    {
+        if (!OperatingSystem.IsMacOS())
+        {
+            return;
+        }
+
+        var real = ProcessInspector.TryRealPath(GitHubPagesDeployProvider.MacOSSelectedShell);
+        Assert.NotNull(real);
+        Assert.True(File.Exists(real));
+        Assert.Contains(real, new[] { "/bin/bash", "/bin/zsh", "/bin/dash" });
+    }
+
+    /// <summary>
+    /// Every pipe instance demands a fresh name while none of the broker's instances is alive,
+    /// not only the very first one, so a pipe squatted after all instances closed is never joined.
+    /// </summary>
+    [Fact]
+    public void PipeOptionsFor_DemandsFirstInstanceWheneverNoneIsAlive()
+    {
+        Assert.Equal(PipeOptions.Asynchronous | PipeOptions.FirstPipeInstance, GitCredentialBroker.PipeOptionsFor(0));
+        Assert.Equal(PipeOptions.Asynchronous, GitCredentialBroker.PipeOptionsFor(1));
+        Assert.Equal(PipeOptions.Asynchronous, GitCredentialBroker.PipeOptionsFor(4));
+    }
+
+    /// <summary>
     /// The trusted Windows shell comes only from the exact Git for Windows layout around
     /// <c>git --exec-path</c>; anything else is refused rather than searched for upwards.
     /// </summary>
