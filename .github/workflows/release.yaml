@@ -243,6 +243,13 @@ jobs:
         env:
           VERSION: ${{ inputs.version }}
         run: bash scripts/build/package-native-aot.sh "$VERSION" linux-x64 artifacts
+      - name: Prove the packaged publish is reproducible
+        env:
+          VERSION: ${{ inputs.version }}
+          # The shipped tree is compared with two more clean publishes.
+          BUKIT_REPRO_REFERENCE: ${{ steps.package.outputs.publish_dir }}
+          BUKIT_REPRO_ROUNDS: "2"
+        run: bash scripts/build/build-repro.sh "$VERSION" linux-x64 Release
       - name: Smoke packaged archive
         run: bash scripts/smoke/release-artifacts.sh "${{ steps.package.outputs.archive }}" linux-x64
       - uses: actions/upload-artifact@v7
@@ -302,6 +309,13 @@ jobs:
         env:
           VERSION: ${{ inputs.version }}
         run: bash scripts/build/package-native-aot.sh "$VERSION" win-x64 artifacts
+      - name: Prove the packaged publish is reproducible
+        env:
+          VERSION: ${{ inputs.version }}
+          # The shipped tree is compared with two more clean publishes.
+          BUKIT_REPRO_REFERENCE: ${{ steps.package.outputs.publish_dir }}
+          BUKIT_REPRO_ROUNDS: "2"
+        run: bash scripts/build/build-repro.sh "$VERSION" win-x64 Release
       - name: Smoke packaged archive
         run: bash scripts/smoke/release-artifacts.sh "${{ steps.package.outputs.archive }}" win-x64
       - uses: actions/upload-artifact@v7

@@ -4,6 +4,8 @@ All notable changes to Bukit will be documented in this file.
 
 ## [Unreleased]
 
+- **The Windows Native AOT binary is reproducible and no longer embeds build paths**: two clean `win-x64` packages now produce an identical `bukit.exe`. The packaging path map did not match Windows paths, so the build machine's temporary build directory was compiled into every assembly, and the linker stamped the link time; packaging now maps native paths and links with `/Brepro`. Release packaging on Linux, macOS and Windows now proves the packaged files against two more clean builds before upload.
+
 - **Offline builds can pin the reviewed Notion field and filter keys**: `build`, `config check` and `doctor` take `--notion-pin <file>` with `--notion-offline`. The file (`{"format":1,"sources":{"<source key>":{…}}}`) checks each source's `databaseId` and replaces `renderContent`, `fieldPolicy`, `propertyMap`, the filter, sort and `includeSlugs` keys and `maxItems` of every Notion source, so an unreviewed `site.yaml` cannot show hidden fields or drafts kept in the snapshot. A key the file omits takes Bukit's default. A Notion source missing from the file fails with `BKT-0B19`, a malformed file with `BKT-0B18`; changed keys are reported as `event=notion.offline.pinned`. The public `DiagnosticCode` enum gains `NotionPinInvalid` and `NotionPinSourceMissing`; the public API baseline is updated.
 - **The macOS Native AOT binary is reproducible**: two clean `osx-arm64` packages now produce an identical `bukit`. Apple's linker assigned one `objc_msgSend` stub slot nondeterministically, so the release binary's checksum could change between builds of the same commit; packaging now links with `-objc_stubs_small`. The binary keeps its `LC_UUID`.
 
