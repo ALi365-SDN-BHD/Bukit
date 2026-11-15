@@ -252,8 +252,8 @@ public sealed partial class GitHubPagesDeployProvider
         psi.Environment["GIT_TERMINAL_PROMPT"] = "0";
         foreach (var name in psi.Environment.Keys
                      .Where(static name =>
-                         AuthenticatedRemovedEnvironmentVariables.Contains(name, StringComparer.Ordinal) ||
-                         name.StartsWith("GIT_PROXY_SSL_", StringComparison.Ordinal))
+                         AuthenticatedRemovedEnvironmentVariables.Contains(name, StringComparer.OrdinalIgnoreCase) ||
+                         name.StartsWith("GIT_PROXY_SSL_", StringComparison.OrdinalIgnoreCase))
                      .ToArray())
         {
             psi.Environment.Remove(name);
@@ -280,6 +280,12 @@ public sealed partial class GitHubPagesDeployProvider
         try
         {
             registration = auth.Broker.RegisterGitProcess(proc.Id);
+            if (registration is not null && proc.HasExited)
+            {
+                // git exited before it was identified: the pid may already belong to another process.
+                registration.Dispose();
+                registration = null;
+            }
         }
         finally
         {

@@ -83,8 +83,9 @@ public sealed partial class GitHubPagesDeployProvider
             // GIT_ALLOW_PROTOCOL overrides protocol.allow; traces can print the auth header.
             foreach (var name in psi.Environment.Keys
                          .Where(static name =>
-                             name is "GIT_ALLOW_PROTOCOL" or "GIT_TEMPLATE_DIR" or "GIT_CURL_VERBOSE" ||
-                             name.StartsWith("GIT_TRACE", StringComparison.Ordinal))
+                             // Windows environment names ignore case: match them the same way.
+                             name.ToUpperInvariant() is "GIT_ALLOW_PROTOCOL" or "GIT_TEMPLATE_DIR" or "GIT_CURL_VERBOSE" ||
+                             name.StartsWith("GIT_TRACE", StringComparison.OrdinalIgnoreCase))
                          .ToArray())
             {
                 psi.Environment.Remove(name);
