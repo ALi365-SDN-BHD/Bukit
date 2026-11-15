@@ -293,6 +293,7 @@ internal sealed class BrokerDeployScope : IAsyncDisposable
             Environment.SetEnvironmentVariable(name, value);
         }
 
+        ClearReadOnlyAttributes();
         try
         {
             Directory.Delete(Root, recursive: true);
@@ -302,6 +303,25 @@ internal sealed class BrokerDeployScope : IAsyncDisposable
             // A git process killed by cancellation may still be releasing files.
             await Task.Delay(500);
             Directory.Delete(Root, recursive: true);
+        }
+    }
+
+    /// <summary>Git writes its objects read-only, and Windows refuses to delete a read-only file.</summary>
+    private void ClearReadOnlyAttributes()
+    {
+        if (!OperatingSystem.IsWindows())
+        {
+            return;
+        }
+
+        var options = new EnumerationOptions
+        {
+            RecurseSubdirectories = true,
+            AttributesToSkip = FileAttributes.ReparsePoint,
+        };
+        foreach (var file in Directory.EnumerateFiles(Root, "*", options))
+        {
+            File.SetAttributes(file, File.GetAttributes(file) & ~FileAttributes.ReadOnly);
         }
     }
 
