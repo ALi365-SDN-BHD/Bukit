@@ -57,6 +57,17 @@ fi
 rm -f -- "$archive"
 pending_archive="$build_root/$archive_base.${archive##*.}"
 
+# MSBuild sees native paths. Git Bash on Windows reports /d/a/... for what the
+# compiler knows as D:\a\..., and a PathMap in the former form matches nothing,
+# so the random build root ends up inside every managed assembly.
+native_path() {
+  if command -v cygpath >/dev/null 2>&1; then
+    cygpath -w "$1"
+  else
+    printf '%s\n' "$1"
+  fi
+}
+
 publish_args=(
   publish src/Bukit-Core/Bukit.Cli/Bukit.Cli.csproj
   -c "$configuration"
@@ -69,26 +80,36 @@ publish_args=(
   -p:NativeDebugSymbols=false
   -p:BukitStripSymbols=true
   --artifacts-path "$build_root"
-  -p:PathMap="$(pwd -P)=/_/src%2C$build_root=/_/build"
+  -p:PathMap="$(native_path "$(pwd -P)")=/_/src%2C$(native_path "$build_root")=/_/build"
   -o "$publish_dir"
 )
 
-if [[ "$rid" == osx-* ]]; then
-  # Apple's linker races when it assigns the GOT slot that its default "fast"
-  # objc_msgSend stubs load from, so identical inputs link to one of two
-  # images. LC_UUID is a content hash and the ad-hoc signature covers both, so
-  # they only follow that 3-byte swap. Small stubs branch to the shared
-  # _objc_msgSend stub instead and link deterministically; ILC output is
-  # already stable, so neither -no_uuid nor single-threaded ILC is needed.
+# Linker arguments that make the native link deterministic. ILC output is
+# already byte-identical between clean builds on every RID, so single-threaded
+# ILC is never needed.
+case "$rid" in
+  osx-*)
+    # Apple's linker races when it assigns the GOT slot that its default "fast"
+    # objc_msgSend stubs load from, so identical inputs link to one of two
+    # images. LC_UUID is a content hash and the ad-hoc signature covers both,
+    # so they only follow that 3-byte swap; -no_uuid would only hide it. Small
+    # stubs branch to the shared _objc_msgSend stub and link deterministically.
+    linker_item='<ExtraLinkerArg Include="-objc_stubs_small" />'
+    ;;
+  win-*)
+    # link.exe stamps the PE header with the link time unless /Brepro replaces
+    # it with a content hash. ILCompiler reads ExtraLinkerArg only on Unix.
+    linker_item='<LinkerArg Include="/Brepro" />'
+    ;;
+  *)
+    # GNU ld already gets --build-id=sha1 from ILCompiler.
+    linker_item=""
+    ;;
+esac
+if [[ -n "$linker_item" ]]; then
   linker_targets="$build_root/deterministic-linker.targets"
-  cat > "$linker_targets" <<'EOF'
-<Project>
-  <ItemGroup>
-    <ExtraLinkerArg Include="-objc_stubs_small" />
-  </ItemGroup>
-</Project>
-EOF
-  publish_args+=(-p:CustomAfterMicrosoftCommonTargets="$linker_targets")
+  printf '<Project>\n  <ItemGroup>\n    %s\n  </ItemGroup>\n</Project>\n' "$linker_item" > "$linker_targets"
+  publish_args+=(-p:CustomAfterMicrosoftCommonTargets="$(native_path "$linker_targets")")
 fi
 
 dotnet "${publish_args[@]}" >&2

@@ -101,9 +101,10 @@ value exits 2. The reference must come from the same commit and version. The
 source revision is compiled into `bukit`, so `GITHUB_SHA` must also be the same
 in both runs: either unset in both, or exported with the same value.
 
-The release workflow's `package-macos` job packages first, then compares the
-packaged tree with two more clean publishes, so the uploaded binary is one of
-the three compared images.
+Every packaging job in the release workflow (`package-linux`, `package-macos`,
+`package-windows`) packages first, then compares the packaged tree with two
+more clean publishes, so the uploaded binary is one of the three compared
+images.
 
 The injected contract checks do not replace the real host-RID reproducibility
 run:
@@ -112,6 +113,26 @@ run:
 bash scripts/build/native-aot-self-test.sh
 bash scripts/build/build-repro-self-test.sh
 ```
+
+### Windows path mapping and link timestamp
+
+On `win-*` two things made every publish differ, measured on `windows-latest`
+with ILCompiler 10.0.15:
+
+- **`PathMap` did not match.** Git Bash reports the checkout as `/d/a/...`
+  while the compiler sees `D:\a\...`. A `PathMap` written in the first form
+  maps nothing, so the random build root was compiled into every managed
+  assembly, and from there into the ILC object and about a third of the
+  Windows executable. The packaging script now converts the source and build roots
+  with `cygpath -w` when `cygpath` exists. Published Windows binaries no longer
+  embed runner paths.
+- **The linker stamped the link time.** With the paths fixed, three bytes still
+  differed: the PE `TimeDateStamp` and its copies. The script passes `/Brepro`
+  through a `LinkerArg` item. ILCompiler reads `ExtraLinkerArg` only on Unix, so
+  the macOS item name does nothing here.
+
+Linux needs no hook: ILCompiler already passes `--build-id=sha1`, and four
+clean `linux-x64` publishes were identical.
 
 ### macOS linker determinism
 

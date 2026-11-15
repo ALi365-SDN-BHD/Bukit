@@ -4,6 +4,7 @@ Bukit 所有重要变更都将记录在此文件中。
 
 ## [Unreleased]
 
+- **Windows Native AOT 二进制可复现，且不再嵌入构建路径**：两次干净的 `win-x64` 打包现在得到完全相同的 `bukit.exe`。此前打包用的路径映射与 Windows 路径不匹配，构建机器上的临时构建目录被编进每个程序集，链接器还会写入链接时间；打包现改为映射本机路径并以 `/Brepro` 链接。Linux、macOS 和 Windows 的发布打包在上传前都会用另外两次干净构建校验已打包的文件。
 - **离线构建可以固定审核过的 Notion 字段和过滤设置**：`build`、`config check`、`doctor` 在 `--notion-offline` 下可以加 `--notion-pin <文件>`。文件格式是 `{"format":1,"sources":{"<源名>":{…}}}`，核对每个 Notion 源的 `databaseId`，并用其中的值替换 `renderContent`、`fieldPolicy`、`propertyMap`、过滤、排序、`includeSlugs` 和 `maxItems`，没审核的 `site.yaml` 就不能让快照里隐藏的字段或草稿出现在页面上。文件里没写的键取 Bukit 默认值。文件里缺某个 Notion 源报 `BKT-0B19`，文件格式不对报 `BKT-0B18`；有改动的键输出 `event=notion.offline.pinned`。公开枚举 `DiagnosticCode` 新增 `NotionPinInvalid`、`NotionPinSourceMissing`，public API 基线已更新。
 - **macOS Native AOT 二进制可复现**：两次干净的 `osx-arm64` 打包现在得到完全相同的 `bukit`。此前 Apple 链接器对一个 `objc_msgSend` stub 槽位的分配不确定，同一提交的发布二进制校验和可能在两次构建间变化；打包现改用 `-objc_stubs_small` 链接。二进制保留 `LC_UUID`。
 
