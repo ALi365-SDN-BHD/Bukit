@@ -1452,12 +1452,15 @@
         "scripts/build/native-aot-self-test.sh",
         "scripts/build/native-aot-self-test.d/*.sh",
         "scripts/build/native-aot.sh",
-        "scripts/build/package-native-aot.sh"
+        "scripts/build/package-native-aot.sh",
+        "scripts/build/build-repro.sh",
+        "scripts/build/build-repro-self-test.sh"
       ],
       "publicContract": false,
       "resource": "static-parallel",
       "specialtyTests": [
-        "bash scripts/build/native-aot-self-test.sh"
+        "bash scripts/build/native-aot-self-test.sh",
+        "bash scripts/build/build-repro-self-test.sh"
       ]
     },
     {

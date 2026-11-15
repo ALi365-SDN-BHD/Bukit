@@ -36,6 +36,18 @@ canonical_output_root="$(cd "$output_root" && pwd -P)"
 }
 grep -Fx -- "-p:PathMap=$(pwd -P)=/_/src%2C$artifacts_root=/_/build" \
   "$FAKE_DOTNET_ARGS" >/dev/null
+if grep -F -- '-p:CustomAfterMicrosoftCommonTargets=' "$FAKE_DOTNET_ARGS" >/dev/null ||
+   grep -Fx -- '-p:IlcSingleThreaded=true' "$FAKE_DOTNET_ARGS" >/dev/null; then
+  echo "native-aot self-test: non-macOS packaging passed the macOS reproducibility hook" >&2
+  exit 1
+fi
+osx_archive="$(bash scripts/build/package-native-aot.sh 1.2.3 osx-arm64 "$scratch/osx" Release)"
+grep -F -- '-p:CustomAfterMicrosoftCommonTargets=' "$FAKE_DOTNET_ARGS" >/dev/null
+grep -Fx -- '-p:IlcSingleThreaded=true' "$FAKE_DOTNET_ARGS" >/dev/null
+[[ -s "$osx_archive" ]] || {
+  echo "native-aot self-test: macOS archive is empty" >&2
+  exit 1
+}
 [[ ! -e "$artifacts_root" ]] || {
   echo "native-aot self-test: isolated build artifacts survived packaging" >&2
   exit 1

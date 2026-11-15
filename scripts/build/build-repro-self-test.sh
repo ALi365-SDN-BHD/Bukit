@@ -50,6 +50,7 @@ if [[ "${FAKE_BUILD_MODE:?}" == "drift" && "$count" -eq 2 ]]; then
 else
   printf 'stable\n' > "$output/bukit"
 fi
+chmod +x "$output/bukit"
 FAKE_DOTNET
 
 chmod +x "$fake_bin/dotnet"
