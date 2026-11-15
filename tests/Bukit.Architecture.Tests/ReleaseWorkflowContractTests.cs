@@ -108,6 +108,7 @@ public sealed class ReleaseWorkflowContractTests
             Scalar(prove, "run"));
 
         var env = Mapping(prove, "env");
+        Assert.Equal(3, env.Children.Count);
         Assert.Equal(Scalar(Mapping(package, "env"), "VERSION"), Scalar(env, "VERSION"));
         Assert.Equal("${{ steps.package.outputs.publish_dir }}", Scalar(env, "BUKIT_REPRO_REFERENCE"));
         Assert.True(
@@ -117,6 +118,14 @@ public sealed class ReleaseWorkflowContractTests
         Assert.Null(TryScalar(prove, "continue-on-error"));
         Assert.Null(TryScalar(prove, "shell"));
         Assert.Null(TryScalar(job, "continue-on-error"));
+    }
+
+    [Fact]
+    public void WindowsPackageJob_RunsItsScriptsUnderBash()
+    {
+        var run = Mapping(Mapping(Job("package-windows"), "defaults"), "run");
+
+        Assert.Equal("bash", Scalar(run, "shell"));
     }
 
     [Fact]
