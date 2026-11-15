@@ -282,7 +282,7 @@ public sealed partial class GitHubPagesDeployProvider
         }
 
         var candidates = WindowsGitShellCandidates(execPath, File.Exists)
-            ?? throw new GitException("git's exec path is not in a recognised Git for Windows layout (<git>\\mingw64\\libexec\\git-core); refusing to run the deploy credential helper.");
+            ?? throw new GitException($"git's exec path '{execPath}' is not in a recognised Git for Windows layout (<git>\\mingw64\\libexec\\git-core); refusing to run the deploy credential helper.");
         string? shellDirectory = null;
         foreach (var candidate in candidates)
         {
