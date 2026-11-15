@@ -85,6 +85,36 @@ consumers compare them case-insensitively. The **content.source.loaded** log lin
 written at the default `logging.level: info` (or lower); `--ci` raises the level to
 `warn` and suppresses it, so BukitJalil does not pass `--ci` to `build`.
 
+## BukitJalil consumer contract
+
+BukitJalil 0.1.0-beta.4 requires Bukit `MIN_BUKIT_VERSION = 2.2.3`. It reads these
+surfaces directly; the tests below are the contract owners. Changing a row is a
+consumer change, not an internal refactor: update BukitJalil's
+`packages/server/test/bukit-behavior.test.ts` and `MIN_BUKIT_VERSION` in the same
+release. Versions are compatible within the same minor line by default; crossing a
+minor line is BukitJalil's decision.
+
+| Surface | Contract test |
+|---|---|
+| `bukit version` prints `bukit <major>.<minor>.<patch>` | `ProgramEntryPointTests.Main_Version_PrintsVersionAndRuntime` |
+| Build exit codes 0/2/3/1 and the cli-error document | `ProgramEntryPointTests` (`Main_BuildConfigError_WritesBktCode`, `Main_BuildSnapshotError_WritesBktCodeAndExitTwo`, `Main_BuildAssetCollision_StaysExitOneAndCliError`); `BukitJalilContractTests.Build_ParseFailure_ReturnsExitCodeThree` (3); `CliErrorRendererTests.RenderJson_Diagnostics_UsesDefaultSchemaAndExitCode` (document) |
+| `--base-url` sets the template's `site.base_url` (site.yaml key `site.baseUrl`); named-theme `static/` stays at the output root | `BukitJalilContractTests.Build_BaseUrl_NamedThemeNormalizesAndKeepsStaticAtRoot` |
+| `--secrets-stdin` JSON, exit 2, no echo; deploy reads `--token-env` from it first | `SecretsStdinCliTests`; `GitHubPagesDeployProviderTests.DeployAsync_CustomTokenEnv_ResolvedFromSecretsStdinBeforeEnvironment` |
+| Offline snapshot 0B10/0B11; build 2 / check 1 / doctor 1 | `ProgramEntryPointTests.Main_BuildSnapshotError_WritesBktCodeAndExitTwo` (build 2); `NotionOfflineSnapshotCommandTests.ChangedDatabaseId_FailsConfigCheckDoctorAndBuildOffline` (check/doctor 1); `NotionOfflineSnapshotCommandTests.OptionMisuse_IsAnArgumentError` (doctor 1) |
+| Notion `BKT-0Bxx` codes and line-start output, including 0B18/0B19 | `NotionOfflineSnapshotCommandTests.Pin_MissingSourceOrInvalidFile_FailsWithItsCode`; `DiagnosticCodeFormatterTests` |
+| `event=content.source.loaded source=<name> count=<n>` in JSON `msg` | `BukitJalilContractTests.Build_JsonLog_EmitsContentSourceLoadedLinePerSource` |
+| `.bukit/seo-report.json` and `.bukit/geo-report.json` consumer fields | `BukitJalilContractTests.Build_SeoAndGeoReportsMatchConsumerSchema` |
+| `publish audit --dir` and `.bukit/publish-audit-report.json` `documents`/`issues` | `BukitJalilContractTests.PublishAudit_RealBuild_ReportMatchesDeployConsumerShape` |
+| `config schema --output` writes parseable JSON | `BukitJalilContractTests.ConfigSchema_OutputIsJsonAtTopLevel` |
+| Deploy token via stdin; git children see no token; credential broker | `GitCredentialBrokerIntegrationTests`; `GitCredentialBrokerWindowsIntegrationTests` |
+
+The cli-error document is the last `{` ... `}` block on stderr, one line per
+brace, with a schema starting `https://bukit.dev/schemas/cli-error`. JSON log
+`level` values are `Info`/`Warn`/`Error` (and `Debug` at `logging.level: debug`);
+consumers compare them case-insensitively. `content.source.loaded` is written at
+the default `logging.level: info` (or lower); `--ci` raises the level to `warn`
+and suppresses it, so BukitJalil does not pass `--ci` to `build`.
+
 ## Dynamic Commands
 
 `PluginCliLoader` reads project plugin config, validates manifests, checks
