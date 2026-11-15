@@ -1,7 +1,6 @@
 using System.Text;
 using System.Text.RegularExpressions;
 using Bukit.Cli.Shared.Cli.Binding;
-using Bukit.Config;
 using Bukit.Shared;
 
 namespace Bukit.Cli.Commands;
@@ -37,7 +36,7 @@ public static class NewCommand
         }
 
         var language = (command.GetString("--language") ?? "en-US").Trim();
-        if (!SiteConfigValidator.IsSafeLanguageTag(language))
+        if (!IsSafeLanguageTag(language))
         {
             throw new CommandArgumentException(
                 "--language must use safe alphanumeric subtags separated by hyphens.");
@@ -60,4 +59,9 @@ public static class NewCommand
         slug = Regex.Replace(slug, "[^a-z0-9]+", "-").Trim('-');
         return slug.Length == 0 ? "site" : slug[..Math.Min(slug.Length, 64)].TrimEnd('-');
     }
+
+    // Same rule as SiteConfigValidator; that internal helper cannot be exposed
+    // to the CLI assembly because the dependency matrix restricts InternalsVisibleTo.
+    private static bool IsSafeLanguageTag(string language)
+        => Regex.IsMatch(language, "^[A-Za-z0-9]+(?:-[A-Za-z0-9]+)*$", RegexOptions.CultureInvariant);
 }
