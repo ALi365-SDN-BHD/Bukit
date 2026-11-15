@@ -49,9 +49,11 @@ and the deploy `--token-env` lookup both use it. Stdin secrets are never written
 to an environment: the multilingual worker gets them over its stdin with
 `--secrets-stdin`, and `ConsoleLogger`, top-level CLI errors, and
 `PluginSecretMasker` redact their values. Invalid input returns exit 2 with
-`secrets-stdin-invalid`. Plugin commands do not accept the flag. The deploy
-provider still passes the GitHub token to authenticated `git` children through
-`BUKIT_GITHUB_TOKEN` in their environment (read by the `GIT_ASKPASS` script).
+`secrets-stdin-invalid`. Plugin commands do not accept the flag. A token read
+from stdin is handed by the deploy provider to git's credential helper over a
+private local endpoint; it is not placed in the `git` child's environment or
+command line. A token read from the environment remains in Bukit's environment
+and is inherited by git children, as before.
 
 ## Dynamic Commands
 
