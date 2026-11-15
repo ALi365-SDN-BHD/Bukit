@@ -57,42 +57,19 @@ fi
 rm -f -- "$archive"
 pending_archive="$build_root/$archive_base.${archive##*.}"
 
-publish_args=(
-  publish src/Bukit-Core/Bukit.Cli/Bukit.Cli.csproj
-  -c "$configuration"
-  -r "$rid"
-  --self-contained true
-  -p:VersionPrefix="$version"
-  -p:SourceRevisionId="$commit"
-  -p:ContinuousIntegrationBuild=true
-  -p:Deterministic=true
-  -p:NativeDebugSymbols=false
-  -p:BukitStripSymbols=true
-  --artifacts-path "$build_root"
-  -p:PathMap="$(pwd -P)=/_/src%2C$build_root=/_/build"
-  -o "$publish_dir"
-)
-
-if [[ "$rid" == osx-* ]]; then
-  # ld64 embeds a random LC_UUID and signs over it on every link, so two clean
-  # macOS publishes differ. -no_uuid removes the random load command.
-  linker_targets="$build_root/deterministic-linker.targets"
-  cat > "$linker_targets" <<'EOF'
-<Project>
-  <ItemGroup>
-    <ExtraLinkerArg Include="-no_uuid" />
-  </ItemGroup>
-</Project>
-EOF
-  publish_args+=(
-    -p:CustomAfterMicrosoftCommonTargets="$linker_targets"
-    # ILC's parallel emission can reorder GOT entries; single-threaded ILC
-    # keeps the rest of the native image stable.
-    -p:IlcSingleThreaded=true
-  )
-fi
-
-dotnet "${publish_args[@]}" >&2
+dotnet publish src/Bukit-Core/Bukit.Cli/Bukit.Cli.csproj \
+  -c "$configuration" \
+  -r "$rid" \
+  --self-contained true \
+  -p:VersionPrefix="$version" \
+  -p:SourceRevisionId="$commit" \
+  -p:ContinuousIntegrationBuild=true \
+  -p:Deterministic=true \
+  -p:NativeDebugSymbols=false \
+  -p:BukitStripSymbols=true \
+  --artifacts-path "$build_root" \
+  -p:PathMap="$(pwd -P)=/_/src%2C$build_root=/_/build" \
+  -o "$publish_dir" >&2
 
 find "$publish_dir" -type d -name '*.dSYM' -prune -exec rm -rf -- {} +
 find "$publish_dir" -type f \( -name '*.pdb' -o -name '*.dbg' \) -exec rm -f -- {} +
