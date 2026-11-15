@@ -13,8 +13,9 @@
   <link rel="stylesheet" href="{{ asset_base_url }}/assets/style.css" />
 </head>
 <body>
+  <a class="skip-link" href="#main">{{ site.params.labels.skip | object.default "Skip to content" | html.escape }}</a>
   {{ include "partials/header.html" }}
-  <main class="container">
+  <main id="main" class="container">
     {{ content }}
   </main>
   {{ include "partials/footer.html" }}

@@ -43,6 +43,40 @@ public sealed class NewCommandTests : IDisposable
 
         Assert.Equal(0, build);
         Assert.True(File.Exists(Path.Combine(target, "dist/index.html")));
+        var index = File.ReadAllText(Path.Combine(target, "dist/index.html"));
+        Assert.Contains(">Home</a>", index, StringComparison.Ordinal);
+        Assert.Contains("Latest posts", index, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task RunAsync_ChineseSiteUsesChineseLabels()
+    {
+        var target = Path.Combine(_root, "zh-site");
+
+        Assert.Equal(0, await NewCommand.RunAsync(
+            CliTestHelper.CreateCommand("new", [target, "--language", "zh-CN"])));
+        var build = await BuildCommand.RunInProcessAsync(CliTestHelper.CreateCommand(
+            "build",
+            ["--config", Path.Combine(target, "site.yaml"), "--output", "dist"]));
+
+        Assert.Equal(0, build);
+        var index = File.ReadAllText(Path.Combine(target, "dist/index.html"));
+        Assert.Contains(">首页</a>", index, StringComparison.Ordinal);
+        Assert.Contains("最新文章", index, StringComparison.Ordinal);
+        Assert.DoesNotContain(">Home</a>", index, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task RunAsync_TraditionalChineseSiteKeepsEnglishLabels()
+    {
+        var target = Path.Combine(_root, "tw-site");
+
+        Assert.Equal(0, await NewCommand.RunAsync(
+            CliTestHelper.CreateCommand("new", [target, "--language", "zh-TW"])));
+
+        var config = ConfigLoader.Load(Path.Combine(target, "site.yaml"));
+        var labels = Assert.IsAssignableFrom<IReadOnlyDictionary<string, object>>(config.Theme.Params!["labels"]);
+        Assert.Equal("Home", labels["home"]);
     }
 
     [Fact]

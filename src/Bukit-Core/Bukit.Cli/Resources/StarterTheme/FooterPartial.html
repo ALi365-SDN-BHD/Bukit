@@ -7,6 +7,6 @@
         {{ site.title | html.escape }}
       {{ end }}
     </span>
-    <small>Powered by <a href="https://github.com/ALi365-SDN-BHD/Bukit" target="_blank" rel="noopener">bukit</a></small>
+    <small>{{ site.params.labels.powered_by | object.default "Powered by" | html.escape }} <a href="https://github.com/ALi365-SDN-BHD/Bukit" target="_blank" rel="noopener">bukit</a></small>
   </div>
 </footer>

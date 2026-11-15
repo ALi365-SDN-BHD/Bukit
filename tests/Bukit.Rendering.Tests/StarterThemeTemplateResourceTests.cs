@@ -234,6 +234,71 @@ public sealed class StarterThemeTemplateResourceTests : IDisposable
     }
 
     [Fact]
+    public void StarterHeader_FallsBackToEnglishLabelsAndHidesMenuToggleWithoutScript()
+    {
+        var renderer = new ScribanTemplateRenderer(_layoutsDir);
+
+        var html = renderer.RenderPage("partials/header.html", new PageModel
+        {
+            Site = new SiteModel { Name = "starter-test", Title = "Starter Test", BaseUrl = "", Language = "en" },
+            Page = new PageInfo { Title = "Home", Url = "/", Content = "" }
+        });
+
+        Assert.Contains(">Home</a>", html, StringComparison.Ordinal);
+        Assert.Contains(">Blog</a>", html, StringComparison.Ordinal);
+        Assert.Contains("aria-controls=\"nav-links\" hidden>Menu</button>", html, StringComparison.Ordinal);
+        Assert.Contains("id=\"nav-links\"", html, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void StarterHeader_UsesAndEscapesConfiguredLabels()
+    {
+        var renderer = new ScribanTemplateRenderer(_layoutsDir);
+        var site = new SiteModel
+        {
+            Name = "starter-test",
+            Title = "Starter Test",
+            BaseUrl = "",
+            Language = "zh-CN",
+            Params = new Dictionary<string, object>
+            {
+                ["labels"] = new Dictionary<string, object> { ["home"] = "首页 & <x>" }
+            }
+        };
+
+        var html = renderer.RenderPage("partials/header.html", new PageModel
+        {
+            Site = site,
+            Page = new PageInfo { Title = "Home", Url = "/", Content = "" }
+        });
+
+        Assert.Contains(">首页 &amp; &lt;x&gt;</a>", html, StringComparison.Ordinal);
+        Assert.Contains(">Blog</a>", html, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void StarterStylesheet_KeepsColorOverrideContractAndDarkMode()
+    {
+        var css = File.ReadAllText(StarterThemePath("StyleCss.css"));
+
+        Assert.Contains("--primary: #0b5fff;", css, StringComparison.Ordinal);
+        Assert.Contains("--accent: #0f7b6c;", css, StringComparison.Ordinal);
+        Assert.Contains("prefers-color-scheme: dark", css, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void StarterTheme_LoadsNoExternalStylesheetsFontsOrScripts()
+    {
+        foreach (var file in Directory.EnumerateFiles(StarterThemePath(""), "*.*")
+            .Where(path => path.EndsWith(".html", StringComparison.Ordinal) || path.EndsWith(".css", StringComparison.Ordinal)))
+        {
+            var text = File.ReadAllText(file);
+            Assert.DoesNotMatch(@"<(script|link)[^>]+(src|href)=""(https?:)?//", text);
+            Assert.DoesNotMatch(@"@import|url\((""|')?(https?:)?//", text);
+        }
+    }
+
+    [Fact]
     public void StarterTaxonomyTermTemplate_UsesRoutePrefixForAncestorBreadcrumb()
     {
         var renderer = new ScribanTemplateRenderer(_layoutsDir);
@@ -469,9 +534,12 @@ public sealed class StarterThemeTemplateResourceTests : IDisposable
         };
     }
 
+    private static string StarterThemePath(string resourceName) =>
+        Path.Combine(FindRepositoryRoot(), "src", "Bukit-Core", "Bukit.Cli", "Resources", "StarterTheme", resourceName);
+
     private void CopyResource(string resourceName, string relativeTarget)
     {
-        var source = Path.Combine(FindRepositoryRoot(), "src", "Bukit-Core", "Bukit.Cli", "Resources", "StarterTheme", resourceName);
+        var source = StarterThemePath(resourceName);
         var target = Path.Combine(_layoutsDir, relativeTarget);
         File.WriteAllText(target, File.ReadAllText(source));
     }

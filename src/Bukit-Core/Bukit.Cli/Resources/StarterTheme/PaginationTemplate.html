@@ -1,11 +1,7 @@
 {% layout "layouts/base.html" %}
 
 <header class="page-header">
-  <p class="eyebrow">Archive</p>
   <h1>{{ page.title | html.escape }}</h1>
-  {{ if collection }}
-    <p class="meta">Collection: {{ collection.key | html.escape }}</p>
-  {{ end }}
 </header>
 
 <ul class="card-list">

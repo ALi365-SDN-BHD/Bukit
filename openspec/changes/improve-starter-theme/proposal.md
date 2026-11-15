@@ -27,7 +27,7 @@ Bukit 后改用它，所以改进放在 Core。
   - 模板只从 `site.params.labels.*` 读界面文字，缺省时用英文。
   - `bukit new` 按语言写入 `theme.params.labels`：简体中文（`zh`、`zh-CN`、
     `zh-Hans`、`zh-SG`）写中文，其他语言写英文。`theme.params.latest_heading`
-    改为 `labels.latest`。
+    保留（Labs `init` 仍写它），中文站点写 `最新文章`。
   - 简洁内容型样式；`prefers-color-scheme: dark` 深色模式；窄屏折叠菜单
     （无 JS 时链接照常显示）。
   - 不加载外部字体或脚本，不需要 SCSS，不改模板文件集合和 `theme.yaml`。

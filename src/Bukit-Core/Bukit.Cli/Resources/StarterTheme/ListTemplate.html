@@ -1,7 +1,6 @@
 {% layout "layouts/base.html" %}
 
 <header class="page-header">
-  <p class="eyebrow">{{ if filter }}Filtered list{{ else }}Collection{{ end }}</p>
   <h1>{{ page.title | html.escape }}</h1>
   {{ if page.summary }}<p>{{ page.summary | html.escape }}</p>{{ end }}
 </header>

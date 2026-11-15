@@ -5,7 +5,6 @@
 {{ terms = page.fields.terms.value }}
 
 <header class="page-header">
-  <p class="eyebrow">Browse</p>
   <h1>{{ page.title | html.escape }}</h1>
 </header>
 
@@ -13,7 +12,7 @@
 {{ for term in terms }}
   <li class="term-card">
     <a href="{{ base_url }}{{ term.url }}">{{ term.title | html.escape }}</a>
-    <span class="meta">{{ term.count }} items</span>
+    <span class="meta">{{ term.count }}</span>
     {{ if term.description }}
       <p class="desc">{{ term.description | html.escape }}</p>
     {{ end }}

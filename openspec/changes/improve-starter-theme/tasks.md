@@ -16,14 +16,14 @@
 
 ## 2. T2 外观与文字
 
-- [ ] 模板读 `site.params.labels.*`，英文兜底；去掉 “Starter theme” 等 eyebrow。
-- [ ] `SiteYaml.yaml` 写英文 `labels`；`StarterSiteScaffold` 对简体中文写中文。
-- [ ] 样式：简洁内容型、深色模式、窄屏折叠菜单；保留两行颜色变量。
-- [ ] 测试：缺省英文、中文站点构建后显示 `首页`、`zh-TW` 为英文、样式契约、
+- [x] 模板读 `site.params.labels.*`，英文兜底；去掉 “Starter theme” 等 eyebrow。
+- [x] `SiteYaml.yaml` 写英文 `labels`；`StarterSiteScaffold` 对简体中文写中文。
+- [x] 样式：简洁内容型、深色模式、窄屏折叠菜单；保留两行颜色变量。
+- [x] 测试：缺省英文、中文站点构建后显示 `首页`、`zh-TW` 为英文、样式契约、
       无外部资源、菜单按钮 `hidden`。
-- [ ] CHANGELOG（三语）、quick start。
+- [x] CHANGELOG（三语）、quick start。
 
 ## 3. 收尾
 
-- [ ] 专项测试通过；`openspec validate improve-starter-theme --strict`。
+- [x] 专项测试通过；`openspec validate improve-starter-theme --strict`。
 - [ ] 一次 delta review，无 Critical/Important。

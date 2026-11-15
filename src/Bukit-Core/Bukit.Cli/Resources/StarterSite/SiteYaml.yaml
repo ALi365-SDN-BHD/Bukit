@@ -57,6 +57,21 @@ theme:
     brand: My Site
     footer_text: My Site
     latest_heading: Latest posts
+    labels:
+      skip: Skip to content
+      menu: Menu
+      home: Home
+      blog: Blog
+      pages: Pages
+      featured: Featured
+      previous: Previous
+      next: Next
+      pagination: Pagination
+      search: Search
+      search_placeholder: Search posts and pages
+      no_results: No results
+      untitled: Untitled
+      powered_by: Powered by
 
 logging:
   level: info
