@@ -1,3 +1,4 @@
+using System.Globalization;
 using YamlDotNet.RepresentationModel;
 using Xunit;
 
@@ -78,6 +79,53 @@ public sealed class ReleaseWorkflowContractTests
         Assert.DoesNotContain("publish_dir", smokeRun, StringComparison.Ordinal);
         Assert.Null(TryScalar(smoke, "if"));
         Assert.Null(TryScalar(smoke, "continue-on-error"));
+    }
+
+    [Theory]
+    [InlineData("package-linux", "linux-x64")]
+    [InlineData("package-macos", "osx-arm64")]
+    [InlineData("package-windows", "win-x64")]
+    public void PackageJob_ProvesThePackagedPublishIsReproducibleBeforeUpload(string jobName, string rid)
+    {
+        var job = Job(jobName);
+        var steps = Steps(job).ToArray();
+        var package = Assert.Single(steps, step => TryScalar(step, "id") == "package");
+        var prove = Assert.Single(steps, step =>
+            TryScalar(step, "name") == "Prove the packaged publish is reproducible");
+        var smoke = Assert.Single(steps, step => TryScalar(step, "name") == "Smoke packaged archive");
+        var upload = Assert.Single(steps, step =>
+            TryScalar(step, "uses")?.StartsWith("actions/upload-artifact@", StringComparison.Ordinal) == true);
+
+        Assert.True(Array.IndexOf(steps, package) < Array.IndexOf(steps, prove));
+        Assert.True(Array.IndexOf(steps, prove) < Array.IndexOf(steps, smoke));
+        Assert.True(Array.IndexOf(steps, prove) < Array.IndexOf(steps, upload));
+
+        Assert.Equal(
+            $"bash scripts/build/package-native-aot.sh \"$VERSION\" {rid} artifacts",
+            Scalar(package, "run"));
+        Assert.Equal(
+            $"bash scripts/build/build-repro.sh \"$VERSION\" {rid} Release",
+            Scalar(prove, "run"));
+
+        var env = Mapping(prove, "env");
+        Assert.Equal(3, env.Children.Count);
+        Assert.Equal(Scalar(Mapping(package, "env"), "VERSION"), Scalar(env, "VERSION"));
+        Assert.Equal("${{ steps.package.outputs.publish_dir }}", Scalar(env, "BUKIT_REPRO_REFERENCE"));
+        Assert.True(
+            int.Parse(Scalar(env, "BUKIT_REPRO_ROUNDS"), NumberStyles.None, CultureInfo.InvariantCulture) >= 2);
+
+        Assert.Null(TryScalar(prove, "if"));
+        Assert.Null(TryScalar(prove, "continue-on-error"));
+        Assert.Null(TryScalar(prove, "shell"));
+        Assert.Null(TryScalar(job, "continue-on-error"));
+    }
+
+    [Fact]
+    public void WindowsPackageJob_RunsItsScriptsUnderBash()
+    {
+        var run = Mapping(Mapping(Job("package-windows"), "defaults"), "run");
+
+        Assert.Equal("bash", Scalar(run, "shell"));
     }
 
     [Fact]

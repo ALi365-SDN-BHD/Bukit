@@ -31,27 +31,58 @@ if grep -Fq -e 'ExtraLinkerArg' -e 'objc_stubs' "$FAKE_DOTNET_ARGS.targets"; the
   exit 1
 fi
 
-# Where cygpath exists (Git Bash), MSBuild must get native paths, or PathMap
-# matches nothing. The fake marks a converted path with one extra leading slash.
+# On a Windows host, MSBuild and PowerShell must get native paths. The fake
+# cygpath marks a converted path with one extra leading slash, and on the fake
+# Windows host it refuses to convert back a path that was never converted, so
+# an unconverted archive path fails the fake pwsh. The fake uname reports the
+# host by FAKE_UNAME_S.
 cygpath_bin="$scratch/cygpath-bin"
-mkdir -p "$cygpath_bin"
+windows_host_bin="$scratch/windows-host-bin"
+mkdir -p "$cygpath_bin" "$windows_host_bin"
+cat > "$windows_host_bin/cygpath" <<'FAKE_CYGPATH'
+#!/usr/bin/env bash
+set -euo pipefail
+case "$1:$2" in
+  -w:*) printf '/%s\n' "$2" ;;
+  -u://*) printf '%s\n' "${2#/}" ;;
+  *) echo "fake cygpath: not a converted path: $1 $2" >&2; exit 93 ;;
+esac
+FAKE_CYGPATH
+# A stray cygpath on a non-Windows host: usable, but nothing should call -w.
 cat > "$cygpath_bin/cygpath" <<'FAKE_CYGPATH'
 #!/usr/bin/env bash
 set -euo pipefail
-case "$1" in
-  -w) printf '/%s\n' "$2" ;;
-  -u) printf '%s\n' "${2#/}" ;;
-  *) echo "fake cygpath: unsupported $1" >&2; exit 93 ;;
-esac
+[[ "$1" == "-u" ]] || { echo "fake cygpath: unexpected $1 on a non-Windows host" >&2; exit 94; }
+printf '%s\n' "$2"
 FAKE_CYGPATH
-chmod +x "$cygpath_bin/cygpath"
-native_root="$scratch/native-paths"
-export BUKIT_EXPECTED_ARCHIVE="$native_root/bukit-1.2.3-win-x64.zip"
+real_uname="$(command -v uname)"
+cat > "$windows_host_bin/uname" <<FAKE_UNAME
+#!/usr/bin/env bash
+[[ "\${1:-}" != "-s" ]] || { echo "\${FAKE_UNAME_S:?}"; exit 0; }
+exec "$real_uname" "\$@"
+FAKE_UNAME
+chmod +x "$cygpath_bin/cygpath" "$windows_host_bin/cygpath" "$windows_host_bin/uname"
+
+for kernel in MINGW64_NT-10.0-26100 UCRT64_NT-10.0-22631 MSYS_NT-10.0-19045 CYGWIN_NT-10.0-19045; do
+  native_root="$scratch/native-paths-$kernel"
+  export BUKIT_EXPECTED_ARCHIVE="$native_root/bukit-1.2.3-win-x64.zip"
+  FAKE_UNAME_S="$kernel" PATH="$windows_host_bin:$PATH" bash scripts/build/package-native-aot.sh \
+    1.2.3 win-x64 "$native_root" Release >/dev/null
+  native_artifacts="$(sed -n '/^--artifacts-path$/{n;p;}' "$FAKE_DOTNET_ARGS")"
+  grep -Fx -- "-p:PathMap=/$(pwd -P)=/_/src%2C/$native_artifacts=/_/build" \
+    "$FAKE_DOTNET_ARGS" >/dev/null
+  grep -Fx -- "-p:CustomAfterMicrosoftCommonTargets=/$native_artifacts/deterministic-linker.targets" \
+    "$FAKE_DOTNET_ARGS" >/dev/null
+done
+
+# A cygpath that merely exists on a non-Windows host must not be used.
+stray_root="$scratch/stray-cygpath"
+export BUKIT_EXPECTED_ARCHIVE="$stray_root/bukit-1.2.3-win-x64.zip"
 PATH="$cygpath_bin:$PATH" bash scripts/build/package-native-aot.sh \
-  1.2.3 win-x64 "$native_root" Release >/dev/null
-native_artifacts="$(sed -n '/^--artifacts-path$/{n;p;}' "$FAKE_DOTNET_ARGS")"
-grep -Fx -- "-p:PathMap=/$(pwd -P)=/_/src%2C/$native_artifacts=/_/build" \
+  1.2.3 win-x64 "$stray_root" Release >/dev/null
+stray_artifacts="$(sed -n '/^--artifacts-path$/{n;p;}' "$FAKE_DOTNET_ARGS")"
+grep -Fx -- "-p:PathMap=$(pwd -P)=/_/src%2C$stray_artifacts=/_/build" \
   "$FAKE_DOTNET_ARGS" >/dev/null
-grep -Fx -- "-p:CustomAfterMicrosoftCommonTargets=/$native_artifacts/deterministic-linker.targets" \
+grep -Fx -- "-p:CustomAfterMicrosoftCommonTargets=$stray_artifacts/deterministic-linker.targets" \
   "$FAKE_DOTNET_ARGS" >/dev/null
 unset BUKIT_EXPECTED_ARCHIVE
