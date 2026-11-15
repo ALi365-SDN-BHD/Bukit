@@ -37,6 +37,7 @@
 
   <ItemGroup>
     <EmbeddedResource Include="Resources\StarterTheme\**" />
+    <EmbeddedResource Include="Resources\StarterSite\**" />
   </ItemGroup>
 
   <Target Name="GenerateCliBuildInfo" BeforeTargets="CoreCompile">
