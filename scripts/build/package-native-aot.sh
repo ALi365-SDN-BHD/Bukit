@@ -62,10 +62,12 @@ pending_archive="$build_root/$archive_base.${archive##*.}"
 # so the random build root ends up inside every managed assembly.
 # Decide by the host rather than by whether a cygpath happens to be on PATH:
 # a stray cygpath on Linux or macOS would turn every path into a Windows one.
+# Git Bash, every MSYS2 environment and Cygwin report a kernel name such as
+# MINGW64_NT-10.0, UCRT64_NT-10.0, MSYS_NT-10.0 or CYGWIN_NT-10.0.
 host_os="$(uname -s)"
 native_path() {
   case "$host_os" in
-    MINGW*|MSYS*|CYGWIN*) cygpath -w "$1" ;;
+    *_NT-*) cygpath -w "$1" ;;
     *) printf '%s\n' "$1" ;;
   esac
 }

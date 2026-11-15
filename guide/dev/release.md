@@ -124,7 +124,7 @@ with ILCompiler 10.0.15:
   maps nothing, so the random build root was compiled into every managed
   assembly, and from there into the ILC object and about a third of the
   Windows executable. The packaging script now converts the source and build roots
-  with `cygpath -w` on a Windows host (Git Bash, MSYS or Cygwin, by `uname`),
+  with `cygpath -w` on a Windows host (Git Bash, MSYS2 or Cygwin, by `uname`),
   not merely when a `cygpath` is on `PATH`. Published Windows binaries no longer
   embed runner paths.
 - **The linker stamped the link time.** With the paths fixed, three bytes still
