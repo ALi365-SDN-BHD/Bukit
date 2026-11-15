@@ -127,10 +127,10 @@ one job deploys with a token scoped to another repository.
 
 - With `--secrets-stdin`, write `{"GITHUB_TOKEN":"…"}` (or the name given to
   `--token-env`) to Bukit's stdin. The stdin value wins over the environment
-  variable. Bukit then passes the token to each authenticated `git` process in
-  that process's environment (`BUKIT_GITHUB_TOKEN`, read by a temporary
-  `GIT_ASKPASS` script), so other programs of the same user can read it while
-  `git` runs.
+  variable. During `deploy`, a token read from stdin is handed to git's
+  credential helper over a private local endpoint; it is not placed in the
+  `git` child's environment or command line. A token read from the environment
+  remains in Bukit's environment and is inherited by git children, as before.
 
 ## Publish Privacy Boundary
 

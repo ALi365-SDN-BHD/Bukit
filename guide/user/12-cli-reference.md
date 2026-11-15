@@ -99,10 +99,11 @@ object, at most 64 KiB, mapping a name to a non-empty string:
   never repeats the input.
 - Plugin commands do not take `--secrets-stdin`; plugins keep reading the
   environment variables their manifest allows.
-- Known limit: during `deploy`, Bukit still hands the GitHub token to each
-  authenticated `git` process in that process's environment (read by a
-  temporary `GIT_ASKPASS` script). While `git` runs, other programs of the same
-  user can read it there.
+- During `deploy`, a token read from `--secrets-stdin` is handed to git's
+  credential helper over a private local endpoint; it is not placed in the
+  `git` child's environment or command line. A token read from the environment
+  remains in Bukit's environment and is inherited by git children, so other
+  programs of the same user can read it there while `git` runs.
 
 A program that starts Bukit writes the JSON to the child's stdin and closes it:
 
