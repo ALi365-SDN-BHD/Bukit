@@ -280,25 +280,30 @@ public sealed partial class GitHubPagesDeployProvider
     /// </summary>
     private static IDisposable? RegisterOrKill(GitAuthContext auth, Process proc)
     {
-        IDisposable? registration = null;
+        IDisposable? registration;
         try
         {
             registration = auth.Broker.RegisterGitProcess(proc.Id);
-            if (proc.HasExited)
-            {
-                registration?.Dispose();
-                return null;
-            }
         }
-        finally
+        catch
         {
-            if (registration is null && !proc.HasExited)
-            {
-                TryKillProcessTree(proc);
-            }
+            TryKillProcessTree(proc);
+            throw;
         }
 
-        return registration ?? throw new GitException("Could not register the git process with the credential broker.");
+        if (proc.HasExited)
+        {
+            registration?.Dispose();
+            return null;
+        }
+
+        if (registration is null)
+        {
+            TryKillProcessTree(proc);
+            throw new GitException("Could not register the git process with the credential broker.");
+        }
+
+        return registration;
     }
 
     private static Task RunGitAsync(string gitPath, string? workingDir, TimeSpan gitCommandTimeout, CancellationToken ct, params string[] args)
