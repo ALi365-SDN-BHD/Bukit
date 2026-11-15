@@ -56,9 +56,12 @@ dotnet run --project src/Bukit-Core/Bukit.Cli -c Release -- doctor --config path
 dotnet run --project src/Bukit-Core/Bukit.Cli -c Release -- build --config path/to/site.yaml --clean --site-url https://example.com
 ```
 
-When using an installed or downloaded Bukit binary from a site directory:
+When using an installed or downloaded Bukit binary, create a site and run it from
+that directory:
 
 ```bash
+bukit new my-site
+cd my-site
 bukit config check
 bukit doctor
 bukit build --clean
@@ -79,6 +82,7 @@ Bukit Core 2.0 governs this command surface for internal use; it is not a public
 | `preview` | Serve an already-built output directory |
 | `dev` | Run the LiveReload development server |
 | `clean` | Remove output and cache directories |
+| `new` | Create an initial site |
 | `version` | Print version information |
 | `completion` | Generate shell completion |
 | `seo` | Audit or diff SEO reports |

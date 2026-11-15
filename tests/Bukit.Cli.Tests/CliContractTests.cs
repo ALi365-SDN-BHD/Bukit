@@ -28,6 +28,7 @@ public sealed class CliContractTests
                 "preview:",
                 "dev:",
                 "clean:",
+                "new:",
                 "version:",
                 "completion:",
                 "seo:audit,diff,insights,question-insights,generative-insights,authority-insights",

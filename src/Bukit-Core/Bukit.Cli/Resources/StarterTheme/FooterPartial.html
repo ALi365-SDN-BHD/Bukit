@@ -2,9 +2,9 @@
   <div class="footer-inner">
     <span>
       {{ if site.params && site.params.footer_text }}
-        {{ site.params.footer_text }}
+        {{ site.params.footer_text | html.escape }}
       {{ else }}
-        {{ site.title }}
+        {{ site.title | html.escape }}
       {{ end }}
     </span>
     <small>Powered by <a href="https://github.com/ALi365-SDN-BHD/Bukit" target="_blank" rel="noopener">bukit</a></small>

@@ -5,7 +5,7 @@ description: Use when you need the exact Bukit Core command, subcommand, option,
 
 # Bukit CLI Reference
 
-Bukit Core registers exactly twelve static commands. Any other command name (for
+Bukit Core registers exactly thirteen static commands. Any other command name (for
 example `init`, `lint`, or a `--version` flag) is not a Core command and exits 2; use
 `version` for the version. The one exception is external-plugin tooling (Labs, not
 covered here): `plugin`, and commands exposed by plugins in `.bukit/plugins.yaml`.
@@ -20,6 +20,7 @@ covered here): `plugin`, and commands exposed by plugins in `.bukit/plugins.yaml
 | `preview` | — | Serve an existing output directory. No build, no watch. |
 | `dev` | — | Build, serve, watch, and LiveReload. |
 | `clean` | — | Delete a Bukit output directory and the project `.cache`. |
+| `new` | — | Create an initial site. |
 | `version` | — | Print version and runtime. |
 | `completion` | — | Print a shell completion script. |
 | `seo` | `seo audit`, `seo diff`, `seo insights`, `seo question-insights`, `seo generative-insights`, `seo authority-insights` | SEO report gate, regression diff, observation joins. |
@@ -61,6 +62,7 @@ Project selection, shared by most commands:
 | `preview` | `--dir`, `--host`, `--port`, `--strict-port`, `--config`, `--site`, `--allow-lan`, `--public` |
 | `dev` | `--config`, `--site`, `--host`, `--port`, `--output`, `--no-watch`, `--allow-lan`, `--public`, `--secrets-stdin` |
 | `clean` | `--dir`, `--config`, `--site` |
+| `new` | `<dir>` (required), `--title`, `--language` |
 | `version` | none |
 | `completion` | `<shell>`: `bash` (default), `zsh`, `fish` |
 | `seo audit`, `publish audit` | `--dir`, `--report`, `--strict`, `--external` |

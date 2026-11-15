@@ -16,6 +16,7 @@ public static class BukitCliDescriptors
         {
             new(registry.Commands.First(c => c.Name == "build"), cmd => BuildCommand.RunAsync(cmd, cmd.GetString("--log-format") ?? logFormat)),
             new(registry.Commands.First(c => c.Name == "clean"), cmd => CleanCommand.RunAsync(cmd, logFormat)),
+            new(registry.Commands.First(c => c.Name == "new"), NewCommand.RunAsync),
             new(registry.Commands.First(c => c.Name == "completion"), CompletionCommand.RunAsync),
             new(registry.Commands.First(c => c.Name == "doctor"), cmd => DoctorCommand.RunAsync(cmd, logFormat)),
             new(registry.Commands.First(c => c.Name == "preview"), cmd => PreviewCommand.RunAsync(cmd, logFormat)),

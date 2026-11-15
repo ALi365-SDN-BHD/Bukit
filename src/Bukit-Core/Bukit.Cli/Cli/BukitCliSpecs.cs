@@ -121,6 +121,16 @@ public static partial class BukitCliSpecs
                 new CliOptionSpec("--site", "多站点名")
             });
 
+        var newSite = new CliCommandSpec(
+            Name: "new",
+            Description: "生成初始网站",
+            Arguments: [new CliArgumentSpec("dir", "目标目录", Required: true)],
+            Options:
+            [
+                new CliOptionSpec("--title", "站点标题", ValueName: "text"),
+                new CliOptionSpec("--language", "主语言（BCP 47）", ValueName: "tag")
+            ]);
+
         var version = new CliCommandSpec(
             Name: "version",
             Description: "显示版本信息");
@@ -241,7 +251,7 @@ public static partial class BukitCliSpecs
                 new CliOptionSpec("--force", "允许 non-fast-forward 时强制覆盖远端分支", CliOptionType.Flag)
             });
 
-        return new CliCommandRegistry(new[] { build, doctor, config, preview, dev, clean, version, completion, seo, geo, publish, deploy });
+        return new CliCommandRegistry(new[] { build, doctor, config, preview, dev, clean, newSite, version, completion, seo, geo, publish, deploy });
     }
 
     private static CliOptionSpec[] DiffOptions() =>

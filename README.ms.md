@@ -60,6 +60,8 @@ dotnet run --project src/Bukit-Core/Bukit.Cli -c Release -- build --config path/
 Apabila menggunakan binari Bukit yang telah dipasang atau dimuat turun dari direktori laman:
 
 ```bash
+bukit new my-site
+cd my-site
 bukit config check
 bukit doctor
 bukit build --clean
@@ -80,6 +82,7 @@ Bukit Core 2.0 mentadbir permukaan arahan ini untuk kegunaan dalaman; ini bukan 
 | `preview` | Menyajikan direktori output yang telah dibina |
 | `dev` | Menjalankan pelayan pembangunan LiveReload |
 | `clean` | Memadam direktori output dan cache |
+| `new` | Cipta tapak permulaan |
 | `version` | Mencetak maklumat versi |
 | `completion` | Menjana shell completion |
 | `seo` | Mengaudit atau membandingkan laporan SEO |

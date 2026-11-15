@@ -23,6 +23,7 @@ public sealed class CoreBoundaryTests
                 "preview",
                 "dev",
                 "clean",
+                "new",
                 "version",
                 "completion",
                 "seo",

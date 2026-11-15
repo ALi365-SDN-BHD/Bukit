@@ -3,11 +3,10 @@
 <header class="site-header">
   <nav class="nav" aria-label="Primary navigation">
     <a class="brand" href="{{ base_url }}/">
-      {{-- bukit:brand --}}
       {{ if site.params && site.params.brand }}
-        {{ site.params.brand }}
+        {{ site.params.brand | html.escape }}
       {{ else }}
-        {{ site.title }}
+        {{ site.title | html.escape }}
       {{ end }}
     </a>
     <div class="nav-links">

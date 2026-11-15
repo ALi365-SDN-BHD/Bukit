@@ -1,0 +1,62 @@
+site:
+  name: my-site
+  title: My Site
+  baseUrl: /
+  seo:
+    defaultImage: /assets/og-default.png
+  languages: [en-US]
+  timezone: UTC
+  collections:
+    post:
+      permalink: /blog/{year}/{month}/{slug}/
+      listRoute: /blog/
+      pagination:
+        enabled: true
+        pageSize: 10
+        urlPattern: page/:num/
+      output:
+        rss: true
+        archive: true
+    page:
+      permalink: /pages/{slug}/
+      listRoute: /pages/
+
+content:
+  sources:
+    - type: markdown
+      name: posts
+      mode: content
+      collection: post
+      markdown:
+        dir: content/posts
+    - type: markdown
+      name: pages
+      mode: content
+      collection: page
+      markdown:
+        dir: content/pages
+    - type: markdown
+      name: modules
+      mode: data
+      markdown:
+        dir: data
+        defaultType: module
+  media:
+    onFailure: keep
+
+build:
+  output: dist
+  clean: false
+
+theme:
+  name: starter
+  layouts: layouts
+  assets: assets
+  static: static
+  params:
+    brand: My Site
+    footer_text: My Site
+    latest_heading: Latest posts
+
+logging:
+  level: info
