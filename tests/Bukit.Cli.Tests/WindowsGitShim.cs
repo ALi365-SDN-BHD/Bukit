@@ -117,9 +117,31 @@ internal static class WindowsGitShim
             return 91;
         }
 
-        if (args[0] is "ls-remote" or "fetch" or "push")
+        // Deploy prefixes sandbox and credential options (-c key=value) before the subcommand.
+        var prefixLength = 0;
+        string? helper = null;
+        while (prefixLength + 1 < args.Length && args[prefixLength] == "-c")
         {
-            var remoteNames = args.Where(arg => arg.StartsWith("bukit-deploy-", StringComparison.Ordinal)).ToArray();
+            if (args[prefixLength + 1].StartsWith("credential.helper=", StringComparison.Ordinal) &&
+                args[prefixLength + 1].Length > "credential.helper=".Length)
+            {
+                helper = args[prefixLength + 1]["credential.helper=".Length..];
+            }
+
+            prefixLength += 2;
+        }
+
+        var options = args[..prefixLength];
+        var command = args[prefixLength..];
+        if (command.Length == 0)
+        {
+            Console.Error.WriteLine("Missing Git command after options.");
+            return 91;
+        }
+
+        if (command[0] is "ls-remote" or "fetch" or "push")
+        {
+            var remoteNames = command.Where(arg => arg.StartsWith("bukit-deploy-", StringComparison.Ordinal)).ToArray();
             if (remoteNames.Length != 1)
             {
                 Console.Error.WriteLine("Expected exactly one private deployment remote.");
@@ -127,7 +149,7 @@ internal static class WindowsGitShim
             }
 
             var remote = remoteNames[0];
-            string[] queryArguments = args[0] == "push"
+            string[] queryArguments = command[0] == "push"
                 ? ["remote", "get-url", "--push", "--all", remote]
                 : ["remote", "get-url", "--all", remote];
             var query = CreateProcess(git, queryArguments);
@@ -166,17 +188,16 @@ internal static class WindowsGitShim
                 return 93;
             }
 
-            var askpass = Environment.GetEnvironmentVariable("GIT_ASKPASS");
-            if (string.IsNullOrEmpty(askpass) || !File.Exists(askpass))
+            if (helper is null)
             {
-                Console.Error.WriteLine("The test transport did not receive a live askpass script.");
+                Console.Error.WriteLine("The test transport did not receive the credential broker helper.");
                 return 94;
             }
 
-            var askpassLog = Environment.GetEnvironmentVariable("BUKIT_DEPLOY_ASKPASS_LOG");
-            if (!string.IsNullOrEmpty(askpassLog))
+            var helperLog = Environment.GetEnvironmentVariable("BUKIT_DEPLOY_HELPER_LOG");
+            if (!string.IsNullOrEmpty(helperLog))
             {
-                await File.WriteAllTextAsync(askpassLog, askpass);
+                await File.WriteAllTextAsync(helperLog, $"HELPER {helper}\nPWD {Environment.CurrentDirectory}\n");
             }
 
             var accessLog = Environment.GetEnvironmentVariable("BUKIT_DEPLOY_ACCESS_LOG");
@@ -188,9 +209,9 @@ internal static class WindowsGitShim
 
             var line = Environment.GetEnvironmentVariable("BUKIT_DEPLOY_SIMPLE_LOG") == "1"
                 ? $"ACCESS {target}"
-                : $"ACCESS {url}|{target}|{string.Join(' ', args)}";
+                : $"ACCESS {url}|{target}|{string.Join(' ', command)}";
             await File.AppendAllTextAsync(accessLog, line + Environment.NewLine);
-            if (args[0] == "push")
+            if (command[0] == "push")
             {
                 var behavior = Environment.GetEnvironmentVariable("BUKIT_DEPLOY_PUSH_BEHAVIOR");
                 if (behavior == "reject")
@@ -205,16 +226,16 @@ internal static class WindowsGitShim
                     return 98;
                 }
             }
-            return await ForwardAsync(git, args.Select(arg => arg == remote ? target : arg).ToArray(), fileOnly: true);
+            return await ForwardAsync(git, [.. options, .. command.Select(arg => arg == remote ? target : arg)], fileOnly: true);
         }
 
-        if (args[0] is not ("config" or "init" or "remote" or "checkout" or "add" or "commit"))
+        if (command[0] is not ("config" or "init" or "remote" or "checkout" or "add" or "commit" or "--exec-path"))
         {
             Console.Error.WriteLine("Unexpected Git command in the test transport shim.");
             return 96;
         }
 
-        if (args[0] == "remote" && (args.Length != 4 || args[1] != "add"))
+        if (command[0] == "remote" && (command.Length != 4 || command[1] != "add"))
         {
             Console.Error.WriteLine("Unexpected remote operation in the test transport shim.");
             return 96;

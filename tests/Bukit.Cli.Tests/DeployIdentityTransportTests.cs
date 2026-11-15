@@ -566,7 +566,7 @@ public sealed class DeployIdentityTransportTests
     }
 
     [Fact]
-    public async Task WorkingDirectoryAndAskpassEnvironmentRemainUntouched()
+    public async Task WorkingDirectoryAndEnvironmentRemainUntouched()
     {
         using var scope = new RealDeployScope();
         var b = await scope.CreateProjectAsync("project-b", "https://github.com/owner/repo-b.git");
@@ -670,9 +670,6 @@ public sealed class DeployIdentityTransportTests
     {
         var project = await scope.CreateProjectAsync("shim-project", null);
         await scope.GitAsync(project, "remote", "add", "bukit-deploy-shim", "https://github.com/owner/repo-b.git");
-        var askpass = Path.Combine(scope.Root, "shim-askpass");
-        File.WriteAllText(askpass, "local transport fixture");
-        scope.SetEnv("GIT_ASKPASS", askpass);
         return project;
     }
 
@@ -734,7 +731,7 @@ public sealed class DeployIdentityTransportTests
                 SetEnv("BUKIT_DEPLOY_REAL_GIT", _gitPath);
                 SetEnv("BUKIT_TEST_GIT_SCRIPT", null);
                 SetEnv("BUKIT_DEPLOY_SIMPLE_LOG", null);
-                SetEnv("BUKIT_DEPLOY_ASKPASS_LOG", null);
+                SetEnv("BUKIT_DEPLOY_HELPER_LOG", null);
                 SetEnv("BUKIT_DEPLOY_PUSH_BEHAVIOR", null);
                 SetEnv("BUKIT_DEPLOY_PUSH_MARKER", null);
                 SetEnv("PATH", _binDir + Path.PathSeparator + Environment.GetEnvironmentVariable("PATH"));
@@ -907,6 +904,8 @@ public sealed class DeployIdentityTransportTests
                 CreateNoWindow = true
             };
             start.ArgumentList.Add(WindowsGitShim.AssemblyPath);
+            // Deploy always passes its broker helper; the transport double requires one.
+            foreach (var argument in new[] { "-c", "credential.helper=!shim-fixture" }) start.ArgumentList.Add(argument);
             foreach (var argument in arguments) start.ArgumentList.Add(argument);
             using var process = Process.Start(start)!;
             var output = process.StandardOutput.ReadToEndAsync();
@@ -991,8 +990,20 @@ public sealed class DeployIdentityTransportTests
             File.WriteAllText(wrapper, $$"""
                 #!/bin/sh
                 set -eu
-                case "${1:-}" in
+                skip=0; sub=""; rest=""; helper=""
+                for arg in "$@"; do
+                  if [ "$skip" = 1 ]; then
+                    skip=0
+                    case "$arg" in credential.helper=?*) helper="${arg#credential.helper=}" ;; esac
+                    continue
+                  fi
+                  if [ -z "$sub" ] && [ "$arg" = "-c" ]; then skip=1; continue; fi
+                  if [ -z "$sub" ]; then sub="$arg"; fi
+                  rest="$rest${rest:+ }$arg"
+                done
+                case "$sub" in
                   ls-remote|fetch|push)
+                    [ -n "$helper" ] || { echo "no credential broker helper" >&2; exit 94; }
                     remote_name=""
                     for arg in "$@"; do
                       case "$arg" in
@@ -1008,15 +1019,17 @@ public sealed class DeployIdentityTransportTests
                       https://github.com/owner/repo-worktree.git) target="$BUKIT_DEPLOY_BARE_B" ;;
                       *) echo "unexpected transport url: $url" >&2; exit 93 ;;
                     esac
-                    printf 'ACCESS %s|%s|%s\n' "$url" "$target" "$*" >> "$BUKIT_DEPLOY_ACCESS_LOG"
-                    mapped=""
+                    printf 'ACCESS %s|%s|%s\n' "$url" "$target" "$rest" >> "$BUKIT_DEPLOY_ACCESS_LOG"
+                    count=$#
                     for arg in "$@"; do
                       case "$arg" in
                         bukit-deploy-*) arg="$target" ;;
                       esac
-                      mapped="$mapped '$arg'"
+                      set -- "$@" "$arg"
                     done
-                    eval "exec {{quote(_gitPath)}} $mapped"
+                    shift "$count"
+                    # GIT_ALLOW_PROTOCOL overrides deploy's https-only protocol.allow for the local double.
+                    GIT_ALLOW_PROTOCOL=file exec {{quote(_gitPath)}} "$@"
                     ;;
                   *)
                     exec {{quote(_gitPath)}} "$@"

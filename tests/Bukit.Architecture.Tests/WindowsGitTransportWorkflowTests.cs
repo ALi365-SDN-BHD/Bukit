@@ -21,9 +21,9 @@ public sealed class WindowsGitTransportWorkflowTests
         foreach (var value in new[]
                  {
                      "DeployGitTransportPrimitiveTests", "DeployIdentityTransportTests", "DeployWindowsRegressionTests",
-                     "DeployAsync_RealLocalGitClonesAndPushesWithAskpassAlive",
-                     "DeployAsync_RealLocalGitPushFailure_CleansReadOnlyObjectsAndAskpass",
-                     "DeployAsync_RealLocalGitPushCancellation_CleansReadOnlyObjectsAndAskpass",
+                     "DeployAsync_RealLocalGitClonesAndPushesWithBrokerHelper",
+                     "DeployAsync_RealLocalGitPushFailure_CleansReadOnlyObjectsAndBroker",
+                     "DeployAsync_RealLocalGitPushCancellation_CleansReadOnlyObjectsAndBroker",
                      "DeployAsync_UserPagesRepoWithDotRemoteUrl_DeploysToRootGithubIoUrl",
                      "DeployAsync_CancelDuringPush_PropagatesOperationCanceledException_AndCleansUp",
                      "EnsureMetadataWriteTargetIsNotLink_RejectsRegularAndDanglingSymlinks",

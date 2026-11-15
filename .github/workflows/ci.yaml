@@ -308,9 +308,9 @@ jobs:
               "Bukit.Cli.Tests.GitHubPagesDeployProviderTests": 6,
           }
           provider_methods = [
-              "DeployAsync_RealLocalGitClonesAndPushesWithAskpassAlive",
-              "DeployAsync_RealLocalGitPushFailure_CleansReadOnlyObjectsAndAskpass",
-              "DeployAsync_RealLocalGitPushCancellation_CleansReadOnlyObjectsAndAskpass",
+              "DeployAsync_RealLocalGitClonesAndPushesWithBrokerHelper",
+              "DeployAsync_RealLocalGitPushFailure_CleansReadOnlyObjectsAndBroker",
+              "DeployAsync_RealLocalGitPushCancellation_CleansReadOnlyObjectsAndBroker",
               "DeployAsync_UserPagesRepoWithDotRemoteUrl_DeploysToRootGithubIoUrl",
               "DeployAsync_CancelDuringPush_PropagatesOperationCanceledException_AndCleansUp",
               "EnsureMetadataWriteTargetIsNotLink_RejectsRegularAndDanglingSymlinks",
@@ -373,6 +373,13 @@ jobs:
 
           if __name__ == "__main__":
               main()
+      - name: Run credential broker and process inspector tests
+        shell: pwsh
+        run: |
+          dotnet test tests/Bukit.Shared.Tests/Bukit.Shared.Tests.csproj -c Release --filter "FullyQualifiedName~ProcessInspectorTests" --logger "trx;LogFileName=process-inspector.trx" --results-directory TestResults/windows-git
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          dotnet test tests/Bukit.Cli.Tests/Bukit.Cli.Tests.csproj -c Release --filter "FullyQualifiedName~GitCredentialBrokerTests" --logger "trx;LogFileName=credential-broker.trx" --results-directory TestResults/windows-git
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - uses: actions/upload-artifact@v7
         if: always()
         with:
