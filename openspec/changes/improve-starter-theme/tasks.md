@@ -26,4 +26,4 @@
 ## 3. 收尾
 
 - [x] 专项测试通过；`openspec validate improve-starter-theme --strict`。
-- [ ] 一次 delta review，无 Critical/Important。
+- [x] 一次 delta review，无 Critical/Important。
