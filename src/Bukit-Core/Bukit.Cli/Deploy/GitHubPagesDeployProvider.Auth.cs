@@ -7,13 +7,15 @@ namespace Bukit.Cli.Deploy;
 /// <summary>
 /// Where an authenticated git call may connect. Production allows only https://github.com
 /// with system certificates; tests replace it through <see cref="GitHubPagesDeployProvider.TransportPolicyOverride"/>.
-/// A test policy may also observe the broker's process queries through <paramref name="ProcessQuery"/>;
-/// production always uses the system query.
+/// A test policy may also observe the broker's process queries through <paramref name="ProcessQuery"/>
+/// and name the helper's executable through <paramref name="Self"/> (a test host is not Bukit);
+/// production always uses the system query and the running Bukit.
 /// </summary>
 internal sealed record GitTransportPolicy(
     GitCredentialTarget Target,
     IReadOnlyList<string> Protocols,
-    IGitCredentialProcessQuery? ProcessQuery = null)
+    IGitCredentialProcessQuery? ProcessQuery = null,
+    (string Executable, string? Assembly)? Self = null)
 {
     internal static readonly GitTransportPolicy GitHub = new(GitCredentialTarget.GitHub, ["https"]);
 }
@@ -80,11 +82,12 @@ public sealed partial class GitHubPagesDeployProvider
             psi.Environment["GIT_CONFIG_NOSYSTEM"] = "1";
             psi.Environment["GIT_CONFIG_GLOBAL"] = GlobalConfig;
             psi.Environment["GIT_ATTR_NOSYSTEM"] = "1";
-            // GIT_ALLOW_PROTOCOL overrides protocol.allow; traces can print the auth header.
+            // GIT_ALLOW_PROTOCOL overrides protocol.allow; traces can print the auth header;
+            // GIT_EXEC_PATH would choose the remote helper and the trusted shell directory.
             foreach (var name in psi.Environment.Keys
                          .Where(static name =>
                              // Windows environment names ignore case: match them the same way.
-                             name.ToUpperInvariant() is "GIT_ALLOW_PROTOCOL" or "GIT_TEMPLATE_DIR" or "GIT_CURL_VERBOSE" ||
+                             name.ToUpperInvariant() is "GIT_ALLOW_PROTOCOL" or "GIT_TEMPLATE_DIR" or "GIT_CURL_VERBOSE" or "GIT_EXEC_PATH" ||
                              name.StartsWith("GIT_TRACE", StringComparison.OrdinalIgnoreCase))
                          .ToArray())
             {
@@ -107,12 +110,13 @@ public sealed partial class GitHubPagesDeployProvider
     /// <summary>The broker and git arguments for authenticated calls in one deployment.</summary>
     private sealed class GitAuthContext : IAsyncDisposable
     {
-        private GitAuthContext(GitCredentialBroker broker, GitSandbox sandbox, string remoteName, string[] arguments)
+        private GitAuthContext(GitCredentialBroker broker, GitSandbox sandbox, string remoteName, string[] arguments, string? shellDirectory)
         {
             Broker = broker;
             Sandbox = sandbox;
             RemoteName = remoteName;
             Arguments = arguments;
+            ShellDirectory = shellDirectory;
         }
 
         internal GitCredentialBroker Broker { get; }
@@ -123,6 +127,9 @@ public sealed partial class GitHubPagesDeployProvider
 
         /// <summary>The <c>-c</c> options that precede the subcommand of every authenticated call.</summary>
         internal string[] Arguments { get; }
+
+        /// <summary>Windows: the directory of the expected shell, put first on PATH (see <see cref="ResolveShells"/>).</summary>
+        internal string? ShellDirectory { get; }
 
         internal static async Task<GitAuthContext> StartAsync(
             string gitPath,
@@ -136,9 +143,10 @@ public sealed partial class GitHubPagesDeployProvider
             CancellationToken ct)
         {
             var policy = TransportPolicyOverride.Value ?? GitTransportPolicy.GitHub;
-            var (self, assembly) = ResolveSelf();
+            var (self, assembly) = policy.Self ?? ResolveSelf();
             var execPath = await RunGitAndCaptureAsync(sandbox, gitPath, workingDir, timeout, ct, "--exec-path");
-            var expectations = new GitCredentialPeerExpectations(self, assembly, ResolveRemoteHelpers(execPath), ResolveShells(execPath));
+            var (shells, shellDirectory) = ResolveShells(execPath);
+            var expectations = new GitCredentialPeerExpectations(self, assembly, ResolveRemoteHelpers(execPath), shells);
             uint? uid = null;
             if (!OperatingSystem.IsWindows())
             {
@@ -167,7 +175,7 @@ public sealed partial class GitHubPagesDeployProvider
 
             // The URL-specific value outranks any http.<url>.sslVerify that slipped into local config.
             arguments.AddRange(["-c", "http.sslVerify=true", "-c", $"http.{canonicalUrl}.sslVerify=true"]);
-            return new GitAuthContext(broker, sandbox, remoteName, [.. arguments]);
+            return new GitAuthContext(broker, sandbox, remoteName, [.. arguments], shellDirectory);
         }
 
         public ValueTask DisposeAsync() => Broker.DisposeAsync();
@@ -247,41 +255,89 @@ public sealed partial class GitHubPagesDeployProvider
             : throw new GitException("git's HTTPS remote helper was not found in its exec path.");
     }
 
-    /// <summary>The shells git may leave between its remote helper and the credential helper.</summary>
-    private static HashSet<string> ResolveShells(string execPath)
+    /// <summary>
+    /// The shells git may leave between its remote helper and the credential helper, and on
+    /// Windows the directory to put first on PATH for authenticated calls.
+    /// </summary>
+    /// <remarks>
+    /// Git for Windows does not run <c>/bin/sh</c>: it starts the <c>!</c> helper through
+    /// <c>sh</c> found on PATH, so a Cygwin or MSYS2 <c>sh</c> earlier on PATH would become the
+    /// helper's parent. Accepting whatever <c>sh</c> PATH names would let any program on PATH
+    /// sit between git and the token, so the expectation stays fixed to the shells inside the
+    /// installation that owns <c>git --exec-path</c>, and authenticated calls get that
+    /// installation's shell directory first on PATH so git starts exactly that shell. Without
+    /// such a shell the deploy fails closed instead of accepting another one.
+    /// </remarks>
+    private static (HashSet<string> Shells, string? ShellDirectory) ResolveShells(string execPath)
     {
         var shells = new HashSet<string>(OperatingSystem.IsWindows() ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal);
-        var candidates = new List<string>();
-        if (OperatingSystem.IsWindows())
+        if (!OperatingSystem.IsWindows())
         {
-            // <git>\mingw64\libexec\git-core -> <git>\usr\bin\sh.exe, <git>\bin\sh.exe
-            for (var dir = new DirectoryInfo(execPath); dir is not null; dir = dir.Parent)
+            if (ProcessInspector.TryRealPath("/bin/sh") is { } sh)
             {
-                if (Directory.Exists(Path.Combine(dir.FullName, "usr", "bin")))
-                {
-                    foreach (var relative in new[] { @"usr\bin\sh.exe", @"usr\bin\bash.exe", @"bin\sh.exe", @"bin\bash.exe" })
-                    {
-                        candidates.Add(Path.Combine(dir.FullName, relative));
-                    }
+                shells.Add(sh);
+            }
 
-                    break;
+            return (shells, null);
+        }
+
+        var candidates = WindowsGitShellCandidates(execPath, File.Exists)
+            ?? throw new GitException($"git's exec path '{execPath}' is not in a recognised Git for Windows layout (<git>\\ucrt64 or mingw64\\libexec\\git-core); refusing to run the deploy credential helper.");
+        string? shellDirectory = null;
+        foreach (var candidate in candidates)
+        {
+            if (ProcessInspector.TryRealPath(candidate) is { } real)
+            {
+                shells.Add(real);
+                shellDirectory ??= Path.GetDirectoryName(candidate);
+            }
+        }
+
+        return shellDirectory is null
+            ? throw new GitException("Git for Windows' own sh.exe was not found in its installation; it is needed to run the deploy credential helper.")
+            : (shells, shellDirectory);
+    }
+
+    // Current Git for Windows ships ucrt64 (seen on the windows-2025 runner); older builds mingw64; Arm64 clangarm64.
+    private static readonly string[] WindowsGitPlatformDirectories = ["ucrt64", "mingw64", "clangarm64", "mingw32"];
+
+    /// <summary>
+    /// The existing shells of the Git for Windows installation that owns <paramref name="execPath"/>,
+    /// or null when the path is not <c>&lt;root&gt;\{ucrt64|mingw64|clangarm64|mingw32}\libexec\git-core</c>
+    /// with a git marker in that root. The root is never searched for upwards: a Git without
+    /// <c>usr\bin</c> (MinGit) would otherwise reach a user-writable directory such as
+    /// <c>C:\usr\bin</c>, whose shell would then be trusted and put first on PATH.
+    /// </summary>
+    internal static IReadOnlyList<string>? WindowsGitShellCandidates(string execPath, Func<string, bool> fileExists)
+    {
+        ArgumentNullException.ThrowIfNull(fileExists);
+        var gitCore = new DirectoryInfo(Path.TrimEndingDirectorySeparator(Path.GetFullPath(execPath)));
+        var libexec = gitCore.Parent;
+        var platform = libexec?.Parent;
+        var root = platform?.Parent;
+        if (root is null ||
+            !gitCore.Name.Equals("git-core", StringComparison.OrdinalIgnoreCase) ||
+            !libexec!.Name.Equals("libexec", StringComparison.OrdinalIgnoreCase) ||
+            !WindowsGitPlatformDirectories.Contains(platform!.Name, StringComparer.OrdinalIgnoreCase) ||
+            !(fileExists(Path.Combine(root.FullName, "cmd", "git.exe")) || fileExists(Path.Combine(platform.FullName, "bin", "git.exe"))))
+        {
+            return null;
+        }
+
+        var candidates = new List<string>();
+        foreach (var directory in new[] { Path.Combine(root.FullName, "usr", "bin"), Path.Combine(root.FullName, "bin") })
+        {
+            foreach (var name in new[] { "sh.exe", "bash.exe" })
+            {
+                var candidate = Path.Combine(directory, name);
+                if (fileExists(candidate))
+                {
+                    candidates.Add(candidate);
                 }
             }
         }
-        else
-        {
-            candidates.Add("/bin/sh");
-        }
 
-        foreach (var candidate in candidates)
-        {
-            if (File.Exists(candidate) && ProcessInspector.TryRealPath(candidate) is { } real)
-            {
-                shells.Add(real);
-            }
-        }
-
-        return shells;
+        return candidates;
     }
 
     /// <summary>

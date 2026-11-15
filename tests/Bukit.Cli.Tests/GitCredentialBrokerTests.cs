@@ -441,6 +441,21 @@ public sealed class GitCredentialBrokerTests
         Assert.Null(response.Password);
     }
 
+    /// <summary>A refusal followed by a grant leaves no denial to blame a later git failure on.</summary>
+    [UnixFact]
+    public async Task Broker_GrantClearsEarlierDenial()
+    {
+        var (policy, _) = CreateSelfAsHelperChain();
+        await using var broker = GitCredentialBroker.Start("secret-token", policy);
+        var request = GitCredentialProtocol.Serialize(GitHubRequest);
+
+        Assert.Equal(GitCredentialDenial.Unregistered, (await ExchangeAsync(broker.Endpoint, request))!.Deny);
+        Assert.NotNull(policy.Register(10));
+        Assert.Equal("secret-token", (await ExchangeAsync(broker.Endpoint, request))!.Password);
+
+        Assert.Null(broker.TakeLastDenial());
+    }
+
     /// <summary>Plan 3.7 test 13: concurrent connections over the real socket share one grant limit.</summary>
     [UnixFact]
     public async Task Broker_GrantLimitHoldsForConcurrentRealConnections()
@@ -536,8 +551,8 @@ public sealed class GitCredentialBrokerTests
         Assert.All(rules, rule =>
         {
             Assert.Equal(AccessControlType.Allow, rule.AccessControlType);
-            // CurrentUserOnly grants the token owner: the user, or BUILTIN\Administrators when elevated.
-            Assert.Equal(identity.Owner, rule.IdentityReference);
+            // The user's own SID, also when elevated (the token owner is then BUILTIN\Administrators).
+            Assert.Equal(identity.User, rule.IdentityReference);
         });
 
         await client.WriteAsync(GitCredentialProtocol.Serialize(GitHubRequest));
@@ -552,6 +567,73 @@ public sealed class GitCredentialBrokerTests
         {
             Assert.Contains(Environment.ProcessId, query.ExecutableQueries);
         }
+    }
+
+    /// <summary>
+    /// The pipe ACL lets the broker open a further instance while one is connected: two clients
+    /// held open at once are both answered.
+    /// </summary>
+    [SupportedOSPlatform("windows")]
+    [WindowsFact]
+    public async Task Broker_WindowsPipeServesTwoConcurrentClients()
+    {
+        var policy = new GitCredentialPeerPolicy(
+            new GitCredentialPeerExpectations(Bukit, null, new HashSet<string> { RemoteHttp }, new HashSet<string> { Sh }),
+            GitCredentialTarget.GitHub,
+            new RecordingQuery(),
+            currentUserId: null);
+        Assert.NotNull(policy.Register(Environment.ProcessId));
+        await using var broker = GitCredentialBroker.Start("secret-token", policy);
+        await using var first = new NamedPipeClientStream(".", broker.Endpoint, PipeDirection.InOut, PipeOptions.Asynchronous);
+        await using var second = new NamedPipeClientStream(".", broker.Endpoint, PipeDirection.InOut, PipeOptions.Asynchronous);
+        await first.ConnectAsync(10_000);
+        // The first connection is still waiting for its request when the second connects.
+        await second.ConnectAsync(10_000);
+
+        var responses = await Task.WhenAll(ExchangeOnAsync(first), ExchangeOnAsync(second));
+
+        Assert.All(responses, response =>
+        {
+            Assert.Equal(GitCredentialDenial.Executable, response!.Deny);
+            Assert.Null(response.Password);
+        });
+
+        static async Task<GitCredentialResponse?> ExchangeOnAsync(Stream client)
+        {
+            await client.WriteAsync(GitCredentialProtocol.Serialize(GitHubRequest));
+            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+            var line = await GitCredentialProtocol.ReadLineAsync(client, cts.Token);
+            return line is null ? null : GitCredentialProtocol.ParseResponse(line);
+        }
+    }
+
+    /// <summary>
+    /// The trusted Windows shell comes only from the exact Git for Windows layout around
+    /// <c>git --exec-path</c>; anything else is refused rather than searched for upwards.
+    /// </summary>
+    [Fact]
+    public void WindowsGitShellCandidates_AcceptOnlyTheKnownLayout()
+    {
+        var root = Path.Combine(Path.GetTempPath(), "Git");
+        var execPath = Path.Combine(root, "mingw64", "libexec", "git-core");
+        var usrSh = Path.Combine(root, "usr", "bin", "sh.exe");
+        var marker = Path.Combine(root, "cmd", "git.exe");
+        var mingwMarker = Path.Combine(root, "mingw64", "bin", "git.exe");
+
+        Assert.Equal([usrSh], GitHubPagesDeployProvider.WindowsGitShellCandidates(execPath, new HashSet<string> { marker, usrSh }.Contains));
+        Assert.Equal([usrSh], GitHubPagesDeployProvider.WindowsGitShellCandidates(execPath + Path.DirectorySeparatorChar, new HashSet<string> { mingwMarker, usrSh }.Contains));
+        // Current Git for Windows (the windows-2025 runner) uses ucrt64.
+        Assert.Equal([usrSh], GitHubPagesDeployProvider.WindowsGitShellCandidates(Path.Combine(root, "ucrt64", "libexec", "git-core"), new HashSet<string> { marker, usrSh }.Contains));
+        // Installation found but without a shell: empty, and the deploy fails closed.
+        Assert.Empty(GitHubPagesDeployProvider.WindowsGitShellCandidates(execPath, new HashSet<string> { marker }.Contains)!);
+        // No git marker in the root (e.g. a lookalike tree): refused.
+        Assert.Null(GitHubPagesDeployProvider.WindowsGitShellCandidates(execPath, new HashSet<string> { usrSh }.Contains));
+        // MinGit-style or unknown layouts are refused instead of climbing to a writable usr\bin.
+        var shallow = Path.Combine(root, "libexec", "git-core");
+        var upward = Path.Combine(Path.GetTempPath(), "usr", "bin", "sh.exe");
+        Assert.Null(GitHubPagesDeployProvider.WindowsGitShellCandidates(shallow, new HashSet<string> { marker, upward, usrSh }.Contains));
+        Assert.Null(GitHubPagesDeployProvider.WindowsGitShellCandidates(Path.Combine(root, "other", "libexec", "git-core"), new HashSet<string> { marker, usrSh }.Contains));
+        Assert.Null(GitHubPagesDeployProvider.WindowsGitShellCandidates(Path.Combine(root, "mingw64", "libexec", "other"), new HashSet<string> { marker, usrSh }.Contains));
     }
 
     /// <summary>Plan 3.7 test 12: GetNamedPipeClientComputerNameW reports a client on this machine as local.</summary>

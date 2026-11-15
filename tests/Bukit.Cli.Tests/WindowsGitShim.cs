@@ -149,6 +149,20 @@ internal static class WindowsGitShim
             }
 
             var remote = remoteNames[0];
+            // Credential broker integration: send the private remote to a local authenticated
+            // HTTP server, keeping the real git, remote helper and credential helper chain.
+            var httpRemote = Environment.GetEnvironmentVariable("BUKIT_DEPLOY_HTTP_REMOTE");
+            if (!string.IsNullOrEmpty(httpRemote))
+            {
+                if (helper is null)
+                {
+                    Console.Error.WriteLine("The test transport did not receive the credential broker helper.");
+                    return 94;
+                }
+
+                return await ForwardAsync(git, [.. options, .. command.Select(arg => arg == remote ? httpRemote : arg)]);
+            }
+
             string[] queryArguments = command[0] == "push"
                 ? ["remote", "get-url", "--push", "--all", remote]
                 : ["remote", "get-url", "--all", remote];
@@ -241,7 +255,15 @@ internal static class WindowsGitShim
             return 96;
         }
 
-        return await ForwardAsync(git, args);
+        var exitCode = await ForwardAsync(git, args);
+        // Plants config in the deploy's temporary repository right after its private remote exists.
+        var inject = Environment.GetEnvironmentVariable("BUKIT_DEPLOY_INJECT_CONFIG");
+        if (exitCode == 0 && command[0] == "remote" && !string.IsNullOrEmpty(inject))
+        {
+            await File.AppendAllTextAsync(Path.Combine(Environment.CurrentDirectory, ".git", "config"), await File.ReadAllTextAsync(inject));
+        }
+
+        return exitCode;
 
         static ProcessStartInfo CreateProcess(string file, IEnumerable<string> arguments)
         {

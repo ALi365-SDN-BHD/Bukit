@@ -1965,9 +1965,16 @@ public sealed class GitHubPagesDeployProviderTests
                     $args = @($args | Select-Object -Skip 2)
                 }
                 if ($args.Count -ge 1 -and $args[0] -eq '--exec-path') {
-                    $exec = Join-Path $env:BUKIT_FAKE_GIT_STATE 'exec'
-                    New-Item -ItemType Directory -Force -Path $exec | Out-Null
-                    New-Item -ItemType File -Force -Path (Join-Path $exec 'git-remote-https.exe') | Out-Null
+                    # The Git for Windows layout the deploy accepts: <root>\ucrt64\libexec\git-core,
+                    # with <root>\cmd\git.exe and the installation's own <root>\usr\bin\sh.exe.
+                    $gitRoot = Join-Path $env:BUKIT_FAKE_GIT_STATE 'git'
+                    $exec = Join-Path $gitRoot 'ucrt64\libexec\git-core'
+                    foreach ($dir in @($exec, (Join-Path $gitRoot 'cmd'), (Join-Path $gitRoot 'usr\bin'))) {
+                        New-Item -ItemType Directory -Force -Path $dir | Out-Null
+                    }
+                    foreach ($file in @((Join-Path $exec 'git-remote-https.exe'), (Join-Path $gitRoot 'cmd\git.exe'), (Join-Path $gitRoot 'usr\bin\sh.exe'))) {
+                        New-Item -ItemType File -Force -Path $file | Out-Null
+                    }
                     [Console]::Out.WriteLine($exec)
                     exit 0
                 }

@@ -119,13 +119,13 @@ public sealed partial class GitHubPagesDeployProvider : IDeployProvider
             await RunGitAsync(sandbox, gitPath, checkoutDir, gitCommandTimeout, ct, "remote", "add", remoteName, remoteUrl);
             auth = await GitAuthContext.StartAsync(gitPath, sandbox, checkoutDir, token, remoteName, remoteUrl, gitCommandTimeout, logger, ct);
 
-            await EnsureTransportTargetAsync(gitPath, checkoutDir, remoteName, remoteUrl, gitCommandTimeout, ct);
+            await EnsureTransportTargetAsync(sandbox, gitPath, checkoutDir, remoteName, remoteUrl, gitCommandTimeout, ct);
             var branchExists = await RemoteBranchExistsAsync(gitPath, auth, checkoutDir, branch, gitCommandTimeout, ct);
 
             if (branchExists)
             {
                 logger.Info($"Fetching existing {branch} branch...");
-                await EnsureTransportTargetAsync(gitPath, checkoutDir, remoteName, remoteUrl, gitCommandTimeout, ct);
+                await EnsureTransportTargetAsync(sandbox, gitPath, checkoutDir, remoteName, remoteUrl, gitCommandTimeout, ct);
                 string[] fetchArguments = context.KeepHistory
                     ? ["fetch", remoteName, $"refs/heads/{branch}"]
                     : ["fetch", "--depth", "1", remoteName, $"refs/heads/{branch}"];
@@ -192,7 +192,7 @@ public sealed partial class GitHubPagesDeployProvider : IDeployProvider
 
             try
             {
-                await EnsureTransportTargetAsync(gitPath, checkoutDir, remoteName, remoteUrl, gitCommandTimeout, ct);
+                await EnsureTransportTargetAsync(sandbox, gitPath, checkoutDir, remoteName, remoteUrl, gitCommandTimeout, ct);
                 if (context.Force)
                 {
                     await RunGitAuthAsync(gitPath, auth, checkoutDir, gitCommandTimeout, ct, "push", "--no-verify", "--force", remoteName, branch);

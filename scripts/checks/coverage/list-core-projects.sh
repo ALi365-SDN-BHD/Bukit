@@ -17,9 +17,12 @@ case "$(uname -s)" in
       Bukit.Cli.Tests.GitHubPagesDeployProviderTests.DeployAsync_RealLocalGitPushFailure_CleansReadOnlyObjectsAndBroker \
       Bukit.Cli.Tests.GitHubPagesDeployProviderTests.DeployAsync_RealLocalGitPushCancellation_CleansReadOnlyObjectsAndBroker \
       Bukit.Cli.Tests.GitCredentialBrokerTests.Broker_WindowsPipeAdmitsOnlyCurrentUserAndReportsLocalPeer \
+      Bukit.Cli.Tests.GitCredentialBrokerTests.Broker_WindowsPipeServesTwoConcurrentClients \
       Bukit.Cli.Tests.GitCredentialBrokerTests.ProcessInspector_WindowsNamedPipeClientIsLocalWithOwnPid \
       Bukit.Cli.Tests.GitCredentialBrokerTests.Helper_WindowsPrintsCredentialOverNamedPipe \
-      Bukit.Cli.Tests.GitCredentialBrokerTests.CredentialHelperCommand_WindowsQuotedPathsReachHelperUnchangedThroughRealGit; do
+      Bukit.Cli.Tests.GitCredentialBrokerTests.CredentialHelperCommand_WindowsQuotedPathsReachHelperUnchangedThroughRealGit \
+      Bukit.Cli.Tests.GitCredentialBrokerWindowsIntegrationTests.RealPush_WindowsCorrectTokenPushesThroughBroker \
+      Bukit.Cli.Tests.GitCredentialBrokerWindowsIntegrationTests.RealPush_WindowsWrongTokenReportsAuthenticationFailure; do
       cli_filter+="FullyQualifiedName!=${method}&"
     done
     cli_filter="${cli_filter%&}"
