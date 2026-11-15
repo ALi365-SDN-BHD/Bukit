@@ -67,6 +67,7 @@ theme:
       previous: Previous
       next: Next
       pagination: Pagination
+      items: items
       search: Search
       search_placeholder: Search posts and pages
       no_results: No results

@@ -43,8 +43,9 @@ The list card SHALL NOT render `country` or `industry` fields.
 Starter theme templates SHALL read interface text from
 `site.params.labels.<key>` and SHALL fall back to English when a key is
 missing. `bukit new` SHALL write `theme.params.labels` in Simplified Chinese
-when the primary language subtag is `zh` and the tag has no `Hant`, `TW`,
-`HK`, or `MO` subtag, and in English otherwise.
+when the primary language subtag is `zh` and the tag either has a `Hans`
+script subtag or has none of the `Hant`, `TW`, `HK`, or `MO` subtags, and in
+English otherwise.
 
 #### Scenario: Chinese starter
 - **WHEN** the user runs `bukit new my-site --language zh-CN` and builds it
@@ -53,6 +54,10 @@ when the primary language subtag is `zh` and the tag has no `Hant`, `TW`,
 #### Scenario: Traditional Chinese starter
 - **WHEN** the user runs `bukit new my-site --language zh-TW`
 - **THEN** `theme.params.labels.home` is `Home`
+
+#### Scenario: Simplified script with a Traditional region
+- **WHEN** the user runs `bukit new my-site --language zh-Hans-HK`
+- **THEN** `theme.params.labels.home` is `首页`
 
 #### Scenario: Missing label
 - **WHEN** `site.params.labels` is absent

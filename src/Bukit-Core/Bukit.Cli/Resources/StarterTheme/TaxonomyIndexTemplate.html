@@ -12,7 +12,7 @@
 {{ for term in terms }}
   <li class="term-card">
     <a href="{{ base_url }}{{ term.url }}">{{ term.title | html.escape }}</a>
-    <span class="meta">{{ term.count }}</span>
+    <span class="meta">{{ term.count }} {{ site.params.labels.items | object.default "items" | html.escape }}</span>
     {{ if term.description }}
       <p class="desc">{{ term.description | html.escape }}</p>
     {{ end }}

@@ -1,7 +1,7 @@
 {{ base_url = site.base_url }}
 {{ if base_url == "/" }}{{ base_url = "" }}{{ end }}
 <header class="site-header">
-  <nav class="nav" id="site-nav" aria-label="{{ site.params.labels.menu | object.default "Menu" | html.escape }}">
+  <nav class="nav" id="site-nav">
     <a class="brand" href="{{ base_url }}/">
       {{ if site.params && site.params.brand }}
         {{ site.params.brand | html.escape }}

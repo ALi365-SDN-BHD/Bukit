@@ -201,6 +201,7 @@ internal static class StarterSiteScaffold
         ("previous", "上一页"),
         ("next", "下一页"),
         ("pagination", "分页"),
+        ("items", "篇"),
         ("search", "搜索"),
         ("search_placeholder", "搜索文章和页面"),
         ("no_results", "没有找到结果"),
@@ -211,12 +212,22 @@ internal static class StarterSiteScaffold
     internal static bool IsSimplifiedChinese(string language)
     {
         var subtags = language.Split('-');
-        return subtags[0].Equals("zh", StringComparison.OrdinalIgnoreCase) &&
-            !subtags.Skip(1).Any(subtag =>
-                subtag.Equals("Hant", StringComparison.OrdinalIgnoreCase) ||
-                subtag.Equals("TW", StringComparison.OrdinalIgnoreCase) ||
-                subtag.Equals("HK", StringComparison.OrdinalIgnoreCase) ||
-                subtag.Equals("MO", StringComparison.OrdinalIgnoreCase));
+        if (!subtags[0].Equals("zh", StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        // A script subtag decides on its own; only a tag without one falls back to the region.
+        if (subtags.Contains("Hans", StringComparer.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        return !subtags.Any(subtag =>
+            subtag.Equals("Hant", StringComparison.OrdinalIgnoreCase) ||
+            subtag.Equals("TW", StringComparison.OrdinalIgnoreCase) ||
+            subtag.Equals("HK", StringComparison.OrdinalIgnoreCase) ||
+            subtag.Equals("MO", StringComparison.OrdinalIgnoreCase));
     }
 
     private static void ValidateTarget(string root)

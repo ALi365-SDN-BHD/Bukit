@@ -142,17 +142,19 @@ public sealed class StarterThemeTemplateResourceTests : IDisposable
     }
 
     [Theory]
-    [InlineData("/about/", "href=\"/docs/about/\"")]
-    [InlineData("https://example.com/", "href=\"https://example.com/\"")]
-    [InlineData("//cdn.example.com/x", "href=\"//cdn.example.com/x\"")]
-    public void StarterHeader_PrefixesRootRelativeNavigationLinks(string link, string expected)
+    [InlineData("/docs", "/about/", "href=\"/docs/about/\"")]
+    [InlineData("/", "/about/", "href=\"/about/\"")]
+    [InlineData("", "/about/", "href=\"/about/\"")]
+    [InlineData("/docs", "https://example.com/", "href=\"https://example.com/\"")]
+    [InlineData("/docs", "//cdn.example.com/x", "href=\"//cdn.example.com/x\"")]
+    public void StarterHeader_PrefixesRootRelativeNavigationLinks(string baseUrl, string link, string expected)
     {
         var renderer = new ScribanTemplateRenderer(_layoutsDir);
         var site = new SiteModel
         {
             Name = "starter-test",
             Title = "Starter Test",
-            BaseUrl = "/docs",
+            BaseUrl = baseUrl,
             Language = "en",
             Modules = new Dictionary<string, IReadOnlyList<ModuleInfo>>
             {
@@ -180,6 +182,7 @@ public sealed class StarterThemeTemplateResourceTests : IDisposable
         });
 
         Assert.Contains(expected, html, StringComparison.Ordinal);
+        Assert.DoesNotContain("href=\"//about/\"", html, StringComparison.Ordinal);
         Assert.Contains("About &amp; &lt;us&gt;", html, StringComparison.Ordinal);
     }
 
@@ -217,6 +220,7 @@ public sealed class StarterThemeTemplateResourceTests : IDisposable
         Assert.Contains("News &amp; &lt;b&gt;", html, StringComparison.Ordinal);
         Assert.Contains("Desc &lt;i&gt;", html, StringComparison.Ordinal);
         Assert.Contains("Tags &lt;all&gt;", html, StringComparison.Ordinal);
+        Assert.Contains("2 items", html, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -277,6 +281,37 @@ public sealed class StarterThemeTemplateResourceTests : IDisposable
     }
 
     [Fact]
+    public void StarterSearchTemplate_EscapesLabelsInScriptStrings()
+    {
+        var renderer = new ScribanTemplateRenderer(_layoutsDir);
+        var site = new SiteModel
+        {
+            Name = "starter-test",
+            Title = "Starter Test",
+            BaseUrl = "",
+            Language = "en",
+            Params = new Dictionary<string, object>
+            {
+                ["labels"] = new Dictionary<string, object>
+                {
+                    ["untitled"] = "\"</script><script>alert(1)//",
+                    ["search"] = "Find \"<x>"
+                }
+            }
+        };
+
+        var html = renderer.RenderPage("pages/search.html", new PageModel
+        {
+            Site = site,
+            Page = new PageInfo { Title = "Search", Url = "/search/", Content = "" }
+        });
+
+        Assert.Contains("const untitledLabel = \"\\\"\\u003C/script>\\u003Cscript>alert(1)//\";", html, StringComparison.Ordinal);
+        Assert.Contains(">Find &quot;&lt;x&gt;</button>", html, StringComparison.Ordinal);
+        Assert.DoesNotContain("</script><script>alert", html, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void StarterStylesheet_KeepsColorOverrideContractAndDarkMode()
     {
         var css = File.ReadAllText(StarterThemePath("StyleCss.css"));
@@ -284,6 +319,9 @@ public sealed class StarterThemeTemplateResourceTests : IDisposable
         Assert.Contains("--primary: #0b5fff;", css, StringComparison.Ordinal);
         Assert.Contains("--accent: #0f7b6c;", css, StringComparison.Ordinal);
         Assert.Contains("prefers-color-scheme: dark", css, StringComparison.Ordinal);
+        Assert.Contains("@supports (color: color-mix(", css, StringComparison.Ordinal);
+        Assert.Contains(".nav-toggle:hover", css, StringComparison.Ordinal);
+        Assert.DoesNotContain("min-width: 681px", css, StringComparison.Ordinal);
     }
 
     [Fact]
