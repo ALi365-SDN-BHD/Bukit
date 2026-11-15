@@ -4,6 +4,8 @@ Bukit 所有重要变更都将记录在此文件中。
 
 ## [Unreleased]
 
+- **macOS Native AOT 二进制可复现**：两次干净的 `osx-arm64` 打包现在得到完全相同的 `bukit`。此前 Apple 链接器对一个 `objc_msgSend` stub 槽位的分配不确定，同一提交的发布二进制校验和可能在两次构建间变化；打包现改用 `-objc_stubs_small` 链接。二进制保留 `LC_UUID`。
+
 - **共享资源路径条目校验统一**：`site.sharedAssets.paths` 现在在所有平台都拒绝前导 `\` 或盘符前缀，不再在 POSIX 上接受；空白条目改为报错而不是静默丢弃；`./fonts/` 会归一化为 `fonts/` 并可正常匹配。前导 `/` 仍视为绝对路径并拒绝。
 
 ## [2.2.2] - 2026-11-15

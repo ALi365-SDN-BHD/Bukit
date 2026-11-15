@@ -57,19 +57,41 @@ fi
 rm -f -- "$archive"
 pending_archive="$build_root/$archive_base.${archive##*.}"
 
-dotnet publish src/Bukit-Core/Bukit.Cli/Bukit.Cli.csproj \
-  -c "$configuration" \
-  -r "$rid" \
-  --self-contained true \
-  -p:VersionPrefix="$version" \
-  -p:SourceRevisionId="$commit" \
-  -p:ContinuousIntegrationBuild=true \
-  -p:Deterministic=true \
-  -p:NativeDebugSymbols=false \
-  -p:BukitStripSymbols=true \
-  --artifacts-path "$build_root" \
-  -p:PathMap="$(pwd -P)=/_/src%2C$build_root=/_/build" \
-  -o "$publish_dir" >&2
+publish_args=(
+  publish src/Bukit-Core/Bukit.Cli/Bukit.Cli.csproj
+  -c "$configuration"
+  -r "$rid"
+  --self-contained true
+  -p:VersionPrefix="$version"
+  -p:SourceRevisionId="$commit"
+  -p:ContinuousIntegrationBuild=true
+  -p:Deterministic=true
+  -p:NativeDebugSymbols=false
+  -p:BukitStripSymbols=true
+  --artifacts-path "$build_root"
+  -p:PathMap="$(pwd -P)=/_/src%2C$build_root=/_/build"
+  -o "$publish_dir"
+)
+
+if [[ "$rid" == osx-* ]]; then
+  # Apple's linker races when it assigns the GOT slot that its default "fast"
+  # objc_msgSend stubs load from, so identical inputs link to one of two
+  # images. LC_UUID is a content hash and the ad-hoc signature covers both, so
+  # they only follow that 3-byte swap. Small stubs branch to the shared
+  # _objc_msgSend stub instead and link deterministically; ILC output is
+  # already stable, so neither -no_uuid nor single-threaded ILC is needed.
+  linker_targets="$build_root/deterministic-linker.targets"
+  cat > "$linker_targets" <<'EOF'
+<Project>
+  <ItemGroup>
+    <ExtraLinkerArg Include="-objc_stubs_small" />
+  </ItemGroup>
+</Project>
+EOF
+  publish_args+=(-p:CustomAfterMicrosoftCommonTargets="$linker_targets")
+fi
+
+dotnet "${publish_args[@]}" >&2
 
 find "$publish_dir" -type d -name '*.dSYM' -prune -exec rm -rf -- {} +
 find "$publish_dir" -type f \( -name '*.pdb' -o -name '*.dbg' \) -exec rm -f -- {} +

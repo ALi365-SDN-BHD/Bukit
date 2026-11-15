@@ -267,6 +267,14 @@ jobs:
         env:
           VERSION: ${{ inputs.version }}
         run: bash scripts/build/package-native-aot.sh "$VERSION" osx-arm64 artifacts
+      - name: Prove the packaged publish is reproducible
+        env:
+          VERSION: ${{ inputs.version }}
+          # The macOS link race matches by chance about half the time, so the
+          # shipped tree is compared with two more clean publishes.
+          BUKIT_REPRO_REFERENCE: ${{ steps.package.outputs.publish_dir }}
+          BUKIT_REPRO_ROUNDS: "2"
+        run: bash scripts/build/build-repro.sh "$VERSION" osx-arm64 Release
       - name: Smoke packaged archive
         run: bash scripts/smoke/release-artifacts.sh "${{ steps.package.outputs.archive }}" osx-arm64
       - uses: actions/upload-artifact@v7

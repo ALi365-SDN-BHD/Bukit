@@ -1465,6 +1465,19 @@
     },
     {
       "contractConsumerGlobs": [],
+      "id": "release-guide",
+      "matches": [
+        "guide/dev/release.md"
+      ],
+      "publicContract": false,
+      "resource": "static-parallel",
+      "specialtyTests": [
+        "bash scripts/checks/docs/active-links.sh",
+        "bash scripts/checks/docs/size-policy.sh"
+      ]
+    },
+    {
+      "contractConsumerGlobs": [],
       "id": "core-test-plan-record",
       "matches": [
         "docs/plans/bukit-core-automated-test-plan-2026-10-24.zh-CN.md"
