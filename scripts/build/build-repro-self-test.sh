@@ -3,6 +3,7 @@ set -euo pipefail
 
 cd "$(dirname "${BASH_SOURCE[0]}")/../.."
 
+unset BUKIT_REPRO_ROUNDS BUKIT_REPRO_REFERENCE
 scratch="$(mktemp -d "${TMPDIR:-/tmp}/bukit-build-repro-self-test.XXXXXX")"
 trap 'rm -rf -- "$scratch"' EXIT
 
@@ -137,6 +138,17 @@ GITHUB_OUTPUT="$scratch/step-output" BUKIT_REPRO_REFERENCE="$reference" \
   exit 1
 }
 
+# A later publish that leaves a good reference must fail: the macOS race case.
+export FAKE_BUILD_MODE=drift
+rm -f -- "$FAKE_BUILD_STATE"
+if BUKIT_REPRO_REFERENCE="$reference" bash scripts/build/build-repro.sh 1.2.3 linux-x64 Release \
+  >"$scratch/reference-late.stdout" 2>"$scratch/reference-late.stderr"; then
+  echo "build-repro self-test: a later publish drifting from the reference succeeded" >&2
+  exit 1
+fi
+grep -F "changed=['bukit']" "$scratch/reference-late.stderr" >/dev/null
+export FAKE_BUILD_MODE=stable
+
 # Two fresh publishes that agree with each other must still fail the reference.
 printf 'shipped\n' > "$reference/bukit"
 if BUKIT_REPRO_REFERENCE="$reference" bash scripts/build/build-repro.sh 1.2.3 linux-x64 Release \
@@ -146,13 +158,20 @@ if BUKIT_REPRO_REFERENCE="$reference" bash scripts/build/build-repro.sh 1.2.3 li
 fi
 grep -F "changed=['bukit']" "$scratch/reference-drift.stderr" >/dev/null
 
-status=0
-BUKIT_REPRO_REFERENCE="$scratch/absent" bash scripts/build/build-repro.sh 1.2.3 linux-x64 Release \
-  >"$scratch/absent.stdout" 2>"$scratch/absent.stderr" || status=$?
-[[ "$status" -eq 2 ]] || {
-  echo "build-repro self-test: missing reference exited $status" >&2
-  exit 1
-}
+# Missing or empty is rejected before any publish; relative resolves from the caller.
+for missing in "$scratch/absent" ''; do
+  status=0
+  rm -f -- "$FAKE_BUILD_ENV_LOG"
+  BUKIT_REPRO_REFERENCE="$missing" bash scripts/build/build-repro.sh 1.2.3 linux-x64 Release \
+    >"$scratch/absent.stdout" 2>"$scratch/absent.stderr" || status=$?
+  [[ "$status" -eq 2 && ! -e "$FAKE_BUILD_ENV_LOG" ]] || {
+    echo "build-repro self-test: reference '$missing' exited $status" >&2
+    exit 1
+  }
+done
+printf 'stable\n' > "$reference/bukit"
+(cd "$scratch" && BUKIT_REPRO_REFERENCE=reference bash "$OLDPWD/scripts/build/build-repro.sh" \
+  1.2.3 linux-x64 Release >"$scratch/relative.stdout" 2>"$scratch/relative.stderr")
 
 left="$scratch/left"
 right="$scratch/right"

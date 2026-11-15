@@ -95,10 +95,11 @@ delegated version/RID exits 2; a tree mismatch or build failure is nonzero.
 Set `BUKIT_REPRO_ROUNDS` to an integer from 2 to 10 to publish that many times
 and compare every later tree with the first; unset or empty means 2, and any
 other value exits 2. Set `BUKIT_REPRO_REFERENCE` to an already packaged publish
-directory to compare every fresh publish with that tree instead; a missing
-directory exits 2. The reference must come from the same commit and version,
-and from a run with the same `GITHUB_SHA` value, because the packaging script
-embeds it as the source revision.
+directory to compare every fresh publish with that tree instead; a relative
+path resolves from the caller's directory, and a missing directory or an empty
+value exits 2. The reference must come from the same commit and version. The
+source revision is compiled into `bukit`, so `GITHUB_SHA` must also be the same
+in both runs: either unset in both, or exported with the same value.
 
 The release workflow's `package-macos` job packages first, then compares the
 packaged tree with two more clean publishes, so the uploaded binary is one of
