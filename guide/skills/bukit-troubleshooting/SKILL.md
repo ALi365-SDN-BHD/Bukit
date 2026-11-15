@@ -74,6 +74,7 @@ the command; error objects are multi-line JSON, see `bukit-cli-reference`). Read
 | `event=notion.relation.resolve_failed` / `notion.cache.read_failed` | A Notion relation target or cached page could not be read | Read the `message`; check the integration's access to the related database. |
 | `BKT-0B01`–`0B08` Notion failure (401/403/404/429/property/HTTP/network/invalid JSON) | A Notion read failed | Follow the code: replace the token, share the database, wait/raise `maxRps`, add the mapped property, or check the network. |
 | `BKT-0B10`–`0B17` snapshot failure | The offline snapshot is missing, from another format, incomplete, unreadable or unsupported | `0B10`/`0B14`: record the snapshot again; `0B11`/`0B12`/`0B13`: apply the change and build again; `0B15`: check disk space/permissions; `0B16`/`0B17`: fix the option or report the unsupported request. |
+| `BKT-0B18`/`0B19` pin failure | The `--notion-pin` file is malformed, or lacks a Notion source | `0B18`: rewrite the pin file; `0B19`: apply the change and build again. |
 | `NOTION_TOKEN is required ...` | Env var missing | Export `NOTION_TOKEN` (`bukit-content-model`). |
 | `SEO report not found under ... Run a full build first.` | Audit `--dir` defaults to `dist` | Pass `--dir <build.output>`. |
 | Links 404 in `preview`/`dev` | Servers ignore `baseUrl` | `bukit build --base-url /` then `bukit preview`; for dev use `BUKIT_SITE__BASE_URL=/ bukit dev`. |

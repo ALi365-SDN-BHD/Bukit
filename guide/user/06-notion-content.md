@@ -182,6 +182,26 @@ source, so no Notion cache is written into the site directory. `--notion-offline
 requires `--notion-snapshot`; `config check` and `doctor` only read a snapshot,
 so there `--notion-snapshot` also requires `--notion-offline`.
 
+**Pinning the reviewed field and filter keys.** The snapshot holds more than the site
+shows. When an offline build runs an unreviewed `site.yaml`, add `--notion-pin <file>`
+(only with `--notion-offline`) so the keys that choose which fields and pages reach
+templates come from the reviewed version instead:
+
+```json
+{"format":1,"sources":{"page":{"databaseId":"…","fieldPolicy":{"mode":"whitelist","allowed":["Tags"]},"filterType":"checkbox_true"}}}
+```
+
+Sources are keyed like the build does: the source `name`, else `notion` (`notion1`,
+`notion2`, … for several unnamed Notion sources). Each source needs its reviewed
+`databaseId` and may hold `renderContent`, `fieldPolicy`, `propertyMap`,
+`filterProperty`, `filterType`, `filterValue`, `sortProperty`, `sortDirection`,
+`includeSlugs`, `includeSlugProperty` and `maxItems`, with their `site.yaml` names; a
+key it omits takes Bukit's default, not the `site.yaml` value, and an unknown key is an
+error. A Notion source missing from the file, or whose `databaseId` differs, fails with
+`BKT-0B19`; a malformed file fails with `BKT-0B18`. For each source whose
+`site.yaml` differs, `build` logs and `config check` / `doctor` print
+`event=notion.offline.pinned source=<key> changed=<keys>`.
+
 **What it stores.** The raw Notion API answers of the formal build: the database
 schema, every page returned by the database query with all properties (a filtered
 query can still return drafts, and fields the site does not show are included) and
@@ -250,3 +270,5 @@ print it as `[BKT-0Bxx]` on the text line.
 | `BKT-0B15` | The snapshot could not be written. |
 | `BKT-0B16` | The `--notion-snapshot` directory value is invalid. |
 | `BKT-0B17` | The offline build does not support that request. |
+| `BKT-0B18` | The `--notion-pin` file is not valid JSON or not format 1. |
+| `BKT-0B19` | A Notion source is not in the `--notion-pin` file, or its `databaseId` differs. |

@@ -53,6 +53,8 @@ public sealed class DiagnosticCodeFormatterTests
     [InlineData(DiagnosticCode.NotionSnapshotWriteFailed, "BKT-0B15")]
     [InlineData(DiagnosticCode.NotionSnapshotOptionInvalid, "BKT-0B16")]
     [InlineData(DiagnosticCode.NotionSnapshotUnsupportedRequest, "BKT-0B17")]
+    [InlineData(DiagnosticCode.NotionPinInvalid, "BKT-0B18")]
+    [InlineData(DiagnosticCode.NotionPinSourceMissing, "BKT-0B19")]
     public void Format_AllCodes_ReturnsCorrectHexFormat(DiagnosticCode code, string expected)
     {
         var result = DiagnosticCodeFormatter.Format(code);
@@ -107,6 +109,8 @@ public sealed class DiagnosticCodeFormatterTests
     [InlineData(DiagnosticCode.NotionSnapshotWriteFailed, "Notion", "written")]
     [InlineData(DiagnosticCode.NotionSnapshotOptionInvalid, "Notion", "directory")]
     [InlineData(DiagnosticCode.NotionSnapshotUnsupportedRequest, "Notion", "request")]
+    [InlineData(DiagnosticCode.NotionPinInvalid, "Notion", "pin")]
+    [InlineData(DiagnosticCode.NotionPinSourceMissing, "Notion", "source")]
     public void Describe_AllCodes_ReturnsMeaningfulDescription(DiagnosticCode code, string expectedCategory, string expectedKeyword)
     {
         var result = DiagnosticCodeFormatter.Describe(code);

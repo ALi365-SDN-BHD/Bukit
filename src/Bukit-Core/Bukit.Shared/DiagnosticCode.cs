@@ -86,4 +86,6 @@ public enum DiagnosticCode
     NotionSnapshotWriteFailed = 0x0B15,
     NotionSnapshotOptionInvalid = 0x0B16,
     NotionSnapshotUnsupportedRequest = 0x0B17,
+    NotionPinInvalid = 0x0B18,
+    NotionPinSourceMissing = 0x0B19,
 }

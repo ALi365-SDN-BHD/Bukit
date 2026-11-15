@@ -40,6 +40,7 @@ cli-error keeps the worker's code and reason.
 | `BKT-0B14` | Another snapshot entry is missing or unreadable. |
 | `BKT-0B15` | The snapshot could not be written. |
 | `BKT-0B16` / `BKT-0B17` | Invalid `--notion-snapshot` value / unsupported offline request. |
+| `BKT-0B18` / `BKT-0B19` | Invalid `--notion-pin` file / a Notion source missing from it (apply the change and build again). |
 
 ## Build Fails Before Rendering
 

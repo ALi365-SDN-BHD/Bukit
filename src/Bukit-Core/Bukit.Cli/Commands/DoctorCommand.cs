@@ -59,6 +59,21 @@ public static class DoctorCommand
 
         try
         {
+            (config, var pinned) = NotionSnapshotOptions.ApplyPin(command, config);
+            foreach (var (source, keys) in pinned)
+            {
+                Console.WriteLine($"ℹ {NotionSnapshotOptions.DescribePinned(source, keys)}");
+            }
+        }
+        catch (Exception ex) when (NotionSnapshot.IsSnapshotError(ex))
+        {
+            Console.WriteLine("✖ Notion offline snapshot error");
+            Console.WriteLine(NotionSnapshot.Format(ex));
+            return 1;
+        }
+
+        try
+        {
             ConfigValidator.Validate(config);
             Console.WriteLine("✔ Config loaded");
         }

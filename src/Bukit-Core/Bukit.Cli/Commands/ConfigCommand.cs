@@ -62,6 +62,7 @@ public static class ConfigCommand
                 config = config with { Site = config.Site with { Url = siteUrl } };
             }
 
+            (config, var pinned) = NotionSnapshotOptions.ApplyPin(command, config);
             ConfigValidator.Validate(config);
             snapshot?.EnsureDatabases(config);
 
@@ -70,6 +71,12 @@ public static class ConfigCommand
             {
                 Console.WriteLine($"  notion: offline snapshot ({snapshot.Describe()})");
             }
+
+            foreach (var (source, keys) in pinned)
+            {
+                Console.WriteLine($"  {NotionSnapshotOptions.DescribePinned(source, keys)}");
+            }
+
             Console.WriteLine($"  config: {resolved.FullConfigPath}");
             Console.WriteLine($"  root:   {resolved.RootDir}");
             Console.WriteLine($"  site:   {config.Site.Name}");

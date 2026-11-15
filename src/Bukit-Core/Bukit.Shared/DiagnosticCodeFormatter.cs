@@ -70,6 +70,8 @@ public static class DiagnosticCodeFormatter
             DiagnosticCode.NotionSnapshotWriteFailed => "Notion snapshot: the snapshot could not be written",
             DiagnosticCode.NotionSnapshotOptionInvalid => "Notion snapshot: the directory option is invalid",
             DiagnosticCode.NotionSnapshotUnsupportedRequest => "Notion snapshot: the offline build does not support this request",
+            DiagnosticCode.NotionPinInvalid => "Notion pin: the pin file is invalid",
+            DiagnosticCode.NotionPinSourceMissing => "Notion pin: a Notion source is not in the pin file",
 
             _ => $"Diagnostic code: {Format(code)}"
         };

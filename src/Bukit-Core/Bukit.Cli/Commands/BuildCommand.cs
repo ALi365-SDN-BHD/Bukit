@@ -113,6 +113,18 @@ public static class BuildCommand
         // whole build succeeded; any failure (or cancellation) discards it.
         using var snapshot = NotionSnapshotOptions.OpenForBuild(command, resolved.RootDir, overrides.Output ?? config.Build.Output);
         using var snapshotScope = NotionSnapshot.Enter(snapshot);
+        (config, var pinned) = NotionSnapshotOptions.ApplyPin(command, config);
+        if (!string.IsNullOrWhiteSpace(command.GetString(NotionSnapshotOptions.PinOption)))
+        {
+            // The pinned values replace validated ones: check them the same way.
+            ConfigValidator.Validate(config);
+        }
+
+        foreach (var (source, keys) in pinned)
+        {
+            logger.Info(NotionSnapshotOptions.DescribePinned(source, keys));
+        }
+
         if (snapshot is not null)
         {
             overrides = overrides with { NotionSnapshotDir = snapshot.Directory, NotionOffline = snapshot.Offline };

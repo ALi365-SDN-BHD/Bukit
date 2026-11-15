@@ -217,6 +217,103 @@ public sealed class NotionOfflineSnapshotCommandTests : IDisposable
         Assert.Empty(Directory.Exists(_snapshotRoot) ? Directory.GetFileSystemEntries(_snapshotRoot) : []);
     }
 
+    [Fact]
+    public async Task Pin_KeepsTheReviewedFilterOfflineAndReportsTheChange()
+    {
+        await RecordSnapshotAsync();
+        Environment.SetEnvironmentVariable(EnvironmentHelper.NotionTokenKey, null);
+        var offlineApi = new FakeNotionApi();
+        NotionContentClient.TransportOverride.Value = () => offlineApi;
+        // An unreviewed change to the filter: the pin keeps the reviewed "none".
+        WriteConfig(DatabaseId, filterType: "checkbox_false");
+        var pin = WritePin("""{"format":1,"sources":{"page":{"databaseId":"7c0d0000-0000-4000-8000-0000000000cc","filterType":"none"}}}""");
+        string[] offline = ["--notion-snapshot", SnapshotDir, "--notion-offline", "--notion-pin", pin];
+
+        var (checkCode, checkOutput) = await CaptureAsync(() => ConfigCommand.RunAsync(CliTestHelper.CreateCommand("config",
+            ["config", "check", "--config", _configPath, .. offline])));
+        Assert.True(checkCode == 0, checkOutput);
+        Assert.Contains("event=notion.offline.pinned source=page changed=filterType", checkOutput, StringComparison.Ordinal);
+
+        var (doctorCode, doctorOutput) = await CaptureAsync(() => DoctorCommand.RunAsync(CliTestHelper.CreateCommand("doctor",
+            ["doctor", "--config", _configPath, .. offline])));
+        Assert.True(doctorCode == 0, doctorOutput);
+        Assert.Contains("event=notion.offline.pinned source=page changed=filterType", doctorOutput, StringComparison.Ordinal);
+
+        Directory.Delete(Path.Combine(_rootDir, "dist"), recursive: true);
+        var (buildCode, buildOutput) = await CaptureAsync(() => BuildCommand.RunInProcessAsync(CliTestHelper.CreateCommand("build",
+            ["build", "--config", _configPath, .. offline])));
+        Assert.True(buildCode == 0, buildOutput);
+        Assert.Contains("Body of notion-page", await File.ReadAllTextAsync(Path.Combine(_rootDir, "dist", "pages", "notion-page", "index.html")), StringComparison.Ordinal);
+        Assert.Empty(offlineApi.Requests);
+    }
+
+    [Fact]
+    public async Task Pin_WithTheSameValues_ReportsNoChange()
+    {
+        await RecordSnapshotAsync();
+        Environment.SetEnvironmentVariable(EnvironmentHelper.NotionTokenKey, null);
+        var pin = WritePin("""{"format":1,"sources":{"page":{"databaseId":"7c0d0000-0000-4000-8000-0000000000cc","filterType":"none"}}}""");
+
+        var (code, output) = await CaptureAsync(() => ConfigCommand.RunAsync(CliTestHelper.CreateCommand("config",
+            ["config", "check", "--config", _configPath, "--notion-snapshot", SnapshotDir, "--notion-offline", "--notion-pin", pin])));
+
+        Assert.True(code == 0, output);
+        Assert.DoesNotContain("notion.offline.pinned", output, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task Pin_MissingSourceOrInvalidFile_FailsWithItsCode()
+    {
+        await RecordSnapshotAsync();
+        Environment.SetEnvironmentVariable(EnvironmentHelper.NotionTokenKey, null);
+
+        var missing = WritePin("""{"format":1,"sources":{"other":{"databaseId":"7c0d0000-0000-4000-8000-0000000000cc"}}}""");
+        var (missingCode, missingOutput) = await CaptureAsync(() => ConfigCommand.RunAsync(CliTestHelper.CreateCommand("config",
+            ["config", "check", "--config", _configPath, "--notion-snapshot", SnapshotDir, "--notion-offline", "--notion-pin", missing])));
+        Assert.Equal(1, missingCode);
+        Assert.Contains("[BKT-0B19]", missingOutput, StringComparison.Ordinal);
+
+        var (doctorCode, doctorOutput) = await CaptureAsync(() => DoctorCommand.RunAsync(CliTestHelper.CreateCommand("doctor",
+            ["doctor", "--config", _configPath, "--notion-snapshot", SnapshotDir, "--notion-offline", "--notion-pin", missing])));
+        Assert.Equal(1, doctorCode);
+        Assert.Contains("[BKT-0B19]", doctorOutput, StringComparison.Ordinal);
+
+        var buildError = await Assert.ThrowsAsync<NotionSnapshotException>(() => BuildCommand.RunInProcessAsync(CliTestHelper.CreateCommand("build",
+            ["build", "--config", _configPath, "--notion-snapshot", SnapshotDir, "--notion-offline", "--notion-pin", missing])));
+        Assert.Equal(DiagnosticCode.NotionPinSourceMissing, buildError.Code);
+
+        foreach (var body in new[] { "not json", """{"format":2,"sources":{}}""", """{"format":1,"sources":{"page":{"databaseId":"x","fieldPolicy":"all"}}}""", """{"format":1,"sources":{"page":{"databaseId":"x","propertyMap":{"title":"X"}}}}""" })
+        {
+            var invalid = WritePin(body);
+            var (code, output) = await CaptureAsync(() => ConfigCommand.RunAsync(CliTestHelper.CreateCommand("config",
+                ["config", "check", "--config", _configPath, "--notion-snapshot", SnapshotDir, "--notion-offline", "--notion-pin", invalid])));
+            Assert.Equal(1, code);
+            Assert.Contains("[BKT-0B18]", output, StringComparison.Ordinal);
+            Assert.DoesNotContain(invalid, output, StringComparison.Ordinal);
+        }
+    }
+
+    [Fact]
+    public async Task Pin_WithoutOffline_IsAnArgumentError()
+    {
+        Environment.SetEnvironmentVariable(EnvironmentHelper.NotionTokenKey, Token);
+        NotionContentClient.TransportOverride.Value = () => new FakeNotionApi();
+        var pin = WritePin("""{"format":1,"sources":{"page":{"databaseId":"7c0d0000-0000-4000-8000-0000000000cc"}}}""");
+
+        await Assert.ThrowsAsync<CommandArgumentException>(() => BuildCommand.RunInProcessAsync(CliTestHelper.CreateCommand("build",
+            ["build", "--config", _configPath, "--notion-snapshot", SnapshotDir, "--notion-pin", pin])));
+        await Assert.ThrowsAsync<CommandArgumentException>(() => ConfigCommand.RunAsync(CliTestHelper.CreateCommand("config",
+            ["config", "check", "--config", _configPath, "--notion-pin", pin])));
+    }
+
+    private string WritePin(string json)
+    {
+        Directory.CreateDirectory(_snapshotRoot);
+        var path = Path.Combine(_snapshotRoot, $"pin-{Guid.NewGuid():N}.json");
+        File.WriteAllText(path, json);
+        return path;
+    }
+
     private async Task RecordSnapshotAsync(params string[] extraArgs)
     {
         Environment.SetEnvironmentVariable(EnvironmentHelper.NotionTokenKey, Token);
@@ -237,7 +334,7 @@ public sealed class NotionOfflineSnapshotCommandTests : IDisposable
         NotionContentClient.TransportOverride.Value = null;
     }
 
-    private void WriteConfig(string databaseId)
+    private void WriteConfig(string databaseId, string filterType = "none")
         => File.WriteAllText(_configPath, $"""
             site:
               name: test
@@ -255,7 +352,7 @@ public sealed class NotionOfflineSnapshotCommandTests : IDisposable
                   collection: page
                   notion:
                     databaseId: {databaseId}
-                    filterType: none
+                    filterType: {filterType}
                     cacheMode: readwrite
               media:
                 downloadToLocal: false

@@ -14,6 +14,31 @@ internal static class NotionSnapshotOptions
 {
     internal const string SnapshotOption = "--notion-snapshot";
     internal const string OfflineOption = "--notion-offline";
+    internal const string PinOption = "--notion-pin";
+
+    /// <summary>
+    /// <c>--notion-pin &lt;file&gt;</c> (offline only): replaces the field and filter keys of every
+    /// Notion source with the reviewed values. Returns the config unchanged without the option.
+    /// </summary>
+    internal static (AppConfig Config, IReadOnlyList<(string Source, IReadOnlyList<string> Keys)> Changed) ApplyPin(CliBoundCommand command, AppConfig config)
+    {
+        var path = command.GetString(PinOption);
+        if (string.IsNullOrWhiteSpace(path))
+        {
+            return (config, []);
+        }
+
+        if (!command.GetBool(OfflineOption))
+        {
+            throw new CommandArgumentException($"{PinOption} requires {OfflineOption}.");
+        }
+
+        return NotionPin.Load(path).Apply(config);
+    }
+
+    /// <summary>The <c>event=notion.offline.pinned</c> line for one source whose pinned keys changed.</summary>
+    internal static string DescribePinned(string source, IReadOnlyList<string> keys)
+        => $"event=notion.offline.pinned source={source} changed={string.Join(',', keys)}";
 
     /// <summary>Opens the snapshot for <c>build</c>: recording, or offline reads. Null when not requested.</summary>
     internal static NotionSnapshot? OpenForBuild(CliBoundCommand command, string siteRoot, string output)
