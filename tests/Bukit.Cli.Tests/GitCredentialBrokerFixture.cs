@@ -1,7 +1,6 @@
 using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Net;
-using System.Net.Sockets;
 using System.Reflection;
 using System.Runtime.Versioning;
 using System.Text;
@@ -567,7 +566,7 @@ internal sealed class ObservingProcessQuery : IGitCredentialProcessQuery
 /// </summary>
 internal sealed class LocalGitHttpServer : IAsyncDisposable
 {
-    private readonly HttpListener _listener = new();
+    private readonly HttpListener _listener;
     private readonly string _git;
     private readonly string _projectRoot;
     private readonly string _emptyConfig;
@@ -583,14 +582,36 @@ internal sealed class LocalGitHttpServer : IAsyncDisposable
         _projectRoot = projectRoot;
         _emptyConfig = emptyConfig;
         _password = password;
-        var probe = new TcpListener(IPAddress.Loopback, 0);
-        probe.Start();
-        var port = ((IPEndPoint)probe.LocalEndpoint).Port;
-        probe.Stop();
-        Authority = $"127.0.0.1:{port}";
-        BaseUrl = $"http://{Authority}/";
-        _listener.Prefixes.Add(BaseUrl);
-        _listener.Start();
+
+        // Try the listener on a random port directly. A TcpListener probe would release the
+        // port before HttpListener binds it, letting another test process take it in between.
+        HttpListener? listener = null;
+        string? authority = null;
+        for (var attempt = 0; attempt < 20 && listener is null; attempt++)
+        {
+            var candidate = new HttpListener();
+            var candidateAuthority = $"127.0.0.1:{Random.Shared.Next(20000, 60000)}";
+            candidate.Prefixes.Add($"http://{candidateAuthority}/");
+            try
+            {
+                candidate.Start();
+                listener = candidate;
+                authority = candidateAuthority;
+            }
+            catch (HttpListenerException)
+            {
+                candidate.Close();
+            }
+        }
+
+        if (listener is null || authority is null)
+        {
+            throw new InvalidOperationException("Unable to start the local git HTTP server.");
+        }
+
+        _listener = listener;
+        Authority = authority;
+        BaseUrl = $"http://{authority}/";
         _loop = Task.Run(AcceptAsync);
     }
 
@@ -608,8 +629,24 @@ internal sealed class LocalGitHttpServer : IAsyncDisposable
 
     public async ValueTask DisposeAsync()
     {
-        _listener.Stop();
-        _listener.Close();
+        try
+        {
+            _listener.Stop();
+        }
+        catch (Exception ex) when (ex is HttpListenerException or ObjectDisposedException)
+        {
+            // A failing request can release the listener first; the accept loop still has to finish.
+        }
+
+        try
+        {
+            _listener.Close();
+        }
+        catch (Exception ex) when (ex is HttpListenerException or ObjectDisposedException)
+        {
+            // Closing an already released listener must not hide the test result.
+        }
+
         await _loop;
     }
 
