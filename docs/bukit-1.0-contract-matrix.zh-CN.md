@@ -133,7 +133,7 @@
 | BKT-080x | SEO/GEO | 已分配 0801-0812 |
 | BKT-090x | Media | 已分配 0901-0904 |
 | BKT-0Axx | I18n | 已分配 0A01-0A02 |
-| BKT-0Bxx | Notion | 已分配 0B01-0B08、0B10-0B17 |
+| BKT-0Bxx | Notion | 已分配 0B01-0B08、0B10-0B19 |
 
 ## 旧行为处理策略
 

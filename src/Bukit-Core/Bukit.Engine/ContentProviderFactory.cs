@@ -18,19 +18,7 @@ internal static class ContentProviderFactory
         var site = I18nLanguagePolicy.NormalizeSite(config.Site);
         if (config.Content.Sources is { Count: > 0 } sources)
         {
-            var typeCounts = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
-            foreach (var s in sources)
-            {
-                var t = (s.Type ?? string.Empty).Trim();
-                if (string.IsNullOrWhiteSpace(t))
-                {
-                    continue;
-                }
-
-                typeCounts[t] = typeCounts.TryGetValue(t, out var c) ? c + 1 : 1;
-            }
-
-            var seen = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+            var keys = ContentSourceKeys.Compute(sources);
             var providers = new List<(string SourceKey, string SourceMode, string? Collection, IReadOnlyList<string>? AddToCollections, IContentProvider Provider)>();
 
             for (var i = 0; i < sources.Count; i++)
@@ -43,16 +31,7 @@ internal static class ContentProviderFactory
                 }
 
                 var mode = (s.Mode ?? "content").Trim().ToLowerInvariant();
-                var key = string.IsNullOrWhiteSpace(s.Name) ? string.Empty : s.Name.Trim();
-                if (string.IsNullOrWhiteSpace(key))
-                {
-                    key = type.ToLowerInvariant();
-                    if (typeCounts.TryGetValue(type, out var count) && count > 1)
-                    {
-                        seen[type] = seen.TryGetValue(type, out var n) ? n + 1 : 1;
-                        key = $"{key}{seen[type]}";
-                    }
-                }
+                var key = keys[i];
 
                 if (type.Equals("markdown", StringComparison.OrdinalIgnoreCase))
                 {

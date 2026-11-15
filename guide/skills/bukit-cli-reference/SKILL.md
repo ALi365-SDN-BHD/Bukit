@@ -49,13 +49,14 @@ Project selection, shared by most commands:
 - `--site-url <url>`: override `site.url` for this run.
 - `--notion-snapshot <dir>` (`build`): record a Notion offline snapshot outside the site; add
   `--notion-offline` (`build`, `doctor`, `config check`) to read only that snapshot, with no
-  `NOTION_TOKEN` and no network.
+  `NOTION_TOKEN` and no network. `--notion-pin <file>` (offline only) takes the Notion field
+  and filter keys of every source from that file instead of `site.yaml`.
 
 | Command | Options |
 |---|---|
-| `build` | `--config`, `--site`, `--output`, `--base-url`, `--site-url`, `--clean`, `--no-clean`, `--draft`, `--ci`, `--incremental`, `--no-incremental`, `--cache-dir`, `--metrics`, `--jobs`, `--log-format`, `--notion-snapshot`, `--notion-offline`, `--secrets-stdin` |
-| `doctor` | `--config`, `--site`, `--site-url`, `--notion-snapshot`, `--notion-offline`, `--secrets-stdin` |
-| `config check` | `--config`, `--site`, `--site-url`, `--notion-snapshot`, `--notion-offline`, `--secrets-stdin` |
+| `build` | `--config`, `--site`, `--output`, `--base-url`, `--site-url`, `--clean`, `--no-clean`, `--draft`, `--ci`, `--incremental`, `--no-incremental`, `--cache-dir`, `--metrics`, `--jobs`, `--log-format`, `--notion-snapshot`, `--notion-offline`, `--notion-pin`, `--secrets-stdin` |
+| `doctor` | `--config`, `--site`, `--site-url`, `--notion-snapshot`, `--notion-offline`, `--notion-pin`, `--secrets-stdin` |
+| `config check` | `--config`, `--site`, `--site-url`, `--notion-snapshot`, `--notion-offline`, `--notion-pin`, `--secrets-stdin` |
 | `config schema` | `--output` (file; stdout when omitted) |
 | `preview` | `--dir`, `--host`, `--port`, `--strict-port`, `--config`, `--site`, `--allow-lan`, `--public` |
 | `dev` | `--config`, `--site`, `--host`, `--port`, `--output`, `--no-watch`, `--allow-lan`, `--public`, `--secrets-stdin` |
