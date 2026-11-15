@@ -58,7 +58,7 @@ Bukit 侧已有的相关测试：
 新增 `tests/Bukit.Cli.Tests/Consumers/BukitJalilContractTests.cs`，不新建测试项目。
 
 - **新测试用进程内入口调用**，复用/抽取 `ProgramEntryPointTests.InvokeEntryPointAsync` 的模式；它已经覆盖真实 `Program` 分派、配置加载、输出和退出码，比每个测试起子进程更省时间。子进程只保留给已有的 `SecretsStdinCliTests`（stdin）和 broker 集成测试。
-- 新测试类标 `[Collection("Console")]`，因为它捕获 `Console.Out`/`Console.Error`，与 `ProgramEntryPointTests` 保持一致。`tests/Bukit.Cli.Tests/AssemblyInfo.cs` 已整体关闭并行，所以不会和同程序集测试竞争；仍不要依赖当前目录，`--config`、`--output`、`--dir` 都用绝对路径。
+- 新测试类标 `[Collection("Console")]`，因为它捕获 `Console.Out`/`Console.Error`，与 `ProgramEntryPointTests` 保持一致。`tests/Bukit.Cli.Tests/AssemblyInfo.cs` 已整体关闭并行，所以不会和同程序集测试竞争；仍不要依赖当前目录，`--config`、`--dir`、`config schema --output` 用绝对路径，build 的 `--output` 用相对路径 `out`（相对配置根），不要用绝对路径。
 - **不新增 fixture 文件**：`--base-url` 的命名主题在临时目录里用现有 `basic-markdown-site` 的 source 文件搭建；这样 `codex-workflow.py closure` 不会因为 `tests/fixtures/` 新目录出现未映射文件。新 `.cs` 文件在 `tests/Bukit.Cli.Tests/Consumers/` 下，已被现有 `bukit-cli-tests` 规则（`tests/Bukit.Cli.Tests/**/*.cs`）覆盖。
 - 文件头注明：契约对象是 BukitJalil 0.1.0-beta.4、`MIN_BUKIT_VERSION = 2.2.3`；改动这些行为要同时改 BukitJalil 的 `bukit-behavior.test.ts` 和 `MIN_BUKIT_VERSION`。
 
