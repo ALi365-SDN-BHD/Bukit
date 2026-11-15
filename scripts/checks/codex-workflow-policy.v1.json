@@ -2343,6 +2343,47 @@
       "specialtyTests": [
         "bash scripts/checks/brainstorm-server-self-test.sh"
       ]
+    },
+    {
+      "id": "bukit-new-command-source",
+      "matches": [
+        "src/Bukit-Core/Bukit.Cli/Commands/NewCommand.cs",
+        "src/Bukit-Core/Bukit.Cli/Commands/New/*.cs",
+        "src/Bukit-Core/Bukit.Cli/Resources/StarterTheme/*",
+        "src/Bukit-Core/Bukit.Cli/Resources/StarterSite/*"
+      ],
+      "specialtyTests": [
+        "dotnet test tests/Bukit.Cli.Tests/Bukit.Cli.Tests.csproj -c Release --filter \"FullyQualifiedName~NewCommand|FullyQualifiedName~StarterSite|FullyQualifiedName~CliProgramFlow\"",
+        "dotnet test tests/Bukit.Rendering.Tests/Bukit.Rendering.Tests.csproj -c Release --filter \"FullyQualifiedName~StarterThemeTemplateResource\"",
+        "dotnet test tests/Bukit.Labs.Cli.Tests/Bukit.Labs.Cli.Tests.csproj -c Release --filter \"FullyQualifiedName~StarterThemeScaffold\""
+      ],
+      "contractConsumerGlobs": [
+        "src/Bukit-Core/Bukit.Cli/Cli/BukitCliSpecs.cs",
+        "src/Bukit-Core/Bukit.Cli/Cli/BukitCliDescriptors.cs",
+        "src/Bukit-Core/Bukit.Cli/Bukit.Cli.csproj"
+      ],
+      "publicContract": false,
+      "resource": "dotnet-serial"
+    },
+    {
+      "id": "bukit-new-command-plan",
+      "matches": [
+        "openspec/changes/add-bukit-new-command/*",
+        "openspec/changes/archive/*-add-bukit-new-command/*",
+        "openspec/specs/cli-scaffold/spec.md",
+        "docs/plans/2026-11-15-bukit-new-command-implementation-plan.zh-CN.md",
+        "guide/user/01-quick-start.md",
+        "guide/user/12-cli-reference.md"
+      ],
+      "specialtyTests": [
+        "bash scripts/checks/cli-docs-sync.sh",
+        "bash scripts/checks/docs-consistency.sh",
+        "bash scripts/checks/docs/no-core-drift.sh",
+        "openspec validate add-bukit-new-command --strict --no-interactive"
+      ],
+      "contractConsumerGlobs": [],
+      "publicContract": false,
+      "resource": "static-parallel"
     }
   ],
   "resourceRules": [
