@@ -87,7 +87,9 @@ public sealed class GitCredentialBrokerIntegrationTests
     ///   &lt;- /Library/Developer/CommandLineTools/usr/bin/git
     ///   &lt;- registered root: /usr/bin/git (the xcrun trampoline; here the wrapper pid, first seen as /bin/sh before its exec)
     /// </code>
-    /// git's <c>sh -c</c> execs the helper, so no shell stays on the chain; the trampoline adds
+    /// Ubuntu CI (git 2.43, /bin/sh is dash) keeps the shell:
+    /// <c>dotnet &lt;- dash &lt;- git-remote-http &lt;- git &lt;- dash (wrapper root)</c>, four levels.
+    /// On macOS git's <c>sh -c</c> execs the helper, so no shell stays on the chain; the trampoline adds
     /// one level. Three levels above the helper, far below
     /// <see cref="GitCredentialPeerPolicy.DefaultMaxDepth"/> (32).
     /// </summary>
@@ -106,7 +108,7 @@ public sealed class GitCredentialBrokerIntegrationTests
         Assert.True(Path.GetFileName(chain[1]) is "git-remote-http" or "git-remote-https" or "sh" or "bash" or "dash", described);
         Assert.Contains(chain, exe => Path.GetFileName(exe) is "git-remote-http" or "git-remote-https");
         // The root is the pid the deploy registered: the git wrapper, recorded as sh or git.
-        Assert.True(Path.GetFileName(chain[^1]) is "git" or "sh", described);
+        Assert.True(Path.GetFileName(chain[^1]) is "git" or "sh" or "dash" or "bash", described);
         Assert.All(chain[1..^1], exe => Assert.True(
             Path.GetFileName(exe) is "git-remote-http" or "git-remote-https" or "sh" or "bash" or "dash" or "git",
             described));

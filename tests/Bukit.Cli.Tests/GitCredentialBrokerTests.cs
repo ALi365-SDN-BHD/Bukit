@@ -19,7 +19,11 @@ public sealed class GitCredentialBrokerTests
     private const string RemoteHttp = "/usr/libexec/git-core/git-remote-http";
     private const string Sh = "/bin/sh";
     private const string Git = "/usr/bin/git";
-    private const uint Uid = 501;
+    // The real socket reports the runner's uid (501 on a Mac, 1001 on GitHub's Ubuntu).
+    private static readonly uint Uid = ProcessInspector.TryGetCurrentUserId(out var uid) ? uid : 501;
+
+    // Default-parameter stand-in for Uid, which is not a compile-time constant.
+    private const uint CurrentUid = uint.MaxValue;
 
     private static readonly GitCredentialRequest GitHubRequest = new(1, "https", "github.com");
 
@@ -334,7 +338,7 @@ public sealed class GitCredentialBrokerTests
 
     // ---- helper command against an in-process broker ----
 
-    private static (GitCredentialPeerPolicy Policy, FakeQuery Query) CreateSelfAsHelperChain(uint? uid = Uid)
+    private static (GitCredentialPeerPolicy Policy, FakeQuery Query) CreateSelfAsHelperChain(uint? uid = CurrentUid)
     {
         // The test process plays the helper: test <- remote-http(20) <- git(10).
         var self = Environment.ProcessId;
@@ -665,12 +669,12 @@ public sealed class GitCredentialBrokerTests
         return (policy, query);
     }
 
-    private static GitCredentialPeerPolicy CreatePolicy(FakeQuery query, int maxDepth = GitCredentialPeerPolicy.DefaultMaxDepth, uint? uid = Uid) =>
+    private static GitCredentialPeerPolicy CreatePolicy(FakeQuery query, int maxDepth = GitCredentialPeerPolicy.DefaultMaxDepth, uint? uid = CurrentUid) =>
         new(
             new GitCredentialPeerExpectations(Bukit, null, new HashSet<string> { RemoteHttp }, new HashSet<string> { Sh }),
             GitCredentialTarget.GitHub,
             query,
-            uid,
+            uid == CurrentUid ? Uid : uid,
             maxDepth);
 
     private sealed class FakeQuery : IGitCredentialProcessQuery

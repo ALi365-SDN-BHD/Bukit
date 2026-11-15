@@ -273,23 +273,26 @@ public sealed partial class GitHubPagesDeployProvider
         return output.Stdout.Trim();
     }
 
-    /// <summary>Registers git with the broker; a git the broker cannot identify is stopped at once.</summary>
-    private static IDisposable RegisterOrKill(GitAuthContext auth, Process proc)
+    /// <summary>
+    /// Registers git with the broker. A git that already exited is never registered (its pid may
+    /// belong to another process by now); its exit code reports the failure. A running git the
+    /// broker cannot identify is stopped at once.
+    /// </summary>
+    private static IDisposable? RegisterOrKill(GitAuthContext auth, Process proc)
     {
         IDisposable? registration = null;
         try
         {
             registration = auth.Broker.RegisterGitProcess(proc.Id);
-            if (registration is not null && proc.HasExited)
+            if (proc.HasExited)
             {
-                // git exited before it was identified: the pid may already belong to another process.
-                registration.Dispose();
-                registration = null;
+                registration?.Dispose();
+                return null;
             }
         }
         finally
         {
-            if (registration is null)
+            if (registration is null && !proc.HasExited)
             {
                 TryKillProcessTree(proc);
             }
