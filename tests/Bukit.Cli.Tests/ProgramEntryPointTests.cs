@@ -37,7 +37,7 @@ public sealed class ProgramEntryPointTests : IDisposable
         var result = await InvokeEntryPointAsync(["version"]);
 
         Assert.Equal(0, result.ExitCode);
-        Assert.Contains("bukit ", result.StdOut, StringComparison.Ordinal);
+        Assert.Matches(@"(?m)^bukit\s+\d+\.\d+\.\d+", result.StdOut);
         Assert.Contains("runtime: native-aot", result.StdOut, StringComparison.Ordinal);
     }
 
@@ -589,7 +589,8 @@ public sealed class ProgramEntryPointTests : IDisposable
         throw new InvalidOperationException("Bukit repository root was not found.");
     }
 
-    private static async Task<(int ExitCode, string StdOut, string StdErr)> InvokeEntryPointAsync(string[] args)
+    // Shared with Consumers/BukitJalilContractTests.cs: it exercises the real entry point in process.
+    internal static async Task<(int ExitCode, string StdOut, string StdErr)> InvokeEntryPointAsync(string[] args)
     {
         var entryPoint = typeof(VersionCommand).Assembly.EntryPoint ?? throw new InvalidOperationException("Missing Bukit.Cli entry point.");
         using var stdout = new StringWriter();
