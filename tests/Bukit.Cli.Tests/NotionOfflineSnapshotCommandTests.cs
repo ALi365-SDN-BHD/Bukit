@@ -176,13 +176,13 @@ public sealed class NotionOfflineSnapshotCommandTests : IDisposable
         var (checkCode, checkOutput) = await CaptureAsync(() => ConfigCommand.RunAsync(CliTestHelper.CreateCommand("config",
             ["config", "check", "--config", _configPath, "--notion-snapshot", SnapshotDir, "--notion-offline"])));
         Assert.Equal(1, checkCode);
-        Assert.Contains("[BKT-0B11]", checkOutput, StringComparison.Ordinal);
+        Assert.Matches(@"(?m)^(?:✖ )?\[BKT-0B11\]", checkOutput);
         Assert.Contains("no data for database", checkOutput, StringComparison.Ordinal);
 
         var (doctorCode, doctorOutput) = await CaptureAsync(() => DoctorCommand.RunAsync(CliTestHelper.CreateCommand("doctor",
             ["doctor", "--config", _configPath, "--notion-snapshot", SnapshotDir, "--notion-offline"])));
         Assert.Equal(1, doctorCode);
-        Assert.Contains("[BKT-0B11]", doctorOutput, StringComparison.Ordinal);
+        Assert.Matches(@"(?m)^(?:✖ )?\[BKT-0B11\]", doctorOutput);
         Assert.Contains("no data for database", doctorOutput, StringComparison.Ordinal);
 
         var buildError = await Assert.ThrowsAsync<NotionSnapshotException>(() => BuildCommand.RunInProcessAsync(CliTestHelper.CreateCommand("build",
@@ -200,7 +200,7 @@ public sealed class NotionOfflineSnapshotCommandTests : IDisposable
         var (missingCode, missingOutput) = await CaptureAsync(() => DoctorCommand.RunAsync(CliTestHelper.CreateCommand("doctor",
             ["doctor", "--config", _configPath, "--notion-snapshot", SnapshotDir, "--notion-offline"])));
         Assert.Equal(1, missingCode);
-        Assert.Contains("[BKT-0B10]", missingOutput, StringComparison.Ordinal);
+        Assert.Matches(@"(?m)^(?:✖ )?\[BKT-0B10\]", missingOutput);
         Assert.Contains("snapshot not found", missingOutput, StringComparison.Ordinal);
     }
 
@@ -271,12 +271,12 @@ public sealed class NotionOfflineSnapshotCommandTests : IDisposable
         var (missingCode, missingOutput) = await CaptureAsync(() => ConfigCommand.RunAsync(CliTestHelper.CreateCommand("config",
             ["config", "check", "--config", _configPath, "--notion-snapshot", SnapshotDir, "--notion-offline", "--notion-pin", missing])));
         Assert.Equal(1, missingCode);
-        Assert.Contains("[BKT-0B19]", missingOutput, StringComparison.Ordinal);
+        Assert.Matches(@"(?m)^(?:✖ )?\[BKT-0B19\]", missingOutput);
 
         var (doctorCode, doctorOutput) = await CaptureAsync(() => DoctorCommand.RunAsync(CliTestHelper.CreateCommand("doctor",
             ["doctor", "--config", _configPath, "--notion-snapshot", SnapshotDir, "--notion-offline", "--notion-pin", missing])));
         Assert.Equal(1, doctorCode);
-        Assert.Contains("[BKT-0B19]", doctorOutput, StringComparison.Ordinal);
+        Assert.Matches(@"(?m)^(?:✖ )?\[BKT-0B19\]", doctorOutput);
 
         var buildError = await Assert.ThrowsAsync<NotionSnapshotException>(() => BuildCommand.RunInProcessAsync(CliTestHelper.CreateCommand("build",
             ["build", "--config", _configPath, "--notion-snapshot", SnapshotDir, "--notion-offline", "--notion-pin", missing])));
@@ -288,7 +288,7 @@ public sealed class NotionOfflineSnapshotCommandTests : IDisposable
             var (code, output) = await CaptureAsync(() => ConfigCommand.RunAsync(CliTestHelper.CreateCommand("config",
                 ["config", "check", "--config", _configPath, "--notion-snapshot", SnapshotDir, "--notion-offline", "--notion-pin", invalid])));
             Assert.Equal(1, code);
-            Assert.Contains("[BKT-0B18]", output, StringComparison.Ordinal);
+            Assert.Matches(@"(?m)^(?:✖ )?\[BKT-0B18\]", output);
             Assert.DoesNotContain(invalid, output, StringComparison.Ordinal);
         }
     }
