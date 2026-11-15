@@ -158,7 +158,7 @@ def require_source(source: BinaryIO | None, name: str) -> BinaryIO:
     return source
 
 def validate_archive_name(archive_path: Path, rid: str) -> None:
-    extensions = {"linux-x64": ".tar.gz", "osx-arm64": ".tar.gz", "win-x64": ".zip"}
+    extensions = {"linux-x64": ".tar.gz", "linux-arm64": ".tar.gz", "osx-arm64": ".tar.gz", "osx-x64": ".tar.gz", "win-x64": ".zip"}
     extension = extensions.get(rid)
     if extension is None:
         raise ValueError(f"unsupported RID: {rid}")
@@ -174,7 +174,7 @@ def extract_archive(archive_path: Path, rid: str, destination: Path) -> None:
         with zipfile.ZipFile(archive_path, "r") as archive:
             members = validate_members(zip_members(archive), destination)
             extract_members(members, destination)
-    elif rid in ("linux-x64", "osx-arm64"):
+    elif rid in ("linux-x64", "linux-arm64", "osx-arm64", "osx-x64"):
         with tarfile.open(archive_path, "r:gz") as archive:
             members = validate_members(tar_members(archive), destination)
             extract_members(members, destination)

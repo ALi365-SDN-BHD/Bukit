@@ -222,8 +222,9 @@ Smoke one supported release archive or publish directory with:
 bash scripts/smoke/release-artifacts.sh <archive-or-publish-dir> <rid>
 ```
 
-Supported RIDs are `linux-x64`, `osx-arm64`, and `win-x64`. These checks are not
-automatic substitutes for focused or aggregate validation.
+Supported RIDs are `linux-x64`, `linux-arm64`, `osx-arm64`, `osx-x64`, and
+`win-x64`. These checks are not automatic substitutes for focused or aggregate
+validation.
 
 ## Failure reporting
 

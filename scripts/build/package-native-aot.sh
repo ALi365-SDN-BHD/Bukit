@@ -19,7 +19,7 @@ if [[ ! "$version" =~ ^[A-Za-z0-9._-]+$ ]]; then
 fi
 
 case "$rid" in
-  linux-x64|osx-arm64|win-x64) ;;
+  linux-x64|linux-arm64|osx-arm64|osx-x64|win-x64) ;;
   *)
     echo "unsupported RID: $rid" >&2
     exit 2

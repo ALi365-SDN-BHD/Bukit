@@ -131,12 +131,12 @@ chmod 644 "$scratch/nonexec/bukit"
 mkdir -p "$scratch/package-publish"
 cp "$scratch/fake" "$scratch/package-publish/bukit"
 tar -C "$scratch/package-publish" -czf "$scratch/bukit-package-shaped-linux-x64.tar.gz" .
-cp "$scratch/bukit-1.2.3-linux-x64.tar.gz" "$scratch/bukit-1.2.3-osx-arm64.tar.gz"
-
 check "tar.gz archive runs real smoke" smoke_ok "$scratch/bukit-1.2.3-linux-x64.tar.gz" linux-x64 "$scratch/tar.log"
-check "osx archive name runs real smoke" smoke_ok "$scratch/bukit-1.2.3-osx-arm64.tar.gz" osx-arm64 "$scratch/osx.log"
-check "package-native-aot tar shape runs real smoke" smoke_ok \
-  "$scratch/bukit-package-shaped-linux-x64.tar.gz" linux-x64 "$scratch/package-tar.log"
+for rid in linux-arm64 osx-arm64 osx-x64; do
+  cp "$scratch/bukit-1.2.3-linux-x64.tar.gz" "$scratch/bukit-1.2.3-$rid.tar.gz"
+  check "$rid archive name runs real smoke" smoke_ok "$scratch/bukit-1.2.3-$rid.tar.gz" "$rid" "$scratch/$rid.log"
+done
+check "package-native-aot tar shape runs real smoke" smoke_ok "$scratch/bukit-package-shaped-linux-x64.tar.gz" linux-x64 "$scratch/package-tar.log"
 check "tar permits directory entries after children" smoke_ok "$scratch/bukit-late-dir-linux-x64.tar.gz" linux-x64 "$scratch/late.log"
 check "zip archive runs real smoke" smoke_ok "$scratch/bukit-1.2.3-win-x64.zip" win-x64 "$scratch/zip.log"
 check "directory has linux smoke semantics" smoke_ok "$scratch/dir-linux" linux-x64 "$scratch/dir.log"
@@ -156,7 +156,7 @@ check "osx archive is rejected for linux RID" smoke_bad "$scratch/bukit-1.2.3-os
 for bad_name in bukit--linux-x64.tar.gz other-1.2.3-linux-x64.tar.gz "bukit-bad version-linux-x64.tar.gz"; do cp "$scratch/bukit-1.2.3-linux-x64.tar.gz" "$scratch/$bad_name"; check "invalid archive basename $bad_name is rejected" smoke_bad "$scratch/$bad_name" linux-x64; done
 check "missing args return usage" usage_bad
 check "extra args return usage" usage_bad "$scratch/dir-linux" linux-x64 extra
-check "unsupported RID is rejected" smoke_bad "$scratch/dir-linux" linux-arm64
+check "unsupported RID is rejected" smoke_bad "$scratch/dir-linux" win-arm64
 check "failed smoke cleans restricted archive scratch" smoke_bad_clean "$scratch/bukit-restricted-linux-x64.tar.gz" linux-x64
 check "safe_relative rejects dot directly" safe_relative_bad .
 

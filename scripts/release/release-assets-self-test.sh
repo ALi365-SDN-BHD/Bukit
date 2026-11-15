@@ -29,11 +29,11 @@ make_asset() {
 
 version=1.2.3
 commit=abc
-linux="$tmp/input/bukit-$version-linux-x64.tar.gz"
-macos="$tmp/input/bukit-$version-osx-arm64.tar.gz"
+linux="$tmp/input/bukit-$version-linux-x64.tar.gz"; linux_arm="$tmp/input/bukit-$version-linux-arm64.tar.gz"
+macos="$tmp/input/bukit-$version-osx-arm64.tar.gz"; macos_intel="$tmp/input/bukit-$version-osx-x64.tar.gz"
 windows="$tmp/input/bukit-$version-win-x64.zip"
-make_asset "$linux"
-make_asset "$macos"
+make_asset "$linux"; make_asset "$linux_arm"
+make_asset "$macos"; make_asset "$macos_intel"
 make_asset "$windows"
 
 python3 - "$script_dir/release-assets.py" "$tmp" "$linux" <<'PY'
@@ -194,7 +194,7 @@ expect_fail "duplicate RID unexpectedly passed" \
   bash "$verify" "$version" "$commit" "$out" linux-x64 linux-x64
 
 out="$tmp/all-rids"
-bash "$prepare" "$version" "$commit" "$out" "$linux" "$macos" "$windows"
-bash "$verify" "$version" "$commit" "$out" linux-x64 osx-arm64 win-x64
+bash "$prepare" "$version" "$commit" "$out" "$linux" "$linux_arm" "$macos" "$macos_intel" "$windows"
+bash "$verify" "$version" "$commit" "$out" linux-x64 linux-arm64 osx-arm64 osx-x64 win-x64
 
 echo "release-assets self-test OK"

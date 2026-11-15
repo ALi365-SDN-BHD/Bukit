@@ -12,7 +12,7 @@ cd "$(repo_root)"
 artifact="$1"
 rid="$2"
 case "$rid" in
-  linux-x64|osx-arm64) exe="bukit" ;;
+  linux-x64|linux-arm64|osx-arm64|osx-x64) exe="bukit" ;;
   win-x64) exe="bukit.exe" ;;
   *)
     echo "unsupported RID: $rid" >&2

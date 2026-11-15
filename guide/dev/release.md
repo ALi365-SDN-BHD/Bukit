@@ -76,10 +76,11 @@ bash scripts/build/native-aot.sh <version> <rid> <output-root> [configuration]
 ```
 
 The entrypoint requires three or four arguments, defaults `configuration` to
-`Release`, and accepts `linux-x64`, `osx-arm64`, or `win-x64`. It prints the
-non-empty archive path on stdout after recreating the selected RID publish
-directory. Wrong arity, an invalid version, or an unsupported RID exits 2;
-unsafe output state, empty output, or other packaging failure exits nonzero.
+`Release`, and accepts `linux-x64`, `linux-arm64`, `osx-arm64`, `osx-x64`, or
+`win-x64`. It prints the non-empty archive path on stdout after recreating the
+selected RID publish directory. Wrong arity, an invalid version, or an
+unsupported RID exits 2; unsafe output state, empty output, or other packaging
+failure exits nonzero.
 
 Prove that two clean Native AOT publishes have identical relative paths,
 entry types, sizes, and SHA-256 values with:
@@ -101,10 +102,14 @@ value exits 2. The reference must come from the same commit and version. The
 source revision is compiled into `bukit`, so `GITHUB_SHA` must also be the same
 in both runs: either unset in both, or exported with the same value.
 
-Every packaging job in the release workflow (`package-linux`, `package-macos`,
-`package-windows`) packages first, then compares the packaged tree with two
-more clean publishes, so the uploaded binary is one of the three compared
-images.
+Every packaging job in the release workflow (`package-linux`,
+`package-linux-arm64`, `package-macos`, `package-macos-intel`, `package-windows`)
+packages first, then compares the packaged tree with at least two more clean
+publishes, so the uploaded binary is one of the images compared in that job. The
+Intel macOS job uses three more clean publishes to cover the known linker race on
+a new runner image. Each job builds on a runner of the target architecture:
+`package-linux-arm64` on `ubuntu-24.04-arm` and `package-macos-intel` on
+`macos-15-intel`.
 
 The injected contract checks do not replace the real host-RID reproducibility
 run:
@@ -175,10 +180,12 @@ the selected input to the exact RID order below, verifies the prepared set, and
 only then uploads `release-assets/*`:
 
 ```text
-linux-x64 -> linux-x64
-osx-arm64 -> osx-arm64
-win-x64   -> win-x64
-all       -> linux-x64 osx-arm64 win-x64
+linux-x64   -> linux-x64
+linux-arm64 -> linux-arm64
+osx-arm64   -> osx-arm64
+osx-x64     -> osx-x64
+win-x64     -> win-x64
+all         -> linux-x64 linux-arm64 osx-arm64 osx-x64 win-x64
 ```
 
 Run the asset and final-archive injected checks directly when changing these

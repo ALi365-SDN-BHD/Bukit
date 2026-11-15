@@ -69,7 +69,7 @@ if FAKE_DOTNET_EMPTY=1 bash scripts/build/package-native-aot.sh \
 fi
 grep -F 'release CLI is missing or empty:' "$scratch/empty-publish.stderr" >/dev/null
 
-for rid in linux-x64 osx-arm64 win-x64; do
+for rid in linux-x64 linux-arm64 osx-arm64 osx-x64 win-x64; do
   for state in missing empty nonexec; do
     [[ "$rid:$state" != win-x64:nonexec ]] || continue
     if FAKE_CLI_STATE="$state" bash scripts/build/package-native-aot.sh \

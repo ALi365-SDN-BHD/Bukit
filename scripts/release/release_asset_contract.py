@@ -7,7 +7,9 @@ from pathlib import Path
 
 RID_SUFFIX = {
     "linux-x64": ".tar.gz",
+    "linux-arm64": ".tar.gz",
     "osx-arm64": ".tar.gz",
+    "osx-x64": ".tar.gz",
     "win-x64": ".zip",
 }
 METADATA = {"checksums.txt", "checksums.json", "release-manifest.json"}

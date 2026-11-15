@@ -1454,13 +1454,23 @@
         "scripts/build/native-aot.sh",
         "scripts/build/package-native-aot.sh",
         "scripts/build/build-repro.sh",
-        "scripts/build/build-repro-self-test.sh"
+        "scripts/build/build-repro-self-test.sh",
+        "scripts/release/prepare-release-assets.sh",
+        "scripts/release/release-assets-self-test.sh",
+        "scripts/release/release-assets.py",
+        "scripts/release/release_asset_contract.py",
+        "scripts/release/verify-release-assets.sh",
+        "scripts/smoke/extract-release-artifact.py",
+        "scripts/smoke/release-artifacts-self-test.sh",
+        "scripts/smoke/release-artifacts.sh"
       ],
       "publicContract": false,
       "resource": "static-parallel",
       "specialtyTests": [
         "bash scripts/build/native-aot-self-test.sh",
-        "bash scripts/build/build-repro-self-test.sh"
+        "bash scripts/build/build-repro-self-test.sh",
+        "bash scripts/release/release-assets-self-test.sh",
+        "bash scripts/smoke/release-artifacts-self-test.sh"
       ]
     },
     {

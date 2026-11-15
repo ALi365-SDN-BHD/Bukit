@@ -17,9 +17,11 @@ public sealed class ReleaseWorkflowContractTests
         Assert.Equal("${{ inputs.rids }}", Scalar(Mapping(verify, "env"), "RIDS"));
         Assert.Contains("case \"$RIDS\" in", run, StringComparison.Ordinal);
         Assert.Contains("linux-x64) expected_rids=(linux-x64)", run, StringComparison.Ordinal);
+        Assert.Contains("linux-arm64) expected_rids=(linux-arm64)", run, StringComparison.Ordinal);
         Assert.Contains("osx-arm64) expected_rids=(osx-arm64)", run, StringComparison.Ordinal);
+        Assert.Contains("osx-x64) expected_rids=(osx-x64)", run, StringComparison.Ordinal);
         Assert.Contains("win-x64) expected_rids=(win-x64)", run, StringComparison.Ordinal);
-        Assert.Contains("all) expected_rids=(linux-x64 osx-arm64 win-x64)", run, StringComparison.Ordinal);
+        Assert.Contains("all) expected_rids=(linux-x64 linux-arm64 osx-arm64 osx-x64 win-x64)", run, StringComparison.Ordinal);
         Assert.Contains("*) echo \"unsupported RID selection: $RIDS\" >&2; exit 2 ;;",
             run, StringComparison.Ordinal);
         Assert.Contains("verify-release-assets.sh", run, StringComparison.Ordinal);
@@ -50,7 +52,9 @@ public sealed class ReleaseWorkflowContractTests
 
     [Theory]
     [InlineData("package-linux", "linux-x64")]
+    [InlineData("package-linux-arm64", "linux-arm64")]
     [InlineData("package-macos", "osx-arm64")]
+    [InlineData("package-macos-intel", "osx-x64")]
     [InlineData("package-windows", "win-x64")]
     public void PackageJob_OnlyRunsForItsRidOrAll(string jobName, string rid)
     {
@@ -60,8 +64,18 @@ public sealed class ReleaseWorkflowContractTests
     }
 
     [Theory]
+    [InlineData("package-linux-arm64", "ubuntu-24.04-arm")]
+    [InlineData("package-macos-intel", "macos-15-intel")]
+    public void PackageJob_BuildsOnItsTargetArchitecture(string jobName, string runner)
+    {
+        Assert.Equal(runner, Scalar(Job(jobName), "runs-on"));
+    }
+
+    [Theory]
     [InlineData("package-linux", "linux-x64")]
+    [InlineData("package-linux-arm64", "linux-arm64")]
     [InlineData("package-macos", "osx-arm64")]
+    [InlineData("package-macos-intel", "osx-x64")]
     [InlineData("package-windows", "win-x64")]
     public void PackageJob_SmokesTheFinalArchiveBeforeUpload(string jobName, string rid)
     {
@@ -83,7 +97,9 @@ public sealed class ReleaseWorkflowContractTests
 
     [Theory]
     [InlineData("package-linux", "linux-x64")]
+    [InlineData("package-linux-arm64", "linux-arm64")]
     [InlineData("package-macos", "osx-arm64")]
+    [InlineData("package-macos-intel", "osx-x64")]
     [InlineData("package-windows", "win-x64")]
     public void PackageJob_ProvesThePackagedPublishIsReproducibleBeforeUpload(string jobName, string rid)
     {
