@@ -1,7 +1,22 @@
 # 01 Quick Start
 
-Bukit Core does not currently expose a stable scaffold command. A site is a
-small directory with `site.yaml`, content files, and a local theme.
+Run `bukit new my-site` to create a buildable starter. It writes `site.yaml`,
+Markdown content, and a local `themes/starter/`; it does not run git, build, or
+make network requests. A site is a small directory with `site.yaml`, content
+files, and a local theme.
+
+## Create a Starter
+
+```bash
+bukit new my-site
+cd my-site
+```
+
+Use `--title` and `--language` to set the display title and primary language:
+
+```bash
+bukit new my-site --title "My Site" --language zh-CN
+```
 
 ## Minimal Layout
 
@@ -82,6 +97,8 @@ This page is rendered through `themes/site/layouts/pages/page.html`.
 ## Command Loop
 
 ```bash
+bukit new my-site
+cd my-site
 bukit config check
 bukit doctor
 bukit build --clean

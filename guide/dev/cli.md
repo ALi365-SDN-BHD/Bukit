@@ -16,6 +16,7 @@ loads dynamic plugin descriptors only when the command is not a Core command.
 | `preview` | `--dir`, `--host`, `--port`, `--strict-port`, `--config`, `--site`, `--allow-lan`, `--public` |
 | `dev` | `--config`, `--site`, `--host`, `--port`, `--output`, `--no-watch`, `--allow-lan`, `--public`, `--secrets-stdin` |
 | `clean` | `--dir`, `--config`, `--site` |
+| `new` | `<dir>`, `--title`, `--language` |
 | `version` | none |
 | `completion` | `<shell>` |
 | `seo` | `--dir`, `--report`, `--strict`, `--external` |
@@ -107,6 +108,7 @@ minor line is BukitJalil's decision.
 | `publish audit --dir` and `.bukit/publish-audit-report.json` `documents`/`issues` | `BukitJalilContractTests.PublishAudit_RealBuild_ReportMatchesDeployConsumerShape` |
 | `config schema --output` writes parseable JSON | `BukitJalilContractTests.ConfigSchema_OutputIsJsonAtTopLevel` |
 | Deploy token via stdin; git children see no token; credential broker | `GitCredentialBrokerIntegrationTests`; `GitCredentialBrokerWindowsIntegrationTests` |
+| `bukit new` exit codes 0/2/1; generated file set; generated `site.yaml` keys `content.sources`/`content.media.onFailure` | `NewCommandTests` |
 
 The cli-error document is the last `{` ... `}` block on stderr, one line per
 brace, with a schema starting `https://bukit.dev/schemas/cli-error`. JSON log

@@ -56,6 +56,8 @@ dotnet run --project src/Bukit-Core/Bukit.Cli -c Release -- build --config path/
 在站点目录中使用已安装或已下载的 Bukit 二进制时：
 
 ```bash
+bukit new my-site
+cd my-site
 bukit config check
 bukit doctor
 bukit build --clean
@@ -76,6 +78,7 @@ Bukit Core 2.0 将以下命令面作为内部使用的受治理范围；这不�
 | `preview` | 服务已有构建输出目录 |
 | `dev` | 运行 LiveReload 开发服务器 |
 | `clean` | 删除输出目录和缓存目录 |
+| `new` | 创建初始网站 |
 | `version` | 输出版本信息 |
 | `completion` | 生成 shell 自动补全 |
 | `seo` | 审计或 diff SEO 报告 |

@@ -14,6 +14,7 @@ This table is derived from `BukitCliSpecs.cs`.
 | `preview` | Serve an existing output directory. | `--dir`, `--host`, `--port`, `--strict-port`, `--config`, `--site`, `--allow-lan`, `--public` |
 | `dev` | Build, watch files, serve output, and trigger LiveReload. | `--config`, `--site`, `--host`, `--port`, `--output`, `--no-watch`, `--allow-lan`, `--public`, `--secrets-stdin` |
 | `clean` | Remove output and cache directories. | `--dir`, `--config`, `--site` |
+| `new` | Create an initial site. | `<dir>`, `--title`, `--language` |
 | `version` | Print version. | none |
 | `completion` | Print shell completion. | `<shell>` |
 | `seo` | Parent command for SEO reports. | `--dir`, `--report`, `--strict`, `--external` |
