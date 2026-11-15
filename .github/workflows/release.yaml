@@ -231,7 +231,7 @@ jobs:
 
   package-linux:
     name: Package linux-x64
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     needs: [core-tests, coverage-summary, security-check]
     if: ${{ inputs.rids == 'linux-x64' || inputs.rids == 'all' }}
     timeout-minutes: 45

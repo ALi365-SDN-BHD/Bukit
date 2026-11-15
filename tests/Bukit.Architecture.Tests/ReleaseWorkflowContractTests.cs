@@ -64,6 +64,7 @@ public sealed class ReleaseWorkflowContractTests
     }
 
     [Theory]
+    [InlineData("package-linux", "ubuntu-24.04")]
     [InlineData("package-linux-arm64", "ubuntu-24.04-arm")]
     [InlineData("package-macos-intel", "macos-15-intel")]
     public void PackageJob_BuildsOnItsTargetArchitecture(string jobName, string runner)

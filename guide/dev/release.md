@@ -107,9 +107,10 @@ Every packaging job in the release workflow (`package-linux`,
 packages first, then compares the packaged tree with at least two more clean
 publishes, so the uploaded binary is one of the images compared in that job. The
 Intel macOS job uses three more clean publishes to cover the known linker race on
-a new runner image. Each job builds on a runner of the target architecture:
-`package-linux-arm64` on `ubuntu-24.04-arm` and `package-macos-intel` on
-`macos-15-intel`.
+a new runner image. Each job builds on a pinned runner: `package-linux` on
+`ubuntu-24.04`, `package-linux-arm64` on `ubuntu-24.04-arm`, and
+`package-macos-intel` on `macos-15-intel`. The two Linux jobs share the Ubuntu
+24.04 glibc baseline instead of following `ubuntu-latest`.
 
 The injected contract checks do not replace the real host-RID reproducibility
 run:
