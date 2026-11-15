@@ -81,9 +81,9 @@ minor line is BukitJalil's decision.
 The cli-error document is the last `{` ... `}` block on stderr, one line per
 brace, with a schema starting `https://bukit.dev/schemas/cli-error`. JSON log
 `level` values are `Info`/`Warn`/`Error` (and `Debug` at `logging.level: debug`);
-consumers compare them case-insensitively. `content.source.loaded` is written at
-the default `logging.level: info` (or lower); `--ci` raises the level to `warn`
-and suppresses it, so BukitJalil does not pass `--ci` to `build`.
+consumers compare them case-insensitively. The **content.source.loaded** log line is
+written at the default `logging.level: info` (or lower); `--ci` raises the level to
+`warn` and suppresses it, so BukitJalil does not pass `--ci` to `build`.
 
 ## Dynamic Commands
 
