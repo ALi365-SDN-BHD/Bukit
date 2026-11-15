@@ -3,7 +3,7 @@ using Bukit.Shared;
 using YamlDotNet.Core;
 using YamlDotNet.RepresentationModel;
 
-namespace Bukit.Cli.Commands;
+namespace Bukit.Cli.Commands.New;
 
 internal static class StarterSiteScaffold
 {

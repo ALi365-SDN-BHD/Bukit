@@ -1,5 +1,5 @@
 using System.Text;
-using System.Text.RegularExpressions;
+using Bukit.Cli.Commands.New;
 using Bukit.Cli.Shared.Cli.Binding;
 using Bukit.Shared;
 
@@ -55,13 +55,64 @@ internal static class NewCommand
 
     private static string Slug(string title)
     {
-        var slug = title.Normalize(NormalizationForm.FormKD).ToLowerInvariant();
-        slug = Regex.Replace(slug, "[^a-z0-9]+", "-").Trim('-');
-        return slug.Length == 0 ? "site" : slug[..Math.Min(slug.Length, 64)].TrimEnd('-');
+        var source = title.Normalize(NormalizationForm.FormKD).ToLowerInvariant();
+        var builder = new StringBuilder(source.Length);
+        var pendingDash = false;
+        foreach (var c in source)
+        {
+            if (c is >= 'a' and <= 'z' or >= '0' and <= '9')
+            {
+                builder.Append(c);
+                pendingDash = false;
+            }
+            else if (builder.Length > 0 && !pendingDash)
+            {
+                builder.Append('-');
+                pendingDash = true;
+            }
+        }
+
+        var slug = builder.ToString().TrimEnd('-');
+        if (slug.Length > 64)
+        {
+            slug = slug[..64].TrimEnd('-');
+        }
+
+        return slug.Length == 0 ? "site" : slug;
     }
 
     // Same rule as SiteConfigValidator; that internal helper cannot be exposed
     // to the CLI assembly because the dependency matrix restricts InternalsVisibleTo.
     private static bool IsSafeLanguageTag(string language)
-        => Regex.IsMatch(language, "^[A-Za-z0-9]+(?:-[A-Za-z0-9]+)*$", RegexOptions.CultureInvariant);
+    {
+        if (language.Length == 0)
+        {
+            return false;
+        }
+
+        var segmentLength = 0;
+        foreach (var c in language)
+        {
+            if (c == '-')
+            {
+                if (segmentLength == 0)
+                {
+                    return false;
+                }
+
+                segmentLength = 0;
+                continue;
+            }
+
+            if (c is >= 'A' and <= 'Z' or >= 'a' and <= 'z' or >= '0' and <= '9')
+            {
+                segmentLength++;
+                continue;
+            }
+
+            return false;
+        }
+
+        return segmentLength > 0;
+    }
 }

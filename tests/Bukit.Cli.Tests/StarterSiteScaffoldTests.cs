@@ -1,4 +1,4 @@
-using Bukit.Cli.Commands;
+using Bukit.Cli.Commands.New;
 using Bukit.Shared;
 using Xunit;
 
@@ -51,11 +51,11 @@ public sealed class StarterSiteScaffoldTests : IDisposable
     public void Scaffold_RollsBackWhenResourceMissing()
     {
         var target = Path.Combine(_root, "rollback");
-        var entries = new[]
-        {
-            new StarterFile("HeaderPartial.html", "themes/starter/layouts/partials/header.html"),
-            new StarterFile("missing.html", "missing.txt")
-        };
+        StarterFile[] entries =
+        [
+            new("HeaderPartial.html", "themes/starter/layouts/partials/header.html"),
+            new("missing.html", "missing.txt")
+        ];
 
         Assert.Throws<InvalidOperationException>(
             () => StarterSiteScaffold.Create(target, "My Site", "my-site", "en-US", entries));
@@ -68,11 +68,11 @@ public sealed class StarterSiteScaffoldTests : IDisposable
     {
         var target = Path.Combine(_root, "empty");
         Directory.CreateDirectory(target);
-        var entries = new[]
-        {
-            new StarterFile("HeaderPartial.html", "themes/starter/layouts/partials/header.html"),
-            new StarterFile("missing.html", "missing.txt")
-        };
+        StarterFile[] entries =
+        [
+            new("HeaderPartial.html", "themes/starter/layouts/partials/header.html"),
+            new("missing.html", "missing.txt")
+        ];
 
         Assert.Throws<InvalidOperationException>(
             () => StarterSiteScaffold.Create(target, "My Site", "my-site", "en-US", entries));

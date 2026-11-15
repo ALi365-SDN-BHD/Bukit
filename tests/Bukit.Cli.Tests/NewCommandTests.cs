@@ -1,5 +1,6 @@
 using System.Security.Cryptography;
 using Bukit.Cli.Commands;
+using Bukit.Cli.Commands.New;
 using Bukit.Config;
 using Bukit.Shared;
 using Xunit;
