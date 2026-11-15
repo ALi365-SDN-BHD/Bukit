@@ -5,6 +5,7 @@ All notable changes to Bukit will be documented in this file.
 ## [Unreleased]
 
 - **`bukit new` creates a buildable starter site**: `bukit new <dir> [--title <text>] [--language <tag>]` writes `site.yaml`, Markdown content, and the embedded starter theme without running git, a build, or a network request. The generated site passes `config check`, `doctor`, and `build`.
+- **Starter theme refresh**: the starter theme now has a simpler content-first layout, a dark mode that follows the system setting, and a collapsible menu on narrow screens (links stay visible without JavaScript). Interface text comes from `theme.params.labels.*` with English fallbacks; `bukit new --language zh-CN` (and other Simplified Chinese tags, including `zh-Hans-HK`) writes Chinese labels. Navigation module links that start with `/` and taxonomy index links now include `site.baseUrl`, content titles, summaries and tags are HTML-escaped, and the list card no longer shows `country` or `industry`. Existing sites keep their own theme copy; if you copy the new templates into a sub-path site whose navigation links already include the base path, remove that prefix from the links.
 
 ## [2.2.3] - 2026-11-15
 

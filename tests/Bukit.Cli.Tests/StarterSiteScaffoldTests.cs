@@ -93,4 +93,23 @@ public sealed class StarterSiteScaffoldTests : IDisposable
 
         Assert.Equal("keep", File.ReadAllText(Path.Combine(target, "keep.txt")));
     }
+
+    [Theory]
+    [InlineData("zh", true)]
+    [InlineData("zh-CN", true)]
+    [InlineData("ZH-hans-sg", true)]
+    [InlineData("zh-TW", false)]
+    [InlineData("zh-Hant", false)]
+    [InlineData("zh-HK", false)]
+    [InlineData("zh-MO", false)]
+    [InlineData("zh-SG", true)]
+    [InlineData("zh-Hans", true)]
+    [InlineData("zh-Hans-HK", true)]
+    [InlineData("zh-Hant-CN", false)]
+    [InlineData("en-US", false)]
+    [InlineData("zha", false)]
+    public void IsSimplifiedChinese_MatchesPrimaryAndScriptSubtags(string language, bool expected)
+    {
+        Assert.Equal(expected, StarterSiteScaffold.IsSimplifiedChinese(language));
+    }
 }

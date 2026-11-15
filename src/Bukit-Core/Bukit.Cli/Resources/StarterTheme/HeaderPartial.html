@@ -1,7 +1,7 @@
 {{ base_url = site.base_url }}
 {{ if base_url == "/" }}{{ base_url = "" }}{{ end }}
 <header class="site-header">
-  <nav class="nav" aria-label="Primary navigation">
+  <nav class="nav" id="site-nav">
     <a class="brand" href="{{ base_url }}/">
       {{ if site.params && site.params.brand }}
         {{ site.params.brand | html.escape }}
@@ -9,20 +9,35 @@
         {{ site.title | html.escape }}
       {{ end }}
     </a>
-    <div class="nav-links">
+    <button class="nav-toggle" type="button" aria-expanded="false" aria-controls="nav-links" hidden>{{ site.params.labels.menu | object.default "Menu" | html.escape }}</button>
+    <div class="nav-links" id="nav-links">
       {{ if site.modules && site.modules.navigation }}
         {{ for item in site.modules.navigation }}
           {{ nav_url = "/" }}
           {{ if item.fields && item.fields.link }}
             {{ nav_url = item.fields.link.value }}
           {{ end }}
-          <a href="{{ nav_url }}">{{ item.title }}</a>
+          {{ if (nav_url | string.starts_with "/") && !(nav_url | string.starts_with "//") }}
+            {{ nav_url = base_url + nav_url }}
+          {{ end }}
+          <a href="{{ nav_url | html.escape }}">{{ item.title | html.escape }}</a>
         {{ end }}
       {{ else }}
-        <a href="{{ base_url }}/">Home</a>
-        <a href="{{ base_url }}/blog/">Blog</a>
-        <a href="{{ base_url }}/pages/">Pages</a>
+        <a href="{{ base_url }}/">{{ site.params.labels.home | object.default "Home" | html.escape }}</a>
+        <a href="{{ base_url }}/blog/">{{ site.params.labels.blog | object.default "Blog" | html.escape }}</a>
+        <a href="{{ base_url }}/pages/">{{ site.params.labels.pages | object.default "Pages" | html.escape }}</a>
       {{ end }}
     </div>
   </nav>
+  <script>
+    (function () {
+      var nav = document.getElementById('site-nav');
+      var button = nav.querySelector('.nav-toggle');
+      nav.classList.add('js-nav');
+      button.hidden = false;
+      button.addEventListener('click', function () {
+        button.setAttribute('aria-expanded', String(nav.classList.toggle('nav-open')));
+      });
+    })();
+  </script>
 </header>

@@ -175,9 +175,59 @@ internal static class StarterSiteScaffold
             new YamlScalarNode(title) { Style = ScalarStyle.DoubleQuoted };
         parameters.Children[new YamlScalarNode("footer_text")] =
             new YamlScalarNode(title) { Style = ScalarStyle.DoubleQuoted };
+        if (IsSimplifiedChinese(language))
+        {
+            parameters.Children[new YamlScalarNode("latest_heading")] = new YamlScalarNode("最新文章");
+            var labels = (YamlMappingNode)parameters.Children[new YamlScalarNode("labels")];
+            foreach (var (key, value) in ChineseLabels)
+            {
+                labels.Children[new YamlScalarNode(key)] = new YamlScalarNode(value);
+            }
+        }
+
         using var writer = new StringWriter();
         stream.Save(writer, assignAnchors: false);
         return writer.ToString();
+    }
+
+    private static readonly (string Key, string Value)[] ChineseLabels =
+    [
+        ("skip", "跳到正文"),
+        ("menu", "菜单"),
+        ("home", "首页"),
+        ("blog", "博客"),
+        ("pages", "页面"),
+        ("featured", "精选"),
+        ("previous", "上一页"),
+        ("next", "下一页"),
+        ("pagination", "分页"),
+        ("items", "篇"),
+        ("search", "搜索"),
+        ("search_placeholder", "搜索文章和页面"),
+        ("no_results", "没有找到结果"),
+        ("untitled", "无标题"),
+        ("powered_by", "技术支持")
+    ];
+
+    internal static bool IsSimplifiedChinese(string language)
+    {
+        var subtags = language.Split('-');
+        if (!subtags[0].Equals("zh", StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        // A script subtag decides on its own; only a tag without one falls back to the region.
+        if (subtags.Contains("Hans", StringComparer.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        return !subtags.Any(subtag =>
+            subtag.Equals("Hant", StringComparison.OrdinalIgnoreCase) ||
+            subtag.Equals("TW", StringComparison.OrdinalIgnoreCase) ||
+            subtag.Equals("HK", StringComparison.OrdinalIgnoreCase) ||
+            subtag.Equals("MO", StringComparison.OrdinalIgnoreCase));
     }
 
     private static void ValidateTarget(string root)

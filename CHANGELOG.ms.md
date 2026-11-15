@@ -5,6 +5,7 @@ Semua perubahan penting kepada Bukit akan didokumenkan dalam fail ini.
 ## [Belum Dikeluarkan]
 
 - **`bukit new` mencipta tapak permulaan yang boleh dibina**: `bukit new <dir> [--title <teks>] [--language <tag>]` menulis `site.yaml`, kandungan Markdown, dan tema starter terbina dalam; ia tidak menjalankan git, binaan, atau permintaan rangkaian. Tapak yang dijana lulus `config check`, `doctor`, dan `build`.
+- **Tema starter diperbaharui**: tema starter kini mempunyai susun atur berasaskan kandungan yang lebih ringkas, mod gelap yang mengikut tetapan sistem, dan menu boleh lipat pada skrin sempit (pautan kekal kelihatan tanpa JavaScript). Teks antara muka dibaca daripada `theme.params.labels.*` dengan nilai lalai bahasa Inggeris; `bukit new --language zh-CN` (dan tag Cina Ringkas lain, termasuk `zh-Hans-HK`) menulis label bahasa Cina. Pautan modul navigasi yang bermula dengan `/` dan pautan indeks taksonomi kini termasuk `site.baseUrl`, tajuk, ringkasan dan tag kandungan di-escape HTML, dan kad senarai tidak lagi memaparkan `country` atau `industry`. Tapak sedia ada menyimpan salinan tema sendiri; jika anda menyalin templat baharu ke tapak sub-laluan yang pautan navigasinya sudah mengandungi laluan asas, buang awalan itu daripada pautan.
 
 ## [2.2.3] - 2026-11-15
 

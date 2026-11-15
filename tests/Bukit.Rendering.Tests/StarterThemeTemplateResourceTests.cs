@@ -22,6 +22,8 @@ public sealed class StarterThemeTemplateResourceTests : IDisposable
         CopyResource("PaginationTemplate.html", "pages/pagination.html");
         CopyResource("TaxonomyTermTemplate.html", "pages/taxonomy-term.html");
         CopyResource("SearchTemplate.html", "pages/search.html");
+        CopyResource("HeaderPartial.html", "partials/header.html");
+        CopyResource("TaxonomyIndexTemplate.html", "pages/taxonomy-index.html");
     }
 
     public void Dispose()
@@ -44,8 +46,9 @@ public sealed class StarterThemeTemplateResourceTests : IDisposable
 
         Assert.Contains("Market Dispatch", html, StringComparison.Ordinal);
         Assert.Contains("Market Watch", html, StringComparison.Ordinal);
-        Assert.Contains("Malaysia", html, StringComparison.Ordinal);
-        Assert.Contains("Logistics", html, StringComparison.Ordinal);
+        Assert.Contains("logistics", html, StringComparison.Ordinal);
+        Assert.DoesNotContain("Malaysia", html, StringComparison.Ordinal);
+        Assert.DoesNotContain("Logistics", html, StringComparison.Ordinal);
         Assert.Contains("href=\"/archive/page/2/\"", html, StringComparison.Ordinal);
         Assert.DoesNotContain("page.fields.items.value", html, StringComparison.Ordinal);
         Assert.DoesNotContain("page.fields.pagination.value", html, StringComparison.Ordinal);
@@ -136,6 +139,201 @@ public sealed class StarterThemeTemplateResourceTests : IDisposable
         Assert.Contains("A &amp; B", index, StringComparison.Ordinal);
         Assert.Contains("About &amp; more", index, StringComparison.Ordinal);
         Assert.Contains("Latest &amp; best", index, StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData("/docs", "/about/", "href=\"/docs/about/\"")]
+    [InlineData("/", "/about/", "href=\"/about/\"")]
+    [InlineData("", "/about/", "href=\"/about/\"")]
+    [InlineData("/docs", "https://example.com/", "href=\"https://example.com/\"")]
+    [InlineData("/docs", "//cdn.example.com/x", "href=\"//cdn.example.com/x\"")]
+    public void StarterHeader_PrefixesRootRelativeNavigationLinks(string baseUrl, string link, string expected)
+    {
+        var renderer = new ScribanTemplateRenderer(_layoutsDir);
+        var site = new SiteModel
+        {
+            Name = "starter-test",
+            Title = "Starter Test",
+            BaseUrl = baseUrl,
+            Language = "en",
+            Modules = new Dictionary<string, IReadOnlyList<ModuleInfo>>
+            {
+                ["navigation"] =
+                [
+                    new ModuleInfo
+                    {
+                        Id = "nav-1",
+                        Title = "About & <us>",
+                        Slug = "about",
+                        Content = "",
+                        Fields = new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase)
+                        {
+                            ["link"] = new("text", link)
+                        }
+                    }
+                ]
+            }
+        };
+
+        var html = renderer.RenderPage("partials/header.html", new PageModel
+        {
+            Site = site,
+            Page = new PageInfo { Title = "Home", Url = "/", Content = "" }
+        });
+
+        Assert.Contains(expected, html, StringComparison.Ordinal);
+        Assert.DoesNotContain("href=\"//about/\"", html, StringComparison.Ordinal);
+        Assert.Contains("About &amp; &lt;us&gt;", html, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void StarterTaxonomyIndex_PrefixesTermLinksAndEscapesText()
+    {
+        var renderer = new ScribanTemplateRenderer(_layoutsDir);
+        var page = new PageModel
+        {
+            Site = new SiteModel { Name = "starter-test", Title = "Starter Test", BaseUrl = "/docs", Language = "en" },
+            Page = new PageInfo
+            {
+                Title = "Tags <all>",
+                Url = "/tags/",
+                Content = "",
+                Fields = new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase)
+                {
+                    ["terms"] = new("list", new[]
+                    {
+                        new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
+                        {
+                            ["title"] = "News & <b>",
+                            ["url"] = "/tags/news/",
+                            ["count"] = 2,
+                            ["description"] = "Desc <i>"
+                        }
+                    })
+                }
+            }
+        };
+
+        var html = renderer.RenderPage("pages/taxonomy-index.html", page);
+
+        Assert.Contains("href=\"/docs/tags/news/\"", html, StringComparison.Ordinal);
+        Assert.Contains("News &amp; &lt;b&gt;", html, StringComparison.Ordinal);
+        Assert.Contains("Desc &lt;i&gt;", html, StringComparison.Ordinal);
+        Assert.Contains("Tags &lt;all&gt;", html, StringComparison.Ordinal);
+        Assert.Contains("2 items", html, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void StarterListCard_EscapesContentText()
+    {
+        var renderer = new ScribanTemplateRenderer(_layoutsDir);
+        var model = CreateListModel();
+        var item = model.Pages[0] with { Title = "A <b> & C", Summary = "S <i>" };
+
+        var html = renderer.RenderList("pages/list.html", model with { Pages = [item], Items = [item] });
+
+        Assert.Contains("A &lt;b&gt; &amp; C", html, StringComparison.Ordinal);
+        Assert.Contains("S &lt;i&gt;", html, StringComparison.Ordinal);
+        Assert.DoesNotContain("A <b> & C", html, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void StarterHeader_FallsBackToEnglishLabelsAndHidesMenuToggleWithoutScript()
+    {
+        var renderer = new ScribanTemplateRenderer(_layoutsDir);
+
+        var html = renderer.RenderPage("partials/header.html", new PageModel
+        {
+            Site = new SiteModel { Name = "starter-test", Title = "Starter Test", BaseUrl = "", Language = "en" },
+            Page = new PageInfo { Title = "Home", Url = "/", Content = "" }
+        });
+
+        Assert.Contains(">Home</a>", html, StringComparison.Ordinal);
+        Assert.Contains(">Blog</a>", html, StringComparison.Ordinal);
+        Assert.Contains("aria-controls=\"nav-links\" hidden>Menu</button>", html, StringComparison.Ordinal);
+        Assert.Contains("id=\"nav-links\"", html, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void StarterHeader_UsesAndEscapesConfiguredLabels()
+    {
+        var renderer = new ScribanTemplateRenderer(_layoutsDir);
+        var site = new SiteModel
+        {
+            Name = "starter-test",
+            Title = "Starter Test",
+            BaseUrl = "",
+            Language = "zh-CN",
+            Params = new Dictionary<string, object>
+            {
+                ["labels"] = new Dictionary<string, object> { ["home"] = "首页 & <x>" }
+            }
+        };
+
+        var html = renderer.RenderPage("partials/header.html", new PageModel
+        {
+            Site = site,
+            Page = new PageInfo { Title = "Home", Url = "/", Content = "" }
+        });
+
+        Assert.Contains(">首页 &amp; &lt;x&gt;</a>", html, StringComparison.Ordinal);
+        Assert.Contains(">Blog</a>", html, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void StarterSearchTemplate_EscapesLabelsInScriptStrings()
+    {
+        var renderer = new ScribanTemplateRenderer(_layoutsDir);
+        var site = new SiteModel
+        {
+            Name = "starter-test",
+            Title = "Starter Test",
+            BaseUrl = "",
+            Language = "en",
+            Params = new Dictionary<string, object>
+            {
+                ["labels"] = new Dictionary<string, object>
+                {
+                    ["untitled"] = "\"</script><script>alert(1)//",
+                    ["search"] = "Find \"<x>"
+                }
+            }
+        };
+
+        var html = renderer.RenderPage("pages/search.html", new PageModel
+        {
+            Site = site,
+            Page = new PageInfo { Title = "Search", Url = "/search/", Content = "" }
+        });
+
+        Assert.Contains("const untitledLabel = \"\\\"\\u003C/script>\\u003Cscript>alert(1)//\";", html, StringComparison.Ordinal);
+        Assert.Contains(">Find &quot;&lt;x&gt;</button>", html, StringComparison.Ordinal);
+        Assert.DoesNotContain("</script><script>alert", html, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void StarterStylesheet_KeepsColorOverrideContractAndDarkMode()
+    {
+        var css = File.ReadAllText(StarterThemePath("StyleCss.css"));
+
+        Assert.Contains("--primary: #0b5fff;", css, StringComparison.Ordinal);
+        Assert.Contains("--accent: #0f7b6c;", css, StringComparison.Ordinal);
+        Assert.Contains("prefers-color-scheme: dark", css, StringComparison.Ordinal);
+        Assert.Contains("@supports (color: color-mix(", css, StringComparison.Ordinal);
+        Assert.Contains(".nav-toggle:hover", css, StringComparison.Ordinal);
+        Assert.DoesNotContain("min-width: 681px", css, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void StarterTheme_LoadsNoExternalStylesheetsFontsOrScripts()
+    {
+        foreach (var file in Directory.EnumerateFiles(StarterThemePath(""), "*.*")
+            .Where(path => path.EndsWith(".html", StringComparison.Ordinal) || path.EndsWith(".css", StringComparison.Ordinal)))
+        {
+            var text = File.ReadAllText(file);
+            Assert.DoesNotMatch(@"<(script|link)[^>]+(src|href)=""(https?:)?//", text);
+            Assert.DoesNotMatch(@"@import|url\((""|')?(https?:)?//", text);
+        }
     }
 
     [Fact]
@@ -374,9 +572,12 @@ public sealed class StarterThemeTemplateResourceTests : IDisposable
         };
     }
 
+    private static string StarterThemePath(string resourceName) =>
+        Path.Combine(FindRepositoryRoot(), "src", "Bukit-Core", "Bukit.Cli", "Resources", "StarterTheme", resourceName);
+
     private void CopyResource(string resourceName, string relativeTarget)
     {
-        var source = Path.Combine(FindRepositoryRoot(), "src", "Bukit-Core", "Bukit.Cli", "Resources", "StarterTheme", resourceName);
+        var source = StarterThemePath(resourceName);
         var target = Path.Combine(_layoutsDir, relativeTarget);
         File.WriteAllText(target, File.ReadAllText(source));
     }

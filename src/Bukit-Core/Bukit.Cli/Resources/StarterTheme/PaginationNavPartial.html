@@ -15,9 +15,9 @@
   {{ end }}
 {{ end }}
 {{ if page_total > 1 }}
-<nav class="pagination" aria-label="Pagination">
-  <span>{{ if prev_url != "" }}<a href="{{ prev_url }}">Previous</a>{{ end }}</span>
-  <span>Page {{ page_num }} of {{ page_total }}</span>
-  <span>{{ if next_url != "" }}<a href="{{ next_url }}">Next</a>{{ end }}</span>
+<nav class="pagination" aria-label="{{ site.params.labels.pagination | object.default "Pagination" | html.escape }}">
+  <span>{{ if prev_url != "" }}<a href="{{ prev_url }}" rel="prev">{{ site.params.labels.previous | object.default "Previous" | html.escape }}</a>{{ end }}</span>
+  <span>{{ page_num }} / {{ page_total }}</span>
+  <span>{{ if next_url != "" }}<a href="{{ next_url }}" rel="next">{{ site.params.labels.next | object.default "Next" | html.escape }}</a>{{ end }}</span>
 </nav>
 {{ end }}

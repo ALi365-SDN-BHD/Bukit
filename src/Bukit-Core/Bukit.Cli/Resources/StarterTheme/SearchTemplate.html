@@ -1,14 +1,12 @@
 {% layout "layouts/base.html" %}
 
 <header class="page-header">
-  <p class="eyebrow">Search</p>
-  <h1>{{ page.title }}</h1>
-  <p>Search across generated titles, summaries, and snippets.</p>
+  <h1>{{ page.title | html.escape }}</h1>
 </header>
 
 <div class="search-form">
-  <input id="search-query" type="search" placeholder="Search content" />
-  <button id="search-button" type="button">Search</button>
+  <input id="search-query" type="search" placeholder="{{ site.params.labels.search_placeholder | object.default "Search posts and pages" | html.escape }}" aria-label="{{ site.params.labels.search | object.default "Search" | html.escape }}" />
+  <button id="search-button" type="button">{{ site.params.labels.search | object.default "Search" | html.escape }}</button>
 </div>
 <ul id="search-results" class="card-list"></ul>
 
@@ -16,6 +14,8 @@
 const queryInput = document.getElementById('search-query');
 const searchButton = document.getElementById('search-button');
 const resultsElement = document.getElementById('search-results');
+const untitledLabel = "{{ site.params.labels.untitled | object.default "Untitled" | string.escape | string.replace '<' '\\u003C' }}";
+const noResultsLabel = "{{ site.params.labels.no_results | object.default "No results" | string.escape | string.replace '<' '\\u003C' }}";
 const siteLanguage = "{{ site.language | string.escape | string.replace '<' '\\u003C' }}".toLowerCase();
 
 // The root merged index holds every language; keep the records of this page's
@@ -32,7 +32,7 @@ function appendResult(item) {
   title.className = 'card-title';
   const link = document.createElement('a');
   link.href = item.url || '#';
-  link.textContent = item.title || 'Untitled';
+  link.textContent = item.title || untitledLabel;
   title.appendChild(link);
   li.appendChild(title);
   const summary = item.snippet || item.summary;
@@ -52,13 +52,19 @@ async function runSearch() {
   const response = await fetch('{{ base_url }}/search.json');
   const items = await response.json();
   resultsElement.innerHTML = '';
-  items
+  const matches = items
     .filter(matchesSiteLanguage)
     .filter(item => keyword === '' ||
       (item.title || '').toLowerCase().includes(keyword) ||
       (item.summary || '').toLowerCase().includes(keyword) ||
-      (item.snippet || '').toLowerCase().includes(keyword))
-    .forEach(appendResult);
+      (item.snippet || '').toLowerCase().includes(keyword));
+  matches.forEach(appendResult);
+  if (matches.length === 0) {
+    const empty = document.createElement('li');
+    empty.className = 'search-empty';
+    empty.textContent = noResultsLabel;
+    resultsElement.appendChild(empty);
+  }
 }
 
 searchButton.addEventListener('click', runSearch);

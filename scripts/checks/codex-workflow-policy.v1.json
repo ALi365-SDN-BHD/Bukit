@@ -2370,6 +2370,8 @@
       "matches": [
         "openspec/changes/add-bukit-new-command/*",
         "openspec/changes/archive/*-add-bukit-new-command/*",
+        "openspec/changes/improve-starter-theme/*",
+        "openspec/changes/archive/*-improve-starter-theme/*",
         "openspec/specs/cli-scaffold/spec.md",
         "docs/plans/2026-11-15-bukit-new-command-implementation-plan.zh-CN.md",
         "guide/user/01-quick-start.md",

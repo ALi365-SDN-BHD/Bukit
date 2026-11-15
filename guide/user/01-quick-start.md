@@ -18,6 +18,12 @@ Use `--title` and `--language` to set the display title and primary language:
 bukit new my-site --title "My Site" --language zh-CN
 ```
 
+The starter theme reads its interface text (menu, pagination, search) from
+`theme.params.labels` in `site.yaml`. `bukit new` writes Simplified Chinese
+labels for `zh` tags (`zh`, `zh-CN`, `zh-Hans-HK`) unless they name
+Traditional Chinese (`zh-Hant`, `zh-TW`, `zh-HK`, `zh-MO`), and English labels
+otherwise. Edit them there to change the wording.
+
 ## Minimal Layout
 
 ```text
