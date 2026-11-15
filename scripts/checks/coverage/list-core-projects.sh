@@ -15,7 +15,11 @@ case "$(uname -s)" in
       Bukit.Cli.Tests.DeployWindowsRegressionTests.ResolveGit_Windows_RejectsBatchOnlyPath \
       Bukit.Cli.Tests.DeployWindowsRegressionTests.CleanupDeploymentDirectory_LockedFileReportsWarningWithoutLeakingPath \
       Bukit.Cli.Tests.GitHubPagesDeployProviderTests.DeployAsync_RealLocalGitPushFailure_CleansReadOnlyObjectsAndBroker \
-      Bukit.Cli.Tests.GitHubPagesDeployProviderTests.DeployAsync_RealLocalGitPushCancellation_CleansReadOnlyObjectsAndBroker; do
+      Bukit.Cli.Tests.GitHubPagesDeployProviderTests.DeployAsync_RealLocalGitPushCancellation_CleansReadOnlyObjectsAndBroker \
+      Bukit.Cli.Tests.GitCredentialBrokerTests.Broker_WindowsPipeAdmitsOnlyCurrentUserAndReportsLocalPeer \
+      Bukit.Cli.Tests.GitCredentialBrokerTests.ProcessInspector_WindowsNamedPipeClientIsLocalWithOwnPid \
+      Bukit.Cli.Tests.GitCredentialBrokerTests.Helper_WindowsPrintsCredentialOverNamedPipe \
+      Bukit.Cli.Tests.GitCredentialBrokerTests.CredentialHelperCommand_WindowsQuotedPathsReachHelperUnchangedThroughRealGit; do
       cli_filter+="FullyQualifiedName!=${method}&"
     done
     cli_filter="${cli_filter%&}"

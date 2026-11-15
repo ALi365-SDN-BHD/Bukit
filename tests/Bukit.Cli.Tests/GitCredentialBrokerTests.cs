@@ -515,8 +515,8 @@ public sealed class GitCredentialBrokerTests
     // ---- Windows named pipe (plan 3.7 test 12) ----
 
     /// <summary>Plan 3.7 test 12: the pipe DACL admits only the current user, and the broker sees this process as a local peer.</summary>
-    [WindowsFact]
     [SupportedOSPlatform("windows")]
+    [WindowsFact]
     public async Task Broker_WindowsPipeAdmitsOnlyCurrentUserAndReportsLocalPeer()
     {
         var query = new RecordingQuery();
@@ -555,8 +555,8 @@ public sealed class GitCredentialBrokerTests
     }
 
     /// <summary>Plan 3.7 test 12: GetNamedPipeClientComputerNameW reports a client on this machine as local.</summary>
-    [WindowsFact]
     [SupportedOSPlatform("windows")]
+    [WindowsFact]
     public async Task ProcessInspector_WindowsNamedPipeClientIsLocalWithOwnPid()
     {
         var name = "bukit-test-" + Guid.NewGuid().ToString("N");
@@ -572,8 +572,8 @@ public sealed class GitCredentialBrokerTests
     }
 
     /// <summary>Plan 3.7 test 12: the helper command gets a token over the real named pipe.</summary>
-    [WindowsFact]
     [SupportedOSPlatform("windows")]
+    [WindowsFact]
     public async Task Helper_WindowsPrintsCredentialOverNamedPipe()
     {
         var (policy, _) = CreateSelfAsHelperChain(uid: null);
@@ -591,8 +591,8 @@ public sealed class GitCredentialBrokerTests
     /// Plan 3.7 tests 2 and 12: on Windows, a helper path with spaces, <c>&amp;</c>, parentheses and
     /// backslashes reaches the helper unchanged when git for Windows runs the value through its sh.
     /// </summary>
-    [WindowsFact]
     [SupportedOSPlatform("windows")]
+    [WindowsFact]
     public async Task CredentialHelperCommand_WindowsQuotedPathsReachHelperUnchangedThroughRealGit()
     {
         var root = Directory.CreateTempSubdirectory("bukit-helper-quote-").FullName;
