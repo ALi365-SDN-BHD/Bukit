@@ -2,9 +2,9 @@
 
 <header class="page-header">
   <p class="eyebrow">Archive</p>
-  <h1>{{ page.title }}</h1>
+  <h1>{{ page.title | html.escape }}</h1>
   {{ if collection }}
-    <p class="meta">Collection: {{ collection.key }}</p>
+    <p class="meta">Collection: {{ collection.key | html.escape }}</p>
   {{ end }}
 </header>
 

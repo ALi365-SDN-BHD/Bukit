@@ -9,10 +9,10 @@
 
 ## 1. T1 缺陷修复
 
-- [ ] 导航模块链接（单个 `/` 开头）和标签索引 `term.url` 加 `base_url`。
-- [ ] 内容派生文本 `html.escape`；`page.content` 不转义。
-- [ ] `ListCardPartial` 删除 `country`、`industry`。
-- [ ] 测试：子路径导航、外链不变、标签链接、标题转义、无业务字段。
+- [x] 导航模块链接（单个 `/` 开头）和标签索引 `term.url` 加 `base_url`。
+- [x] 内容派生文本 `html.escape`；`page.content` 不转义。
+- [x] `ListCardPartial` 删除 `country`、`industry`。
+- [x] 测试：子路径导航、外链不变、标签链接、标题转义、无业务字段。
 
 ## 2. T2 外观与文字
 

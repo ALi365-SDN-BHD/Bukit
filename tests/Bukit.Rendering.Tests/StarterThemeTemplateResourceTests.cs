@@ -22,6 +22,8 @@ public sealed class StarterThemeTemplateResourceTests : IDisposable
         CopyResource("PaginationTemplate.html", "pages/pagination.html");
         CopyResource("TaxonomyTermTemplate.html", "pages/taxonomy-term.html");
         CopyResource("SearchTemplate.html", "pages/search.html");
+        CopyResource("HeaderPartial.html", "partials/header.html");
+        CopyResource("TaxonomyIndexTemplate.html", "pages/taxonomy-index.html");
     }
 
     public void Dispose()
@@ -44,8 +46,9 @@ public sealed class StarterThemeTemplateResourceTests : IDisposable
 
         Assert.Contains("Market Dispatch", html, StringComparison.Ordinal);
         Assert.Contains("Market Watch", html, StringComparison.Ordinal);
-        Assert.Contains("Malaysia", html, StringComparison.Ordinal);
-        Assert.Contains("Logistics", html, StringComparison.Ordinal);
+        Assert.Contains("logistics", html, StringComparison.Ordinal);
+        Assert.DoesNotContain("Malaysia", html, StringComparison.Ordinal);
+        Assert.DoesNotContain("Logistics", html, StringComparison.Ordinal);
         Assert.Contains("href=\"/archive/page/2/\"", html, StringComparison.Ordinal);
         Assert.DoesNotContain("page.fields.items.value", html, StringComparison.Ordinal);
         Assert.DoesNotContain("page.fields.pagination.value", html, StringComparison.Ordinal);
@@ -136,6 +139,98 @@ public sealed class StarterThemeTemplateResourceTests : IDisposable
         Assert.Contains("A &amp; B", index, StringComparison.Ordinal);
         Assert.Contains("About &amp; more", index, StringComparison.Ordinal);
         Assert.Contains("Latest &amp; best", index, StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData("/about/", "href=\"/docs/about/\"")]
+    [InlineData("https://example.com/", "href=\"https://example.com/\"")]
+    [InlineData("//cdn.example.com/x", "href=\"//cdn.example.com/x\"")]
+    public void StarterHeader_PrefixesRootRelativeNavigationLinks(string link, string expected)
+    {
+        var renderer = new ScribanTemplateRenderer(_layoutsDir);
+        var site = new SiteModel
+        {
+            Name = "starter-test",
+            Title = "Starter Test",
+            BaseUrl = "/docs",
+            Language = "en",
+            Modules = new Dictionary<string, IReadOnlyList<ModuleInfo>>
+            {
+                ["navigation"] =
+                [
+                    new ModuleInfo
+                    {
+                        Id = "nav-1",
+                        Title = "About & <us>",
+                        Slug = "about",
+                        Content = "",
+                        Fields = new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase)
+                        {
+                            ["link"] = new("text", link)
+                        }
+                    }
+                ]
+            }
+        };
+
+        var html = renderer.RenderPage("partials/header.html", new PageModel
+        {
+            Site = site,
+            Page = new PageInfo { Title = "Home", Url = "/", Content = "" }
+        });
+
+        Assert.Contains(expected, html, StringComparison.Ordinal);
+        Assert.Contains("About &amp; &lt;us&gt;", html, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void StarterTaxonomyIndex_PrefixesTermLinksAndEscapesText()
+    {
+        var renderer = new ScribanTemplateRenderer(_layoutsDir);
+        var page = new PageModel
+        {
+            Site = new SiteModel { Name = "starter-test", Title = "Starter Test", BaseUrl = "/docs", Language = "en" },
+            Page = new PageInfo
+            {
+                Title = "Tags <all>",
+                Url = "/tags/",
+                Content = "",
+                Fields = new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase)
+                {
+                    ["terms"] = new("list", new[]
+                    {
+                        new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
+                        {
+                            ["title"] = "News & <b>",
+                            ["url"] = "/tags/news/",
+                            ["count"] = 2,
+                            ["description"] = "Desc <i>"
+                        }
+                    })
+                }
+            }
+        };
+
+        var html = renderer.RenderPage("pages/taxonomy-index.html", page);
+
+        Assert.Contains("href=\"/docs/tags/news/\"", html, StringComparison.Ordinal);
+        Assert.Contains("News &amp; &lt;b&gt;", html, StringComparison.Ordinal);
+        Assert.Contains("Desc &lt;i&gt;", html, StringComparison.Ordinal);
+        Assert.Contains("Tags &lt;all&gt;", html, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void StarterListCard_EscapesContentText()
+    {
+        var renderer = new ScribanTemplateRenderer(_layoutsDir);
+        var model = CreateListModel();
+        var item = model.Pages[0] with { Title = "A <b> & C", Summary = "S <i>" };
+
+        var html = renderer.RenderList("pages/list.html", model with { Pages = [item], Items = [item] });
+
+        Assert.Contains("A &lt;b&gt; &amp; C", html, StringComparison.Ordinal);
+        Assert.Contains("S &lt;i&gt;", html, StringComparison.Ordinal);
+        Assert.DoesNotContain("A <b> & C", html, StringComparison.Ordinal);
     }
 
     [Fact]

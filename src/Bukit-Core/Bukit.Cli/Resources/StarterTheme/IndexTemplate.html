@@ -16,8 +16,8 @@
     <ul class="card-list">
       {{ for feature in site.modules.features }}
         <li class="card">
-          <h2 class="card-title">{{ feature.title }}</h2>
-          {{ if feature.fields && feature.fields.desc }}<p class="summary">{{ feature.fields.desc.value }}</p>{{ end }}
+          <h2 class="card-title">{{ feature.title | html.escape }}</h2>
+          {{ if feature.fields && feature.fields.desc }}<p class="summary">{{ feature.fields.desc.value | html.escape }}</p>{{ end }}
         </li>
       {{ end }}
     </ul>

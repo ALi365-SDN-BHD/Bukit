@@ -16,7 +16,10 @@
           {{ if item.fields && item.fields.link }}
             {{ nav_url = item.fields.link.value }}
           {{ end }}
-          <a href="{{ nav_url }}">{{ item.title }}</a>
+          {{ if (nav_url | string.starts_with "/") && !(nav_url | string.starts_with "//") }}
+            {{ nav_url = base_url + nav_url }}
+          {{ end }}
+          <a href="{{ nav_url | html.escape }}">{{ item.title | html.escape }}</a>
         {{ end }}
       {{ else }}
         <a href="{{ base_url }}/">Home</a>
