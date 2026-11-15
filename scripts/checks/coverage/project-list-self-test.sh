@@ -69,7 +69,7 @@ windows_only = set()
 for source in Path("tests/Bukit.Cli.Tests").glob("*.cs"):
     for method in re.findall(r"\[WindowsFact\]\s+public\s+(?:async\s+)?(?:Task|void)\s+(\w+)\(", source.read_text()):
         windows_only.add("Bukit.Cli.Tests." + source.stem + "." + method)
-assert len(windows_only) == 5, windows_only
+assert len(windows_only) == 12, windows_only
 bin_dir = Path(sys.argv[1]) / "platform-bin"
 bin_dir.mkdir()
 uname = bin_dir / "uname"
@@ -89,7 +89,7 @@ for platform in ["Linux", "Darwin", "MINGW64_NT-10.0", "MSYS_NT-10.0", "CYGWIN_N
         assert {term.removeprefix("FullyQualifiedName!=") for term in terms} == windows_only, (platform, cli_filter)
     else:
         assert not cli_filter, (platform, cli_filter)
-print("coverage selection: five Windows-only exclusions on Unix; Windows and other projects retained")
+print("coverage selection: twelve Windows-only exclusions on Unix; Windows and other projects retained")
 PY_SELECTION
 
 echo "coverage project list self-test OK"

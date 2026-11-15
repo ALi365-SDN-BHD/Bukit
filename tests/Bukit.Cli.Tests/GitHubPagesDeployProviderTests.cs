@@ -280,7 +280,7 @@ public sealed class GitHubPagesDeployProviderTests
         Assert.False(first.Success);
         Assert.Equal("Non-fast-forward push rejected. The remote branch has diverged; rerun with --force to overwrite it.", first.Error);
         Assert.True(second.Success, second.Error);
-        Assert.Matches(@"push --force bukit-deploy-[0-9a-f]+ gh-pages", scope.FakeGit.ReadLog());
+        Assert.Matches(@"push --no-verify --force bukit-deploy-[0-9a-f]+ gh-pages", scope.FakeGit.ReadLog());
     }
 
     [Fact]
@@ -298,7 +298,7 @@ public sealed class GitHubPagesDeployProviderTests
         Assert.True(result.Success, result.Error);
 
         var log = scope.FakeGit.ReadLog();
-        Assert.Matches(@"push --force bukit-deploy-[0-9a-f]+ gh-pages", log);
+        Assert.Matches(@"push --no-verify --force bukit-deploy-[0-9a-f]+ gh-pages", log);
     }
 
     [Fact]
@@ -612,11 +612,11 @@ public sealed class GitHubPagesDeployProviderTests
     }
 
     [Fact]
-    public async Task Deploy_AskpassScript_DoesNotLeakInError()
+    public async Task Deploy_CredentialEndpoint_DoesNotLeakInError()
     {
         using var scope = new GitHubPagesDeployTestScope();
         scope.FakeGit.RemoteUrl = "https://github.com/ali/docs.git";
-        scope.FakeGit.PushMode = "askpass-leak";
+        scope.FakeGit.PushMode = "endpoint-leak";
         scope.SetGithubToken("ghp_TEST_SECRET_TOKEN_123");
         scope.WriteOutputFile("index.html", "<h1>Hello</h1>");
         using var cwd = new CurrentDirectoryScope(scope.WorktreeDir);
@@ -624,15 +624,15 @@ public sealed class GitHubPagesDeployProviderTests
         var result = await new GitHubPagesDeployProvider().DeployAsync(scope.CreateContext(), CancellationToken.None);
 
         Assert.False(result.Success);
-        var askpassPath = scope.FakeGit.ReadAskpassPath();
-        Assert.False(string.IsNullOrWhiteSpace(askpassPath));
+        var endpoint = scope.FakeGit.ReadCredentialEndpoint();
+        Assert.False(string.IsNullOrWhiteSpace(endpoint));
         Assert.DoesNotContain("ghp_TEST_SECRET_TOKEN_123", result.Error, StringComparison.Ordinal);
-        Assert.DoesNotContain(askpassPath!, result.Error, StringComparison.Ordinal);
+        Assert.DoesNotContain(endpoint!, result.Error, StringComparison.Ordinal);
         Assert.Contains("[redacted-path]", result.Error, StringComparison.Ordinal);
     }
 
     [Fact]
-    public async Task Deploy_AskpassFile_IsDeletedAfterFailure()
+    public async Task Deploy_CredentialEndpoint_IsDeletedAfterFailure()
     {
         using var scope = new GitHubPagesDeployTestScope();
         scope.FakeGit.RemoteUrl = "https://github.com/ali/docs.git";
@@ -648,7 +648,7 @@ public sealed class GitHubPagesDeployProviderTests
     }
 
     [Fact]
-    public async Task Deploy_AskpassFile_IsDeletedAfterSuccess()
+    public async Task Deploy_CredentialEndpoint_IsDeletedAfterSuccess()
     {
         using var scope = new GitHubPagesDeployTestScope();
         scope.FakeGit.RemoteUrl = "https://github.com/ali/docs.git";
@@ -659,9 +659,7 @@ public sealed class GitHubPagesDeployProviderTests
         var result = await new GitHubPagesDeployProvider().DeployAsync(scope.CreateContext(), CancellationToken.None);
 
         Assert.True(result.Success, result.Error);
-        var askpassPath = scope.FakeGit.ReadAskpassPath();
-        Assert.False(string.IsNullOrWhiteSpace(askpassPath));
-        Assert.False(File.Exists(askpassPath));
+        AssertDeploymentCleanupSucceeded(scope);
     }
 
     [Fact]
@@ -692,9 +690,9 @@ public sealed class GitHubPagesDeployProviderTests
         var result = await new GitHubPagesDeployProvider().DeployAsync(scope.CreateContext(), CancellationToken.None);
 
         Assert.True(result.Success, result.Error);
-        var askpassPath = scope.FakeGit.ReadAskpassPath();
-        Assert.False(string.IsNullOrWhiteSpace(askpassPath));
-        Assert.False(Directory.Exists(Path.GetDirectoryName(askpassPath)!));
+        var checkout = scope.FakeGit.ReadCheckoutDir();
+        Assert.False(string.IsNullOrWhiteSpace(checkout));
+        Assert.False(Directory.Exists(Path.GetDirectoryName(checkout)!));
     }
 
     [Fact]
@@ -864,7 +862,7 @@ public sealed class GitHubPagesDeployProviderTests
         var result = await new GitHubPagesDeployProvider().DeployAsync(scope.CreateContext(force: true), CancellationToken.None);
 
         Assert.True(result.Success, result.Error);
-        Assert.Matches(@"push --force bukit-deploy-[0-9a-f]+ gh-pages", scope.FakeGit.ReadLog());
+        Assert.Matches(@"push --no-verify --force bukit-deploy-[0-9a-f]+ gh-pages", scope.FakeGit.ReadLog());
     }
 
     [Fact]
@@ -885,7 +883,7 @@ public sealed class GitHubPagesDeployProviderTests
         Assert.Contains("fetch --depth 1 bukit-deploy-", log, StringComparison.Ordinal);
         Assert.Contains(" gh-pages", log, StringComparison.Ordinal);
         Assert.Contains("checkout -B gh-pages FETCH_HEAD", log, StringComparison.Ordinal);
-        Assert.Matches(@"push --force bukit-deploy-[0-9a-f]+ gh-pages", log);
+        Assert.Matches(@"push --no-verify --force bukit-deploy-[0-9a-f]+ gh-pages", log);
     }
 
     [Fact]
@@ -906,9 +904,9 @@ public sealed class GitHubPagesDeployProviderTests
             nameof(GitHubPagesDeployProvider),
             "SanitizeError",
             [
-                "cannot run /tmp/bukit-deploy-123/git-askpass from /tmp/bukit-deploy-123",
+                "cannot run /tmp/bukit-cred-0a1b2c/c.sock from /tmp/bukit-deploy-123",
                 "token",
-                new[] { "/tmp/bukit-deploy-123/git-askpass", "/tmp/bukit-deploy-123" }
+                new[] { "/tmp/bukit-cred-0a1b2c/c.sock", "/tmp/bukit-deploy-123" }
             ]);
 
         Assert.DoesNotContain("/tmp/bukit-deploy-123", result, StringComparison.Ordinal);
@@ -1369,59 +1367,70 @@ public sealed class GitHubPagesDeployProviderTests
         }
     }
 
-    [Fact]
-    public void CreateAskpassScript_AndCleanupAskpassScript_CreateEnvBackedScriptWithoutTokenLiteral()
+    /// <summary>
+    /// Plan 3.7 test 2: the helper value survives git's own parsing. Real git runs a stub at a
+    /// path full of shell metacharacters and the stub sees exactly the expected arguments.
+    /// </summary>
+    [UnixFact]
+    [System.Runtime.Versioning.UnsupportedOSPlatform("windows")]
+    public async Task CredentialHelperCommand_QuotedPathsReachHelperUnchangedThroughRealGit()
     {
-        var tempDir = Path.Combine(Path.GetTempPath(), "bukit-gh-pages-askpass-" + Guid.NewGuid().ToString("N"));
-
+        var root = Directory.CreateTempSubdirectory("bukit-helper-quote-").FullName;
         try
         {
-            Directory.CreateDirectory(tempDir);
-            var token = "secret-token\"'$()&|";
-            var scriptPath = InvokePrivateStatic<string>(
-                nameof(GitHubPagesDeployProvider),
-                "CreateAskpassScript",
-                [tempDir, token]);
+            var dir = Directory.CreateDirectory(Path.Combine(root, "it's a $dir `x` & (y)")).FullName;
+            var stub = Path.Combine(dir, "helper stub");
+            var argsLog = Path.Combine(root, "args.log");
+            File.WriteAllText(stub, $"#!/bin/sh\nfor a in \"$@\"; do printf '%s\\n' \"$a\"; done > {GitHubPagesDeployProvider.ShellQuote(argsLog)}\nprintf 'username=u\\npassword=p\\n'\n");
+            File.SetUnixFileMode(stub, UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
+            var endpoint = Path.Combine(dir, "c 'sock' $HOME");
+            var helper = GitHubPagesDeployProvider.BuildCredentialHelperCommand(stub, null, endpoint);
+            var emptyConfig = Path.Combine(root, "empty.gitconfig");
+            File.WriteAllText(emptyConfig, string.Empty);
 
-            Assert.True(File.Exists(scriptPath));
-            var contents = File.ReadAllText(scriptPath);
-            Assert.DoesNotContain(token, contents, StringComparison.Ordinal);
-            Assert.Contains("BUKIT_GITHUB_TOKEN", contents, StringComparison.Ordinal);
-            Assert.Equal(token, RunAskpassScript(scriptPath, token));
+            var git = InvokePrivateStatic<string?>(nameof(GitHubPagesDeployProvider), "ResolveGit", [null])!;
+            var psi = new ProcessStartInfo(git)
+            {
+                RedirectStandardInput = true,
+                RedirectStandardOutput = true,
+                RedirectStandardError = true,
+                UseShellExecute = false,
+                WorkingDirectory = root,
+            };
+            foreach (var arg in new[] { "-c", "credential.helper=", "-c", $"credential.helper={helper}", "credential", "fill" })
+            {
+                psi.ArgumentList.Add(arg);
+            }
 
-            InvokePrivateStatic<object?>(
-                nameof(GitHubPagesDeployProvider),
-                "CleanupAskpassScript",
-                [scriptPath]);
+            psi.Environment["GIT_CONFIG_NOSYSTEM"] = "1";
+            psi.Environment["GIT_CONFIG_GLOBAL"] = emptyConfig;
+            psi.Environment["GIT_TERMINAL_PROMPT"] = "0";
+            using var proc = Process.Start(psi)!;
+            await proc.StandardInput.WriteAsync("protocol=https\nhost=example.com\n\n");
+            proc.StandardInput.Close();
+            var stdout = await proc.StandardOutput.ReadToEndAsync();
+            var stderr = await proc.StandardError.ReadToEndAsync();
+            await proc.WaitForExitAsync().WaitAsync(TimeSpan.FromSeconds(20));
 
-            Assert.False(File.Exists(scriptPath));
+            Assert.True(proc.ExitCode == 0, stderr);
+            Assert.Contains("password=p", stdout, StringComparison.Ordinal);
+            Assert.Equal(["__git-credential", endpoint, "get"], File.ReadAllLines(argsLog));
         }
         finally
         {
-            if (Directory.Exists(tempDir))
-            {
-                Directory.Delete(tempDir, recursive: true);
-            }
+            Directory.Delete(root, recursive: true);
         }
     }
 
-    private static string RunAskpassScript(string scriptPath, string token)
+    [Fact]
+    public void CredentialHelperCommand_UsesShellFormAndQuotesEveryPath()
     {
-        var psi = OperatingSystem.IsWindows()
-            ? new ProcessStartInfo("cmd.exe", $"/c \"{scriptPath}\"")
-            : new ProcessStartInfo(scriptPath);
-        psi.RedirectStandardOutput = true;
-        psi.RedirectStandardError = true;
-        psi.UseShellExecute = false;
-        psi.Environment["BUKIT_GITHUB_TOKEN"] = token;
-
-        using var proc = Process.Start(psi) ?? throw new InvalidOperationException("Failed to start askpass script.");
-        var output = proc.StandardOutput.ReadToEnd();
-        var error = proc.StandardError.ReadToEnd();
-        Assert.True(proc.WaitForExit(5000), "askpass script did not exit.");
-        Assert.Equal(0, proc.ExitCode);
-        Assert.True(string.IsNullOrWhiteSpace(error), error);
-        return output.TrimEnd('\r', '\n');
+        Assert.Equal(
+            "!'/opt/it'\\''s/dotnet' '/opt/b k/bukit.dll' __git-credential '/tmp/bukit-cred-x/c.sock'",
+            GitHubPagesDeployProvider.BuildCredentialHelperCommand("/opt/it's/dotnet", "/opt/b k/bukit.dll", "/tmp/bukit-cred-x/c.sock"));
+        Assert.Equal(
+            "!'/usr/local/bin/bukit' __git-credential 'bukit-cred-abc'",
+            GitHubPagesDeployProvider.BuildCredentialHelperCommand("/usr/local/bin/bukit", null, "bukit-cred-abc"));
     }
 
     private static T InvokePrivateStatic<T>(string typeName, string methodName, object?[] args)
@@ -1498,15 +1507,15 @@ public sealed class GitHubPagesDeployProviderTests
     }
 
     [Fact]
-    public async Task DeployAsync_RealLocalGitClonesAndPushesWithAskpassAlive()
+    public async Task DeployAsync_RealLocalGitClonesAndPushesWithBrokerHelper()
         => await DeployRealLocalGitAndAssertCleanupAsync("success");
 
     [WindowsFact]
-    public async Task DeployAsync_RealLocalGitPushFailure_CleansReadOnlyObjectsAndAskpass()
+    public async Task DeployAsync_RealLocalGitPushFailure_CleansReadOnlyObjectsAndBroker()
         => await DeployRealLocalGitAndAssertCleanupAsync("reject");
 
     [WindowsFact]
-    public async Task DeployAsync_RealLocalGitPushCancellation_CleansReadOnlyObjectsAndAskpass()
+    public async Task DeployAsync_RealLocalGitPushCancellation_CleansReadOnlyObjectsAndBroker()
         => await DeployRealLocalGitAndAssertCleanupAsync("wait");
 
     private static async Task DeployRealLocalGitAndAssertCleanupAsync(string pushBehavior)
@@ -1520,7 +1529,7 @@ public sealed class GitHubPagesDeployProviderTests
         var accessLog = Path.Combine(scope.WorktreeDir, "transport-access.log");
         if (OperatingSystem.IsWindows())
         {
-            scope.UseRealGitShim(realGit, remote, accessLog, Path.Combine(scope.WorktreeDir, "askpass-path"), pushBehavior);
+            scope.UseRealGitShim(realGit, remote, accessLog, Path.Combine(scope.WorktreeDir, "helper-log"), pushBehavior);
         }
 
         async Task<string> Git(params string[] args)
@@ -1559,21 +1568,32 @@ public sealed class GitHubPagesDeployProviderTests
         {
             WriteExecutable(scope.FakeGit.BinDir, "git", $$"""
             set -eu
-            case "${1:-}" in
+            skip=0; sub=""; rest=""; helper=""
+            for arg in "$@"; do
+              if [ "$skip" = 1 ]; then
+                skip=0
+                case "$arg" in credential.helper=?*) helper="${arg#credential.helper=}" ;; esac
+                continue
+              fi
+              if [ -z "$sub" ] && [ "$arg" = "-c" ]; then skip=1; continue; fi
+              if [ -z "$sub" ]; then sub="$arg"; fi
+              rest="$rest${rest:+ }$arg"
+            done
+            case "$sub" in
               ls-remote|fetch|push)
-                if [ -n "${GIT_ASKPASS:-}" ]; then
-                  [ -f "$GIT_ASKPASS" ] || exit 71
-                  printf '%s' "$GIT_ASKPASS" > {{Quote(Path.Combine(scope.WorktreeDir, "askpass-path"))}}
-                fi
+                [ -n "$helper" ] || exit 71
+                printf 'HELPER %s\nPWD %s\n' "$helper" "$PWD" > {{Quote(Path.Combine(scope.WorktreeDir, "helper-log"))}}
                 printf 'ACCESS %s\n' {{Quote(remote)}} >> {{Quote(accessLog)}}
-                mapped=""
+                count=$#
                 for arg in "$@"; do
                   case "$arg" in
                     bukit-deploy-*) arg={{Quote(remote)}} ;;
                   esac
-                  mapped="$mapped '$arg'"
+                  set -- "$@" "$arg"
                 done
-                eval "exec {{Quote(realGit)}} $mapped"
+                shift "$count"
+                # GIT_ALLOW_PROTOCOL overrides deploy's https-only protocol.allow for the local double.
+                GIT_ALLOW_PROTOCOL=file exec {{Quote(realGit)}} "$@"
                 ;;
               *)
                 exec {{Quote(realGit)}} "$@"
@@ -1622,11 +1642,13 @@ public sealed class GitHubPagesDeployProviderTests
         var files = await Git("--git-dir", remote, "ls-tree", "--name-only", "pages");
         if (pushBehavior == "success") Assert.DoesNotContain("old.html", files);
         else Assert.Equal("old page", (await Git("--git-dir", remote, "show", "pages:old.html")).Trim());
-        Assert.DoesNotContain("askpass", files);
+        Assert.DoesNotContain("empty.gitconfig", files);
         Assert.DoesNotContain(".bukit", files);
-        var askpass = File.ReadAllText(Path.Combine(scope.WorktreeDir, "askpass-path"));
-        Assert.False(File.Exists(askpass));
-        Assert.False(Directory.Exists(Path.GetDirectoryName(askpass)), "The deployment temporary repository must be removed, including read-only Git objects.");
+        var helperLog = File.ReadAllLines(Path.Combine(scope.WorktreeDir, "helper-log"));
+        var endpoint = System.Text.RegularExpressions.Regex.Match(helperLog.Single(l => l.StartsWith("HELPER ", StringComparison.Ordinal)), "'([^']*)'\\s*$").Groups[1].Value;
+        var checkout = helperLog.Single(l => l.StartsWith("PWD ", StringComparison.Ordinal))["PWD ".Length..];
+        Assert.False(File.Exists(endpoint));
+        Assert.False(Directory.Exists(Path.GetDirectoryName(checkout)), "The deployment temporary repository must be removed, including read-only Git objects.");
         var accesses = File.ReadAllLines(accessLog);
         Assert.Equal(3, accesses.Length);
         Assert.All(accesses, line => Assert.Equal("ACCESS " + remote, line));
@@ -1634,10 +1656,18 @@ public sealed class GitHubPagesDeployProviderTests
 
     private static void AssertDeploymentCleanupSucceeded(GitHubPagesDeployTestScope scope)
     {
-        var askpassPath = scope.FakeGit.ReadAskpassPath();
-        Assert.False(string.IsNullOrWhiteSpace(askpassPath));
-        Assert.False(File.Exists(askpassPath));
-        Assert.False(Directory.Exists(Path.GetDirectoryName(askpassPath)!));
+        // The broker endpoint (and on Unix its private directory) and the deploy temp dir are gone.
+        var endpoint = scope.FakeGit.ReadCredentialEndpoint();
+        Assert.False(string.IsNullOrWhiteSpace(endpoint));
+        if (!OperatingSystem.IsWindows())
+        {
+            Assert.False(File.Exists(endpoint));
+            Assert.False(Directory.Exists(Path.GetDirectoryName(endpoint)!));
+        }
+
+        var checkout = scope.FakeGit.ReadCheckoutDir();
+        Assert.False(string.IsNullOrWhiteSpace(checkout));
+        Assert.False(Directory.Exists(Path.GetDirectoryName(checkout)!));
     }
 
     [Fact]
@@ -1765,7 +1795,7 @@ public sealed class GitHubPagesDeployProviderTests
 
         public void SetDeployTimeoutSeconds(string? seconds) => SetEnv("BUKIT_DEPLOY_GIT_TIMEOUT_SECONDS", seconds);
 
-        public void UseRealGitShim(string realGit, string remote, string accessLog, string askpassLog, string pushBehavior = "success")
+        public void UseRealGitShim(string realGit, string remote, string accessLog, string helperLog, string pushBehavior = "success")
         {
             _hasRealGitRepositories = true;
             var config = Path.Combine(_root, "isolated.gitconfig");
@@ -1795,7 +1825,7 @@ public sealed class GitHubPagesDeployProviderTests
             SetEnv("BUKIT_DEPLOY_REAL_GIT", realGit);
             SetEnv("BUKIT_DEPLOY_BARE_B", remote);
             SetEnv("BUKIT_DEPLOY_ACCESS_LOG", accessLog);
-            SetEnv("BUKIT_DEPLOY_ASKPASS_LOG", askpassLog);
+            SetEnv("BUKIT_DEPLOY_HELPER_LOG", helperLog);
             SetEnv("BUKIT_DEPLOY_SIMPLE_LOG", "1");
             SetEnv("BUKIT_DEPLOY_PUSH_BEHAVIOR", pushBehavior);
             SetEnv("BUKIT_DEPLOY_PUSH_MARKER", Path.Combine(WorktreeDir, "real-push-started"));
@@ -1893,11 +1923,20 @@ public sealed class GitHubPagesDeployProviderTests
         public string ReadLog()
             => File.Exists(LogPath) ? File.ReadAllText(LogPath) : string.Empty;
 
-        public string? ReadAskpassPath()
+        /// <summary>The broker endpoint: the last single-quoted word of the logged credential helper.</summary>
+        public string? ReadCredentialEndpoint()
             => File.ReadLines(LogPath)
-                .Where(line => line.StartsWith("ASKPASS ", StringComparison.Ordinal))
-                .Select(line => line["ASKPASS ".Length..])
+                .Where(line => line.StartsWith("HELPER ", StringComparison.Ordinal))
+                .Select(line => System.Text.RegularExpressions.Regex.Match(line, "'([^']*)'\\s*$"))
+                .Where(match => match.Success)
+                .Select(match => match.Groups[1].Value)
                 .LastOrDefault();
+
+        /// <summary>The deploy's temporary checkout, from the working directory of a logged git call.</summary>
+        public string? ReadCheckoutDir()
+            => File.ReadLines(LogPath)
+                .Select(line => line.Split('|')[0])
+                .FirstOrDefault(dir => Path.GetFileName(dir) == "checkout" && dir.Contains("bukit-deploy-", StringComparison.Ordinal));
 
         public void SetDeployTimeoutSeconds(string? seconds) => Environment.SetEnvironmentVariable("BUKIT_DEPLOY_GIT_TIMEOUT_SECONDS", seconds);
 
@@ -1917,8 +1956,29 @@ public sealed class GitHubPagesDeployProviderTests
                 WindowsGitShim.Install(BinDir);
                 File.WriteAllText(Path.Combine(BinDir, "git.ps1"), """
                 $log = $env:BUKIT_FAKE_GIT_LOG
+                # Deploy prefixes sandbox and credential options; record the helper, then drop them.
+                while ($args.Count -ge 2 -and $args[0] -eq '-c') {
+                    if ($args[1] -like 'credential.helper=?*') {
+                        $helper = $args[1].Substring(18)
+                        Add-Content -LiteralPath $log -Value ("HELPER " + $helper)
+                    }
+                    $args = @($args | Select-Object -Skip 2)
+                }
+                if ($args.Count -ge 1 -and $args[0] -eq '--exec-path') {
+                    # The Git for Windows layout the deploy accepts: <root>\ucrt64\libexec\git-core,
+                    # with <root>\cmd\git.exe and the installation's own <root>\usr\bin\sh.exe.
+                    $gitRoot = Join-Path $env:BUKIT_FAKE_GIT_STATE 'git'
+                    $exec = Join-Path $gitRoot 'ucrt64\libexec\git-core'
+                    foreach ($dir in @($exec, (Join-Path $gitRoot 'cmd'), (Join-Path $gitRoot 'usr\bin'))) {
+                        New-Item -ItemType Directory -Force -Path $dir | Out-Null
+                    }
+                    foreach ($file in @((Join-Path $exec 'git-remote-https.exe'), (Join-Path $gitRoot 'cmd\git.exe'), (Join-Path $gitRoot 'usr\bin\sh.exe'))) {
+                        New-Item -ItemType File -Force -Path $file | Out-Null
+                    }
+                    [Console]::Out.WriteLine($exec)
+                    exit 0
+                }
                 Add-Content -LiteralPath $log -Value ("$($PWD.Path)|" + ($args -join ' '))
-                if ($env:GIT_ASKPASS) { Add-Content -LiteralPath $log -Value "ASKPASS $($env:GIT_ASKPASS)" }
                 function Write-Nul([string]$value) { [Console]::Out.Write($value + [char]0) }
 
                 if ($args.Count -ge 1 -and $args[0] -eq 'config') {
@@ -1992,8 +2052,8 @@ public sealed class GitHubPagesDeployProviderTests
                         [Console]::Error.Write("remote: 403 Forbidden $($env:GITHUB_TOKEN)`n")
                         exit 1
                     }
-                    if ($mode -eq 'askpass-leak') {
-                        [Console]::Error.Write("fatal: cannot run $($env:GIT_ASKPASS) for token $($env:GITHUB_TOKEN)`n")
+                    if ($mode -eq 'endpoint-leak') {
+                        [Console]::Error.Write("fatal: cannot run $helper for token $($env:GITHUB_TOKEN)`n")
                         exit 1
                     }
                     if ($mode -eq 'flood-over-limit') {
@@ -2027,10 +2087,23 @@ public sealed class GitHubPagesDeployProviderTests
             File.WriteAllText(unixPath, """
             #!/bin/sh
             set -eu
-            echo "$PWD|$*" >> "$BUKIT_FAKE_GIT_LOG"
-            if [ -n "${GIT_ASKPASS:-}" ]; then
-              printf 'ASKPASS %s\n' "$GIT_ASKPASS" >> "$BUKIT_FAKE_GIT_LOG"
+            # Deploy prefixes sandbox and credential options; record the helper, then drop them.
+            while [ "${1:-}" = "-c" ]; do
+              case "${2:-}" in
+                credential.helper=?*)
+                  printf 'HELPER %s\n' "${2#credential.helper=}" >> "$BUKIT_FAKE_GIT_LOG"
+                  BUKIT_FAKE_GIT_HELPER="${2#credential.helper=}"
+                  ;;
+              esac
+              shift 2
+            done
+            if [ "${1:-}" = "--exec-path" ]; then
+              mkdir -p "$BUKIT_FAKE_GIT_STATE/exec"
+              : > "$BUKIT_FAKE_GIT_STATE/exec/git-remote-https"
+              printf '%s\n' "$BUKIT_FAKE_GIT_STATE/exec"
+              exit 0
             fi
+            echo "$PWD|$*" >> "$BUKIT_FAKE_GIT_LOG"
             if [ "${1:-}" = "config" ]; then
               last=""
               for arg in "$@"; do last="$arg"; done
@@ -2145,8 +2218,8 @@ public sealed class GitHubPagesDeployProviderTests
                 printf 'remote: 403 Forbidden %s\n' "${GITHUB_TOKEN:-missing}" >&2
                 exit 1
               fi
-              if [ "$mode" = "askpass-leak" ]; then
-                printf 'fatal: cannot run %s for token %s\n' "${GIT_ASKPASS:-missing}" "${GITHUB_TOKEN:-missing}" >&2
+              if [ "$mode" = "endpoint-leak" ]; then
+                printf 'fatal: cannot run %s for token %s\n' "${BUKIT_FAKE_GIT_HELPER:-missing}" "${GITHUB_TOKEN:-missing}" >&2
                 exit 1
               fi
               if [ "$mode" = "flood-over-limit" ]; then

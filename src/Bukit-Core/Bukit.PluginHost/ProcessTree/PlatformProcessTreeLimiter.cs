@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.Runtime.InteropServices;
+using Bukit.Shared.Processes;
 
 namespace Bukit.PluginHost.ProcessTree;
 
@@ -285,7 +286,7 @@ internal sealed class UnixProcessGroupTreeLimiter : IProcessTreeLimiter
                 continue;
             }
 
-            if (TryReadStatField(pid, out var stat) && stat.Pgrp == pgid)
+            if (ProcessInspector.TryReadLinuxStat(pid, out var stat) && stat.Pgrp == pgid)
             {
                 result.Add(pid);
             }
@@ -325,48 +326,13 @@ internal sealed class UnixProcessGroupTreeLimiter : IProcessTreeLimiter
                 continue;
             }
 
-            if (TryReadStatField(pid, out var stat) && stat.Ppid == parentPid)
+            if (ProcessInspector.TryReadLinuxStat(pid, out var stat) && stat.Ppid == parentPid)
             {
                 result.Add(pid);
             }
         }
 
         return result;
-    }
-
-    private readonly record struct StatUsage(int Ppid, int Pgrp, long UtimeTicks, long StimeTicks, long RssPages);
-
-    private static bool TryReadStatField(int pid, out StatUsage usage)
-    {
-        usage = default;
-        try
-        {
-            var stat = File.ReadAllText($"/proc/{pid}/stat");
-            var closeParen = stat.LastIndexOf(')');
-            if (closeParen < 0 || closeParen + 2 >= stat.Length)
-            {
-                return false;
-            }
-
-            var fields = stat[(closeParen + 2)..].Split(' ', StringSplitOptions.RemoveEmptyEntries);
-            // Fields after comm: state(0) ppid(1) pgrp(2) ... utime(11) stime(12) ... rss(21)
-            if (fields.Length < 22)
-            {
-                return false;
-            }
-
-            usage = new StatUsage(
-                int.Parse(fields[1], System.Globalization.CultureInfo.InvariantCulture),
-                int.Parse(fields[2], System.Globalization.CultureInfo.InvariantCulture),
-                long.Parse(fields[11], System.Globalization.CultureInfo.InvariantCulture),
-                long.Parse(fields[12], System.Globalization.CultureInfo.InvariantCulture),
-                long.Parse(fields[21], System.Globalization.CultureInfo.InvariantCulture));
-            return true;
-        }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or FormatException or OverflowException)
-        {
-            return false;
-        }
     }
 
     private static bool TryReadProcessUsage(int pid, out long cpuTicks, out long memoryBytes)
@@ -389,7 +355,7 @@ internal sealed class UnixProcessGroupTreeLimiter : IProcessTreeLimiter
             return true;
         }
 
-        if (TryReadStatField(pid, out var stat))
+        if (ProcessInspector.TryReadLinuxStat(pid, out var stat))
         {
             cpuTicks = stat.UtimeTicks + stat.StimeTicks;
             memoryBytes = stat.RssPages * LinuxConstants.PageSize;

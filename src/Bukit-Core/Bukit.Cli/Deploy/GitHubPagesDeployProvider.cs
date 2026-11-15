@@ -103,38 +103,41 @@ public sealed partial class GitHubPagesDeployProvider : IDeployProvider
         var tempDir = Path.Combine(Path.GetTempPath(), $"bukit-deploy-{Guid.NewGuid():N}");
         var checkoutDir = Path.Combine(tempDir, "checkout");
         var remoteName = $"bukit-deploy-{Guid.NewGuid():N}";
-        string? askpassScript = null;
+        GitAuthContext? auth = null;
 
         try
         {
             Directory.CreateDirectory(checkoutDir);
 
-            askpassScript = CreateAskpassScript(tempDir, token);
+            // Every git call in the temporary repository runs sandboxed (plan 3.5); the token
+            // reaches git only through the credential broker, never its environment.
+            var sandbox = GitSandbox.Create(tempDir);
             var remoteUrl = $"https://github.com/{repoInfo.Owner}/{repoInfo.RepoName}.git";
             // Establish the final transport config context before any preflight or transport:
             // the private remote and its URL live in this temporary repository's local config.
-            await RunGitAsync(gitPath, checkoutDir, gitCommandTimeout, ct, "init");
-            await RunGitAsync(gitPath, checkoutDir, gitCommandTimeout, ct, "remote", "add", remoteName, remoteUrl);
+            await RunGitAsync(sandbox, gitPath, checkoutDir, gitCommandTimeout, ct, "init");
+            await RunGitAsync(sandbox, gitPath, checkoutDir, gitCommandTimeout, ct, "remote", "add", remoteName, remoteUrl);
+            auth = await GitAuthContext.StartAsync(gitPath, sandbox, checkoutDir, token, remoteName, remoteUrl, gitCommandTimeout, logger, ct);
 
-            await EnsureTransportTargetAsync(gitPath, checkoutDir, remoteName, remoteUrl, gitCommandTimeout, ct);
-            var branchExists = await RemoteBranchExistsAsync(gitPath, token, askpassScript, checkoutDir, remoteName, branch, gitCommandTimeout, ct);
+            await EnsureTransportTargetAsync(sandbox, gitPath, checkoutDir, remoteName, remoteUrl, gitCommandTimeout, ct);
+            var branchExists = await RemoteBranchExistsAsync(gitPath, auth, checkoutDir, branch, gitCommandTimeout, ct);
 
             if (branchExists)
             {
                 logger.Info($"Fetching existing {branch} branch...");
-                await EnsureTransportTargetAsync(gitPath, checkoutDir, remoteName, remoteUrl, gitCommandTimeout, ct);
+                await EnsureTransportTargetAsync(sandbox, gitPath, checkoutDir, remoteName, remoteUrl, gitCommandTimeout, ct);
                 string[] fetchArguments = context.KeepHistory
                     ? ["fetch", remoteName, $"refs/heads/{branch}"]
                     : ["fetch", "--depth", "1", remoteName, $"refs/heads/{branch}"];
-                await RunGitAuthAsync(gitPath, token, askpassScript, checkoutDir, gitCommandTimeout, ct, fetchArguments);
+                await RunGitAuthAsync(gitPath, auth, checkoutDir, gitCommandTimeout, ct, fetchArguments);
                 // FETCH_HEAD avoids writing into a checked-out unborn branch (the repository
                 // default branch), which Git refuses to fetch into.
-                await RunGitAsync(gitPath, checkoutDir, gitCommandTimeout, ct, "checkout", "-B", branch, "FETCH_HEAD");
+                await RunGitAsync(sandbox, gitPath, checkoutDir, gitCommandTimeout, ct, "checkout", "-B", branch, "FETCH_HEAD");
             }
             else
             {
                 logger.Info($"Creating new {branch} branch...");
-                await RunGitAsync(gitPath, checkoutDir, gitCommandTimeout, ct, "checkout", "-B", branch);
+                await RunGitAsync(sandbox, gitPath, checkoutDir, gitCommandTimeout, ct, "checkout", "-B", branch);
             }
 
             foreach (var entry in Directory.GetFileSystemEntries(checkoutDir))
@@ -182,21 +185,21 @@ public sealed partial class GitHubPagesDeployProvider : IDeployProvider
                 };
             }
 
-            await EnsureGitIdentityAsync(gitPath, checkoutDir, gitCommandTimeout, ct, logger);
+            await EnsureGitIdentityAsync(sandbox, gitPath, checkoutDir, gitCommandTimeout, ct, logger);
 
-            await RunGitAsync(gitPath, checkoutDir, gitCommandTimeout, ct, "add", "-A");
-            await RunGitAsync(gitPath, checkoutDir, gitCommandTimeout, ct, "commit", "-m", message, "--allow-empty");
+            await RunGitAsync(sandbox, gitPath, checkoutDir, gitCommandTimeout, ct, "add", "-A");
+            await RunGitAsync(sandbox, gitPath, checkoutDir, gitCommandTimeout, ct, "commit", "-m", message, "--allow-empty");
 
             try
             {
-                await EnsureTransportTargetAsync(gitPath, checkoutDir, remoteName, remoteUrl, gitCommandTimeout, ct);
+                await EnsureTransportTargetAsync(sandbox, gitPath, checkoutDir, remoteName, remoteUrl, gitCommandTimeout, ct);
                 if (context.Force)
                 {
-                    await RunGitAuthAsync(gitPath, token, askpassScript, checkoutDir, gitCommandTimeout, ct, "push", "--force", remoteName, branch);
+                    await RunGitAuthAsync(gitPath, auth, checkoutDir, gitCommandTimeout, ct, "push", "--no-verify", "--force", remoteName, branch);
                 }
                 else
                 {
-                    await RunGitAuthAsync(gitPath, token, askpassScript, checkoutDir, gitCommandTimeout, ct, "push", remoteName, branch);
+                    await RunGitAuthAsync(gitPath, auth, checkoutDir, gitCommandTimeout, ct, "push", "--no-verify", remoteName, branch);
                 }
             }
             catch (Exception pushEx)
@@ -218,14 +221,14 @@ public sealed partial class GitHubPagesDeployProvider : IDeployProvider
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
-            var sanitized = SanitizeError(ex.Message, token, askpassScript, tempDir);
+            var sanitized = SanitizeError(ex.Message, token, [.. CredentialPaths(auth), tempDir]);
             var friendly = AugmentErrorHint(sanitized, tokenEnv!);
             logger.Error($"Deployment failed: {friendly}");
             return new DeployResult { Success = false, Error = friendly };
         }
         finally
         {
-            CleanupAskpassScript(askpassScript);
+            await StopCredentialBrokerAsync(auth);
             CleanupDeploymentDirectory(tempDir);
         }
     }

@@ -250,8 +250,9 @@ public sealed class DeployIdentityTransportTests
         Assert.Empty(scope.Accesses);
     }
 
+    /// <summary>The sandboxed transport never reads system config, so its rewrites neither block nor apply.</summary>
     [Fact]
-    public async Task SystemMatchingRewrite_BlocksTransport()
+    public async Task SystemMatchingRewrite_IsNotAppliedAndDoesNotBlock()
     {
         using var scope = new RealDeployScope();
         var b = await scope.CreateProjectAsync("project-b", "https://github.com/owner/repo-b.git");
@@ -262,9 +263,7 @@ public sealed class DeployIdentityTransportTests
 
         var result = await scope.DeployAsync(b);
 
-        Assert.False(result.Success);
-        Assert.Contains("URL rewrite", result.Error, StringComparison.Ordinal);
-        Assert.Empty(scope.Accesses);
+        AssertDeployedToRepoB(scope, result);
     }
 
     [Fact]
@@ -282,11 +281,11 @@ public sealed class DeployIdentityTransportTests
     }
 
     [Fact]
-    public async Task MatchingUrlRewrite_BlocksTransportBeforeAnyAccess()
+    public async Task LocalMatchingRewrite_BlocksTransportBeforeAnyAccess()
     {
         using var scope = new RealDeployScope();
         var b = await scope.CreateProjectAsync("project-b", "https://github.com/owner/repo-b.git");
-        scope.WriteGlobalConfig("""
+        scope.InjectTemporaryRepositoryConfig("""
             [url "https://evil.example/"]
                 insteadOf = https://github.com/
             """);
@@ -303,7 +302,7 @@ public sealed class DeployIdentityTransportTests
     {
         using var scope = new RealDeployScope();
         var b = await scope.CreateProjectAsync("project-b", "https://github.com/owner/repo-b.git");
-        scope.WriteGlobalConfig("""
+        scope.InjectTemporaryRepositoryConfig("""
             [url "https://evil.example/"]
                 insteadOf =
             """);
@@ -314,20 +313,30 @@ public sealed class DeployIdentityTransportTests
         Assert.Empty(scope.Accesses);
     }
 
+    /// <summary>The sandboxed transport never reads global config, so its rewrites neither block nor apply.</summary>
     [Fact]
-    public async Task GlobalMatchingRewrite_BlocksTransport()
+    public async Task GlobalMatchingRewrite_IsNotAppliedAndDoesNotBlock()
     {
         using var scope = new RealDeployScope();
         var b = await scope.CreateProjectAsync("project-b", "https://github.com/owner/repo-b.git");
         scope.WriteGlobalConfig("""
-            [url "https://evil.example/"]
-                insteadOf = https://github.com/
+            [url "https://github.com/owner/repo-a.git"]
+                insteadOf = https://github.com/owner/repo-b.git
+            [url "https://github.com/owner/repo-a.git"]
+                pushInsteadOf = https://github.com/owner/repo-b.git
             """);
 
         var result = await scope.DeployAsync(b);
 
-        Assert.False(result.Success);
-        Assert.Empty(scope.Accesses);
+        AssertDeployedToRepoB(scope, result);
+        Assert.Empty((await scope.GitAsync(scope.Root, "--git-dir", scope.BareRemoteA, "for-each-ref", "--format=%(refname)")).Trim());
+    }
+
+    private static void AssertDeployedToRepoB(RealDeployScope scope, DeployResult result)
+    {
+        Assert.True(result.Success, result.Error);
+        Assert.NotEmpty(scope.Accesses);
+        Assert.All(scope.Accesses, line => Assert.StartsWith($"ACCESS https://github.com/owner/repo-b.git|{scope.BareRemote}|", line, StringComparison.Ordinal));
     }
 
     [Fact]
@@ -346,17 +355,17 @@ public sealed class DeployIdentityTransportTests
     }
 
     [Fact]
-    public async Task HasConfigConditionalInclude_ActivatedByPrivateRemote_BlocksBeforeTransport()
+    public async Task IncludedRewrite_InTemporaryRepository_BlocksBeforeTransport()
     {
         using var scope = new RealDeployScope();
         var b = await scope.CreateProjectAsync("project-b", "https://github.com/owner/repo-b.git");
-        var include = Path.Combine(scope.Root, "conditional-rewrite.inc");
+        var include = Path.Combine(scope.Root, "included-rewrite.inc");
         File.WriteAllText(include, """
             [url "https://evil.example/"]
                 insteadOf = https://github.com/
             """);
-        scope.WriteGlobalConfig($"""
-            [includeIf "hasconfig:remote.*.url:https://github.com/owner/repo-b.git"]
+        scope.InjectTemporaryRepositoryConfig($"""
+            [include]
                 path = {include.Replace('\\', '/')}
             """);
 
@@ -368,7 +377,7 @@ public sealed class DeployIdentityTransportTests
     }
 
     [Fact]
-    public async Task GitdirConditionalInclude_ActivatedByRepositoryInit_BlocksBeforeTransport()
+    public async Task GitdirConditionalInclude_InTemporaryRepository_BlocksBeforeTransport()
     {
         using var scope = new RealDeployScope();
         var b = await scope.CreateProjectAsync("project-b", "https://github.com/owner/repo-b.git");
@@ -377,7 +386,7 @@ public sealed class DeployIdentityTransportTests
             [url "https://evil.example/"]
                 insteadOf = https://github.com/
             """);
-        scope.WriteGlobalConfig($"""
+        scope.InjectTemporaryRepositoryConfig($"""
             [includeIf "gitdir:**/bukit-deploy-*/checkout/.git"]
                 path = {include.Replace('\\', '/')}
             """);
@@ -490,7 +499,7 @@ public sealed class DeployIdentityTransportTests
     {
         using var scope = new RealDeployScope();
         var b = await scope.CreateProjectAsync("project-b", "https://github.com/owner/repo-b.git");
-        scope.WriteGlobalConfig("""
+        scope.InjectTemporaryRepositoryConfig("""
             [url "https://another-user:other-secret@evil.example/"]
                 insteadOf = https://github.com/
             """);
@@ -566,7 +575,7 @@ public sealed class DeployIdentityTransportTests
     }
 
     [Fact]
-    public async Task WorkingDirectoryAndAskpassEnvironmentRemainUntouched()
+    public async Task WorkingDirectoryAndEnvironmentRemainUntouched()
     {
         using var scope = new RealDeployScope();
         var b = await scope.CreateProjectAsync("project-b", "https://github.com/owner/repo-b.git");
@@ -670,9 +679,6 @@ public sealed class DeployIdentityTransportTests
     {
         var project = await scope.CreateProjectAsync("shim-project", null);
         await scope.GitAsync(project, "remote", "add", "bukit-deploy-shim", "https://github.com/owner/repo-b.git");
-        var askpass = Path.Combine(scope.Root, "shim-askpass");
-        File.WriteAllText(askpass, "local transport fixture");
-        scope.SetEnv("GIT_ASKPASS", askpass);
         return project;
     }
 
@@ -734,9 +740,11 @@ public sealed class DeployIdentityTransportTests
                 SetEnv("BUKIT_DEPLOY_REAL_GIT", _gitPath);
                 SetEnv("BUKIT_TEST_GIT_SCRIPT", null);
                 SetEnv("BUKIT_DEPLOY_SIMPLE_LOG", null);
-                SetEnv("BUKIT_DEPLOY_ASKPASS_LOG", null);
+                SetEnv("BUKIT_DEPLOY_HELPER_LOG", null);
                 SetEnv("BUKIT_DEPLOY_PUSH_BEHAVIOR", null);
                 SetEnv("BUKIT_DEPLOY_PUSH_MARKER", null);
+                SetEnv("BUKIT_DEPLOY_INJECT_CONFIG", null);
+                SetEnv("BUKIT_DEPLOY_HTTP_REMOTE", null);
                 SetEnv("PATH", _binDir + Path.PathSeparator + Environment.GetEnvironmentVariable("PATH"));
             }
             catch
@@ -821,6 +829,14 @@ public sealed class DeployIdentityTransportTests
         public void WriteGlobalConfig(string content) => File.WriteAllText(_globalConfig, content);
 
         public void WriteSystemConfig(string content) => File.WriteAllText(_systemConfig, content);
+
+        /// <summary>Config the git shim appends to the deploy's temporary repository after <c>remote add</c>.</summary>
+        public void InjectTemporaryRepositoryConfig(string content)
+        {
+            var path = Path.Combine(Root, "inject.gitconfig");
+            File.WriteAllText(path, content);
+            SetEnv("BUKIT_DEPLOY_INJECT_CONFIG", path);
+        }
 
         public async Task SeedSameNameBranchAndTagAsync(string branch)
         {
@@ -907,6 +923,8 @@ public sealed class DeployIdentityTransportTests
                 CreateNoWindow = true
             };
             start.ArgumentList.Add(WindowsGitShim.AssemblyPath);
+            // Deploy always passes its broker helper; the transport double requires one.
+            foreach (var argument in new[] { "-c", "credential.helper=!shim-fixture" }) start.ArgumentList.Add(argument);
             foreach (var argument in arguments) start.ArgumentList.Add(argument);
             using var process = Process.Start(start)!;
             var output = process.StandardOutput.ReadToEndAsync();
@@ -991,8 +1009,20 @@ public sealed class DeployIdentityTransportTests
             File.WriteAllText(wrapper, $$"""
                 #!/bin/sh
                 set -eu
-                case "${1:-}" in
+                skip=0; sub=""; rest=""; helper=""
+                for arg in "$@"; do
+                  if [ "$skip" = 1 ]; then
+                    skip=0
+                    case "$arg" in credential.helper=?*) helper="${arg#credential.helper=}" ;; esac
+                    continue
+                  fi
+                  if [ -z "$sub" ] && [ "$arg" = "-c" ]; then skip=1; continue; fi
+                  if [ -z "$sub" ]; then sub="$arg"; fi
+                  rest="$rest${rest:+ }$arg"
+                done
+                case "$sub" in
                   ls-remote|fetch|push)
+                    [ -n "$helper" ] || { echo "no credential broker helper" >&2; exit 94; }
                     remote_name=""
                     for arg in "$@"; do
                       case "$arg" in
@@ -1008,15 +1038,24 @@ public sealed class DeployIdentityTransportTests
                       https://github.com/owner/repo-worktree.git) target="$BUKIT_DEPLOY_BARE_B" ;;
                       *) echo "unexpected transport url: $url" >&2; exit 93 ;;
                     esac
-                    printf 'ACCESS %s|%s|%s\n' "$url" "$target" "$*" >> "$BUKIT_DEPLOY_ACCESS_LOG"
-                    mapped=""
+                    printf 'ACCESS %s|%s|%s\n' "$url" "$target" "$rest" >> "$BUKIT_DEPLOY_ACCESS_LOG"
+                    count=$#
                     for arg in "$@"; do
                       case "$arg" in
                         bukit-deploy-*) arg="$target" ;;
                       esac
-                      mapped="$mapped '$arg'"
+                      set -- "$@" "$arg"
                     done
-                    eval "exec {{quote(_gitPath)}} $mapped"
+                    shift "$count"
+                    # GIT_ALLOW_PROTOCOL overrides deploy's https-only protocol.allow for the local double.
+                    GIT_ALLOW_PROTOCOL=file exec {{quote(_gitPath)}} "$@"
+                    ;;
+                  remote)
+                    {{quote(_gitPath)}} "$@"
+                    # Plants config in the deploy's temporary repository right after its private remote exists.
+                    if [ -n "${BUKIT_DEPLOY_INJECT_CONFIG:-}" ]; then
+                      cat "$BUKIT_DEPLOY_INJECT_CONFIG" >> "$({{quote(_gitPath)}} rev-parse --git-dir)/config"
+                    fi
                     ;;
                   *)
                     exec {{quote(_gitPath)}} "$@"

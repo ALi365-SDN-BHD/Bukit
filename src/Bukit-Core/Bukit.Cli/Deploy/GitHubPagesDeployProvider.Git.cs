@@ -13,65 +13,27 @@ public sealed partial class GitHubPagesDeployProvider
     private const int GitDiagnosticTailBytes = 32 * 1024;
     private static readonly System.Text.Encoding GitUtf8NoBom = new System.Text.UTF8Encoding(encoderShouldEmitUTF8Identifier: false);
 
-    private static async Task EnsureGitIdentityAsync(string gitPath, string tempDir, TimeSpan gitCommandTimeout, CancellationToken ct, ILogger? logger = null)
+    /// <summary>
+    /// The sandboxed commit cannot read global identity (plan 3.5), so the identity is always
+    /// written into the temporary repository: the user's global value, else a Bukit default.
+    /// </summary>
+    private static async Task EnsureGitIdentityAsync(GitSandbox sandbox, string gitPath, string tempDir, TimeSpan gitCommandTimeout, CancellationToken ct, ILogger? logger = null)
     {
-        var hasName = false;
-        var hasEmail = false;
-
-        try
+        foreach (var (key, fallback) in new[] { ("user.name", "bukit"), ("user.email", "bukit@deploy.local") })
         {
-            var name = await RunGitAndCaptureAsync(gitPath, tempDir, gitCommandTimeout, ct, "config", "--local", "user.name");
-            hasName = !string.IsNullOrWhiteSpace(name);
-        }
-        catch (Exception ex)
-        {
-            logger?.Debug($"event=git.config.read.failed key=user.name scope=local reason={ex.Message}");
-        }
-
-        try
-        {
-            if (!hasName)
+            string? value = null;
+            try
             {
-                var globalName = await RunGitAndCaptureAsync(gitPath, tempDir, gitCommandTimeout, ct, "config", "--global", "user.name");
-                hasName = !string.IsNullOrWhiteSpace(globalName);
+                // Reading config runs no hooks or helpers, so the global value may be read unsandboxed.
+                value = await RunGitAndCaptureAsync(gitPath, tempDir, gitCommandTimeout, ct, "config", "--global", key);
             }
-        }
-        catch (Exception ex)
-        {
-            logger?.Debug($"event=git.config.read.failed key=user.name scope=global reason={ex.Message}");
-        }
-
-        try
-        {
-            var email = await RunGitAndCaptureAsync(gitPath, tempDir, gitCommandTimeout, ct, "config", "--local", "user.email");
-            hasEmail = !string.IsNullOrWhiteSpace(email);
-        }
-        catch (Exception ex)
-        {
-            logger?.Debug($"event=git.config.read.failed key=user.email scope=local reason={ex.Message}");
-        }
-
-        try
-        {
-            if (!hasEmail)
+            catch (Exception ex) when (ex is not OperationCanceledException)
             {
-                var globalEmail = await RunGitAndCaptureAsync(gitPath, tempDir, gitCommandTimeout, ct, "config", "--global", "user.email");
-                hasEmail = !string.IsNullOrWhiteSpace(globalEmail);
+                logger?.Debug($"event=git.config.read.failed key={key} scope=global reason={ex.Message}");
             }
-        }
-        catch (Exception ex)
-        {
-            logger?.Debug($"event=git.config.read.failed key=user.email scope=global reason={ex.Message}");
-        }
 
-        if (!hasName)
-        {
-            await RunGitAsync(gitPath, tempDir, gitCommandTimeout, ct, "config", "--local", "user.name", "bukit");
-        }
-
-        if (!hasEmail)
-        {
-            await RunGitAsync(gitPath, tempDir, gitCommandTimeout, ct, "config", "--local", "user.email", "bukit@deploy.local");
+            await RunGitAsync(sandbox, gitPath, tempDir, gitCommandTimeout, ct,
+                "config", "--local", key, string.IsNullOrWhiteSpace(value) ? fallback : value);
         }
     }
 
@@ -271,52 +233,96 @@ public sealed partial class GitHubPagesDeployProvider
         return true;
     }
 
-    private static async Task<bool> RemoteBranchExistsAsync(string gitPath, string token, string askpassScript, string workingDir, string remoteName, string branch, TimeSpan gitCommandTimeout, CancellationToken ct)
+    private static async Task<bool> RemoteBranchExistsAsync(string gitPath, GitAuthContext auth, string workingDir, string branch, TimeSpan gitCommandTimeout, CancellationToken ct)
     {
-        var output = await RunGitAuthAndCaptureAsync(gitPath, token, askpassScript, workingDir, gitCommandTimeout, ct, "ls-remote", "--heads", remoteName, $"refs/heads/{branch}");
+        var output = await RunGitAuthAsync(gitPath, auth, workingDir, gitCommandTimeout, ct, "ls-remote", "--heads", auth.RemoteName, $"refs/heads/{branch}");
         return !string.IsNullOrWhiteSpace(output);
     }
 
-    private static async Task RunGitAuthAsync(string gitPath, string token, string askpassScript, string? workingDir, TimeSpan gitCommandTimeout, CancellationToken ct, params string[] args)
+    /// <summary>
+    /// Runs an authenticated git call (plan 3.5): the temporary repository's config is checked
+    /// first, the token reaches git only through the broker, and the git pid is trusted only
+    /// while the call runs.
+    /// </summary>
+    private static async Task<string> RunGitAuthAsync(string gitPath, GitAuthContext auth, string workingDir, TimeSpan gitCommandTimeout, CancellationToken ct, params string[] args)
     {
+        await EnsureLocalConfigAllowedAsync(gitPath, auth, workingDir, gitCommandTimeout, ct);
         var commandLine = string.Join(' ', args);
-        var psi = CreateGitProcess(gitPath, workingDir, args);
-        psi.Environment["GIT_ASKPASS"] = askpassScript;
+        var psi = CreateGitProcess(gitPath, workingDir, [.. auth.Arguments, .. args], auth.Sandbox);
         psi.Environment["GIT_TERMINAL_PROMPT"] = "0";
-        psi.Environment[AskpassTokenEnvironmentVariable] = token;
-
-        using var proc = Process.Start(psi) ?? throw new InvalidOperationException("Failed to start git process.");
-        var output = await WaitForGitProcessAndDrainAsync(proc, gitCommandTimeout, ct, commandLine);
-
-        if (proc.ExitCode != 0)
+        foreach (var name in psi.Environment.Keys
+                     .Where(static name =>
+                         AuthenticatedRemovedEnvironmentVariables.Contains(name, StringComparer.OrdinalIgnoreCase) ||
+                         name.StartsWith("GIT_PROXY_SSL_", StringComparison.OrdinalIgnoreCase))
+                     .ToArray())
         {
-            throw new GitException($"git {commandLine} failed (exit {proc.ExitCode}): {output.Stderr.Trim()}");
+            psi.Environment.Remove(name);
         }
-    }
 
-    private static async Task<string> RunGitAuthAndCaptureAsync(string gitPath, string token, string askpassScript, string? workingDir, TimeSpan gitCommandTimeout, CancellationToken ct, params string[] args)
-    {
-        var commandLine = string.Join(' ', args);
-        var psi = CreateGitProcess(gitPath, workingDir, args);
-        psi.Environment["GIT_ASKPASS"] = askpassScript;
-        psi.Environment["GIT_TERMINAL_PROMPT"] = "0";
-        psi.Environment[AskpassTokenEnvironmentVariable] = token;
+        if (auth.ShellDirectory is { } shellDirectory)
+        {
+            psi.Environment["PATH"] = psi.Environment.TryGetValue("PATH", out var path) && !string.IsNullOrEmpty(path)
+                ? shellDirectory + Path.PathSeparator + path
+                : shellDirectory;
+        }
 
+        auth.Broker.TakeLastDenial();
         using var proc = Process.Start(psi) ?? throw new InvalidOperationException("Failed to start git process.");
-
+        using var registration = RegisterOrKill(auth, proc);
         var output = await WaitForGitProcessAndDrainAsync(proc, gitCommandTimeout, ct, commandLine);
         if (proc.ExitCode != 0)
         {
-            throw new GitException($"git {commandLine} failed (exit {proc.ExitCode}): {output.Stderr.Trim()}");
+            var denial = auth.Broker.TakeLastDenial();
+            var credential = denial is null ? string.Empty : $"GitHub credential could not be provided to git (reason: {denial}). ";
+            throw new GitException($"{credential}git {commandLine} failed (exit {proc.ExitCode}): {output.Stderr.Trim()}");
         }
 
         return output.Stdout.Trim();
     }
 
-    private static async Task RunGitAsync(string gitPath, string? workingDir, TimeSpan gitCommandTimeout, CancellationToken ct, params string[] args)
+    /// <summary>
+    /// Registers git with the broker. A git that already exited is never registered (its pid may
+    /// belong to another process by now); its exit code reports the failure. A running git the
+    /// broker cannot identify is stopped at once.
+    /// </summary>
+    private static IDisposable? RegisterOrKill(GitAuthContext auth, Process proc)
+    {
+        IDisposable? registration;
+        try
+        {
+            registration = auth.Broker.RegisterGitProcess(proc.Id);
+        }
+        catch
+        {
+            TryKillProcessTree(proc);
+            throw;
+        }
+
+        if (proc.HasExited)
+        {
+            registration?.Dispose();
+            return null;
+        }
+
+        if (registration is null)
+        {
+            TryKillProcessTree(proc);
+            throw new GitException("Could not register the git process with the credential broker.");
+        }
+
+        return registration;
+    }
+
+    private static Task RunGitAsync(string gitPath, string? workingDir, TimeSpan gitCommandTimeout, CancellationToken ct, params string[] args)
+        => RunGitCoreAsync(null, gitPath, workingDir, gitCommandTimeout, args, ct);
+
+    private static Task RunGitAsync(GitSandbox sandbox, string gitPath, string? workingDir, TimeSpan gitCommandTimeout, CancellationToken ct, params string[] args)
+        => RunGitCoreAsync(sandbox, gitPath, workingDir, gitCommandTimeout, args, ct);
+
+    private static async Task RunGitCoreAsync(GitSandbox? sandbox, string gitPath, string? workingDir, TimeSpan gitCommandTimeout, string[] args, CancellationToken ct)
     {
         var commandLine = string.Join(' ', args);
-        var psi = CreateGitProcess(gitPath, workingDir, args);
+        var psi = CreateGitProcess(gitPath, workingDir, args, sandbox);
 
         using var proc = Process.Start(psi) ?? throw new InvalidOperationException("Failed to start git process.");
         var output = await WaitForGitProcessAndDrainAsync(proc, gitCommandTimeout, ct, commandLine);
@@ -327,10 +333,16 @@ public sealed partial class GitHubPagesDeployProvider
         }
     }
 
-    private static async Task<string> RunGitAndCaptureAsync(string gitPath, string? workingDir, TimeSpan gitCommandTimeout, CancellationToken ct, params string[] args)
+    private static Task<string> RunGitAndCaptureAsync(string gitPath, string? workingDir, TimeSpan gitCommandTimeout, CancellationToken ct, params string[] args)
+        => RunGitAndCaptureCoreAsync(null, gitPath, workingDir, gitCommandTimeout, args, ct);
+
+    private static Task<string> RunGitAndCaptureAsync(GitSandbox sandbox, string gitPath, string? workingDir, TimeSpan gitCommandTimeout, CancellationToken ct, params string[] args)
+        => RunGitAndCaptureCoreAsync(sandbox, gitPath, workingDir, gitCommandTimeout, args, ct);
+
+    private static async Task<string> RunGitAndCaptureCoreAsync(GitSandbox? sandbox, string gitPath, string? workingDir, TimeSpan gitCommandTimeout, string[] args, CancellationToken ct)
     {
         var commandLine = string.Join(' ', args);
-        var psi = CreateGitProcess(gitPath, workingDir, args);
+        var psi = CreateGitProcess(gitPath, workingDir, args, sandbox);
 
         using var proc = Process.Start(psi);
         if (proc is null)
@@ -349,15 +361,33 @@ public sealed partial class GitHubPagesDeployProvider
 
     private sealed record GitCommandResult(int ExitCode, string Stdout, string Stderr);
 
-    private static async Task<GitCommandResult> RunGitAllowFailureAsync(
+    private static Task<GitCommandResult> RunGitAllowFailureAsync(
         string gitPath,
         string? workingDir,
         TimeSpan timeout,
         CancellationToken ct,
         params string[] args)
+        => RunGitAllowFailureCoreAsync(null, gitPath, workingDir, timeout, args, ct);
+
+    private static Task<GitCommandResult> RunGitAllowFailureAsync(
+        GitSandbox sandbox,
+        string gitPath,
+        string? workingDir,
+        TimeSpan timeout,
+        CancellationToken ct,
+        params string[] args)
+        => RunGitAllowFailureCoreAsync(sandbox, gitPath, workingDir, timeout, args, ct);
+
+    private static async Task<GitCommandResult> RunGitAllowFailureCoreAsync(
+        GitSandbox? sandbox,
+        string gitPath,
+        string? workingDir,
+        TimeSpan timeout,
+        string[] args,
+        CancellationToken ct)
     {
         var commandLine = string.Join(' ', args);
-        var psi = CreateGitProcess(gitPath, workingDir, args);
+        var psi = CreateGitProcess(gitPath, workingDir, args, sandbox);
         using var proc = Process.Start(psi) ?? throw new InvalidOperationException("Failed to start git process.");
         var output = await WaitForGitProcessAndDrainAsync(proc, timeout, ct, commandLine);
         return new GitCommandResult(proc.ExitCode, output.Stdout, output.Stderr);
@@ -369,6 +399,7 @@ public sealed partial class GitHubPagesDeployProvider
     /// visible before any branch query, fetch or push.
     /// </summary>
     private static async Task EnsureTransportTargetAsync(
+        GitSandbox sandbox,
         string gitPath,
         string workingDir,
         string remoteName,
@@ -376,7 +407,9 @@ public sealed partial class GitHubPagesDeployProvider
         TimeSpan timeout,
         CancellationToken ct)
     {
-        var rewrites = await RunGitAllowFailureAsync(gitPath, workingDir, timeout, ct,
+        // Query with the transport's own sandbox: global and system rewrites never reach the
+        // sandboxed fetch and push, so only the config those calls read is checked.
+        var rewrites = await RunGitAllowFailureAsync(sandbox, gitPath, workingDir, timeout, ct,
             "config", "--includes", "--null", "--get-regexp", "^url\\..*\\.(insteadof|pushinsteadof)$");
         if (rewrites.ExitCode == 0)
         {
@@ -395,7 +428,7 @@ public sealed partial class GitHubPagesDeployProvider
                     // userinfo credentials.
                     throw new GitException(
                         "Refusing to deploy because an active URL rewrite would change the GitHub Pages transport target. " +
-                        "Remove the matching insteadOf/pushInsteadOf rule from local, worktree, included, global or system Git config.");
+                        "Remove the matching insteadOf/pushInsteadOf rule from the temporary repository's local, worktree or included Git config.");
                 }
             }
         }
@@ -406,7 +439,7 @@ public sealed partial class GitHubPagesDeployProvider
 
         foreach (var key in new[] { $"remote.{remoteName}.url", $"remote.{remoteName}.pushurl" })
         {
-            var values = await RunGitAllowFailureAsync(gitPath, workingDir, timeout, ct,
+            var values = await RunGitAllowFailureAsync(sandbox, gitPath, workingDir, timeout, ct,
                 "config", "--local", "--includes", "--null", "--get-all", key);
             if (values.ExitCode == 1)
             {
@@ -641,7 +674,7 @@ public sealed partial class GitHubPagesDeployProvider
         "GIT_CONFIG_COUNT"
     ];
 
-    private static ProcessStartInfo CreateGitProcess(string gitPath, string? workingDir, string[] args)
+    private static ProcessStartInfo CreateGitProcess(string gitPath, string? workingDir, string[] args, GitSandbox? sandbox = null)
     {
         var psi = new ProcessStartInfo
         {
@@ -678,6 +711,7 @@ public sealed partial class GitHubPagesDeployProvider
             psi.ArgumentList.Add(arg);
         }
 
+        sandbox?.Apply(psi);
         return psi;
     }
 

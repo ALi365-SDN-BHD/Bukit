@@ -5,16 +5,16 @@ using Bukit.Cli.Shared.Cli.Rendering;
 using Bukit.Cli.Commands;
 using Bukit.Shared;
 
-var command = args.Length > 0 ? args[0] : null;
+// Help and the git credential helper finish before any configuration, logging or telemetry.
+if (await EarlyCommands.TryRunAsync(args) is { } earlyExit)
+{
+    return earlyExit;
+}
+
+var command = args[0];
 var commandArgsRaw = SecretsStdinOption.Strip([.. args.Skip(1)], out var secretsStdinRequested);
 var logFormat = ReadGlobalLogFormat(commandArgsRaw, new List<string>(commandArgsRaw.Length), keepLogFormat: false) ?? "text";
 var isJsonErrorMode = string.Equals(logFormat, "json", StringComparison.OrdinalIgnoreCase);
-
-if (command is null || command is "help" or "--help" or "-h")
-{
-    HelpPrinter.Print();
-    return 0;
-}
 
 if (secretsStdinRequested)
 {
