@@ -5,7 +5,7 @@ using Bukit.Shared;
 
 namespace Bukit.Cli.Commands;
 
-public static class NewCommand
+internal static class NewCommand
 {
     public static Task<int> RunAsync(CliBoundCommand command)
     {
