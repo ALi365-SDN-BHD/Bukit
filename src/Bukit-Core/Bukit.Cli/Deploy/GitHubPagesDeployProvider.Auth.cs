@@ -84,9 +84,9 @@ public sealed partial class GitHubPagesDeployProvider
             psi.Environment["GIT_ATTR_NOSYSTEM"] = "1";
             // GIT_ALLOW_PROTOCOL overrides protocol.allow; traces can print the auth header;
             // GIT_EXEC_PATH would choose the remote helper and the trusted shell directory.
+            // Windows environment names ignore case: match them the same way.
             foreach (var name in psi.Environment.Keys
                          .Where(static name =>
-                             // Windows environment names ignore case: match them the same way.
                              name.ToUpperInvariant() is "GIT_ALLOW_PROTOCOL" or "GIT_TEMPLATE_DIR" or "GIT_CURL_VERBOSE" or "GIT_EXEC_PATH" ||
                              name.StartsWith("GIT_TRACE", StringComparison.OrdinalIgnoreCase))
                          .ToArray())
