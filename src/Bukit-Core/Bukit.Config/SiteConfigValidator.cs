@@ -7,7 +7,7 @@ namespace Bukit.Config;
 
 internal static class SiteConfigValidator
 {
-    private static bool IsSafeLanguageTag(string language)
+    internal static bool IsSafeLanguageTag(string language)
         => Regex.IsMatch(language, "^[A-Za-z0-9]+(?:-[A-Za-z0-9]+)*$", RegexOptions.CultureInvariant);
 
     internal static void ValidateSite(SiteConfig site)

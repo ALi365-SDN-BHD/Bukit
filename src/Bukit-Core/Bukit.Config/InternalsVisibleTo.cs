@@ -6,3 +6,4 @@ using System.Runtime.CompilerServices;
 [assembly: InternalsVisibleTo("Bukit.Content.Tests")]
 [assembly: InternalsVisibleTo("Bukit.Engine")]
 [assembly: InternalsVisibleTo("Bukit.Engine.Primitives")]
+[assembly: InternalsVisibleTo("bukit")]
