@@ -1473,7 +1473,8 @@
       "resource": "static-parallel",
       "specialtyTests": [
         "bash scripts/checks/docs/active-links.sh",
-        "bash scripts/checks/docs/size-policy.sh"
+        "bash scripts/checks/docs/size-policy.sh",
+        "dotnet test tests/Bukit.Config.Tests/Bukit.Config.Tests.csproj --filter \"FullyQualifiedName~ConfigContractDriftTests\""
       ]
     },
     {

@@ -122,8 +122,8 @@ with ILCompiler 10.0.15:
 - **`PathMap` did not match.** Git Bash reports the checkout as `/d/a/...`
   while the compiler sees `D:\a\...`. A `PathMap` written in the first form
   maps nothing, so the random build root was compiled into every managed
-  assembly, and from there into the ILC object and about a third of
-  `bukit.exe`. The packaging script now converts the source and build roots
+  assembly, and from there into the ILC object and about a third of the
+  Windows executable. The packaging script now converts the source and build roots
   with `cygpath -w` when `cygpath` exists. Published Windows binaries no longer
   embed runner paths.
 - **The linker stamped the link time.** With the paths fixed, three bytes still
