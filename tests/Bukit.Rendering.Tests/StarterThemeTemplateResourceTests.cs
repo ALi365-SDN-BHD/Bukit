@@ -468,7 +468,11 @@ public sealed class StarterThemeTemplateResourceTests : IDisposable
 
         Assert.Contains(expectedDeclaration, html, StringComparison.Ordinal);
         Assert.Contains(".filter(matchesSiteLanguage)", html, StringComparison.Ordinal);
-        Assert.Contains("fetch('/repo/search.json')", html, StringComparison.Ordinal);
+        Assert.Contains("const searchUrl = '/repo/search.json';", html, StringComparison.Ordinal);
+        Assert.Contains("await fetch(searchUrl)", html, StringComparison.Ordinal);
+        // The script form is the fallback for pages that block connect-src.
+        Assert.Contains("script.src = searchUrl + '.js';", html, StringComparison.Ordinal);
+        Assert.Contains("self.bukitSearchIndex", html, StringComparison.Ordinal);
         Assert.DoesNotContain("siteLanguage = \"x\"</script>", html, StringComparison.Ordinal);
     }
 

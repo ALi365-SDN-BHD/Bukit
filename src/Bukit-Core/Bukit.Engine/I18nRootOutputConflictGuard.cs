@@ -112,7 +112,7 @@ internal static class I18nRootOutputConflictGuard
         "llms-full" => "site.seo.geo.llmsFullTxt",
         "sitemap" => $"site.sitemapMode: {(site.SitemapMode ?? "split").Trim().ToLowerInvariant()}",
         "feed" or "atom" or "jsonfeed" => "site.feed.mode: merged",
-        "search" => $"site.search.mode: {SiteModeResolver.ResolveSearchMode(site)}",
+        "search" or "search-script" => $"site.search.mode: {SiteModeResolver.ResolveSearchMode(site)}",
         _ => kind
     };
 }

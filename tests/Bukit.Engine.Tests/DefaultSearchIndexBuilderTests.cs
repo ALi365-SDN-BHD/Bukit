@@ -65,6 +65,8 @@ public sealed class DefaultSearchIndexBuilderTests
 
             var indexPath = Path.Combine(tempDir, "search.json");
             Assert.True(File.Exists(indexPath));
+            Assert.Equal("self.bukitSearchIndex=" + File.ReadAllText(indexPath) + ";",
+                File.ReadAllText(indexPath + ".js"));
         }
         finally
         {

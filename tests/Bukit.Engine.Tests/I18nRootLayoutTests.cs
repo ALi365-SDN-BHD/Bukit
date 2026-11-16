@@ -378,6 +378,9 @@ public sealed class I18nRootLayoutTests
         Assert.True(File.Exists(Path.Combine(site.Output, "search.json")));
         Assert.True(File.Exists(Path.Combine(site.Output, "search.index.json")));
         Assert.Contains("zh-CN", File.ReadAllText(Path.Combine(site.Output, "search.index.json")), StringComparison.Ordinal);
+        Assert.True(File.Exists(Path.Combine(site.Output, "search.json.js")));
+        Assert.True(File.Exists(Path.Combine(site.Output, "zh-CN", "search.json.js")));
+        Assert.False(File.Exists(Path.Combine(site.Output, "search.index.json.js")));
     }
 
     private static AppConfig MergedSearch(AppConfig config)
@@ -418,9 +421,17 @@ public sealed class I18nRootLayoutTests
         Assert.Contains("data-search-url=\"/zh-CN/search.json\"",
             File.ReadAllText(Path.Combine(site.Output, "zh-CN", "bukit-search.html")), StringComparison.Ordinal);
 
+        foreach (var index in new[] { "search.json", "en/search.json", "zh-CN/search.json" })
+        {
+            var path = Path.Combine(site.Output, index);
+            Assert.Equal("self.bukitSearchIndex=" + File.ReadAllText(path) + ";", File.ReadAllText(path + ".js"));
+        }
+
         var owned = BuildManifest.Load(Path.Combine(site.Root, ".cache", "build-manifest.json")).OwnedOutputs;
         Assert.Contains("en/search.json", owned);
         Assert.Contains("search.json", owned);
+        Assert.Contains("en/search.json.js", owned);
+        Assert.Contains("search.json.js", owned);
 
         using var audit = JsonDocument.Parse(File.ReadAllText(
             Path.Combine(site.Output, ".bukit", "variants", "en", "seo-report.json")));
@@ -458,8 +469,11 @@ public sealed class I18nRootLayoutTests
         Assert.True(File.Exists(english));
         Assert.Contains("zh-CN", File.ReadAllText(root), StringComparison.Ordinal);
 
+        Assert.True(File.Exists(english + ".js"));
+
         await engine.BuildAsync(site.Config, site.Root, new ConfigOverrides { Incremental = false });
         Assert.False(File.Exists(english));
+        Assert.False(File.Exists(english + ".js"));
         Assert.DoesNotContain("/zh-CN/", File.ReadAllText(root), StringComparison.Ordinal);
 
         await engine.BuildAsync(MergedSearch(site.Config), site.Root, new ConfigOverrides { Incremental = false });
@@ -504,6 +518,21 @@ public sealed class I18nRootLayoutTests
 
         Assert.Equal(DiagnosticCode.I18nRootOutputConflict, ex.Code);
         Assert.Contains("search.json", ex.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task RootLayout_MergedSearchStaticScriptIndexConflicts()
+    {
+        using var site = RootSite();
+        site.Sandbox.Write("static/search.json.js", "");
+
+        var ex = await Assert.ThrowsAnyAsync<BukitException>(() =>
+            new SiteEngine(new ConsoleLogger(LogLevel.Error)).BuildAsync(MergedSearch(site.Config), site.Root,
+                new ConfigOverrides { Incremental = false }));
+
+        Assert.Equal(DiagnosticCode.I18nRootOutputConflict, ex.Code);
+        Assert.Contains("search.json.js", ex.Message, StringComparison.Ordinal);
+        Assert.Contains("site.search.mode: merged", ex.Message, StringComparison.Ordinal);
     }
 
     [Theory]
