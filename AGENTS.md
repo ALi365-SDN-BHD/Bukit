@@ -78,6 +78,20 @@ When the user asks to run the SOP over a task queue, execute this loop:
   4. Use modern C#, but let clarity decide: within the project's target framework (net10.0) and LangVersion, prefer newer syntax that makes intent clearer or safer. Check compatibility before changing the shape of a public API.
   5. Tools decide: code must pass `dotnet-format`, the analyzer ratchet, and public-api-drift, and complexity must not exceed the baseline.
 
+## Known limitation: search in sandboxed previews (2026-11-16)
+
+- The `search.json.js` fallback is on local branch `codex/add-search-index-script` (commits
+  `2b653dc5`, `90d89731`); it is not merged, pushed, or released.
+- Until a Bukit release contains it and a bundling consumer upgrades (BukitJalil raises
+  `BUKIT_VERSION` and the three installer SHA-256 values), that consumer's sandboxed preview has no
+  working search; published sites are unaffected because they do not send the blocking CSP.
+- Only the built-in `bukit-search.html` fragment and newly scaffolded starter search pages get the
+  fallback. Search pages already generated into a theme must copy the new `<script>` block; do not
+  report them as fixed.
+- The Windows golden snapshots for the fragment were derived from the unix bytes, not produced on
+  Windows.
+- Remove this section once the change is merged and released.
+
 ## Failure boundary
 
 - Environment, permission, tool, or infrastructure failures do not authorize unrelated code changes.

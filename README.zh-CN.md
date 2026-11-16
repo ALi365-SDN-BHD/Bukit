@@ -148,6 +148,8 @@ themes/<name>/
 
 `bukit preview` 是针对构建产物的静态文件服务器。已经执行 `bukit build` 且不需要文件监听时使用它。
 
+**沙箱预览里的搜索。** 内置搜索页和 `bukit-search.html` 片段先 `fetch('search.json')`；预览的 Content Security Policy 禁止 `connect-src` 时，改用索引旁边的 `search.json.js`。这个回退不会自动改写已有主题：本次改动之前生成到主题里的搜索页，要从新生成的 `themes/starter/layouts/pages/search.html` 复制整段 `<script>`。随应用捆绑 Bukit 的控制面板（如 BukitJalil）在升级到包含此改动的版本之前，预览行为不变。
+
 ## 部署
 
 GitHub Pages 部署需要在站点中配置：

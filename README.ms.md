@@ -152,6 +152,8 @@ Gunakan `theme.name` dalam `site.yaml` untuk memilih tema. Sumber tema jauh, pen
 
 `bukit preview` ialah pelayan fail statik untuk output binaan. Gunakannya selepas `bukit build` apabila anda tidak memerlukan pemantauan fail.
 
+**Carian dalam pratonton bersandbox.** Halaman carian terbina dan fragmen `bukit-search.html` mencuba `fetch('search.json')` dahulu; apabila Content Security Policy pratonton menyekat `connect-src`, ia menggunakan `search.json.js` di sebelah indeks. Sandaran ini tidak retroaktif: halaman carian yang dijana ke dalam tema sebelum perubahan ini mesti menyalin keseluruhan blok `<script>` daripada `themes/starter/layouts/pages/search.html` yang baru dijana. Panel kawalan yang membundelkan Bukit (seperti BukitJalil) mengekalkan tingkah laku pratonton sebelumnya sehingga ia dinaik taraf kepada keluaran yang mengandungi perubahan ini.
+
 ## Deploy
 
 Untuk deploy GitHub Pages, konfigurasikan laman:

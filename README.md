@@ -152,6 +152,8 @@ Use `theme.name` in `site.yaml` to select the theme. Remote theme sources, theme
 
 `bukit preview` is a static file server for build output. Use it after `bukit build` when you do not need file watching.
 
+**Search in sandboxed previews.** The built-in search page and the `bukit-search.html` fragment try `fetch('search.json')` first; when a preview's Content Security Policy blocks `connect-src`, they fall back to the `search.json.js` written beside the index. The fallback is not retroactive: search pages generated into a theme before this change must copy the new `<script>` block from a freshly generated `themes/starter/layouts/pages/search.html`. A control panel that bundles Bukit (such as BukitJalil) keeps its previous preview behavior until it upgrades to a release that contains this change.
+
 ## Deployment
 
 For GitHub Pages deployment, configure the site:
