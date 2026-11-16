@@ -83,6 +83,25 @@ public sealed class ThemePathResolverTests : IDisposable
     }
 
     [Fact]
+    public void Resolve_MultiDocumentThemeYaml_ThrowsConfigException()
+    {
+        var childRoot = Path.Combine(_rootDir, "themes", "child");
+        Directory.CreateDirectory(Path.Combine(childRoot, "layouts"));
+        File.WriteAllText(Path.Combine(childRoot, "theme.yaml"), """
+            name: child
+            version: 1.0.0
+            ...
+            name: other
+            """);
+
+        var theme = new ThemeConfig { Name = "child" };
+        var exception = Assert.Throws<ConfigException>(() => ThemePathResolver.Resolve(_rootDir, theme, _logger));
+
+        Assert.Equal(DiagnosticCode.ThemeManifestInvalid, exception.Code);
+        Assert.Contains("more than one YAML document", exception.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void Resolve_LocalTheme_ReturnsNoParent()
     {
         var childRoot = Path.Combine(_rootDir, "themes", "standalone");

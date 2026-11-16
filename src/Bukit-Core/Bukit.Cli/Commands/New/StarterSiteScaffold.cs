@@ -187,7 +187,7 @@ internal static class StarterSiteScaffold
 
         using var writer = new StringWriter();
         stream.Save(writer, assignAnchors: false);
-        return writer.ToString();
+        return YamlDocumentText.StripTrailingDocumentEndMarker(writer.ToString());
     }
 
     private static readonly (string Key, string Value)[] ChineseLabels =

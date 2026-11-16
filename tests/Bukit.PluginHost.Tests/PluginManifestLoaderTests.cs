@@ -7,28 +7,29 @@ namespace Bukit.PluginHost.Tests;
 
 public sealed class PluginManifestLoaderTests
 {
+    private const string ValidManifest = """
+        id: echo
+        name: Echo
+        version: 0.1.0
+        protocol: bukit-plugin-v1
+        kind: process
+        distribution: self-contained
+        platforms:
+          osx-arm64:
+            entry: bin/osx-arm64/bukit-plugin-echo
+            sha256: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+        commands:
+          - name: echo
+            summary: Echo input
+        requiredPermissions:
+          network: false
+        """;
+
     [Fact]
     public async Task LoadAsync_ReadsPluginManifest()
     {
         using var directory = TestDirectory.Create();
-        directory.Write("plugins/echo/plugin.yaml",
-            """
-            id: echo
-            name: Echo
-            version: 0.1.0
-            protocol: bukit-plugin-v1
-            kind: process
-            distribution: self-contained
-            platforms:
-              osx-arm64:
-                entry: bin/osx-arm64/bukit-plugin-echo
-                sha256: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
-            commands:
-              - name: echo
-                summary: Echo input
-            requiredPermissions:
-              network: false
-            """);
+        directory.Write("plugins/echo/plugin.yaml", ValidManifest);
 
         var loader = new PluginManifestLoader();
 
@@ -45,6 +46,34 @@ public sealed class PluginManifestLoaderTests
         Assert.True(manifest.Platforms.ContainsKey("osx-arm64"));
         Assert.Equal("bin/osx-arm64/bukit-plugin-echo", manifest.Platforms["osx-arm64"].Entry);
         Assert.Equal("echo", Assert.Single(manifest.Commands).Name);
+    }
+
+    [Fact]
+    public async Task LoadAsync_MultipleDocuments_ThrowsConfigException()
+    {
+        using var directory = TestDirectory.Create();
+        directory.Write("plugins/echo/plugin.yaml", "id: echo\n...\nid: other\n");
+        var loader = new PluginManifestLoader();
+
+        ConfigException exception = await Assert.ThrowsAsync<ConfigException>(
+            () => loader.LoadAsync(System.IO.Path.Combine(directory.Path, "plugins/echo"), CancellationToken.None));
+
+        Assert.Equal(DiagnosticCode.ConfigYamlSyntaxError, exception.Code);
+        Assert.Contains("more than one YAML document", exception.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task LoadAsync_TrailingDocumentEndMarker_IsStillOneDocument()
+    {
+        using var directory = TestDirectory.Create();
+        directory.Write("plugins/echo/plugin.yaml", ValidManifest + "\n...\n");
+        var loader = new PluginManifestLoader();
+
+        var manifest = await loader.LoadAsync(
+            System.IO.Path.Combine(directory.Path, "plugins/echo"),
+            CancellationToken.None);
+
+        Assert.Equal("echo", manifest.Id);
     }
 
     [Fact]

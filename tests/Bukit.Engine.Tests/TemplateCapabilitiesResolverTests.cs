@@ -52,6 +52,38 @@ public sealed class TemplateCapabilitiesResolverTests : IDisposable
     }
 
     [Fact]
+    public void ValidateManifest_Throws_WhenManifestHasMultipleDocuments()
+    {
+        File.WriteAllText(Path.Combine(_layoutsDir, "bukit.templates.yaml"), """
+                                                                        templates:
+                                                                          pages/list.html:
+                                                                            capabilities:
+                                                                              needs_page_content: true
+                                                                        ...
+                                                                        templates: {}
+                                                                        """);
+
+        var ex = Assert.Throws<ConfigException>(() => TemplateCapabilitiesResolver.ValidateManifest(_layoutsDir));
+
+        Assert.Equal(DiagnosticCode.ConfigYamlSyntaxError, ex.Code);
+        Assert.Contains("more than one YAML document", ex.Message);
+    }
+
+    [Fact]
+    public void ValidateManifest_TrailingDocumentEndMarker_IsStillOneDocument()
+    {
+        File.WriteAllText(Path.Combine(_layoutsDir, "bukit.templates.yaml"), """
+                                                                        templates:
+                                                                          pages/list.html:
+                                                                            capabilities:
+                                                                              needs_page_content: true
+                                                                        ...
+                                                                        """);
+
+        TemplateCapabilitiesResolver.ValidateManifest(_layoutsDir);
+    }
+
+    [Fact]
     public void GetCapabilities_ReturnsDeclaredGenericCapabilities()
     {
         File.WriteAllText(Path.Combine(_layoutsDir, "bukit.templates.yaml"), """

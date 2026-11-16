@@ -4,6 +4,9 @@
 applied, so spelling, case, and nesting matter. The JSON Schema emitted by
 `bukit config schema` follows the same contract.
 
+A second YAML document after a `...` or `---` separator is rejected; move the
+settings above the separator and remove it.
+
 ## Top-Level Sections
 
 | Section | Required | Purpose |

@@ -87,6 +87,13 @@ public sealed class PluginConfigLoader : IPluginConfigLoader
             throw new ConfigException("Plugin config file is empty.", DiagnosticCode.ConfigYamlSyntaxError);
         }
 
+        if (yaml.Documents.Count > 1)
+        {
+            throw new ConfigException(
+                $"Plugin config file has more than one YAML document: {path}. Move the settings above the \"...\" or \"---\" line and remove it.",
+                DiagnosticCode.ConfigYamlSyntaxError);
+        }
+
         if (yaml.Documents[0].RootNode is not YamlMappingNode root)
         {
             throw new ConfigException("Plugin config root must be a mapping.", DiagnosticCode.ConfigYamlSyntaxError);

@@ -65,7 +65,7 @@ theme:
         Assert.True(result);
         Assert.Empty(warnings);
 
-        var yaml = File.ReadAllText(Path.Combine(_tempDir, "site.yaml"));
+        var yaml = File.ReadAllText(Path.Combine(_tempDir, "site.yaml")).ReplaceLineEndings("\n");
         Assert.Contains("provider: sources", yaml, StringComparison.Ordinal);
         Assert.Contains("- type: markdown", yaml, StringComparison.Ordinal);
         Assert.Contains("name: content", yaml, StringComparison.Ordinal);
@@ -79,6 +79,7 @@ theme:
         Assert.Contains("footer_text: Acme", yaml, StringComparison.Ordinal);
         Assert.Contains("primary_color: '#123456'", yaml, StringComparison.Ordinal);
         Assert.Contains("accent_color: '#abcdef'", yaml, StringComparison.Ordinal);
+        Assert.DoesNotContain("\n...\n", yaml, StringComparison.Ordinal);
 
         var stream = new YamlStream();
         stream.Load(new StringReader(yaml));

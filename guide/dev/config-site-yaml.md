@@ -22,6 +22,7 @@ default application, typed model validation, and JSON Schema generation.
 - `content.sources[].mode` is `content` or `data`.
 - `site.collections` keys must match collection references from content sources.
 - Unknown fields are fatal.
+- Each config file must not contain more than one YAML document; settings in a second document after a `...` or `---` separator are rejected.
 - Provider secrets are read from environment variables, not config files.
 - `deploy.provider` supports only `github-pages`.
 - `site.analytics` allows only `enabled`, `productionOnly`, `consent`, `csp`,

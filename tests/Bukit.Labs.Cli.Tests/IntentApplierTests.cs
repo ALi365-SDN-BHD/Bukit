@@ -67,6 +67,8 @@ public sealed class IntentApplierTests : IDisposable
 
         Assert.True(validation.IsValid, string.Join(Environment.NewLine, validation.Errors));
         Assert.True(File.Exists(outPath));
+        var outputText = File.ReadAllText(outPath).ReplaceLineEndings("\n");
+        Assert.DoesNotContain("\n...\n", outputText, StringComparison.Ordinal);
 
         var root = LoadYamlRoot(outPath);
         var site = GetMapping(root, "site");

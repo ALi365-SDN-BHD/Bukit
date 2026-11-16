@@ -25,6 +25,12 @@ public static class ThemeManifestYamlValidator
             var stream = new YamlStream();
             stream.Load(new StringReader(text));
 
+            if (stream.Documents.Count > 1)
+            {
+                issues.Add("BKT-0101: theme.yaml has more than one YAML document; move the settings above the \"...\" or \"---\" line and remove it.");
+                return issues;
+            }
+
             if (stream.Documents.Count == 0 || stream.Documents[0].RootNode is not YamlMappingNode root)
             {
                 issues.Add("BKT-0101: theme.yaml is empty or not a valid mapping.");

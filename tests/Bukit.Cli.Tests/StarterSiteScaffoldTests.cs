@@ -1,4 +1,5 @@
 using Bukit.Cli.Commands.New;
+using Bukit.Config;
 using Bukit.Shared;
 using Xunit;
 
@@ -45,6 +46,36 @@ public sealed class StarterSiteScaffoldTests : IDisposable
         Assert.True(File.Exists(Path.Combine(target, "content/pages/about.md")));
         Assert.True(File.Exists(Path.Combine(target, "data/features-10.md")));
         Assert.True(File.Exists(Path.Combine(target, "site.yaml")));
+    }
+
+    [Theory]
+    [InlineData("a: 1\n...\n", "a: 1\n")]
+    [InlineData("a: 1\r\n...\r\n", "a: 1\r\n")]
+    [InlineData("a: one...\n", "a: one...\n")]
+    [InlineData("a: 1\n", "a: 1\n")]
+    public void StripTrailingDocumentEndMarker_RemovesOnlyTheTrailingLine(string input, string expected)
+    {
+        Assert.Equal(expected, YamlDocumentText.StripTrailingDocumentEndMarker(input));
+    }
+
+    [Fact]
+    public void Scaffold_SiteYamlIsOneDocumentAndAppendedSectionsAreValidated()
+    {
+        var target = Path.Combine(_root, "site-yaml");
+
+        StarterSiteScaffold.Create(target, "My Site", "my-site", "en-US");
+
+        var path = Path.Combine(target, "site.yaml");
+        var yaml = File.ReadAllText(path).ReplaceLineEndings("\n");
+        Assert.DoesNotContain("\n...\n", yaml, StringComparison.Ordinal);
+
+        File.AppendAllText(path, "deploy:\n  provider: github-pages\n  repo: someone/blog\n");
+        var config = ConfigLoader.Load(path);
+        Assert.Equal("someone/blog", config.Deploy!.Repo);
+
+        File.AppendAllText(path, "notABukitKey: 1\n");
+        var exception = Assert.Throws<ConfigException>(() => ConfigLoader.Load(path));
+        Assert.Equal(DiagnosticCode.ConfigInvalidValue, exception.Code);
     }
 
     [Fact]

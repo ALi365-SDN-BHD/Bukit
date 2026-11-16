@@ -108,6 +108,41 @@ public sealed class ConfigCommandTests : IDisposable
         }
     }
 
+    [Fact]
+    public async Task Check_MultipleDocuments_ReturnsOneWithBkt0003()
+    {
+        File.WriteAllText(_configPath, """
+                                       site:
+                                         name: test
+                                         title: Test
+                                       content:
+                                         sources:
+                                           - type: markdown
+                                             name: page
+                                             collection: page
+                                             markdown:
+                                               dir: content
+                                       ...
+                                       site:
+                                         title: Second
+                                       """);
+
+        using var writer = new StringWriter(new StringBuilder());
+        var originalOut = Console.Out;
+        Console.SetOut(writer);
+        try
+        {
+            var exitCode = await ConfigCommand.RunAsync(CliTestHelper.CreateCommand("config", new[] { "config", "check", "--config", _configPath }));
+
+            Assert.Equal(1, exitCode);
+            Assert.Contains("[BKT-0003]", writer.ToString(), StringComparison.Ordinal);
+        }
+        finally
+        {
+            Console.SetOut(originalOut);
+        }
+    }
+
     public static TheoryData<string, string> InvalidAnalyticsContractNodes => new()
     {
         { "analytics: []", "site.analytics" },

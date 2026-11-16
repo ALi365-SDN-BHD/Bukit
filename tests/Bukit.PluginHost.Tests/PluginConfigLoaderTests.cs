@@ -289,6 +289,32 @@ public sealed class PluginConfigLoaderTests
     }
 
     [Fact]
+    public async Task LoadAsync_MultipleDocuments_ThrowsConfigException()
+    {
+        using var directory = TestDirectory.Create();
+        directory.Write(".bukit/plugins.yaml", "version: 1\n...\nversion: 2\n");
+        var loader = new PluginConfigLoader();
+
+        ConfigException exception = await Assert.ThrowsAsync<ConfigException>(
+            () => loader.LoadAsync(directory.Path, CancellationToken.None));
+
+        Assert.Equal(DiagnosticCode.ConfigYamlSyntaxError, exception.Code);
+        Assert.Contains("more than one YAML document", exception.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task LoadAsync_TrailingDocumentEndMarker_IsStillOneDocument()
+    {
+        using var directory = TestDirectory.Create();
+        directory.Write(".bukit/plugins.yaml", "version: 1\n...\n");
+        var loader = new PluginConfigLoader();
+
+        var config = await loader.LoadAsync(directory.Path, CancellationToken.None);
+
+        Assert.Equal(1, config.Version);
+    }
+
+    [Fact]
     public async Task LoadAsync_EnvironmentWildcardPermission_ThrowsConfigException()
     {
         using var directory = TestDirectory.Create();
