@@ -2386,6 +2386,23 @@
       "contractConsumerGlobs": [],
       "publicContract": false,
       "resource": "static-parallel"
+    },
+    {
+      "id": "search-index-script-change",
+      "matches": [
+        "openspec/changes/add-search-index-script/*",
+        "openspec/changes/add-search-index-script/specs/search-index-script/spec.md",
+        "openspec/changes/archive/*-add-search-index-script/*",
+        "openspec/specs/search-index-script/spec.md"
+      ],
+      "specialtyTests": [
+        "openspec validate add-search-index-script --strict --no-interactive",
+        "dotnet test tests/Bukit.Engine.Tests/Bukit.Engine.Tests.csproj -c Release --filter \"FullyQualifiedName~SearchIndex|FullyQualifiedName~I18nRootLayout|FullyQualifiedName~I18nMergedSearchIndex\"",
+        "dotnet test tests/Bukit.Rendering.Tests/Bukit.Rendering.Tests.csproj -c Release --filter \"FullyQualifiedName~StarterThemeTemplateResource\""
+      ],
+      "contractConsumerGlobs": [],
+      "publicContract": false,
+      "resource": "dotnet-serial"
     }
   ],
   "resourceRules": [
