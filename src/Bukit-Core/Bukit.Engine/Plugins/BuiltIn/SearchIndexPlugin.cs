@@ -25,6 +25,10 @@ internal sealed class SearchIndexPlugin : IBukitPlugin, IAfterBuildPlugin
 
     private static string GetSearchJs()
     {
+        // Pages whose CSP blocks connect-src (a sandboxed preview) load the script form instead.
+        // Only same-origin indexes: data-search-url may name another site's index, and loading it
+        // as a script would execute that site's code. Compared with document.baseURI, not
+        // location.origin, because a sandboxed preview's own origin is opaque.
         return string.Concat(
             "(function(){",
             "var input=document.querySelector('.bukit-search-input');",
@@ -36,10 +40,6 @@ internal sealed class SearchIndexPlugin : IBukitPlugin, IAfterBuildPlugin
             "var searchUrl=input.getAttribute('data-search-url')||'/search.json';",
             "function useIndex(data){if(!Array.isArray(data)){throw new Error('Not a search index');}items=data;if(input.value.trim()){search();}}",
             "function failLoad(){loadFailed=true;results.replaceChildren();showMessage('Search is unavailable');}",
-            // Pages whose CSP blocks connect-src (a sandboxed preview) load the script form instead.
-            // Only same-origin indexes: data-search-url may name another site's index, and loading it
-            // as a script would execute that site's code. Compared with document.baseURI, not
-            // location.origin, because a sandboxed preview's own origin is opaque.
             "function loadScriptIndex(){var u;try{u=new URL(searchUrl,document.baseURI);}catch(e){failLoad();return;}",
             "if(u.origin!==new URL(document.baseURI).origin){failLoad();return;}",
             "u.pathname+='.js';",
