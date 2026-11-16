@@ -300,7 +300,7 @@ public static class IntentApplier
         var stream = new YamlStream(new YamlDocument(root));
         using var writer = new StringWriter();
         stream.Save(writer, assignAnchors: false);
-        File.WriteAllText(fullOutPath, writer.ToString());
+        File.WriteAllText(fullOutPath, YamlText.StripTrailingDocumentEndMarker(writer.ToString()));
     }
 
     private static IReadOnlyDictionary<string, CollectionConfig> BuildDefaultCollections()

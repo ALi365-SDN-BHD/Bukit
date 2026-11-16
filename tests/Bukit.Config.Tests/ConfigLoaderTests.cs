@@ -60,6 +60,17 @@ public sealed class ConfigLoaderTests : IDisposable
         Assert.Equal("My Blog", config.Site.Title);
     }
 
+    [Fact]
+    public void Load_TrailingDocumentStartMarker_IsTwoDocuments()
+    {
+        var configPath = WriteTempYaml(MinimalConfig + "\n---\n");
+
+        var exception = Assert.Throws<ConfigException>(() => ConfigLoader.Load(configPath));
+
+        Assert.Equal(DiagnosticCode.ConfigYamlSyntaxError, exception.Code);
+        Assert.Contains("more than one YAML document", exception.Message, StringComparison.Ordinal);
+    }
+
     [Theory]
     [InlineData("...\n")]
     [InlineData("---\n")]

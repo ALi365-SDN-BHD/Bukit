@@ -50,7 +50,7 @@ public sealed class ThemeManifestLoaderTests : IDisposable
     }
 
     [Fact]
-    public void Load_MultipleDocuments_ThrowsWhenRequired()
+    public void Load_MultipleDocuments_Throws()
     {
         File.WriteAllText(Path.Combine(_testDir, "theme.yaml"), """
             name: test-theme
@@ -59,22 +59,9 @@ public sealed class ThemeManifestLoaderTests : IDisposable
             name: second-theme
             """);
 
-        var ex = Assert.Throws<ThemeManifestException>(() => ThemeManifestLoader.Load(_testDir, true));
+        var ex = Assert.Throws<ThemeManifestException>(() => ThemeManifestLoader.Load(_testDir));
 
         Assert.Contains("more than one YAML document", ex.Message);
-    }
-
-    [Fact]
-    public void Load_MultipleDocuments_ReturnsNullWhenOptional()
-    {
-        File.WriteAllText(Path.Combine(_testDir, "theme.yaml"), """
-            name: test-theme
-            version: 1.0.0
-            ...
-            name: second-theme
-            """);
-
-        Assert.Null(ThemeManifestLoader.Load(_testDir));
     }
 
     [Fact]

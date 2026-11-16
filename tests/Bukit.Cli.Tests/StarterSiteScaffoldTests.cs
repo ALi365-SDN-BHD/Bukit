@@ -53,9 +53,9 @@ public sealed class StarterSiteScaffoldTests : IDisposable
     [InlineData("a: 1\r\n...\r\n", "a: 1\r\n")]
     [InlineData("a: one...\n", "a: one...\n")]
     [InlineData("a: 1\n", "a: 1\n")]
-    public void StripDocumentEndMarker_RemovesOnlyTheTrailingLine(string input, string expected)
+    public void StripTrailingDocumentEndMarker_RemovesOnlyTheTrailingLine(string input, string expected)
     {
-        Assert.Equal(expected, StarterSiteScaffold.StripDocumentEndMarker(input));
+        Assert.Equal(expected, YamlDocumentText.StripTrailingDocumentEndMarker(input));
     }
 
     [Fact]

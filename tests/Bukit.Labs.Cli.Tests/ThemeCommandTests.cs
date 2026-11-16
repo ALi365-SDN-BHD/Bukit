@@ -141,6 +141,21 @@ public sealed class ThemeCommandTests : IDisposable
     }
 
     [Fact]
+    public async Task SetThemeAsync_WritesSiteYamlWithoutDocumentEndMarker()
+    {
+        Directory.CreateDirectory(Path.Combine(_rootDir, "themes", "starter"));
+        var configPath = Path.Combine(_rootDir, "site.yaml");
+        File.WriteAllText(configPath, "site:\n  name: demo\n");
+
+        var result = await CommandTestSupport.CaptureAsync(() =>
+            ThemeCommand.SetThemeAsync("starter", configPath, _rootDir, null, null, null));
+
+        Assert.Equal(0, result.ExitCode);
+        var yaml = File.ReadAllText(configPath).ReplaceLineEndings("\n");
+        Assert.DoesNotContain("\n...\n", yaml, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public async Task ThemeCommands_WithGeneratedTheme_RunHappyPaths()
     {
         CloneThemeGenerator.WriteTo(

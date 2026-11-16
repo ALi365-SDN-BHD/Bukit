@@ -7,28 +7,29 @@ namespace Bukit.PluginHost.Tests;
 
 public sealed class PluginManifestLoaderTests
 {
+    private const string ValidManifest = """
+        id: echo
+        name: Echo
+        version: 0.1.0
+        protocol: bukit-plugin-v1
+        kind: process
+        distribution: self-contained
+        platforms:
+          osx-arm64:
+            entry: bin/osx-arm64/bukit-plugin-echo
+            sha256: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+        commands:
+          - name: echo
+            summary: Echo input
+        requiredPermissions:
+          network: false
+        """;
+
     [Fact]
     public async Task LoadAsync_ReadsPluginManifest()
     {
         using var directory = TestDirectory.Create();
-        directory.Write("plugins/echo/plugin.yaml",
-            """
-            id: echo
-            name: Echo
-            version: 0.1.0
-            protocol: bukit-plugin-v1
-            kind: process
-            distribution: self-contained
-            platforms:
-              osx-arm64:
-                entry: bin/osx-arm64/bukit-plugin-echo
-                sha256: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
-            commands:
-              - name: echo
-                summary: Echo input
-            requiredPermissions:
-              network: false
-            """);
+        directory.Write("plugins/echo/plugin.yaml", ValidManifest);
 
         var loader = new PluginManifestLoader();
 
@@ -65,19 +66,7 @@ public sealed class PluginManifestLoaderTests
     public async Task LoadAsync_TrailingDocumentEndMarker_IsStillOneDocument()
     {
         using var directory = TestDirectory.Create();
-        directory.Write("plugins/echo/plugin.yaml", """
-            id: echo
-            name: Echo
-            version: 0.1.0
-            protocol: bukit-plugin-v1
-            kind: process
-            distribution: self-contained
-            platforms:
-              osx-arm64:
-                entry: bin/osx-arm64/bukit-plugin-echo
-                sha256: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
-            ...
-            """);
+        directory.Write("plugins/echo/plugin.yaml", ValidManifest + "\n...\n");
         var loader = new PluginManifestLoader();
 
         var manifest = await loader.LoadAsync(

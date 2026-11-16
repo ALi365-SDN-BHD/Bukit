@@ -122,13 +122,8 @@ public static class ThemeManifestLoader
             stream.Load(new StringReader(yaml));
             if (stream.Documents.Count > 1)
             {
-                if (required)
-                {
-                    throw new ThemeManifestException(
-                        $"theme.yaml is invalid at {manifestPath}: more than one YAML document; move the settings above the \"...\" or \"---\" line and remove it.");
-                }
-
-                return null;
+                throw new ThemeManifestException(
+                    $"theme.yaml is invalid at {manifestPath}: more than one YAML document; move the settings above the \"...\" or \"---\" line and remove it.");
             }
 
             if (stream.Documents.Count == 0 || stream.Documents[0].RootNode is not YamlMappingNode root)

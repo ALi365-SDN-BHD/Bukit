@@ -393,7 +393,7 @@ public static class ThemeCommand
 
         using var writer = new StringWriter();
         stream.Save(writer, assignAnchors: false);
-        File.WriteAllText(fullConfigPath, writer.ToString());
+        File.WriteAllText(fullConfigPath, YamlText.StripTrailingDocumentEndMarker(writer.ToString()));
 
         Console.WriteLine($"Theme set: {name}");
         return Task.FromResult(0);

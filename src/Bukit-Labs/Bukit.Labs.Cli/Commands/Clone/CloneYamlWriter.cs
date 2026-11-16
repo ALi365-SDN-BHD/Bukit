@@ -47,7 +47,7 @@ internal static class CloneYamlWriter
 
             using var writer = new StringWriter();
             stream.Save(writer, assignAnchors: false);
-            File.WriteAllText(path, writer.ToString());
+            File.WriteAllText(path, YamlText.StripTrailingDocumentEndMarker(writer.ToString()));
             return true;
         }
         catch (Exception ex)

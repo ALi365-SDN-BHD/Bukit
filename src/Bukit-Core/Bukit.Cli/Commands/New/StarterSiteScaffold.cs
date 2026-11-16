@@ -187,18 +187,7 @@ internal static class StarterSiteScaffold
 
         using var writer = new StringWriter();
         stream.Save(writer, assignAnchors: false);
-        return StripDocumentEndMarker(writer.ToString());
-    }
-
-    // YamlStream.Save ends the stream with "..." plus Environment.NewLine.
-    internal static string StripDocumentEndMarker(string yaml)
-    {
-        if (yaml.EndsWith("\n...\r\n", StringComparison.Ordinal))
-        {
-            return yaml[..^5];
-        }
-
-        return yaml.EndsWith("\n...\n", StringComparison.Ordinal) ? yaml[..^4] : yaml;
+        return YamlDocumentText.StripTrailingDocumentEndMarker(writer.ToString());
     }
 
     private static readonly (string Key, string Value)[] ChineseLabels =
