@@ -29,6 +29,7 @@ public sealed class ConfigContractDriftTests
         "site.base_url",
         "site.data",
         "site.modules",
+        "self",
         "theme.yaml"
     };
 
@@ -36,6 +37,7 @@ public sealed class ConfigContractDriftTests
     {
         ".cs",
         ".html",
+        ".js",
         ".json",
         ".md",
         ".txt",
@@ -107,6 +109,14 @@ public sealed class ConfigContractDriftTests
     public void InlineCodeSpanConfigReferences_IgnoreGitRemoteOriginUrl()
     {
         Assert.False(TryNormalizeConfigPath("remote.origin.url", out _));
+    }
+
+    [Theory]
+    [InlineData("search.json.js")]
+    [InlineData("self.bukitSearchIndex")]
+    public void InlineCodeSpanConfigReferences_IgnoreScriptFilesAndGlobals(string reference)
+    {
+        Assert.False(TryNormalizeConfigPath(reference, out _));
     }
 
     [Theory]

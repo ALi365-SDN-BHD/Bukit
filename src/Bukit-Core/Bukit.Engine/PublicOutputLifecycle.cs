@@ -70,7 +70,12 @@ internal static class PublicOutputLifecycle
         if (root && I18nRootRedirectWriter.ShouldWrite(config)) Add("index.html", "redirect");
 
         var searchPath = SearchPlanPath(root, isRootLanguage, searchMode, language, layout);
-        if (searchPath is not null) Add(searchPath, "search");
+        if (searchPath is not null)
+        {
+            Add(searchPath, "search");
+            // Every search.json has its script form beside it; the search.index.json manifest has none.
+            if (Path.GetFileName(searchPath) == "search.json") Add(searchPath + SearchIndexBuilder.ScriptIndexSuffix, "search-script");
+        }
 
         if (!root && config.Site.Search.Ui?.Trim().ToLowerInvariant() is not (null or "false" or "off")) Add("bukit-search.html", "search-ui");
 

@@ -48,6 +48,20 @@ every build, so to search another index, copy its markup into a template and set
 loaded or is not such an array, the fragment shows "Search is unavailable"
 instead of empty results.
 
+Every `search.json` has a script form beside it, `search.json.js`, containing
+`self.bukitSearchIndex=<the same JSON>;` (the `search.index.json` manifest has
+none). Pages whose Content Security Policy blocks `connect-src`, such as a
+sandboxed preview, cannot `fetch` the index but can load this script. The
+fragment and the starter theme's search page first `fetch` the index; only when
+that fails do they add `<script src="<index URL>.js">` and read
+`self.bukitSearchIndex`, so normal hosting still makes a single request. On such
+pages the browser console shows the blocked `fetch`; that is expected. The
+fragment only loads the script when the index URL resolves to the page's own
+origin; an index on another site is still fetched, never executed. Search pages
+already scaffolded into a theme are not rewritten; to add the fallback, copy the
+whole `<script>` block from a newly generated
+`themes/starter/layouts/pages/search.html`.
+
 The default search UI inserts content titles and snippets with text nodes and
 uses `<mark>` elements for matches. It does not interpret content fields as
 HTML. `site.search.maxContentLength` applies consistently to the `content`

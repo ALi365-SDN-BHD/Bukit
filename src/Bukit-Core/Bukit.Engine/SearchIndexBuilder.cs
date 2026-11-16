@@ -64,6 +64,7 @@ internal static class SearchIndexBuilder
 
         writer.WriteEndArray();
         writer.Flush();
+        WriteScriptIndex(stream);
     }
 
     internal static void GenerateSingleSearchIndex(
@@ -110,6 +111,26 @@ internal static class SearchIndexBuilder
 
         writer.WriteEndArray();
         writer.Flush();
+        WriteScriptIndex(stream);
+    }
+
+    /// <summary>File name suffix of the script form written next to every <c>search.json</c>.</summary>
+    internal const string ScriptIndexSuffix = ".js";
+
+    /// <summary>
+    /// Writes <c>search.json.js</c> next to a just-written <c>search.json</c>: the same bytes
+    /// assigned to <c>self.bukitSearchIndex</c>. Pages whose Content Security Policy blocks
+    /// <c>connect-src</c> (a sandboxed preview) can still load the index with a script element.
+    /// The JSON is valid JavaScript: the writer's default encoder escapes HTML-sensitive and
+    /// non-ASCII characters, and every property name is fixed.
+    /// </summary>
+    private static void WriteScriptIndex(FileStream json)
+    {
+        using var script = File.Create(json.Name + ScriptIndexSuffix);
+        script.Write("self.bukitSearchIndex="u8);
+        json.Position = 0;
+        json.CopyTo(script);
+        script.Write(";"u8);
     }
 
     internal static void WriteSearchItem(

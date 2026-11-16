@@ -34,9 +34,20 @@ internal sealed class SearchIndexPlugin : IBukitPlugin, IAfterBuildPlugin
             "var loadFailed=false;",
             "function showMessage(text){var m=document.createElement('div');m.className='bukit-search-empty';m.textContent=text;results.appendChild(m);}",
             "var searchUrl=input.getAttribute('data-search-url')||'/search.json';",
+            "function useIndex(data){if(!Array.isArray(data)){throw new Error('Not a search index');}items=data;if(input.value.trim()){search();}}",
+            "function failLoad(){loadFailed=true;results.replaceChildren();showMessage('Search is unavailable');}",
+            // Pages whose CSP blocks connect-src (a sandboxed preview) load the script form instead.
+            // Only same-origin indexes: data-search-url may name another site's index, and loading it
+            // as a script would execute that site's code. Compared with document.baseURI, not
+            // location.origin, because a sandboxed preview's own origin is opaque.
+            "function loadScriptIndex(){var u;try{u=new URL(searchUrl,document.baseURI);}catch(e){failLoad();return;}",
+            "if(u.origin!==new URL(document.baseURI).origin){failLoad();return;}",
+            "u.pathname+='.js';",
+            "var s=document.createElement('script');s.src=u.href;",
+            "s.onload=function(){try{useIndex(self.bukitSearchIndex);}catch(e){failLoad();}};s.onerror=failLoad;",
+            "(document.head||document.documentElement).appendChild(s);}",
             "fetch(searchUrl).then(function(r){if(!r.ok){throw new Error('HTTP '+r.status);}return r.json();})",
-            ".then(function(data){if(!Array.isArray(data)){throw new Error('Not a search index');}items=data;if(input.value.trim()){search();}})",
-            ".catch(function(){loadFailed=true;results.replaceChildren();showMessage('Search is unavailable');});",
+            ".then(useIndex).catch(loadScriptIndex);",
             "function appendHighlighted(parent,text,query){",
             "var value=String(text||'');",
             "if(!query){parent.appendChild(document.createTextNode(value));return;}",

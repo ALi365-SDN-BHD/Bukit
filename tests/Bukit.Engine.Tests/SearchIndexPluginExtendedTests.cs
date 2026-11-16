@@ -110,11 +110,28 @@ public sealed class SearchIndexPluginExtendedTests
         var searchUi = RenderSearchUi(new SearchDetailConfig());
 
         Assert.Contains("if(!r.ok){throw new Error('HTTP '+r.status);}", searchUi, StringComparison.Ordinal);
-        Assert.Contains(".catch(function(){loadFailed=true;", searchUi, StringComparison.Ordinal);
+        Assert.Contains(".then(useIndex).catch(loadScriptIndex);", searchUi, StringComparison.Ordinal);
+        Assert.Contains("s.onerror=failLoad;", searchUi, StringComparison.Ordinal);
+        Assert.Contains("function failLoad(){loadFailed=true;", searchUi, StringComparison.Ordinal);
         Assert.Contains("if(loadFailed){showMessage('Search is unavailable');return;}", searchUi, StringComparison.Ordinal);
         Assert.Contains("m.textContent=text", searchUi, StringComparison.Ordinal);
         Assert.Contains("if(!Array.isArray(data)){throw new Error('Not a search index');}", searchUi, StringComparison.Ordinal);
         Assert.Contains("items=data;if(input.value.trim()){search();}", searchUi, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void WriteSearchUi_FallsBackToTheScriptIndex()
+    {
+        var searchUi = RenderSearchUi(new SearchDetailConfig());
+
+        Assert.Contains("u.pathname+='.js';", searchUi, StringComparison.Ordinal);
+        Assert.Contains("s.src=u.href;", searchUi, StringComparison.Ordinal);
+        Assert.Contains("if(u.origin!==new URL(document.baseURI).origin){failLoad();return;}", searchUi,
+            StringComparison.Ordinal);
+        Assert.Contains("useIndex(self.bukitSearchIndex);", searchUi, StringComparison.Ordinal);
+        // fetch stays first, so hosted sites keep a single request.
+        Assert.True(searchUi.IndexOf("fetch(searchUrl)", StringComparison.Ordinal) <
+            searchUi.IndexOf(".catch(loadScriptIndex)", StringComparison.Ordinal));
     }
 
     [Fact]
@@ -194,6 +211,10 @@ public sealed class SearchIndexPluginExtendedTests
             var item = Assert.Single(searchIndex.RootElement.EnumerateArray());
             Assert.Equal(titlePayload, item.GetProperty("title").GetString());
             Assert.Equal(snippetPayload, item.GetProperty("snippet").GetString());
+            var json = File.ReadAllText(Path.Combine(tempDir, "search.json"));
+            var script = File.ReadAllText(Path.Combine(tempDir, "search.json.js"));
+            Assert.Equal("self.bukitSearchIndex=" + json + ";", script);
+            Assert.DoesNotContain('<', script);
             Assert.DoesNotContain(".innerHTML", searchUi, StringComparison.Ordinal);
             Assert.DoesNotContain("insertAdjacentHTML", searchUi, StringComparison.Ordinal);
             Assert.DoesNotContain(".outerHTML", searchUi, StringComparison.Ordinal);

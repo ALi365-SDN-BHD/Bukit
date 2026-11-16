@@ -4,6 +4,8 @@ Bukit 所有重要变更都将记录在此文件中。
 
 ## [Unreleased]
 
+- **禁止 `connect-src` 的页面也能搜索**：每个 `search.json` 旁边新增 `search.json.js`（内容为 `self.bukitSearchIndex=<同样的 JSON>;`；`search.index.json` 清单没有对应脚本）。`bukit-search.html` 片段和 Starter 主题的搜索页仍先用 `fetch` 读取索引，失败时才加载脚本，所以 CSP 为 `connect-src 'none'` 的沙箱预览也能搜索，正常托管时仍只发一次请求。脚本索引在构建清单归属和过期文件清理上跟随对应的 `search.json`；默认语言的 `static/search.json.js` 与根目录合并索引冲突（`i18n-root-output-conflict`）。只从页面自己的来源加载脚本形式，所以指向别的网站的 `data-search-url` 仍只 `fetch`、不会被执行。已经生成到主题里的搜索页不会被改写；要获得回退，从新生成的 `themes/starter/layouts/pages/search.html` 复制整段 `<script>`。每个搜索索引会多一个同样大小的文件。
+
 ## [2.2.5] - 2026-11-16
 
 - **Starter 主题改版**：改为更简洁的内容型布局，深色模式跟随系统设置，窄屏有折叠菜单（不运行 JavaScript 时链接照常显示）。界面文字读 `theme.params.labels.*`，缺省时用英文；`bukit new --language zh-CN`（以及其他简体中文标签，包括 `zh-Hans-HK`）写入中文文字。以 `/` 开头的导航模块链接和标签索引链接现在带上 `site.baseUrl`，内容标题、摘要和标签做 HTML 转义，列表卡片不再显示 `country`、`industry`。已有网站使用自己的主题副本，不受影响；如果把新模板复制到子路径网站，而导航链接里已经写了 base 路径，要把链接里的这段前缀删掉。
