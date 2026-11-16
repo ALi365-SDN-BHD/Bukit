@@ -80,8 +80,8 @@ When the user asks to run the SOP over a task queue, execute this loop:
 
 ## Known limitation: search in sandboxed previews (2026-11-16)
 
-- The `search.json.js` fallback is on local branch `codex/add-search-index-script` (commits
-  `2b653dc5`, `90d89731`); it is not merged, pushed, or released.
+- The `search.json.js` fallback is on branch `codex/add-search-index-script` (PR #196); it is not
+  merged or released.
 - Until a Bukit release contains it and a bundling consumer upgrades (BukitJalil raises
   `BUKIT_VERSION` and the three installer SHA-256 values), that consumer's sandboxed preview has no
   working search; published sites are unaffected because they do not send the blocking CSP.
