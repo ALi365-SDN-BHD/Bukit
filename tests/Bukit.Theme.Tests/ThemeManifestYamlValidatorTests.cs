@@ -72,4 +72,49 @@ public sealed class ThemeManifestYamlValidatorTests
             TestCleanup.DeleteDirectory(root);
         }
     }
+
+    [Fact, Trait("Category", "Integration")]
+    public void Validate_TrailingDocumentEndMarker_IsStillOneDocument()
+    {
+        string root = Path.Combine(Path.GetTempPath(), "bukit-theme-yaml-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(root);
+        try
+        {
+            File.WriteAllText(
+                Path.Combine(root, "theme.yaml"),
+                "name: test\nversion: 1.0.0\nengine: bukit\nlayouts:\n  base: 1\n...\n");
+
+            var issues = ThemeManifestYamlValidator.Validate(root);
+
+            Assert.Empty(issues);
+        }
+        finally
+        {
+            TestCleanup.DeleteDirectory(root);
+        }
+    }
+
+    [Fact, Trait("Category", "Integration")]
+    public void Validate_MultipleDocuments_ReportsBkt0101()
+    {
+        string root = Path.Combine(Path.GetTempPath(), "bukit-theme-yaml-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(root);
+        try
+        {
+            File.WriteAllText(
+                Path.Combine(root, "theme.yaml"),
+                "name: test\nversion: 1.0.0\n...\nname: second\n");
+
+            var issues = ThemeManifestYamlValidator.Validate(root);
+
+            Assert.Contains(
+                issues,
+                issue => issue.StartsWith("BKT-0101:", StringComparison.Ordinal) &&
+                         issue.Contains("more than one YAML document", StringComparison.Ordinal));
+        }
+        finally
+        {
+            TestCleanup.DeleteDirectory(root);
+        }
+    }
 }

@@ -33,6 +33,46 @@ public sealed class ConfigLoaderTests : IDisposable
         return path;
     }
 
+    private const string MinimalConfig = """
+        site:
+          name: myblog
+          title: My Blog
+        content:
+          sources:
+            - type: markdown
+              markdown:
+                dir: content
+        """;
+
+    [Fact]
+    public void Load_TrailingDocumentEndMarker_IsStillOneDocument()
+    {
+        var config = ConfigLoader.Load(WriteTempYaml(MinimalConfig + "\n...\n"));
+
+        Assert.Equal("My Blog", config.Site.Title);
+    }
+
+    [Fact]
+    public void Load_LeadingDocumentStartMarker_IsStillOneDocument()
+    {
+        var config = ConfigLoader.Load(WriteTempYaml("---\n" + MinimalConfig));
+
+        Assert.Equal("My Blog", config.Site.Title);
+    }
+
+    [Theory]
+    [InlineData("...\n")]
+    [InlineData("---\n")]
+    public void Load_MoreThanOneDocument_ThrowsConfigYamlSyntaxError(string separator)
+    {
+        var configPath = WriteTempYaml(MinimalConfig + "\n" + separator + "site:\n  title: Second\n");
+
+        var exception = Assert.Throws<ConfigException>(() => ConfigLoader.Load(configPath));
+
+        Assert.Equal(DiagnosticCode.ConfigYamlSyntaxError, exception.Code);
+        Assert.Contains("more than one YAML document", exception.Message, StringComparison.Ordinal);
+    }
+
     [Theory]
     [InlineData("  languages: [en]\n", "en", new[] { "en" })]
     [InlineData("  languages: [en]\n  defaultLanguage: en\n", "en", new[] { "en" })]

@@ -167,6 +167,13 @@ public static class TemplateCapabilitiesResolver
     {
         var stream = new YamlStream();
         stream.Load(new StringReader(text));
+        if (stream.Documents.Count > 1)
+        {
+            throw new ConfigException(
+                $"{ManifestFileName} has more than one YAML document; move the settings above the \"...\" or \"---\" line and remove it.",
+                DiagnosticCode.ConfigYamlSyntaxError);
+        }
+
         if (stream.Documents.Count == 0 || stream.Documents[0].RootNode is not YamlMappingNode root)
         {
             throw new ConfigException($"{ManifestFileName} must contain a root mapping.", DiagnosticCode.ConfigInvalidValue);

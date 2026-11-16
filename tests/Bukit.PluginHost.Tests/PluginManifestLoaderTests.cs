@@ -48,6 +48,46 @@ public sealed class PluginManifestLoaderTests
     }
 
     [Fact]
+    public async Task LoadAsync_MultipleDocuments_ThrowsConfigException()
+    {
+        using var directory = TestDirectory.Create();
+        directory.Write("plugins/echo/plugin.yaml", "id: echo\n...\nid: other\n");
+        var loader = new PluginManifestLoader();
+
+        ConfigException exception = await Assert.ThrowsAsync<ConfigException>(
+            () => loader.LoadAsync(System.IO.Path.Combine(directory.Path, "plugins/echo"), CancellationToken.None));
+
+        Assert.Equal(DiagnosticCode.ConfigYamlSyntaxError, exception.Code);
+        Assert.Contains("more than one YAML document", exception.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task LoadAsync_TrailingDocumentEndMarker_IsStillOneDocument()
+    {
+        using var directory = TestDirectory.Create();
+        directory.Write("plugins/echo/plugin.yaml", """
+            id: echo
+            name: Echo
+            version: 0.1.0
+            protocol: bukit-plugin-v1
+            kind: process
+            distribution: self-contained
+            platforms:
+              osx-arm64:
+                entry: bin/osx-arm64/bukit-plugin-echo
+                sha256: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+            ...
+            """);
+        var loader = new PluginManifestLoader();
+
+        var manifest = await loader.LoadAsync(
+            System.IO.Path.Combine(directory.Path, "plugins/echo"),
+            CancellationToken.None);
+
+        Assert.Equal("echo", manifest.Id);
+    }
+
+    [Fact]
     public async Task LoadAsync_ReadsFullCommandSpec()
     {
         using var directory = TestDirectory.Create();

@@ -120,6 +120,17 @@ public static class ThemeManifestLoader
             var yaml = File.ReadAllText(manifestPath);
             var stream = new YamlStream();
             stream.Load(new StringReader(yaml));
+            if (stream.Documents.Count > 1)
+            {
+                if (required)
+                {
+                    throw new ThemeManifestException(
+                        $"theme.yaml is invalid at {manifestPath}: more than one YAML document; move the settings above the \"...\" or \"---\" line and remove it.");
+                }
+
+                return null;
+            }
+
             if (stream.Documents.Count == 0 || stream.Documents[0].RootNode is not YamlMappingNode root)
             {
                 if (required)
