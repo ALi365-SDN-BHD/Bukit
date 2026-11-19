@@ -119,6 +119,7 @@ public sealed class MiniProgramConfigTests
     [InlineData("{ name: a, kind: records, source: modules, fields: [name], listFields: [phone], sort: { field: name } }", "miniprogram.datasets[0].listFields is not allowed for kind records")]
     [InlineData("{ name: a, kind: collection, source: blog, fields: [title], listFields: [title], detailFields: [title] }", "miniprogram.datasets[0].fields is not allowed for kind collection")]
     [InlineData("{ name: a, kind: taxonomy, taxonomy: tags }", "declare at least one kind: collection dataset")]
+    [InlineData("{ name: a, kind: records, source: modules, fields: [body], sort: { field: body }, types: { body: string } }", "types.body is not allowed")]
     public void Validate_RejectsInvalidDatasets(string dataset, string expected)
     {
         var ex = Assert.Throws<ConfigException>(() => Load(Sources + $"\nminiprogram:\n  enabled: true\n  datasets:\n    - {dataset}\n", menus: true));
@@ -192,8 +193,8 @@ public sealed class MiniProgramConfigTests
     }
 
     [Theory]
-    [InlineData("https://", DiagnosticCode.ConfigRequiredFieldMissing)]
-    [InlineData("http://example.com", DiagnosticCode.ConfigRequiredFieldMissing)]
+    [InlineData("https://", DiagnosticCode.ConfigInvalidValue)]
+    [InlineData("http://example.com", DiagnosticCode.ConfigInvalidValue)]
     public void ValidateSiteUrl_RejectsNonHttpsUrl(string url, DiagnosticCode code)
     {
         var config = new AppConfig

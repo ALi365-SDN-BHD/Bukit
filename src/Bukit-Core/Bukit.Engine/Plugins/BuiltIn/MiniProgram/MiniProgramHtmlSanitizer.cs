@@ -2,6 +2,7 @@ using System.Net;
 using System.Text;
 using AngleSharp.Dom;
 using AngleSharp.Html.Parser;
+using Bukit.Routing;
 
 namespace Bukit.Engine.Plugins.BuiltIn.MiniProgram;
 
@@ -220,7 +221,7 @@ internal sealed class MiniProgramHtmlSanitizer : IDisposable
 
     /// <summary>
     /// The comparable form of a page URL: no query or fragment, canonical escaping and host case,
-    /// <c>index.html</c> dropped and a trailing slash on extension-less paths, so <c>/a</c>,
+    /// <c>index.html</c> dropped and the route trailing-slash rule applied, so <c>/a</c>,
     /// <c>/a/</c> and <c>/a/index.html</c> name the same page.
     /// </summary>
     internal static string NormalizePageUrl(string url)
@@ -237,12 +238,9 @@ internal sealed class MiniProgramHtmlSanitizer : IDisposable
         {
             path = path[..^"index.html".Length];
         }
-        else if (!path.EndsWith('/') && !path[(path.LastIndexOf('/') + 1)..].Contains('.', StringComparison.Ordinal))
-        {
-            path += "/";
-        }
 
-        return uri.GetLeftPart(UriPartial.Authority) + path;
+        // The route rule decides page versus file, so /v1.2 and /v1.2/ name the same page.
+        return uri.GetLeftPart(UriPartial.Authority) + RoutePathBuilder.NormalizeUrl(path);
     }
 }
 

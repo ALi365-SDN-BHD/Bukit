@@ -24,7 +24,7 @@ mini-program sees it on its next launch.
 
 ```yaml
 site:
-  url: https://example.com        # required, must be https://
+  url: https://example.com        # must be https://; `bukit dev` skips mp/ when unset
   menus:
     main:
       - identifier: home
@@ -106,9 +106,9 @@ miniprogram:
 | Kind | Source | Writes |
 |---|---|---|
 | `collection` | `mode: content` source | A list file with `listFields`, a detail catalog, and one detail file per page with `detailFields`. Sorted by `sort` (default `publishedAt` descending). |
-| `module` | `mode: data` source | Data records whose `type` equals `module`, with `fields`. `sort` is required. A `module` value no record uses fails the build; records that exist but are all disabled give an empty list. |
+| `module` | `mode: data` source | Data records whose `type` equals `module`, with `fields`. `sort` is required. A `module` value no record uses, enabled or not, fails the build; records that exist but are all disabled give an empty list. On a multilingual site, a language with no matching record gets an empty list and a warning. |
 | `records` | `mode: data` source | Every public record of the source, with `fields`. `sort` is required. Replaces `data/*.yaml` files. |
-| `dataIndex` | `mode: data` source with `dataIndex` | The key/value pairs of one `scope`, keys in order. A scope without enabled entries fails the build. |
+| `dataIndex` | `mode: data` source with `dataIndex` | The key/value pairs of one `scope`, keys in order. A scope no row uses fails the build (a warning and empty values on a multilingual site); a scope whose rows are all disabled gives empty values. |
 | `taxonomy` | none | Terms of `tags`, `categories` or another list field of the pages in `collection` datasets, with their page counts. Terms that differ only in case count as one. Needs at least one `collection` dataset. |
 | `menu` | none | One `site.menus` menu, keeping its order and nesting, with absolute URLs. |
 
@@ -127,7 +127,9 @@ published. Other fields read, in this order, `slug`, `title`, `summary`, `body`,
 `image`, `url` or `string[]`. `image` and `url` values become absolute http(s)
 URLs; relative values of data records resolve against the site root, base path
 included. `required` fields must be present and non-empty. Except in a `dataIndex`
-dataset, every `required` and `types` entry must name a declared field.
+dataset, every `required` and `types` entry must name a declared field. `body`
+cannot be given a type: it is always sanitized HTML, including a `body` key in
+a `dataIndex` scope.
 
 A `body` field on a `module` or `records` dataset from a Notion source needs
 `notion.renderContent: true` on that source; Notion data sources skip page
@@ -186,7 +188,11 @@ operating system (UTF-8 without BOM, one trailing `\n`, fixed field order and
 record order, no build time). `generatedAt` is the latest record update time.
 Unchanged data therefore keeps its hash across rebuilds.
 
-The build manifest tracks every file under `mp/`; files no longer referenced
+A set `site.url` that is not `https://` fails with `ConfigInvalidValue`; a
+missing one fails a production build with `ConfigRequiredFieldMissing`.
+
+The build manifest tracks every file under `mp/` as it is written, even when a
+later dataset fails the build; files no longer referenced
 are removed on the next build, and turning the output off removes the
 directory.
 

@@ -31,13 +31,32 @@ public sealed class MiniProgramPluginTests : IDisposable
     }
 
     [Theory]
-    [InlineData(null)]
-    [InlineData("http://localhost:4000")]
-    public async Task RequiresHttpsSiteUrl(string? siteUrl)
+    [InlineData(null, DiagnosticCode.ConfigRequiredFieldMissing)]
+    [InlineData("http://localhost:4000", DiagnosticCode.ConfigInvalidValue)]
+    public async Task RequiresHttpsSiteUrl(string? siteUrl, DiagnosticCode code)
     {
         var ex = await Assert.ThrowsAsync<ConfigException>(() => RunAsync(Config(siteUrl: siteUrl), [], []));
 
-        Assert.Equal(DiagnosticCode.ConfigRequiredFieldMissing, ex.Code);
+        Assert.Equal(code, ex.Code);
+    }
+
+    [Fact]
+    public async Task DevelopmentBuildWithoutSiteUrl_SkipsOutput()
+    {
+        var logger = new RecordingLogger();
+
+        await RunAsync(Config(siteUrl: null), [Article("a1", "First")], [], mode: BuildExecutionMode.Development, logger: logger);
+
+        Assert.False(Directory.Exists(Path.Combine(_outputDir, "mp")));
+        Assert.Contains(logger.Infos, message => message.Contains("event=miniprogram.skipped", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task DevelopmentBuildWithInvalidSiteUrl_StillFails()
+    {
+        var ex = await Assert.ThrowsAsync<ConfigException>(() => RunAsync(Config(siteUrl: "http://localhost:4000"), [], [], mode: BuildExecutionMode.Development));
+
+        Assert.Equal(DiagnosticCode.ConfigInvalidValue, ex.Code);
     }
 
     [Fact]
@@ -222,8 +241,71 @@ public sealed class MiniProgramPluginTests : IDisposable
         Assert.Contains("field 'module' 'banner' matches no record of source 'modules'", module.Message, StringComparison.Ordinal);
 
         var empty = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase) { ["settings"] = new Dictionary<string, object>(StringComparer.Ordinal) };
-        var scope = await Assert.ThrowsAsync<BukitException>(() => RunAsync(Config(), [], [], empty));
-        Assert.Contains("record 'app' field 'scope' has no enabled entries", scope.Message, StringComparison.Ordinal);
+        var scope = await Assert.ThrowsAsync<BukitException>(() => RunAsync(Config(), [], [SettingRow("s1", "shop", enabled: true)], empty));
+        Assert.Contains("field 'scope' 'app' matches no record of source 'settings'", scope.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task AllScopeRowsDisabled_WritesEmptyValues()
+    {
+        // The data index drops disabled rows, so the scope is absent from it but still matched by its rows.
+        var empty = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase) { ["settings"] = new Dictionary<string, object>(StringComparer.Ordinal) };
+
+        await RunAsync(Config(), [], [SettingRow("s1", "app", enabled: false)], empty);
+
+        Assert.Empty(ReadDataset("settings")["values"]!.AsObject());
+    }
+
+    [Fact]
+    public async Task MultilingualVariantWithoutRows_WarnsAndWritesEmpty()
+    {
+        // Locale-specific data rows exist only in their own language variant.
+        var logger = new RecordingLogger();
+        var empty = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase) { ["settings"] = new Dictionary<string, object>(StringComparer.Ordinal) };
+
+        await RunAsync(Config(languages: ["en", "zh-CN"]), [], [], empty, defaultBanner: false, logger: logger);
+
+        Assert.Empty(ReadDataset("banners")["items"]!.AsArray());
+        Assert.Empty(ReadDataset("settings")["values"]!.AsObject());
+        Assert.Equal(2, logger.Warnings.Count(message => message.Contains("event=miniprogram.dataset_empty", StringComparison.Ordinal)));
+    }
+
+    [Fact]
+    public async Task FailedBuild_TracksFilesAlreadyWritten()
+    {
+        var context = NewContext([Article("a1", "First")], [Banner("b1", "One", 1, image: "https://cdn.example/x.png?X-Amz-Signature=s")], Settings(("title", "Shop")), null, "/", new RecordingLogger());
+
+        await Assert.ThrowsAsync<BukitException>(() => new MiniProgramPlugin(Config()).AfterBuildAsync(context));
+
+        // The article files were written before the banner failed; the manifest must still own them.
+        var tracked = context.Get(BuildDataKeys.PluginOutputs)!.Select(output => output.Path).ToList();
+        Assert.NotEmpty(tracked);
+        var written = Directory.GetFiles(Path.Combine(_outputDir, "mp"), "*", SearchOption.AllDirectories)
+            .Select(path => Path.GetRelativePath(_outputDir, path).Replace('\\', '/'));
+        Assert.Equal(written.Order(StringComparer.Ordinal), tracked.Order(StringComparer.Ordinal));
+    }
+
+    [Fact]
+    public async Task DataIndexBody_IsSanitized()
+    {
+        var config = Config();
+        var datasets = config.MiniProgram.Datasets.ToList();
+        datasets[2] = datasets[2] with { Types = null };
+        config = config with { MiniProgram = config.MiniProgram with { Datasets = datasets } };
+
+        await RunAsync(config, [], [], Settings(("body", "<p onclick=\"x()\">Hi</p><script>alert(1)</script>")));
+
+        Assert.Equal("<p>Hi</p>", (string)ReadDataset("settings")["values"]!["body"]!);
+    }
+
+    [Fact]
+    public async Task VersionStyleInternalHref_GetsBukitId()
+    {
+        await RunAsync(Config(), [Article("a1", "First", body: "<p><a href=\"/release-v1.2\">r</a></p>"), Article("a2", "Release-v1.2")], []);
+
+        var details = ReadByUrl((string)ReadCatalog()["datasets"]!["articles"]!["detailCatalog"]!["url"]!)["items"]!.AsArray();
+        var html = (string)ReadByUrl((string)details.First(item => (string)item!["id"]! == "first")!["url"]!)["body"]!;
+        Assert.Contains("data-bukit-id=\"release-v1.2\"", html, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -327,7 +409,9 @@ public sealed class MiniProgramPluginTests : IDisposable
         string? nonIndexable = null,
         string baseUrl = "/",
         bool defaultBanner = true,
-        bool defaultSettings = true)
+        bool defaultSettings = true,
+        BuildExecutionMode mode = BuildExecutionMode.Production,
+        ILogger? logger = null)
     {
         // The default config declares a banner module and a settings scope; an unmatched one fails the build.
         if (defaultBanner && !data.Any(document => ContentFieldReader.GetContentType(document) == "banner"))
@@ -340,6 +424,19 @@ public sealed class MiniProgramPluginTests : IDisposable
             dataIndex ??= Settings(("title", "Shop"));
         }
 
+        var context = NewContext(pages, data, dataIndex, nonIndexable, baseUrl, logger ?? new ConsoleLogger(LogLevel.Error));
+        await new MiniProgramPlugin(config, mode).AfterBuildAsync(context);
+        return context;
+    }
+
+    private BuildContext NewContext(
+        IReadOnlyList<RoutedContentDocument> pages,
+        IReadOnlyList<ContentDocument> data,
+        IReadOnlyDictionary<string, object>? dataIndex,
+        string? nonIndexable,
+        string baseUrl,
+        ILogger logger)
+    {
         var seoIndex = new Dictionary<string, SeoIndexEntry>(StringComparer.OrdinalIgnoreCase);
         if (nonIndexable is not null)
         {
@@ -355,10 +452,9 @@ public sealed class MiniProgramPluginTests : IDisposable
             LayoutsDir = _outputDir,
             RoutedDocuments = pages,
             SeoIndex = seoIndex,
-            Logger = new ConsoleLogger(LogLevel.Error)
+            Logger = logger
         };
         context.Set(BuildDataKeys.DataModules, new DataModuleResult(data, null, null, dataIndex, null));
-        await new MiniProgramPlugin(config).AfterBuildAsync(context);
         return context;
     }
 
@@ -366,13 +462,15 @@ public sealed class MiniProgramPluginTests : IDisposable
         bool enabled = true,
         string? siteUrl = "https://example.com",
         string[]? articleListFields = null,
-        Dictionary<string, string>? articleTypes = null) => new()
+        Dictionary<string, string>? articleTypes = null,
+        IReadOnlyList<string>? languages = null) => new()
     {
         Site = new SiteConfig
         {
             Name = "shop",
             Title = "Shop",
             Url = siteUrl,
+            Languages = languages,
             Menus = new Dictionary<string, IReadOnlyList<MenuConfig>>(StringComparer.OrdinalIgnoreCase)
             {
                 ["main"] =
@@ -388,7 +486,11 @@ public sealed class MiniProgramPluginTests : IDisposable
                 ]
             }
         },
-        Content = TestContent.Markdown(),
+        Content = ContentConfigFactory.FromSources(
+        [
+            TestContent.MarkdownSource(),
+            new ContentSourceConfig { Type = "markdown", Name = "settings", Mode = "data", Markdown = new MarkdownConfig { Dir = "data/settings" }, DataIndex = new DataIndexConfig() }
+        ]),
         MiniProgram = new MiniProgramConfig
         {
             Enabled = enabled,
@@ -466,6 +568,28 @@ public sealed class MiniProgramPluginTests : IDisposable
             ["sourceMode"] = "data",
             ["type"] = "faq"
         }));
+
+    private static ContentDocument SettingRow(string id, string scope, bool enabled)
+        => ContentDocument.Create($"settings:{id}", id, id, Day, null, ContentFieldReader.ToFieldMap(new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["sourceKey"] = "settings",
+            ["sourceMode"] = "data",
+            ["scope"] = scope,
+            ["key"] = "title",
+            ["value"] = "Shop",
+            ["value_type"] = "text",
+            ["enabled"] = enabled
+        }));
+
+    private sealed class RecordingLogger : ILogger
+    {
+        public List<string> Infos { get; } = [];
+        public List<string> Warnings { get; } = [];
+        public void Debug(string message) { }
+        public void Info(string message) => Infos.Add(message);
+        public void Warn(string message) => Warnings.Add(message);
+        public void Error(string message) => Warnings.Add(message);
+    }
 
     private JsonNode ReadCatalog() => JsonNode.Parse(File.ReadAllText(Path.Combine(_outputDir, "mp", "catalog.json")))!;
 

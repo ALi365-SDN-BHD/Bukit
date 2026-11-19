@@ -98,3 +98,8 @@
       需要 `renderContent`；各类型拒收用不到的键；`site.url` 在渲染前校验；分类只统计集合
       页面且不分大小写；站内链接按规范化 URL 匹配；正文只清洗一次并复用解析器；内置字段改为
       一张访问表。
+      2026-11-20 第二轮高强度审计的 9 条发现已修复：未匹配的 `module`/scope 按所有行（不论
+      是否启用）判断，多语言站点改为警告并写空数据集；scope 全部停用时写空值；`dataIndex` 的
+      `body` 经过清洗；每个文件写出时立即登记 `PluginOutputs`；开发构建缺少 `site.url` 时跳过；
+      `/release-v1.2` 这类带点的页面链接按 `RoutePathBuilder.NormalizeUrl` 匹配；格式错误的
+      `site.url` 改用 `ConfigInvalidValue`；`types.body` 被拒绝；补充对应测试。

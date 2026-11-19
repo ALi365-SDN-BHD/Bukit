@@ -17,11 +17,13 @@ internal sealed class MiniProgramPlugin : IBukitPlugin, IAfterBuildAsyncPlugin
     internal const string SchemaVersion = "1.0";
 
     private readonly AppConfig _config;
+    private readonly BuildExecutionMode _executionMode;
 
-    internal MiniProgramPlugin(AppConfig config)
+    internal MiniProgramPlugin(AppConfig config, BuildExecutionMode executionMode = BuildExecutionMode.Production)
     {
         ArgumentNullException.ThrowIfNull(config);
         _config = config;
+        _executionMode = executionMode;
     }
 
     public string Name => "miniprogram";
@@ -35,7 +37,14 @@ internal sealed class MiniProgramPlugin : IBukitPlugin, IAfterBuildAsyncPlugin
             return;
         }
 
-        var siteUrl = MiniProgramConfigValidator.ValidateSiteUrl(_config, required: true)!;
+        var siteUrl = MiniProgramConfigValidator.ValidateSiteUrl(_config, required: _executionMode == BuildExecutionMode.Production);
+        if (siteUrl is null)
+        {
+            // Development builds without site.url skip the output; production builds failed above.
+            context.Logger.Info("event=miniprogram.skipped reason=no_site_url");
+            return;
+        }
+
         var dataModules = context.TryGet(BuildDataKeys.DataModules, out var prepared) ? prepared : null;
         // Only pages of collection datasets get detail records, so only they carry data-bukit-id
         // and only they count toward taxonomy terms.
@@ -48,13 +57,16 @@ internal sealed class MiniProgramPlugin : IBukitPlugin, IAfterBuildAsyncPlugin
             .GroupBy(record => record.PageUrl!, StringComparer.Ordinal)
             .ToDictionary(group => group.Key, group => group.First().Id, StringComparer.Ordinal);
         using var sanitizer = new MiniProgramHtmlSanitizer(siteUrl, context.BaseUrl, internalIds);
+        // Each file is tracked as it is written, so a later failure leaves no unowned output behind.
+        var outputs = context.GetOrAdd(BuildDataKeys.PluginOutputs, static () => []);
         var run = new Run(
             context,
             siteUrl,
             contentRecords,
             dataModules,
             new MiniProgramDatasetBuilder(siteUrl, context.BaseUrl, sanitizer),
-            new FileSet(context.OutputDir, options.OutputDir, siteUrl, context.BaseUrl));
+            new FileSet(context.OutputDir, options.OutputDir, siteUrl, context.BaseUrl, path => outputs.Add(new PluginOutputTrackingInfo(Name, "after-build", path))),
+            Multilingual: (_config.Site.Languages?.Count ?? 1) > 1);
         var datasets = new SortedDictionary<string, JsonObject>(StringComparer.Ordinal)
         {
             ["site"] = run.Writer.Write("site", BuildSite(siteUrl, context.BaseUrl), "site")
@@ -66,11 +78,6 @@ internal sealed class MiniProgramPlugin : IBukitPlugin, IAfterBuildAsyncPlugin
         }
 
         run.Writer.WriteCatalog(BuildCatalog(datasets, run.Dates));
-        var outputs = context.GetOrAdd(BuildDataKeys.PluginOutputs, static () => []);
-        foreach (var path in run.Writer.Paths)
-        {
-            outputs.Add(new PluginOutputTrackingInfo(Name, "after-build", path));
-        }
     }
 
     private async Task<JsonObject> WriteDatasetAsync(Run run, MiniProgramDatasetConfig dataset, int maxListItems, CancellationToken cancellationToken)
@@ -78,7 +85,7 @@ internal sealed class MiniProgramPlugin : IBukitPlugin, IAfterBuildAsyncPlugin
         {
             MiniProgramKinds.Collection => await WriteCollectionAsync(run, dataset, maxListItems, cancellationToken),
             MiniProgramKinds.Module or MiniProgramKinds.Records => await WriteDataRecordsAsync(run, dataset, cancellationToken),
-            MiniProgramKinds.DataIndex => run.Writer.Write(dataset.Name, new JsonObject { ["values"] = run.Builder.BuildMap(dataset, ResolveDataIndex(dataset, run.DataModules)) }, dataset.Kind),
+            MiniProgramKinds.DataIndex => run.Writer.Write(dataset.Name, new JsonObject { ["values"] = run.Builder.BuildMap(dataset, ResolveDataIndex(run, dataset)) }, dataset.Kind),
             MiniProgramKinds.Taxonomy => run.Writer.Write(dataset.Name, new JsonObject { ["items"] = BuildTaxonomy(dataset, run.ContentRecords) }, dataset.Kind),
             MiniProgramKinds.Menu => run.Writer.Write(dataset.Name, new JsonObject { ["items"] = BuildMenu(_config.Site.Menus![dataset.Menu!], run.SiteUrl, run.Context.BaseUrl) }, dataset.Kind),
             _ => throw new InvalidOperationException($"Unsupported mini-program dataset kind '{dataset.Kind}'.")
@@ -91,9 +98,30 @@ internal sealed class MiniProgramPlugin : IBukitPlugin, IAfterBuildAsyncPlugin
         IReadOnlyList<MiniProgramRecord> ContentRecords,
         DataModuleResult? DataModules,
         MiniProgramDatasetBuilder Builder,
-        FileSet Writer)
+        FileSet Writer,
+        bool Multilingual)
     {
         internal List<DateTimeOffset> Dates { get; } = [];
+
+        /// <summary>
+        /// Fails when a module or scope matches no row at all, enabled or not: that is a typo, and an
+        /// empty file would wipe every client's copy. A multilingual site warns instead, because data
+        /// rows with a locale exist only in their own language.
+        /// </summary>
+        internal void RequireMatched(MiniProgramDatasetConfig dataset, string field, string value, bool matched)
+        {
+            if (matched)
+            {
+                return;
+            }
+
+            if (!Multilingual)
+            {
+                throw MiniProgramDatasetBuilder.Invalid(dataset, "*", field, $"'{value}' matches no record of source '{dataset.Source}'");
+            }
+
+            Context.Logger.Warn($"event=miniprogram.dataset_empty dataset={dataset.Name} {field}={value} source={dataset.Source}");
+        }
     }
 
     private JsonObject BuildCatalog(SortedDictionary<string, JsonObject> datasets, List<DateTimeOffset> dates)
@@ -230,11 +258,10 @@ internal sealed class MiniProgramPlugin : IBukitPlugin, IAfterBuildAsyncPlugin
             selected.Add(new MiniProgramRecord(MiniProgramJson.Hash(Encoding.UTF8.GetBytes(document.Id))[..16], document, PageUrl: null, BodyHtml: null));
         }
 
-        // A module type no row uses is almost always a typo; writing it empty would wipe every client's copy.
         // Rows that exist but are all disabled still produce an intentionally empty dataset.
-        if (dataset.Kind == MiniProgramKinds.Module && !matchedModule)
+        if (dataset.Kind == MiniProgramKinds.Module)
         {
-            throw MiniProgramDatasetBuilder.Invalid(dataset, "*", "module", $"'{dataset.Module}' matches no record of source '{dataset.Source}'");
+            run.RequireMatched(dataset, "module", dataset.Module!, matchedModule);
         }
 
         var records = await WithBodiesAsync(run, dataset, selected, dataset.Fields!.Contains("body"), cancellationToken);
@@ -264,9 +291,9 @@ internal sealed class MiniProgramPlugin : IBukitPlugin, IAfterBuildAsyncPlugin
         return resolved;
     }
 
-    private static IReadOnlyDictionary<string, object> ResolveDataIndex(MiniProgramDatasetConfig dataset, DataModuleResult? dataModules)
+    private IReadOnlyDictionary<string, object> ResolveDataIndex(Run run, MiniProgramDatasetConfig dataset)
     {
-        if (dataModules?.DataIndex is { } index &&
+        if (run.DataModules?.DataIndex is { } index &&
             index.TryGetValue(dataset.Source!, out var source) &&
             source is IReadOnlyDictionary<string, object> scopes &&
             scopes.TryGetValue(dataset.Scope!, out var scope) &&
@@ -275,8 +302,16 @@ internal sealed class MiniProgramPlugin : IBukitPlugin, IAfterBuildAsyncPlugin
             return values;
         }
 
-        // A missing scope is a typo or a renamed scope; writing it empty would wipe every client's copy.
-        throw MiniProgramDatasetBuilder.Invalid(dataset, dataset.Scope!, "scope", $"has no enabled entries in source '{dataset.Source}'");
+        // The index drops disabled rows, so look for the scope on every row of the source:
+        // all rows disabled is an intentionally empty scope, no row at all is a typo.
+        var scopeField = _config.Content.Sources!
+            .First(candidate => string.Equals(candidate.Name?.Trim(), dataset.Source, StringComparison.OrdinalIgnoreCase))
+            .DataIndex!.ScopeField;
+        var matched = (run.DataModules?.DataDocuments ?? []).Any(document =>
+            MiniProgramDatasetBuilder.IsFromSource(document, dataset.Source!) &&
+            string.Equals(ContentFieldReader.GetText(document.CustomFields, scopeField)?.Trim(), dataset.Scope, StringComparison.Ordinal));
+        run.RequireMatched(dataset, "scope", dataset.Scope!, matched);
+        return new Dictionary<string, object>(StringComparer.Ordinal);
     }
 
     private static JsonArray BuildTaxonomy(MiniProgramDatasetConfig dataset, IReadOnlyList<MiniProgramRecord> contentRecords)
@@ -329,13 +364,9 @@ internal sealed class MiniProgramPlugin : IBukitPlugin, IAfterBuildAsyncPlugin
         return array;
     }
 
-    /// <summary>Writes content-addressed files under the variant's mini-program directory and records their paths.</summary>
-    private sealed class FileSet(string outputDir, string directory, string siteUrl, string baseUrl)
+    /// <summary>Writes content-addressed files under the variant's mini-program directory and reports each path.</summary>
+    private sealed class FileSet(string outputDir, string directory, string siteUrl, string baseUrl, Action<string> track)
     {
-        private readonly List<string> _paths = [];
-
-        internal IReadOnlyList<string> Paths => _paths;
-
         internal JsonObject Write(string stem, JsonNode content, string? kind)
         {
             var (bytes, hash, url) = WriteFile($"{stem}.{{0}}.json", content);
@@ -372,8 +403,8 @@ internal sealed class MiniProgramPlugin : IBukitPlugin, IAfterBuildAsyncPlugin
         {
             var path = FileWriter.GetSafeFullPath(outputDir, relative);
             Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+            track(relative);
             File.WriteAllBytes(path, bytes);
-            _paths.Add(relative);
         }
     }
 }

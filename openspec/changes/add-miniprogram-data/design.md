@@ -205,8 +205,11 @@ dist/mp/                                    # 默认语言在根目录；其他�
 
 14. **校验。** 每个数据集可以声明 `required` 和 `types`（`string number boolean date image
     url string[]`）。校验失败时以 `SchemaValidationFailed` 失败，消息带上数据集名、记录 id
-    和字段名。`site.url`（或 `--site-url`）不是 `https://` 开头时以 `ConfigRequiredFieldMissing`
-    失败；配置错误用 `ConfigInvalidValue`/`ConfigRequiredFieldMissing`。
+    和字段名。`site.url`（或 `--site-url`）格式错误或不是 `https://` 开头时以
+    `ConfigInvalidValue` 失败；缺失时生产构建以 `ConfigRequiredFieldMissing` 失败，开发构建
+    （`bukit dev`）跳过小程序输出并记录日志。`types` 不能声明 `body`，`body` 总是清洗后的
+    HTML。`module` 或 `scope` 没有任何行匹配（不论是否启用）时，单语言站点构建失败；多语言
+    站点的某个语言变体没有对应行时记录警告并写出空数据集。
 
 ## 小程序端同步协议（文档内容，非规范性）
 

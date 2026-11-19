@@ -46,14 +46,17 @@ internal sealed class MiniProgramDatasetBuilder
 
     /// <summary>Sanitizes the body once per record, so list and detail files share the result.</summary>
     internal MiniProgramRecord WithBody(MiniProgramDatasetConfig dataset, MiniProgramRecord record, string? html)
+        => record with { BodyHtml = SanitizeBody(dataset, record.Id, html, record.PageUrl) };
+
+    private string SanitizeBody(MiniProgramDatasetConfig dataset, string recordId, string? html, string? pageUrl)
     {
         try
         {
-            return record with { BodyHtml = _sanitizer.Sanitize(html, record.PageUrl ?? _siteRoot) };
+            return _sanitizer.Sanitize(html, pageUrl ?? _siteRoot);
         }
         catch (MiniProgramSignedUrlException ex)
         {
-            throw Invalid(dataset, record.Id, "body", ex.Message, ex);
+            throw Invalid(dataset, recordId, "body", ex.Message, ex);
         }
     }
 
@@ -102,9 +105,12 @@ internal sealed class MiniProgramDatasetBuilder
         }
 
         var map = new JsonObject();
+        var recordId = dataset.Scope ?? dataset.Name;
         foreach (var key in values.Keys.Order(StringComparer.Ordinal))
         {
-            map[key] = Convert(dataset, dataset.Scope ?? dataset.Name, key, values[key], pageUrl: null);
+            // Convert treats body as sanitized HTML, so a key of that name is sanitized here first.
+            var value = key == "body" ? SanitizeBody(dataset, recordId, values[key] as string, pageUrl: null) : values[key];
+            map[key] = Convert(dataset, recordId, key, value, pageUrl: null);
         }
 
         return map;
@@ -150,7 +156,7 @@ internal sealed class MiniProgramDatasetBuilder
 
         if (field == "body")
         {
-            // Already sanitized by WithBody.
+            // Already sanitized by WithBody or BuildMap.
             return (string)raw!;
         }
 

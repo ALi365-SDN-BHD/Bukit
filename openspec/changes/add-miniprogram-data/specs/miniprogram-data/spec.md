@@ -48,12 +48,18 @@ either.
 - **THEN** after a rebuild the dataset lists the rows in the new order and its hash changes
 
 ### Requirement: Mini-program data requires an HTTPS site URL
-When mini-program output is enabled, the effective site URL SHALL start with `https://`. Otherwise
-the build SHALL fail with `ConfigRequiredFieldMissing`.
+When mini-program output is enabled, the effective site URL SHALL start with `https://`. A URL
+that is set but malformed or not `https://` SHALL fail with `ConfigInvalidValue`. A missing URL
+SHALL fail a production build with `ConfigRequiredFieldMissing`; a development build SHALL skip
+mini-program output instead, so a local preview works without a site URL.
 
-#### Scenario: Missing site URL
+#### Scenario: Non-HTTPS site URL
 - **WHEN** `miniprogram.enabled` is `true` and the effective site URL is `http://localhost:4000`
-- **THEN** the build fails with `ConfigRequiredFieldMissing`
+- **THEN** the build fails with `ConfigInvalidValue`
+
+#### Scenario: Development build without a site URL
+- **WHEN** `miniprogram.enabled` is `true`, no site URL is set, and the build runs in development mode
+- **THEN** the build succeeds, logs that mini-program output was skipped, and writes no file under the output directory
 
 ### Requirement: Dataset files are deterministic
 Each dataset file SHALL be UTF-8 without BOM, end with exactly one `\n`, write fields in their
@@ -139,6 +145,15 @@ or whose value cannot be read as the declared type (for example a list under `st
 `SchemaValidationFailed` naming the dataset, record id and field. A `collection` dataset
 whose list exceeds `maxListItems` SHALL fail the build naming the dataset.
 
+A `module` value or `dataIndex` scope that no row of its source uses, enabled or not, SHALL fail
+the build on a single-language site; rows that exist but are all disabled SHALL give an empty
+dataset. On a multilingual site, where rows with a locale exist only in their own language
+variant, an unmatched `module` or scope SHALL log a warning and write an empty dataset.
+
+#### Scenario: Language variant without rows
+- **WHEN** a site declares the languages `en` and `zh-CN` and a variant has no `banner` row
+- **THEN** that variant logs a warning and writes an empty `banners` dataset
+
 #### Scenario: Wrong type in Notion
 - **WHEN** a `stores` row has `lat` set to `abc` and the dataset declares `lat: number`
 - **THEN** the build fails with `SchemaValidationFailed` naming `stores`, that row's id and `lat`
@@ -147,6 +162,8 @@ whose list exceeds `maxListItems` SHALL fail the build naming the dataset.
 The build manifest's plugin-output tracking and stale output removal SHALL own every file under
 the mini-program output directory. Files no longer referenced by the current catalog SHALL be
 removed on the next build, and disabling mini-program output SHALL remove the whole directory.
+Each file SHALL be tracked as it is written, so files written before a failing dataset are still
+owned and removed later.
 A static file colliding with a mini-program output path SHALL fail the build through the existing
 output collision check.
 

@@ -196,7 +196,7 @@ internal static class MiniProgramConfigValidator
         if (!Uri.TryCreate(url, UriKind.Absolute, out var uri) || uri.Scheme != Uri.UriSchemeHttps ||
             string.IsNullOrEmpty(uri.Host) || url.Any(char.IsWhiteSpace))
         {
-            throw new ConfigException($"miniprogram requires site.url to be an https:// URL; got '{url}'.", DiagnosticCode.ConfigRequiredFieldMissing);
+            throw Invalid($"miniprogram requires site.url to be an https:// URL; got '{url}'.");
         }
 
         return url;
@@ -347,6 +347,11 @@ internal static class MiniProgramConfigValidator
             if (!MiniProgramKinds.FieldTypes.Contains(type, StringComparer.Ordinal))
             {
                 throw Invalid($"{path}.types.{field} must be {string.Join('|', MiniProgramKinds.FieldTypes)}.");
+            }
+
+            if (field == "body")
+            {
+                throw Invalid($"{path}.types.body is not allowed; body is always sanitized HTML.");
             }
 
             RequireDeclared(declared, field, $"{path}.types.{field}");
