@@ -9,6 +9,9 @@ public sealed record AppConfig
     public TaxonomyConfig Taxonomy { get; init; } = new();
     public LoggingConfig Logging { get; init; } = new();
     public DeployConfig? Deploy { get; init; }
+
+    /// <summary>The opt-in mini-program data output. Internal until the contract is released.</summary>
+    internal MiniProgramConfig MiniProgram { get; init; } = new();
 }
 
 public sealed record SiteConfig

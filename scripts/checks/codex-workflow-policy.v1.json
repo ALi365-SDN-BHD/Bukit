@@ -2403,6 +2403,26 @@
       "contractConsumerGlobs": [],
       "publicContract": false,
       "resource": "dotnet-serial"
+    },
+    {
+      "id": "miniprogram-data-change",
+      "matches": [
+        "openspec/changes/add-miniprogram-data/*",
+        "openspec/changes/add-miniprogram-data/specs/miniprogram-data/spec.md",
+        "openspec/changes/archive/*-add-miniprogram-data/*",
+        "openspec/specs/miniprogram-data/spec.md",
+        "guide/user/25-miniprogram-data.md"
+      ],
+      "specialtyTests": [
+        "openspec validate add-miniprogram-data --strict --no-interactive",
+        "dotnet test tests/Bukit.Config.Tests/Bukit.Config.Tests.csproj -c Release --filter \"FullyQualifiedName~MiniProgram|FullyQualifiedName~ConfigLoader|FullyQualifiedName~StrictYamlContract|FullyQualifiedName~ConfigJsonSchemaGenerator|FullyQualifiedName~ConfigContractDrift|FullyQualifiedName~ConfigSchemaNestedContract\"",
+        "dotnet test tests/Bukit.Engine.Tests/Bukit.Engine.Tests.csproj -c Release --filter \"FullyQualifiedName~MiniProgram\"",
+        "bash scripts/checks/docs/size-policy.sh",
+        "bash scripts/checks/docs/active-links.sh"
+      ],
+      "contractConsumerGlobs": [],
+      "publicContract": false,
+      "resource": "dotnet-serial"
     }
   ],
   "resourceRules": [

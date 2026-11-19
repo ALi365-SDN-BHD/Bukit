@@ -75,7 +75,7 @@ miniprogram:
 ## 输出布局
 
 ```
-dist/mp/zh-CN/
+dist/mp/                                    # 默认语言在根目录；其他语言是 dist/<lang>/mp/
   catalog.json                              # 唯一不带哈希、需要禁用缓存的文件
   site.<h16>.json                           # 站点信息（自动生成，不用声明）
   banners.<h16>.json
@@ -88,8 +88,9 @@ dist/mp/zh-CN/
   articles/<id>.<h16>.json                  # 每篇详情
 ```
 
-`<h16>` 是该文件 SHA-256 十六进制的前 16 位；目录里记录完整哈希。单语言站点也用
-`mp/<site.language>/`，路径规则不因语言数量而变。
+`<h16>` 是该文件 SHA-256 十六进制的前 16 位；目录里记录完整哈希。`mp/` 位于每种语言自己的
+输出根目录下，与 `search.json` 一样跟随 i18n 输出布局：单语言站点和根目录语言是 `dist/mp/`，
+子目录语言是 `dist/<lang>/mp/`。
 
 ### catalog.json
 
@@ -105,11 +106,11 @@ dist/mp/zh-CN/
     "articles": {
       "kind": "collection",
       "hash": "sha256:…",
-      "url": "https://example.com/mp/zh-CN/articles.list.9c1d….json",
+      "url": "https://example.com/mp/articles.list.9c1d….json",
       "size": 18342,
       "detailCatalog": {
         "hash": "sha256:…",
-        "url": "https://example.com/mp/zh-CN/articles.details.77ab….json"
+        "url": "https://example.com/mp/articles.details.77ab….json"
       }
     },
     "banners": { "kind": "module", "hash": "sha256:…", "url": "…", "size": 812 }
@@ -136,7 +137,10 @@ dist/mp/zh-CN/
 
 1. **已确认：实现位置是 Core 内置插件，默认关闭。** 放在 `Bukit.Engine/Plugins/BuiltIn/`
    下，作为一个新的内置插件，拿得到内容文档、data 文档、`dataIndex`、taxonomy、已本地化的
-   媒体，并且挂在投影计划、构建清单、增量和过期清理上。
+   媒体。它和 `TaxonomyPlugin` 一样在 after-build 阶段写文件，并登记到 `PluginOutputs`，
+   由已有的构建清单跟踪、过期文件清理和输出冲突校验（`AssetOutputPlan.Validate`）接管。
+   data 文档通过新的内部 build data key `__data_modules` 交给插件。配置类型保持 internal，
+   诊断码只用已有枚举值，不改变公开 API。
    备选 A：外部插件（WechatSync 模式），读不到 data 文档，需要自己再调 Notion，不选。
    备选 B：Core 新增公开的 data 输出 + 外部插件，会把原本不公开的数据模块发布出去，
    而且仍然要改 Core，不选。
@@ -159,8 +163,11 @@ dist/mp/zh-CN/
 
 6. **已确认：正文格式是清洗后的 HTML 子集。** 输出 `body` 为白名单标签（`p h1–h6 ul ol li
    blockquote pre code strong em a img table thead tbody tr th td hr br span`），属性只保留
-   `href src alt` 和 `data-bukit-id`；class 改成内联样式（复用 WechatSync `ContentProcessor`
-   的规则，把它移到共享的 internal helper）；iframe 和视频嵌入改成链接；`<details>` 展开。
+   `href src alt`、`data-bukit-id` 和单元格的 `colspan`/`rowspan`；class 和 style 一律去掉，
+   样式由小程序端决定；未知容器（`div`、`section`、`figure` 等）去壳保留内容；脚本、表单等
+   连同内容删除；iframe、video、audio 改成链接；`<details>` 展开，`<summary>` 变成粗体段落；
+   只保留 http(s)、`mailto:`、`tel:` 链接。用 AngleSharp 在 Core 里实现：WechatSync 位于
+   插件层，Core 不能依赖它，也不为此改动 WechatSync。
    小程序端可以直接交给 `rich-text`，或者用 mp-html 这类组件。
    备选：`rich-text` 的 nodes JSON，小程序端零依赖，但输出大约是 HTML 的 2–3 倍，转换器
    也更复杂。
@@ -175,16 +182,18 @@ dist/mp/zh-CN/
    UTF-8 无 BOM、末尾一个 `\n`；时间统一输出 ISO 8601 带偏移；字段顺序按声明顺序。
    哈希按写盘的字节计算。
 
-10. **只输出公开内容。** 排除 `enabled: false`、草稿、未到发布时间、已过期的记录，以及
-    `Indexable == false` 的内容页（与 agent manifest 一致）。被排除的记录直接从目录里消失，
+10. **只输出公开内容。** 排除 `enabled: false`、草稿（`build.draft` 让网站保留草稿时也排除），以及
+    `Indexable == false` 的内容页（与 agent manifest 一致）。Core 没有发布时间和过期的过滤，
+    本变更也不新增。被排除的记录直接从目录里消失，
     小程序端按删除处理。
 
 11. **媒体和链接。** 声明为 `image` 类型的字段和正文里的 `img src`、`a href` 都转成
-    `site.url` 下的绝对 HTTPS 地址。转换后如果仍是 Notion 签名 URL（匹配
-    `content.media.downloadHosts`，或主机是 `*.amazonaws.com` 且带签名参数），构建失败。
+    `site.url` 下的绝对 HTTPS 地址。转换后如果仍带过期签名参数（`X-Amz-Signature`、`X-Amz-Credential`、
+    `Signature`、`Expires`，不限主机），构建失败；正文图片同样检查。
     站内链接再加上 `data-bukit-id="<目标 id>"`。
 
-12. **site 数据集自动生成。** 包含 `name`、`language`、`languages`、`url`、`logo`。
+12. **site 数据集自动生成。** 包含 `name`、`title`、`description`、`url`、`language`、`languages`（Core 配置里没有
+    logo 字段；logo 可以放进 `dataIndex`）。
 
 13. **已确认：导航两种来源都支持。** 站点按数据集自己选择：
     - `kind: module`（`module: nav`）：编辑在 Notion 里维护，字段和排序按数据集声明；
@@ -195,12 +204,13 @@ dist/mp/zh-CN/
     配置校验失败。网站自己的导航仍然只来自 `menus`，不受影响。
 
 14. **校验。** 每个数据集可以声明 `required` 和 `types`（`string number boolean date image
-    url string[]`）。校验失败时报诊断码 `miniprogram-dataset-invalid`，带上数据集名、记录 id
-    和字段名，构建失败。`site.url` 不是 `https://` 开头时报 `miniprogram-site-url-required`。
+    url string[]`）。校验失败时以 `SchemaValidationFailed` 失败，消息带上数据集名、记录 id
+    和字段名。`site.url`（或 `--site-url`）不是 `https://` 开头时以 `ConfigRequiredFieldMissing`
+    失败；配置错误用 `ConfigInvalidValue`/`ConfigRequiredFieldMissing`。
 
 ## 小程序端同步协议（文档内容，非规范性）
 
-1. 启动时请求 `mp/<lang>/catalog.json`，带 `?t=<时间戳>` 绕过 CDN 缓存。
+1. 启动时请求该语言的 `…/mp/catalog.json`，带 `?t=<时间戳>` 绕过 CDN 缓存。
 2. `catalogHash` 和本地相同 → 结束。
 3. `minClientSchema` 高于客户端支持的版本 → 提示用户更新小程序，继续使用本地数据。
 4. 逐个比较数据集的 `hash`：
@@ -228,4 +238,4 @@ dist/mp/zh-CN/
 
 新增的可选输出，不开启就没有任何变化。正在用 `data/*.yaml` 的站点要把这些数据搬到 Notion
 数据库，文档里给出建模对照表；导航可以继续用 `menus`（`kind: menu`），也可以搬到 Notion。回滚：关闭 `miniprogram.enabled`，下一次构建会按
-投影计划清理 `mp/`。
+构建清单清理 `mp/`（clean build 则整个输出目录重建）。

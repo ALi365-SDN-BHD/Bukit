@@ -29,7 +29,8 @@ public sealed class ConfigSchemaNestedContractTests
             "content/modelSchema/entityMappings[]",
             "content/modelSchema/relationMappings[]"
         ],
-        ["ValidateMenuItems.path"] = ["site/menus/*"]
+        ["ValidateMenuItems.path"] = ["site/menus/*"],
+        ["ValidateMiniProgramDataset.path"] = ["miniprogram/datasets[]"]
     };
 
     private static readonly Regex MethodDeclarationRegex = new(
@@ -108,6 +109,9 @@ public sealed class ConfigSchemaNestedContractTests
         new("theme/components/*", "template", "props"),
         new("taxonomy/kinds[]", "key", "kind", "title", "description", "singularTitlePrefix", "template", "indexTemplate", "termTemplate", "indexEnabled", "hierarchical", "routePrefix"),
         new("logging", "level"),
+        new("miniprogram", "enabled", "outputDir", "maxListItems", "datasets"),
+        new("miniprogram/datasets[]", "name", "kind", "source", "module", "scope", "menu", "taxonomy", "fields", "listFields", "detailFields", "sort", "required", "types"),
+        new("miniprogram/datasets[]/sort", "field", "order"),
         new("deploy", "provider", "branch", "message", "repo", "cname", "keepHistory")
     ];
 
@@ -118,7 +122,8 @@ public sealed class ConfigSchemaNestedContractTests
         "theme/shortcodes",
         "theme/components/*/props",
         "taxonomy/pinFieldBySource",
-        "taxonomy/pinOrderFieldBySource"
+        "taxonomy/pinOrderFieldBySource",
+        "miniprogram/datasets[]/types"
     ];
 
     [Fact]

@@ -64,6 +64,9 @@ public sealed class ConfigContractDriftTests
         var appConfigFields = typeof(AppConfig).GetProperties(BindingFlags.Instance | BindingFlags.Public)
             .Select(property => ToYamlKey(property.Name))
             .ToHashSet(StringComparer.Ordinal);
+        // MiniProgram stays internal so the section adds no public API; its YAML key is all lowercase.
+        _ = nameof(AppConfig.MiniProgram);
+        appConfigFields.Add("miniprogram");
         var strictRootFields = GetStrictFieldSet("RootKeys");
 
         Assert.Equal(appConfigFields.Order(StringComparer.Ordinal), schemaFields.Order(StringComparer.Ordinal));

@@ -34,7 +34,7 @@ fields SHALL be written.
 
 ### Requirement: Navigation can come from Notion or from site menus
 A `module` dataset SHALL be able to carry navigation records maintained in a Notion data source.
-A `menu` dataset SHALL write the entries of the named `site.yaml` menu for its language, keeping
+A `menu` dataset SHALL write the entries of the named `site.yaml` menu, keeping
 the menu's order and nesting, with each entry's `title`, absolute `url` and `children`. A site MAY
 declare both kinds as separate datasets. The website's own navigation SHALL be unaffected by
 either.
@@ -49,11 +49,11 @@ either.
 
 ### Requirement: Mini-program data requires an HTTPS site URL
 When mini-program output is enabled, the effective site URL SHALL start with `https://`. Otherwise
-the build SHALL fail with `miniprogram-site-url-required`.
+the build SHALL fail with `ConfigRequiredFieldMissing`.
 
 #### Scenario: Missing site URL
 - **WHEN** `miniprogram.enabled` is `true` and the effective site URL is `http://localhost:4000`
-- **THEN** the build fails with `miniprogram-site-url-required`
+- **THEN** the build fails with `ConfigRequiredFieldMissing`
 
 ### Requirement: Dataset files are deterministic
 Each dataset file SHALL be UTF-8 without BOM, end with exactly one `\n`, write fields in their
@@ -71,14 +71,15 @@ systems, SHALL produce byte-identical mini-program files.
 - **THEN** the dataset file and its hash are unchanged
 
 ### Requirement: Files are content-addressed and listed in a version catalog
-For each language the build SHALL write `mp/<lang>/catalog.json`. Every other mini-program file
+For each language the build SHALL write `catalog.json` in the mini-program directory (`mp/` by
+default) under that language's output root. Every other mini-program file
 SHALL be named with the first 16 hexadecimal characters of the SHA-256 of its bytes. The catalog
 SHALL list each dataset with its `kind`, full `hash` (`sha256:<hex>`), absolute `url` and `size`;
 a `collection` dataset SHALL also list a `detailCatalog` whose items give each detail file's
 `id`, `hash`, `url`, `size` and `updatedAt`. The catalog SHALL contain `schemaVersion`,
 `minClientSchema`, `language`, `generatedAt` (the latest `updatedAt` or `publishedAt` of the
 written records, or the Unix epoch when there are none) and `catalogHash` computed only from the
-dataset names and hashes. A `site` dataset SHALL always be present.
+dataset names, dataset hashes and detail catalog hashes. A `site` dataset SHALL always be present.
 
 #### Scenario: One record changes
 - **WHEN** only the title of one banner record changes between two builds
@@ -90,11 +91,11 @@ dataset names and hashes. A `site` dataset SHALL always be present.
 
 #### Scenario: Multilingual site
 - **WHEN** `languages` is `[en, zh-CN]`
-- **THEN** `mp/en/catalog.json` and `mp/zh-CN/catalog.json` are written, each listing only that language's records
+- **THEN** with `defaultLanguage: en` in the root layout, `dist/mp/catalog.json` lists only `en` records and `dist/zh-CN/mp/catalog.json` lists only `zh-CN` records
 
 ### Requirement: Only public records are written
-A dataset SHALL exclude records with `enabled: false`, drafts, records not yet published,
-expired records, and content pages that are not indexable. An excluded record SHALL NOT appear in
+A dataset SHALL exclude records with `enabled: false`, drafts (also when `build.draft` keeps them
+on the website), and content pages that are not indexable. An excluded record SHALL NOT appear in
 any list, detail catalog or detail file.
 
 #### Scenario: Record disabled in Notion
@@ -102,9 +103,10 @@ any list, detail catalog or detail file.
 - **THEN** that banner no longer appears in the `banners` file and the `banners` hash changes
 
 ### Requirement: Media and links are absolute and stable
-Image-typed fields and `src` and `href` attributes in bodies SHALL be absolute `https://` URLs
-under the site URL or the original external host. When a written image URL is still a signed URL
-from a configured download host, the build SHALL fail with `miniprogram-dataset-invalid` naming
+Image- and URL-typed fields and `src` and `href` attributes in bodies SHALL be absolute http(s)
+URLs under the site URL or the original external host. When a written image URL (field or body)
+still carries an expiring signature (`X-Amz-Signature`, `X-Amz-Credential`, `Signature` or
+`Expires` query parameter), the build SHALL fail with `SchemaValidationFailed` naming
 the dataset, record id and field. Links to pages that have mini-program detail records SHALL carry
 `data-bukit-id` with the target id.
 
@@ -114,7 +116,7 @@ the dataset, record id and field. Links to pages that have mini-program detail r
 
 #### Scenario: Unlocalized signed URL
 - **WHEN** a `records` dataset has an `image` field whose value is still an `*.amazonaws.com` signed URL
-- **THEN** the build fails with `miniprogram-dataset-invalid` naming that dataset, record and field
+- **THEN** the build fails with `SchemaValidationFailed` naming that dataset, record and field
 
 #### Scenario: Internal link
 - **WHEN** an article body links to another article in the same `collection` dataset
@@ -122,28 +124,31 @@ the dataset, record id and field. Links to pages that have mini-program detail r
 
 ### Requirement: Bodies use a mini-program safe HTML subset
 Detail and module `body` fields SHALL contain only the allowed tags and attributes defined by the
-change design, with styling inlined, embedded frames replaced by links and collapsible blocks
-expanded. Scripts, styles, event attributes and disallowed tags SHALL NOT be written.
+change design, with embedded frames replaced by links, collapsible blocks expanded and unknown
+containers unwrapped. Scripts, styles, `class` and `style` attributes, event attributes, links
+with schemes other than http(s), `mailto:` and `tel:`, and disallowed tags SHALL NOT be written.
 
 #### Scenario: Embedded video
 - **WHEN** an article body contains a Notion video embed rendered as an `<iframe>`
 - **THEN** the detail body contains a link to the video URL and no `<iframe>`
 
 ### Requirement: Dataset contents are validated at build time
-A dataset MAY declare `required` fields and field `types`. A record that misses a required field,
-or whose value cannot be read as the declared type, SHALL fail the build with
-`miniprogram-dataset-invalid` naming the dataset, record id and field. A `collection` dataset
+A dataset MAY declare `required` fields and field `types`; except for `dataIndex`, each of them
+SHALL name a declared field, otherwise configuration validation SHALL fail. A record that misses a required field,
+or whose value cannot be read as the declared type (for example a list under `string`), SHALL fail the build with
+`SchemaValidationFailed` naming the dataset, record id and field. A `collection` dataset
 whose list exceeds `maxListItems` SHALL fail the build naming the dataset.
 
 #### Scenario: Wrong type in Notion
 - **WHEN** a `stores` row has `lat` set to `abc` and the dataset declares `lat: number`
-- **THEN** the build fails with `miniprogram-dataset-invalid` naming `stores`, that row's id and `lat`
+- **THEN** the build fails with `SchemaValidationFailed` naming `stores`, that row's id and `lat`
 
 ### Requirement: Mini-program files follow the output lifecycle
-The projection plan, build manifest ownership and stale output removal SHALL own every file under
+The build manifest's plugin-output tracking and stale output removal SHALL own every file under
 the mini-program output directory. Files no longer referenced by the current catalog SHALL be
 removed on the next build, and disabling mini-program output SHALL remove the whole directory.
-A static file colliding with a mini-program output path SHALL fail the build.
+A static file colliding with a mini-program output path SHALL fail the build through the existing
+output collision check.
 
 #### Scenario: Output disabled
 - **WHEN** a site that wrote `mp/` is rebuilt with `miniprogram.enabled: false`

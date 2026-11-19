@@ -6,7 +6,7 @@ namespace Bukit.Config;
 
 internal static class ConfigStrictFieldValidator
 {
-    private static readonly HashSet<string> RootKeys = Set("site", "content", "build", "theme", "taxonomy", "logging", "deploy");
+    private static readonly HashSet<string> RootKeys = Set("site", "content", "build", "theme", "taxonomy", "logging", "deploy", "miniprogram");
     private static readonly HashSet<string> SiteKeys = Set(
         "name", "title", "url", "description", "seo", "analytics", "autoSummary", "autoSummaryMaxLength",
         "baseUrl", "outputPathEncoding", "languages", "defaultLanguage",
@@ -26,6 +26,10 @@ internal static class ConfigStrictFieldValidator
         "kinds", "outputMode", "itemFields", "pageSize", "indexEnabled", "pinField", "pinOrderField", "emptyTerms", "tieBreakField", "tieBreakOrder",
         "pinFieldBySource", "pinOrderFieldBySource");
     private static readonly HashSet<string> LoggingKeys = Set("level");
+    private static readonly HashSet<string> MiniProgramKeys = Set("enabled", "outputDir", "maxListItems", "datasets");
+    private static readonly HashSet<string> MiniProgramDatasetKeys = Set(
+        "name", "kind", "source", "module", "scope", "menu", "taxonomy", "fields", "listFields", "detailFields", "sort", "required", "types");
+    private static readonly HashSet<string> MiniProgramSortKeys = Set("field", "order");
     private static readonly HashSet<string> DeployKeys = Set("provider", "branch", "message", "repo", "cname", "keepHistory");
 
     internal static void Validate(YamlMappingNode root)
@@ -39,6 +43,42 @@ internal static class ConfigStrictFieldValidator
         if (Map(root, "taxonomy") is { } taxonomy) ValidateTaxonomy(taxonomy);
         if (Map(root, "logging") is { } logging) RequireOnly(logging, LoggingKeys, "logging");
         if (Map(root, "deploy") is { } deploy) RequireOnly(deploy, DeployKeys, "deploy");
+        if (Map(root, "miniprogram") is { } miniProgram) ValidateMiniProgram(miniProgram);
+    }
+
+    private static void ValidateMiniProgram(YamlMappingNode miniProgram)
+    {
+        RequireOnly(miniProgram, MiniProgramKeys, "miniprogram");
+        RequireBooleanIfPresent(miniProgram, "enabled", "miniprogram.enabled");
+        RequireIntegerIfPresent(miniProgram, "maxListItems", "miniprogram.maxListItems");
+        RequireScalarIfPresent(miniProgram, "outputDir", "miniprogram.outputDir");
+        if (Seq(miniProgram, "datasets", "miniprogram.datasets") is not { } datasets)
+        {
+            return;
+        }
+
+        ValidateSequenceMappings(datasets, MiniProgramDatasetKeys, "miniprogram.datasets", ValidateMiniProgramDataset);
+    }
+
+    private static void ValidateMiniProgramDataset(YamlMappingNode dataset, string path)
+    {
+        if (Map(dataset, "sort", $"{path}.sort") is { } sort)
+        {
+            RequireOnly(sort, MiniProgramSortKeys, $"{path}.sort");
+        }
+
+        if (Map(dataset, "types", $"{path}.types") is not { } types)
+        {
+            return;
+        }
+
+        foreach (var child in types.Children)
+        {
+            if (child.Value is not YamlScalarNode)
+            {
+                throw KindMismatch($"{path}.types.{KeyName(child.Key, $"{path}.types")}", "scalar", child.Value);
+            }
+        }
     }
 
     private static void ValidateSite(YamlMappingNode site)

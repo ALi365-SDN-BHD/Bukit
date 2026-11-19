@@ -46,6 +46,7 @@ internal sealed class BuiltInPluginSource : IPluginSource
         yield return new BuiltIn.AliasPlugin(_config);
         yield return new BuiltIn.MenuPlugin(_config);
         yield return new BuiltIn.ImageProcessingPlugin(_config);
+        yield return new BuiltIn.MiniProgram.MiniProgramPlugin(_config);
     }
 }
 

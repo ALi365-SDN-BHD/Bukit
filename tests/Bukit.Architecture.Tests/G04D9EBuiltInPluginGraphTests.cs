@@ -52,7 +52,7 @@ public sealed class G04D9EBuiltInPluginGraphTests
     }
 
     [Fact]
-    public void BuiltInSource_KeepsNineCandidateRegistrationsPlusAnalytics()
+    public void BuiltInSource_KeepsNineCandidateRegistrationsPlusAnalyticsAndMiniProgram()
     {
         Assembly assembly = typeof(SiteEngine).Assembly;
         Type sourceType = GetType(
@@ -97,7 +97,8 @@ public sealed class G04D9EBuiltInPluginGraphTests
                 "RelatedContentPlugin",
                 "AliasPlugin",
                 "MenuPlugin",
-                "ImageProcessingPlugin"
+                "ImageProcessingPlugin",
+                "MiniProgramPlugin"
             ],
             registered);
         Assert.DoesNotContain("FeedPlugin", registered);

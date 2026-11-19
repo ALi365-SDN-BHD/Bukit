@@ -1,0 +1,200 @@
+using System.Text.Json.Nodes;
+using Bukit.Shared;
+using Xunit;
+
+namespace Bukit.Config.Tests;
+
+public sealed class MiniProgramConfigTests
+{
+    private const string Sources = """
+        content:
+          sources:
+            - type: markdown
+              name: blog
+              markdown:
+                dir: content/blog
+            - type: markdown
+              name: modules
+              mode: data
+              markdown:
+                dir: data/modules
+            - type: markdown
+              name: settings
+              mode: data
+              markdown:
+                dir: data/settings
+              dataIndex:
+                scopeField: scope
+        """;
+
+    [Fact]
+    public void Load_WithoutSection_IsDisabled()
+    {
+        var config = Load(Sources);
+
+        Assert.False(config.MiniProgram.Enabled);
+        Assert.Equal("mp", config.MiniProgram.OutputDir);
+        Assert.Empty(config.MiniProgram.Datasets);
+    }
+
+    [Fact]
+    public void Load_ParsesAllDatasetKinds()
+    {
+        var config = Load(Sources + """
+
+            miniprogram:
+              enabled: true
+              outputDir: app-data
+              maxListItems: 50
+              datasets:
+                - name: articles
+                  kind: collection
+                  source: blog
+                  listFields: [title, summary, cover]
+                  detailFields: [title, body]
+                  types: { cover: image }
+                  required: [title]
+                - name: banners
+                  kind: module
+                  source: modules
+                  module: banner
+                  fields: [title, image, order]
+                  sort: { field: order, order: desc }
+                - name: settings
+                  kind: dataIndex
+                  source: settings
+                  scope: app
+                - name: tags
+                  kind: taxonomy
+                  taxonomy: tags
+                - name: nav
+                  kind: menu
+                  menu: main
+            """, menus: true);
+
+        var mini = config.MiniProgram;
+        Assert.True(mini.Enabled);
+        Assert.Equal("app-data", mini.OutputDir);
+        Assert.Equal(50, mini.MaxListItems);
+        Assert.Equal(["articles", "banners", "settings", "tags", "nav"], mini.Datasets.Select(x => x.Name));
+        var articles = mini.Datasets[0];
+        Assert.Equal(["title", "summary", "cover"], articles.ListFields);
+        Assert.Equal("image", articles.Types!["cover"]);
+        Assert.Equal(["title"], articles.Required);
+        Assert.Equal(new MiniProgramSortConfig("order", true), mini.Datasets[1].Sort);
+        Assert.Equal("main", mini.Datasets[4].Menu);
+    }
+
+    [Fact]
+    public void Load_RejectsUnknownSectionField()
+    {
+        var ex = Assert.Throws<ConfigException>(() => Load(Sources + "\nminiprogram:\n  enabled: true\n  foo: 1\n"));
+
+        Assert.Contains("miniprogram.foo", ex.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Load_RejectsUnknownDatasetField()
+    {
+        var ex = Assert.Throws<ConfigException>(() => Load(Sources + "\nminiprogram:\n  enabled: true\n  datasets:\n    - { name: x, kind: taxonomy, taxonomy: tags, extra: 1 }\n"));
+
+        Assert.Contains("miniprogram.datasets[0].extra", ex.Message, StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData("{ name: a, kind: collection, source: shop, listFields: [title], detailFields: [title] }", "miniprogram.datasets[0].source 'shop'")]
+    [InlineData("{ name: a, kind: collection, source: modules, listFields: [title], detailFields: [title] }", "must use mode: content")]
+    [InlineData("{ name: a, kind: module, source: blog, module: banner, fields: [title], sort: { field: order } }", "must use mode: data")]
+    [InlineData("{ name: a, kind: module, source: modules, module: banner, fields: [title] }", "miniprogram.datasets[0].sort is required")]
+    [InlineData("{ name: a, kind: dataIndex, source: modules, scope: app }", "has no dataIndex")]
+    [InlineData("{ name: a, kind: menu, menu: footer }", "miniprogram.datasets[0].menu 'footer'")]
+    [InlineData("{ name: a, kind: menu, menu: main, source: blog }", "source is not allowed")]
+    [InlineData("{ name: Site, kind: taxonomy, taxonomy: tags }", "must match")]
+    [InlineData("{ name: site, kind: taxonomy, taxonomy: tags }", "reserved")]
+    [InlineData("{ name: a, kind: page }", "kind must be")]
+    [InlineData("{ name: a, kind: records, source: modules, fields: [lat], sort: { field: lat }, types: { lat: float } }", "types.lat must be")]
+    [InlineData("{ name: a, kind: records, source: modules, fields: [a, a], sort: { field: a } }", "more than once")]
+    [InlineData("{ name: a, kind: records, source: modules, fields: [name], sort: { field: name }, required: [phone] }", "miniprogram.datasets[0].required names 'phone'")]
+    [InlineData("{ name: a, kind: records, source: modules, fields: [photo], sort: { field: photo }, types: { photos: image } }", "miniprogram.datasets[0].types.photos names 'photos'")]
+    public void Validate_RejectsInvalidDatasets(string dataset, string expected)
+    {
+        var ex = Assert.Throws<ConfigException>(() => Load(Sources + $"\nminiprogram:\n  enabled: true\n  datasets:\n    - {dataset}\n", menus: true));
+
+        Assert.Contains(expected, ex.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Validate_DuplicateNames_Fail()
+    {
+        var ex = Assert.Throws<ConfigException>(() => Load(Sources + """
+
+            miniprogram:
+              enabled: true
+              datasets:
+                - { name: tags, kind: taxonomy, taxonomy: tags }
+                - { name: tags, kind: taxonomy, taxonomy: categories }
+            """));
+
+        Assert.Contains("miniprogram.datasets[1].name 'tags'", ex.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Validate_DisabledSection_SkipsDatasetRules()
+    {
+        var config = Load(Sources + "\nminiprogram:\n  datasets:\n    - { name: a, kind: menu, menu: missing }\n");
+
+        Assert.False(config.MiniProgram.Enabled);
+    }
+
+    [Fact]
+    public void Validate_InvalidOutputDir_Fails()
+    {
+        var ex = Assert.Throws<ConfigException>(() => Load(Sources + "\nminiprogram:\n  enabled: true\n  outputDir: ../escape\n"));
+
+        Assert.Contains("miniprogram.outputDir", ex.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Schema_DescribesMiniProgramSection()
+    {
+        var schema = JsonNode.Parse(ConfigJsonSchemaGenerator.Generate())!;
+        var section = schema["properties"]!["miniprogram"]!;
+
+        Assert.False(section["additionalProperties"]!.GetValue<bool>());
+        var dataset = section["properties"]!["datasets"]!["items"]!;
+        Assert.Equal(["name", "kind"], dataset["required"]!.AsArray().Select(x => x!.GetValue<string>()));
+        Assert.Contains("menu", dataset["properties"]!["kind"]!["enum"]!.AsArray().Select(x => x!.GetValue<string>()));
+    }
+
+    private static AppConfig Load(string body, bool menus = false)
+    {
+        var site = menus
+            ? """
+              site:
+                name: myblog
+                title: My Blog
+                menus:
+                  main:
+                    - identifier: home
+                      name: Home
+                      url: /
+              """
+            : """
+              site:
+                name: myblog
+                title: My Blog
+              """;
+        var path = Path.Combine(Path.GetTempPath(), $"bukit-miniprogram-{Guid.NewGuid():N}.yaml");
+        File.WriteAllText(path, site + "\n" + body);
+        try
+        {
+            var config = ConfigLoader.Load(path);
+            ConfigValidator.Validate(config);
+            return config;
+        }
+        finally
+        {
+            File.Delete(path);
+        }
+    }
+}

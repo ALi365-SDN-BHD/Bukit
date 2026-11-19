@@ -173,6 +173,7 @@ public static class ConfigLoader
 
         var deployNode = ConfigYamlHelpers.GetOptionalMapping(root, "deploy");
         var deploy = SiteDefaultsApplier.ReadDeployConfig(deployNode);
+        var miniProgram = MiniProgramConfigReader.Read(ConfigYamlHelpers.GetOptionalMapping(root, "miniprogram"));
 
         return new AppConfig
         {
@@ -183,7 +184,8 @@ public static class ConfigLoader
             Theme = theme,
             Taxonomy = taxonomy,
             Logging = logging,
-            Deploy = deploy
+            Deploy = deploy,
+            MiniProgram = miniProgram
         };
     }
 

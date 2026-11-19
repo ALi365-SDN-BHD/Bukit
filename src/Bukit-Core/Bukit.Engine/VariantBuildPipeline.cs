@@ -47,6 +47,7 @@ internal sealed partial class VariantBuildPipeline
             logger,
             variantStageMetrics,
             cancellationToken);
+        routePipelineResult.PluginContext.Set(BuildDataKeys.DataModules, dataModules);
         var pluginSession = PluginExecutionSession.Create(
             context.Config,
             context.Overrides.ExecutionMode);

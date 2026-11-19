@@ -93,7 +93,8 @@ public sealed class PluginRegistryTests
                 ("related-content", "1.0.0", "built-in"),
                 ("alias", "1.0.0", "built-in"),
                 ("menu", "1.0.0", "built-in"),
-                ("image-processing", "1.0.0", "built-in")
+                ("image-processing", "1.0.0", "built-in"),
+                ("miniprogram", "1.0.0", "built-in")
             ],
             registrations);
     }

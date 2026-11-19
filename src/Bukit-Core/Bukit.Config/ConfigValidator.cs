@@ -16,6 +16,7 @@ public static class ConfigValidator
     {
         SiteConfigValidator.ValidateSite(config.Site);
         ValidateBreadcrumbParent(config);
+        MiniProgramConfigValidator.Validate(config);
 
         if (config.Site.Analytics.Csp is not null && !config.Build.Report.Enabled)
         {

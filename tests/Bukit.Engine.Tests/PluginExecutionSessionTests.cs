@@ -25,7 +25,7 @@ public sealed class PluginExecutionSessionTests
         var second = PluginRegistry.GetAllPlugins(context, sessionA).ToArray();
         var other = PluginRegistry.GetAllPlugins(context, sessionB).ToArray();
 
-        Assert.Equal(10, first.Length);
+        Assert.Equal(11, first.Length);
         Assert.All(first.Zip(second), pair => Assert.Same(pair.First.Plugin, pair.Second.Plugin));
         Assert.All(first.Zip(other), pair => Assert.NotSame(pair.First.Plugin, pair.Second.Plugin));
         Assert.Equal(
@@ -39,7 +39,8 @@ public sealed class PluginExecutionSessionTests
                 "related-content",
                 "alias",
                 "menu",
-                "image-processing"
+                "image-processing",
+                "miniprogram"
             ],
             first.Select(item => item.Plugin.Name));
         Assert.All(first, item => Assert.Equal("built-in", item.Source));

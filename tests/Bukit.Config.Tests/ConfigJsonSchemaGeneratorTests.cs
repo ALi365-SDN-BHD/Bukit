@@ -20,6 +20,7 @@ public sealed class ConfigJsonSchemaGeneratorTests
         "$/properties/site/properties/menus",
         "$/properties/taxonomy/properties/pinFieldBySource",
         "$/properties/taxonomy/properties/pinOrderFieldBySource",
+        "$/properties/miniprogram/properties/datasets/items/properties/types",
         "$/properties/content/properties/modelSchema/properties/fieldScopes"
     };
 
