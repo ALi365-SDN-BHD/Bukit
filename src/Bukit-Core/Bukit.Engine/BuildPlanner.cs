@@ -35,6 +35,8 @@ internal static class BuildPlanner
             config,
             internalOutputDir is null ? overrides : overrides with { Output = null });
         ConfigValidator.Validate(effectiveConfig);
+        // Overrides such as --site-url are applied now, so a missing URL fails before rendering.
+        MiniProgramConfigValidator.ValidateSiteUrl(effectiveConfig, required: true);
 
         var outputDir = BuildTransaction.Physical(
             internalOutputDir is null

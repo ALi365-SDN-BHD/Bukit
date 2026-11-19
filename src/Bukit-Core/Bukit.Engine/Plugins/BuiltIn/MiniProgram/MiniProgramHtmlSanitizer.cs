@@ -10,7 +10,7 @@ namespace Bukit.Engine.Plugins.BuiltIn.MiniProgram;
 /// safe attributes, unknown containers are unwrapped, embeds become links, collapsible blocks are
 /// expanded, and every link and image is absolute.
 /// </summary>
-internal sealed class MiniProgramHtmlSanitizer
+internal sealed class MiniProgramHtmlSanitizer : IDisposable
 {
     private static readonly HashSet<string> AllowedTags = new(StringComparer.Ordinal)
     {
@@ -33,15 +33,26 @@ internal sealed class MiniProgramHtmlSanitizer
 
     private readonly string _siteUrl;
     private readonly string _baseUrl;
-    private readonly IReadOnlyDictionary<string, string> _internalIds;
+    private readonly Dictionary<string, string> _internalIds = new(StringComparer.Ordinal);
 
-    /// <param name="internalIds">Absolute page URL (without query or fragment) → mini-program detail id.</param>
+    // One parser and fragment context per build: every body of a collection goes through here.
+    private readonly HtmlParser _parser = new();
+    private readonly IDocument _context;
+
+    /// <param name="internalIds">Absolute page URL → mini-program detail id; keys are normalized with <see cref="NormalizePageUrl"/>.</param>
     internal MiniProgramHtmlSanitizer(string siteUrl, string baseUrl, IReadOnlyDictionary<string, string> internalIds)
     {
         _siteUrl = siteUrl;
         _baseUrl = baseUrl;
-        _internalIds = internalIds;
+        foreach (var (url, id) in internalIds)
+        {
+            _internalIds.TryAdd(NormalizePageUrl(url), id);
+        }
+
+        _context = _parser.ParseDocument("<!DOCTYPE html><html><body></body></html>");
     }
+
+    public void Dispose() => _context.Dispose();
 
     /// <summary>Returns the sanitized body, or throws <see cref="MiniProgramSignedUrlException"/> for an unlocalized signed image.</summary>
     internal string Sanitize(string? html, string pageUrl)
@@ -51,9 +62,7 @@ internal sealed class MiniProgramHtmlSanitizer
             return string.Empty;
         }
 
-        var parser = new HtmlParser();
-        using var document = parser.ParseDocument("<!DOCTYPE html><html><body></body></html>");
-        var nodes = parser.ParseFragment(html, document.Body!);
+        var nodes = _parser.ParseFragment(html, _context.Body!);
         var builder = new StringBuilder(html.Length);
         foreach (var node in nodes)
         {
@@ -118,7 +127,7 @@ internal sealed class MiniProgramHtmlSanitizer
                 if (element.GetAttribute("href") is { } rawHref && SafeHref(rawHref, pageUrl) is { } href)
                 {
                     attributes.Add(("href", href));
-                    if (_internalIds.TryGetValue(StripQueryAndFragment(href), out var id))
+                    if (_internalIds.TryGetValue(NormalizePageUrl(href), out var id))
                     {
                         attributes.Add(("data-bukit-id", id));
                     }
@@ -209,10 +218,31 @@ internal sealed class MiniProgramHtmlSanitizer
     private static bool IsHttp(string value)
         => Uri.TryCreate(value, UriKind.Absolute, out var uri) && uri.Scheme is "https" or "http";
 
-    internal static string StripQueryAndFragment(string url)
+    /// <summary>
+    /// The comparable form of a page URL: no query or fragment, canonical escaping and host case,
+    /// <c>index.html</c> dropped and a trailing slash on extension-less paths, so <c>/a</c>,
+    /// <c>/a/</c> and <c>/a/index.html</c> name the same page.
+    /// </summary>
+    internal static string NormalizePageUrl(string url)
     {
         var end = url.IndexOfAny(['?', '#']);
-        return end < 0 ? url : url[..end];
+        var trimmed = end < 0 ? url : url[..end];
+        if (!Uri.TryCreate(trimmed, UriKind.Absolute, out var uri))
+        {
+            return trimmed;
+        }
+
+        var path = uri.AbsolutePath;
+        if (path.EndsWith("/index.html", StringComparison.OrdinalIgnoreCase))
+        {
+            path = path[..^"index.html".Length];
+        }
+        else if (!path.EndsWith('/') && !path[(path.LastIndexOf('/') + 1)..].Contains('.', StringComparison.Ordinal))
+        {
+            path += "/";
+        }
+
+        return uri.GetLeftPart(UriPartial.Authority) + path;
     }
 }
 

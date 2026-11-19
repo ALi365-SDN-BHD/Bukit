@@ -145,6 +145,7 @@ internal static class MiniProgramConfigValidator
             throw Invalid("miniprogram.maxListItems must be at least 1.");
         }
 
+        ValidateSiteUrl(config, required: false);
         var sources = config.Content.Sources ?? [];
         var names = new HashSet<string>(StringComparer.Ordinal) { "site" };
         for (var i = 0; i < miniProgram.Datasets.Count; i++)
@@ -166,8 +167,73 @@ internal static class MiniProgramConfigValidator
                 throw Invalid($"{path}.kind must be {string.Join('|', MiniProgramKinds.All)}.");
             }
 
+            RejectUnusedKeys(dataset, path);
             ValidateKind(config, sources, dataset, path);
             ValidateTypes(dataset, path);
+        }
+    }
+
+    /// <summary>
+    /// The effective site URL for mini-program output, without a trailing slash. Configuration
+    /// validation passes <paramref name="required"/>=false because CLI overrides such as
+    /// <c>--site-url</c> may still supply it; the build passes true once overrides are applied.
+    /// </summary>
+    internal static string? ValidateSiteUrl(AppConfig config, bool required)
+    {
+        if (!config.MiniProgram.Enabled)
+        {
+            return null;
+        }
+
+        var url = config.Site.Url?.Trim().TrimEnd('/');
+        if (string.IsNullOrEmpty(url))
+        {
+            return required
+                ? throw new ConfigException("miniprogram requires site.url (or --site-url) to be an https:// URL.", DiagnosticCode.ConfigRequiredFieldMissing)
+                : null;
+        }
+
+        if (!Uri.TryCreate(url, UriKind.Absolute, out var uri) || uri.Scheme != Uri.UriSchemeHttps ||
+            string.IsNullOrEmpty(uri.Host) || url.Any(char.IsWhiteSpace))
+        {
+            throw new ConfigException($"miniprogram requires site.url to be an https:// URL; got '{url}'.", DiagnosticCode.ConfigRequiredFieldMissing);
+        }
+
+        return url;
+    }
+
+    private static void RejectUnusedKeys(MiniProgramDatasetConfig dataset, string path)
+    {
+        string[] used = dataset.Kind switch
+        {
+            MiniProgramKinds.Collection => ["source", "listFields", "detailFields", "sort", "required", "types"],
+            MiniProgramKinds.Module => ["source", "module", "fields", "sort", "required", "types"],
+            MiniProgramKinds.Records => ["source", "fields", "sort", "required", "types"],
+            MiniProgramKinds.DataIndex => ["source", "scope", "required", "types"],
+            MiniProgramKinds.Taxonomy => ["taxonomy"],
+            MiniProgramKinds.Menu => ["menu"],
+            _ => []
+        };
+        (string Key, bool Present)[] keys =
+        [
+            ("source", dataset.Source is not null),
+            ("module", dataset.Module is not null),
+            ("scope", dataset.Scope is not null),
+            ("menu", dataset.Menu is not null),
+            ("taxonomy", dataset.Taxonomy is not null),
+            ("fields", dataset.Fields is not null),
+            ("listFields", dataset.ListFields is not null),
+            ("detailFields", dataset.DetailFields is not null),
+            ("sort", dataset.Sort is not null),
+            ("required", dataset.Required is not null),
+            ("types", dataset.Types is not null)
+        ];
+        foreach (var (key, present) in keys)
+        {
+            if (present && !used.Contains(key, StringComparer.Ordinal))
+            {
+                throw Invalid($"{path}.{key} is not allowed for kind {dataset.Kind}.");
+            }
         }
     }
 
@@ -181,13 +247,13 @@ internal static class MiniProgramConfigValidator
                 RequireFields(dataset.DetailFields, $"{path}.detailFields");
                 break;
             case MiniProgramKinds.Module:
-                RequireSource(sources, dataset, path, "data");
+                RequireRenderedBody(RequireSource(sources, dataset, path, "data"), dataset, path);
                 Require(dataset.Module, $"{path}.module");
                 RequireFields(dataset.Fields, $"{path}.fields");
                 RequireSort(dataset, path);
                 break;
             case MiniProgramKinds.Records:
-                RequireSource(sources, dataset, path, "data");
+                RequireRenderedBody(RequireSource(sources, dataset, path, "data"), dataset, path);
                 RequireFields(dataset.Fields, $"{path}.fields");
                 RequireSort(dataset, path);
                 break;
@@ -201,11 +267,14 @@ internal static class MiniProgramConfigValidator
                 Require(dataset.Scope, $"{path}.scope");
                 break;
             case MiniProgramKinds.Taxonomy:
-                RejectSource(dataset, path);
                 Require(dataset.Taxonomy, $"{path}.taxonomy");
+                if (!config.MiniProgram.Datasets.Any(candidate => candidate.Kind == MiniProgramKinds.Collection))
+                {
+                    throw Invalid($"{path} counts terms of collection datasets; declare at least one kind: collection dataset.");
+                }
+
                 break;
             case MiniProgramKinds.Menu:
-                RejectSource(dataset, path);
                 Require(dataset.Menu, $"{path}.menu");
                 if (config.Site.Menus is null || !config.Site.Menus.ContainsKey(dataset.Menu!))
                 {
@@ -230,11 +299,14 @@ internal static class MiniProgramConfigValidator
         return source;
     }
 
-    private static void RejectSource(MiniProgramDatasetConfig dataset, string path)
+    // Notion data sources skip page rendering unless asked, so a declared body would always be empty.
+    private static void RequireRenderedBody(ContentSourceConfig source, MiniProgramDatasetConfig dataset, string path)
     {
-        if (dataset.Source is not null)
+        if (dataset.Fields?.Contains("body", StringComparer.Ordinal) == true &&
+            string.Equals(source.Type, "notion", StringComparison.OrdinalIgnoreCase) &&
+            source.Notion?.RenderContent != true)
         {
-            throw Invalid($"{path}.source is not allowed for kind {dataset.Kind}.");
+            throw Invalid($"{path}.fields declares body, but source '{dataset.Source}' is a Notion data source without notion.renderContent: true.");
         }
     }
 
@@ -266,6 +338,7 @@ internal static class MiniProgramConfigValidator
     private static void ValidateTypes(MiniProgramDatasetConfig dataset, string path)
     {
         // dataIndex keys come from the data, so only the other kinds can check against declared fields.
+        // RejectUnusedKeys already removed field lists that the kind does not write.
         HashSet<string>? declared = dataset.Kind == MiniProgramKinds.DataIndex
             ? null
             : new HashSet<string>([.. dataset.Fields ?? [], .. dataset.ListFields ?? [], .. dataset.DetailFields ?? [], "id"], StringComparer.Ordinal);

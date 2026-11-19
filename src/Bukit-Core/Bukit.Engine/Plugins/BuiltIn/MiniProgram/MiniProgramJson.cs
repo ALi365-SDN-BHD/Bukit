@@ -3,6 +3,7 @@ using System.Security.Cryptography;
 using System.Text.Encodings.Web;
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using Bukit.Content.Media;
 
 namespace Bukit.Engine.Plugins.BuiltIn.MiniProgram;
 
@@ -72,7 +73,11 @@ internal static class MiniProgramJson
         return index < 0 ? url : url[..index] + "?…";
     }
 
-    /// <summary>True when the URL carries an expiring signature, such as a Notion file URL that was not localized.</summary>
+    /// <summary>
+    /// True when the URL carries an expiring signature, such as a Notion file URL that was not localized.
+    /// Covers the schemes media localization recognizes (AWS, Google, CloudFront, Notion) plus bare
+    /// <c>Signature</c>, <c>Expires</c> and <c>X-Amz-Credential</c> parameters.
+    /// </summary>
     internal static bool IsSignedUrl(string value)
     {
         if (!Uri.TryCreate(value, UriKind.Absolute, out var uri) || string.IsNullOrEmpty(uri.Query))
@@ -80,11 +85,15 @@ internal static class MiniProgramJson
             return false;
         }
 
+        if (!string.Equals(SignedUrlIdentity.IdentityTarget(uri), SignedUrlIdentity.RequestTarget(uri), StringComparison.Ordinal))
+        {
+            return true;
+        }
+
         foreach (var part in uri.Query.TrimStart('?').Split('&', StringSplitOptions.RemoveEmptyEntries))
         {
             var name = Uri.UnescapeDataString(part.Split('=', 2)[0]);
-            if (name.Equals("X-Amz-Signature", StringComparison.OrdinalIgnoreCase) ||
-                name.Equals("X-Amz-Credential", StringComparison.OrdinalIgnoreCase) ||
+            if (name.Equals("X-Amz-Credential", StringComparison.OrdinalIgnoreCase) ||
                 name.Equals("Signature", StringComparison.OrdinalIgnoreCase) ||
                 name.Equals("Expires", StringComparison.OrdinalIgnoreCase))
             {

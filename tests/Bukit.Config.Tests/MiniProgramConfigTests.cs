@@ -116,6 +116,9 @@ public sealed class MiniProgramConfigTests
     [InlineData("{ name: a, kind: records, source: modules, fields: [a, a], sort: { field: a } }", "more than once")]
     [InlineData("{ name: a, kind: records, source: modules, fields: [name], sort: { field: name }, required: [phone] }", "miniprogram.datasets[0].required names 'phone'")]
     [InlineData("{ name: a, kind: records, source: modules, fields: [photo], sort: { field: photo }, types: { photos: image } }", "miniprogram.datasets[0].types.photos names 'photos'")]
+    [InlineData("{ name: a, kind: records, source: modules, fields: [name], listFields: [phone], sort: { field: name } }", "miniprogram.datasets[0].listFields is not allowed for kind records")]
+    [InlineData("{ name: a, kind: collection, source: blog, fields: [title], listFields: [title], detailFields: [title] }", "miniprogram.datasets[0].fields is not allowed for kind collection")]
+    [InlineData("{ name: a, kind: taxonomy, taxonomy: tags }", "declare at least one kind: collection dataset")]
     public void Validate_RejectsInvalidDatasets(string dataset, string expected)
     {
         var ex = Assert.Throws<ConfigException>(() => Load(Sources + $"\nminiprogram:\n  enabled: true\n  datasets:\n    - {dataset}\n", menus: true));
@@ -131,9 +134,9 @@ public sealed class MiniProgramConfigTests
             miniprogram:
               enabled: true
               datasets:
-                - { name: tags, kind: taxonomy, taxonomy: tags }
-                - { name: tags, kind: taxonomy, taxonomy: categories }
-            """));
+                - { name: tags, kind: menu, menu: main }
+                - { name: tags, kind: menu, menu: main }
+            """, menus: true));
 
         Assert.Contains("miniprogram.datasets[1].name 'tags'", ex.Message, StringComparison.Ordinal);
     }
@@ -164,6 +167,54 @@ public sealed class MiniProgramConfigTests
         var dataset = section["properties"]!["datasets"]!["items"]!;
         Assert.Equal(["name", "kind"], dataset["required"]!.AsArray().Select(x => x!.GetValue<string>()));
         Assert.Contains("menu", dataset["properties"]!["kind"]!["enum"]!.AsArray().Select(x => x!.GetValue<string>()));
+    }
+
+    [Fact]
+    public void Validate_NotionDataBodyWithoutRenderContent_Fails()
+    {
+        var config = new AppConfig
+        {
+            Site = new SiteConfig { Name = "s", Title = "S" },
+            Content = new ContentConfig
+            {
+                Sources = [new ContentSourceConfig { Type = "notion", Name = "faq", Mode = "data", Notion = new NotionConfig { DatabaseId = "db" } }]
+            },
+            MiniProgram = new MiniProgramConfig
+            {
+                Enabled = true,
+                Datasets = [new MiniProgramDatasetConfig { Name = "faq", Kind = "module", Source = "faq", Module = "faq", Fields = ["title", "body"], Sort = new MiniProgramSortConfig("title", false) }]
+            }
+        };
+
+        var ex = Assert.Throws<ConfigException>(() => MiniProgramConfigValidator.Validate(config));
+
+        Assert.Contains("notion.renderContent: true", ex.Message, StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData("https://", DiagnosticCode.ConfigRequiredFieldMissing)]
+    [InlineData("http://example.com", DiagnosticCode.ConfigRequiredFieldMissing)]
+    public void ValidateSiteUrl_RejectsNonHttpsUrl(string url, DiagnosticCode code)
+    {
+        var config = new AppConfig
+        {
+            Site = new SiteConfig { Name = "s", Title = "S", Url = url },
+            Content = new ContentConfig(),
+            MiniProgram = new MiniProgramConfig { Enabled = true }
+        };
+
+        var ex = Assert.Throws<ConfigException>(() => MiniProgramConfigValidator.ValidateSiteUrl(config, required: false));
+
+        Assert.Equal(code, ex.Code);
+    }
+
+    [Fact]
+    public void ValidateSiteUrl_MissingUrlFailsOnlyWhenRequired()
+    {
+        var config = new AppConfig { Site = new SiteConfig { Name = "s", Title = "S" }, Content = new ContentConfig(), MiniProgram = new MiniProgramConfig { Enabled = true } };
+
+        Assert.Null(MiniProgramConfigValidator.ValidateSiteUrl(config, required: false));
+        Assert.Throws<ConfigException>(() => MiniProgramConfigValidator.ValidateSiteUrl(config, required: true));
     }
 
     private static AppConfig Load(string body, bool menus = false)

@@ -100,15 +100,16 @@ miniprogram:
 ```
 
 `source` names a `content.sources[].name`. Dataset names match
-`^[a-z0-9][a-z0-9-]*$`; `site` is reserved.
+`^[a-z0-9][a-z0-9-]*$`; `site` is reserved. A key that a kind does not use, such as
+`listFields` on a `records` dataset, fails validation.
 
 | Kind | Source | Writes |
 |---|---|---|
 | `collection` | `mode: content` source | A list file with `listFields`, a detail catalog, and one detail file per page with `detailFields`. Sorted by `sort` (default `publishedAt` descending). |
-| `module` | `mode: data` source | Data records whose `type` equals `module`, with `fields`. `sort` is required. |
+| `module` | `mode: data` source | Data records whose `type` equals `module`, with `fields`. `sort` is required. A `module` value no record uses fails the build; records that exist but are all disabled give an empty list. |
 | `records` | `mode: data` source | Every public record of the source, with `fields`. `sort` is required. Replaces `data/*.yaml` files. |
-| `dataIndex` | `mode: data` source with `dataIndex` | The key/value pairs of one `scope`, keys in order. |
-| `taxonomy` | none | Terms of `tags`, `categories` or another list field of the public pages, with their page counts. |
+| `dataIndex` | `mode: data` source with `dataIndex` | The key/value pairs of one `scope`, keys in order. A scope without enabled entries fails the build. |
+| `taxonomy` | none | Terms of `tags`, `categories` or another list field of the pages in `collection` datasets, with their page counts. Terms that differ only in case count as one. Needs at least one `collection` dataset. |
 | `menu` | none | One `site.menus` menu, keeping its order and nesting, with absolute URLs. |
 
 A `site` dataset is always written with the site name, title, description,
@@ -124,8 +125,13 @@ published. Other fields read, in this order, `slug`, `title`, `summary`, `body`,
 
 `types` converts and checks a field: `string`, `number`, `boolean`, `date`,
 `image`, `url` or `string[]`. `image` and `url` values become absolute http(s)
-URLs. `required` fields must be present and non-empty. Except in a `dataIndex`
-dataset, every `required` and `types` entry must name a declared field. A record that breaks
+URLs; relative values of data records resolve against the site root, base path
+included. `required` fields must be present and non-empty. Except in a `dataIndex`
+dataset, every `required` and `types` entry must name a declared field.
+
+A `body` field on a `module` or `records` dataset from a Notion source needs
+`notion.renderContent: true` on that source; Notion data sources skip page
+rendering otherwise, and validation reports it. A record that breaks
 either rule fails the build with `SchemaValidationFailed`, naming the dataset,
 record id and field, so bad data never reaches the mini-program.
 

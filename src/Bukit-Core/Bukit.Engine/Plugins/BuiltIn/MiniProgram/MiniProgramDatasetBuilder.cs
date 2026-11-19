@@ -6,21 +6,55 @@ using Bukit.Shared;
 
 namespace Bukit.Engine.Plugins.BuiltIn.MiniProgram;
 
-/// <summary>One public source record of a dataset, with its id and, for content pages, its absolute URL.</summary>
+/// <summary>One public source record of a dataset, with its id, its absolute URL for content pages, and its sanitized body when needed.</summary>
 internal sealed record MiniProgramRecord(string Id, ContentDocument Document, string? PageUrl, string? BodyHtml);
 
 /// <summary>Projects records into JSON using only the declared fields, types and sort order.</summary>
 internal sealed class MiniProgramDatasetBuilder
 {
+    // Built-in fields win over record properties of the same name, even when their value is null.
+    private static readonly Dictionary<string, Func<MiniProgramRecord, object?>> BuiltInFields = new(StringComparer.Ordinal)
+    {
+        ["id"] = record => record.Id,
+        ["slug"] = record => record.Document.Slug,
+        ["title"] = record => record.Document.Title,
+        ["summary"] = record => record.Document.Record.Presentation.Summary,
+        ["body"] = record => record.BodyHtml,
+        ["url"] = record => record.PageUrl,
+        ["publishedAt"] = record => record.Document.Record.Lifecycle.PublishedAt,
+        ["updatedAt"] = record => record.Document.Record.Lifecycle.UpdatedAt,
+        ["author"] = record => record.Document.Record.Ownership.Author,
+        ["tags"] = record => record.Document.Record.Classification.Tags,
+        ["categories"] = record => record.Document.Record.Classification.Sections,
+        ["collection"] = record => record.Document.Record.Classification.Collection,
+        ["language"] = record => record.Document.Record.Presentation.Language
+    };
+
     private readonly string _siteUrl;
     private readonly string _baseUrl;
+    private readonly string _siteRoot;
     private readonly MiniProgramHtmlSanitizer _sanitizer;
 
     internal MiniProgramDatasetBuilder(string siteUrl, string baseUrl, MiniProgramHtmlSanitizer sanitizer)
     {
         _siteUrl = siteUrl;
         _baseUrl = baseUrl;
+        // Records without a page resolve relative paths against the site root, base path included.
+        _siteRoot = SeoModelBuilder.BuildAbsoluteUrl(siteUrl, baseUrl, "/");
         _sanitizer = sanitizer;
+    }
+
+    /// <summary>Sanitizes the body once per record, so list and detail files share the result.</summary>
+    internal MiniProgramRecord WithBody(MiniProgramDatasetConfig dataset, MiniProgramRecord record, string? html)
+    {
+        try
+        {
+            return record with { BodyHtml = _sanitizer.Sanitize(html, record.PageUrl ?? _siteRoot) };
+        }
+        catch (MiniProgramSignedUrlException ex)
+        {
+            throw Invalid(dataset, record.Id, "body", ex.Message, ex);
+        }
     }
 
     internal static bool IsPublic(ContentDocument document)
@@ -95,35 +129,14 @@ internal sealed class MiniProgramDatasetBuilder
 
     internal static object? Resolve(MiniProgramRecord record, string field)
     {
-        var document = record.Document;
-        object? value = field switch
+        if (BuiltInFields.TryGetValue(field, out var accessor))
         {
-            "id" => record.Id,
-            "slug" => document.Slug,
-            "title" => document.Title,
-            "summary" => document.Record.Presentation.Summary,
-            "body" => record.BodyHtml,
-            "url" => record.PageUrl,
-            "publishedAt" => document.Record.Lifecycle.PublishedAt,
-            "updatedAt" => document.Record.Lifecycle.UpdatedAt,
-            "author" => document.Record.Ownership.Author,
-            "tags" => document.Record.Classification.Tags,
-            "categories" => document.Record.Classification.Sections,
-            "collection" => document.Record.Classification.Collection,
-            "language" => document.Record.Presentation.Language,
-            _ => null
-        };
-        if (value is not null || IsBuiltIn(field))
-        {
-            return value;
+            return accessor(record);
         }
 
-        return document.CustomFields is not null && document.CustomFields.TryGetValue(field, out var custom) ? custom.Value : null;
+        var fields = record.Document.CustomFields;
+        return fields is not null && fields.TryGetValue(field, out var custom) ? custom.Value : null;
     }
-
-    private static bool IsBuiltIn(string field)
-        => field is "id" or "slug" or "title" or "summary" or "body" or "url" or "publishedAt" or "updatedAt" or
-            "author" or "tags" or "categories" or "collection" or "language";
 
     private JsonNode? Convert(MiniProgramDatasetConfig dataset, string recordId, string field, object? raw, string? pageUrl)
     {
@@ -137,14 +150,8 @@ internal sealed class MiniProgramDatasetBuilder
 
         if (field == "body")
         {
-            try
-            {
-                return _sanitizer.Sanitize(raw as string, pageUrl ?? _siteUrl);
-            }
-            catch (MiniProgramSignedUrlException ex)
-            {
-                throw Invalid(dataset, recordId, field, ex.Message, ex);
-            }
+            // Already sanitized by WithBody.
+            return (string)raw!;
         }
 
         return type switch
@@ -169,7 +176,7 @@ internal sealed class MiniProgramDatasetBuilder
             text = (ToTextList(raw) is { Count: > 0 } list ? list[0] : null) ?? throw Invalid(dataset, recordId, field, "is not a URL");
         }
 
-        var absolute = MiniProgramJson.Absolute(_siteUrl, _baseUrl, text, pageUrl ?? _siteUrl);
+        var absolute = MiniProgramJson.Absolute(_siteUrl, _baseUrl, text, pageUrl ?? _siteRoot);
         if (!Uri.TryCreate(absolute, UriKind.Absolute, out var uri) || uri.Scheme is not ("https" or "http"))
         {
             throw Invalid(dataset, recordId, field, $"is not an http(s) URL: {text}");

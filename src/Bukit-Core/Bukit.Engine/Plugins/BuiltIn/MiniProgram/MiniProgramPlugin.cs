@@ -35,25 +35,25 @@ internal sealed class MiniProgramPlugin : IBukitPlugin, IAfterBuildAsyncPlugin
             return;
         }
 
-        var siteUrl = RequireHttpsSiteUrl(_config.Site.Url);
+        var siteUrl = MiniProgramConfigValidator.ValidateSiteUrl(_config, required: true)!;
         var dataModules = context.TryGet(BuildDataKeys.DataModules, out var prepared) ? prepared : null;
-        var contentRecords = CollectContentRecords(context, siteUrl);
-        // Only pages that get a detail record carry data-bukit-id; other links stay plain links.
+        // Only pages of collection datasets get detail records, so only they carry data-bukit-id
+        // and only they count toward taxonomy terms.
         var collectionSources = options.Datasets
             .Where(dataset => dataset.Kind == MiniProgramKinds.Collection)
             .Select(dataset => dataset.Source!)
             .ToArray();
+        var contentRecords = CollectContentRecords(context, siteUrl, collectionSources);
         var internalIds = contentRecords
-            .Where(record => record.PageUrl is not null &&
-                collectionSources.Any(source => MiniProgramDatasetBuilder.IsFromSource(record.Document, source)))
             .GroupBy(record => record.PageUrl!, StringComparer.Ordinal)
             .ToDictionary(group => group.Key, group => group.First().Id, StringComparer.Ordinal);
+        using var sanitizer = new MiniProgramHtmlSanitizer(siteUrl, context.BaseUrl, internalIds);
         var run = new Run(
             context,
             siteUrl,
             contentRecords,
             dataModules,
-            new MiniProgramDatasetBuilder(siteUrl, context.BaseUrl, new MiniProgramHtmlSanitizer(siteUrl, context.BaseUrl, internalIds)),
+            new MiniProgramDatasetBuilder(siteUrl, context.BaseUrl, sanitizer),
             new FileSet(context.OutputDir, options.OutputDir, siteUrl, context.BaseUrl));
         var datasets = new SortedDictionary<string, JsonObject>(StringComparer.Ordinal)
         {
@@ -71,19 +71,6 @@ internal sealed class MiniProgramPlugin : IBukitPlugin, IAfterBuildAsyncPlugin
         {
             outputs.Add(new PluginOutputTrackingInfo(Name, "after-build", path));
         }
-    }
-
-    private static string RequireHttpsSiteUrl(string? url)
-    {
-        var siteUrl = url?.Trim().TrimEnd('/');
-        if (siteUrl is null || !siteUrl.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
-        {
-            throw new ConfigException(
-                "miniprogram requires site.url (or --site-url) to be an https:// URL.",
-                DiagnosticCode.ConfigRequiredFieldMissing);
-        }
-
-        return siteUrl;
     }
 
     private async Task<JsonObject> WriteDatasetAsync(Run run, MiniProgramDatasetConfig dataset, int maxListItems, CancellationToken cancellationToken)
@@ -155,12 +142,13 @@ internal sealed class MiniProgramPlugin : IBukitPlugin, IAfterBuildAsyncPlugin
         };
     }
 
-    private static List<MiniProgramRecord> CollectContentRecords(BuildContext context, string siteUrl)
+    private static List<MiniProgramRecord> CollectContentRecords(BuildContext context, string siteUrl, string[] collectionSources)
     {
         var records = new List<MiniProgramRecord>();
         foreach (var routed in context.RoutedDocuments)
         {
             if (routed.Route.Template == RedirectPageHtml.RouteTemplate || !MiniProgramDatasetBuilder.IsPublic(routed.Document) ||
+                !collectionSources.Any(source => MiniProgramDatasetBuilder.IsFromSource(routed.Document, source)) ||
                 context.SeoIndex.TryGetValue(BuildPathUtils.NormalizeRelPath(routed.Route.OutputPath), out var entry) && !entry.Indexable)
             {
                 continue;
@@ -196,7 +184,7 @@ internal sealed class MiniProgramPlugin : IBukitPlugin, IAfterBuildAsyncPlugin
         }
 
         var needsBody = dataset.ListFields!.Contains("body") || dataset.DetailFields!.Contains("body");
-        var records = await WithBodiesAsync(selected, needsBody, run.Context.BodyStore, cancellationToken);
+        var records = await WithBodiesAsync(run, dataset, selected, needsBody, cancellationToken);
         run.Dates.AddRange(records.Select(record => record.Document.Record.Lifecycle.UpdatedAt ?? record.Document.PublishAt));
 
         var entry = writer.Write(dataset.Name + ".list", new JsonObject { ["items"] = builder.BuildItems(dataset, records, dataset.ListFields!) }, dataset.Kind);
@@ -222,11 +210,18 @@ internal sealed class MiniProgramPlugin : IBukitPlugin, IAfterBuildAsyncPlugin
     private static async Task<JsonObject> WriteDataRecordsAsync(Run run, MiniProgramDatasetConfig dataset, CancellationToken cancellationToken)
     {
         var selected = new List<MiniProgramRecord>();
+        var matchedModule = false;
         foreach (var document in run.DataModules?.DataDocuments ?? [])
         {
-            if (!MiniProgramDatasetBuilder.IsPublic(document) || !MiniProgramDatasetBuilder.IsFromSource(document, dataset.Source!) ||
+            if (!MiniProgramDatasetBuilder.IsFromSource(document, dataset.Source!) ||
                 dataset.Kind == MiniProgramKinds.Module &&
                 !string.Equals(ContentFieldReader.GetContentType(document).Trim(), dataset.Module, StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
+            matchedModule = true;
+            if (!MiniProgramDatasetBuilder.IsPublic(document))
             {
                 continue;
             }
@@ -235,15 +230,23 @@ internal sealed class MiniProgramPlugin : IBukitPlugin, IAfterBuildAsyncPlugin
             selected.Add(new MiniProgramRecord(MiniProgramJson.Hash(Encoding.UTF8.GetBytes(document.Id))[..16], document, PageUrl: null, BodyHtml: null));
         }
 
-        var records = await WithBodiesAsync(selected, dataset.Fields!.Contains("body"), run.Context.BodyStore, cancellationToken);
+        // A module type no row uses is almost always a typo; writing it empty would wipe every client's copy.
+        // Rows that exist but are all disabled still produce an intentionally empty dataset.
+        if (dataset.Kind == MiniProgramKinds.Module && !matchedModule)
+        {
+            throw MiniProgramDatasetBuilder.Invalid(dataset, "*", "module", $"'{dataset.Module}' matches no record of source '{dataset.Source}'");
+        }
+
+        var records = await WithBodiesAsync(run, dataset, selected, dataset.Fields!.Contains("body"), cancellationToken);
         run.Dates.AddRange(records.Select(record => record.Document.Record.Lifecycle.UpdatedAt ?? record.Document.PublishAt));
         return run.Writer.Write(dataset.Name, new JsonObject { ["items"] = run.Builder.BuildItems(dataset, records, dataset.Fields!) }, dataset.Kind);
     }
 
     private static async Task<List<MiniProgramRecord>> WithBodiesAsync(
+        Run run,
+        MiniProgramDatasetConfig dataset,
         List<MiniProgramRecord> records,
         bool needsBody,
-        IContentBodyStore bodyStore,
         CancellationToken cancellationToken)
     {
         if (!needsBody)
@@ -254,8 +257,8 @@ internal sealed class MiniProgramPlugin : IBukitPlugin, IAfterBuildAsyncPlugin
         var resolved = new List<MiniProgramRecord>(records.Count);
         foreach (var record in records)
         {
-            var html = await ContentBodyResolver.GetHtmlAsync(record.Document, bodyStore, cancellationToken).ConfigureAwait(false);
-            resolved.Add(record with { BodyHtml = html });
+            var html = await ContentBodyResolver.GetHtmlAsync(record.Document, run.Context.BodyStore, cancellationToken).ConfigureAwait(false);
+            resolved.Add(run.Builder.WithBody(dataset, record, html));
         }
 
         return resolved;
@@ -272,12 +275,14 @@ internal sealed class MiniProgramPlugin : IBukitPlugin, IAfterBuildAsyncPlugin
             return values;
         }
 
-        return new Dictionary<string, object>(StringComparer.Ordinal);
+        // A missing scope is a typo or a renamed scope; writing it empty would wipe every client's copy.
+        throw MiniProgramDatasetBuilder.Invalid(dataset, dataset.Scope!, "scope", $"has no enabled entries in source '{dataset.Source}'");
     }
 
     private static JsonArray BuildTaxonomy(MiniProgramDatasetConfig dataset, IReadOnlyList<MiniProgramRecord> contentRecords)
     {
-        var counts = new Dictionary<string, int>(StringComparer.Ordinal);
+        // Terms that differ only in case are one term, as on the website; the ordinal-first spelling names it.
+        var counts = new Dictionary<string, (string Name, int Count)>(StringComparer.OrdinalIgnoreCase);
         foreach (var record in contentRecords)
         {
             var terms = dataset.Taxonomy switch
@@ -286,14 +291,16 @@ internal sealed class MiniProgramPlugin : IBukitPlugin, IAfterBuildAsyncPlugin
                 "categories" => record.Document.Record.Classification.Sections,
                 _ => ContentFieldReader.GetTextList(record.Document.CustomFields, dataset.Taxonomy!) ?? []
             };
-            foreach (var term in terms.Where(term => !string.IsNullOrWhiteSpace(term)).Select(term => term.Trim()).Distinct(StringComparer.Ordinal))
+            foreach (var term in terms.Where(term => !string.IsNullOrWhiteSpace(term)).Select(term => term.Trim()).Distinct(StringComparer.OrdinalIgnoreCase))
             {
-                counts[term] = counts.GetValueOrDefault(term) + 1;
+                var current = counts.TryGetValue(term, out var existing) ? existing : (Name: term, Count: 0);
+                var name = StringComparer.Ordinal.Compare(term, current.Name) < 0 ? term : current.Name;
+                counts[term] = (name, current.Count + 1);
             }
         }
 
         var items = new JsonArray();
-        foreach (var (name, count) in counts.OrderBy(pair => pair.Key, StringComparer.Ordinal))
+        foreach (var (name, count) in counts.Values.OrderBy(pair => pair.Name, StringComparer.Ordinal))
         {
             items.Add(new JsonObject { ["name"] = name, ["count"] = count });
         }

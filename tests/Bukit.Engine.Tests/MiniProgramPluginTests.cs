@@ -199,19 +199,73 @@ public sealed class MiniProgramPluginTests : IDisposable
     [Fact]
     public async Task DataIndexAndTaxonomy_AreWritten()
     {
-        var dataIndex = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
+        var pages = new[]
         {
-            ["settings"] = new Dictionary<string, object>(StringComparer.Ordinal)
-            {
-                ["app"] = new Dictionary<string, object>(StringComparer.Ordinal) { ["title"] = "Shop", ["phone"] = "123" }
-            }
+            Article("a1", "First", tags: ["x", "y"]),
+            Article("a2", "Second", tags: ["x"]),
+            Article("a3", "Third", tags: ["X"]),
+            Article("p1", "About", tags: ["x"], source: "pages")
         };
-        await RunAsync(Config(), [Article("a1", "First", tags: ["x", "y"]), Article("a2", "Second", tags: ["x"])], [], dataIndex);
+        await RunAsync(Config(), pages, [], Settings(("title", "Shop"), ("phone", "123")));
 
         var values = ReadDataset("settings")["values"]!.AsObject();
         Assert.Equal(["phone", "title"], values.Select(pair => pair.Key));
         var tags = ReadDataset("tags")["items"]!.AsArray();
-        Assert.Equal([("x", 2), ("y", 1)], tags.Select(item => ((string)item!["name"]!, (int)item["count"]!)));
+        // Only collection pages count, and case variants are one term.
+        Assert.Equal([("X", 3), ("y", 1)], tags.Select(item => ((string)item!["name"]!, (int)item["count"]!)));
+    }
+
+    [Fact]
+    public async Task UnknownModuleOrScope_Fails()
+    {
+        var module = await Assert.ThrowsAsync<BukitException>(() => RunAsync(Config(), [], [Faq("f1")], defaultBanner: false));
+        Assert.Contains("field 'module' 'banner' matches no record of source 'modules'", module.Message, StringComparison.Ordinal);
+
+        var empty = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase) { ["settings"] = new Dictionary<string, object>(StringComparer.Ordinal) };
+        var scope = await Assert.ThrowsAsync<BukitException>(() => RunAsync(Config(), [], [], empty));
+        Assert.Contains("record 'app' field 'scope' has no enabled entries", scope.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task AllRowsDisabled_WritesEmptyModule()
+    {
+        await RunAsync(Config(), [], [Banner("b1", "Hidden", 1, enabled: false)]);
+
+        Assert.Empty(ReadDataset("banners")["items"]!.AsArray());
+    }
+
+    [Fact]
+    public async Task RelativeDataUrl_ResolvesUnderBasePath()
+    {
+        await RunAsync(Config(), [], [Banner("b1", "One", 1, image: "media/{id}.png")], baseUrl: "/repo/");
+
+        // The base path is part of the public URL, not of the output directory.
+        var file = Directory.GetFiles(Path.Combine(_outputDir, "mp"), "banners.*.json").Single();
+        var banners = JsonNode.Parse(File.ReadAllText(file))!;
+        Assert.Equal("https://example.com/repo/media/b1.png", (string)banners["items"]![0]!["image"]!);
+    }
+
+    [Theory]
+    [InlineData("https://storage.googleapis.com/b/x.png?X-Goog-Algorithm=GOOG4&X-Goog-Signature=abc")]
+    [InlineData("https://d1.cloudfront.net/x.png?Policy=p&Signature=s&Key-Pair-Id=k")]
+    [InlineData("https://file.notion.so/f/x.png?table=block&expirationTimestamp=1&signature=s")]
+    public async Task OtherSignedUrlSchemes_Fail(string url)
+    {
+        var ex = await Assert.ThrowsAsync<BukitException>(() => RunAsync(Config(), [], [Banner("b1", "One", 1, image: url)]));
+
+        Assert.Contains("field 'image' signed URL was not localized", ex.Message, StringComparison.Ordinal);
+        Assert.DoesNotContain("Signature=", ex.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task EquivalentInternalHrefs_GetBukitId()
+    {
+        const string body = "<p><a href=\"/second\">a</a><a href=\"/second/index.html\">b</a><a href=\"https://EXAMPLE.com/second/?x=1\">c</a></p>";
+        await RunAsync(Config(), [Article("a1", "First", body: body), Article("a2", "Second")], []);
+
+        var details = ReadByUrl((string)ReadCatalog()["datasets"]!["articles"]!["detailCatalog"]!["url"]!)["items"]!.AsArray();
+        var html = (string)ReadByUrl((string)details.First(item => (string)item!["id"]! == "first")!["url"]!)["body"]!;
+        Assert.Equal(3, html.Split("data-bukit-id=\"second\"").Length - 1);
     }
 
     [Fact]
@@ -270,8 +324,22 @@ public sealed class MiniProgramPluginTests : IDisposable
         IReadOnlyList<RoutedContentDocument> pages,
         IReadOnlyList<ContentDocument> data,
         IReadOnlyDictionary<string, object>? dataIndex = null,
-        string? nonIndexable = null)
+        string? nonIndexable = null,
+        string baseUrl = "/",
+        bool defaultBanner = true,
+        bool defaultSettings = true)
     {
+        // The default config declares a banner module and a settings scope; an unmatched one fails the build.
+        if (defaultBanner && !data.Any(document => ContentFieldReader.GetContentType(document) == "banner"))
+        {
+            data = [.. data, Banner("b0", "Default", 0, enabled: false)];
+        }
+
+        if (defaultSettings)
+        {
+            dataIndex ??= Settings(("title", "Shop"));
+        }
+
         var seoIndex = new Dictionary<string, SeoIndexEntry>(StringComparer.OrdinalIgnoreCase);
         if (nonIndexable is not null)
         {
@@ -283,7 +351,7 @@ public sealed class MiniProgramPluginTests : IDisposable
         {
             RootDir = _outputDir,
             OutputDir = _outputDir,
-            BaseUrl = "/",
+            BaseUrl = baseUrl,
             LayoutsDir = _outputDir,
             RoutedDocuments = pages,
             SeoIndex = seoIndex,
@@ -408,6 +476,15 @@ public sealed class MiniProgramPluginTests : IDisposable
         var relative = new Uri(url).AbsolutePath.TrimStart('/');
         return JsonNode.Parse(File.ReadAllText(Path.Combine(_outputDir, relative)))!;
     }
+
+    private static Dictionary<string, object> Settings(params (string Key, string Value)[] values)
+        => new(StringComparer.OrdinalIgnoreCase)
+        {
+            ["settings"] = new Dictionary<string, object>(StringComparer.Ordinal)
+            {
+                ["app"] = values.ToDictionary(pair => pair.Key, pair => (object)pair.Value, StringComparer.Ordinal)
+            }
+        };
 
     private static string Hash(JsonNode catalog, string dataset) => (string)catalog["datasets"]![dataset]!["hash"]!;
 

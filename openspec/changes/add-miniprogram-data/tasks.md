@@ -85,13 +85,16 @@
 - [x] 7.2 一次 delta review（独立子代理）：Critical/Important 修复后复审，Minor 记录不阻塞。
       首轮 Important 3（`data-bukit-id` 范围、`string` 类型写出 CLR 类型名、未声明字段的
       `required`/`types`），两轮复审后为 0。未修的 Minor（记录，不阻塞）：
-      - 无关联值的 dataIndex scope 或 module 会静默输出空数据集；
       - built-in 字段名遮蔽同名记录属性；
       - 菜单 URL 不校验协议，顺序按声明而非 `weight`；
       - 校验错误只给 data 记录的不透明 id；
       - Windows 保留名（CON、NUL…）可通过名称正则；
-      - `site.url` 只校验前缀；
       - HtmlEncode 把非 ASCII 编成数字实体；
       - 列表里的空白项不剔除；
       - Notion rollup 的嵌套列表无法输出；
       - 签名 URL 只检查 `image` 字段和正文 `<img>`。
+      2026-11-20 高强度审计的 10 条发现已修复：data 记录相对地址带上 base path；签名 URL
+      复用 `SignedUrlIdentity`；未匹配的 module 或 scope 让构建失败；Notion data 源的 `body`
+      需要 `renderContent`；各类型拒收用不到的键；`site.url` 在渲染前校验；分类只统计集合
+      页面且不分大小写；站内链接按规范化 URL 匹配；正文只清洗一次并复用解析器；内置字段改为
+      一张访问表。
