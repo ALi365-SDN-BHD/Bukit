@@ -197,6 +197,7 @@ public sealed class MiniProgramConfigTests
     [InlineData("http://example.com", DiagnosticCode.ConfigInvalidValue)]
     [InlineData("https://example.com/?ref=a", DiagnosticCode.ConfigInvalidValue)]
     [InlineData("https://example.com/#top", DiagnosticCode.ConfigInvalidValue)]
+    [InlineData("https://deploy:token@example.com", DiagnosticCode.ConfigInvalidValue)]
     public void ValidateSiteUrl_RejectsNonHttpsUrl(string url, DiagnosticCode code)
     {
         var config = new AppConfig
@@ -209,6 +210,7 @@ public sealed class MiniProgramConfigTests
         var ex = Assert.Throws<ConfigException>(() => MiniProgramConfigValidator.ValidateSiteUrl(config, required: false));
 
         Assert.Equal(code, ex.Code);
+        Assert.DoesNotContain("token", ex.Message, StringComparison.Ordinal);
     }
 
     [Fact]

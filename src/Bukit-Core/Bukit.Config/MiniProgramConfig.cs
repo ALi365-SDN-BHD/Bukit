@@ -193,11 +193,15 @@ internal static class MiniProgramConfigValidator
                 : null;
         }
 
-        // File URLs are appended to the site URL, so a query or fragment would break every one of them.
+        // File URLs are appended to the site URL and published to every client, so a query or fragment
+        // would break each of them and user info would publish credentials.
         if (!Uri.TryCreate(url, UriKind.Absolute, out var uri) || uri.Scheme != Uri.UriSchemeHttps ||
-            string.IsNullOrEmpty(uri.Host) || url.Any(char.IsWhiteSpace) || url.Contains('?') || url.Contains('#'))
+            string.IsNullOrEmpty(uri.Host) || url.Any(char.IsWhiteSpace) || url.Contains('?') || url.Contains('#') ||
+            uri.UserInfo.Length > 0)
         {
-            throw Invalid($"miniprogram requires site.url to be an https:// URL without a query or fragment; got '{url}'.");
+            // Never echo the credentials themselves.
+            var shown = uri is { UserInfo.Length: > 0 } ? url.Replace(uri.UserInfo + "@", "***@", StringComparison.Ordinal) : url;
+            throw Invalid($"miniprogram requires site.url to be an https:// URL without user info, query or fragment; got '{shown}'.");
         }
 
         return url;

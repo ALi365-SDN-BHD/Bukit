@@ -49,8 +49,8 @@ either.
 
 ### Requirement: Mini-program data requires an HTTPS site URL
 When mini-program output is enabled, the effective site URL SHALL start with `https://`. A URL
-that is set but malformed, not `https://`, or carrying a query or fragment SHALL fail with
-`ConfigInvalidValue`. A missing URL
+that is set but malformed, not `https://`, or carrying user info, a query or a fragment SHALL fail
+with `ConfigInvalidValue`, and the message SHALL not repeat the user info. A missing URL
 SHALL fail a production build with `ConfigRequiredFieldMissing`; a development build SHALL skip
 mini-program output instead, so a local preview works without a site URL.
 
@@ -146,8 +146,8 @@ or whose value cannot be read as the declared type (for example a list under `st
 `SchemaValidationFailed` naming the dataset, record id and field. A `collection` dataset
 whose list exceeds `maxListItems` SHALL fail the build naming the dataset.
 
-A `module` value or `dataIndex` scope that no row of its source uses in any language, enabled or
-not, SHALL fail the build; rows that exist but are all disabled SHALL give an empty dataset. A
+A `module` value or `dataIndex` scope that no row of its source uses in any site language, enabled
+or not, SHALL fail the build; a row whose `locale` names no site language SHALL not count; rows that exist but are all disabled SHALL give an empty dataset. A
 language variant without rows of its own, because the matching rows carry another `locale`,
 SHALL log a warning and write an empty dataset.
 
@@ -167,7 +167,8 @@ SHALL log a warning and write an empty dataset.
 The build manifest's plugin-output tracking and stale output removal SHALL own every file under
 the mini-program output directory. Files no longer referenced by the current catalog SHALL be
 removed on the next build, and disabling mini-program output SHALL remove the whole directory.
-Each file SHALL be tracked as it is written, so files written before a failing dataset are still
+Multilingual builds that run each language in a worktree worker SHALL write the same output as an
+in-process build. Each file SHALL be tracked as it is written, so files written before a failing dataset are still
 owned and removed later.
 A static file colliding with a mini-program output path SHALL fail the build through the existing
 output collision check.

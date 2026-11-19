@@ -106,9 +106,9 @@ miniprogram:
 | Kind | Source | Writes |
 |---|---|---|
 | `collection` | `mode: content` source | A list file with `listFields`, a detail catalog, and one detail file per page with `detailFields`. Sorted by `sort` (default `publishedAt` descending). |
-| `module` | `mode: data` source | Data records whose `type` equals `module`, with `fields`. `sort` is required. A `module` value no record of any language uses, enabled or not, fails the build; records that exist but are all disabled give an empty list. A language whose matching records all carry another `locale` gets an empty list and a warning. |
+| `module` | `mode: data` source | Data records whose `type` equals `module`, with `fields`. `sort` is required. A `module` value no record of any site language uses, enabled or not, fails the build (a record whose `locale` is not a site language does not count); records that exist but are all disabled give an empty list. A language whose matching records all carry another `locale` gets an empty list and a warning. |
 | `records` | `mode: data` source | Every public record of the source, with `fields`. `sort` is required. Replaces `data/*.yaml` files. |
-| `dataIndex` | `mode: data` source with `dataIndex` | The key/value pairs of one `scope`, keys in order. A scope no row of any language uses fails the build; a scope whose rows are all disabled, or that only another language's rows use, gives empty values. |
+| `dataIndex` | `mode: data` source with `dataIndex` | The key/value pairs of one `scope`, keys in order. A scope no row of any site language uses fails the build; a scope whose rows are all disabled, or that only another language's rows use, gives empty values. |
 | `taxonomy` | none | Terms of `tags`, `categories` or another list field of the pages in `collection` datasets, with their page counts. Terms that differ only in case count as one. Needs at least one `collection` dataset. |
 | `menu` | none | One `site.menus` menu, ordered by `weight` as on the website, keeping its nesting, with absolute URLs. |
 
@@ -189,7 +189,7 @@ operating system (UTF-8 without BOM, one trailing `\n`, fixed field order and
 record order, no build time). `generatedAt` is the latest record update time.
 Unchanged data therefore keeps its hash across rebuilds.
 
-A set `site.url` that is not `https://`, or has a query or fragment, fails with
+A set `site.url` that is not `https://`, or has user info, a query or a fragment, fails with
 `ConfigInvalidValue`; a
 missing one fails a production build with `ConfigRequiredFieldMissing`.
 

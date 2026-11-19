@@ -17,6 +17,36 @@ public sealed class I18nWorktreeProtocolTests : IDisposable
 {
     private readonly string _root = Path.Combine(Path.GetTempPath(), "bukit-i18n-protocol-" + Guid.NewGuid().ToString("N"));
 
+    [Fact]
+    public void WorkerConfig_KeepsMiniProgramSection()
+    {
+        // Workers rebuild their config from this JSON; a dropped section would silently disable the output.
+        var config = new AppConfig
+        {
+            Site = new SiteConfig { Name = "s", Title = "S" },
+            Content = new ContentConfig(),
+            MiniProgram = new MiniProgramConfig
+            {
+                Enabled = true,
+                OutputDir = "app",
+                Datasets = [new MiniProgramDatasetConfig { Name = "nav", Kind = "menu", Menu = "main", Sort = new MiniProgramSortConfig("order", true), Types = new Dictionary<string, string> { ["order"] = "number" } }]
+            }
+        };
+
+        var json = JsonSerializer.Serialize(config, I18nWorktreeJsonContext.Default.AppConfig);
+        var restored = JsonSerializer.Deserialize(json, I18nWorktreeJsonContext.Default.AppConfig)!;
+
+        Assert.True(restored.MiniProgram.Enabled);
+        Assert.Equal("app", restored.MiniProgram.OutputDir);
+        var dataset = Assert.Single(restored.MiniProgram.Datasets);
+        Assert.Equal(("nav", "menu", "main"), (dataset.Name, dataset.Kind, dataset.Menu));
+        Assert.Equal(new MiniProgramSortConfig("order", true), dataset.Sort);
+        Assert.Equal("number", dataset.Types!["order"]);
+        Assert.NotEqual(
+            I18nWorktreeProtocol.ComputeConfigHash(config, new ConfigOverrides()),
+            I18nWorktreeProtocol.ComputeConfigHash(config with { MiniProgram = config.MiniProgram with { OutputDir = "other" } }, new ConfigOverrides()));
+    }
+
     private static readonly SiteConfig PrefixedSite = new()
     {
         Name = "prefixed",

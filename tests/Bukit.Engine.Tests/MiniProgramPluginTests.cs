@@ -271,11 +271,35 @@ public sealed class MiniProgramPluginTests : IDisposable
     }
 
     [Fact]
-    public async Task ModuleMatchingNoRowInAnyLanguage_FailsOnMultilingualSite()
+    public async Task ModuleMatchingNoRowInAnyLanguage_Fails()
     {
-        var ex = await Assert.ThrowsAsync<BukitException>(() => RunAsync(Config(languages: ["en", "zh-CN"]), [], [Faq("f1")], defaultBanner: false, otherLanguageData: [Faq("f9")]));
+        // Other languages' rows exist, but none of them is a banner.
+        var ex = await Assert.ThrowsAsync<BukitException>(() => RunAsync(Config(), [], [Faq("f1")], defaultBanner: false, otherLanguageData: [Faq("f9")]));
 
-        Assert.Contains("field 'module' 'banner' matches no record of source 'modules'", ex.Message, StringComparison.Ordinal);
+        Assert.Contains("field 'module' 'banner' matches no record of source 'modules' in any site language", ex.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task RowsWithLocaleOutsideSiteLanguages_DoNotCountAsMatch()
+    {
+        // locale: zh is no site language, so no variant ever lists these rows.
+        var ex = await Assert.ThrowsAsync<BukitException>(() => RunAsync(
+            Config(languages: ["en", "zh-CN"]), [], [], defaultBanner: false, otherLanguageData: [Banner("b9", "Typo", 1, locale: "zh")]));
+
+        Assert.Contains("field 'module' 'banner' matches no record of source 'modules' in any site language", ex.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task DisabledScopeRowWithAmbiguousAliases_DoesNotFailTheBuild()
+    {
+        // The index skips disabled rows before reading fields, so their aliases are never resolved there.
+        var config = Config(scopeField: "scope_name");
+        var empty = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase) { ["settings"] = new Dictionary<string, object>(StringComparer.Ordinal) };
+        var row = SettingRow("s1", "app", enabled: false, scopeKey: "scopeName", extra: ("scope__name", "app"));
+
+        await RunAsync(config, [], [row], empty);
+
+        Assert.Empty(ReadDataset("settings")["values"]!.AsObject());
     }
 
     [Fact]
@@ -332,7 +356,7 @@ public sealed class MiniProgramPluginTests : IDisposable
     {
         var context = NewContext([Article("a1", "First")], [Banner("b1", "One", 1, image: "https://cdn.example/x.png?X-Amz-Signature=s")], Settings(("title", "Shop")), null, "/", new RecordingLogger());
 
-        await Assert.ThrowsAsync<BukitException>(() => new MiniProgramPlugin(Config()).AfterBuildAsync(context));
+        await Assert.ThrowsAsync<BukitException>(() => new MiniProgramPlugin(Config(), BuildExecutionMode.Production).AfterBuildAsync(context));
 
         // The article files were written before the banner failed; the manifest must still own them.
         var tracked = context.Get(BuildDataKeys.PluginOutputs)!.Select(output => output.Path).ToList();
@@ -609,7 +633,7 @@ public sealed class MiniProgramPluginTests : IDisposable
         return new RoutedContentDocument(document, new RouteInfo($"/{slug}/", $"{slug}/index.html", "pages/post.html"));
     }
 
-    private static ContentDocument Banner(string id, string title, object order, bool enabled = true, string? image = "/assets/media/{id}.png", string? url = null)
+    private static ContentDocument Banner(string id, string title, object order, bool enabled = true, string? image = "/assets/media/{id}.png", string? url = null, string? locale = null)
     {
         var fields = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
         {
@@ -621,6 +645,7 @@ public sealed class MiniProgramPluginTests : IDisposable
         };
         if (image is not null) fields["image"] = image.Replace("{id}", id, StringComparison.Ordinal);
         if (url is not null) fields["url"] = url;
+        if (locale is not null) fields["locale"] = locale;
         return ContentDocument.Create($"modules:{id}", title, id, Day, null, ContentFieldReader.ToFieldMap(fields));
     }
 
@@ -632,8 +657,9 @@ public sealed class MiniProgramPluginTests : IDisposable
             ["type"] = "faq"
         }));
 
-    private static ContentDocument SettingRow(string id, string scope, bool enabled, string scopeKey = "scope")
-        => ContentDocument.Create($"settings:{id}", id, id, Day, null, ContentFieldReader.ToFieldMap(new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
+    private static ContentDocument SettingRow(string id, string scope, bool enabled, string scopeKey = "scope", (string Key, string Value)? extra = null)
+    {
+        var fields = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
         {
             ["sourceKey"] = "settings",
             ["sourceMode"] = "data",
@@ -642,7 +668,10 @@ public sealed class MiniProgramPluginTests : IDisposable
             ["value"] = "Shop",
             ["value_type"] = "text",
             ["enabled"] = enabled
-        }));
+        };
+        if (extra is { } pair) fields[pair.Key] = pair.Value;
+        return ContentDocument.Create($"settings:{id}", id, id, Day, null, ContentFieldReader.ToFieldMap(fields));
+    }
 
     private sealed class RecordingLogger : ILogger
     {

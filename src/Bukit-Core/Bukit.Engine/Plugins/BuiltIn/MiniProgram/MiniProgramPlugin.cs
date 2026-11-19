@@ -20,7 +20,7 @@ internal sealed class MiniProgramPlugin : IBukitPlugin, IAfterBuildAsyncPlugin
     private readonly AppConfig _config;
     private readonly BuildExecutionMode _executionMode;
 
-    internal MiniProgramPlugin(AppConfig config, BuildExecutionMode executionMode = BuildExecutionMode.Production)
+    internal MiniProgramPlugin(AppConfig config, BuildExecutionMode executionMode)
     {
         ArgumentNullException.ThrowIfNull(config);
         _config = config;
@@ -104,15 +104,22 @@ internal sealed class MiniProgramPlugin : IBukitPlugin, IAfterBuildAsyncPlugin
 
         /// <summary>
         /// Called when no row of this language matches a module or scope. The content graph holds the
-        /// rows of every language: no match there is a typo, and an empty file would wipe every
-        /// client's copy, so the build fails. A match in another language only means this language has
-        /// no rows of its own, so it gets an empty dataset and a warning.
+        /// rows of every language: no match in any site language is a typo (including a row whose
+        /// locale names no site language), and an empty file would wipe every client's copy, so the
+        /// build fails. A match in another language only means this language has no rows of its own,
+        /// so it gets an empty dataset and a warning.
         /// </summary>
-        internal void RequireMatchInAnyLanguage(MiniProgramDatasetConfig dataset, string field, string value, Func<ContentDocument, bool> matches)
+        internal void RequireMatchInAnyLanguage(AppConfig config, MiniProgramDatasetConfig dataset, string field, string value, Func<ContentDocument, bool> matches)
         {
-            if (!Context.ContentGraph.Documents.Any(matches))
+            var documents = Context.ContentGraph.Documents;
+            var languages = I18nOutputMerger.GetLanguages(config.Site);
+            var defaultLanguage = languages.Count == 0 ? null : I18nOutputMerger.GetDefaultLanguage(config.Site, languages);
+            var visible = defaultLanguage is null
+                ? documents
+                : languages.SelectMany(language => I18nOutputMerger.FilterDocumentsByLanguage(documents, language, defaultLanguage));
+            if (!visible.Any(matches))
             {
-                throw MiniProgramDatasetBuilder.Invalid(dataset, "*", field, $"'{value}' matches no record of source '{dataset.Source}'");
+                throw MiniProgramDatasetBuilder.Invalid(dataset, "*", field, $"'{value}' matches no record of source '{dataset.Source}' in any site language");
             }
 
             Context.Logger.Warn($"event=miniprogram.dataset_empty dataset={dataset.Name} {field}={value} source={dataset.Source} reason=no_rows_in_language");
@@ -230,7 +237,7 @@ internal sealed class MiniProgramPlugin : IBukitPlugin, IAfterBuildAsyncPlugin
         return entry;
     }
 
-    private static async Task<JsonObject> WriteDataRecordsAsync(Run run, MiniProgramDatasetConfig dataset, CancellationToken cancellationToken)
+    private async Task<JsonObject> WriteDataRecordsAsync(Run run, MiniProgramDatasetConfig dataset, CancellationToken cancellationToken)
     {
         var selected = new List<MiniProgramRecord>();
         var matchedModule = false;
@@ -258,7 +265,7 @@ internal sealed class MiniProgramPlugin : IBukitPlugin, IAfterBuildAsyncPlugin
         // Rows that exist but are all disabled still produce an intentionally empty dataset.
         if (dataset.Kind == MiniProgramKinds.Module && !matchedModule)
         {
-            run.RequireMatchInAnyLanguage(dataset, "module", dataset.Module!, Matches);
+            run.RequireMatchInAnyLanguage(_config, dataset, "module", dataset.Module!, Matches);
         }
 
         var records = await WithBodiesAsync(run, dataset, selected, dataset.Fields!.Contains("body"), cancellationToken);
@@ -304,14 +311,15 @@ internal sealed class MiniProgramPlugin : IBukitPlugin, IAfterBuildAsyncPlugin
         var scopeField = _config.Content.Sources!
             .First(candidate => string.Equals(candidate.Name?.Trim(), dataset.Source, StringComparison.OrdinalIgnoreCase))
             .DataIndex!.ScopeField;
-        // Read the scope the way DataModuleBuilder does, aliases included.
+        // Match the scope through the same aliases DataModuleBuilder reads. These rows include disabled
+        // ones the index never reads, so an ambiguous alias must not fail the build here.
         bool Matches(ContentDocument document) =>
             MiniProgramDatasetBuilder.IsFromSource(document, dataset.Source!) &&
-            ConfiguredContentFieldReader.TryGetField(document.CustomFields, scopeField, $"miniprogram dataset '{dataset.Name}' content '{document.Id}'", out var field) &&
-            string.Equals(field.Value?.ToString()?.Trim(), dataset.Scope, StringComparison.Ordinal);
+            ConfiguredContentFieldReader.AliasMatches(document.CustomFields, scopeField)
+                .Any(field => string.Equals(field.Value?.ToString()?.Trim(), dataset.Scope, StringComparison.Ordinal));
         if (!(run.DataModules?.DataDocuments ?? []).Any(Matches))
         {
-            run.RequireMatchInAnyLanguage(dataset, "scope", dataset.Scope!, Matches);
+            run.RequireMatchInAnyLanguage(_config, dataset, "scope", dataset.Scope!, Matches);
         }
 
         return new Dictionary<string, object>(StringComparer.Ordinal);
