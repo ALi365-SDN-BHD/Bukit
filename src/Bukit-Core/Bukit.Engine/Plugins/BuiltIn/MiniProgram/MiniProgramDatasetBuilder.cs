@@ -13,6 +13,7 @@ internal sealed record MiniProgramRecord(string Id, ContentDocument Document, st
 internal sealed class MiniProgramDatasetBuilder
 {
     // Built-in fields win over record properties of the same name, even when their value is null.
+    // The exception is url: data records have no page, so their own url property is used.
     private static readonly Dictionary<string, Func<MiniProgramRecord, object?>> BuiltInFields = new(StringComparer.Ordinal)
     {
         ["id"] = record => record.Id,
@@ -20,7 +21,7 @@ internal sealed class MiniProgramDatasetBuilder
         ["title"] = record => record.Document.Title,
         ["summary"] = record => record.Document.Record.Presentation.Summary,
         ["body"] = record => record.BodyHtml,
-        ["url"] = record => record.PageUrl,
+        ["url"] = record => record.PageUrl ?? CustomValue(record, "url"),
         ["publishedAt"] = record => record.Document.Record.Lifecycle.PublishedAt,
         ["updatedAt"] = record => record.Document.Record.Lifecycle.UpdatedAt,
         ["author"] = record => record.Document.Record.Ownership.Author,
@@ -140,9 +141,11 @@ internal sealed class MiniProgramDatasetBuilder
             return accessor(record);
         }
 
-        var fields = record.Document.CustomFields;
-        return fields is not null && fields.TryGetValue(field, out var custom) ? custom.Value : null;
+        return CustomValue(record, field);
     }
+
+    private static object? CustomValue(MiniProgramRecord record, string field)
+        => record.Document.CustomFields is { } fields && fields.TryGetValue(field, out var custom) ? custom.Value : null;
 
     private JsonNode? Convert(MiniProgramDatasetConfig dataset, string recordId, string field, object? raw, string? pageUrl)
     {

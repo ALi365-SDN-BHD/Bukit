@@ -198,7 +198,7 @@ dist/mp/                                    # 默认语言在根目录；其他�
 13. **已确认：导航两种来源都支持。** 站点按数据集自己选择：
     - `kind: module`（`module: nav`）：编辑在 Notion 里维护，字段和排序按数据集声明；
     - `kind: menu`（`menu: main`）：输出 `site.yaml` 里 `menus.<name>` 对应语言的条目，
-      保持 `menus` 的原有顺序和层级，字段固定为 `title`、`url`、`children`（加上 `menus`
+      按 `weight` 排序（与网站的 `menus.json` 一致，权重相同保持声明顺序）并保持层级，字段固定为 `title`、`url`、`children`（加上 `menus`
       已有的可选字段），链接按决定 11 转成绝对地址；没有 `source`。
     两种来源可以同时声明成两个数据集（名称不同）。`menu` 引用的菜单在 `site.yaml` 里不存在时，
     配置校验失败。网站自己的导航仍然只来自 `menus`，不受影响。
@@ -208,8 +208,10 @@ dist/mp/                                    # 默认语言在根目录；其他�
     和字段名。`site.url`（或 `--site-url`）格式错误或不是 `https://` 开头时以
     `ConfigInvalidValue` 失败；缺失时生产构建以 `ConfigRequiredFieldMissing` 失败，开发构建
     （`bukit dev`）跳过小程序输出并记录日志。`types` 不能声明 `body`，`body` 总是清洗后的
-    HTML。`module` 或 `scope` 没有任何行匹配（不论是否启用）时，单语言站点构建失败；多语言
-    站点的某个语言变体没有对应行时记录警告并写出空数据集。
+    HTML。`module` 或 `scope` 在所有语言里都没有行匹配（不论是否启用）时构建失败，
+    按内容图（包含所有语言的文档）判断；只是当前语言没有对应行（行带了别的 `locale`）时记录
+    警告并写出空数据集。`site.url` 不能带查询串或片段。data 记录没有页面，`url` 字段取记录
+    自己的属性。
 
 ## 小程序端同步协议（文档内容，非规范性）
 

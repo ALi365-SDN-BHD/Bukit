@@ -34,8 +34,8 @@ fields SHALL be written.
 
 ### Requirement: Navigation can come from Notion or from site menus
 A `module` dataset SHALL be able to carry navigation records maintained in a Notion data source.
-A `menu` dataset SHALL write the entries of the named `site.yaml` menu, keeping
-the menu's order and nesting, with each entry's `title`, absolute `url` and `children`. A site MAY
+A `menu` dataset SHALL write the entries of the named `site.yaml` menu, ordered by `weight` like
+the website's `menus.json` (declaration order breaking ties) and keeping their nesting, with each entry's `title`, absolute `url` and `children`. A site MAY
 declare both kinds as separate datasets. The website's own navigation SHALL be unaffected by
 either.
 
@@ -49,7 +49,8 @@ either.
 
 ### Requirement: Mini-program data requires an HTTPS site URL
 When mini-program output is enabled, the effective site URL SHALL start with `https://`. A URL
-that is set but malformed or not `https://` SHALL fail with `ConfigInvalidValue`. A missing URL
+that is set but malformed, not `https://`, or carrying a query or fragment SHALL fail with
+`ConfigInvalidValue`. A missing URL
 SHALL fail a production build with `ConfigRequiredFieldMissing`; a development build SHALL skip
 mini-program output instead, so a local preview works without a site URL.
 
@@ -145,14 +146,18 @@ or whose value cannot be read as the declared type (for example a list under `st
 `SchemaValidationFailed` naming the dataset, record id and field. A `collection` dataset
 whose list exceeds `maxListItems` SHALL fail the build naming the dataset.
 
-A `module` value or `dataIndex` scope that no row of its source uses, enabled or not, SHALL fail
-the build on a single-language site; rows that exist but are all disabled SHALL give an empty
-dataset. On a multilingual site, where rows with a locale exist only in their own language
-variant, an unmatched `module` or scope SHALL log a warning and write an empty dataset.
+A `module` value or `dataIndex` scope that no row of its source uses in any language, enabled or
+not, SHALL fail the build; rows that exist but are all disabled SHALL give an empty dataset. A
+language variant without rows of its own, because the matching rows carry another `locale`,
+SHALL log a warning and write an empty dataset.
 
 #### Scenario: Language variant without rows
-- **WHEN** a site declares the languages `en` and `zh-CN` and a variant has no `banner` row
-- **THEN** that variant logs a warning and writes an empty `banners` dataset
+- **WHEN** a site declares the languages `en` and `zh-CN` and its only `banner` row has `locale: en`
+- **THEN** the `zh-CN` variant logs a warning and writes an empty `banners` dataset
+
+#### Scenario: Module typo on a multilingual site
+- **WHEN** a site declares the languages `en` and `zh-CN` and a dataset declares `module: banners` while every row has `type: banner`
+- **THEN** the build fails naming the dataset and `module`
 
 #### Scenario: Wrong type in Notion
 - **WHEN** a `stores` row has `lat` set to `abc` and the dataset declares `lat: number`

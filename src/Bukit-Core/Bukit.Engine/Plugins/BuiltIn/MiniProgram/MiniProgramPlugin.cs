@@ -3,6 +3,7 @@ using System.Text.Json.Nodes;
 using Bukit.Config;
 using Bukit.Engine.Abstractions.Content;
 using Bukit.Engine.Abstractions.Plugins;
+using Bukit.Engine.Content;
 using Bukit.Shared;
 
 namespace Bukit.Engine.Plugins.BuiltIn.MiniProgram;
@@ -65,8 +66,7 @@ internal sealed class MiniProgramPlugin : IBukitPlugin, IAfterBuildAsyncPlugin
             contentRecords,
             dataModules,
             new MiniProgramDatasetBuilder(siteUrl, context.BaseUrl, sanitizer),
-            new FileSet(context.OutputDir, options.OutputDir, siteUrl, context.BaseUrl, path => outputs.Add(new PluginOutputTrackingInfo(Name, "after-build", path))),
-            Multilingual: (_config.Site.Languages?.Count ?? 1) > 1);
+            new FileSet(context.OutputDir, options.OutputDir, siteUrl, context.BaseUrl, path => outputs.Add(new PluginOutputTrackingInfo(Name, "after-build", path))));
         var datasets = new SortedDictionary<string, JsonObject>(StringComparer.Ordinal)
         {
             ["site"] = run.Writer.Write("site", BuildSite(siteUrl, context.BaseUrl), "site")
@@ -98,29 +98,24 @@ internal sealed class MiniProgramPlugin : IBukitPlugin, IAfterBuildAsyncPlugin
         IReadOnlyList<MiniProgramRecord> ContentRecords,
         DataModuleResult? DataModules,
         MiniProgramDatasetBuilder Builder,
-        FileSet Writer,
-        bool Multilingual)
+        FileSet Writer)
     {
         internal List<DateTimeOffset> Dates { get; } = [];
 
         /// <summary>
-        /// Fails when a module or scope matches no row at all, enabled or not: that is a typo, and an
-        /// empty file would wipe every client's copy. A multilingual site warns instead, because data
-        /// rows with a locale exist only in their own language.
+        /// Called when no row of this language matches a module or scope. The content graph holds the
+        /// rows of every language: no match there is a typo, and an empty file would wipe every
+        /// client's copy, so the build fails. A match in another language only means this language has
+        /// no rows of its own, so it gets an empty dataset and a warning.
         /// </summary>
-        internal void RequireMatched(MiniProgramDatasetConfig dataset, string field, string value, bool matched)
+        internal void RequireMatchInAnyLanguage(MiniProgramDatasetConfig dataset, string field, string value, Func<ContentDocument, bool> matches)
         {
-            if (matched)
-            {
-                return;
-            }
-
-            if (!Multilingual)
+            if (!Context.ContentGraph.Documents.Any(matches))
             {
                 throw MiniProgramDatasetBuilder.Invalid(dataset, "*", field, $"'{value}' matches no record of source '{dataset.Source}'");
             }
 
-            Context.Logger.Warn($"event=miniprogram.dataset_empty dataset={dataset.Name} {field}={value} source={dataset.Source}");
+            Context.Logger.Warn($"event=miniprogram.dataset_empty dataset={dataset.Name} {field}={value} source={dataset.Source} reason=no_rows_in_language");
         }
     }
 
@@ -239,11 +234,13 @@ internal sealed class MiniProgramPlugin : IBukitPlugin, IAfterBuildAsyncPlugin
     {
         var selected = new List<MiniProgramRecord>();
         var matchedModule = false;
+        bool Matches(ContentDocument document) =>
+            MiniProgramDatasetBuilder.IsFromSource(document, dataset.Source!) &&
+            (dataset.Kind != MiniProgramKinds.Module ||
+             string.Equals(ContentFieldReader.GetContentType(document).Trim(), dataset.Module, StringComparison.OrdinalIgnoreCase));
         foreach (var document in run.DataModules?.DataDocuments ?? [])
         {
-            if (!MiniProgramDatasetBuilder.IsFromSource(document, dataset.Source!) ||
-                dataset.Kind == MiniProgramKinds.Module &&
-                !string.Equals(ContentFieldReader.GetContentType(document).Trim(), dataset.Module, StringComparison.OrdinalIgnoreCase))
+            if (!Matches(document))
             {
                 continue;
             }
@@ -259,9 +256,9 @@ internal sealed class MiniProgramPlugin : IBukitPlugin, IAfterBuildAsyncPlugin
         }
 
         // Rows that exist but are all disabled still produce an intentionally empty dataset.
-        if (dataset.Kind == MiniProgramKinds.Module)
+        if (dataset.Kind == MiniProgramKinds.Module && !matchedModule)
         {
-            run.RequireMatched(dataset, "module", dataset.Module!, matchedModule);
+            run.RequireMatchInAnyLanguage(dataset, "module", dataset.Module!, Matches);
         }
 
         var records = await WithBodiesAsync(run, dataset, selected, dataset.Fields!.Contains("body"), cancellationToken);
@@ -307,10 +304,16 @@ internal sealed class MiniProgramPlugin : IBukitPlugin, IAfterBuildAsyncPlugin
         var scopeField = _config.Content.Sources!
             .First(candidate => string.Equals(candidate.Name?.Trim(), dataset.Source, StringComparison.OrdinalIgnoreCase))
             .DataIndex!.ScopeField;
-        var matched = (run.DataModules?.DataDocuments ?? []).Any(document =>
+        // Read the scope the way DataModuleBuilder does, aliases included.
+        bool Matches(ContentDocument document) =>
             MiniProgramDatasetBuilder.IsFromSource(document, dataset.Source!) &&
-            string.Equals(ContentFieldReader.GetText(document.CustomFields, scopeField)?.Trim(), dataset.Scope, StringComparison.Ordinal));
-        run.RequireMatched(dataset, "scope", dataset.Scope!, matched);
+            ConfiguredContentFieldReader.TryGetField(document.CustomFields, scopeField, $"miniprogram dataset '{dataset.Name}' content '{document.Id}'", out var field) &&
+            string.Equals(field.Value?.ToString()?.Trim(), dataset.Scope, StringComparison.Ordinal);
+        if (!(run.DataModules?.DataDocuments ?? []).Any(Matches))
+        {
+            run.RequireMatchInAnyLanguage(dataset, "scope", dataset.Scope!, Matches);
+        }
+
         return new Dictionary<string, object>(StringComparer.Ordinal);
     }
 
@@ -346,7 +349,8 @@ internal sealed class MiniProgramPlugin : IBukitPlugin, IAfterBuildAsyncPlugin
     private static JsonArray BuildMenu(IReadOnlyList<MenuConfig> items, string siteUrl, string baseUrl)
     {
         var array = new JsonArray();
-        foreach (var item in items)
+        // Same order as the website's menus.json: by weight, declaration order breaking ties.
+        foreach (var item in items.OrderBy(item => item.Weight))
         {
             var node = new JsonObject
             {

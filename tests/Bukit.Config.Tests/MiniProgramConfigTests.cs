@@ -195,6 +195,8 @@ public sealed class MiniProgramConfigTests
     [Theory]
     [InlineData("https://", DiagnosticCode.ConfigInvalidValue)]
     [InlineData("http://example.com", DiagnosticCode.ConfigInvalidValue)]
+    [InlineData("https://example.com/?ref=a", DiagnosticCode.ConfigInvalidValue)]
+    [InlineData("https://example.com/#top", DiagnosticCode.ConfigInvalidValue)]
     public void ValidateSiteUrl_RejectsNonHttpsUrl(string url, DiagnosticCode code)
     {
         var config = new AppConfig

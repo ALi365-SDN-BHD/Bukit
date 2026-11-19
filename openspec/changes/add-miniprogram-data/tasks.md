@@ -103,3 +103,8 @@
       `body` 经过清洗；每个文件写出时立即登记 `PluginOutputs`；开发构建缺少 `site.url` 时跳过；
       `/release-v1.2` 这类带点的页面链接按 `RoutePathBuilder.NormalizeUrl` 匹配；格式错误的
       `site.url` 改用 `ConfigInvalidValue`；`types.body` 被拒绝；补充对应测试。
+      2026-11-20 第三轮高强度审计的 7 条发现已修复：未匹配的 `module`/scope 按内容图里所有
+      语言的行判断，任何语言都没有时构建失败（多语言站点不再只警告）；scope 匹配复用
+      `ConfiguredContentFieldReader` 的别名规则；data 记录的 `url` 取记录自身属性；去掉自算的
+      多语言判断；`site.url` 拒绝查询串和片段；菜单按 `weight` 排序；新增多语言端到端测试
+      （按语言输出、`locale` 过滤、拼写错误失败、关闭后清理 `mp/`）。

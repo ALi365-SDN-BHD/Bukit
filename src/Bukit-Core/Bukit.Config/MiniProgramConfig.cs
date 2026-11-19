@@ -193,10 +193,11 @@ internal static class MiniProgramConfigValidator
                 : null;
         }
 
+        // File URLs are appended to the site URL, so a query or fragment would break every one of them.
         if (!Uri.TryCreate(url, UriKind.Absolute, out var uri) || uri.Scheme != Uri.UriSchemeHttps ||
-            string.IsNullOrEmpty(uri.Host) || url.Any(char.IsWhiteSpace))
+            string.IsNullOrEmpty(uri.Host) || url.Any(char.IsWhiteSpace) || url.Contains('?') || url.Contains('#'))
         {
-            throw Invalid($"miniprogram requires site.url to be an https:// URL; got '{url}'.");
+            throw Invalid($"miniprogram requires site.url to be an https:// URL without a query or fragment; got '{url}'.");
         }
 
         return url;

@@ -257,17 +257,74 @@ public sealed class MiniProgramPluginTests : IDisposable
     }
 
     [Fact]
-    public async Task MultilingualVariantWithoutRows_WarnsAndWritesEmpty()
+    public async Task VariantWithoutRowsOfItsLanguage_WarnsAndWritesEmpty()
     {
-        // Locale-specific data rows exist only in their own language variant.
+        // Locale-specific data rows exist only in their own language variant; another language has them.
         var logger = new RecordingLogger();
         var empty = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase) { ["settings"] = new Dictionary<string, object>(StringComparer.Ordinal) };
 
-        await RunAsync(Config(languages: ["en", "zh-CN"]), [], [], empty, defaultBanner: false, logger: logger);
+        await RunAsync(Config(), [], [], empty, defaultBanner: false, logger: logger, otherLanguageData: [Banner("b9", "Other", 1), SettingRow("s9", "app", enabled: true)]);
 
         Assert.Empty(ReadDataset("banners")["items"]!.AsArray());
         Assert.Empty(ReadDataset("settings")["values"]!.AsObject());
         Assert.Equal(2, logger.Warnings.Count(message => message.Contains("event=miniprogram.dataset_empty", StringComparison.Ordinal)));
+    }
+
+    [Fact]
+    public async Task ModuleMatchingNoRowInAnyLanguage_FailsOnMultilingualSite()
+    {
+        var ex = await Assert.ThrowsAsync<BukitException>(() => RunAsync(Config(languages: ["en", "zh-CN"]), [], [Faq("f1")], defaultBanner: false, otherLanguageData: [Faq("f9")]));
+
+        Assert.Contains("field 'module' 'banner' matches no record of source 'modules'", ex.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task DisabledScopeRows_MatchThroughFieldAlias()
+    {
+        // DataModuleBuilder reads scope_name as scopeName too; the empty-scope check must agree with it.
+        var config = Config(scopeField: "scope_name");
+        var empty = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase) { ["settings"] = new Dictionary<string, object>(StringComparer.Ordinal) };
+
+        await RunAsync(config, [], [SettingRow("s1", "app", enabled: false, scopeKey: "scopeName")], empty);
+
+        Assert.Empty(ReadDataset("settings")["values"]!.AsObject());
+    }
+
+    [Fact]
+    public async Task DataRecordUrlField_IsWritten()
+    {
+        var config = Config();
+        var datasets = config.MiniProgram.Datasets.ToList();
+        datasets[1] = datasets[1] with { Fields = ["title", "image", "order", "url"], Required = ["title", "url"], Types = new Dictionary<string, string> { ["url"] = "url", ["order"] = "number" } };
+        config = config with { MiniProgram = config.MiniProgram with { Datasets = datasets } };
+
+        await RunAsync(config, [], [Banner("b1", "One", 1, url: "/sale/")]);
+
+        Assert.Equal("https://example.com/sale/", (string)ReadDataset("banners")["items"]![0]!["url"]!);
+    }
+
+    [Fact]
+    public async Task Menu_IsOrderedByWeight()
+    {
+        var config = Config();
+        config = config with
+        {
+            Site = config.Site with
+            {
+                Menus = new Dictionary<string, IReadOnlyList<MenuConfig>>(StringComparer.OrdinalIgnoreCase)
+                {
+                    ["main"] =
+                    [
+                        new MenuConfig { Identifier = "docs", Name = "Docs", Url = "/docs/", Weight = 2 },
+                        new MenuConfig { Identifier = "home", Name = "Home", Url = "/", Weight = 1 }
+                    ]
+                }
+            }
+        };
+
+        await RunAsync(config, [], []);
+
+        Assert.Equal(["Home", "Docs"], ReadDataset("nav")["items"]!.AsArray().Select(item => (string)item!["title"]!));
     }
 
     [Fact]
@@ -411,7 +468,8 @@ public sealed class MiniProgramPluginTests : IDisposable
         bool defaultBanner = true,
         bool defaultSettings = true,
         BuildExecutionMode mode = BuildExecutionMode.Production,
-        ILogger? logger = null)
+        ILogger? logger = null,
+        IReadOnlyList<ContentDocument>? otherLanguageData = null)
     {
         // The default config declares a banner module and a settings scope; an unmatched one fails the build.
         if (defaultBanner && !data.Any(document => ContentFieldReader.GetContentType(document) == "banner"))
@@ -424,7 +482,7 @@ public sealed class MiniProgramPluginTests : IDisposable
             dataIndex ??= Settings(("title", "Shop"));
         }
 
-        var context = NewContext(pages, data, dataIndex, nonIndexable, baseUrl, logger ?? new ConsoleLogger(LogLevel.Error));
+        var context = NewContext(pages, data, dataIndex, nonIndexable, baseUrl, logger ?? new ConsoleLogger(LogLevel.Error), otherLanguageData);
         await new MiniProgramPlugin(config, mode).AfterBuildAsync(context);
         return context;
     }
@@ -435,7 +493,8 @@ public sealed class MiniProgramPluginTests : IDisposable
         IReadOnlyDictionary<string, object>? dataIndex,
         string? nonIndexable,
         string baseUrl,
-        ILogger logger)
+        ILogger logger,
+        IReadOnlyList<ContentDocument>? otherLanguageData = null)
     {
         var seoIndex = new Dictionary<string, SeoIndexEntry>(StringComparer.OrdinalIgnoreCase);
         if (nonIndexable is not null)
@@ -452,7 +511,9 @@ public sealed class MiniProgramPluginTests : IDisposable
             LayoutsDir = _outputDir,
             RoutedDocuments = pages,
             SeoIndex = seoIndex,
-            Logger = logger
+            Logger = logger,
+            // The content graph holds the documents of every language; the variant sees only its own.
+            ContentGraph = new CanonicalContentGraph([], [], [], [.. data, .. otherLanguageData ?? []])
         };
         context.Set(BuildDataKeys.DataModules, new DataModuleResult(data, null, null, dataIndex, null));
         return context;
@@ -463,7 +524,8 @@ public sealed class MiniProgramPluginTests : IDisposable
         string? siteUrl = "https://example.com",
         string[]? articleListFields = null,
         Dictionary<string, string>? articleTypes = null,
-        IReadOnlyList<string>? languages = null) => new()
+        IReadOnlyList<string>? languages = null,
+        string scopeField = "scope") => new()
     {
         Site = new SiteConfig
         {
@@ -489,7 +551,7 @@ public sealed class MiniProgramPluginTests : IDisposable
         Content = ContentConfigFactory.FromSources(
         [
             TestContent.MarkdownSource(),
-            new ContentSourceConfig { Type = "markdown", Name = "settings", Mode = "data", Markdown = new MarkdownConfig { Dir = "data/settings" }, DataIndex = new DataIndexConfig() }
+            new ContentSourceConfig { Type = "markdown", Name = "settings", Mode = "data", Markdown = new MarkdownConfig { Dir = "data/settings" }, DataIndex = new DataIndexConfig { ScopeField = scopeField } }
         ]),
         MiniProgram = new MiniProgramConfig
         {
@@ -547,7 +609,7 @@ public sealed class MiniProgramPluginTests : IDisposable
         return new RoutedContentDocument(document, new RouteInfo($"/{slug}/", $"{slug}/index.html", "pages/post.html"));
     }
 
-    private static ContentDocument Banner(string id, string title, object order, bool enabled = true, string? image = "/assets/media/{id}.png")
+    private static ContentDocument Banner(string id, string title, object order, bool enabled = true, string? image = "/assets/media/{id}.png", string? url = null)
     {
         var fields = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
         {
@@ -558,6 +620,7 @@ public sealed class MiniProgramPluginTests : IDisposable
             ["enabled"] = enabled
         };
         if (image is not null) fields["image"] = image.Replace("{id}", id, StringComparison.Ordinal);
+        if (url is not null) fields["url"] = url;
         return ContentDocument.Create($"modules:{id}", title, id, Day, null, ContentFieldReader.ToFieldMap(fields));
     }
 
@@ -569,12 +632,12 @@ public sealed class MiniProgramPluginTests : IDisposable
             ["type"] = "faq"
         }));
 
-    private static ContentDocument SettingRow(string id, string scope, bool enabled)
+    private static ContentDocument SettingRow(string id, string scope, bool enabled, string scopeKey = "scope")
         => ContentDocument.Create($"settings:{id}", id, id, Day, null, ContentFieldReader.ToFieldMap(new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
         {
             ["sourceKey"] = "settings",
             ["sourceMode"] = "data",
-            ["scope"] = scope,
+            [scopeKey] = scope,
             ["key"] = "title",
             ["value"] = "Shop",
             ["value_type"] = "text",

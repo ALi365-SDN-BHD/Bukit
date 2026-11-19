@@ -106,11 +106,11 @@ miniprogram:
 | Kind | Source | Writes |
 |---|---|---|
 | `collection` | `mode: content` source | A list file with `listFields`, a detail catalog, and one detail file per page with `detailFields`. Sorted by `sort` (default `publishedAt` descending). |
-| `module` | `mode: data` source | Data records whose `type` equals `module`, with `fields`. `sort` is required. A `module` value no record uses, enabled or not, fails the build; records that exist but are all disabled give an empty list. On a multilingual site, a language with no matching record gets an empty list and a warning. |
+| `module` | `mode: data` source | Data records whose `type` equals `module`, with `fields`. `sort` is required. A `module` value no record of any language uses, enabled or not, fails the build; records that exist but are all disabled give an empty list. A language whose matching records all carry another `locale` gets an empty list and a warning. |
 | `records` | `mode: data` source | Every public record of the source, with `fields`. `sort` is required. Replaces `data/*.yaml` files. |
-| `dataIndex` | `mode: data` source with `dataIndex` | The key/value pairs of one `scope`, keys in order. A scope no row uses fails the build (a warning and empty values on a multilingual site); a scope whose rows are all disabled gives empty values. |
+| `dataIndex` | `mode: data` source with `dataIndex` | The key/value pairs of one `scope`, keys in order. A scope no row of any language uses fails the build; a scope whose rows are all disabled, or that only another language's rows use, gives empty values. |
 | `taxonomy` | none | Terms of `tags`, `categories` or another list field of the pages in `collection` datasets, with their page counts. Terms that differ only in case count as one. Needs at least one `collection` dataset. |
-| `menu` | none | One `site.menus` menu, keeping its order and nesting, with absolute URLs. |
+| `menu` | none | One `site.menus` menu, ordered by `weight` as on the website, keeping its nesting, with absolute URLs. |
 
 A `site` dataset is always written with the site name, title, description,
 absolute URL, language and languages.
@@ -121,7 +121,8 @@ Every record has an `id`. Content pages use their public id (the canonical key
 or route); data records use an opaque hash so source page ids are not
 published. Other fields read, in this order, `slug`, `title`, `summary`, `body`,
 `url`, `publishedAt`, `updatedAt`, `author`, `tags`, `categories`,
-`collection`, `language`, then the record's own properties.
+`collection`, `language`, then the record's own properties. Data records have
+no page, so their `url` is the record's own `url` property.
 
 `types` converts and checks a field: `string`, `number`, `boolean`, `date`,
 `image`, `url` or `string[]`. `image` and `url` values become absolute http(s)
@@ -188,7 +189,8 @@ operating system (UTF-8 without BOM, one trailing `\n`, fixed field order and
 record order, no build time). `generatedAt` is the latest record update time.
 Unchanged data therefore keeps its hash across rebuilds.
 
-A set `site.url` that is not `https://` fails with `ConfigInvalidValue`; a
+A set `site.url` that is not `https://`, or has a query or fragment, fails with
+`ConfigInvalidValue`; a
 missing one fails a production build with `ConfigRequiredFieldMissing`.
 
 The build manifest tracks every file under `mp/` as it is written, even when a
