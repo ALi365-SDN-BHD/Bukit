@@ -52,7 +52,16 @@ internal sealed class MiniProgramUrls
     /// resolve against <paramref name="relativeTo"/>. Fragments, <c>mailto:</c>, <c>tel:</c> and other
     /// non-HTTP schemes are returned unchanged.
     /// </summary>
-    internal string Absolute(string value, string relativeTo)
+    internal string Absolute(string value, string relativeTo) => Escape(Resolve(value, relativeTo));
+
+    /// <summary>
+    /// http(s) URLs in Uri's escaped form, so a space or non-ASCII character is published as
+    /// %20 or %E9... whether the value was written as a site path, a relative path or a full URL.
+    /// </summary>
+    private static string Escape(string url)
+        => Uri.TryCreate(url, UriKind.Absolute, out var uri) && uri.Scheme is "https" or "http" ? uri.AbsoluteUri : url;
+
+    private string Resolve(string value, string relativeTo)
     {
         var trimmed = value.Trim();
         if (trimmed.Length == 0 || trimmed.StartsWith('#'))

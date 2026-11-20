@@ -235,13 +235,14 @@ internal sealed class MiniProgramHtmlSanitizer : IDisposable
                 return;
             }
 
-            if (Renders(element, forward: false) && !EndsWithBreak(builder))
+            // A block sibling already starts or ends the line, so only inline content needs a break.
+            if (NearestVisibleSibling(element, forward: false) is { } before && !IsBlock(before) && !EndsWithBreak(builder))
             {
                 builder.Append("<br>");
             }
 
             builder.Append(html);
-            if (Renders(element, forward: true))
+            if (NearestVisibleSibling(element, forward: true) is { } after && !IsBlock(after))
             {
                 builder.Append("<br>");
             }
@@ -264,25 +265,52 @@ internal sealed class MiniProgramHtmlSanitizer : IDisposable
         }
     }
 
-    /// <summary>True when a sibling after (or before) <paramref name="node"/> writes visible output.</summary>
-    private static bool Renders(INode node, bool forward)
+    /// <summary>
+    /// The nearest sibling after (or before) <paramref name="node"/> that writes visible output, or null.
+    /// The scan stops at the first visible sibling, and each check stops at the first visible descendant.
+    /// </summary>
+    private static INode? NearestVisibleSibling(INode node, bool forward)
     {
         for (var sibling = forward ? node.NextSibling : node.PreviousSibling; sibling is not null; sibling = forward ? sibling.NextSibling : sibling.PreviousSibling)
         {
-            if (sibling is IText text ? !string.IsNullOrWhiteSpace(text.Data) : sibling is IElement element && IsVisible(element))
+            if (IsVisible(sibling))
             {
-                return true;
+                return sibling;
             }
         }
 
-        return false;
+        return null;
     }
 
-    // Dropped elements write nothing; others are visible when they hold text or media.
-    private static bool IsVisible(IElement element)
-        => !DroppedTags.Contains(element.LocalName) && element.LocalName != "caption" &&
-           (VoidTags.Contains(element.LocalName) || EmbedTags.Contains(element.LocalName) ||
-            !string.IsNullOrWhiteSpace(element.TextContent) || element.QuerySelector("img, hr, iframe, video, audio") is not null);
+    // Containers inside a cell are written inline (separated by breaks), so only real blocks count.
+    private static bool IsBlock(INode node)
+        => node is IElement element && BlockTags.Contains(element.LocalName);
+
+    // Text or media that the sanitizer keeps; dropped elements (and everything inside them) write nothing.
+    private static bool IsVisible(INode node)
+    {
+        switch (node)
+        {
+            case IText text:
+                return !string.IsNullOrWhiteSpace(text.Data);
+            case IElement element when DroppedTags.Contains(element.LocalName) || element.LocalName == "caption":
+                return false;
+            case IElement element when VoidTags.Contains(element.LocalName) || EmbedTags.Contains(element.LocalName):
+                return true;
+            case IElement element:
+                foreach (var child in element.ChildNodes)
+                {
+                    if (IsVisible(child))
+                    {
+                        return true;
+                    }
+                }
+
+                return false;
+            default:
+                return false;
+        }
+    }
 
     private static bool EndsWithBreak(StringBuilder builder)
     {

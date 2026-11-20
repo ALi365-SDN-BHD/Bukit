@@ -761,6 +761,67 @@ public sealed class MiniProgramPluginTests : IDisposable
         Assert.Equal(["2026-01-01", "2026-01-02T10:00:00+08:00"], orders);
     }
 
+    [Fact]
+    public async Task MidnightDateValues_AreCalendarDatesInAnyOffset()
+    {
+        var config = Config();
+        var datasets = config.MiniProgram.Datasets.ToList();
+        datasets[1] = datasets[1] with { Types = new Dictionary<string, string> { ["image"] = "image", ["order"] = "date" } };
+        config = config with { MiniProgram = config.MiniProgram with { Datasets = datasets } };
+
+        // Notion parses a date-only value at the build machine's local midnight, Markdown at UTC midnight.
+        await RunAsync(config, [],
+        [
+            Banner("b1", "Local", new DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeSpan.FromHours(8))),
+            Banner("b2", "Utc", new DateTimeOffset(2026, 1, 2, 0, 0, 0, TimeSpan.Zero)),
+            Banner("b3", "Timed", new DateTimeOffset(2026, 1, 3, 10, 0, 0, TimeSpan.FromHours(8)))
+        ]);
+
+        var orders = ReadDataset("banners")["items"]!.AsArray().Select(item => (string)item!["order"]!).ToArray();
+        Assert.Equal(["2026-01-01", "2026-01-02", "2026-01-03T10:00:00+08:00"], orders);
+    }
+
+    [Fact]
+    public async Task CellContainers_AddNoBreakNextToBlocksOrInvisibleContent()
+    {
+        const string body = """<table><tr><td><p>Intro</p><div>More</div></td></tr></table><ul><li><div>Item</div><span><script>track()</script></span></li></ul>""";
+
+        await RunAsync(Config(), [Article("a1", "First", body: body)], []);
+
+        var details = ReadByUrl((string)ReadCatalog()["datasets"]!["articles"]!["detailCatalog"]!["url"]!)["items"]!.AsArray();
+        var html = (string)ReadByUrl((string)details[0]!["url"]!)["body"]!;
+        Assert.Contains("<td><p>Intro</p>More</td>", html, StringComparison.Ordinal);
+        Assert.Contains("<li>Item<span></span></li>", html, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task SitePathsWithSpaces_AreEscapedLikeRelativeOnes()
+    {
+        await RunAsync(Config(), [], [Banner("b1", "One", 1, image: "/assets/images/new banner.png"), Banner("b2", "Two", 2, image: "assets/images/new banner.png")]);
+
+        var images = ReadDataset("banners")["items"]!.AsArray().Select(item => (string)item!["image"]!).ToArray();
+        Assert.Equal(["https://example.com/assets/images/new%20banner.png", "https://example.com/assets/images/new%20banner.png"], images);
+    }
+
+    [Fact]
+    public async Task NaNSortKey_SortsLastInDescendingOrder()
+    {
+        var config = Config();
+        var datasets = config.MiniProgram.Datasets.ToList();
+        datasets[1] = datasets[1] with
+        {
+            Fields = ["title", "image"],
+            Sort = new MiniProgramSortConfig("order", Descending: true),
+            Types = new Dictionary<string, string> { ["image"] = "image" }
+        };
+        config = config with { MiniProgram = config.MiniProgram with { Datasets = datasets } };
+
+        await RunAsync(config, [], [Banner("b1", "Invalid", double.NaN), Banner("b2", "Low", 1), Banner("b3", "High", 3)]);
+
+        var titles = ReadDataset("banners")["items"]!.AsArray().Select(item => (string)item!["title"]!);
+        Assert.Equal(["High", "Low", "Invalid"], titles);
+    }
+
     private async Task<BuildContext> RunAsync(
         AppConfig config,
         IReadOnlyList<RoutedContentDocument> pages,

@@ -136,10 +136,20 @@ is kept as written in every language.
 `number` keeps integers and decimals exactly (text in JSON number form is
 written as is), and `NaN` or infinity fails the build. `date` text must be ISO
 8601: a date alone (`2026-01-01`) stays a calendar date, and a date with a time
-(`2026-01-01T10:00:00+08:00`) is written as that instant. A `sort` field
+(`2026-01-01T10:00:00+08:00`) is written as that instant. A date whose time is
+exactly midnight is also written as a calendar date, because Markdown and
+Notion sources turn a date-only value into midnight before the mini-program
+output reads it.
+
+Markdown front matter is typed when the site loads it, for the website too:
+numeric text becomes a number (so a decimal keeps double precision, about 15
+significant digits) and text that reads as a date becomes a date (including
+non-ISO text such as `May`); quoting the value in YAML does not change this.
+To keep such a value as text, write it in a form that is neither a number nor
+a date. A `sort` field
 compares dates stored as dates or as ISO text by time, and large integers
 exactly; records whose sort value is text sort after numbers and dates in
-either direction, and records without one come last. `required` fields must be present and non-empty. Except in a `dataIndex`
+either direction, and records without one (or with `NaN`) come last. `required` fields must be present and non-empty. Except in a `dataIndex`
 dataset, every `required` and `types` entry must name a declared field. `body`
 cannot be given a type: it is always sanitized HTML, including a `body` key in
 a `dataIndex` scope, which must be text.

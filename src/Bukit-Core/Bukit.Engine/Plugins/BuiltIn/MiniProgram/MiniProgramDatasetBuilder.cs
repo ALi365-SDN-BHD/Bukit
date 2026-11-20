@@ -320,10 +320,19 @@ internal sealed partial class MiniProgramDatasetBuilder
         _ => null
     };
 
-    private static DateOnly? ToDateOnly(object raw)
-        => raw is string text && DateOnly.TryParseExact(text.Trim(), "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out var day)
-            ? day
-            : null;
+    /// <summary>
+    /// The calendar date of a date-only value. Markdown and Notion sources parse a date-only value
+    /// before the plugin sees it (Markdown at UTC midnight, Notion at the build machine's local
+    /// midnight), so a time of exactly midnight in the value's own offset counts as date-only too.
+    /// That keeps the published date independent of the build machine's time zone.
+    /// </summary>
+    private static DateOnly? ToDateOnly(object raw) => raw switch
+    {
+        string text when DateOnly.TryParseExact(text.Trim(), "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out var day) => day,
+        DateTimeOffset value when value.TimeOfDay == TimeSpan.Zero => DateOnly.FromDateTime(value.DateTime),
+        DateTime value when value.TimeOfDay == TimeSpan.Zero => DateOnly.FromDateTime(value),
+        _ => null
+    };
 
     /// <summary>
     /// Dates arrive as DateTimeOffset, DateTime or ISO text depending on the source; giving them one
@@ -362,9 +371,10 @@ internal sealed partial class MiniProgramDatasetBuilder
 
             if (ToNumber(key) is { } number)
             {
+                // NaN has no place among numbers; it sorts last, like a missing value, in either direction.
                 if (double.IsNaN(number))
                 {
-                    return new SortValue(NumberRank, 2, 0, number, default, string.Empty);
+                    return new SortValue(MissingRank, 0, 0, 0, default, string.Empty);
                 }
 
                 return ToExactNumber(key, number) is { } exact
