@@ -123,29 +123,15 @@ internal sealed class MiniProgramHtmlSanitizer : IDisposable
         var inParagraph = InParagraph(element);
         if (EmbedTags.Contains(tag))
         {
-            var source = element.GetAttribute("src") ?? element.QuerySelector("source[src]")?.GetAttribute("src");
-            var href = source is null ? null : SafeHref(source, pageUrl);
-            if (href is not null)
-            {
-                // Inside a paragraph the link stays inline; elsewhere it is a paragraph of its own.
-                var encoded = WebUtility.HtmlEncode(href);
-                var link = $"<a href=\"{encoded}\">{encoded}</a>";
-                builder.Append(inParagraph ? link : $"<p>{link}</p>");
-            }
-
+            WriteEmbed(builder, element, pageUrl, inParagraph);
             return;
         }
 
         // A paragraph never holds a block, so block markup inside one is reduced to its content, such
-        // as a <p> inside a <summary> or a list inside a heading; a line break keeps blocks apart.
+        // as a <p> inside a <summary> or a list inside a heading.
         if (inParagraph && (BlockTags.Contains(tag) || BlockContainers.Contains(tag) || TableParts.Contains(tag)))
         {
-            if (NearestVisibleSibling(element, forward: false) is not null)
-            {
-                builder.Append("<br>");
-            }
-
-            WriteChildren(builder, element, pageUrl);
+            WriteFlattened(builder, element, pageUrl);
             return;
         }
 
@@ -233,6 +219,31 @@ internal sealed class MiniProgramHtmlSanitizer : IDisposable
 
         WriteChildren(builder, element, pageUrl);
         builder.Append("</").Append(tag).Append('>');
+    }
+
+    /// <summary>Writes an iframe, video or audio as a link to its source: inline inside a paragraph, a paragraph of its own elsewhere.</summary>
+    private void WriteEmbed(StringBuilder builder, IElement element, string pageUrl, bool inParagraph)
+    {
+        var source = element.GetAttribute("src") ?? element.QuerySelector("source[src]")?.GetAttribute("src");
+        if (source is null || SafeHref(source, pageUrl) is not { } href)
+        {
+            return;
+        }
+
+        var encoded = WebUtility.HtmlEncode(href);
+        var link = $"<a href=\"{encoded}\">{encoded}</a>";
+        builder.Append(inParagraph ? link : $"<p>{link}</p>");
+    }
+
+    /// <summary>Writes a block's content without its markup; a line break keeps it apart from what precedes it.</summary>
+    private void WriteFlattened(StringBuilder builder, IElement element, string pageUrl)
+    {
+        if (NearestVisibleSibling(element, forward: false) is not null)
+        {
+            builder.Append("<br>");
+        }
+
+        WriteChildren(builder, element, pageUrl);
     }
 
     private static bool InParagraph(IElement element)
