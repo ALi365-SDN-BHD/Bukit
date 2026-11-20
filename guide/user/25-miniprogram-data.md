@@ -130,10 +130,13 @@ URLs; relative values of data records resolve against the site root, base path
 included. On a multilingual site with `site.sharedAssets`, links to the shared
 files (such as theme images under `assets/`) keep the root path in every
 language, as the website's do, whether written as a site path, a relative
-path or a full URL of the site; localized media keeps the language path.
+path or a full URL of the site; localized media keeps the language path. A site
+path that already carries the root `baseUrl` (`/repo/about/` on a `/repo/` site)
+is kept as written in every language.
 `number` keeps integers and decimals exactly (text in JSON number form is
 written as is), and `NaN` or infinity fails the build. `date` text must be ISO
-8601, such as `2026-01-01` or `2026-01-01T10:00:00+08:00`. A `sort` field
+8601: a date alone (`2026-01-01`) stays a calendar date, and a date with a time
+(`2026-01-01T10:00:00+08:00`) is written as that instant. A `sort` field
 compares dates stored as dates or as ISO text by time, and large integers
 exactly; records whose sort value is text sort after numbers and dates in
 either direction, and records without one come last. `required` fields must be present and non-empty. Except in a `dataIndex`
@@ -151,8 +154,8 @@ record id and field, so bad data never reaches the mini-program.
 paragraphs, lists, quotes, code, emphasis, links, images, tables, `hr`, `br` and
 `span`. `class` and `style` are removed, unknown containers are unwrapped
 (text directly inside `div`, `figure`, `figcaption`, `section` and similar
-blocks becomes a paragraph, or ends with a line break inside a table cell or
-list item, so blocks do not run together), a table `caption` becomes a
+blocks becomes a paragraph, or is separated by line breaks inside a table cell
+or list item, so blocks do not run together), a table `caption` becomes a
 paragraph before the table,
 scripts and forms are dropped, `iframe`, `video` and `audio` become links, and
 `<details>` is expanded. Links to other pages in a collection carry

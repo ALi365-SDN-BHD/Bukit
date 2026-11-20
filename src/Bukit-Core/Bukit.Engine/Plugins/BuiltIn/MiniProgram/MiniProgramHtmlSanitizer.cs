@@ -224,12 +224,24 @@ internal sealed class MiniProgramHtmlSanitizer : IDisposable
         }
 
         // Inside a table cell or list item a paragraph would add margins the website does not show,
-        // so the container ends with a line break instead when more content follows it.
+        // so line breaks separate the container from visible content before and after it.
         if (element.ParentElement?.Closest("td, th, li") is not null)
         {
-            var start = builder.Length;
-            WriteChildren(builder, element, pageUrl);
-            if (builder.Length > start && HasContentAfter(element))
+            var inner = new StringBuilder();
+            WriteChildren(inner, element, pageUrl);
+            var html = inner.ToString().Trim();
+            if (html.Length == 0)
+            {
+                return;
+            }
+
+            if (Renders(element, forward: false) && !EndsWithBreak(builder))
+            {
+                builder.Append("<br>");
+            }
+
+            builder.Append(html);
+            if (Renders(element, forward: true))
             {
                 builder.Append("<br>");
             }
@@ -252,17 +264,43 @@ internal sealed class MiniProgramHtmlSanitizer : IDisposable
         }
     }
 
-    private static bool HasContentAfter(INode node)
+    /// <summary>True when a sibling after (or before) <paramref name="node"/> writes visible output.</summary>
+    private static bool Renders(INode node, bool forward)
     {
-        for (var next = node.NextSibling; next is not null; next = next.NextSibling)
+        for (var sibling = forward ? node.NextSibling : node.PreviousSibling; sibling is not null; sibling = forward ? sibling.NextSibling : sibling.PreviousSibling)
         {
-            if (next is IElement || next is IText text && !string.IsNullOrWhiteSpace(text.Data))
+            if (sibling is IText text ? !string.IsNullOrWhiteSpace(text.Data) : sibling is IElement element && IsVisible(element))
             {
                 return true;
             }
         }
 
         return false;
+    }
+
+    // Dropped elements write nothing; others are visible when they hold text or media.
+    private static bool IsVisible(IElement element)
+        => !DroppedTags.Contains(element.LocalName) && element.LocalName != "caption" &&
+           (VoidTags.Contains(element.LocalName) || EmbedTags.Contains(element.LocalName) ||
+            !string.IsNullOrWhiteSpace(element.TextContent) || element.QuerySelector("img, hr, iframe, video, audio") is not null);
+
+    private static bool EndsWithBreak(StringBuilder builder)
+    {
+        const string lineBreak = "<br>";
+        if (builder.Length < lineBreak.Length)
+        {
+            return false;
+        }
+
+        for (var i = 0; i < lineBreak.Length; i++)
+        {
+            if (builder[builder.Length - lineBreak.Length + i] != lineBreak[i])
+            {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     private string? SafeHref(string value, string pageUrl)

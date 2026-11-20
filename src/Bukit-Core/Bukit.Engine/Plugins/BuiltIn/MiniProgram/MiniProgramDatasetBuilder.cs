@@ -128,10 +128,11 @@ internal sealed partial class MiniProgramDatasetBuilder
             return [.. records.OrderBy(record => record.Id, StringComparer.Ordinal)];
         }
 
-        var keyed = records.Select(record => (Record: record, Key: SortKey(Resolve(record, sort.Field)))).ToList();
+        // Keys are parsed once per record, not once per comparison.
+        var keyed = records.Select(record => (Record: record, Key: SortValue.From(Resolve(record, sort.Field)))).ToList();
         keyed.Sort((left, right) =>
         {
-            var compared = CompareSortKeys(left.Key, right.Key, sort.Descending);
+            var compared = left.Key.CompareTo(right.Key, sort.Descending);
             return compared != 0 ? compared : StringComparer.Ordinal.Compare(left.Record.Id, right.Record.Id);
         });
         return [.. keyed.Select(pair => pair.Record)];
@@ -178,7 +179,9 @@ internal sealed partial class MiniProgramDatasetBuilder
             "string" => ToScalarText(raw!) ?? throw Invalid(dataset, recordId, field, "is not a string"),
             "number" => ToJsonNumber(raw!) ?? throw Invalid(dataset, recordId, field, "is not a number"),
             "boolean" => ToBoolean(raw!) is { } flag ? JsonValue.Create(flag) : throw Invalid(dataset, recordId, field, "is not a boolean"),
-            "date" => ToDate(raw!) is { } date ? MiniProgramJson.FormatDate(date) : throw Invalid(dataset, recordId, field, "is not a date"),
+            // A calendar date stays a date: an instant at UTC midnight shows the previous day west of UTC.
+            "date" => ToDateOnly(raw!) is { } day ? day.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture)
+                : ToDate(raw!) is { } date ? MiniProgramJson.FormatDate(date) : throw Invalid(dataset, recordId, field, "is not a date"),
             "string[]" => ToTextList(raw!) is { } values
                 ? ToStringArray(values)
                 : ToScalarText(raw!) is { } single ? ToStringArray([single]) : throw Invalid(dataset, recordId, field, "is not a list of strings"),
@@ -317,6 +320,11 @@ internal sealed partial class MiniProgramDatasetBuilder
         _ => null
     };
 
+    private static DateOnly? ToDateOnly(object raw)
+        => raw is string text && DateOnly.TryParseExact(text.Trim(), "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out var day)
+            ? day
+            : null;
+
     /// <summary>
     /// Dates arrive as DateTimeOffset, DateTime or ISO text depending on the source; giving them one
     /// form keeps a sort chronological instead of grouping records by how their date was stored.
@@ -335,43 +343,71 @@ internal sealed partial class MiniProgramDatasetBuilder
     [GeneratedRegex(@"^-?(0|[1-9][0-9]*)(\.[0-9]+)?([eE][+-]?[0-9]+)?$", RegexOptions.CultureInvariant)]
     private static partial Regex JsonNumber();
 
-    private static int CompareSortKeys(object? left, object? right, bool descending)
+    /// <summary>
+    /// A record's sort value, computed once. Kinds order as number, date, text, then missing, in either
+    /// direction. Numbers order by band (below, inside, above the decimal range) and then exactly by
+    /// decimal inside it, so every comparison follows one total order and large integers do not tie.
+    /// </summary>
+    private readonly record struct SortValue(int Rank, int Band, decimal Exact, double Number, DateTimeOffset Date, string Text)
     {
-        if (left is null || right is null)
+        private const int NumberRank = 0, DateRank = 1, TextRank = 2, MissingRank = 3;
+
+        internal static SortValue From(object? raw)
         {
-            // Records without a sort value always come last.
-            return left is null ? (right is null ? 0 : 1) : -1;
+            var key = SortKey(raw);
+            if (key is null)
+            {
+                return new SortValue(MissingRank, 0, 0, 0, default, string.Empty);
+            }
+
+            if (ToNumber(key) is { } number)
+            {
+                if (double.IsNaN(number))
+                {
+                    return new SortValue(NumberRank, 2, 0, number, default, string.Empty);
+                }
+
+                return ToExactNumber(key, number) is { } exact
+                    ? new SortValue(NumberRank, 0, exact, number, default, string.Empty)
+                    : new SortValue(NumberRank, number < 0 ? -1 : 1, 0, number, default, string.Empty);
+            }
+
+            return key is DateTimeOffset date
+                ? new SortValue(DateRank, 0, 0, 0, date, string.Empty)
+                : new SortValue(TextRank, 0, 0, 0, default, SortText(key));
         }
 
-        // Rank by kind first (number, date, text) so mixed keys still compare transitively. The kind
-        // order does not flip with the direction, so text placeholders stay after real values, as nulls do.
-        var leftNumber = ToNumber(left);
-        var rightNumber = ToNumber(right);
-        var rank = SortRank(left, leftNumber).CompareTo(SortRank(right, rightNumber));
-        if (rank != 0)
+        internal int CompareTo(SortValue other, bool descending)
         {
-            return rank;
+            if (Rank != other.Rank)
+            {
+                return Rank.CompareTo(other.Rank);
+            }
+
+            var compared = Rank switch
+            {
+                NumberRank when Band != other.Band => Band.CompareTo(other.Band),
+                NumberRank => Band == 0 ? Exact.CompareTo(other.Exact) : Number.CompareTo(other.Number),
+                DateRank => Date.CompareTo(other.Date),
+                TextRank => StringComparer.Ordinal.Compare(Text, other.Text),
+                _ => 0
+            };
+            return descending ? -compared : compared;
         }
 
-        // Integers and decimals compare exactly; double alone would tie integers above 2^53.
-        var compared = leftNumber is { } l && rightNumber is { } r
-                ? (ToExactNumber(left) is { } exactLeft && ToExactNumber(right) is { } exactRight ? exactLeft.CompareTo(exactRight) : l.CompareTo(r))
-            : left is DateTimeOffset leftDate && right is DateTimeOffset rightDate ? leftDate.CompareTo(rightDate)
-            : StringComparer.Ordinal.Compare(SortText(left), SortText(right));
-        return descending ? -compared : compared;
+        // Doubles go through their shortest round-trip text, so 9007199254740992.0 equals the long 9007199254740992.
+        private static decimal? ToExactNumber(object raw, double number) => raw switch
+        {
+            int value => value,
+            long value => value,
+            decimal value => value,
+            string text => ParseDecimal(text),
+            _ => ParseDecimal(number.ToString("R", CultureInfo.InvariantCulture))
+        };
+
+        private static decimal? ParseDecimal(string text)
+            => decimal.TryParse(text.Trim(), NumberStyles.Float, CultureInfo.InvariantCulture, out var value) ? value : null;
     }
-
-    private static decimal? ToExactNumber(object raw) => raw switch
-    {
-        int value => value,
-        long value => value,
-        decimal value => value,
-        string text when decimal.TryParse(text.Trim(), NumberStyles.Float, CultureInfo.InvariantCulture, out var value) => value,
-        _ => null
-    };
-
-    private static int SortRank(object value, double? number)
-        => number is not null ? 0 : value is DateTimeOffset ? 1 : 2;
 
     private static string SortText(object value)
         => ToScalarText(value) ?? (ToTextList(value) is { } list ? string.Join('\n', list) : string.Empty);

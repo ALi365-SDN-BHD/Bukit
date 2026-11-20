@@ -601,7 +601,8 @@ public sealed class MiniProgramPluginTests : IDisposable
                 Banner("b4", "Four", 4, image: "media/{id}.png")
             ],
             baseUrl: "/repo/zh-CN/",
-            sharedAssets: shared);
+            sharedAssets: shared,
+            rootBaseUrl: "/repo/");
 
         var images = ReadDataset("banners")["items"]!.AsArray().Select(item => (string)item!["image"]!).ToArray();
         Assert.Equal(
@@ -677,6 +678,89 @@ public sealed class MiniProgramPluginTests : IDisposable
         Assert.DoesNotContain("caption", html, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public async Task CellContainers_AreSeparatedFromTextOnBothSides()
+    {
+        const string body = """<table><tr><td>Label<div>Value</div></td><td><div>Only</div><span></span><style>x{}</style></td></tr></table>""";
+
+        await RunAsync(Config(), [Article("a1", "First", body: body)], []);
+
+        var details = ReadByUrl((string)ReadCatalog()["datasets"]!["articles"]!["detailCatalog"]!["url"]!)["items"]!.AsArray();
+        var html = (string)ReadByUrl((string)details[0]!["url"]!)["body"]!;
+        Assert.Contains("<td>Label<br>Value</td>", html, StringComparison.Ordinal);
+        Assert.Contains("<td>Only<span></span></td>", html, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task MixedIntegerAndDoubleSortKeys_UseOneTotalOrder()
+    {
+        await RunAsync(Config(), [],
+        [
+            Banner("b1", "Larger", 9007199254740993L),
+            Banner("b2", "DoubleEqual", 9007199254740992.0),
+            Banner("b3", "LongEqual", 9007199254740992L),
+            Banner("b4", "Huge", "1e30")
+        ]);
+
+        var titles = ReadDataset("banners")["items"]!.AsArray().Select(item => (string)item!["title"]!);
+        Assert.Equal(["DoubleEqual", "LongEqual", "Larger", "Huge"], titles);
+    }
+
+    [Fact]
+    public async Task RootBasePrefixedLinks_AreKeptAsWritten()
+    {
+        _basePath = "/repo/zh-CN/";
+        var body = "<p><a href=\"/repo/about/\">about</a></p>";
+
+        await RunAsync(
+            Config(languages: ["en", "zh-CN"]),
+            [Article("a1", "First", body: body)],
+            [Banner("b1", "One", 1, image: "/repo/assets/media/{id}.png"), Banner("b2", "Two", 2, image: "/repo/zh-CN/assets/media/{id}.png")],
+            baseUrl: "/repo/zh-CN/",
+            rootBaseUrl: "/repo/");
+
+        var images = ReadDataset("banners")["items"]!.AsArray().Select(item => (string)item!["image"]!).ToArray();
+        Assert.Equal(["https://example.com/repo/assets/media/b1.png", "https://example.com/repo/zh-CN/assets/media/b2.png"], images);
+        var details = ReadByUrl((string)ReadCatalog()["datasets"]!["articles"]!["detailCatalog"]!["url"]!)["items"]!.AsArray();
+        Assert.Contains("href=\"https://example.com/repo/about/\"", (string)ReadByUrl((string)details[0]!["url"]!)["body"]!, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task SharedAssetCheck_MatchesNormalizedSiteUrlAndEscapedPaths()
+    {
+        var config = Config(siteUrl: "https://example.com:443", languages: ["en", "zh-CN"]);
+        config = config with { Site = config.Site with { SharedAssets = new SharedAssetsConfig { Enabled = true, Paths = ["assets/", "静态/"] } } };
+        Directory.CreateDirectory(_outputDir);
+        _basePath = "/zh-CN/";
+        var shared = SharedAssetScope.TryCreate(config, ["en", "zh-CN"], _outputDir, logger: null)!;
+
+        await RunAsync(
+            config,
+            [],
+            [Banner("b1", "One", 1, image: "assets/images/{id}.png"), Banner("b2", "Two", 2, image: "静态/{id}.png")],
+            baseUrl: "/zh-CN/",
+            sharedAssets: shared,
+            rootBaseUrl: "/");
+
+        var images = ReadDataset("banners")["items"]!.AsArray().Select(item => (string)item!["image"]!).ToArray();
+        Assert.DoesNotContain(images, image => image.Contains("/zh-CN/", StringComparison.Ordinal));
+        Assert.EndsWith("/assets/images/b1.png", images[0], StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task DateOnlyText_StaysACalendarDate()
+    {
+        var config = Config();
+        var datasets = config.MiniProgram.Datasets.ToList();
+        datasets[1] = datasets[1] with { Types = new Dictionary<string, string> { ["image"] = "image", ["order"] = "date" } };
+        config = config with { MiniProgram = config.MiniProgram with { Datasets = datasets } };
+
+        await RunAsync(config, [], [Banner("b1", "One", "2026-01-01"), Banner("b2", "Two", "2026-01-02T10:00:00+08:00")]);
+
+        var orders = ReadDataset("banners")["items"]!.AsArray().Select(item => (string)item!["order"]!).ToArray();
+        Assert.Equal(["2026-01-01", "2026-01-02T10:00:00+08:00"], orders);
+    }
+
     private async Task<BuildContext> RunAsync(
         AppConfig config,
         IReadOnlyList<RoutedContentDocument> pages,
@@ -689,7 +773,8 @@ public sealed class MiniProgramPluginTests : IDisposable
         BuildExecutionMode mode = BuildExecutionMode.Production,
         ILogger? logger = null,
         IReadOnlyList<ContentDocument>? otherLanguageData = null,
-        SharedAssetScope? sharedAssets = null)
+        SharedAssetScope? sharedAssets = null,
+        string? rootBaseUrl = null)
     {
         // The default config declares a banner module and a settings scope; an unmatched one fails the build.
         if (defaultBanner && !data.Any(document => ContentFieldReader.GetContentType(document) == "banner"))
@@ -707,6 +792,8 @@ public sealed class MiniProgramPluginTests : IDisposable
         {
             context.Set(BuildDataKeys.SharedAssets, new SharedAssetBuildData(sharedAssets, []));
         }
+
+        context.Set(BuildDataKeys.RootBaseUrl, rootBaseUrl ?? baseUrl);
 
         await new MiniProgramPlugin(config, mode).AfterBuildAsync(context);
         return context;

@@ -17,14 +17,18 @@ internal sealed class MiniProgramUrls
     private readonly string _variantBase;
     private readonly string _rootBase;
 
-    internal MiniProgramUrls(string siteUrl, string baseUrl, SharedAssetScope? sharedAssets, string mediaUrlBase)
+    // The site URL as Uri prints it (default port dropped, host normalized), to match resolved URLs.
+    private readonly string _siteUrlPrefix;
+
+    internal MiniProgramUrls(string siteUrl, string baseUrl, string rootBaseUrl, SharedAssetScope? sharedAssets, string mediaUrlBase)
     {
         SiteUrl = siteUrl;
         BaseUrl = baseUrl;
         _sharedAssets = sharedAssets;
         _mediaUrlBase = mediaUrlBase.TrimEnd('/');
         _variantBase = BuildPathUtils.NormalizeBaseUrl(baseUrl).TrimEnd('/');
-        _rootBase = sharedAssets is null ? _variantBase : BuildPathUtils.NormalizeBaseUrl(sharedAssets.RootBaseUrl).TrimEnd('/');
+        _rootBase = BuildPathUtils.NormalizeBaseUrl(rootBaseUrl).TrimEnd('/');
+        _siteUrlPrefix = new Uri(siteUrl).AbsoluteUri.TrimEnd('/');
         SiteRoot = SeoModelBuilder.BuildAbsoluteUrl(siteUrl, baseUrl, "/");
     }
 
@@ -33,6 +37,7 @@ internal sealed class MiniProgramUrls
         => new(
             siteUrl,
             context.BaseUrl,
+            context.TryGet(BuildDataKeys.RootBaseUrl, out var rootBase) ? rootBase : context.BaseUrl,
             context.TryGet(BuildDataKeys.SharedAssets, out var shared) ? shared.Scope : null,
             ContentProviderFactory.NormalizeMediaUrlBase(config.Content.Media.UrlBase));
 
@@ -58,7 +63,12 @@ internal sealed class MiniProgramUrls
         if (trimmed.StartsWith('/') && !trimmed.StartsWith("//", StringComparison.Ordinal))
         {
             // A site-root path may still lack the base path, so it is checked before the base is added.
-            return SharedRootUrl(trimmed, baseless: true) ?? SeoModelBuilder.ResolveCanonical(SiteUrl, BaseUrl, trimmed, trimmed);
+            // A path that already names the root base (/repo/about/ in /repo/zh-CN/) is kept as written,
+            // as the website keeps it.
+            return SharedRootUrl(trimmed, baseless: true) ??
+                (IsUnder(trimmed, _rootBase) && !IsUnder(trimmed, _variantBase)
+                    ? SiteUrl + trimmed
+                    : SeoModelBuilder.ResolveCanonical(SiteUrl, BaseUrl, trimmed, trimmed));
         }
 
         string absolute;
@@ -79,11 +89,17 @@ internal sealed class MiniProgramUrls
             return trimmed;
         }
 
-        // Relative paths and full URLs of this site can point at a shared file too.
-        return _sharedAssets is not null && absolute.StartsWith(SiteUrl + "/", StringComparison.OrdinalIgnoreCase)
-            ? SharedRootUrl(absolute[SiteUrl.Length..], baseless: false) ?? absolute
+        // Relative paths and full URLs of this site can point at a shared file too. Both sides are
+        // compared in Uri's normalized form, so a :443 port or an IDN host in site.url still matches.
+        return _sharedAssets is not null &&
+               Uri.TryCreate(absolute, UriKind.Absolute, out var normalized) &&
+               normalized.AbsoluteUri.StartsWith(_siteUrlPrefix + "/", StringComparison.OrdinalIgnoreCase)
+            ? SharedRootUrl(normalized.AbsoluteUri[_siteUrlPrefix.Length..], baseless: false) ?? absolute
             : absolute;
     }
+
+    private static bool IsUnder(string path, string basePath)
+        => basePath.Length > 0 && path.StartsWith(basePath + "/", StringComparison.Ordinal);
 
     /// <summary>
     /// The root-base URL of a shared root asset, or null. <paramref name="path"/> is a site path that
@@ -97,11 +113,11 @@ internal sealed class MiniProgramUrls
         }
 
         string sitePath;
-        if (_variantBase.Length > 0 && path.StartsWith(_variantBase + "/", StringComparison.Ordinal))
+        if (IsUnder(path, _variantBase))
         {
             sitePath = path[_variantBase.Length..];
         }
-        else if (_rootBase.Length > 0 && path.StartsWith(_rootBase + "/", StringComparison.Ordinal))
+        else if (IsUnder(path, _rootBase))
         {
             sitePath = path[_rootBase.Length..];
         }
@@ -114,8 +130,9 @@ internal sealed class MiniProgramUrls
             return null;
         }
 
+        // Shared prefixes are plain paths, so an escaped path (%E9%9D%99...) is compared unescaped.
         var end = sitePath.IndexOfAny(['?', '#']);
-        var bare = end < 0 ? sitePath : sitePath[..end];
+        var bare = Uri.UnescapeDataString(end < 0 ? sitePath : sitePath[..end]);
         return bare.StartsWith(_mediaUrlBase + "/", StringComparison.Ordinal) || !_sharedAssets.ContainsSitePath(bare)
             ? null
             : SeoModelBuilder.BuildAbsoluteUrl(SiteUrl, _sharedAssets.RootBaseUrl, sitePath);
