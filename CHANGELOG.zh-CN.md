@@ -4,6 +4,8 @@ Bukit 所有重要变更都将记录在此文件中。
 
 ## [Unreleased]
 
+- **小程序版本化数据（需开启）**：`site.yaml` 新增 `miniprogram` 配置节用来声明数据集，每次构建把它们以 JSON 写到每种语言输出根目录下的 `mp/`：内容集合（一个列表加每页一个详情文件）、数据模块、数据索引的某个 scope、整个 data 源（取代 `data/*.yaml`）、分类和 `site.menus` 菜单，另外总有一个 `site` 数据集。每个文件按其字节的 SHA-256 命名，并连同哈希列在 `mp/catalog.json` 里，小程序启动时只请求目录，只下载变了的文件。只输出声明过的字段；重复构建、跨操作系统输出字节一致；正文清洗成微信 `rich-text` 可用的 HTML 子集；图片和链接都是绝对地址。必填字段缺失、类型不对、图片仍是未本地化的签名 URL 时，构建以 `SchemaValidationFailed` 失败；必须配置 `https://` 的站点 URL。Bukit 不生成小程序项目。见 [25 Mini-Program Data](guide/user/25-miniprogram-data.md)。没有这个配置节的站点不受影响。
+
 - **禁止 `connect-src` 的页面也能搜索**：每个 `search.json` 旁边新增 `search.json.js`（内容为 `self.bukitSearchIndex=<同样的 JSON>;`；`search.index.json` 清单没有对应脚本）。`bukit-search.html` 片段和 Starter 主题的搜索页仍先用 `fetch` 读取索引，失败时才加载脚本，所以 CSP 为 `connect-src 'none'` 的沙箱预览也能搜索，正常托管时仍只发一次请求。脚本索引在构建清单归属和过期文件清理上跟随对应的 `search.json`；默认语言的 `static/search.json.js` 与根目录合并索引冲突（`i18n-root-output-conflict`）。只从页面自己的来源加载脚本形式，所以指向别的网站的 `data-search-url` 仍只 `fetch`、不会被执行。已经生成到主题里的搜索页不会被改写；要获得回退，从新生成的 `themes/starter/layouts/pages/search.html` 复制整段 `<script>`。每个搜索索引会多一个同样大小的文件。
 
 - **拒绝多文档 YAML**：`site.yaml`、`theme.yaml`、`bukit.templates.yaml` 和插件配置/清单不得包含多于一个 YAML 文档。以前 `...` 或 `---` 分隔符之后的第二个文档会被忽略，现在会报错而不是被忽略；`bukit new` 不再写入结尾的 `...`。

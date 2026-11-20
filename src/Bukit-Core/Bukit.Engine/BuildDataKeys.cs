@@ -57,6 +57,12 @@ internal static class BuildDataKeys
     /// <summary>Writer: TaxonomyDataWriter. Reader: templates as <c>site.data.taxonomy</c>.</summary>
     internal static readonly BuildDataKey<Dictionary<string, object>> Taxonomy = new("taxonomy");
 
+    /// <summary>Writer: VariantBuildPipeline after data-module preparation. Reader: MiniProgramPlugin.</summary>
+    internal static readonly BuildDataKey<DataModuleResult> DataModules = new("__data_modules");
+
+    /// <summary>Writer: VariantBuildPipeline. Reader: MiniProgramPlugin. The base path of the root language; equals the variant base on single-language sites.</summary>
+    internal static readonly BuildDataKey<string> RootBaseUrl = new("__root_base_url");
+
     /// <summary>Writer: MenuPlugin. Reader: templates as <c>site.data.menus</c>.</summary>
     internal static readonly BuildDataKey<IReadOnlyDictionary<string, object>> Menus = new("menus");
 

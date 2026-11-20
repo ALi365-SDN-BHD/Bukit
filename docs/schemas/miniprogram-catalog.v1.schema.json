@@ -1,0 +1,46 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://bukit.dev/schemas/miniprogram-catalog.v1.json",
+  "title": "Bukit Mini-Program Data Catalog",
+  "description": "The per-language mp/catalog.json that lists every mini-program dataset file by content hash.",
+  "type": "object",
+  "required": ["schema", "schemaVersion", "minClientSchema", "language", "generatedAt", "catalogHash", "datasets"],
+  "additionalProperties": false,
+  "properties": {
+    "schema": { "const": "https://bukit.dev/schemas/miniprogram-catalog.v1.json" },
+    "schemaVersion": { "const": "1.0" },
+    "minClientSchema": { "type": "string", "pattern": "^[0-9]+\\.[0-9]+$" },
+    "language": { "type": "string", "minLength": 1 },
+    "generatedAt": { "type": "string", "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\\.[0-9]+)?[+-][0-9]{2}:[0-9]{2}$" },
+    "catalogHash": { "$ref": "#/$defs/hash" },
+    "datasets": {
+      "type": "object",
+      "required": ["site"],
+      "additionalProperties": { "$ref": "#/$defs/dataset" }
+    }
+  },
+  "$defs": {
+    "hash": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" },
+    "fileUrl": { "type": "string", "format": "uri", "pattern": "^https://" },
+    "dataset": {
+      "type": "object",
+      "required": ["kind", "hash", "url", "size"],
+      "additionalProperties": false,
+      "properties": {
+        "kind": { "enum": ["site", "collection", "module", "records", "dataIndex", "taxonomy", "menu"] },
+        "hash": { "$ref": "#/$defs/hash" },
+        "url": { "$ref": "#/$defs/fileUrl" },
+        "size": { "type": "integer", "minimum": 0 },
+        "detailCatalog": {
+          "type": "object",
+          "required": ["hash", "url"],
+          "additionalProperties": false,
+          "properties": {
+            "hash": { "$ref": "#/$defs/hash" },
+            "url": { "$ref": "#/$defs/fileUrl" }
+          }
+        }
+      }
+    }
+  }
+}

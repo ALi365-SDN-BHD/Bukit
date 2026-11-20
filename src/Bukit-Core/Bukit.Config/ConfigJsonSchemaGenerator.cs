@@ -27,7 +27,8 @@ public static class ConfigJsonSchemaGenerator
             ("theme", ThemeSchema()),
             ("taxonomy", TaxonomySchema()),
             ("logging", Obj(("type", "object"), ("properties", Obj(("level", EnumSchema("debug", "info", "warn", "error")))))),
-            ("deploy", DeploySchema()));
+            ("deploy", DeploySchema()),
+            ("miniprogram", MiniProgramSchema()));
 
         var analyticsCspConfigured = Obj(
             ("properties", Obj(
@@ -706,6 +707,31 @@ public static class ConfigJsonSchemaGenerator
             ("requireDescription", BoolSchema()),
             ("requireLicense", BoolSchema()),
             ("allowedKinds", StringArraySchema()))));
+
+    private static JsonObject MiniProgramSchema()
+        => Obj(("type", "object"), ("properties", Obj(
+            ("enabled", BoolSchema(false)),
+            ("outputDir", Obj(("type", "string"), ("pattern", "^[A-Za-z0-9_-]+$"), ("default", MiniProgramConfig.DefaultOutputDir))),
+            ("maxListItems", IntSchema(1)),
+            ("datasets", Obj(("type", "array"), ("items", MiniProgramDatasetSchema()))))));
+
+    private static JsonObject MiniProgramDatasetSchema()
+        => Obj(("type", "object"), ("required", Arr("name", "kind")), ("properties", Obj(
+            ("name", Obj(("type", "string"), ("pattern", "^[a-z0-9][a-z0-9-]*$"))),
+            ("kind", EnumSchema(MiniProgramKinds.All)),
+            ("source", StringSchema()),
+            ("module", StringSchema()),
+            ("scope", StringSchema()),
+            ("menu", StringSchema()),
+            ("taxonomy", StringSchema()),
+            ("fields", StringArraySchema()),
+            ("listFields", StringArraySchema()),
+            ("detailFields", StringArraySchema()),
+            ("sort", Obj(("type", "object"), ("required", Arr("field")), ("properties", Obj(
+                ("field", StringSchema()),
+                ("order", EnumSchema("asc", "desc")))))),
+            ("required", StringArraySchema()),
+            ("types", Obj(("type", "object"), ("additionalProperties", EnumSchema(MiniProgramKinds.FieldTypes)))))));
 
     private static JsonObject StringSchema() => Obj(("type", "string"));
 

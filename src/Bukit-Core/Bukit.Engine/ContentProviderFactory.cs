@@ -174,6 +174,18 @@ internal static class ContentProviderFactory
         }, logger: logger);
     }
 
+    /// <summary>The site path localized media is published under, such as <c>/assets/uploads</c>.</summary>
+    internal static string NormalizeMediaUrlBase(string? urlBase)
+    {
+        var value = (urlBase ?? string.Empty).Trim();
+        if (value.Length == 0)
+        {
+            return "/assets/uploads";
+        }
+
+        return value.StartsWith('/') ? value : "/" + value;
+    }
+
     internal static MediaConfig BuildEffectiveMediaConfig(MediaConfig media, string rootDir, string cacheDir)
     {
         var downloadDir = (media.DownloadDir ?? string.Empty).Trim();
@@ -188,15 +200,7 @@ internal static class ContentProviderFactory
                 : Path.GetFullPath(Path.Combine(rootDir, downloadDir));
         }
 
-        var urlBase = (media.UrlBase ?? string.Empty).Trim();
-        if (urlBase.Length == 0)
-        {
-            urlBase = "/assets/uploads";
-        }
-        if (!urlBase.StartsWith('/'))
-        {
-            urlBase = "/" + urlBase;
-        }
+        var urlBase = NormalizeMediaUrlBase(media.UrlBase);
 
         var defaultImageUrl = (media.DefaultImageUrl ?? string.Empty).Trim();
         if (defaultImageUrl.Length == 0)
