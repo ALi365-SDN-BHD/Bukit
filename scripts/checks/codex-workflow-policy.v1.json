@@ -2416,7 +2416,7 @@
         "docs/schemas/miniprogram-catalog.v1.schema.json"
       ],
       "specialtyTests": [
-        "openspec validate add-miniprogram-data --strict --no-interactive",
+        "openspec validate miniprogram-data --type spec --strict --no-interactive",
         "dotnet test tests/Bukit.Config.Tests/Bukit.Config.Tests.csproj -c Release --filter \"FullyQualifiedName~MiniProgram|FullyQualifiedName~ConfigLoader|FullyQualifiedName~StrictYamlContract|FullyQualifiedName~ConfigJsonSchemaGenerator|FullyQualifiedName~ConfigContractDrift|FullyQualifiedName~ConfigSchemaNestedContract\"",
         "dotnet test tests/Bukit.Engine.Tests/Bukit.Engine.Tests.csproj -c Release --filter \"FullyQualifiedName~MiniProgram\"",
         "bash scripts/checks/docs/size-policy.sh",
