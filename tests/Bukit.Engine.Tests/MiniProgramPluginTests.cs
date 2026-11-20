@@ -582,6 +582,101 @@ public sealed class MiniProgramPluginTests : IDisposable
         Assert.Contains("field 'body' is not an HTML string", ex.Message, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public async Task SharedRootAssets_CoverRelativeFullAndRootPrefixedUrls()
+    {
+        var config = Config(languages: ["en", "zh-CN"]);
+        config = config with { Site = config.Site with { BaseUrl = "/repo/", SharedAssets = new SharedAssetsConfig { Enabled = true } } };
+        Directory.CreateDirectory(_outputDir);
+        _basePath = "/repo/zh-CN/";
+        var shared = SharedAssetScope.TryCreate(config, ["en", "zh-CN"], _outputDir, logger: null)!;
+
+        await RunAsync(
+            config,
+            [],
+            [
+                Banner("b1", "One", 1, image: "assets/images/{id}.png"),
+                Banner("b2", "Two", 2, image: "https://example.com/repo/zh-CN/assets/images/{id}.png"),
+                Banner("b3", "Three", 3, image: "/repo/assets/images/{id}.png"),
+                Banner("b4", "Four", 4, image: "media/{id}.png")
+            ],
+            baseUrl: "/repo/zh-CN/",
+            sharedAssets: shared);
+
+        var images = ReadDataset("banners")["items"]!.AsArray().Select(item => (string)item!["image"]!).ToArray();
+        Assert.Equal(
+            [
+                "https://example.com/repo/assets/images/b1.png",
+                "https://example.com/repo/assets/images/b2.png",
+                "https://example.com/repo/assets/images/b3.png",
+                "https://example.com/repo/zh-CN/media/b4.png"
+            ],
+            images);
+    }
+
+    [Theory]
+    [InlineData("1e-30")]
+    [InlineData("0.12345678901234567890123456789012")]
+    public async Task NumberText_IsWrittenWithEveryDigit(string order)
+    {
+        await RunAsync(Config(), [], [Banner("b1", "One", order)]);
+
+        Assert.Equal(order, ReadDataset("banners")["items"]![0]!["order"]!.ToJsonString());
+    }
+
+    [Fact]
+    public async Task LargeIntegerSortKeys_CompareExactly()
+    {
+        await RunAsync(Config(), [], [Banner("b1", "Larger", 9007199254740993L), Banner("b2", "Smaller", 9007199254740992L)]);
+
+        var titles = ReadDataset("banners")["items"]!.AsArray().Select(item => (string)item!["title"]!);
+        Assert.Equal(["Smaller", "Larger"], titles);
+    }
+
+    [Theory]
+    [InlineData("May")]
+    [InlineData("3/4/2026")]
+    public async Task NonIsoDateText_Fails(string value)
+    {
+        var config = Config();
+        var datasets = config.MiniProgram.Datasets.ToList();
+        datasets[1] = datasets[1] with { Types = new Dictionary<string, string> { ["image"] = "image", ["order"] = "date" } };
+        config = config with { MiniProgram = config.MiniProgram with { Datasets = datasets } };
+
+        var ex = await Assert.ThrowsAsync<BukitException>(() => RunAsync(config, [], [Banner("b1", "One", value)]));
+
+        Assert.Contains("field 'order' is not a date", ex.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task DescendingSort_KeepsTextAfterNumbers()
+    {
+        var config = Config();
+        var datasets = config.MiniProgram.Datasets.ToList();
+        datasets[1] = datasets[1] with { Sort = new MiniProgramSortConfig("order", Descending: true), Types = new Dictionary<string, string> { ["image"] = "image" } };
+        config = config with { MiniProgram = config.MiniProgram with { Datasets = datasets } };
+
+        await RunAsync(config, [], [Banner("b1", "Low", 1), Banner("b2", "Placeholder", "TBD"), Banner("b3", "High", 3)]);
+
+        var titles = ReadDataset("banners")["items"]!.AsArray().Select(item => (string)item!["title"]!);
+        Assert.Equal(["High", "Low", "Placeholder"], titles);
+    }
+
+    [Fact]
+    public async Task CellContainersAndCaptions_KeepTableLayout()
+    {
+        const string body = """<table><caption>Prices</caption><tr><td><div>A</div><div>B</div></td></tr></table><ul><li><div>Item</div></li></ul>""";
+
+        await RunAsync(Config(), [Article("a1", "First", body: body)], []);
+
+        var details = ReadByUrl((string)ReadCatalog()["datasets"]!["articles"]!["detailCatalog"]!["url"]!)["items"]!.AsArray();
+        var html = (string)ReadByUrl((string)details[0]!["url"]!)["body"]!;
+        Assert.StartsWith("<p>Prices</p><table>", html, StringComparison.Ordinal);
+        Assert.Contains("<td>A<br>B</td>", html, StringComparison.Ordinal);
+        Assert.Contains("<li>Item</li>", html, StringComparison.Ordinal);
+        Assert.DoesNotContain("caption", html, StringComparison.Ordinal);
+    }
+
     private async Task<BuildContext> RunAsync(
         AppConfig config,
         IReadOnlyList<RoutedContentDocument> pages,

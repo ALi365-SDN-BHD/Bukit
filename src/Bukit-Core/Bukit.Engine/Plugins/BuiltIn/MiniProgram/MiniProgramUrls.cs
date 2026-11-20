@@ -13,6 +13,9 @@ internal sealed class MiniProgramUrls
 {
     private readonly SharedAssetScope? _sharedAssets;
     private readonly string _mediaUrlBase;
+    // Base paths without the trailing slash: "" for the site root, "/zh-CN" or "/repo/zh-CN" otherwise.
+    private readonly string _variantBase;
+    private readonly string _rootBase;
 
     internal MiniProgramUrls(string siteUrl, string baseUrl, SharedAssetScope? sharedAssets, string mediaUrlBase)
     {
@@ -20,6 +23,8 @@ internal sealed class MiniProgramUrls
         BaseUrl = baseUrl;
         _sharedAssets = sharedAssets;
         _mediaUrlBase = mediaUrlBase.TrimEnd('/');
+        _variantBase = BuildPathUtils.NormalizeBaseUrl(baseUrl).TrimEnd('/');
+        _rootBase = sharedAssets is null ? _variantBase : BuildPathUtils.NormalizeBaseUrl(sharedAssets.RootBaseUrl).TrimEnd('/');
         SiteRoot = SeoModelBuilder.BuildAbsoluteUrl(siteUrl, baseUrl, "/");
     }
 
@@ -50,42 +55,69 @@ internal sealed class MiniProgramUrls
             return trimmed;
         }
 
+        if (trimmed.StartsWith('/') && !trimmed.StartsWith("//", StringComparison.Ordinal))
+        {
+            // A site-root path may still lack the base path, so it is checked before the base is added.
+            return SharedRootUrl(trimmed, baseless: true) ?? SeoModelBuilder.ResolveCanonical(SiteUrl, BaseUrl, trimmed, trimmed);
+        }
+
+        string absolute;
         if (trimmed.StartsWith("//", StringComparison.Ordinal))
         {
-            return "https:" + trimmed;
+            absolute = "https:" + trimmed;
         }
-
-        if (trimmed.StartsWith('/'))
+        else if (Uri.TryCreate(trimmed, UriKind.Absolute, out var parsed) && !parsed.IsFile)
         {
-            return SharedRootPath(trimmed) is { } shared
-                ? SeoModelBuilder.BuildAbsoluteUrl(SiteUrl, _sharedAssets!.RootBaseUrl, shared)
-                : SeoModelBuilder.ResolveCanonical(SiteUrl, BaseUrl, trimmed, trimmed);
+            absolute = trimmed;
         }
-
-        if (Uri.TryCreate(trimmed, UriKind.Absolute, out var absolute) && !absolute.IsFile)
+        else if (Uri.TryCreate(new Uri(relativeTo), trimmed, out var resolved))
+        {
+            absolute = resolved.AbsoluteUri;
+        }
+        else
         {
             return trimmed;
         }
 
-        return Uri.TryCreate(new Uri(relativeTo), trimmed, out var resolved) ? resolved.AbsoluteUri : trimmed;
+        // Relative paths and full URLs of this site can point at a shared file too.
+        return _sharedAssets is not null && absolute.StartsWith(SiteUrl + "/", StringComparison.OrdinalIgnoreCase)
+            ? SharedRootUrl(absolute[SiteUrl.Length..], baseless: false) ?? absolute
+            : absolute;
     }
 
-    /// <summary>The site path of a shared root asset (without the variant base path), or null.</summary>
-    private string? SharedRootPath(string path)
+    /// <summary>
+    /// The root-base URL of a shared root asset, or null. <paramref name="path"/> is a site path that
+    /// carries the variant or root base path; <paramref name="baseless"/> also accepts one without it.
+    /// </summary>
+    private string? SharedRootUrl(string path, bool baseless)
     {
         if (_sharedAssets is null)
         {
             return null;
         }
 
-        var variantBase = BuildPathUtils.NormalizeBaseUrl(BaseUrl).TrimEnd('/');
-        var sitePath = variantBase.Length > 0 && path.StartsWith(variantBase + "/", StringComparison.Ordinal)
-            ? path[variantBase.Length..]
-            : path;
+        string sitePath;
+        if (_variantBase.Length > 0 && path.StartsWith(_variantBase + "/", StringComparison.Ordinal))
+        {
+            sitePath = path[_variantBase.Length..];
+        }
+        else if (_rootBase.Length > 0 && path.StartsWith(_rootBase + "/", StringComparison.Ordinal))
+        {
+            sitePath = path[_rootBase.Length..];
+        }
+        else if (baseless || _rootBase.Length == 0)
+        {
+            sitePath = path;
+        }
+        else
+        {
+            return null;
+        }
+
         var end = sitePath.IndexOfAny(['?', '#']);
         var bare = end < 0 ? sitePath : sitePath[..end];
         return bare.StartsWith(_mediaUrlBase + "/", StringComparison.Ordinal) || !_sharedAssets.ContainsSitePath(bare)
             ? null
-            : sitePath;
+            : SeoModelBuilder.BuildAbsoluteUrl(SiteUrl, _sharedAssets.RootBaseUrl, sitePath);
     }
 }

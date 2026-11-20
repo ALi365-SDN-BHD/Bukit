@@ -294,8 +294,9 @@ internal sealed partial class MiniProgramDatasetBuilder
         int value => value,
         long value => value,
         decimal value => value,
+        // Text already in JSON number form is written as is, so no digit is rounded away.
+        string text when JsonNumber().IsMatch(text.Trim()) && ToNumber(text) is not null => JsonNode.Parse(text.Trim()),
         string text when long.TryParse(text.Trim(), NumberStyles.Integer, CultureInfo.InvariantCulture, out var value) => value,
-        string text when decimal.TryParse(text.Trim(), NumberStyles.Float, CultureInfo.InvariantCulture, out var value) => value,
         _ => ToNumber(raw) is { } value ? JsonValue.Create(value) : null
     };
 
@@ -310,7 +311,9 @@ internal sealed partial class MiniProgramDatasetBuilder
     {
         DateTimeOffset value => value,
         DateTime value => new DateTimeOffset(DateTime.SpecifyKind(value, DateTimeKind.Utc)),
-        string text when DateTimeOffset.TryParse(text, CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal, out var value) => value,
+        // Only ISO 8601 text: "May" or "3/4/2026" would otherwise become a guessed date.
+        string text when IsoDate().IsMatch(text) &&
+                         DateTimeOffset.TryParse(text.Trim(), CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal, out var value) => value,
         _ => null
     };
 
@@ -329,6 +332,9 @@ internal sealed partial class MiniProgramDatasetBuilder
     [GeneratedRegex(@"^\s*\d{4}-\d{2}-\d{2}([Tt ]|\s*$)", RegexOptions.CultureInvariant)]
     private static partial Regex IsoDate();
 
+    [GeneratedRegex(@"^-?(0|[1-9][0-9]*)(\.[0-9]+)?([eE][+-]?[0-9]+)?$", RegexOptions.CultureInvariant)]
+    private static partial Regex JsonNumber();
+
     private static int CompareSortKeys(object? left, object? right, bool descending)
     {
         if (left is null || right is null)
@@ -337,19 +343,32 @@ internal sealed partial class MiniProgramDatasetBuilder
             return left is null ? (right is null ? 0 : 1) : -1;
         }
 
-        // Rank by kind first (number, date, text) so mixed keys still compare transitively.
+        // Rank by kind first (number, date, text) so mixed keys still compare transitively. The kind
+        // order does not flip with the direction, so text placeholders stay after real values, as nulls do.
         var leftNumber = ToNumber(left);
         var rightNumber = ToNumber(right);
-        var compared = SortRank(left, leftNumber).CompareTo(SortRank(right, rightNumber));
-        if (compared == 0)
+        var rank = SortRank(left, leftNumber).CompareTo(SortRank(right, rightNumber));
+        if (rank != 0)
         {
-            compared = leftNumber is { } l && rightNumber is { } r ? l.CompareTo(r)
-                : left is DateTimeOffset leftDate && right is DateTimeOffset rightDate ? leftDate.CompareTo(rightDate)
-                : StringComparer.Ordinal.Compare(SortText(left), SortText(right));
+            return rank;
         }
 
+        // Integers and decimals compare exactly; double alone would tie integers above 2^53.
+        var compared = leftNumber is { } l && rightNumber is { } r
+                ? (ToExactNumber(left) is { } exactLeft && ToExactNumber(right) is { } exactRight ? exactLeft.CompareTo(exactRight) : l.CompareTo(r))
+            : left is DateTimeOffset leftDate && right is DateTimeOffset rightDate ? leftDate.CompareTo(rightDate)
+            : StringComparer.Ordinal.Compare(SortText(left), SortText(right));
         return descending ? -compared : compared;
     }
+
+    private static decimal? ToExactNumber(object raw) => raw switch
+    {
+        int value => value,
+        long value => value,
+        decimal value => value,
+        string text when decimal.TryParse(text.Trim(), NumberStyles.Float, CultureInfo.InvariantCulture, out var value) => value,
+        _ => null
+    };
 
     private static int SortRank(object value, double? number)
         => number is not null ? 0 : value is DateTimeOffset ? 1 : 2;

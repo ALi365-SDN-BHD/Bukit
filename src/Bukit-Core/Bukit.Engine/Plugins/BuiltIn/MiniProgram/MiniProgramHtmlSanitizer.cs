@@ -102,7 +102,8 @@ internal sealed class MiniProgramHtmlSanitizer : IDisposable
     private void WriteElement(StringBuilder builder, IElement element, string pageUrl)
     {
         var tag = element.LocalName;
-        if (DroppedTags.Contains(tag))
+        // A caption is written by its table, as a paragraph before it: rich-text has no caption.
+        if (DroppedTags.Contains(tag) || tag == "caption")
         {
             return;
         }
@@ -185,6 +186,11 @@ internal sealed class MiniProgramHtmlSanitizer : IDisposable
                 break;
         }
 
+        if (tag == "table" && element.Children.FirstOrDefault(child => child.LocalName == "caption") is { } caption)
+        {
+            AppendParagraph(builder, caption, pageUrl);
+        }
+
         builder.Append('<').Append(tag);
         foreach (var (name, value) in attributes)
         {
@@ -217,6 +223,26 @@ internal sealed class MiniProgramHtmlSanitizer : IDisposable
             return;
         }
 
+        // Inside a table cell or list item a paragraph would add margins the website does not show,
+        // so the container ends with a line break instead when more content follows it.
+        if (element.ParentElement?.Closest("td, th, li") is not null)
+        {
+            var start = builder.Length;
+            WriteChildren(builder, element, pageUrl);
+            if (builder.Length > start && HasContentAfter(element))
+            {
+                builder.Append("<br>");
+            }
+
+            return;
+        }
+
+        AppendParagraph(builder, element, pageUrl);
+    }
+
+    /// <summary>Writes the element's children as one paragraph, or nothing when they are empty.</summary>
+    private void AppendParagraph(StringBuilder builder, IElement element, string pageUrl)
+    {
         var inner = new StringBuilder();
         WriteChildren(inner, element, pageUrl);
         var html = inner.ToString().Trim();
@@ -224,6 +250,19 @@ internal sealed class MiniProgramHtmlSanitizer : IDisposable
         {
             builder.Append("<p>").Append(html).Append("</p>");
         }
+    }
+
+    private static bool HasContentAfter(INode node)
+    {
+        for (var next = node.NextSibling; next is not null; next = next.NextSibling)
+        {
+            if (next is IElement || next is IText text && !string.IsNullOrWhiteSpace(text.Data))
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private string? SafeHref(string value, string pageUrl)

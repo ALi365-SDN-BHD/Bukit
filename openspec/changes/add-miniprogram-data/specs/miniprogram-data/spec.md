@@ -133,7 +133,8 @@ the dataset, record id and field. Links to pages that have mini-program detail r
 Detail and module `body` fields SHALL contain only the allowed tags and attributes defined by the
 change design, with embedded frames replaced by links, collapsible blocks expanded and unknown
 containers unwrapped; text directly inside an unwrapped block container SHALL become its own
-paragraph. Scripts, styles, `class` and `style` attributes, event attributes, links
+paragraph, or end with a line break inside a table cell or list item, and a table caption SHALL
+become a paragraph before its table. Scripts, styles, `class` and `style` attributes, event attributes, links
 with schemes other than http(s), `mailto:` and `tel:`, and disallowed tags SHALL NOT be written.
 
 #### Scenario: Embedded video

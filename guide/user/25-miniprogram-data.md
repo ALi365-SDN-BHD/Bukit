@@ -129,10 +129,14 @@ no page, so their `url` is the record's own `url` property.
 URLs; relative values of data records resolve against the site root, base path
 included. On a multilingual site with `site.sharedAssets`, links to the shared
 files (such as theme images under `assets/`) keep the root path in every
-language, as the website's do; localized media keeps the language path.
-`number` keeps integers and decimals exactly, and `NaN` or infinity fails the
-build. A `sort` field compares dates stored as dates or as ISO text
-(`2026-01-01T10:00:00+08:00`) by time. `required` fields must be present and non-empty. Except in a `dataIndex`
+language, as the website's do, whether written as a site path, a relative
+path or a full URL of the site; localized media keeps the language path.
+`number` keeps integers and decimals exactly (text in JSON number form is
+written as is), and `NaN` or infinity fails the build. `date` text must be ISO
+8601, such as `2026-01-01` or `2026-01-01T10:00:00+08:00`. A `sort` field
+compares dates stored as dates or as ISO text by time, and large integers
+exactly; records whose sort value is text sort after numbers and dates in
+either direction, and records without one come last. `required` fields must be present and non-empty. Except in a `dataIndex`
 dataset, every `required` and `types` entry must name a declared field. `body`
 cannot be given a type: it is always sanitized HTML, including a `body` key in
 a `dataIndex` scope, which must be text.
@@ -147,7 +151,9 @@ record id and field, so bad data never reaches the mini-program.
 paragraphs, lists, quotes, code, emphasis, links, images, tables, `hr`, `br` and
 `span`. `class` and `style` are removed, unknown containers are unwrapped
 (text directly inside `div`, `figure`, `figcaption`, `section` and similar
-blocks becomes a paragraph, so blocks do not run together),
+blocks becomes a paragraph, or ends with a line break inside a table cell or
+list item, so blocks do not run together), a table `caption` becomes a
+paragraph before the table,
 scripts and forms are dropped, `iframe`, `video` and `audio` become links, and
 `<details>` is expanded. Links to other pages in a collection carry
 `data-bukit-id` with the target id, so the mini-program can open its own page.
