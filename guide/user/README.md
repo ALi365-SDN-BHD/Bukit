@@ -43,6 +43,7 @@ quality audits, and GitHub Pages deployment.
 | Turn generative citation observations into review candidates | [23 Generative Citation Insights](23-generative-citation-insights.md) |
 | Turn external citation evidence into review candidates | [24 External Authority Insights](24-external-authority-insights.md) |
 | Publish versioned data for a mini-program | [25 Mini-Program Data](25-miniprogram-data.md) |
+| Read that data from a WeChat mini-program | [26 Mini-Program Client Integration](26-miniprogram-client.md) |
 
 ## Governed Core Commands
 

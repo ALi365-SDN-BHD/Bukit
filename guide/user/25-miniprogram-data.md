@@ -235,6 +235,8 @@ directory.
 ## Mini-Program Sync Protocol
 
 This is the expected client behavior; Bukit does not ship client code.
+[26 Mini-Program Client Integration](26-miniprogram-client.md) has the full
+data contract and a reference client implementation.
 
 1. On launch, request `…/mp/catalog.json?t=<timestamp>` to bypass caches.
 2. If `catalogHash` equals the stored one, stop.

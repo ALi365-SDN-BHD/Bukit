@@ -2412,6 +2412,7 @@
         "openspec/changes/archive/*-add-miniprogram-data/*",
         "openspec/specs/miniprogram-data/spec.md",
         "guide/user/25-miniprogram-data.md",
+        "guide/user/26-miniprogram-client.md",
         "docs/schemas/miniprogram-catalog.v1.schema.json"
       ],
       "specialtyTests": [
