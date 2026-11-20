@@ -159,7 +159,7 @@ internal sealed class MiniProgramPlugin : IBukitPlugin, IAfterBuildAsyncPlugin
         var languages = new JsonArray();
         foreach (var language in _config.Site.Languages ?? [_config.Site.Language])
         {
-            languages.Add(language);
+            languages.Add((JsonNode?)language);
         }
 
         return new JsonObject
@@ -224,7 +224,7 @@ internal sealed class MiniProgramPlugin : IBukitPlugin, IAfterBuildAsyncPlugin
         foreach (var record in records.OrderBy(record => record.Id, StringComparer.Ordinal))
         {
             var (hash, url, size) = writer.WriteDetail(dataset.Name, builder.BuildItem(dataset, record, dataset.DetailFields!));
-            details.Add(new JsonObject
+            details.Add((JsonNode)new JsonObject
             {
                 ["id"] = record.Id,
                 ["hash"] = hash,
@@ -361,7 +361,7 @@ internal sealed class MiniProgramPlugin : IBukitPlugin, IAfterBuildAsyncPlugin
         var items = new JsonArray();
         foreach (var (name, count) in counts.Values.OrderBy(pair => pair.Name, StringComparer.Ordinal))
         {
-            items.Add(new JsonObject { ["name"] = name, ["count"] = count });
+            items.Add((JsonNode)new JsonObject { ["name"] = name, ["count"] = count });
         }
 
         return items;
@@ -383,7 +383,7 @@ internal sealed class MiniProgramPlugin : IBukitPlugin, IAfterBuildAsyncPlugin
                 node["children"] = BuildMenu(item.Children, urls);
             }
 
-            array.Add(node);
+            array.Add((JsonNode)node);
         }
 
         return array;

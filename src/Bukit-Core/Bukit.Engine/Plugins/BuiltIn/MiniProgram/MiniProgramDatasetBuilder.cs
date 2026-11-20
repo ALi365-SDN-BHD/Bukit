@@ -68,7 +68,7 @@ internal sealed partial class MiniProgramDatasetBuilder
         var items = new JsonArray();
         foreach (var record in Sort(dataset, records))
         {
-            items.Add(BuildItem(dataset, record, fields));
+            items.Add((JsonNode)BuildItem(dataset, record, fields));
         }
 
         return items;
@@ -244,7 +244,7 @@ internal sealed partial class MiniProgramDatasetBuilder
         var array = new JsonArray();
         foreach (var value in values)
         {
-            array.Add(value);
+            array.Add((JsonNode?)value);
         }
 
         return array;

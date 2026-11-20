@@ -11,6 +11,13 @@
     <Version>2.2.5</Version>
   </PropertyGroup>
 
+  <!-- Bukit.Cli is published with Native AOT, but CI only builds. Opting every
+       Core project into the trim/AOT analyzers turns IL2xxx/IL3xxx issues into
+       build errors (via TreatWarningsAsErrors) instead of release-only failures. -->
+  <PropertyGroup Condition="$([System.String]::Copy('$(MSBuildProjectDirectory)').Replace('\', '/').Contains('/src/Bukit-Core/'))">
+    <IsAotCompatible>true</IsAotCompatible>
+  </PropertyGroup>
+
   <PropertyGroup Condition="'$(MSBuildProjectName)' == 'Bukit.PluginSourceGenerator'">
     <EnforceExtendedAnalyzerRules>true</EnforceExtendedAnalyzerRules>
   </PropertyGroup>
