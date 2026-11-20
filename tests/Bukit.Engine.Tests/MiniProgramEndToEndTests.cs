@@ -1,5 +1,7 @@
+using System.Text.Json;
 using System.Text.Json.Nodes;
 using Bukit.Config;
+using Bukit.Engine.Plugins.BuiltIn.MiniProgram;
 using Bukit.Engine.Tests.Infrastructure;
 using Bukit.Shared;
 using Xunit;
@@ -43,9 +45,93 @@ public sealed class MiniProgramEndToEndTests : IDisposable
         Assert.Contains("'banners' matches no record of source 'modules'", ex.ToString(), StringComparison.Ordinal);
     }
 
-    private Task BuildAsync()
+    [Fact]
+    public async Task Rebuild_KeepsBytesAndRemovesStaleFiles()
+    {
+        WriteSite(module: "banner", enabled: true);
+        await BuildAsync();
+        var first = Snapshot();
+        var oldBanners = DatasetPath("dist/mp", "banners");
+        var articles = DatasetPath("dist/mp", "articles");
+
+        await BuildAsync();
+        Assert.Equal(first, Snapshot());
+
+        // The manifest owns mp/, so without a clean the replaced banners file is still removed.
+        _sandbox.Write("data/sale.md", "---\ntype: banner\ntitle: Big Sale\nslug: sale\nlocale: en\norder: 1\n---\n");
+        await BuildAsync();
+
+        Assert.False(File.Exists(oldBanners));
+        Assert.Equal(["Big Sale"], Titles(Dataset("dist/mp", "banners")));
+        Assert.Equal(articles, DatasetPath("dist/mp", "articles"));
+        Assert.True(File.Exists(articles));
+    }
+
+    [Fact]
+    public async Task StaticFileAtMiniProgramPath_FailsTheBuild()
+    {
+        WriteSite(module: "banner", enabled: true);
+        _sandbox.Write("static/mp/catalog.json", "{}");
+
+        var ex = await Assert.ThrowsAnyAsync<Exception>(BuildAsync);
+
+        Assert.Contains("Asset output collision at 'mp/catalog.json'", ex.ToString(), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task IncrementalBuild_WritesTheSameFilesAsAFullBuild()
+    {
+        WriteSite(module: "banner", enabled: true);
+        await BuildAsync();
+        var before = Snapshot();
+
+        _sandbox.Write("content/hello.md", "---\nslug: hello\ntitle: Hello\nlanguage: en\npublishAt: 2024-06-01T00:00:00Z\ncollection: page\n---\nHello again\n");
+        await BuildAsync(incremental: true);
+        var incremental = Snapshot();
+        await BuildAsync(incremental: false);
+
+        Assert.NotEqual(before, incremental);
+        Assert.Equal(Snapshot(), incremental);
+    }
+
+    [Fact]
+    public async Task Catalogs_MatchThePublishedSchema()
+    {
+        WriteSite(module: "banner", enabled: true);
+        await BuildAsync();
+        using var schema = JsonDocument.Parse(File.ReadAllText(Path.Combine(SiteSandbox.RepositoryRoot, "docs", "schemas", "miniprogram-catalog.v1.schema.json")));
+        Assert.Equal(MiniProgramPlugin.CatalogSchema, schema.RootElement.GetProperty("$id").GetString());
+
+        foreach (var directory in new[] { "dist/mp", "dist/zh-CN/mp" })
+        {
+            var catalog = Catalog(directory).AsObject();
+            LocalJsonSchema.AssertValid(JsonSerializer.SerializeToElement(catalog), schema.RootElement);
+
+            var invalid = catalog.DeepClone().AsObject();
+            invalid["datasets"]!["banners"]!["hash"] = "sha256:short";
+            var error = Assert.Throws<InvalidDataException>(() => LocalJsonSchema.AssertValid(JsonSerializer.SerializeToElement(invalid), schema.RootElement));
+            Assert.Contains("hash", error.Message, StringComparison.Ordinal);
+        }
+    }
+
+    // Clean is off, so stale files are removed by the build manifest, not by wiping the output.
+    private Task BuildAsync() => BuildAsync(incremental: false);
+
+    private Task BuildAsync(bool incremental)
         => new SiteEngine(new ConsoleLogger(LogLevel.Error)).BuildAsync(
-            ConfigLoader.Load(_sandbox.PathFor("site.yaml")), _sandbox.Root, new ConfigOverrides { Incremental = false });
+            ConfigLoader.Load(_sandbox.PathFor("site.yaml")), _sandbox.Root, new ConfigOverrides { Incremental = incremental, Clean = false });
+
+    /// <summary>Every mini-program file of both languages, by path, so two builds compare byte for byte.</summary>
+    private SortedDictionary<string, string> Snapshot()
+        => new(new[] { "dist/mp", "dist/zh-CN/mp" }
+            .SelectMany(directory => Directory.GetFiles(_sandbox.PathFor(directory), "*", SearchOption.AllDirectories))
+            .ToDictionary(
+                path => Path.GetRelativePath(_sandbox.Root, path).Replace('\\', '/'),
+                path => Convert.ToHexString(File.ReadAllBytes(path))),
+            StringComparer.Ordinal);
+
+    private string DatasetPath(string directory, string name)
+        => _sandbox.PathFor("dist" + new Uri((string)Catalog(directory)["datasets"]![name]!["url"]!).AbsolutePath);
 
     private void WriteSite(string module, bool enabled)
     {
@@ -103,11 +189,7 @@ public sealed class MiniProgramEndToEndTests : IDisposable
 
     private JsonNode Catalog(string directory) => JsonNode.Parse(File.ReadAllText(_sandbox.PathFor($"{directory}/catalog.json")))!;
 
-    private JsonNode Dataset(string directory, string name)
-    {
-        var url = new Uri((string)Catalog(directory)["datasets"]![name]!["url"]!);
-        return JsonNode.Parse(File.ReadAllText(_sandbox.PathFor("dist" + url.AbsolutePath)))!;
-    }
+    private JsonNode Dataset(string directory, string name) => JsonNode.Parse(File.ReadAllText(DatasetPath(directory, name)))!;
 
     private static string[] Titles(JsonNode dataset)
         => [.. dataset["items"]!.AsArray().Select(item => (string)item!["title"]!)];

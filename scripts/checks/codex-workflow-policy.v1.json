@@ -2411,7 +2411,8 @@
         "openspec/changes/add-miniprogram-data/specs/miniprogram-data/spec.md",
         "openspec/changes/archive/*-add-miniprogram-data/*",
         "openspec/specs/miniprogram-data/spec.md",
-        "guide/user/25-miniprogram-data.md"
+        "guide/user/25-miniprogram-data.md",
+        "docs/schemas/miniprogram-catalog.v1.schema.json"
       ],
       "specialtyTests": [
         "openspec validate add-miniprogram-data --strict --no-interactive",

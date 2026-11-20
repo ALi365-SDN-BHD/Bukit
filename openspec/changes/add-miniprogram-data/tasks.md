@@ -10,12 +10,14 @@
       spec.md 的导航 requirement。
 - [x] 0.2 用户明确授权以单独的 Core 任务实施（AGENTS.md 的 Website/Core 隔离规则）。
       2026-11-20 授权，在 `feat/miniprogram-data` 分支实施。
-- [ ] 0.3 写一个测试确认 `mode: data` 的 Notion 文档里 `file`/`files` 字段会被
+- [x] 0.3 写一个测试确认 `mode: data` 的 Notion 文档里 `file`/`files` 字段会被
       `ContentImageRewritePipeline` 本地化。没有覆盖到的话，把扩展 `ImageLocalizeStage`
       列为本变更的前置事项，再请用户确认。
       代码核对（未写测试）：`ImageLocalizeStage` 在内容阶段处理全部源的文档，不区分
       `mode`；data 文档到变体阶段的 `VariantDataSitePlanner` 才分出，所以同样被本地化。
       残留的签名 URL 由本插件让构建失败兜底。
+      2026-11-20 补测试 `ContentImageRewritePipelineTests.RewriteAsync_LocalizesSignedNotionFilesOnDataRecords`：
+      `sourceMode: data` 记录的 Notion `files`/`file` 签名图片都被本地化（按字段类型，不看 `mode`）。
 - [x] 0.4 用 `python3 scripts/checks/codex-workflow.py closure` 生成验证闭包，确认没有未映射
       的文件，写下本变更的专项测试命令；用 `queue init` 建立任务队列。
       闭包无未映射文件（策略新增 `miniprogram-data-change` 规则，自测通过）。单个实施任务，
@@ -26,8 +28,11 @@
 - [x] 1.1 `Bukit.Config` 新增 `miniprogram` 配置节（`enabled`、`outputDir`、`maxListItems`、
       `datasets[]`）及校验：名称格式、唯一性、`source` 存在且 `mode` 匹配 `kind`、`sort` 字段、
       `types` 取值。每条 spec 场景至少一条测试。
-- [ ] 1.2 `ConfigJsonSchemaGenerator` 和 `schemas/` 下生成的 JSON Schema 同步；public-api-drift
+- [x] 1.2 `ConfigJsonSchemaGenerator` 和 `schemas/` 下生成的 JSON Schema 同步；public-api-drift
       和 analyzer ratchet 通过。
+      2026-11-20 核对：站点配置的 JSON Schema 由 `ConfigJsonSchemaGenerator` 在运行时生成，仓库里没有
+      需要同步的 `schemas/` 文件；`miniprogram` 节由 `ConfigSchemaNestedContractTests` 和
+      `ConfigContractDrift` 测试覆盖，public-api-drift 和 analyzer ratchet 通过。
 
 ## 2. 数据集投影
 
@@ -53,13 +58,22 @@
 
 ## 4. 版本目录
 
-- [ ] 4.1 内容哈希命名、一级目录、二级目录、`catalogHash`、确定的 `generatedAt`；测试覆盖
+- [x] 4.1 内容哈希命名、一级目录、二级目录、`catalogHash`、确定的 `generatedAt`；测试覆盖
       "一条记录变化""正文变化""重建不变""多语言"四个场景。
       前三个场景有测试；多语言只靠每个变体一个输出根目录，没有测试。
-- [ ] 4.2 通过 `PluginOutputs` 让构建清单接管 `mp/`；过期文件清理；关闭输出时删除整个目录；与静态文件
+      2026-11-20 多语言由 `MiniProgramEndToEndTests` 覆盖（每种语言一个目录和目录文件），
+      `Rebuild_KeepsBytesAndRemovesStaleFiles` 证明重建字节不变。目录格式另发布为
+      `docs/schemas/miniprogram-catalog.v1.schema.json`，`Catalogs_MatchThePublishedSchema` 用它校验两种语言的输出。
+- [x] 4.2 通过 `PluginOutputs` 让构建清单接管 `mp/`；过期文件清理；关闭输出时删除整个目录；与静态文件
       冲突时构建失败。
       已登记到 `PluginOutputs`（有测试）；清理、关闭和冲突依赖已有清单逻辑，没有端到端测试。
-- [ ] 4.3 增量构建下的哈希与全量构建一致。
+      2026-11-20 端到端测试（不清空输出）：`Rebuild_KeepsBytesAndRemovesStaleFiles` 证明被替换的文件由
+      清单删除；`MultilingualBuild_WritesEachLanguageAndRemovesOutputWhenDisabled` 证明关闭后删除目录；
+      `StaticFileAtMiniProgramPath_FailsTheBuild` 证明 `static/mp/catalog.json` 触发
+      `BuildAssetOutputCollision`（现有校验已包含插件输出，无需改代码）。
+- [x] 4.3 增量构建下的哈希与全量构建一致。
+      2026-11-20 `IncrementalBuild_WritesTheSameFilesAsAFullBuild`：改正文后的增量构建与同一状态的
+      全量构建，两种语言 `mp/` 下的文件逐字节相同。
 
 ## 5. 校验
 

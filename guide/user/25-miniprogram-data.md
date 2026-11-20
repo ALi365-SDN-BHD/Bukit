@@ -219,7 +219,9 @@ operating system (UTF-8 without BOM, one trailing `\n`, fixed field order and
 record order, no build time). `generatedAt` is the latest record update time.
 Unchanged data therefore keeps its hash across rebuilds. `catalogHash` covers
 every catalog field except `generatedAt`, so a changed file URL or
-`minClientSchema` changes it too.
+`minClientSchema` changes it too. The catalog format is published as a JSON Schema in
+`docs/schemas/miniprogram-catalog.v1.schema.json`, whose `$id` is the
+catalog's `schema` value.
 
 A set `site.url` that is not `https://`, or has user info, a query or a fragment, fails with
 `ConfigInvalidValue`; a

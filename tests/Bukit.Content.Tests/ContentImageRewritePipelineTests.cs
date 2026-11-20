@@ -125,6 +125,40 @@ public sealed class ContentImageRewritePipelineTests
         Assert.DoesNotContain(pdf, localizer.ReceivedUrls);
     }
 
+    [Fact]
+    public async Task RewriteAsync_LocalizesSignedNotionFilesOnDataRecords()
+    {
+        // mode: data records (mini-program modules, records) need the same localization as pages:
+        // Notion file URLs expire, and the mini-program output fails the build on any left signed.
+        const string photo = "https://prod-files-secure.s3.us-west-2.amazonaws.com/a/photo.png?X-Amz-Signature=abc";
+        const string logo = "https://prod-files-secure.s3.us-west-2.amazonaws.com/a/logo.jpg?X-Amz-Signature=def";
+        var record = ContentDocument.Create(
+            id: "modules:banner-1",
+            title: "Banner",
+            slug: "banner-1",
+            publishAt: DateTimeOffset.UtcNow,
+            contentHtml: null,
+            fields: new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["sourceKey"] = new ContentField("text", "notion-modules"),
+                ["sourceMode"] = new ContentField("text", "data"),
+                ["type"] = new ContentField("select", "banner"),
+                ["image"] = new ContentField("files", new[] { photo }),
+                ["logo"] = new ContentField("file", logo)
+            });
+        var localizer = new MappingLocalizer(new Dictionary<string, string>(StringComparer.Ordinal)
+        {
+            [photo] = "/assets/uploads/photo.png",
+            [logo] = "/assets/uploads/logo.jpg"
+        });
+        var pipeline = new ContentImageRewritePipeline(new MediaConfig(), localizer);
+
+        var rewritten = Assert.Single(await pipeline.RewriteAsync(new[] { record }, CancellationToken.None));
+
+        Assert.Equal(new[] { "/assets/uploads/photo.png" }, Assert.IsAssignableFrom<IReadOnlyList<string>>(rewritten.CustomFields!["image"].Value));
+        Assert.Equal("/assets/uploads/logo.jpg", rewritten.CustomFields["logo"].Value);
+    }
+
     [Theory]
     [InlineData("keep", "https://img.example/cover.jpg")]
     [InlineData("placeholder", "/assets/images/noneimg-news.jpg")]
