@@ -32,8 +32,22 @@ internal sealed class MiniProgramHtmlSanitizer : IDisposable
     // Replaced by a paragraph that links to their source.
     private static readonly HashSet<string> EmbedTags = new(StringComparer.Ordinal) { "iframe", "video", "audio" };
 
-    private readonly string _siteUrl;
-    private readonly string _baseUrl;
+    // Unwrapped like other unknown tags, but each still starts a new block: text directly inside one
+    // becomes a paragraph, so sibling containers and captions do not run into each other.
+    private static readonly HashSet<string> BlockContainers = new(StringComparer.Ordinal)
+    {
+        "div", "section", "article", "main", "header", "footer", "aside", "nav", "address", "figure",
+        "figcaption", "details", "dl", "dt", "dd", "fieldset", "legend", "center"
+    };
+
+    // Elements whose output already starts a block of its own.
+    private static readonly HashSet<string> BlockTags = new(StringComparer.Ordinal)
+    {
+        "p", "h1", "h2", "h3", "h4", "h5", "h6", "ul", "ol", "li", "blockquote", "pre", "table", "hr",
+        "summary", "iframe", "video", "audio"
+    };
+
+    private readonly MiniProgramUrls _urls;
     private readonly Dictionary<string, string> _internalIds = new(StringComparer.Ordinal);
 
     // One parser and fragment context per build: every body of a collection goes through here.
@@ -41,10 +55,9 @@ internal sealed class MiniProgramHtmlSanitizer : IDisposable
     private readonly IDocument _context;
 
     /// <param name="internalIds">Absolute page URL → mini-program detail id; keys are normalized with <see cref="NormalizePageUrl"/>.</param>
-    internal MiniProgramHtmlSanitizer(string siteUrl, string baseUrl, IReadOnlyDictionary<string, string> internalIds)
+    internal MiniProgramHtmlSanitizer(MiniProgramUrls urls, IReadOnlyDictionary<string, string> internalIds)
     {
-        _siteUrl = siteUrl;
-        _baseUrl = baseUrl;
+        _urls = urls;
         foreach (var (url, id) in internalIds)
         {
             _internalIds.TryAdd(NormalizePageUrl(url), id);
@@ -115,6 +128,12 @@ internal sealed class MiniProgramHtmlSanitizer : IDisposable
             return;
         }
 
+        if (BlockContainers.Contains(tag))
+        {
+            WriteBlockContainer(builder, element, pageUrl);
+            return;
+        }
+
         if (!AllowedTags.Contains(tag))
         {
             WriteChildren(builder, element, pageUrl);
@@ -142,7 +161,7 @@ internal sealed class MiniProgramHtmlSanitizer : IDisposable
                     return;
                 }
 
-                var absolute = MiniProgramJson.Absolute(_siteUrl, _baseUrl, src, pageUrl);
+                var absolute = _urls.Absolute(src, pageUrl);
                 if (!IsHttp(absolute))
                 {
                     return;
@@ -190,6 +209,23 @@ internal sealed class MiniProgramHtmlSanitizer : IDisposable
         }
     }
 
+    private void WriteBlockContainer(StringBuilder builder, IElement element, string pageUrl)
+    {
+        if (element.Children.Any(child => BlockTags.Contains(child.LocalName) || BlockContainers.Contains(child.LocalName)))
+        {
+            WriteChildren(builder, element, pageUrl);
+            return;
+        }
+
+        var inner = new StringBuilder();
+        WriteChildren(inner, element, pageUrl);
+        var html = inner.ToString().Trim();
+        if (html.Length > 0)
+        {
+            builder.Append("<p>").Append(html).Append("</p>");
+        }
+    }
+
     private string? SafeHref(string value, string pageUrl)
     {
         var trimmed = value.Trim();
@@ -204,7 +240,7 @@ internal sealed class MiniProgramHtmlSanitizer : IDisposable
             return trimmed;
         }
 
-        var absolute = MiniProgramJson.Absolute(_siteUrl, _baseUrl, trimmed, pageUrl);
+        var absolute = _urls.Absolute(trimmed, pageUrl);
         return IsHttp(absolute) ? absolute : null;
     }
 

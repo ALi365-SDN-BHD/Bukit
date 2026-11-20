@@ -132,7 +132,8 @@ the dataset, record id and field. Links to pages that have mini-program detail r
 ### Requirement: Bodies use a mini-program safe HTML subset
 Detail and module `body` fields SHALL contain only the allowed tags and attributes defined by the
 change design, with embedded frames replaced by links, collapsible blocks expanded and unknown
-containers unwrapped. Scripts, styles, `class` and `style` attributes, event attributes, links
+containers unwrapped; text directly inside an unwrapped block container SHALL become its own
+paragraph. Scripts, styles, `class` and `style` attributes, event attributes, links
 with schemes other than http(s), `mailto:` and `tel:`, and disallowed tags SHALL NOT be written.
 
 #### Scenario: Embedded video

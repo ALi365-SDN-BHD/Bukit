@@ -115,3 +115,8 @@
       经核实无需修改：`MediaConfig.PlaceholderMissing` 不读自 site.yaml，只在
       `ImageLocalizeStage` 里写进临时的 `media with` 副本；worktree 子进程自己运行
       `ContentPipeline`，会在其目录中重新探测，因此不受 JSON 序列化影响。
+      2026-11-20 第五轮高强度审计的 7 条发现已修复：新增 `MiniProgramUrls`，开启
+      `site.sharedAssets` 时共享资源地址保留根路径（本地化媒体仍用语言路径）；未知块级容器内的
+      纯文本包成段落；`NaN`/无穷大报错并指明记录；`number` 精确保留整数和小数；排序时把
+      `DateTime` 和 ISO 日期文本统一成时间比较；dataIndex 非文本 `body` 报类型错误；正文并发读取、
+      顺序清理。

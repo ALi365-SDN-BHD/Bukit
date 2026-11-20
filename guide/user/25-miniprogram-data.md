@@ -127,10 +127,15 @@ no page, so their `url` is the record's own `url` property.
 `types` converts and checks a field: `string`, `number`, `boolean`, `date`,
 `image`, `url` or `string[]`. `image` and `url` values become absolute http(s)
 URLs; relative values of data records resolve against the site root, base path
-included. `required` fields must be present and non-empty. Except in a `dataIndex`
+included. On a multilingual site with `site.sharedAssets`, links to the shared
+files (such as theme images under `assets/`) keep the root path in every
+language, as the website's do; localized media keeps the language path.
+`number` keeps integers and decimals exactly, and `NaN` or infinity fails the
+build. A `sort` field compares dates stored as dates or as ISO text
+(`2026-01-01T10:00:00+08:00`) by time. `required` fields must be present and non-empty. Except in a `dataIndex`
 dataset, every `required` and `types` entry must name a declared field. `body`
 cannot be given a type: it is always sanitized HTML, including a `body` key in
-a `dataIndex` scope.
+a `dataIndex` scope, which must be text.
 
 A `body` field on a `module` or `records` dataset from a Notion source needs
 `notion.renderContent: true` on that source; Notion data sources skip page
@@ -140,7 +145,9 @@ record id and field, so bad data never reaches the mini-program.
 
 `body` is reduced to an HTML subset that WeChat `rich-text` renders: headings,
 paragraphs, lists, quotes, code, emphasis, links, images, tables, `hr`, `br` and
-`span`. `class` and `style` are removed, unknown containers are unwrapped,
+`span`. `class` and `style` are removed, unknown containers are unwrapped
+(text directly inside `div`, `figure`, `figcaption`, `section` and similar
+blocks becomes a paragraph, so blocks do not run together),
 scripts and forms are dropped, `iframe`, `video` and `audio` become links, and
 `<details>` is expanded. Links to other pages in a collection carry
 `data-bukit-id` with the target id, so the mini-program can open its own page.

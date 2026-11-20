@@ -57,19 +57,20 @@ internal sealed class MiniProgramPlugin : IBukitPlugin, IAfterBuildAsyncPlugin
         var internalIds = contentRecords
             .GroupBy(record => record.PageUrl!, StringComparer.Ordinal)
             .ToDictionary(group => group.Key, group => group.First().Id, StringComparer.Ordinal);
-        using var sanitizer = new MiniProgramHtmlSanitizer(siteUrl, context.BaseUrl, internalIds);
+        var urls = MiniProgramUrls.For(context, _config, siteUrl);
+        using var sanitizer = new MiniProgramHtmlSanitizer(urls, internalIds);
         // Each file is tracked as it is written, so a later failure leaves no unowned output behind.
         var outputs = context.GetOrAdd(BuildDataKeys.PluginOutputs, static () => []);
         var run = new Run(
             context,
-            siteUrl,
+            urls,
             contentRecords,
             dataModules,
-            new MiniProgramDatasetBuilder(siteUrl, context.BaseUrl, sanitizer),
+            new MiniProgramDatasetBuilder(urls, sanitizer),
             new FileSet(context.OutputDir, options.OutputDir, siteUrl, context.BaseUrl, path => outputs.Add(new PluginOutputTrackingInfo(Name, "after-build", path))));
         var datasets = new SortedDictionary<string, JsonObject>(StringComparer.Ordinal)
         {
-            ["site"] = run.Writer.Write("site", BuildSite(siteUrl, context.BaseUrl), "site")
+            ["site"] = run.Writer.Write("site", BuildSite(urls), "site")
         };
         foreach (var dataset in options.Datasets)
         {
@@ -87,14 +88,14 @@ internal sealed class MiniProgramPlugin : IBukitPlugin, IAfterBuildAsyncPlugin
             MiniProgramKinds.Module or MiniProgramKinds.Records => await WriteDataRecordsAsync(run, dataset, cancellationToken),
             MiniProgramKinds.DataIndex => run.Writer.Write(dataset.Name, new JsonObject { ["values"] = run.Builder.BuildMap(dataset, ResolveDataIndex(run, dataset)) }, dataset.Kind),
             MiniProgramKinds.Taxonomy => run.Writer.Write(dataset.Name, new JsonObject { ["items"] = BuildTaxonomy(dataset, run.ContentRecords) }, dataset.Kind),
-            MiniProgramKinds.Menu => run.Writer.Write(dataset.Name, new JsonObject { ["items"] = BuildMenu(_config.Site.Menus![dataset.Menu!], run.SiteUrl, run.Context.BaseUrl) }, dataset.Kind),
+            MiniProgramKinds.Menu => run.Writer.Write(dataset.Name, new JsonObject { ["items"] = BuildMenu(_config.Site.Menus![dataset.Menu!], run.Urls) }, dataset.Kind),
             _ => throw new InvalidOperationException($"Unsupported mini-program dataset kind '{dataset.Kind}'.")
         };
 
     /// <summary>State shared by the dataset writers of one variant build.</summary>
     private sealed record Run(
         BuildContext Context,
-        string SiteUrl,
+        MiniProgramUrls Urls,
         IReadOnlyList<MiniProgramRecord> ContentRecords,
         DataModuleResult? DataModules,
         MiniProgramDatasetBuilder Builder,
@@ -153,7 +154,7 @@ internal sealed class MiniProgramPlugin : IBukitPlugin, IAfterBuildAsyncPlugin
         };
     }
 
-    private JsonObject BuildSite(string siteUrl, string baseUrl)
+    private JsonObject BuildSite(MiniProgramUrls urls)
     {
         var languages = new JsonArray();
         foreach (var language in _config.Site.Languages ?? [_config.Site.Language])
@@ -166,7 +167,7 @@ internal sealed class MiniProgramPlugin : IBukitPlugin, IAfterBuildAsyncPlugin
             ["name"] = _config.Site.Name,
             ["title"] = _config.Site.Title,
             ["description"] = _config.Site.Description,
-            ["url"] = MiniProgramJson.Absolute(siteUrl, baseUrl, "/", siteUrl),
+            ["url"] = urls.SiteRoot,
             ["language"] = _config.Site.Language,
             ["languages"] = languages
         };
@@ -285,11 +286,22 @@ internal sealed class MiniProgramPlugin : IBukitPlugin, IAfterBuildAsyncPlugin
             return records;
         }
 
-        var resolved = new List<MiniProgramRecord>(records.Count);
-        foreach (var record in records)
+        // Body reads can hit disk or a remote store, so they run concurrently, as page rendering reads
+        // them. Sanitizing shares one parser, so it stays sequential and in record order.
+        var bodies = new string[records.Count];
+        var options = new ParallelOptions
         {
-            var html = await ContentBodyResolver.GetHtmlAsync(record.Document, run.Context.BodyStore, cancellationToken).ConfigureAwait(false);
-            resolved.Add(run.Builder.WithBody(dataset, record, html));
+            MaxDegreeOfParallelism = PageRenderDispatcher.ComputeOptimalParallelism(records.Count, 0),
+            CancellationToken = cancellationToken
+        };
+        await Parallel.ForAsync(0, records.Count, options, async (index, token) =>
+            bodies[index] = await ContentBodyResolver.GetHtmlAsync(records[index].Document, run.Context.BodyStore, token).ConfigureAwait(false))
+            .ConfigureAwait(false);
+
+        var resolved = new List<MiniProgramRecord>(records.Count);
+        for (var index = 0; index < records.Count; index++)
+        {
+            resolved.Add(run.Builder.WithBody(dataset, records[index], bodies[index]));
         }
 
         return resolved;
@@ -354,7 +366,7 @@ internal sealed class MiniProgramPlugin : IBukitPlugin, IAfterBuildAsyncPlugin
         return items;
     }
 
-    private static JsonArray BuildMenu(IReadOnlyList<MenuConfig> items, string siteUrl, string baseUrl)
+    private static JsonArray BuildMenu(IReadOnlyList<MenuConfig> items, MiniProgramUrls urls)
     {
         var array = new JsonArray();
         // Same order as the website's menus.json: by weight, declaration order breaking ties.
@@ -363,11 +375,11 @@ internal sealed class MiniProgramPlugin : IBukitPlugin, IAfterBuildAsyncPlugin
             var node = new JsonObject
             {
                 ["title"] = item.Name,
-                ["url"] = MiniProgramJson.Absolute(siteUrl, baseUrl, item.Url, MiniProgramJson.Absolute(siteUrl, baseUrl, "/", siteUrl))
+                ["url"] = urls.Absolute(item.Url, urls.SiteRoot)
             };
             if (item.Children is { Count: > 0 })
             {
-                node["children"] = BuildMenu(item.Children, siteUrl, baseUrl);
+                node["children"] = BuildMenu(item.Children, urls);
             }
 
             array.Add(node);

@@ -35,37 +35,6 @@ internal static class MiniProgramJson
     internal static string FormatDate(DateTimeOffset value)
         => value.ToString("yyyy-MM-dd'T'HH:mm:ss.FFFFFFFzzz", CultureInfo.InvariantCulture);
 
-    /// <summary>
-    /// Makes <paramref name="value"/> absolute: site-root paths join the site URL (adding the base path
-    /// when missing), other relative paths resolve against <paramref name="relativeTo"/>. Fragments,
-    /// <c>mailto:</c>, <c>tel:</c> and other non-HTTP schemes are returned unchanged.
-    /// </summary>
-    internal static string Absolute(string siteUrl, string baseUrl, string value, string relativeTo)
-    {
-        var trimmed = value.Trim();
-        if (trimmed.Length == 0 || trimmed.StartsWith('#'))
-        {
-            return trimmed;
-        }
-
-        if (trimmed.StartsWith("//", StringComparison.Ordinal))
-        {
-            return "https:" + trimmed;
-        }
-
-        if (trimmed.StartsWith('/'))
-        {
-            return SeoModelBuilder.ResolveCanonical(siteUrl, baseUrl, trimmed, trimmed);
-        }
-
-        if (Uri.TryCreate(trimmed, UriKind.Absolute, out var absolute) && !absolute.IsFile)
-        {
-            return trimmed;
-        }
-
-        return Uri.TryCreate(new Uri(relativeTo), trimmed, out var resolved) ? resolved.AbsoluteUri : trimmed;
-    }
-
     /// <summary>Drops the query string so diagnostics never print signature or credential parameters.</summary>
     internal static string RedactQuery(string url)
     {

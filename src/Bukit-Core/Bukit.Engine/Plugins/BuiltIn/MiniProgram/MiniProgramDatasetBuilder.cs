@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Text.RegularExpressions;
 using System.Text.Json.Nodes;
 using Bukit.Config;
 using Bukit.Engine.Abstractions.Content;
@@ -10,7 +11,7 @@ namespace Bukit.Engine.Plugins.BuiltIn.MiniProgram;
 internal sealed record MiniProgramRecord(string Id, ContentDocument Document, string? PageUrl, string? BodyHtml);
 
 /// <summary>Projects records into JSON using only the declared fields, types and sort order.</summary>
-internal sealed class MiniProgramDatasetBuilder
+internal sealed partial class MiniProgramDatasetBuilder
 {
     // Built-in fields win over record properties of the same name, even when their value is null.
     // The exception is url: data records have no page, so their own url property is used.
@@ -31,17 +32,12 @@ internal sealed class MiniProgramDatasetBuilder
         ["language"] = record => record.Document.Record.Presentation.Language
     };
 
-    private readonly string _siteUrl;
-    private readonly string _baseUrl;
-    private readonly string _siteRoot;
+    private readonly MiniProgramUrls _urls;
     private readonly MiniProgramHtmlSanitizer _sanitizer;
 
-    internal MiniProgramDatasetBuilder(string siteUrl, string baseUrl, MiniProgramHtmlSanitizer sanitizer)
+    internal MiniProgramDatasetBuilder(MiniProgramUrls urls, MiniProgramHtmlSanitizer sanitizer)
     {
-        _siteUrl = siteUrl;
-        _baseUrl = baseUrl;
-        // Records without a page resolve relative paths against the site root, base path included.
-        _siteRoot = SeoModelBuilder.BuildAbsoluteUrl(siteUrl, baseUrl, "/");
+        _urls = urls;
         _sanitizer = sanitizer;
     }
 
@@ -53,7 +49,7 @@ internal sealed class MiniProgramDatasetBuilder
     {
         try
         {
-            return _sanitizer.Sanitize(html, pageUrl ?? _siteRoot);
+            return _sanitizer.Sanitize(html, pageUrl ?? _urls.SiteRoot);
         }
         catch (MiniProgramSignedUrlException ex)
         {
@@ -110,7 +106,14 @@ internal sealed class MiniProgramDatasetBuilder
         foreach (var key in values.Keys.Order(StringComparer.Ordinal))
         {
             // Convert treats body as sanitized HTML, so a key of that name is sanitized here first.
-            var value = key == "body" ? SanitizeBody(dataset, recordId, values[key] as string, pageUrl: null) : values[key];
+            var value = values[key];
+            if (key == "body")
+            {
+                value = value is null or string
+                    ? SanitizeBody(dataset, recordId, (string?)value, pageUrl: null)
+                    : throw Invalid(dataset, recordId, key, "is not an HTML string");
+            }
+
             map[key] = Convert(dataset, recordId, key, value, pageUrl: null);
         }
 
@@ -125,7 +128,7 @@ internal sealed class MiniProgramDatasetBuilder
             return [.. records.OrderBy(record => record.Id, StringComparer.Ordinal)];
         }
 
-        var keyed = records.Select(record => (Record: record, Key: Resolve(record, sort.Field))).ToList();
+        var keyed = records.Select(record => (Record: record, Key: SortKey(Resolve(record, sort.Field)))).ToList();
         keyed.Sort((left, right) =>
         {
             var compared = CompareSortKeys(left.Key, right.Key, sort.Descending);
@@ -163,11 +166,17 @@ internal sealed class MiniProgramDatasetBuilder
             return (string)raw!;
         }
 
+        // JSON has no NaN or Infinity, and the writer would fail later without naming the record.
+        if (raw is double doubleValue && !double.IsFinite(doubleValue) || raw is float floatValue && !float.IsFinite(floatValue))
+        {
+            throw Invalid(dataset, recordId, field, "is not a finite number");
+        }
+
         return type switch
         {
             null => Infer(raw!) ?? throw Invalid(dataset, recordId, field, "has a value that is not a scalar or a list of strings"),
             "string" => ToScalarText(raw!) ?? throw Invalid(dataset, recordId, field, "is not a string"),
-            "number" => ToNumber(raw!) is { } number ? JsonValue.Create(number) : throw Invalid(dataset, recordId, field, "is not a number"),
+            "number" => ToJsonNumber(raw!) ?? throw Invalid(dataset, recordId, field, "is not a number"),
             "boolean" => ToBoolean(raw!) is { } flag ? JsonValue.Create(flag) : throw Invalid(dataset, recordId, field, "is not a boolean"),
             "date" => ToDate(raw!) is { } date ? MiniProgramJson.FormatDate(date) : throw Invalid(dataset, recordId, field, "is not a date"),
             "string[]" => ToTextList(raw!) is { } values
@@ -185,7 +194,7 @@ internal sealed class MiniProgramDatasetBuilder
             text = (ToTextList(raw) is { Count: > 0 } list ? list[0] : null) ?? throw Invalid(dataset, recordId, field, "is not a URL");
         }
 
-        var absolute = MiniProgramJson.Absolute(_siteUrl, _baseUrl, text, pageUrl ?? _siteRoot);
+        var absolute = _urls.Absolute(text, pageUrl ?? _urls.SiteRoot);
         if (!Uri.TryCreate(absolute, UriKind.Absolute, out var uri) || uri.Scheme is not ("https" or "http"))
         {
             throw Invalid(dataset, recordId, field, $"is not an http(s) URL: {text}");
@@ -279,6 +288,17 @@ internal sealed class MiniProgramDatasetBuilder
         _ => null
     };
 
+    /// <summary>The value as a JSON number; integers and decimals keep every digit instead of rounding through double.</summary>
+    private static JsonNode? ToJsonNumber(object raw) => raw switch
+    {
+        int value => value,
+        long value => value,
+        decimal value => value,
+        string text when long.TryParse(text.Trim(), NumberStyles.Integer, CultureInfo.InvariantCulture, out var value) => value,
+        string text when decimal.TryParse(text.Trim(), NumberStyles.Float, CultureInfo.InvariantCulture, out var value) => value,
+        _ => ToNumber(raw) is { } value ? JsonValue.Create(value) : null
+    };
+
     private static bool? ToBoolean(object raw) => raw switch
     {
         bool value => value,
@@ -293,6 +313,21 @@ internal sealed class MiniProgramDatasetBuilder
         string text when DateTimeOffset.TryParse(text, CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal, out var value) => value,
         _ => null
     };
+
+    /// <summary>
+    /// Dates arrive as DateTimeOffset, DateTime or ISO text depending on the source; giving them one
+    /// form keeps a sort chronological instead of grouping records by how their date was stored.
+    /// </summary>
+    private static object? SortKey(object? value) => value switch
+    {
+        DateTime date => new DateTimeOffset(DateTime.SpecifyKind(date, DateTimeKind.Utc)),
+        string text when IsoDate().IsMatch(text) &&
+                         DateTimeOffset.TryParse(text.Trim(), CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal, out var date) => date,
+        _ => value
+    };
+
+    [GeneratedRegex(@"^\s*\d{4}-\d{2}-\d{2}([Tt ]|\s*$)", RegexOptions.CultureInvariant)]
+    private static partial Regex IsoDate();
 
     private static int CompareSortKeys(object? left, object? right, bool descending)
     {

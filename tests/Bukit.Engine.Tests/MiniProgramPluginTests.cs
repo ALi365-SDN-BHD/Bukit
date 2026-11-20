@@ -14,6 +14,9 @@ public sealed class MiniProgramPluginTests : IDisposable
     private static readonly DateTimeOffset Day = new(2026, 11, 1, 8, 0, 0, TimeSpan.FromHours(8));
     private readonly string _outputDir = Path.Combine(Path.GetTempPath(), $"bukit-mp-{Guid.NewGuid():N}");
 
+    // The base path is part of public URLs but not of the variant output directory.
+    private string _basePath = "/";
+
     public void Dispose()
     {
         if (Directory.Exists(_outputDir))
@@ -482,6 +485,103 @@ public sealed class MiniProgramPluginTests : IDisposable
         Assert.Equal(["first"], list.Select(item => (string)item!["id"]!));
     }
 
+    [Fact]
+    public async Task SharedRootAssets_KeepRootBaseInOtherLanguages()
+    {
+        var config = Config(languages: ["en", "zh-CN"]);
+        config = config with { Site = config.Site with { SharedAssets = new SharedAssetsConfig { Enabled = true } } };
+        Directory.CreateDirectory(_outputDir);
+        _basePath = "/zh-CN/";
+        var shared = SharedAssetScope.TryCreate(config, ["en", "zh-CN"], _outputDir, logger: null)!;
+        const string body = """<p><img src="/assets/images/hero.png"><img src="/assets/uploads/photo.png"><a href="/zh-CN/assets/files/a.pdf">pdf</a></p>""";
+
+        await RunAsync(
+            config,
+            [Article("a1", "First", body: body)],
+            [Banner("b1", "One", 1, image: "/assets/images/{id}.png"), Banner("b2", "Two", 2, image: "/zh-CN/assets/images/{id}.png")],
+            baseUrl: "/zh-CN/",
+            sharedAssets: shared);
+
+        // The zh-CN variant omits shared files: their URLs keep the root base, as the website's do.
+        // Localized media is copied into every variant, so it keeps the variant base.
+        var banners = ReadDataset("banners")["items"]!.AsArray();
+        Assert.Equal("https://example.com/assets/images/b1.png", (string)banners[0]!["image"]!);
+        Assert.Equal("https://example.com/assets/images/b2.png", (string)banners[1]!["image"]!);
+        var details = ReadByUrl((string)ReadCatalog()["datasets"]!["articles"]!["detailCatalog"]!["url"]!)["items"]!.AsArray();
+        var html = (string)ReadByUrl((string)details[0]!["url"]!)["body"]!;
+        Assert.Contains("src=\"https://example.com/assets/images/hero.png\"", html, StringComparison.Ordinal);
+        Assert.Contains("src=\"https://example.com/zh-CN/assets/uploads/photo.png\"", html, StringComparison.Ordinal);
+        Assert.Contains("href=\"https://example.com/assets/files/a.pdf\"", html, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task UnwrappedBlockContainers_KeepParagraphBoundaries()
+    {
+        const string body = """<div>Line one</div><div>Line two</div><figure><img src="/a.png"><figcaption>Caption</figcaption></figure>""";
+
+        await RunAsync(Config(), [Article("a1", "First", body: body)], []);
+
+        var details = ReadByUrl((string)ReadCatalog()["datasets"]!["articles"]!["detailCatalog"]!["url"]!)["items"]!.AsArray();
+        var html = (string)ReadByUrl((string)details[0]!["url"]!)["body"]!;
+        Assert.Equal("<p>Line one</p><p>Line two</p><img src=\"https://example.com/a.png\"><p>Caption</p>", html);
+    }
+
+    [Theory]
+    [InlineData(double.NaN)]
+    [InlineData(double.PositiveInfinity)]
+    public async Task NonFiniteNumber_FailsWithRecordAndField(double order)
+    {
+        var ex = await Assert.ThrowsAsync<BukitException>(() => RunAsync(Config(), [], [Banner("b1", "One", order)]));
+
+        Assert.Contains("record '", ex.Message, StringComparison.Ordinal);
+        Assert.Contains("field 'order' is not a finite number", ex.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task LargeIntegers_KeepEveryDigit()
+    {
+        await RunAsync(Config(), [], [Banner("b1", "One", 9007199254740993L), Banner("b2", "Two", "9007199254740995")]);
+
+        var items = ReadDataset("banners")["items"]!.AsArray();
+        Assert.Equal("9007199254740993", items[0]!["order"]!.ToJsonString());
+        Assert.Equal("9007199254740995", items[1]!["order"]!.ToJsonString());
+    }
+
+    [Fact]
+    public async Task MixedDateForms_SortChronologically()
+    {
+        var config = Config();
+        var datasets = config.MiniProgram.Datasets.ToList();
+        datasets[1] = datasets[1] with { Types = new Dictionary<string, string> { ["image"] = "image" } };
+        config = config with { MiniProgram = config.MiniProgram with { Datasets = datasets } };
+
+        await RunAsync(config, [],
+        [
+            Banner("b1", "Second", new DateTimeOffset(2026, 1, 2, 0, 0, 0, TimeSpan.Zero)),
+            Banner("b2", "Third", new DateTime(2026, 1, 3, 0, 0, 0, DateTimeKind.Utc)),
+            Banner("b3", "First", "2026-01-01T10:00:00+08:00")
+        ]);
+
+        var titles = ReadDataset("banners")["items"]!.AsArray().Select(item => (string)item!["title"]!);
+        Assert.Equal(["First", "Second", "Third"], titles);
+    }
+
+    [Fact]
+    public async Task DataIndexBodyThatIsNotText_Fails()
+    {
+        var dataIndex = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["settings"] = new Dictionary<string, object>(StringComparer.Ordinal)
+            {
+                ["app"] = new Dictionary<string, object>(StringComparer.Ordinal) { ["body"] = new List<string> { "a", "b" } }
+            }
+        };
+
+        var ex = await Assert.ThrowsAsync<BukitException>(() => RunAsync(Config(), [], [], dataIndex));
+
+        Assert.Contains("field 'body' is not an HTML string", ex.Message, StringComparison.Ordinal);
+    }
+
     private async Task<BuildContext> RunAsync(
         AppConfig config,
         IReadOnlyList<RoutedContentDocument> pages,
@@ -493,7 +593,8 @@ public sealed class MiniProgramPluginTests : IDisposable
         bool defaultSettings = true,
         BuildExecutionMode mode = BuildExecutionMode.Production,
         ILogger? logger = null,
-        IReadOnlyList<ContentDocument>? otherLanguageData = null)
+        IReadOnlyList<ContentDocument>? otherLanguageData = null,
+        SharedAssetScope? sharedAssets = null)
     {
         // The default config declares a banner module and a settings scope; an unmatched one fails the build.
         if (defaultBanner && !data.Any(document => ContentFieldReader.GetContentType(document) == "banner"))
@@ -507,6 +608,11 @@ public sealed class MiniProgramPluginTests : IDisposable
         }
 
         var context = NewContext(pages, data, dataIndex, nonIndexable, baseUrl, logger ?? new ConsoleLogger(LogLevel.Error), otherLanguageData);
+        if (sharedAssets is not null)
+        {
+            context.Set(BuildDataKeys.SharedAssets, new SharedAssetBuildData(sharedAssets, []));
+        }
+
         await new MiniProgramPlugin(config, mode).AfterBuildAsync(context);
         return context;
     }
@@ -689,7 +795,7 @@ public sealed class MiniProgramPluginTests : IDisposable
 
     private JsonNode ReadByUrl(string url)
     {
-        var relative = new Uri(url).AbsolutePath.TrimStart('/');
+        var relative = new Uri(url).AbsolutePath[_basePath.Length..];
         return JsonNode.Parse(File.ReadAllText(Path.Combine(_outputDir, relative)))!;
     }
 
