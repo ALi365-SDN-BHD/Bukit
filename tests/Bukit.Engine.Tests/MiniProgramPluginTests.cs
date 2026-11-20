@@ -331,6 +331,22 @@ public sealed class MiniProgramPluginTests : IDisposable
     }
 
     [Fact]
+    public async Task SignedUrlTypedField_Fails()
+    {
+        var config = Config();
+        var datasets = config.MiniProgram.Datasets.ToList();
+        datasets[1] = datasets[1] with { Fields = ["title", "image", "order", "url"], Types = new Dictionary<string, string> { ["url"] = "url", ["order"] = "number" } };
+        config = config with { MiniProgram = config.MiniProgram with { Datasets = datasets } };
+
+        var ex = await Assert.ThrowsAsync<BukitException>(() => RunAsync(
+            config, [], [Banner("b1", "One", 1, url: "https://prod-files-secure.s3.us-west-2.amazonaws.com/manual.pdf?X-Amz-Signature=abc")]));
+
+        Assert.Equal(DiagnosticCode.SchemaValidationFailed, ex.Code);
+        Assert.Contains("field 'url' signed URL was not localized", ex.Message, StringComparison.Ordinal);
+        Assert.DoesNotContain("abc", ex.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public async Task Menu_IsOrderedByWeight()
     {
         var config = Config();
@@ -864,6 +880,24 @@ public sealed class MiniProgramPluginTests : IDisposable
             html,
             StringComparison.Ordinal);
         Assert.Contains("<td>C<ul><li>y</li></ul>D</td>", html, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task BlocksInsideParagraphs_AreFlattened()
+    {
+        const string body = """
+            <p>Watch <iframe src="https://www.youtube.com/embed/x"></iframe> now</p><details><summary><p>Title</p></summary><p>More</p></details><h2>Head<ul><li>i</li><li>j</li></ul></h2><iframe src="https://www.youtube.com/embed/y"></iframe>
+            """;
+
+        await RunAsync(Config(), [Article("a1", "First", body: body)], []);
+
+        var details = ReadByUrl((string)ReadCatalog()["datasets"]!["articles"]!["detailCatalog"]!["url"]!)["items"]!.AsArray();
+        Assert.Equal(
+            "<p>Watch <a href=\"https://www.youtube.com/embed/x\">https://www.youtube.com/embed/x</a> now</p>" +
+            "<p><strong>Title</strong></p><p>More</p>" +
+            "<h2>Head<br>i<br>j</h2>" +
+            "<p><a href=\"https://www.youtube.com/embed/y\">https://www.youtube.com/embed/y</a></p>",
+            (string)ReadByUrl((string)details[0]!["url"]!)["body"]!);
     }
 
     [Fact]

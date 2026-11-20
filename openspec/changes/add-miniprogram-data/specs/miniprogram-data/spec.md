@@ -112,7 +112,7 @@ any list, detail catalog or detail file.
 
 ### Requirement: Media and links are absolute and stable
 Image- and URL-typed fields and `src` and `href` attributes in bodies SHALL be absolute http(s)
-URLs under the site URL or the original external host. When a written image URL (field or body)
+URLs under the site URL or the original external host. When a written image- or URL-typed field, or a body image, link or embed,
 still carries an expiring signature (`X-Amz-Signature`, `X-Amz-Credential`, `Signature` or
 `Expires` query parameter), the build SHALL fail with `SchemaValidationFailed` naming
 the dataset, record id and field. Links to pages that have mini-program detail records SHALL carry
@@ -126,6 +126,10 @@ the dataset, record id and field. Links to pages that have mini-program detail r
 - **WHEN** a `records` dataset has an `image` field whose value is still an `*.amazonaws.com` signed URL
 - **THEN** the build fails with `SchemaValidationFailed` naming that dataset, record and field
 
+#### Scenario: Unlocalized signed file link
+- **WHEN** a `module` dataset has a `url`-typed field whose value is a signed Notion PDF URL
+- **THEN** the build fails with `SchemaValidationFailed` naming that dataset, record and field
+
 #### Scenario: Internal link
 - **WHEN** an article body links to another article in the same `collection` dataset
 - **THEN** the link has an absolute `href` and a `data-bukit-id` equal to the target article's id
@@ -136,7 +140,8 @@ change design, with embedded frames replaced by links, collapsible blocks expand
 containers unwrapped; text directly inside an unwrapped block container SHALL become its own
 paragraph, or be separated from visible content by line breaks inside a table cell or list item, a
 paragraph SHALL NOT contain a block (so an inline element that wraps a block is written beside the
-paragraphs of its siblings), and a table caption SHALL become a paragraph before its table. A body
+paragraphs of its siblings, an embed inside a paragraph becomes an inline link, and block markup
+inside a paragraph, heading or summary is reduced to its content separated by line breaks), and a table caption SHALL become a paragraph before its table. A body
 image, link or embed whose URL is still signed SHALL fail the build with `SchemaValidationFailed`. Scripts, styles, `class` and `style` attributes, event attributes, links
 with schemes other than http(s), `mailto:` and `tel:`, and disallowed tags SHALL NOT be written.
 

@@ -126,7 +126,7 @@ no page, so their `url` is the record's own `url` property.
 
 `types` converts and checks a field: `string`, `number`, `boolean`, `date`,
 `image`, `url` or `string[]`. `image` and `url` values become absolute http(s)
-URLs; relative values of data records resolve against the site root, base path
+URLs, and one that still holds a signed URL fails the build; relative values of data records resolve against the site root, base path
 included. On a multilingual site with `site.sharedAssets`, links to the shared
 files (such as theme images under `assets/`) keep the root path in every
 language, as the website's do, whether written as a site path, a relative
@@ -170,9 +170,11 @@ similar blocks become a paragraph, or is separated by line breaks inside a table
 or list item, so blocks do not run together), a table `caption` becomes a
 paragraph before the table,
 a link that wraps a block keeps the block as its own paragraph, scripts and
-forms are dropped, `iframe`, `video` and `audio` become links, and `<details>`
+forms are dropped, `iframe`, `video` and `audio` become links (inline when
+they sit inside a paragraph), block markup inside a paragraph, heading or
+`summary` is reduced to its text separated by line breaks, and `<details>`
 is expanded. An image, link or embed in `body` that still holds a signed URL
-fails the build. Links to other pages in a collection carry
+fails the build. Links to pages of any `collection` dataset carry
 `data-bukit-id` with the target id, so the mini-program can open its own page.
 
 ### Visibility
@@ -280,7 +282,9 @@ saveCatalog(catalog)
 Give every `module` and `records` database a number property such as `order`
 and use it as `sort`; Notion does not return rows in a stable order. Use Notion
 `files` properties for images: image localization downloads them, because
-Notion file URLs expire. A field that still holds a signed URL fails the build.
+Notion file URLs expire. An `image`- or `url`-typed field that still holds a
+signed URL fails the build; other fields are not checked, so give file links a
+`url` type.
 Navigation can also stay in `site.yaml` `menus` through a `menu` dataset.
 
 ## Deployment Notes

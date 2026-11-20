@@ -185,12 +185,12 @@ internal sealed partial class MiniProgramDatasetBuilder
             "string[]" => ToTextList(raw!) is { } values
                 ? ToStringArray(values)
                 : ToScalarText(raw!) is { } single ? ToStringArray([single]) : throw Invalid(dataset, recordId, field, "is not a list of strings"),
-            "image" or "url" => ToUrl(dataset, recordId, field, raw!, type == "image", pageUrl),
+            "image" or "url" => ToUrl(dataset, recordId, field, raw!, pageUrl),
             _ => throw new InvalidOperationException($"Unsupported mini-program field type '{type}'.")
         };
     }
 
-    private string ToUrl(MiniProgramDatasetConfig dataset, string recordId, string field, object raw, bool image, string? pageUrl)
+    private string ToUrl(MiniProgramDatasetConfig dataset, string recordId, string field, object raw, string? pageUrl)
     {
         if (raw is not string text)
         {
@@ -203,7 +203,8 @@ internal sealed partial class MiniProgramDatasetBuilder
             throw Invalid(dataset, recordId, field, $"is not an http(s) URL: {text}");
         }
 
-        if (image && MiniProgramJson.IsSignedUrl(absolute))
+        // A signed link expires and leaks its signature, for a file link as much as for an image.
+        if (MiniProgramJson.IsSignedUrl(absolute))
         {
             throw Invalid(dataset, recordId, field, $"signed URL was not localized: {MiniProgramJson.RedactQuery(absolute)}");
         }

@@ -139,8 +139,11 @@ Examples:
   offset (`2026-11-01T10:00:00+08:00`). Parse a calendar date as a local date,
   not with `new Date('2026-11-01')`, which reads it as UTC midnight.
 - **`body`**: an HTML string from the subset in section 6.
-- **No signed URLs**: images and links never carry expiring Notion or cloud
-  signatures; the build fails rather than publish one.
+- **No signed URLs**: `image`- and `url`-typed fields and the images, links
+  and embeds in `body` never carry expiring Notion or cloud signatures; the
+  build fails rather than publish one. Other fields (untyped, `string`,
+  `string[]`) are written as they are, so ask for a `url` type on any field
+  that can hold a file link.
 
 ### 3.4 Guarantees You Can Rely On
 
@@ -474,20 +477,33 @@ it to your own WXML nodes. Then route taps as follows:
 
 | Tap target | Action |
 |---|---|
-| `a` with `data-bukit-id` | A page of the same collection: navigate to your detail page with that id. |
+| `a` with `data-bukit-id` | A page of a `collection` dataset, which may be another one than the current page's: find the dataset whose detail catalog lists the id, then open its detail page. |
 | `a` whose `href` is on your site, without `data-bukit-id` | A website page that has no mini-program page: copy the link, or open it in a `web-view` if your account has that business domain. |
 | Other `a` | External: copy the link with `wx.setClipboardData()` and tell the user. |
 | `img` | `wx.previewImage()` with the `src` of every image in the body. |
 
 ```js
-function onLinkTap(attrs) {
+const store = require('./store')
+
+// Detail page of each collection dataset.
+const detailPages = { articles: '/pages/article/index', products: '/pages/product/index' }
+
+function onLinkTap(attrs, lang) {
   const id = attrs['data-bukit-id']
-  if (id) return wx.navigateTo({ url: `/pages/article/index?id=${encodeURIComponent(id)}` })
+  const catalog = id && store.read(lang, 'catalog')
+  const name = catalog && Object.keys(detailPages).find(dataset => {
+    const details = catalog.datasets[dataset] && store.read(lang, `details:${dataset}`)
+    return details && details.items.some(item => item.id === id)
+  })
+  if (name) return wx.navigateTo({ url: `${detailPages[name]}?id=${encodeURIComponent(id)}` })
   wx.setClipboardData({ data: attrs.href })
 }
 ```
 
-`data-bukit-id` only links pages within the same collection dataset.
+`data-bukit-id` links pages of every `collection` dataset of the same
+language. Ids are unique within a dataset; if two collections can share an id
+(for example a canonical key reused across them), check the current dataset
+first.
 
 ## 7. Menus And Site Links
 

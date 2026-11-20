@@ -47,6 +47,18 @@ internal sealed class MiniProgramHtmlSanitizer : IDisposable
         "summary", "iframe", "video", "audio"
     };
 
+    // Elements written as a paragraph-like block: nothing block-level may be written inside one.
+    private static readonly HashSet<string> ParagraphTags = new(StringComparer.Ordinal)
+    {
+        "p", "h1", "h2", "h3", "h4", "h5", "h6", "summary"
+    };
+
+    // Table structure, flattened together with its table inside a paragraph.
+    private static readonly HashSet<string> TableParts = new(StringComparer.Ordinal)
+    {
+        "thead", "tbody", "tfoot", "tr", "th", "td"
+    };
+
     private readonly MiniProgramUrls _urls;
     private readonly Dictionary<string, string> _internalIds = new(StringComparer.Ordinal);
 
@@ -108,16 +120,32 @@ internal sealed class MiniProgramHtmlSanitizer : IDisposable
             return;
         }
 
+        var inParagraph = InParagraph(element);
         if (EmbedTags.Contains(tag))
         {
             var source = element.GetAttribute("src") ?? element.QuerySelector("source[src]")?.GetAttribute("src");
             var href = source is null ? null : SafeHref(source, pageUrl);
             if (href is not null)
             {
+                // Inside a paragraph the link stays inline; elsewhere it is a paragraph of its own.
                 var encoded = WebUtility.HtmlEncode(href);
-                builder.Append("<p><a href=\"").Append(encoded).Append("\">").Append(encoded).Append("</a></p>");
+                var link = $"<a href=\"{encoded}\">{encoded}</a>";
+                builder.Append(inParagraph ? link : $"<p>{link}</p>");
             }
 
+            return;
+        }
+
+        // A paragraph never holds a block, so block markup inside one is reduced to its content, such
+        // as a <p> inside a <summary> or a list inside a heading; a line break keeps blocks apart.
+        if (inParagraph && (BlockTags.Contains(tag) || BlockContainers.Contains(tag) || TableParts.Contains(tag)))
+        {
+            if (NearestVisibleSibling(element, forward: false) is not null)
+            {
+                builder.Append("<br>");
+            }
+
+            WriteChildren(builder, element, pageUrl);
             return;
         }
 
@@ -205,6 +233,19 @@ internal sealed class MiniProgramHtmlSanitizer : IDisposable
 
         WriteChildren(builder, element, pageUrl);
         builder.Append("</").Append(tag).Append('>');
+    }
+
+    private static bool InParagraph(IElement element)
+    {
+        for (var parent = element.ParentElement; parent is not null; parent = parent.ParentElement)
+        {
+            if (ParagraphTags.Contains(parent.LocalName))
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private void WriteChildren(StringBuilder builder, IElement element, string pageUrl)
