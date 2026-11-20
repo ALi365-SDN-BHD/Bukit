@@ -85,8 +85,9 @@ SHALL list each dataset with its `kind`, full `hash` (`sha256:<hex>`), absolute 
 a `collection` dataset SHALL also list a `detailCatalog` whose items give each detail file's
 `id`, `hash`, `url`, `size` and `updatedAt`. The catalog SHALL contain `schemaVersion`,
 `minClientSchema`, `language`, `generatedAt` (the latest `updatedAt` or `publishedAt` of the
-written records, or the Unix epoch when there are none) and `catalogHash` computed only from the
-dataset names, dataset hashes and detail catalog hashes. A `site` dataset SHALL always be present.
+written records, or the Unix epoch when there are none) and `catalogHash` computed from the
+serialized catalog without `generatedAt` and `catalogHash`, so it changes whenever a version,
+the language, a dataset hash or a file URL changes. A `site` dataset SHALL always be present.
 
 #### Scenario: One record changes
 - **WHEN** only the title of one banner record changes between two builds
@@ -133,8 +134,10 @@ the dataset, record id and field. Links to pages that have mini-program detail r
 Detail and module `body` fields SHALL contain only the allowed tags and attributes defined by the
 change design, with embedded frames replaced by links, collapsible blocks expanded and unknown
 containers unwrapped; text directly inside an unwrapped block container SHALL become its own
-paragraph, or be separated from visible content by line breaks inside a table cell or list item, and a table caption SHALL
-become a paragraph before its table. Scripts, styles, `class` and `style` attributes, event attributes, links
+paragraph, or be separated from visible content by line breaks inside a table cell or list item, a
+paragraph SHALL NOT contain a block (so an inline element that wraps a block is written beside the
+paragraphs of its siblings), and a table caption SHALL become a paragraph before its table. A body
+image, link or embed whose URL is still signed SHALL fail the build with `SchemaValidationFailed`. Scripts, styles, `class` and `style` attributes, event attributes, links
 with schemes other than http(s), `mailto:` and `tel:`, and disallowed tags SHALL NOT be written.
 
 #### Scenario: Embedded video

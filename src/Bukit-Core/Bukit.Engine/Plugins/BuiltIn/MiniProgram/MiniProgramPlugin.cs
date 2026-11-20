@@ -129,29 +129,29 @@ internal sealed class MiniProgramPlugin : IBukitPlugin, IAfterBuildAsyncPlugin
 
     private JsonObject BuildCatalog(SortedDictionary<string, JsonObject> datasets, List<DateTimeOffset> dates)
     {
-        var hashInput = new StringBuilder();
         var entries = new JsonObject();
         foreach (var (name, entry) in datasets)
         {
-            hashInput.Append(name).Append('\n').Append((string)entry["hash"]!).Append('\n');
-            if (entry["detailCatalog"] is JsonObject detail)
-            {
-                hashInput.Append((string)detail["hash"]!).Append('\n');
-            }
-
             entries[name] = entry;
         }
 
-        return new JsonObject
+        var catalog = new JsonObject
         {
             ["schema"] = CatalogSchema,
             ["schemaVersion"] = SchemaVersion,
             ["minClientSchema"] = SchemaVersion,
             ["language"] = _config.Site.Language,
-            ["generatedAt"] = MiniProgramJson.FormatDate(dates.Count == 0 ? DateTimeOffset.UnixEpoch : dates.Max()),
-            ["catalogHash"] = "sha256:" + MiniProgramJson.Hash(Encoding.UTF8.GetBytes(hashInput.ToString())),
             ["datasets"] = entries
         };
+
+        // The hash covers every field a client acts on (versions, language, file hashes and URLs), so a
+        // moved output directory or a raised minClientSchema reaches clients even when no data changed.
+        var catalogHash = "sha256:" + MiniProgramJson.Hash(MiniProgramJson.Serialize(catalog));
+        catalog.Remove("datasets");
+        catalog["generatedAt"] = MiniProgramJson.FormatDate(dates.Count == 0 ? DateTimeOffset.UnixEpoch : dates.Max());
+        catalog["catalogHash"] = catalogHash;
+        catalog["datasets"] = entries;
+        return catalog;
     }
 
     private JsonObject BuildSite(MiniProgramUrls urls)
@@ -188,7 +188,8 @@ internal sealed class MiniProgramPlugin : IBukitPlugin, IAfterBuildAsyncPlugin
             records.Add(new MiniProgramRecord(
                 PublicContentProjectionPolicy.ResolvePublicId(routed.Document.Record, routed.Route.Url),
                 routed.Document,
-                SeoModelBuilder.BuildAbsoluteUrl(siteUrl, context.BaseUrl, routed.Route.Url),
+                // Escaped like every other published URL, so a page's url matches body links to it.
+                MiniProgramUrls.Escape(SeoModelBuilder.BuildAbsoluteUrl(siteUrl, context.BaseUrl, routed.Route.Url)),
                 BodyHtml: null));
         }
 

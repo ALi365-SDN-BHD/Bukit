@@ -136,10 +136,12 @@ is kept as written in every language.
 `number` keeps integers and decimals exactly (text in JSON number form is
 written as is), and `NaN` or infinity fails the build. `date` text must be ISO
 8601: a date alone (`2026-01-01`) stays a calendar date, and a date with a time
-(`2026-01-01T10:00:00+08:00`) is written as that instant. A date whose time is
-exactly midnight is also written as a calendar date, because Markdown and
-Notion sources turn a date-only value into midnight before the mini-program
-output reads it.
+(`2026-01-01T10:00:00+08:00`) is written as that instant. A date the source
+already parsed (Markdown front matter, a Notion date property) is also written
+as a calendar date when its time is exactly midnight, because those sources turn
+a date-only value into midnight before the mini-program output reads it; a time
+of exactly midnight from them is therefore not kept. ISO text keeps the time it
+states.
 
 Markdown front matter is typed when the site loads it, for the website too:
 numeric text becomes a number (so a decimal keeps double precision, about 15
@@ -163,12 +165,14 @@ record id and field, so bad data never reaches the mini-program.
 `body` is reduced to an HTML subset that WeChat `rich-text` renders: headings,
 paragraphs, lists, quotes, code, emphasis, links, images, tables, `hr`, `br` and
 `span`. `class` and `style` are removed, unknown containers are unwrapped
-(text directly inside `div`, `figure`, `figcaption`, `section` and similar
-blocks becomes a paragraph, or is separated by line breaks inside a table cell
+(text and images directly inside `div`, `figure`, `figcaption`, `section` and
+similar blocks become a paragraph, or is separated by line breaks inside a table cell
 or list item, so blocks do not run together), a table `caption` becomes a
 paragraph before the table,
-scripts and forms are dropped, `iframe`, `video` and `audio` become links, and
-`<details>` is expanded. Links to other pages in a collection carry
+a link that wraps a block keeps the block as its own paragraph, scripts and
+forms are dropped, `iframe`, `video` and `audio` become links, and `<details>`
+is expanded. An image, link or embed in `body` that still holds a signed URL
+fails the build. Links to other pages in a collection carry
 `data-bukit-id` with the target id, so the mini-program can open its own page.
 
 ### Visibility
@@ -213,7 +217,9 @@ dist/mp/                         # dist/<lang>/mp/ for subdirectory languages
 The files are deterministic: the same content produces the same bytes on every
 operating system (UTF-8 without BOM, one trailing `\n`, fixed field order and
 record order, no build time). `generatedAt` is the latest record update time.
-Unchanged data therefore keeps its hash across rebuilds.
+Unchanged data therefore keeps its hash across rebuilds. `catalogHash` covers
+every catalog field except `generatedAt`, so a changed file URL or
+`minClientSchema` changes it too.
 
 A set `site.url` that is not `https://`, or has user info, a query or a fragment, fails with
 `ConfigInvalidValue`; a

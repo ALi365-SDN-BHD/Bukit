@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using Bukit.Config;
 using Bukit.Engine.Abstractions.Plugins;
 
@@ -58,8 +59,19 @@ internal sealed class MiniProgramUrls
     /// http(s) URLs in Uri's escaped form, so a space or non-ASCII character is published as
     /// %20 or %E9... whether the value was written as a site path, a relative path or a full URL.
     /// </summary>
-    private static string Escape(string url)
-        => Uri.TryCreate(url, UriKind.Absolute, out var uri) && uri.Scheme is "https" or "http" ? uri.AbsoluteUri : url;
+    internal static string Escape(string url) => IsHttp(url, out var uri) ? uri.AbsoluteUri : url;
+
+    /// <summary>True when <paramref name="value"/> is an absolute http or https URL.</summary>
+    internal static bool IsHttp(string value, [NotNullWhen(true)] out Uri? uri)
+    {
+        if (Uri.TryCreate(value, UriKind.Absolute, out uri) && uri.Scheme is "https" or "http")
+        {
+            return true;
+        }
+
+        uri = null;
+        return false;
+    }
 
     private string Resolve(string value, string relativeTo)
     {

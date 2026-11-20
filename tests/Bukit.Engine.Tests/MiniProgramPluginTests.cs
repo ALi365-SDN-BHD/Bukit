@@ -523,7 +523,7 @@ public sealed class MiniProgramPluginTests : IDisposable
 
         var details = ReadByUrl((string)ReadCatalog()["datasets"]!["articles"]!["detailCatalog"]!["url"]!)["items"]!.AsArray();
         var html = (string)ReadByUrl((string)details[0]!["url"]!)["body"]!;
-        Assert.Equal("<p>Line one</p><p>Line two</p><img src=\"https://example.com/a.png\"><p>Caption</p>", html);
+        Assert.Equal("<p>Line one</p><p>Line two</p><p><img src=\"https://example.com/a.png\"></p><p>Caption</p>", html);
     }
 
     [Theory]
@@ -820,6 +820,76 @@ public sealed class MiniProgramPluginTests : IDisposable
 
         var titles = ReadDataset("banners")["items"]!.AsArray().Select(item => (string)item!["title"]!);
         Assert.Equal(["High", "Low", "Invalid"], titles);
+    }
+
+    [Theory]
+    [InlineData("""<p><a href="https://prod-files-secure.s3.us-west-2.amazonaws.com/a.pdf?X-Amz-Signature=abc">PDF</a></p>""")]
+    [InlineData("""<video src="https://prod-files-secure.s3.us-west-2.amazonaws.com/v.mp4?X-Amz-Signature=abc"></video>""")]
+    public async Task SignedBodyLinksAndEmbeds_Fail(string body)
+    {
+        var ex = await Assert.ThrowsAsync<BukitException>(() => RunAsync(Config(), [Article("a1", "First", body: body)], []));
+
+        Assert.Equal(DiagnosticCode.SchemaValidationFailed, ex.Code);
+        Assert.Contains("field 'body' signed URL was not localized", ex.Message, StringComparison.Ordinal);
+        Assert.DoesNotContain("abc", ex.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task CatalogHash_ChangesWhenOnlyFileUrlsChange()
+    {
+        var config = Config();
+        await RunAsync(config, [Article("a1", "First")], []);
+        var before = ReadCatalog();
+
+        await RunAsync(config with { MiniProgram = config.MiniProgram with { OutputDir = "data" } }, [Article("a1", "First")], []);
+        var after = JsonNode.Parse(File.ReadAllText(Path.Combine(_outputDir, "data", "catalog.json")))!;
+
+        Assert.Equal(Hash(before, "articles"), Hash(after, "articles"));
+        Assert.NotEqual((string)before["catalogHash"]!, (string)after["catalogHash"]!);
+    }
+
+    [Fact]
+    public async Task InlineWrappersAndMixedContainers_WriteNoNestedOrMergedParagraphs()
+    {
+        const string body = """
+            <div>Read more <a href="/x/"><div>Card</div></a> after</div><div><span>A</span><div>B<ul><li>x</li></ul></div></div><table><tr><td><div>C<ul><li>y</li></ul>D</div></td></tr></table>
+            """;
+
+        await RunAsync(Config(), [Article("a1", "First", body: body)], []);
+
+        var details = ReadByUrl((string)ReadCatalog()["datasets"]!["articles"]!["detailCatalog"]!["url"]!)["items"]!.AsArray();
+        var html = (string)ReadByUrl((string)details[0]!["url"]!)["body"]!;
+        Assert.StartsWith(
+            "<p>Read more</p><a href=\"https://example.com/x/\"><p>Card</p></a><p>after</p><p><span>A</span></p><p>B</p><ul><li>x</li></ul>",
+            html,
+            StringComparison.Ordinal);
+        Assert.Contains("<td>C<ul><li>y</li></ul>D</td>", html, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task PageUrlField_IsEscaped()
+    {
+        await RunAsync(Config(), [Article("a1", "文章")], []);
+
+        var details = ReadByUrl((string)ReadCatalog()["datasets"]!["articles"]!["detailCatalog"]!["url"]!)["items"]!.AsArray();
+        Assert.Equal("https://example.com/%E6%96%87%E7%AB%A0/", (string)ReadByUrl((string)details[0]!["url"]!)["url"]!);
+    }
+
+    [Fact]
+    public async Task TinySortKeys_OrderByValue()
+    {
+        await RunAsync(Config(), [], [Banner("b1", "Larger", 3e-30), Banner("b2", "Smaller", 1e-30), Banner("b3", "Zero", 0.0)]);
+
+        var titles = ReadDataset("banners")["items"]!.AsArray().Select(item => (string)item!["title"]!);
+        Assert.Equal(["Zero", "Smaller", "Larger"], titles);
+    }
+
+    [Fact]
+    public async Task FloatNumbers_AreWrittenAsTheirShortestText()
+    {
+        await RunAsync(Config(), [], [Banner("b1", "One", 0.1f)]);
+
+        Assert.Equal("0.1", ReadDataset("banners")["items"]![0]!["order"]!.ToJsonString());
     }
 
     private async Task<BuildContext> RunAsync(

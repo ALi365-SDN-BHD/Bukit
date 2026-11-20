@@ -163,7 +163,7 @@ internal sealed class MiniProgramHtmlSanitizer : IDisposable
                 }
 
                 var absolute = _urls.Absolute(src, pageUrl);
-                if (!IsHttp(absolute))
+                if (!MiniProgramUrls.IsHttp(absolute, out _))
                 {
                     return;
                 }
@@ -188,7 +188,7 @@ internal sealed class MiniProgramHtmlSanitizer : IDisposable
 
         if (tag == "table" && element.Children.FirstOrDefault(child => child.LocalName == "caption") is { } caption)
         {
-            AppendParagraph(builder, caption, pageUrl);
+            WriteBlockContainer(builder, caption, pageUrl);
         }
 
         builder.Append('<').Append(tag);
@@ -215,55 +215,72 @@ internal sealed class MiniProgramHtmlSanitizer : IDisposable
         }
     }
 
+    /// <summary>
+    /// Writes a container (or a table caption) so its text starts a block of its own. Runs of inline
+    /// children become paragraphs, or break-separated lines inside a table cell or list item, and
+    /// children holding blocks are written as they are. A paragraph therefore never wraps a block,
+    /// so no paragraph ends up nested in another.
+    /// </summary>
     private void WriteBlockContainer(StringBuilder builder, IElement element, string pageUrl)
     {
-        if (element.Children.Any(child => BlockTags.Contains(child.LocalName) || BlockContainers.Contains(child.LocalName)))
+        var inCell = element.ParentElement?.Closest("td, th, li") is not null;
+        var run = new StringBuilder();
+        INode? previous = null;
+        foreach (var child in element.ChildNodes)
         {
-            WriteChildren(builder, element, pageUrl);
-            return;
+            if (child is not IElement childElement || !HoldsBlock(childElement))
+            {
+                Write(run, child, pageUrl);
+            }
+            else if (IsVisible(childElement))
+            {
+                FlushRun(builder, run, element, inCell, previous, childElement);
+                Write(builder, child, pageUrl);
+                previous = child;
+            }
         }
 
-        // Inside a table cell or list item a paragraph would add margins the website does not show,
-        // so line breaks separate the container from visible content before and after it.
-        if (element.ParentElement?.Closest("td, th, li") is not null)
-        {
-            var inner = new StringBuilder();
-            WriteChildren(inner, element, pageUrl);
-            var html = inner.ToString().Trim();
-            if (html.Length == 0)
-            {
-                return;
-            }
-
-            // A block sibling already starts or ends the line, so only inline content needs a break.
-            if (NearestVisibleSibling(element, forward: false) is { } before && !IsBlock(before) && !EndsWithBreak(builder))
-            {
-                builder.Append("<br>");
-            }
-
-            builder.Append(html);
-            if (NearestVisibleSibling(element, forward: true) is { } after && !IsBlock(after))
-            {
-                builder.Append("<br>");
-            }
-
-            return;
-        }
-
-        AppendParagraph(builder, element, pageUrl);
+        FlushRun(builder, run, element, inCell, previous, next: null);
     }
 
-    /// <summary>Writes the element's children as one paragraph, or nothing when they are empty.</summary>
-    private void AppendParagraph(StringBuilder builder, IElement element, string pageUrl)
+    /// <summary>
+    /// Writes buffered inline content as a paragraph, or as a line inside a cell. A line is broken from
+    /// the visible content around it (the neighboring child, or the container's sibling at either end)
+    /// unless that is a block, which starts or ends the line already.
+    /// </summary>
+    private static void FlushRun(StringBuilder builder, StringBuilder run, IElement container, bool inCell, INode? previous, INode? next)
     {
-        var inner = new StringBuilder();
-        WriteChildren(inner, element, pageUrl);
-        var html = inner.ToString().Trim();
-        if (html.Length > 0)
+        var html = run.ToString().Trim();
+        run.Clear();
+        if (html.Length == 0)
+        {
+            return;
+        }
+
+        if (!inCell)
         {
             builder.Append("<p>").Append(html).Append("</p>");
+            return;
+        }
+
+        if ((previous ?? NearestVisibleSibling(container, forward: false)) is { } before && !IsBlock(before) && !EndsWithBreak(builder))
+        {
+            builder.Append("<br>");
+        }
+
+        builder.Append(html);
+        if ((next ?? NearestVisibleSibling(container, forward: true)) is { } after && !IsBlock(after))
+        {
+            builder.Append("<br>");
         }
     }
+
+    /// <summary>True for a block or container, or an inline element that wraps one (a card-style link).</summary>
+    private static bool HoldsBlock(IElement element)
+        => IsBlockOrContainer(element) || element.Descendants<IElement>().Any(IsBlockOrContainer);
+
+    private static bool IsBlockOrContainer(IElement element)
+        => BlockTags.Contains(element.LocalName) || BlockContainers.Contains(element.LocalName);
 
     /// <summary>
     /// The nearest sibling after (or before) <paramref name="node"/> that writes visible output, or null.
@@ -346,7 +363,13 @@ internal sealed class MiniProgramHtmlSanitizer : IDisposable
         }
 
         var absolute = _urls.Absolute(trimmed, pageUrl);
-        return IsHttp(absolute) ? absolute : null;
+        if (!MiniProgramUrls.IsHttp(absolute, out _))
+        {
+            return null;
+        }
+
+        // A signed link (a Notion file attachment, an uploaded video) expires and leaks its signature.
+        return MiniProgramJson.IsSignedUrl(absolute) ? throw new MiniProgramSignedUrlException(absolute) : absolute;
     }
 
     private static void AddInteger(IElement element, string name, List<(string Name, string Value)> attributes)
@@ -356,9 +379,6 @@ internal sealed class MiniProgramHtmlSanitizer : IDisposable
             attributes.Add((name, value.ToString(System.Globalization.CultureInfo.InvariantCulture)));
         }
     }
-
-    private static bool IsHttp(string value)
-        => Uri.TryCreate(value, UriKind.Absolute, out var uri) && uri.Scheme is "https" or "http";
 
     /// <summary>
     /// The comparable form of a page URL: no query or fragment, canonical escaping and host case,

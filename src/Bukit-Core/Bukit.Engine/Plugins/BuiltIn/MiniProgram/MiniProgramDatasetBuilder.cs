@@ -198,7 +198,7 @@ internal sealed partial class MiniProgramDatasetBuilder
         }
 
         var absolute = _urls.Absolute(text, pageUrl ?? _urls.SiteRoot);
-        if (!Uri.TryCreate(absolute, UriKind.Absolute, out var uri) || uri.Scheme is not ("https" or "http"))
+        if (!MiniProgramUrls.IsHttp(absolute, out _))
         {
             throw Invalid(dataset, recordId, field, $"is not an http(s) URL: {text}");
         }
@@ -219,10 +219,10 @@ internal sealed partial class MiniProgramDatasetBuilder
         int number => number,
         long number => number,
         double number => number,
-        float number => number,
+        float number => FloatValue(number),
         decimal number => number,
         DateTimeOffset date => MiniProgramJson.FormatDate(date),
-        DateTime date => MiniProgramJson.FormatDate(new DateTimeOffset(DateTime.SpecifyKind(date, DateTimeKind.Utc))),
+        DateTime date => MiniProgramJson.FormatDate(AsUtc(date)),
         _ when ToTextList(raw) is { } list => ToStringArray(list),
         _ => null
     };
@@ -233,7 +233,7 @@ internal sealed partial class MiniProgramDatasetBuilder
         string text => text,
         bool flag => flag ? "true" : "false",
         DateTimeOffset date => MiniProgramJson.FormatDate(date),
-        DateTime date => MiniProgramJson.FormatDate(new DateTimeOffset(DateTime.SpecifyKind(date, DateTimeKind.Utc))),
+        DateTime date => MiniProgramJson.FormatDate(AsUtc(date)),
         IFormattable formattable and (int or long or double or float or decimal) => formattable.ToString(null, CultureInfo.InvariantCulture),
         _ => null
     };
@@ -297,6 +297,7 @@ internal sealed partial class MiniProgramDatasetBuilder
         int value => value,
         long value => value,
         decimal value => value,
+        float value => FloatValue(value),
         // Text already in JSON number form is written as is, so no digit is rounded away.
         string text when JsonNumber().IsMatch(text.Trim()) && ToNumber(text) is not null => JsonNode.Parse(text.Trim()),
         string text when long.TryParse(text.Trim(), NumberStyles.Integer, CultureInfo.InvariantCulture, out var value) => value,
@@ -313,7 +314,7 @@ internal sealed partial class MiniProgramDatasetBuilder
     private static DateTimeOffset? ToDate(object raw) => raw switch
     {
         DateTimeOffset value => value,
-        DateTime value => new DateTimeOffset(DateTime.SpecifyKind(value, DateTimeKind.Utc)),
+        DateTime value => AsUtc(value),
         // Only ISO 8601 text: "May" or "3/4/2026" would otherwise become a guessed date.
         string text when IsoDate().IsMatch(text) &&
                          DateTimeOffset.TryParse(text.Trim(), CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal, out var value) => value,
@@ -338,13 +339,22 @@ internal sealed partial class MiniProgramDatasetBuilder
     /// Dates arrive as DateTimeOffset, DateTime or ISO text depending on the source; giving them one
     /// form keeps a sort chronological instead of grouping records by how their date was stored.
     /// </summary>
-    private static object? SortKey(object? value) => value switch
-    {
-        DateTime date => new DateTimeOffset(DateTime.SpecifyKind(date, DateTimeKind.Utc)),
-        string text when IsoDate().IsMatch(text) &&
-                         DateTimeOffset.TryParse(text.Trim(), CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal, out var date) => date,
-        _ => value
-    };
+    private static object? SortKey(object? value) => value is DateTime or string ? ToDate(value) ?? value : value;
+
+    private static DateTimeOffset AsUtc(DateTime value) => new(DateTime.SpecifyKind(value, DateTimeKind.Utc));
+
+    /// <summary>
+    /// A float as the decimal its shortest text names, so 0.1f is written as 0.1 and not as the
+    /// widened double 0.10000000149011612; a float outside the decimal range stays a double.
+    /// </summary>
+    private static JsonValue FloatValue(float value)
+        => FloatDecimal(value) is { } exact ? JsonValue.Create(exact) : JsonValue.Create((double)value);
+
+    private static decimal? FloatDecimal(float value)
+        => decimal.TryParse(value.ToString("R", CultureInfo.InvariantCulture), NumberStyles.Float, CultureInfo.InvariantCulture, out var exact) &&
+           (float)exact == value
+            ? exact
+            : null;
 
     [GeneratedRegex(@"^\s*\d{4}-\d{2}-\d{2}([Tt ]|\s*$)", RegexOptions.CultureInvariant)]
     private static partial Regex IsoDate();
@@ -397,7 +407,9 @@ internal sealed partial class MiniProgramDatasetBuilder
             var compared = Rank switch
             {
                 NumberRank when Band != other.Band => Band.CompareTo(other.Band),
-                NumberRank => Band == 0 ? Exact.CompareTo(other.Exact) : Number.CompareTo(other.Number),
+                // Decimal rounds values below its scale (1e-30) to 0, so equal decimals fall back to the double.
+                NumberRank when Band == 0 && Exact != other.Exact => Exact.CompareTo(other.Exact),
+                NumberRank => Number.CompareTo(other.Number),
                 DateRank => Date.CompareTo(other.Date),
                 TextRank => StringComparer.Ordinal.Compare(Text, other.Text),
                 _ => 0
@@ -411,6 +423,7 @@ internal sealed partial class MiniProgramDatasetBuilder
             int value => value,
             long value => value,
             decimal value => value,
+            float value => ParseDecimal(value.ToString("R", CultureInfo.InvariantCulture)),
             string text => ParseDecimal(text),
             _ => ParseDecimal(number.ToString("R", CultureInfo.InvariantCulture))
         };
