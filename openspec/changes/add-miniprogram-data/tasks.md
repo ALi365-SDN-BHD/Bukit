@@ -112,5 +112,6 @@
       多语言 `bukit build` 的 worktree 子进程不再丢掉这一节（新增往返测试复现并验证）；`locale`
       不属于站点语言的行不算匹配；scope 兜底匹配改用不抛异常的 `AliasMatches`；`site.url` 拒绝
       账号信息且错误消息不回显；插件构造函数必须传执行模式；重命名误导性的测试。
-      记录未修：其他 `internal` 配置属性（如 `MediaConfig.PlaceholderMissing`）同样不会传给
-      worktree 子进程，不属于本变更范围。
+      经核实无需修改：`MediaConfig.PlaceholderMissing` 不读自 site.yaml，只在
+      `ImageLocalizeStage` 里写进临时的 `media with` 副本；worktree 子进程自己运行
+      `ContentPipeline`，会在其目录中重新探测，因此不受 JSON 序列化影响。
