@@ -185,10 +185,10 @@ internal sealed class MiniProgramPlugin : IBukitPlugin, IAfterBuildAsyncPlugin
                 continue;
             }
 
+            // The url is escaped like every other published URL, so a page's url matches body links to it.
             records.Add(new MiniProgramRecord(
                 PublicContentProjectionPolicy.ResolvePublicId(routed.Document.Record, routed.Route.Url),
                 routed.Document,
-                // Escaped like every other published URL, so a page's url matches body links to it.
                 MiniProgramUrls.Escape(SeoModelBuilder.BuildAbsoluteUrl(siteUrl, context.BaseUrl, routed.Route.Url)),
                 BodyHtml: null));
         }
