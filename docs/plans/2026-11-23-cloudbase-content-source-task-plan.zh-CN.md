@@ -4,10 +4,10 @@
 >
 > **状态：** 草案，未批准。门禁规则：**G0-1～G0-5 没通过，不能开始 T00；G0-6 没通过，不能开始 T06。**
 >
-> **修订：** v2（2026-11-23），按一轮独立审计（Critical 1 / Important 12 / Minor 15）修订，处置记录见方案附录 A。
+> **修订：** v3（2026-11-23）。v2 按第一轮独立审计（Critical 1 / Important 12 / Minor 15）修订，v3 按第二轮严格审计（Critical 0 / Important 11 / Minor 10）修订，处置记录见方案附录 A、B。
 >
 > **依据：**
-> - [实施方案](2026-11-23-cloudbase-content-source-implementation-design.zh-CN.md)，下文简称"方案"。D1～D16 指方案第 4 节的决策。
+> - [实施方案](2026-11-23-cloudbase-content-source-implementation-design.zh-CN.md)，下文简称"方案"。D1～D18 指方案第 4 节的决策。
 > - [可行性分析](../analysis/bukit-core-cloudbase-builtin-provider-feasibility-2026-11-22.zh-CN.md)，下文简称"分析文档"。
 >
 > **代码基线：** 提交 `5fdc9dd2` 时的仓库内容。源码路径从 `src/Bukit-Core/` 算起，测试路径从 `tests/` 算起。
@@ -90,19 +90,22 @@ git status --short -- <本任务路径>                    #    确认没有残�
 
    执行方式按分类结果来：`static-parallel` 的互不相干的检查可以并行跑；`dotnet-serial` 的串行跑；`fixture-exclusive` 的单独跑。
 
+   注意：分类只看 policy 的 `resourceRules`，pathRule 里的 `resource` 字段不起作用。T00 第 3 步会把 `dotnet-format.sh`、`code-analysis-ratchet.sh`、`public-api-drift.sh` 这些会构建的命令补进 `resourceRules` 的 `dotnet-serial`；在那之前，凡是会调用 `dotnet` 的命令一律串行跑。
+
 3. **C# 工具门禁。** 改动 C# 的任务（T01～T08），除了 specialtyTests，还要跑下面三项：
 
    ```bash
    bash scripts/checks/dotnet-format.sh
    bash scripts/checks/code-analysis-ratchet.sh check          # CA1502/CA1506 不能高于基线
-   dotnet run --project tools/Bukit.PublicApiDrift/Bukit.PublicApiDrift.csproj \
-     --configuration Debug -- check docs/governance/bukit-core-public-api-baseline.v1.json "$PWD" Debug
+   bash scripts/checks/public-api-drift.sh check Debug           # 先构建 bukit-core.slnx，再比对基线
    ```
 
-4. **缓存。** 每条测试命令跑之前先 `cache check`。命中就直接复用，不重跑；没命中就跑，GREEN 之后 `cache record`：
+   需要更新基线时，先 `bash scripts/checks/public-api-drift.sh snapshot <out.json> Debug` 生成快照，再把变化合并进基线，并保留基线里已有的 owner 和分类等元数据。
+
+4. **缓存。** 一个记录文件只存一条记录，后写的会覆盖先写的，所以**每条命令用一个单独的记录文件**，路径是 `/tmp/codex-reports/cache/<task>-<label>.json`。每条测试命令跑之前先 `cache check`：退出码 0 是命中，直接复用；退出码 1 是未命中；退出码 2 表示记录文件不存在，也当作未命中。没命中就跑，GREEN 之后 `cache record`：
 
    ```bash
-   R=/tmp/bukit-cloudbase-cache.json
+   R=/tmp/codex-reports/cache/T02-shared-tests.json
    python3 scripts/checks/codex-workflow.py cache check --record "$R" --base "$(git rev-parse HEAD)" \
      --command "<cmd>" --sdk-version "$(dotnet --version)" --path <闭包文件，可重复>
    python3 scripts/checks/codex-workflow.py cache record --record "$R" --base "$(git rev-parse HEAD)" \
@@ -110,7 +113,7 @@ git status --short -- <本任务路径>                    #    确认没有残�
      --result passed --exit-code 0 --duration-ms <n>
    ```
 
-   `--env` 只填变量名，不能填值。
+   `--env` 只填变量名，不能填值。缓存指纹包含 HEAD，任务一提交 HEAD 就变了，所以证据只在同一个 HEAD 上可以复用，不能跨任务复用。
 
 5. **指标。** 指标写进单独的文件 `/tmp/bukit-cloudbase-metrics.json`，不要写进队列的状态文件。这个文件第一次使用前要初始化成 `{"events":[],"schemaVersion":1}`，由 T00 第 1 步完成。每个阶段（implementation、test、review）结束时记一条：
 
@@ -144,7 +147,7 @@ Phase 0（S1～S4） ──> G0-1～G0-5 ──> T00
 
 代码依赖关系是这样的：
 
-- T01、T02、T03 互相没有依赖。
+- T01 和 T03 都依赖 T02：T01 要报 `CloudBaseConfigInvalid`；T03 本身不产生诊断码，但 T04 要把它的错误映射到 T02 定义的码。T01 和 T03 之间没有依赖。
 - T05 只给 `BasicMarkdownToHtml` 新增一个默认关闭的选项，不依赖 provider。
 - T04 依赖 T01、T02、T03、T05，并在 body store 里打开 T05 加的选项。
 
@@ -155,8 +158,8 @@ Phase 0（S1～S4） ──> G0-1～G0-5 ──> T00
 | M0 决策 | Phase 0、G0 | 调研结论、G0 记录 | 2～4 天（取决于消费方配合） |
 | M1 基础 | T00、T02、T01、T03 | policy 规则、openspec、诊断码、配置契约、transport、新项目登记 | 4.5～7 天 |
 | M2 主体 | T05、T04、T06 | 端到端构建能跑通 | 3.5～5 天 |
-| M3 收口 | T07、T08、T09、T10 | 隐私、doctor、文档、最终验证 | 4～6 天 |
-| 合计 | | | **约 14～22 个工作日**（估算，按一名实施者计） |
+| M3 收口 | T07、T08、T09、T10 | 隐私、doctor、文档、最终验证 | 4.5～7 天 |
+| 合计 | | | **约 15～23 个工作日**（估算，按一名实施者计；T10 按全部测试重跑计算） |
 
 ## 2. Phase 0 与 G0（不改仓库代码）
 
@@ -207,30 +210,95 @@ Phase 0（S1～S4） ──> G0-1～G0-5 ──> T00
    python3 scripts/checks/codex-workflow.py queue init --state /tmp/bukit-cloudbase-queue.json
    python3 scripts/checks/codex-workflow.py queue acquire --state /tmp/bukit-cloudbase-queue.json --task T00
    printf '{"events":[],"schemaVersion":1}\n' > /tmp/bukit-cloudbase-metrics.json
+   mkdir -p /tmp/codex-reports/cache /tmp/codex-reports/evidence
+   printf '{"findings":[],"schemaVersion":1}\n' > /tmp/codex-reports/cloudbase-findings.json
    git rev-parse HEAD > /tmp/bukit-cloudbase-base
    ```
 
-2. **列出全部 P1 候选文件。** 来源是方案第 8 节，外加 openspec 的全部路径、新用户文档的暂定路径、`bukit-test.slnx`，以及两份计划文档。对这份完整清单运行 closure（写法见 0.3 第 1 条），记下 `unmappedFiles`。
+2. **列出全部 P1 候选文件。** 来源是方案第 8 节，外加 openspec 的全部路径、新用户文档 `guide/user/27-cloudbase-content.md`、`guide/user/README.md`、`bukit-test.slnx`，以及两份计划文档。对这份完整清单运行 closure（写法见 0.3 第 1 条），记下 `unmappedFiles`。
 
-3. **在 policy 的 `pathRules` 里新增规则。** 每条规则都要写全六个字段：`id`、`matches`、`specialtyTests`、`resource`、`publicContract`、`contractConsumerGlobs`。写法参照 `bukit-notion-source` 和 `bukit-new-command-plan` 这两条现有规则。
+3. **修改 policy。**
 
-   | id | matches | specialtyTests | resource | publicContract | contractConsumerGlobs |
-   |---|---|---|---|---|---|
-   | `bukit-cloudbase-source` | `src/Bukit-Core/Bukit.CloudBase/*.cs`、`**/*.cs`、`Bukit.CloudBase.csproj` | `dotnet test tests/Bukit.CloudBase.Tests/Bukit.CloudBase.Tests.csproj`；`bash scripts/checks/dotnet-format.sh`；`bash scripts/checks/code-analysis-ratchet.sh check` | `dotnet-serial` | `true` | `tests/Bukit.CloudBase.Tests/**/*.cs`、`tests/Bukit.Content.Tests/**/*.cs`、`tests/Bukit.Cli.Tests/**/*.cs`、`tests/Bukit.Engine.Tests/**/*.cs`、`tests/Bukit.Architecture.Tests/**/*.cs` |
-   | `bukit-cloudbase-tests` | `tests/Bukit.CloudBase.Tests/*`、`tests/Bukit.CloudBase.Tests/**` | `dotnet test tests/Bukit.CloudBase.Tests/Bukit.CloudBase.Tests.csproj` | `dotnet-serial` | `false` | `[]` |
-   | `bukit-test-solution` | `bukit-test.slnx` | `dotnet build bukit-test.slnx --configuration Debug` | `dotnet-serial` | `false` | `[]` |
-   | `cloudbase-content-source-change` | `openspec/changes/add-cloudbase-content-source/*`、`openspec/changes/add-cloudbase-content-source/**`、`openspec/changes/archive/*-add-cloudbase-content-source/**`、`openspec/specs/cloudbase-content-source/spec.md`、两份计划文档 | 归档前：`openspec validate add-cloudbase-content-source --type change --strict --no-interactive`；归档后：`openspec validate cloudbase-content-source --type spec --strict --no-interactive` | `static-parallel` | `false` | `[]` |
-   | `cloudbase-user-docs` | `guide/user/07-multi-source-data.md`、新的 CloudBase 用户文档 | `bash scripts/checks/docs/active-links.sh`；`bash scripts/checks/docs/size-policy.sh`；`bash scripts/checks/config-docs-contract.sh` | `static-parallel` | `false` | `[]` |
+   **3a. 在 `pathRules` 里新增 4 条规则。** 每条规则都要写全六个字段，glob 一律写完整前缀：匹配用的是 `fnmatch.fnmatchcase`，裸的 `**/*.cs` 会匹配仓库里所有 C# 文件，裸文件名只匹配根目录。下面的 JSON 可以直接复制，只把计划文档的文件名按实际情况核对一遍：
 
-   `cloudbase-content-source-change` 的 specialtyTests 要分两个阶段：归档之前用第一条命令；T10 归档时，把它换成第二条命令，并且和归档放在同一个提交里。
+   ```json
+   {
+     "id": "bukit-cloudbase-source",
+     "matches": [
+       "src/Bukit-Core/Bukit.CloudBase/*.cs",
+       "src/Bukit-Core/Bukit.CloudBase/**/*.cs",
+       "src/Bukit-Core/Bukit.CloudBase/Bukit.CloudBase.csproj"
+     ],
+     "specialtyTests": [
+       "dotnet test tests/Bukit.CloudBase.Tests/Bukit.CloudBase.Tests.csproj",
+       "bash scripts/checks/dotnet-format.sh",
+       "bash scripts/checks/code-analysis-ratchet.sh check"
+     ],
+     "resource": "dotnet-serial",
+     "publicContract": true,
+     "contractConsumerGlobs": [
+       "tests/Bukit.CloudBase.Tests/*.cs", "tests/Bukit.CloudBase.Tests/**/*.cs",
+       "tests/Bukit.Content.Tests/*.cs", "tests/Bukit.Content.Tests/**/*.cs",
+       "tests/Bukit.Cli.Tests/*.cs", "tests/Bukit.Cli.Tests/**/*.cs",
+       "tests/Bukit.Engine.Tests/*.cs", "tests/Bukit.Engine.Tests/**/*.cs",
+       "tests/Bukit.Architecture.Tests/*.cs", "tests/Bukit.Architecture.Tests/**/*.cs"
+     ]
+   },
+   {
+     "id": "bukit-cloudbase-tests",
+     "matches": ["tests/Bukit.CloudBase.Tests/*", "tests/Bukit.CloudBase.Tests/**"],
+     "specialtyTests": ["dotnet test tests/Bukit.CloudBase.Tests/Bukit.CloudBase.Tests.csproj"],
+     "resource": "dotnet-serial",
+     "publicContract": false,
+     "contractConsumerGlobs": []
+   },
+   {
+     "id": "cloudbase-content-source-change",
+     "matches": [
+       "openspec/changes/add-cloudbase-content-source/*",
+       "openspec/changes/add-cloudbase-content-source/**",
+       "openspec/changes/archive/*-add-cloudbase-content-source/**",
+       "openspec/specs/cloudbase-content-source/spec.md",
+       "docs/plans/2026-11-23-cloudbase-content-source-implementation-design.zh-CN.md",
+       "docs/plans/2026-11-23-cloudbase-content-source-task-plan.zh-CN.md"
+     ],
+     "specialtyTests": [
+       "openspec validate add-cloudbase-content-source --type change --strict --no-interactive"
+     ],
+     "resource": "static-parallel",
+     "publicContract": false,
+     "contractConsumerGlobs": []
+   },
+   {
+     "id": "cloudbase-user-docs",
+     "matches": ["guide/user/07-multi-source-data.md", "guide/user/27-cloudbase-content.md"],
+     "specialtyTests": [
+       "bash scripts/checks/docs/active-links.sh",
+       "bash scripts/checks/docs/size-policy.sh",
+       "bash scripts/checks/config-docs-contract.sh"
+     ],
+     "resource": "static-parallel",
+     "publicContract": false,
+     "contractConsumerGlobs": []
+   }
+   ```
 
-   如果 `bukit-test.slnx` 已经被某条现有规则覆盖，就不新增 `bukit-test-solution`，以 closure 的实际输出为准。
+   `cloudbase-content-source-change` 的 specialtyTests 分两个阶段：归档前用上面这条；T10 归档时换成 `openspec validate cloudbase-content-source --type spec --strict --no-interactive`，并且和归档放在同一个提交里。
+
+   `bukit-test.slnx`：如果 closure 显示它已经被现有规则覆盖，就不用管；否则把它加进现有 `bukit-core-solution` 规则的写法，specialtyTests 用 `dotnet test tests/Bukit.Architecture.Tests/Bukit.Architecture.Tests.csproj`（`CoverageGateTests` 和 `CoreBoundaryTests` 会读这个文件）加上 `dotnet build tests/Bukit.CloudBase.Tests/Bukit.CloudBase.Tests.csproj`。**不要用 `dotnet build bukit-test.slnx`**，那等于构建整个测试解决方案。
+
+   **3b. 在 `resourceRules` 里补 `dotnet-serial` 的命令。** 执行分类只看 `resourceRules`，pathRule 的 `resource` 不起作用。在 `dotnet-serial` 那条规则的 `commandContains` 里加上 `dotnet-format.sh`、`code-analysis-ratchet.sh`、`public-api-drift.sh`、`dotnet build tests/`。然后在 codex-workflow 的 self-test 里加断言：这几条命令 `classify` 的结果是 `dotnet-serial`。
 
 4. **重新运行 closure。** 对第 2 步的完整清单再跑一次，要求 `unmappedFiles` 为空。然后运行：
 
    ```bash
    bash scripts/checks/codex-workflow-self-test.sh
+   python3 scripts/checks/codex-workflow.py classify --policy scripts/checks/codex-workflow-policy.v1.json \
+     --test-command "bash scripts/checks/dotnet-format.sh" \
+     --test-command "bash scripts/checks/code-analysis-ratchet.sh check"
    ```
+
+   要求 self-test 通过，两条命令都分到 `dotnet-serial`。
 
 5. **编写 openspec 提案。**
    - proposal：写 G0 记录和调研结果。
@@ -255,7 +323,7 @@ Phase 0（S1～S4） ──> G0-1～G0-5 ──> T00
 
 8. **提交**（按 0.2 的写法）。
    - message：`spec: propose cloudbase content source`
-   - 文件：`scripts/checks/codex-workflow-policy.v1.json`、`openspec/changes/add-cloudbase-content-source` 下逐个列出的文件、两份计划文档
+   - 文件：`scripts/checks/codex-workflow-policy.v1.json`、codex-workflow 的 self-test 文件、`openspec/changes/add-cloudbase-content-source` 下逐个列出的文件、两份计划文档
 
    提交后转为 `done`，并记录 metrics。
 
@@ -263,7 +331,7 @@ Phase 0（S1～S4） ──> G0-1～G0-5 ──> T00
 
 - openspec change 的 strict 校验通过；
 - 完整候选清单的 closure 没有 unmapped 文件；
-- codex-workflow 的 self-test 通过；
+- codex-workflow 的 self-test 通过，新加的分类断言通过；
 - 队列和 metrics 文件都已初始化。
 
 **估算：** 1～1.5 天。
@@ -276,7 +344,7 @@ Phase 0（S1～S4） ──> G0-1～G0-5 ──> T00
 
 - 修改：`Bukit.Shared/DiagnosticCode.cs`、`Bukit.Shared/DiagnosticCodeFormatter.cs`
 - 修改：`docs/governance/bukit-core-public-api-baseline.v1.json`
-- 修改：`guide/dev/cli.md`。在 "BukitJalil consumer contract" 表里新增 `BKT-0Cxx` 一行，负责测试填 `DiagnosticCodeFormatterTests`。
+- 修改：`guide/dev/cli.md`。在 "BukitJalil consumer contract" 表里新增 `BKT-0Cxx` 一行，负责测试填 `DiagnosticCodeFormatterTests`。这一节在文件里出现了两次（第 59 行和第 89 行），两处都改；重复本身记为范围外发现，不在本任务处理。
 - 测试：`tests/Bukit.Shared.Tests/BuildDiagnosticCodeTests.cs`（区间表和类别测试）、`tests/Bukit.Shared.Tests/DiagnosticCodeFormatterTests.cs`
 
 **步骤：**
@@ -288,7 +356,7 @@ Phase 0（S1～S4） ──> G0-1～G0-5 ──> T00
    - 为方案第 6 节的每个码断言名称和值；
    - `DiagnosticCodeFormatterTests` 为每个码加一条 InlineData，断言 `Format` 输出 `BKT-0C0n`，`Describe` 返回以 "CloudBase:" 开头的说明。
 3. 实现：在 `DiagnosticCode` 里新增成员；在 `DiagnosticCodeFormatter.Describe` 里补上说明文字（formatter 没有分类功能，只有说明）。
-4. 跑 public-api-drift，确认只多出新成员，然后更新基线。再跑 `public-api-drift-self-test.sh`。
+4. 跑 `public-api-drift.sh check Debug`，确认只多出新成员；按 0.3 第 3 条用 `snapshot` 更新基线。再跑 `public-api-drift-self-test.sh`。
 5. 依次转到 `testing`。跑 closure 给出的测试（预计包括 `Bukit.Shared.Tests` 全量）和 0.3 第 3 条的工具门禁，然后记录缓存。
 6. 转到 `review_wait`，做专项审查。
 7. **提交。**
@@ -314,7 +382,7 @@ Phase 0（S1～S4） ──> G0-1～G0-5 ──> T00
 - 修改：`Bukit.Config/AppConfig.cs`。新增 internal 的 `CloudBaseConfig`，以及 `ContentSourceConfig.CloudBase`。
 - 修改：`Bukit.Config/ConfigCollectionReader.cs`、`Bukit.Config/SiteDefaultsApplier.Content.cs`。新增 `ReadCloudBaseConfigFrom`。
 - 修改：`Bukit.Config/ConfigStrictFieldValidator.cs`。白名单加入 `cloudbase`，新增 `ValidateCloudBase`。
-- 修改：`Bukit.Config/ConfigValidator.cs`、`Bukit.Config/ProviderValidators.cs`。实现方案第 5 节的校验、D8 的第 ①～④ 条和 D13。
+- 修改：`Bukit.Config/ConfigValidator.cs`、`Bukit.Config/ProviderValidators.cs`。实现方案第 5 节的校验、D8 第 ①②④ 条和第 ③ 条的 `onFailure` 部分、D13、D18。
 - 修改：`Bukit.Config/ConfigJsonSchemaGenerator.cs`。枚举加入 `cloudbase`，新增 `CloudBaseSchema()`。
 - 测试：`tests/Bukit.Config.Tests/` 下的 `ConfigContractDriftTests`、`ConfigSchemaNestedContractTests`，以及新建的 `CloudBaseConfigTests`。
 
@@ -329,11 +397,13 @@ Phase 0（S1～S4） ──> G0-1～G0-5 ──> T00
    - `cacheMode` 不是 `off`，失败；
    - `bodyFormat` 不是 `markdown`，失败；
    - `filter` 出现 `field` 和 `value` 以外的键（例如 `op`），失败；
-   - D8 第 ①～④ 条，每条都单独写一个失败用例：
+   - `envId` 不符合 `^[a-z0-9][a-z0-9-]{0,63}$`（含 `/`、`@`、`#`、`?`、`.`、大写），失败（D18）；
+   - D8 中能在配置阶段检查的部分，每条单独写一个失败用例：
      - `downloadToLocal: false`；
      - `fileFields` 里有字段不在 `media.fieldKeys` 里；
-     - `onFailure: keep`；
-     - 占位图缺失（`PlaceholderMissing` 为 true）。
+     - `onFailure: keep`。
+
+   "占位图缺失"不在这里测：`PlaceholderMissing` 由构建设置，配置校验时永远是 false，放到 T04 测。
 3. 更新两个契约测试：
    - `content.sources[]` 的键集合加入 `cloudbase`；
    - 新增 4 份快照：`content/sources[]/cloudbase`、`content/sources[]/cloudbase/filter`、`content/sources[]/cloudbase/sort`、`content/sources[]/cloudbase/fieldPolicy`；
@@ -341,7 +411,7 @@ Phase 0（S1～S4） ──> G0-1～G0-5 ──> T00
 4. 实现读取、校验和 schema。注意三点：
    - `CloudBaseConfig` 必须是 internal（D1）；
    - schema 里 `fieldPolicy` 沿用 `whitelist|all`；
-   - 和临时链接域名有关的校验（D8 第 ⑤ 条）不在这里做，放到 T06。
+   - 和临时链接域名有关的校验（D8 第 ⑤ 条）不在这里做，放到 T06；占位图存在性放到 T04。
 5. 转到 `testing`。跑 closure 给出的测试（预计包括 `Bukit.Config.Tests` 全量和 drift）和工具门禁，记录缓存。
 6. 转到 `review_wait`，做专项审查。
 7. **提交。**
@@ -352,7 +422,7 @@ Phase 0（S1～S4） ──> G0-1～G0-5 ──> T00
 
 **验收：**
 
-- AC1 中除 D8 第 ⑤ 条以外的部分；
+- AC1 中配置阶段的部分（不含 D8 第 ③ 条的占位图检查和第 ⑤ 条）；
 - public-api-drift 没有出现新的配置类型；
 - `config schema` 的输出里有 `cloudbase`。
 
@@ -372,8 +442,9 @@ Phase 0（S1～S4） ──> G0-1～G0-5 ──> T00
 - 修改：`bukit-core.slnx`、`bukit-test.slnx`。
 - 修改：`tools/Bukit.PublicApiDrift/ApiSurfaceModels.cs`。在 `GovernedAssemblies` 里加入 `Bukit.CloudBase`（D15）。
 - 修改：`docs/governance/bukit-core-public-api-baseline.v1.json`。新增 `Bukit.CloudBase` 的条目，公开面为空。
+- 修改：`tests/Bukit.Architecture.Tests/PublicApiBaselineFacts.cs`。`GovernedAssemblyCount` 从 18 改成 19；不改的话，有 10 个测试会失败。
 - 修改：`tests/Bukit.Architecture.Tests/CoreProjectReferenceBoundaryTests.cs`。Core 项目数从 18 改成 19，并新增一条断言：`Bukit.CloudBase` 不引用任何项目。
-- 修改：`scripts/checks/coverage/list-core-projects.sh`。加入 `tests/Bukit.CloudBase.Tests`；CI 只通过这份清单运行 Core 测试。
+- 修改：`scripts/checks/coverage/list-core-projects.sh`。新增一行 `emit tests/Bukit.CloudBase.Tests/Bukit.CloudBase.Tests.csproj`（不带过滤参数）；CI 只通过这份清单运行 Core 测试。
 - 修改：`tests/Bukit.Architecture.Tests/CoverageGateTests.cs`、`scripts/checks/coverage/project-list-self-test.sh`。测试项目数从 13 改成 14。
 - 只在复用 SDK 时修改：`Directory.Packages.props`。它会触发 `central-package-management` 规则，这条规则覆盖 13 个项目，要提前预留测试时间。
 
@@ -382,12 +453,12 @@ Phase 0（S1～S4） ──> G0-1～G0-5 ──> T00
 1. `queue acquire --task T03`，然后运行 closure 和 classify。
 2. 先写测试，全部用伪造的 `HttpMessageHandler`：
    - 鉴权头的生成；
-   - 网关域名按 `region` 选择；
+   - 网关域名按 `region` 选择；用 `UriBuilder` 拼地址，发送凭据前断言协议是 https、主机名正好是 `{envId}.api[.intl].tcloudbasegateway.com`；`envId` 含 `/`、`@`、`#`、`?`、`.`、大写或 IDN 时拒绝发送（D18）；
    - 分页直到读完；
    - 查询请求里 filter 和 sort 的构造；
    - 429 和 5xx 按指数退避重试，最多 `maxRetries` 次；
    - 限速符合 `maxRps`；
-   - 401、403、404 映射到对应的诊断码；
+   - 401、403、404 映射到对应的 `CloudBaseErrorKind`（transport 不引用 `Bukit.Shared`，不产生 `DiagnosticCode`，见 D2）；
    - 响应体超过上限或 JSON 畸形时，报 `CloudBaseResponseInvalid`；
    - 所有异常和日志文本里都不含凭据、签名和查询串（AC7、D14）。
 3. 实现 transport。JSON 一律用源生成，以兼容 AOT，不用反射序列化。
@@ -416,7 +487,7 @@ Phase 0（S1～S4） ──> G0-1～G0-5 ──> T00
 **验收：**
 
 - transport 测试、架构测试、两个 self-test 都通过；
-- drift 只报告 `Bukit.CloudBase` 这个新的受治理程序集，公开面为空；
+- drift 只报告 `Bukit.CloudBase` 这个新的受治理程序集，公开面为空；`PublicApiBaselineFacts` 相关的 10 个测试通过；
 - 行覆盖率不低于 70%；
 - `dotnet build` 没有裁剪或 AOT 警告。
 
@@ -429,7 +500,7 @@ Phase 0（S1～S4） ──> G0-1～G0-5 ──> T00
 **文件：**
 
 - 修改：`Bukit.Content/Markdown/BasicMarkdownToHtml.cs`。新增"不可信链接"选项，默认关闭。
-- 新建：`Bukit.Content/CloudBase/CloudBaseUrlPolicy.cs`（D9）。
+- 新建：`Bukit.Content/CloudBase/CloudBaseUrlPolicy.cs`（D9）。它把有协议的 URL 交给 `RenderingSafeUrl.ForLink` / `ForMedia`；这两个类的协议集合是 private，不能直接复用，也不改 `Bukit.Notion`。
 - 测试：`tests/Bukit.Content.Tests/` 下新建 `UntrustedLinkMarkdownTests`。
 
 **步骤：**
@@ -442,6 +513,12 @@ Phase 0（S1～S4） ──> G0-1～G0-5 ──> T00
    |---|---|
    | `javascript:`、`vbscript:`、`data:` 链接和图片 | 丢弃，或降级为纯文本 |
    | `<javascript:alert(1)>` 这样的自动链接 | 丢弃，或降级为纯文本 |
+   | `JAVASCRIPT:alert(1)` | 丢弃，或降级为纯文本 |
+   | `jav&#x61;script:`、`&#x6A;avascript:` | 丢弃，或降级为纯文本 |
+   | 引用定义 `[r]: javascript:alert(1)` | 丢弃，或降级为纯文本 |
+   | `java&#9;script:` | 输出里没有可执行的 `javascript:`（Markdig 会编码成 `java%09script:`） |
+   | 带标题的图片 | 保留，标题照常输出 |
+   | 裸 `www.` 链接（管线开启 `UseAutoLinks` 时） | 按 https 处理，保留 |
    | `//host` | 丢弃，或降级为纯文本 |
    | 引用式链接 | 按同样的规则处理 |
    | `#section` | 保留 |
@@ -454,7 +531,7 @@ Phase 0（S1～S4） ──> G0-1～G0-5 ──> T00
 4. 实现。开启选项时，渲染流程改为 `Markdown.Parse` → 遍历语法树 → `HtmlRenderer`：
    - 遍历时处理 `LinkInline`（包括图片）和 `AutolinkInline`；
    - 原来独立的图片正则后处理保持不变；
-   - URL 判断交给 `CloudBaseUrlPolicy`，它内部复用 `RenderingSafeUrl` 的协议集合。
+   - URL 判断交给 `CloudBaseUrlPolicy`，只作用于解析后的 `LinkInline.Url` / `AutolinkInline.Url`，用 RFC 3986 语法判断有没有协议（D9）。
 
    选项关闭时，保持原来的 `Markdown.ToHtml` 路径不变。
 5. 转到 `testing`。跑 closure 给出的测试（预计包括 `Bukit.Content.Tests` 全量）和工具门禁，记录缓存。
@@ -483,7 +560,8 @@ Phase 0（S1～S4） ──> G0-1～G0-5 ──> T00
 - 修改：`Bukit.Engine/ContentProviderFactory.cs`。新增 `cloudbase` 分支和 `CreateCloudBaseProvider`。
 - 修改：`Bukit.Engine/ContentFieldReservations.cs`、`Bukit.Engine/ContentSchemaValidator.cs`。加入 CloudBase 的系统字段。
 - 修改：`tests/Bukit.Architecture.Tests/NotionBoundaryTests.cs`。在 `Bukit.Content` 的项目引用表里加入 `Bukit.CloudBase`。
-- 测试：`tests/Bukit.Content.Tests/CloudBase/*`，以及 `tests/Bukit.Engine.Tests` 里的端到端用例。
+- 新建：`Bukit.Content/CloudBase/CloudBaseErrorMapper.cs`。把 `CloudBaseErrorKind` 映射到 `DiagnosticCode.CloudBase*`（D2）。
+- 测试：`tests/Bukit.Content.Tests/CloudBase/*`，以及 `tests/Bukit.Engine.Tests` 里的端到端用例和占位图检查。
 
 **步骤：**
 
@@ -495,12 +573,15 @@ Phase 0（S1～S4） ──> G0-1～G0-5 ──> T00
    - `maxItems` 截断；
    - `mode: data` 的行为；
    - body store 开启了不可信链接模式，用一条 `javascript:` 正文断言（AC4）；
+   - `CloudBaseErrorKind` 到诊断码的映射；
+   - D8 第 ③ 条：`fileFields` 非空、占位图缺失时，`CreateCloudBaseProvider` 以 `CloudBaseConfigInvalid` 失败（`Bukit.Engine.Tests`）；
    - 端到端：用伪造的 HTTP 构建一个站点，包括分页和 filter/sort（AC2）；
    - 没有 cloudbase 源的站点，构建产物逐字节不变。
 3. 实现 provider：
    - 凭据通过 `SecretStore.Get` 读取；
    - body store 打开 T05 加的选项；
-   - 日志只输出记录 ID 的哈希（D14）。
+   - 日志只输出记录 ID 的哈希（D14）；`_id` 在 `all` 模式下不投影（D7）；
+   - `CreateCloudBaseProvider` 在 `fileFields` 非空时调用 `MediaPlaceholderProbe.FindMissing`（D8 第 ③ 条）。
 4. 转到 `testing`。跑 closure 给出的测试（预计包括 `Bukit.Content.Tests`、`Bukit.Engine.Tests`、`Bukit.Architecture.Tests` 全量）和工具门禁，记录缓存。
 5. 转到 `review_wait`，做专项审查。
 6. **提交。**
@@ -509,7 +590,7 @@ Phase 0（S1～S4） ──> G0-1～G0-5 ──> T00
 
    提交后转为 `done`，记录 metrics。
 
-**验收：** AC2、AC3，以及 AC4 的 provider 部分。
+**验收：** AC2、AC3，AC4 的 provider 部分，以及 AC1 中 D8 第 ③ 条的构建阶段检查。
 
 **估算：** 500～800 行，2～3 天。
 
@@ -531,7 +612,8 @@ Phase 0（S1～S4） ──> G0-1～G0-5 ──> T00
 
 1. `queue acquire --task T06`，然后运行 closure 和 classify。
 2. 先写测试：
-   - 字段和正文里的 `cloud://` 被收集起来，每 50 个一批换链，再替换回原文；
+   - `fileFields` 和正文图片位置（`![]()`、图片引用定义）里的 `cloud://` 被收集起来，每 50 个一批换链，再替换回原文；
+   - D17：正文里指向非图片的 `[pdf](cloud://…/a.pdf)` 降级为纯文本；不在 `fileFields` 里的公开字段含 `cloud://` 时整个值被丢弃；两种情况都报 `CloudBaseUnsupportedFileReference`；
    - 部分换链失败时报 `CloudBaseFileResolveFailed`，并且能定位到失败的条目；
    - `SignedUrlIdentity.IdentityTarget` 会去掉 CloudBase 的签名参数；
    - `MiniProgramJson.IsSignedUrl` 能识别 CloudBase 临时链接；
@@ -562,13 +644,17 @@ Phase 0（S1～S4） ──> G0-1～G0-5 ──> T00
 - 修改：`Bukit.Engine.Primitives/PublicContentProjectionPolicy.cs`
 - 修改：`Bukit.Engine.Feeds/JsonFeedGenerator.cs`
 - 按需修改：`Bukit.Engine.Audit/PublishUrlSnapshot.cs`，也就是 `PublishUrlSemanticHasher` 的归一化规则
+- 修改：`Bukit.Config/InternalsVisibleTo.cs`。加上 `Bukit.Engine.Audit` 和 `bukit`（D11）。不加的话，隐私检查读不到 internal 的 `CloudBase` 配置，T08 的 doctor 也读不到。
+- 修改：deploy 命令的入口，让它读取 site.yaml 里的 envId 并传给 `DeploymentPrivacyValidator`（D11）。具体文件在本任务开始时用 closure 和调用方检索确定，写进报告和提交清单。
 - 测试：`tests/Bukit.Engine.Tests/`、`tests/Bukit.Cli.Tests/`
 
 **步骤：**
 
 1. `queue acquire --task T07`，然后运行 closure 和 classify。
 2. 先写测试：
-   - 公开 HTML、JSON Feed 或部署暂存目录里出现 envId、`cloud://`、临时链接的域名或签名参数时，检测会失败（AC6）；
+   - 公开 HTML 或 JSON Feed 里出现 envId、`cloud://`、临时链接的域名或签名参数时，构建阶段检测会失败（AC6）；
+   - 部署暂存目录里出现 `cloud://` 或临时链接的域名或签名参数时，部署校验失败，不需要配置；deploy 命令传入 envId 时，envId 也能检测到；
+   - 发布审计报告 `.bukit/publish-audit-report.json` 的结构不变；
    - 投影策略和 JSON Feed 会过滤掉 CloudBase 来源的敏感实体；
    - 正文里如果有每次构建都会变的临时链接，语义哈希不应因此改变。只有确认确实需要时才改 hasher。
 3. 实现：在现有的 Notion 逻辑旁边并列加上 CloudBase 的检测（D11），不做通用化重构。
@@ -611,6 +697,8 @@ Phase 0（S1～S4） ──> G0-1～G0-5 ──> T00
    - 集合或模型不存在；
    - 映射的字段在样本记录里不存在；
    - 使用管理员级凭据时报 `CloudBaseAdminCredentialInUse` 警告（AC8）；
+   - `fileFields` 非空而占位图缺失时给出警告（复用 `MediaPlaceholderProbe.CheckWarning`，D8 第 ③ 条）；
+   - `_id` 被显式列进 `allowed` 时给出警告（D7）；
    - doctor 的输出里不含凭据。
 3. 实现：结构参照 `DoctorNotionChecker` 和 `DoctorNotionSchemaChecker`。这两个文件只作参照，不改。
 4. 转到 `testing`。跑 closure 给出的测试和工具门禁，记录缓存。
@@ -631,8 +719,8 @@ Phase 0（S1～S4） ──> G0-1～G0-5 ──> T00
 
 **文件：**
 
-- 新建：`guide/user/` 下新增 CloudBase 内容源的用户文档。编号顺延，写法参照 `06-notion-content.md`。
-- 修改：`guide/user/07-multi-source-data.md`、`12-cli-reference.md`、`14-troubleshooting.md`、`16-parameter-cheatsheet.md`、`25-miniprogram-data.md`。
+- 新建：`guide/user/27-cloudbase-content.md`。路径在 T00 已经写进 policy，不能改；写法参照 `06-notion-content.md`。
+- 修改：`guide/user/README.md`（索引表加一行，参照 `06` 那一行）、`guide/user/07-multi-source-data.md`、`12-cli-reference.md`、`14-troubleshooting.md`、`16-parameter-cheatsheet.md`、`25-miniprogram-data.md`。
 - 修改：`guide/dev/config-site-yaml.md`。
 - 修改：`guide/skills/bukit-content-model/SKILL.md`、`guide/skills/bukit-troubleshooting/SKILL.md`。
 - 修改：`Bukit.Cli/SecretsStdinOption.cs`。帮助文本和示例里加入 CloudBase 的密钥名。
@@ -646,7 +734,9 @@ Phase 0（S1～S4） ──> G0-1～G0-5 ──> T00
    - 鉴权方式和权限风险；
    - 管理员级凭据的警告；
    - D8 的五个前提条件；
-   - 排错：`BKT-0C01`～`BKT-0C0A` 各自的含义和处理方法；
+   - 排错：`BKT-0C01`～`BKT-0C0B` 各自的含义和处理方法；
+   - `cloud://` 只在 `fileFields` 和正文图片里换链，其他位置会被降级（D17）；
+   - `envId` 的字符集要求（D18）；
    - P1 的限制：只支持 Markdown、只支持图片、不支持缓存、只支持一种数据形态、`filter` 不支持 `op`；
    - 配置字段 `collectionName` 和通用字段 `collection` 的区别。
 3. 转到 `testing`。跑 closure 给出的检查，预计包括：
@@ -670,7 +760,7 @@ Phase 0（S1～S4） ──> G0-1～G0-5 ──> T00
 
 ---
 
-### T10：OpenSpec 校验、最终验证与审查
+### T10：OpenSpec 归档、最终验证与审查
 
 **步骤：**
 
@@ -681,25 +771,34 @@ Phase 0（S1～S4） ──> G0-1～G0-5 ──> T00
    ```
 
    通过后，把 `tasks.md` 的勾选同步到实际进度。
-2. 用 T00 记下的 BASE（`/tmp/bukit-cloudbase-base`）算出全部变更，运行 closure，按输出**逐条**执行全部 specialtyTests，再加上工具门禁。每条先 `cache check`，命中就复用，不要为了刷新证据去重跑没变的测试。
-3. **Native AOT（需要授权）。**
+2. **归档（需要授权）。** 授权后，归档 openspec 变更，把规格同步到 `openspec/specs/`。这会改动新规格和 4 个现有规格（`core-report-contracts`、`media-localization`、`miniprogram-data`、`incremental-invalidation`）。同时把 policy 规则 `cloudbase-content-source-change` 的 specialtyTests 换成归档后的命令。没有授权就跳过这一步，在最终报告里写明"未归档"。
+3. **最终验证。** 用 T00 记下的 BASE（`/tmp/bukit-cloudbase-base`）算出全部变更，**包括第 2 步的归档改动**，运行 closure 和 classify，按输出**逐条**执行全部 specialtyTests，再加上工具门禁；如果第 2 步改了 policy，还要跑 `codex-workflow-self-test.sh`。每条先 `cache check`；HEAD 自上次记录后变过，就会未命中，按 0.3 第 4 条重跑，这是预期行为。
+
+   跑之前转到 `testing`。
+4. **Native AOT（需要授权）。**
 
    ```bash
    bash scripts/build/native-aot.sh <version> osx-arm64 <output-root> Release
    ```
 
    然后用伪造的配置跑一次 `config check`。没有授权时，改用 `dotnet run` 做一次端到端，并在最终报告里写明"AOT 未验证"。
-4. **真实环境冒烟（需要授权，用消费方的测试环境）。** 运行 `doctor` 和 `build`，确认 AC5、AC6 在真实数据上成立。结果脱敏后记录。
-5. **统一审查。** 每个变更文件写一个 `--changed`：
+5. **真实环境冒烟（需要授权，用消费方的测试环境）。** 运行 `doctor` 和 `build`，确认 AC5、AC6 在真实数据上成立。结果脱敏后记录。
+6. **统一审查。** 转到 `review_wait`。用第 4 节生成的每个任务的证据文件和共用的问题文件，每个任务一个 `--evidence`，每个变更文件一个 `--changed`：
 
    ```bash
-   args=(); for f in "${changed[@]}"; do args+=(--changed "$f"); done
-   python3 scripts/checks/codex-workflow.py review-scope \
-     --evidence <evidence.json> --findings <findings.json> "${args[@]}"
+   ev=(); for f in /tmp/codex-reports/evidence/*.json; do ev+=(--evidence "$f"); done
+   ch=(); for f in "${changed[@]}"; do ch+=(--changed "$f"); done
+   python3 scripts/checks/codex-workflow.py review-scope "${ev[@]}" \
+     --findings /tmp/codex-reports/cloudbase-findings.json "${ch[@]}"
    ```
 
-   只审查跨任务的交叉点、已经失效的证据、没有被覆盖的变更文件、public 或序列化契约，以及还没关闭的 Critical/Important 问题。没有 Critical/Important 就结束。
-6. **指标。**
+   只审查跨任务的交叉点、已经失效的证据、没有被覆盖的变更文件、public 或序列化契约、归档改动，以及还没关闭的 Critical/Important 问题。没有 Critical/Important 就结束。
+7. **提交。** 提交 `tasks.md` 的勾选；如果做了第 2 步，归档改动单独一个提交。
+   - message：`spec: update cloudbase content source tasks`；归档提交用 `spec: archive cloudbase content source change`
+   - 文件：`openspec/changes/add-cloudbase-content-source/tasks.md`；归档提交逐个列出移动和同步的规格文件，以及 policy 文件
+
+   提交后转为 `done`。
+8. **指标。**
 
    ```bash
    python3 scripts/checks/codex-workflow.py metrics add --state /tmp/bukit-cloudbase-metrics.json \
@@ -707,21 +806,13 @@ Phase 0（S1～S4） ──> G0-1～G0-5 ──> T00
    python3 scripts/checks/codex-workflow.py metrics report --state /tmp/bukit-cloudbase-metrics.json
    ```
 
-7. **提交 tasks.md 的勾选。**
-   - message：`spec: update cloudbase content source tasks`
-   - 文件：`openspec/changes/add-cloudbase-content-source/tasks.md`
-8. **归档（需要授权，单独提交）。** 归档 openspec 变更，把规格同步到 `openspec/specs/`。在同一个提交里，把 policy 规则 `cloudbase-content-source-change` 的 specialtyTests 换成归档后的那条命令。然后执行：
-
-   ```bash
-   openspec validate cloudbase-content-source --type spec --strict --no-interactive
-   ```
-
 **验收：**
 
 - AC1～AC10 全部满足；
-- 最终报告列出每条验收的证据、没有验证的项目（例如 AOT、真实环境），以及记录下来的 Minor 问题。
+- 队列里没有活动任务；
+- 最终报告列出每条验收的证据、没有验证的项目（例如 AOT、真实环境、未归档），以及记录下来的 Minor 问题。
 
-**估算：** 1～2 天，不含等待授权的时间。
+**估算：** 1.5～3 天，按全部测试重跑计算，不含等待授权的时间。
 
 ---
 
@@ -736,12 +827,15 @@ BukitJalil 按固定表给 BKT 码分类。本计划合入之后，要把下面�
 
 ## 4. 每个任务的固定收尾
 
-每个任务（T00～T09）结束时，依次做这几件事：
+每个任务（T00～T09；T10 按它自己的步骤）结束时，依次做这几件事：
 
 1. `queue transition --to testing`。跑 closure 给出的测试和工具门禁（T00 和 T09 中不涉及 C# 的部分除外），每条先 `cache check`，GREEN 后 `cache record`。
 2. `queue transition --to review_wait`，做专项审查。只有 Critical 或 Important 问题才退回 `writing`。
 3. 按 0.2 的写法提交，然后 `queue transition --to done`。
 4. 执行 `metrics add`，记录各阶段的耗时、缓存命中情况、是否重跑、是否发生写者冲突。
+5. 为 T10 的 `review-scope` 留证据：
+   - 写 `/tmp/codex-reports/evidence/<task>.json`，内容是 `{"schemaVersion": 1, "taskId": "<task>", "cacheStatus": "hit|miss", "closureFiles": [...], "publicContractFiles": [...]}`，后两项取自本任务的 closure 输出；
+   - 把专项审查发现的每个问题追加到 `/tmp/codex-reports/cloudbase-findings.json`，格式是 `{"schemaVersion": 1, "findings": [{"id": ..., "severity": ..., "status": ..., "files": [...]}]}`。这个文件在 T00 第 1 步初始化为空列表。
 
 ## 5. 风险与应对
 
@@ -753,22 +847,22 @@ BukitJalil 按固定表给 BKT 码分类。本计划合入之后，要把下面�
 | 临时链接在构建过程中过期 | 正文图片延迟下载时报错 | 按 S3 设置 `maxAge`；失败时落到占位图 |
 | 临时链接每次重签，导致正文指纹变化 | 增量构建总是不命中 | P1 可以接受；P3 用 `updatedAt` 和文件 ID 做稳定标识 |
 | 新项目覆盖率达不到 70% | T03 本地的覆盖率报告 | 先补测试，覆盖率达标前不提交 |
-| closure 测试范围太大、耗时太长 | 单个任务的测试超过 30 分钟 | 用 `cache check` 复用证据；`dotnet-serial` 的测试排队执行；不能因为耗时而截断测试 |
+| closure 测试范围太大、耗时太长 | 单个任务的测试超过 30 分钟 | 同一个 HEAD 上用 `cache check` 复用证据（跨任务不能复用）；`dotnet-serial` 的测试排队执行；不能因为耗时而截断测试 |
 | 工作量超出估算 50% | metrics 显示偏差 | 停下来重新评估范围，必要时把功能移到 P2 或 P3 |
 | 工作区混入别人的改动 | `git status` 出现无关文件 | 停止，交给所有者处理；按 0.2 只暂存本任务的文件 |
 
 ## 6. 验收清单
 
 - [ ] G0-1～G0-5 已记录并经负责人确认；G0-6 在 T06 之前确认
-- [ ] T00：队列和 metrics 已初始化；6 条 policy 规则的字段齐全；openspec 提案（1 个新规格、4 份现有规格的变更）；closure 没有 unmapped 文件
-- [ ] T02：诊断码；formatter 测试；public API 基线；`guide/dev/cli.md` 消费方契约表
-- [ ] T01：配置契约；4 份嵌套快照；D8 第 ①～④ 条
-- [ ] T03：transport；新项目登记全部完成（项目数 19、受治理程序集、覆盖率清单、测试项目数 14）；覆盖率不低于 70%；没有 AOT 警告
-- [ ] T05：不可信链接模式（包括自动链接）；`#片段` 和相对链接保留；默认行为不变
-- [ ] T04：provider；硬性剔除；端到端；body store 打开安全模式
-- [ ] T06：`cloud://` 换链；签名链接规则；D8 第 ⑤ 条
-- [ ] T07：隐私检测与过滤
+- [ ] T00：队列、metrics、证据和问题文件已初始化；4 条新 pathRule 字段齐全，`resourceRules` 已补；openspec 提案（1 个新规格、4 份现有规格的变更）；closure 没有 unmapped 文件
+- [ ] T02：诊断码（含 `0x0C0B`）；formatter 测试；public API 基线；`guide/dev/cli.md` 消费方契约表（两处）
+- [ ] T01：配置契约；4 份嵌套快照；D8 中配置阶段能查的部分；`envId` 白名单
+- [ ] T03：transport（只产生 `CloudBaseErrorKind`；主机名断言）；新项目登记全部完成（项目数 19、受治理程序集和 `GovernedAssemblyCount` 19、覆盖率清单、测试项目数 14）；覆盖率不低于 70%；没有 AOT 警告
+- [ ] T05：不可信链接模式（包括自动链接、引用定义、大小写和实体编码）；`#片段` 和相对链接保留；默认行为不变
+- [ ] T04：provider；硬性剔除；错误映射；占位图检查；端到端；body store 打开安全模式
+- [ ] T06：`cloud://` 换链范围和 D17 降级；签名链接规则；D8 第 ⑤ 条
+- [ ] T07：隐私检测与过滤；`Bukit.Config` 内部可见性；部署阶段检测
 - [ ] T08：doctor
 - [ ] T09：用户、开发、技能、排错文档；三语 CHANGELOG
-- [ ] T10：全部 specialtyTests 和工具门禁通过；AOT 和真实环境冒烟（已授权的部分）；统一审查；metrics 报告；tasks.md 已提交；openspec 已归档
+- [ ] T10：openspec 已归档（已授权时）；包括归档改动在内的全部 specialtyTests 和工具门禁通过；AOT 和真实环境冒烟（已授权的部分）；统一审查；tasks.md 已提交；metrics 报告；队列已清空
 - [ ] Part B：BukitJalil 交接已发出（另行授权）
