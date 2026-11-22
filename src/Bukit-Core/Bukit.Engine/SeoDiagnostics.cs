@@ -158,6 +158,20 @@ internal static partial class SeoDiagnostics
         logger.Warn($"seo.theme_json_ld_replaced route={route.Url} count={count} hint=add-data-bukit-seo-keep-or-move-to-body");
     }
 
+    /// <summary>
+    /// Inject mode kept head JSON-LD (<c>data-bukit-seo="keep"</c>) whose top-level type Core also
+    /// generates, so the page publishes that type twice. A warning, like the replacement warning.
+    /// </summary>
+    internal static void ReportThemeJsonLdDuplicateTypes(AppConfig config, RouteInfo route, IReadOnlyList<string> types, ILogger logger)
+    {
+        if (types.Count == 0 || !IsEnabled(config))
+        {
+            return;
+        }
+
+        logger.Warn($"seo.theme_json_ld_duplicate_type route={route.Url} types={string.Join(',', types)} hint=remove-the-type-from-the-kept-script-or-its-data-bukit-seo-keep");
+    }
+
     private static bool IsEnabled(AppConfig config)
         => !string.Equals(config.Site.Seo.Diagnostics, "off", StringComparison.OrdinalIgnoreCase);
 

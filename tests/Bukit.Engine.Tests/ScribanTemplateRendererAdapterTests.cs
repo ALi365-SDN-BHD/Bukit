@@ -1,5 +1,6 @@
 using Bukit.Engine;
 using Bukit.Rendering;
+using Bukit.Theme;
 using Xunit;
 
 namespace Bukit.Engine.Tests;
@@ -38,6 +39,54 @@ public sealed class ScribanTemplateRendererAdapterTests
             {
                 Directory.Delete(tempDir, true);
             }
+        }
+    }
+
+    // Both constructors hand the contributors to the renderer; the registry one used to drop them.
+    // The contributor interface is internal to Bukit.Rendering, so the test builds one with a
+    // DispatchProxy and reaches the constructors through reflection.
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void RenderPage_RunsTemplateContextContributors(bool withRegistry)
+    {
+        var themeDir = Path.Combine(Path.GetTempPath(), "bukit_test_contributors_" + Guid.NewGuid().ToString("N"));
+        var layoutsDir = Path.Combine(themeDir, "layouts");
+        Directory.CreateDirectory(layoutsDir);
+        try
+        {
+            File.WriteAllText(Path.Combine(layoutsDir, "post.html"), "{{ contributed }}");
+            var contributorType = typeof(PageModel).Assembly.GetType("Bukit.Rendering.Scriban.ITemplateContextContributor", throwOnError: true)!;
+            var contributors = Array.CreateInstance(contributorType, 1);
+            contributors.SetValue(System.Reflection.DispatchProxy.Create(contributorType, typeof(ValueContributor)), 0);
+            var constructors = typeof(ScribanTemplateRendererAdapter).GetConstructors(System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic);
+            var constructor = constructors.Single(candidate => candidate.GetParameters().Any(parameter => parameter.ParameterType == typeof(ThemeComponentRegistry)) == withRegistry);
+            var arguments = constructor.GetParameters().Select(parameter => parameter.Name switch
+            {
+                "layoutsDir" => layoutsDir,
+                "registry" => new ThemeComponentRegistry(themeDir, new ThemeManifestV2 { Name = "t", Version = "1.0.0" }, null),
+                "componentValidation" => "off",
+                "contributors" => contributors,
+                _ => parameter.HasDefaultValue ? parameter.DefaultValue : null
+            }).ToArray();
+            var adapter = (ScribanTemplateRendererAdapter)constructor.Invoke(arguments);
+
+            var output = adapter.RenderPage("post.html", new PageModel { Site = CreateSite(), Page = CreatePage("T", "/t/") });
+
+            Assert.Equal("from-contributor", output.Trim());
+        }
+        finally
+        {
+            Directory.Delete(themeDir, true);
+        }
+    }
+
+    public class ValueContributor : System.Reflection.DispatchProxy
+    {
+        protected override object? Invoke(System.Reflection.MethodInfo? targetMethod, object?[]? args)
+        {
+            ((Scriban.Runtime.ScriptObject)args![1]!).SetValue("contributed", "from-contributor", readOnly: false);
+            return null;
         }
     }
 

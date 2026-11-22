@@ -103,6 +103,25 @@ public sealed class SeoSchemaValidatorCoverageTests
     }
 
     [Fact]
+    public void ExtractSchemaTypes_UntypedLaterBlock_IsReportedPerBlock()
+    {
+        var jsonLd = new List<string>
+        {
+            """{"@type": "WebPage", "name": "Typed"}""",
+            """{"name": "Untyped"}""",
+            """{"@type": "BreadcrumbList"}""",
+            """{"name": "Also untyped"}"""
+        };
+        var issues = new List<SeoAuditIssue>();
+        var types = SeoSchemaValidator.ExtractSchemaTypes(jsonLd, "/test/", issues);
+
+        Assert.Equal(new[] { "BreadcrumbList", "WebPage" }, types);
+        Assert.Equal(2, issues.Count(issue => issue.Code == "seo.json_ld_type_missing"));
+        Assert.Contains(issues, issue => issue.Message.Contains("block 2 of 4", StringComparison.Ordinal));
+        Assert.Contains(issues, issue => issue.Message.Contains("block 4 of 4", StringComparison.Ordinal));
+    }
+
+    [Fact]
     public void ExtractSchemaTypes_InvalidJson_AddsError()
     {
         var jsonLd = new List<string> { "not valid json" };

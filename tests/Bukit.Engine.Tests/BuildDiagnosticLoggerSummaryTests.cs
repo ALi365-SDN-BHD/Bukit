@@ -11,6 +11,7 @@ public sealed class BuildDiagnosticLoggerSummaryTests
     [InlineData("event=media.failed_reference url=x", "media.failed_reference")]
     [InlineData("seo.json_ld_missing route=/5/", "seo.json_ld_missing")]
     [InlineData("seo.theme_json_ld_replaced route=/5/ count=1 hint=add-data-bukit-seo-keep-or-move-to-body", "seo.theme_json_ld_replaced")]
+    [InlineData("seo.theme_json_ld_duplicate_type route=/5/ types=BreadcrumbList hint=x", "seo.theme_json_ld_duplicate_type")]
     [InlineData("publish.audit severity=warning code=seo.description_too_long route=/5/", "publish.audit:seo.description_too_long")]
     [InlineData("Template directory hash limit exceeded; reuse disabled.", null)]
     [InlineData("", null)]
