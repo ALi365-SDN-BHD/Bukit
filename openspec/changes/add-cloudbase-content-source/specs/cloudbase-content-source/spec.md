@@ -141,8 +141,11 @@ used only when it is `https`, its host equals the environment's gateway host and
 the same build. A `cloud://` reference in any other position SHALL NOT be resolved: a non-image body
 link SHALL be rendered as plain text, and a public field outside `fileFields` whose value contains
 `cloud://` SHALL be dropped, both with the warning `CloudBaseUnsupportedFileReference`. A failed
-resolution, including a per-item error in a batch response, SHALL report
-`CloudBaseFileResolveFailed` and identify the failing entry. Published output SHALL NOT contain
+resolution (a per-item error in a batch response, a failed sign request, a signed link with the
+wrong scheme, host or path, a compat reference whose environment or bucket does not match, or an
+invalid object name) SHALL report `CloudBaseFileResolveFailed`, identify the failing entry, and
+replace the field value or body image URL with the configured media placeholder
+(`content.media.defaultImageUrl`); the object name or `cloud://` reference SHALL NOT be kept. Published output SHALL NOT contain
 `cloud://`, the envId, the gateway host or a signed link.
 
 #### Scenario: Cover image localized
@@ -168,6 +171,10 @@ resolution, including a per-item error in a batch response, SHALL report
 #### Scenario: Partial resolution failure
 - **WHEN** one path in a batch comes back with an error
 - **THEN** `CloudBaseFileResolveFailed` is reported for that entry and its image falls back to the placeholder
+
+#### Scenario: Unresolvable references use the placeholder
+- **WHEN** a `cover` file field holds the object name `posts/a.png` and a body image holds `cloud://other-env.media/a.png`, and neither can be resolved
+- **THEN** both reference the media placeholder, and no published file contains `posts/a.png`, `cloud://` or the envId
 
 ### Requirement: Public output privacy detects CloudBase identifiers
 The build-time public output privacy check SHALL fail when public output contains the configured

@@ -165,7 +165,7 @@ Phase 0（S1～S4） ──> G0-1～G0-5 ──> T00
 
 **负责人：** 方案负责人和消费方。
 
-**产出：** 调研结论，写进 T00 创建的 openspec proposal 的"调研结果"一节。S1～S3 已按 PG 模式的公开文档完成，真实环境核实放到 T10；S4 待消费方提供样本。
+**产出：** 调研结论，写进 T00 创建的 openspec proposal 的"调研结果"一节。S1～S3 已按 PG 模式的公开文档完成。S3 已在真实环境验证（2026-11-23 探测）；S1 中网关加 Publishable Key 的 PostgREST 读取等用户提供密钥后验证，最晚在 T10；S4 待消费方提供样本。
 
 | 调研 | 内容 | 完成标准 |
 |---|---|---|
@@ -457,7 +457,7 @@ Phase 0（S1～S4） ──> G0-1～G0-5 ──> T00
    - 鉴权头 `Authorization: Bearer <publishable key>` 的生成；
    - 网关域名按 `region` 选择；用 `UriBuilder` 拼地址，发送凭据前断言协议是 https、主机名正好是 `{envId}.api[.intl].tcloudbasegateway.com`；`envId` 含 `/`、`@`、`#`、`?`、`.`、大写或 IDN 时拒绝发送（D18）；
    - PostgREST 查询（D6）：`GET /v1/rdb/rest/{table}`，`select`、`order`（以 `idField.asc` 结尾）、`limit`、`offset`，请求头 `Prefer: count=exact`；
-   - `Content-Range` 解析：`0-99/250`、`*/0`、缺失、畸形（畸形时报 `CloudBaseResponseInvalid`）；
+   - `Content-Range` 解析：`0-99/250` 读出总数 250；`*/0` 读出总数 0；响应头缺失时不报错，退回到"短页停止"（行数少于 `pageSize` 的页就是最后一页）；只有响应头存在但无法解析时才失败，transport 产生 `CloudBaseErrorKind` 的响应无效类，由 T04 映射成 `CloudBaseResponseInvalid`；
    - 分页直到读完：短页或 offset 达到总数时停止；
    - filter 转成 URL 编码后的 `field=eq.value`（值里有 `&`、`=`、`,`、中文时也正确编码）；
    - 存储批量签名：`POST /v1/storages/object/sign/{bucket}`，请求体 `{expiresIn, paths}`，每批最多 500 个；单项 `error` 映射成单项失败；签名链接取值：有 `fullSignedURL` 用它，否则网关源加相对的 `signedURL`（实测 CLI 输出只有相对的 `signedURL`）；不是 https、主机不是网关主机或路径不以 `/v1/storages/object/sign/{storageBucket}/` 开头时拒绝；对象名为空、以 `/` 开头、含 `//` 或 `..` 段时不发送；
@@ -465,7 +465,7 @@ Phase 0（S1～S4） ──> G0-1～G0-5 ──> T00
    - 429 和 5xx 按指数退避重试，最多 `maxRetries` 次；
    - 限速符合 `maxRps`；
    - 401、403、404 映射到对应的 `CloudBaseErrorKind`，错误体 `{code, message, details, hint}` 只取 `code`（transport 不引用 `Bukit.Shared`，不产生 `DiagnosticCode`，见 D2）；
-   - 响应体超过上限或 JSON 畸形时，报 `CloudBaseResponseInvalid`；
+   - 响应体超过上限或 JSON 畸形时，产生 `CloudBaseErrorKind` 的响应无效类（T04 映射成 `CloudBaseResponseInvalid`，D2）；
    - 所有异常和日志文本里都不含凭据、`token`、签名链接和查询串（AC7、D14）。
 3. 实现 transport。JSON 一律用源生成，以兼容 AOT，不用反射序列化。
 4. 完成上面"文件"一栏里的全部登记，然后运行：
@@ -624,12 +624,13 @@ Phase 0（S1～S4） ──> G0-1～G0-5 ──> T00
    - `cloud://` 兼容形式按第一个 `.` 拆出 envId 和桶名，与配置不一致时不换链；对象名不合规（空、以 `/` 开头、含 `//` 或 `..`）时不换链；
    - D17：正文里指向非图片的 `[pdf](cloud://…/a.pdf)` 降级为纯文本；不在 `fileFields` 里的公开字段含 `cloud://` 时整个值被丢弃；两种情况都报 `CloudBaseUnsupportedFileReference`；
    - 批量响应里单项 `error` 不为空时报 `CloudBaseFileResolveFailed`，并且能定位到失败的条目；
+   - 换链失败的取值（D17）：单项 `error`、协议/主机/路径前缀不符、`cloud://` 的 envId 或桶名不一致、对象名不合规，这几种失败各写一个用例，分别覆盖 `fileFields` 里的对象名（如 `posts/a.png`）和正文里的 `cloud://` 图片。断言：构建产物里出现 `content.media.defaultImageUrl` 占位图；产物里没有该对象名、`cloud://` 和 envId；报 `CloudBaseFileResolveFailed`；
    - `SignedUrlIdentity.IdentityTarget` 对网关主机加签名路径的链接去掉 `token`；别的主机上同样路径和 `token` 的链接身份不变；CloudBase 签名链接被拒绝时照常重试（不读过期时间）；
    - `MiniProgramJson.IsSignedUrl` 能识别 CloudBase 签名链接和 `cloud://` 兼容形式；
    - D8 第 ⑤ 条的失败用例；
    - 下载失败时落到占位图；
    - 构建产物里没有 `cloud://`、envId、网关主机和签名链接（AC5）。
-3. 实现。签名链接不能写进任何会持久化的地方；有效期用 `signExpiresSeconds`（默认 3600）；主机模式、路径前缀和参数名集中定义在一处。
+3. 实现。换链失败时，`CloudBaseFileResolver` 把 `fileFields` 的值或正文图片的 URL 替换成 `content.media.defaultImageUrl`（与 `ImageAssetLocalizer.FailureResult` 在 `onFailure: placeholder` 下返回的值相同），不把裸对象名或 `cloud://` 交给 `ImageAssetLocalizer`：它对非 http(s) 的值原样返回，不会落到占位图。签名链接不能写进任何会持久化的地方；有效期用 `signExpiresSeconds`（默认 3600）；主机模式、路径前缀和参数名集中定义在一处。
 4. 转到 `testing`。跑 closure 给出的测试（会命中 media-localization 相关规则，测试范围可能变大）和工具门禁，记录缓存。
 5. 转到 `review_wait`，做专项审查。
 6. **提交。**

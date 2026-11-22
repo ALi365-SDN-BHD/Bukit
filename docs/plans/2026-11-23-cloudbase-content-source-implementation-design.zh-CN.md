@@ -80,7 +80,7 @@ G0 的结论由负责人书面记录在 openspec 提案里。**G0-1～G0-5 是 T
 
 ### 2.1 Phase 0 调研（只读，不改仓库代码）
 
-调研结论记录在 openspec proposal 的"调研结果"一节，不写实现代码。S1～S3 已按公开文档完成（PG 模式），真实环境核实放到 T10；S4 的内容样本待消费方提供。
+调研结论记录在 openspec proposal 的"调研结果"一节，不写实现代码。S1～S3 已按公开文档完成（PG 模式）。S3 已在真实环境验证（2026-11-23 探测）；S1 中网关加 Publishable Key 的 PostgREST 读取等用户提供密钥后验证，最晚在 T10；S4 的内容样本待消费方提供。
 
 - **S1 数据形态与查询接口**：
   - 确认环境模式和数据存放位置（结论：PG 模式，`public` schema 的表或视图）；
@@ -123,7 +123,11 @@ CloudBaseBodyStore : IContentBodyStore ──> BasicMarkdownToHtml（不可信�
 3. 只收集两类位置的文件引用（D17）：`fileFields` 字段里的对象名（或 `cloud://` 兼容形式），以及正文图片位置（`![]()` 和图片引用定义）里的 `cloud://` 兼容引用。按每批最多 500 个调用存储批量签名接口，按 D17 的取值规则得到签名链接（有 `fullSignedURL` 用它，否则网关源加相对的 `signedURL`），校验协议、主机和路径前缀后替换回原文。正文里已经是网关存储路由的 https 链接走现有媒体本地化；其他位置的 `cloud://` 按 D17 处理。
 4. 返回 `RawContentDocument`。
 5. `ImageLocalizeStage` 下载 `fieldKeys` 字段里的图片。正文里的图片在渲染阶段延迟本地化，由 `LocalizedContentBodyStore` 负责。
-6. 因为有 D8 的约束，`fileFields` 必然是 `fieldKeys` 的子集，下载失败时只会落到占位图，不会把原链接保留下来。D8 和 D17 合起来，才保证签名链接只会出现在一定会被本地化的位置；D11 在输出阶段再兜底一次。
+6. 失败分两段处理，各有各的兜底：
+   - **换链失败**（第 3 步：单项 `error`、签名请求失败、协议/主机/路径前缀不符、`cloud://` 的 envId 或桶名与配置不一致、对象名不合规）：D8 管不到这一段。`ImageAssetLocalizer.ResolveWithoutDownload` 对非 http(s) 的值原样返回，裸对象名会被当成本地相对路径发布，`cloud://` 会原样留下。所以由 provider 自己兜底：按 D17 把这个值替换成 `content.media.defaultImageUrl`（占位图）。
+   - **下载失败**（第 5 步，签名链接已经换好）：D8 保证 `fileFields` 是 `fieldKeys` 的子集、`onFailure` 是 `placeholder`、占位图存在，所以 `ImageAssetLocalizer.FailureResult` 只会返回占位图，不会把签名链接保留下来。
+
+   这两段加上 D17 的换链范围，才保证签名链接、对象名、`cloud://` 和 envId 都不会原样发布；D11 在输出阶段再兜底一次。
 
 **时效风险**：正文图片是在渲染阶段才下载的，构建耗时如果超过签名链接的有效期，下载就会失败。`signExpiresSeconds` 默认 3600（文档没有给上限，所以 P1 的上限也是 3600），写进第 12 节的风险表。
 
@@ -147,7 +151,7 @@ CloudBaseBodyStore : IContentBodyStore ──> BasicMarkdownToHtml（不可信�
 | D14 | 内部诊断和日志只输出：行 ID 的哈希、表名、HTTP 状态码。不输出 URL 查询串、请求头、签名链接和响应体原文 | Core 日志不会脱敏来自环境变量的密钥 |
 | D15 | `Bukit.CloudBase` 登记为受治理程序集：加入 `tools/Bukit.PublicApiDrift/ApiSurfaceModels.cs` 的 `GovernedAssemblies`，基线里新增这个程序集的条目，公开面为空 | 不登记的话，它的公开面就没人管；`Bukit.Notion` 也是受治理程序集 |
 | D16 | `Bukit.CloudBase` 的 `InternalsVisibleTo` 清单：`Bukit.Content`、`bukit`（Bukit.Cli 的程序集名，doctor 要用）、`Bukit.CloudBase.Tests`、`Bukit.Content.Tests`、`Bukit.Engine.Tests`、`Bukit.Cli.Tests`。`Bukit.Cli` 直接引用 `Bukit.CloudBase` | transport 类型全是 internal，doctor 和各个测试项目都要能注入伪造的处理器；参照 `Bukit.Notion.csproj` 的清单 |
-| D17 | 换链范围只限两处：`fileFields`（值是 `storageBucket` 里的对象名，或 `cloud://<envId>.<bucket>/<path>` 兼容形式），以及正文图片位置里的 `cloud://` 兼容引用。签名链接的取值规则（实测）：响应里有 `fullSignedURL` 就用它，否则用网关源 `https://{envId}.api[.intl].tcloudbasegateway.com` 拼上相对的 `signedURL`；两种情况都要校验协议是 https、主机等于配置的网关主机、路径以 `/v1/storages/object/sign/{storageBucket}/` 开头，不满足的按 `CloudBaseFileResolveFailed` 处理。`cloud://` 按第一个 `.` 拆出 envId 和桶名（envId 不含 `.`），与配置不一致的不换链，按失败处理。正文里已经是网关存储路由的 https 链接走现有媒体本地化。其他位置一律不换链：正文里指向非图片的链接（如 `[pdf](cloud://…/a.pdf)`）降级为纯文本；不在 `fileFields` 里的公开字段，值里含 `cloud://` 时整个值被丢弃。两种情况都报 `CloudBaseUnsupportedFileReference` 警告 | 正文的 `<a href>` 只有指向图片时才会被本地化（`HtmlMediaReferenceScanner`），不在 `fieldKeys` 里的字段也不会被本地化；在这些位置换成签名链接，就会原样发布 |
+| D17 | 换链范围只限两处：`fileFields`（值是 `storageBucket` 里的对象名，或 `cloud://<envId>.<bucket>/<path>` 兼容形式），以及正文图片位置里的 `cloud://` 兼容引用。签名链接的取值规则（实测）：响应里有 `fullSignedURL` 就用它，否则用网关源 `https://{envId}.api[.intl].tcloudbasegateway.com` 拼上相对的 `signedURL`；两种情况都要校验协议是 https、主机等于配置的网关主机、路径以 `/v1/storages/object/sign/{storageBucket}/` 开头，不满足的按 `CloudBaseFileResolveFailed` 处理。`cloud://` 按第一个 `.` 拆出 envId 和桶名（envId 不含 `.`），与配置不一致的不换链，按失败处理。**换链失败时的取值**：任何一种失败（单项 `error`、签名请求失败、协议/主机/路径前缀不符、envId 或桶名不一致、对象名不合规），provider 都把这个值替换成 `content.media.defaultImageUrl`（`MediaConfig.DefaultImageUrl`，默认 `/assets/images/noneimg-news.jpg`），也就是 `ImageAssetLocalizer.FailureResult` 在 `onFailure: placeholder` 下返回的同一个值；`fileFields` 替换字段值，正文替换图片的 URL，并报 `CloudBaseFileResolveFailed`。占位图一定存在：D8 第 ③ 条让占位图缺失的构建直接失败。占位图是本地路径，`ImageAssetLocalizer` 把它当本地资源原样保留。不能把裸对象名、`cloud://` 或 envId 留给 `ImageAssetLocalizer`，因为它对非 http(s) 的值原样返回，不会落到占位图。正文里已经是网关存储路由的 https 链接走现有媒体本地化。其他位置一律不换链：正文里指向非图片的链接（如 `[pdf](cloud://…/a.pdf)`）降级为纯文本；不在 `fileFields` 里的公开字段，值里含 `cloud://` 时整个值被丢弃。两种情况都报 `CloudBaseUnsupportedFileReference` 警告 | 正文的 `<a href>` 只有指向图片时才会被本地化（`HtmlMediaReferenceScanner`），不在 `fieldKeys` 里的字段也不会被本地化；在这些位置换成签名链接，就会原样发布 |
 | D18 | `envId` 在配置校验时按白名单检查，规则是 `^[a-z0-9][a-z0-9-]{0,62}$`（v4 从 `{0,63}` 更正为 DNS 标签最长 63 个字符），S1 只能把它收得更严。`storageBucket` 按 `^[a-z0-9][a-z0-9._-]{0,62}$` 校验；对象名不能为空、不能以 `/` 开头、不能有 `//` 或 `..` 段。transport 用 `UriBuilder` 拼网关地址，发送凭据之前断言协议是 https、主机名正好是 `{envId}.api.tcloudbasegateway.com` 或 `{envId}.api.intl.tcloudbasegateway.com`；签名链接（按 D17 的取值规则得到）也要满足同样的协议和主机，路径还要以 `/v1/storages/object/sign/{storageBucket}/` 开头，才会下载 | 网关主机名由 `envId` 拼出来；`envId` 里如果有 `/`、`#`、`?`、`@`、`.`，请求就会发到别的主机，并带上凭据；桶名和对象名会拼进签名请求，`..` 和 `//` 可能改写路径 |
 
 ## 5. 配置契约（P1）
@@ -161,7 +165,7 @@ content:
       collection: posts            # 现有通用字段：Bukit 的内容集合名，不是 CloudBase 的表
       cloudbase:
         envId: prod-xxxx
-        region: ap-shanghai        # 决定网关域名（境内或境外）
+        region: cn                 # cn 或 intl，决定网关域名（境内或境外）
         table: articles            # public schema 里的表或视图（PostgREST）
         idField: id                # 唯一列：分页 tiebreak 和内部来源标识
         pageSize: 100
@@ -453,7 +457,7 @@ BukitJalil 按固定表给 BKT 码分类。它维护中的消费方契约在 `gu
 | D8 ⑤ | 不排除的对象从"临时链接域名"改为网关主机 |
 | D10 | 签名链接规则改为：网关主机 + `/v1/storages/object/sign/` 路径 + `token`；不读过期时间 |
 | D11 | 检测对象改为 envId、`cloud://` 兼容形式、网关主机、签名路径加 `token` |
-| D17 | 换链对象改为 `fileFields` 的对象名（或 `cloud://` 兼容形式）和正文图片位置的 `cloud://` 兼容引用 |
+| D17 | 换链对象改为 `fileFields` 的对象名（或 `cloud://` 兼容形式）和正文图片位置的 `cloud://` 兼容引用；换链失败时由 provider 把值替换成 `content.media.defaultImageUrl`（第 3 节第 6 步同步改正，不再说 D8 能管到这一段） |
 | D18 | `envId` 正则从 `{0,63}` 更正为 `{0,62}`；新增 `storageBucket` 和对象名校验；签名链接同样校验协议、主机和路径前缀 |
 | 第 5 节 | 新增 `table`、`idField`、`storageBucket`、`signExpiresSeconds`；`pageSize` 上限 1000；`region` 枚举 `cn`/`intl`；补充消费方的 GRANT 和 RLS 设置 |
 | 第 6 节 | 诊断码名称和数量不变；更新各码的场景；RLS 空结果只出 doctor 提示 |
