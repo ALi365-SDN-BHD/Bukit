@@ -4,7 +4,7 @@ Bukit 所有重要变更都将记录在此文件中。
 
 ## [Unreleased]
 
-- **Markdown front matter 里的 YAML null 现在是真正的 null**：front matter（内容源和 `mode: data` 的 Markdown 源）里未加引号的 `null`、`Null`、`NULL`、`~` 或空值，以前会变成字符串 `"null"`、`"~"` 或 `""`，现在在任何层级都是 null：顶层键的值为 null 时视为未填写，映射或列表里的 null 保持为 null。加了引号的 `"null"` 仍是字符串。对模板的影响：Scriban 里非空字符串都是真值，所以以前 `subtitle: null` 时 `if page.subtitle` 为真并输出 `null`；现在该字段不存在，条件为假。含 null 项的列表（`sights: [a, null]`）里现在是 null 而不是字符串 `null`。确实需要字面文本的站点请加引号。
+- **Markdown front matter 里的 YAML null 现在是真正的 null**：front matter（内容源和 `mode: data` 的 Markdown 源）里未加引号的 `null`、`Null`、`NULL`、`~` 或空值，以前会变成字符串 `"null"`、`"~"` 或 `""`，现在在任何层级都是 null：顶层键的值为 null 时视为未填写，映射或列表里的 null 保持为 null。加了引号的 `"null"` 和带 `!!str` 标签的值（`!!str null`）仍是字符串。对模板的影响：Scriban 里非空字符串都是真值，所以以前 `subtitle: null` 时 `if page.subtitle` 为真并输出 `null`；现在该字段不存在，条件为假。含 null 项的列表（`sights: [a, null]`）里现在是 null 而不是字符串 `null`。确实需要字面文本的站点请加引号。
 
 - **模板里可以安全输出 JSON**：`util.json_string` 现在还会把 `<`、`>`、`&`、U+2028、U+2029 转义成 `\u003c`、`\u003e`、`\u0026`、`\u2028`、`\u2029`，值里出现 `</script>`（比如来自 Notion）时不会再提前结束主题写的 `<script type="application/ld+json">`。输出仍是合法 JSON，解码后的值不变，但凡是含这些字符的值，输出字节会变。新增 `util.to_json value`，可序列化对象、数组、字符串、数字、布尔、null 和日期，转义规则相同，对象键按序数排序（转成文本后相同的字典键，如 `1` 和 `"1"`，只保留第一个），不使用反射，Native AOT 版 `bukit` 也能用。Scriban 的 `object.to_json` 以前在 AOT 下报 BKT-0399，现在改用同一实现；它输出的对象键改为排序，不再按插入顺序。`util.*` 函数现在在主题组件和 section 里也能用，此前这些模板里没有 `util` 对象。见 [08 Themes And Templates](guide/user/08-themes-templates.md#json-in-templates)。
 
