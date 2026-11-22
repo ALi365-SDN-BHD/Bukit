@@ -209,9 +209,11 @@ field is declared; other sites SHALL keep `1.0` and byte-identical output.
 ### Requirement: Data index rows can hold object values
 A data index row SHALL accept the value types `object` (one mapping) and `object[]` (a list of
 mappings) besides `text`, `multiline`, `email`, `phone` and `url`. A Markdown row SHALL give the
-value as YAML; a Notion row SHALL give it as JSON text, parsed without reflection. Every scalar in an
-object value SHALL be stored as text (JSON numbers keep their source digits, booleans become `true`
-or `false`, null stays null), so equal values from either source SHALL build the same model and render
+value as YAML; a Notion row SHALL give it as JSON text, parsed without reflection. JSON booleans and
+numbers SHALL be stored as booleans and numbers. A Markdown scalar SHALL be a boolean when it is `true`
+or `false` in a YAML core-schema spelling, a number when it is in JSON number form, and text otherwise.
+Whole numbers within 64 bits SHALL be integers and other numbers decimals keeping their digits where
+they fit; null SHALL stay null. Equal values from either source SHALL build the same model and render
 dependency hash. Keys SHALL be ordered ordinally and SHALL not be blank, nesting SHALL be limited to 8
 levels with every mapping and list counting as one, a single mapping given to `object[]` SHALL be a
 list of one, and a non-finite number, invalid JSON, duplicate JSON keys or a value of the wrong shape
@@ -221,8 +223,12 @@ SHALL format numbers and dates culture-invariantly. An empty object value SHALL 
 list, and a mapping or list holding only empty values SHALL count as empty for `requiredKeys`.
 
 #### Scenario: Object row read by a template and a dataset
-- **WHEN** a Markdown row `trip.info` has `value_type: object` and `value: {days: 5, stops: [{name: George Town}]}`
-- **THEN** `site.data_index.settings.trip.info.days` renders `5`, and a `dataIndex` dataset that declares `info: object` writes `{"days":"5","stops":[{"name":"George Town"}]}`
+- **WHEN** a Markdown row `trip.info` has `value_type: object` and `value: {days: 5, open: false, stops: [{name: George Town}]}`
+- **THEN** `site.data_index.settings.trip.info.days` renders `5`, `if ...info.open` is false, and a `dataIndex` dataset that declares `info: object` writes `{"days":5,"open":false,"stops":[{"name":"George Town"}]}`
+
+#### Scenario: Notion row with JSON types
+- **WHEN** a Notion row's value is `{"open":false,"price":12.50,"code":"5"}`
+- **THEN** `open` is the boolean false, `price` the number 12.50 and `code` the text `5`
 
 #### Scenario: Text row given a mapping
 - **WHEN** a row has `value_type: text` and its `value` is a YAML mapping

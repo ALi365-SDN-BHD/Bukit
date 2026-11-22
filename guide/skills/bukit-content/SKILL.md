@@ -151,8 +151,9 @@ and `email`/`url` values are validated. Template access:
 `{{ site.data_index.settings.contact.email }}`. A text type given a YAML mapping or list
 fails the build. `object` takes a mapping and `object[]` a list of mappings (YAML in
 Markdown, JSON text in Notion), read as `site.data_index.settings.trip.info.days`. All
-scalars inside are strings (Notion `5`/`true` become `"5"`/`"true"`, digits kept), so test
-switches with `== "true"` (`"false"` is truthy). Keys are ordinal-sorted and must not be
+booleans and numbers are typed: JSON says so in Notion; in Markdown `true`/`false` (core
+spellings) and JSON-form numbers resolve, other text (`0123`, `+60`, `yes`) stays text, and
+quoting does not keep `"5"` as text. Integers are 64-bit, other numbers decimal (digits kept). Keys are ordinal-sorted and must not be
 blank, nesting is at most 8 levels (each mapping or list is one), JSON numbers beyond double
 range fail, a single mapping given to `object[]` is a list of one, and a mapping or list of
 only empty values counts as empty for `requiredKeys`.

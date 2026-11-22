@@ -1,6 +1,7 @@
 using System.Collections;
 using System.Globalization;
 using System.Text.Json;
+using System.Text.RegularExpressions;
 using Bukit.Shared;
 
 namespace Bukit.Engine;
@@ -8,17 +9,19 @@ namespace Bukit.Engine;
 /// <summary>
 /// Reads an <c>object</c> or <c>object[]</c> data index value into one canonical form, whichever
 /// source it came from: objects are ordinal maps with sorted keys, lists are <see cref="List{T}"/>,
-/// and every scalar is a string (or null). Markdown front matter hands over a parsed map or list;
-/// Notion hands over JSON text, which is parsed with <see cref="JsonDocument"/> (no reflection, so
-/// it is Native AOT safe).
+/// and scalars are strings, booleans, numbers (<see cref="long"/>, then <see cref="decimal"/>, then
+/// <see cref="double"/>) or null. Markdown front matter hands over a parsed map or list; Notion hands
+/// over JSON text, which is parsed with <see cref="JsonDocument"/> (no reflection, so it is Native
+/// AOT safe).
 /// </summary>
 /// <remarks>
-/// Scalars become strings because Markdown front matter already gives every scalar as a string, so
-/// a Notion row and a Markdown row with the same value build the same model and the same hash. JSON
-/// numbers keep their source text (no digit is rounded away), booleans become <c>true</c> or
-/// <c>false</c>, and JSON null stays null.
+/// JSON says which scalars are numbers and booleans. Markdown front matter gives every scalar as a
+/// string, so a Markdown string is read as a boolean when it is <c>true</c> or <c>false</c> (in the
+/// YAML core-schema spellings) and as a number when it is in JSON number form; anything else, such
+/// as <c>0123</c> or <c>+60</c>, stays text. The same value therefore builds the same model and hash
+/// from either source, and a template's <c>if info.open</c> is false for <c>false</c>.
 /// </remarks>
-internal static class DataIndexObjectValue
+internal static partial class DataIndexObjectValue
 {
     internal const string ObjectType = "object";
     internal const string ObjectArrayType = "object[]";
@@ -158,19 +161,53 @@ internal static class DataIndexObjectValue
             case JsonValueKind.String:
                 return element.GetString();
             case JsonValueKind.Number:
-                // The source text, so no digit is rounded away; a number past double range is no number at all.
-                var number = element.GetRawText();
-                return double.TryParse(number, NumberStyles.Float, CultureInfo.InvariantCulture, out var parsed) && double.IsFinite(parsed)
-                    ? number
-                    : throw Invalid(context, null, path, "is not a finite number");
+                return ParseNumber(element.GetRawText(), path, context);
             case JsonValueKind.True:
-                return "true";
+                return true;
             case JsonValueKind.False:
-                return "false";
+                return false;
             default:
                 return null;
         }
     }
+
+    /// <summary>
+    /// A Markdown scalar, which front matter always gives as text: <c>true</c>/<c>false</c> in the
+    /// YAML core-schema spellings become booleans and JSON-form numbers become numbers, so Markdown
+    /// and Notion agree. Other text, including <c>0123</c>, <c>+60</c> and <c>.5</c>, stays text.
+    /// </summary>
+    private static object ResolveText(string text, string path, string context) => text switch
+    {
+        "true" or "True" or "TRUE" => true,
+        "false" or "False" or "FALSE" => false,
+        _ when JsonNumber().IsMatch(text) => ParseNumber(text, path, context),
+        _ => text
+    };
+
+    /// <summary>
+    /// A JSON-form number as <see cref="long"/> when it is a whole number in range, as
+    /// <see cref="decimal"/> when it fits (keeping its digits, so <c>12.50</c> stays <c>12.50</c>),
+    /// and otherwise as a finite <see cref="double"/>.
+    /// </summary>
+    private static object ParseNumber(string text, string path, string context)
+    {
+        if (long.TryParse(text, NumberStyles.AllowLeadingSign, CultureInfo.InvariantCulture, out var whole))
+        {
+            return whole;
+        }
+
+        if (decimal.TryParse(text, NumberStyles.Float, CultureInfo.InvariantCulture, out var exact))
+        {
+            return exact;
+        }
+
+        return double.TryParse(text, NumberStyles.Float, CultureInfo.InvariantCulture, out var real) && double.IsFinite(real)
+            ? real
+            : throw Invalid(context, null, path, "is not a finite number");
+    }
+
+    [GeneratedRegex(@"^-?(0|[1-9][0-9]*)(\.[0-9]+)?([eE][+-]?[0-9]+)?$", RegexOptions.CultureInvariant)]
+    private static partial Regex JsonNumber();
 
     private static object? FromValue(object? value, int depth, string path, string context)
     {
@@ -179,14 +216,20 @@ internal static class DataIndexObjectValue
             case null:
                 return null;
             case string text:
-                return text;
+                return ResolveText(text, path, context);
             case bool flag:
-                return flag ? "true" : "false";
+                return flag;
             case double real when !double.IsFinite(real):
             case float single when !float.IsFinite(single):
                 throw Invalid(context, null, path, "is not a finite number");
-            case sbyte or byte or short or ushort or int or uint or long or ulong or float or double or decimal:
-                return ((IFormattable)value).ToString(null, CultureInfo.InvariantCulture);
+            case sbyte or byte or short or ushort or int or uint or long:
+                return Convert.ToInt64(value, CultureInfo.InvariantCulture);
+            case ulong large:
+                return large <= long.MaxValue ? (long)large : (decimal)large;
+            case decimal exact:
+                return exact;
+            case float or double:
+                return Convert.ToDouble(value, CultureInfo.InvariantCulture);
             case DateTimeOffset date:
                 return date.ToString("O", CultureInfo.InvariantCulture);
             case DateTime date:

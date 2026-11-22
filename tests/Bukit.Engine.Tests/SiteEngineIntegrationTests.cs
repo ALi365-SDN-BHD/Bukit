@@ -3677,6 +3677,83 @@ public sealed partial class SiteEngineIntegrationTests
     }
 
     [Fact]
+    public async Task BuildAsync_DataIndexObjectBooleansAndNumbers_AreTypedInTemplates()
+    {
+        var root = Path.Combine(Path.GetTempPath(), "bukit-integration-test", Guid.NewGuid().ToString("N"));
+
+        try
+        {
+            Directory.CreateDirectory(Path.Combine(root, "data"));
+            Directory.CreateDirectory(Path.Combine(root, "layouts", "pages"));
+
+            // A Markdown row gives YAML; a JSON-text row takes the same path as a Notion rich_text value.
+            File.WriteAllText(Path.Combine(root, "data", "yaml.md"), """
+                ---
+                type: settings
+                title: Yaml
+                slug: yaml
+                scope: shop
+                key: yaml
+                value_type: object
+                value:
+                  open: false
+                  days: 5
+                  price: 12.50
+                  code: "0123"
+                ---
+                """);
+            File.WriteAllText(Path.Combine(root, "data", "json.md"), """
+                ---
+                type: settings
+                title: Json
+                slug: json
+                scope: shop
+                key: json
+                value_type: object
+                value: '{"open":false,"days":5,"price":12.50,"code":"5"}'
+                ---
+                """);
+
+            File.WriteAllText(Path.Combine(root, "layouts", "pages", "index.html"), """
+                {{ for row in [site.data_index.settings.shop.yaml, site.data_index.settings.shop.json] }}
+                open={{ if row.open }}yes{{ else }}no{{ end }} long={{ if row.days > 3 }}yes{{ else }}no{{ end }} next={{ row.days + 1 }} price={{ row.price }} code={{ row.code }}
+                {{ end }}
+                """);
+            File.WriteAllText(Path.Combine(root, "layouts", "pages", "list.html"), "List");
+
+            var config = new AppConfig
+            {
+                Site = new SiteConfig { Name = "t", Title = "T", Collections = TestCollections() },
+                Content = ContentConfigFactory.FromSources(
+                [
+                    new ContentSourceConfig
+                    {
+                        Type = "markdown",
+                        Name = "settings",
+                        Mode = "data",
+                        Markdown = new MarkdownConfig { Dir = "data" },
+                        DataIndex = new DataIndexConfig()
+                    }
+                ],
+                media: new MediaConfig { DownloadToLocal = false }),
+                Build = new BuildConfig { Output = "dist", Clean = true },
+                Theme = new ThemeConfig { Layouts = "layouts" }
+            };
+            WriteTestThemeTemplates(root);
+
+            await new SiteEngine(new TestLogger()).BuildAsync(config, root, new ConfigOverrides(), CancellationToken.None);
+
+            var html = File.ReadAllText(Path.Combine(root, "dist", "index.html"));
+            Assert.Contains("open=no long=yes next=6 price=12.50 code=0123", html, StringComparison.Ordinal);
+            Assert.Contains("open=no long=yes next=6 price=12.50 code=5", html, StringComparison.Ordinal);
+        }
+        finally
+        {
+            CleanupDir(root);
+        }
+    }
+
+    [Fact]
     public async Task BuildAsync_DataIndexTextValueGivenAnObject_Fails()
     {
         var root = Path.Combine(Path.GetTempPath(), "bukit-integration-test", Guid.NewGuid().ToString("N"));

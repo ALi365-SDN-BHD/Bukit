@@ -224,9 +224,10 @@ written as a list of one. As at the top level, an empty value inside an object
 (an empty list `[]`, an empty mapping, blank text or a YAML `null`) is written
 as `null`; quote `"null"` to keep it as text. A `dataIndex` dataset accepts the same types for its
 keys. Data index rows with `value_type: object` or `object[]` hold mappings
-(see [07 Multi-Source Data](07-multi-source-data.md#object-values)); their
-scalars are always text, so declare nested `number` or `boolean` fields to
-write JSON numbers and booleans:
+(see [07 Multi-Source Data](07-multi-source-data.md#object-values)) whose
+booleans and numbers are already typed, so undeclared nested fields are written
+as JSON booleans and numbers. Declare nested fields to project the object to
+exactly those keys and to check their types:
 
 ```yaml
       kind: dataIndex

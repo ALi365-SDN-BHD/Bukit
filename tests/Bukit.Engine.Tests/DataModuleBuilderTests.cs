@@ -324,12 +324,13 @@ public sealed class DataModuleBuilderTests
     }
 
     [Fact]
-    public void BuildDataIndex_ObjectFromMarkdownMap_SortsKeysAndKeepsStringScalars()
+    public void BuildDataIndex_ObjectFromMarkdownMap_SortsKeysAndResolvesScalars()
     {
         var value = new Dictionary<string, object?>(StringComparer.OrdinalIgnoreCase)
         {
             ["title"] = "Penang",
             ["days"] = "5",
+            ["open"] = "false",
             ["note"] = null,
             ["stops"] = new List<object?>
             {
@@ -341,8 +342,9 @@ public sealed class DataModuleBuilderTests
         var info = ReadIndexed(CreateIndexedDocument("trip", "trip", "info", value, "object"), "trip", "info");
 
         var map = Assert.IsAssignableFrom<IReadOnlyDictionary<string, object>>(info);
-        Assert.Equal(["days", "note", "stops", "title"], map.Keys);
-        Assert.Equal("5", map["days"]);
+        Assert.Equal(["days", "note", "open", "stops", "title"], map.Keys);
+        Assert.Equal(5L, map["days"]);
+        Assert.Equal(false, map["open"]);
         Assert.Null(map["note"]);
         var stops = Assert.IsType<List<object?>>(map["stops"]);
         var stop = Assert.IsAssignableFrom<IReadOnlyDictionary<string, object>>(stops[0]);
@@ -351,30 +353,70 @@ public sealed class DataModuleBuilderTests
     }
 
     [Fact]
-    public void BuildDataIndex_ObjectFromNotionJson_NormalizesScalarsToText()
+    public void BuildDataIndex_ObjectFromNotionJson_KeepsJsonTypes()
     {
-        const string json = """ {"title":"Penang","days":5,"price":12.50,"big":123456789012345678901234567890,"open":true,"closed":false,"note":null,"html":"<b>x</b>"} """;
+        const string json = """ {"title":"Penang","days":5,"price":12.50,"ratio":1e-3,"big":123456789012345678901234567890123,"open":true,"closed":false,"note":null,"code":"5","html":"<b>x</b>"} """;
 
         var info = ReadIndexed(CreateIndexedDocument("trip", "trip", "info", json, "object"), "trip", "info");
 
         var map = Assert.IsAssignableFrom<IReadOnlyDictionary<string, object>>(info);
-        Assert.Equal(["big", "closed", "days", "html", "note", "open", "price", "title"], map.Keys);
-        Assert.Equal("5", map["days"]);
-        Assert.Equal("12.50", map["price"]);
-        Assert.Equal("123456789012345678901234567890", map["big"]);
-        Assert.Equal("true", map["open"]);
-        Assert.Equal("false", map["closed"]);
+        Assert.Equal(["big", "closed", "code", "days", "html", "note", "open", "price", "ratio", "title"], map.Keys);
+        Assert.Equal(5L, map["days"]);
+        var price = Assert.IsType<decimal>(map["price"]);
+        Assert.Equal("12.50", price.ToString(CultureInfo.InvariantCulture));
+        Assert.Equal(0.001m, map["ratio"]);
+        Assert.Equal(1.2345678901234568E+32, Assert.IsType<double>(map["big"]));
+        Assert.Equal(true, map["open"]);
+        Assert.Equal(false, map["closed"]);
         Assert.Null(map["note"]);
+        // A JSON string stays text even when it looks like a number.
+        Assert.Equal("5", map["code"]);
         Assert.Equal("<b>x</b>", map["html"]);
+    }
+
+    [Theory]
+    [InlineData("true", true)]
+    [InlineData("True", true)]
+    [InlineData("FALSE", false)]
+    [InlineData("-12", -12L)]
+    [InlineData("0", 0L)]
+    [InlineData("9223372036854775807", long.MaxValue)]
+    [InlineData("0123", "0123")]
+    [InlineData("+60", "+60")]
+    [InlineData(".5", ".5")]
+    [InlineData("1.", "1.")]
+    [InlineData("yes", "yes")]
+    [InlineData("tRUE", "tRUE")]
+    [InlineData("NaN", "NaN")]
+    [InlineData("60 12-345", "60 12-345")]
+    public void BuildDataIndex_MarkdownScalar_ResolvesOnlyCoreBooleansAndJsonNumbers(string text, object expected)
+    {
+        var value = new Dictionary<string, object?>(StringComparer.OrdinalIgnoreCase) { ["v"] = text };
+
+        var map = Assert.IsAssignableFrom<IReadOnlyDictionary<string, object>>(
+            ReadIndexed(CreateIndexedDocument("trip", "trip", "info", value, "object"), "trip", "info"));
+
+        Assert.Equal(expected, map["v"]);
+    }
+
+    [Fact]
+    public void BuildDataIndex_MarkdownDecimal_KeepsDigits()
+    {
+        var value = new Dictionary<string, object?>(StringComparer.OrdinalIgnoreCase) { ["price"] = "12.50" };
+
+        var map = Assert.IsAssignableFrom<IReadOnlyDictionary<string, object>>(
+            ReadIndexed(CreateIndexedDocument("trip", "trip", "info", value, "object"), "trip", "info"));
+
+        Assert.Equal("12.50", Assert.IsType<decimal>(map["price"]).ToString(CultureInfo.InvariantCulture));
     }
 
     [Fact]
     public void BuildDataIndex_MarkdownAndNotionObjects_WithSameContent_AreEqual()
     {
-        var markdown = new Dictionary<string, object?>(StringComparer.OrdinalIgnoreCase) { ["days"] = "5", ["open"] = "true" };
+        var markdown = new Dictionary<string, object?>(StringComparer.OrdinalIgnoreCase) { ["days"] = "5", ["open"] = "true", ["price"] = "12.50" };
 
         var fromMarkdown = ReadIndexed(CreateIndexedDocument("a", "trip", "info", markdown, "object"), "trip", "info");
-        var fromNotion = ReadIndexed(CreateIndexedDocument("b", "trip", "info", """{"open":true,"days":5}""", "object"), "trip", "info");
+        var fromNotion = ReadIndexed(CreateIndexedDocument("b", "trip", "info", """{"open":true,"days":5,"price":12.50}""", "object"), "trip", "info");
 
         Assert.Equal(
             Assert.IsAssignableFrom<IReadOnlyDictionary<string, object>>(fromMarkdown),
@@ -488,7 +530,7 @@ public sealed class DataModuleBuilderTests
         var info = ReadIndexed(CreateIndexedDocument("trip", "trip", "info", value, "object"), "trip", "info");
 
         var map = Assert.IsAssignableFrom<IReadOnlyDictionary<string, object>>(info);
-        Assert.Equal("5", map["days"]);
+        Assert.Equal(5L, map["days"]);
         Assert.Equal("y", Assert.IsAssignableFrom<IReadOnlyDictionary<string, object>>(map["inner"])["x"]);
     }
 
