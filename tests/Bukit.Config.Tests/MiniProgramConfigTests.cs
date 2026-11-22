@@ -120,6 +120,10 @@ public sealed class MiniProgramConfigTests
     [InlineData("{ name: a, kind: collection, source: blog, fields: [title], listFields: [title], detailFields: [title] }", "miniprogram.datasets[0].fields is not allowed for kind collection")]
     [InlineData("{ name: a, kind: taxonomy, taxonomy: tags }", "declare at least one kind: collection dataset")]
     [InlineData("{ name: a, kind: records, source: modules, fields: [body], sort: { field: body }, types: { body: string } }", "types.body is not allowed")]
+    [InlineData("{ name: a, kind: records, source: modules, fields: [d], sort: { field: id }, types: { d: { type: string, fields: { x: string } } } }", "types.d.fields is only allowed for type object or object[]")]
+    [InlineData("{ name: a, kind: records, source: modules, fields: [d], sort: { field: id }, types: { d: { type: 'object[]', fields: { x: float } } } }", "types.d.fields.x must be")]
+    [InlineData("{ name: a, kind: records, source: modules, fields: [d], sort: { field: id }, types: { d: { type: object, extra: 1 } } }", "types.d.extra")]
+    [InlineData("{ name: a, kind: records, source: modules, fields: [d], sort: { field: id }, types: { d: { fields: { x: string } } } }", "types.d.type")]
     public void Validate_RejectsInvalidDatasets(string dataset, string expected)
     {
         var ex = Assert.Throws<ConfigException>(() => Load(Sources + $"\nminiprogram:\n  enabled: true\n  datasets:\n    - {dataset}\n", menus: true));
@@ -156,6 +160,71 @@ public sealed class MiniProgramConfigTests
         var ex = Assert.Throws<ConfigException>(() => Load(Sources + "\nminiprogram:\n  enabled: true\n  outputDir: ../escape\n"));
 
         Assert.Contains("miniprogram.outputDir", ex.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Load_ParsesObjectTypesWithNestedFields()
+    {
+        var config = Load(Sources + """
+
+            miniprogram:
+              enabled: true
+              datasets:
+                - name: routes
+                  kind: records
+                  source: modules
+                  fields: [title, days, hotel]
+                  sort: { field: title }
+                  types:
+                    hotel: object
+                    days:
+                      type: object[]
+                      fields:
+                        title: string
+                        sights: string[]
+                        photo: image
+                        meals: { type: object, fields: { lunch: boolean } }
+                - name: settings
+                  kind: dataIndex
+                  source: settings
+                  scope: app
+                  types: { contact: object }
+            """);
+
+        var routes = config.MiniProgram.Datasets[0];
+        Assert.Equal("object[]", routes.Types!["days"]);
+        Assert.Equal("object", routes.Types["hotel"]);
+        var days = routes.ObjectFields!["days"];
+        Assert.Equal(new[] { "meals", "photo", "sights", "title" }, days.Keys.Order(StringComparer.Ordinal));
+        Assert.Equal("image", days["photo"].Type);
+        Assert.Equal("boolean", days["meals"].Fields!["lunch"].Type);
+        Assert.False(routes.ObjectFields.ContainsKey("hotel"));
+        Assert.Equal("object", config.MiniProgram.Datasets[1].Types!["contact"]);
+    }
+
+    [Fact]
+    public void Load_RejectsObjectFieldsDeeperThanTheLimit()
+    {
+        var nested = "string";
+        for (var i = 0; i < MiniProgramKinds.MaxObjectDepth; i++)
+        {
+            nested = $"{{ type: object, fields: {{ n: {nested} }} }}";
+        }
+
+        var ex = Assert.Throws<ConfigException>(() => Load(Sources +
+            $"\nminiprogram:\n  enabled: true\n  datasets:\n    - {{ name: a, kind: records, source: modules, fields: [d], sort: {{ field: id }}, types: {{ d: {nested} }} }}\n"));
+
+        Assert.Contains("exceeds the maximum object nesting depth", ex.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Schema_DescribesObjectTypes()
+    {
+        var schema = JsonNode.Parse(ConfigJsonSchemaGenerator.Generate())!;
+        var fieldType = schema["$defs"]!["miniProgramFieldType"]!["oneOf"]!.AsArray();
+
+        Assert.Contains("object[]", fieldType[0]!["enum"]!.AsArray().Select(x => x!.GetValue<string>()));
+        Assert.Equal("#/$defs/miniProgramFieldType", (string)fieldType[1]!["properties"]!["fields"]!["additionalProperties"]!["$ref"]!);
     }
 
     [Fact]

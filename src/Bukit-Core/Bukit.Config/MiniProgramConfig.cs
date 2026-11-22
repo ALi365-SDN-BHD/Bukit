@@ -31,9 +31,15 @@ internal sealed record MiniProgramDatasetConfig
     public MiniProgramSortConfig? Sort { get; init; }
     public IReadOnlyList<string>? Required { get; init; }
     public IReadOnlyDictionary<string, string>? Types { get; init; }
+
+    /// <summary>Declared nested fields of object and object[] fields, keyed by the top-level field name.</summary>
+    public IReadOnlyDictionary<string, IReadOnlyDictionary<string, MiniProgramFieldType>>? ObjectFields { get; init; }
 }
 
 internal sealed record MiniProgramSortConfig(string Field, bool Descending);
+
+/// <summary>A nested field type: a scalar type name, or object/object[] with optional declared fields of its own.</summary>
+internal sealed record MiniProgramFieldType(string Type, IReadOnlyDictionary<string, MiniProgramFieldType>? Fields);
 
 internal static partial class MiniProgramKinds
 {
@@ -46,7 +52,15 @@ internal static partial class MiniProgramKinds
 
     internal static readonly string[] All = [Collection, Module, DataIndex, Records, Taxonomy, Menu];
 
-    internal static readonly string[] FieldTypes = ["string", "number", "boolean", "date", "image", "url", "string[]"];
+    internal const string Object = "object";
+    internal const string ObjectArray = "object[]";
+
+    /// <summary>The deepest object nesting a field may reach; a top-level object field is depth 1.</summary>
+    internal const int MaxObjectDepth = 8;
+
+    internal static readonly string[] FieldTypes = ["string", "number", "boolean", "date", "image", "url", "string[]", Object, ObjectArray];
+
+    internal static bool IsObjectType(string? type) => type is Object or ObjectArray;
 
     [GeneratedRegex("^[a-z0-9][a-z0-9-]*$", RegexOptions.CultureInvariant)]
     internal static partial Regex DatasetName();
@@ -106,6 +120,7 @@ internal static class MiniProgramConfigReader
             sort = new MiniProgramSortConfig(ConfigYamlHelpers.GetRequiredString(sortNode, "field", $"{path}.sort"), order == "desc");
         }
 
+        var types = ReadTypes(item, path);
         return new MiniProgramDatasetConfig
         {
             Name = ConfigYamlHelpers.GetRequiredString(item, "name", path),
@@ -120,8 +135,95 @@ internal static class MiniProgramConfigReader
             DetailFields = ConfigYamlHelpers.ReadStringList(item, "detailFields"),
             Sort = sort,
             Required = ConfigYamlHelpers.ReadStringList(item, "required"),
-            Types = ConfigYamlHelpers.ReadStringMap(item, "types")
+            Types = types?.Types,
+            ObjectFields = types?.ObjectFields
         };
+    }
+
+    /// <summary>
+    /// Reads <c>types</c>, where a value is a type name or, for object and object[], a mapping
+    /// <c>{ type, fields }</c> whose optional <c>fields</c> declare nested types the same way.
+    /// </summary>
+    private static (IReadOnlyDictionary<string, string> Types, IReadOnlyDictionary<string, IReadOnlyDictionary<string, MiniProgramFieldType>>? ObjectFields)? ReadTypes(
+        YamlMappingNode item, string path)
+    {
+        var node = ConfigYamlHelpers.GetOptionalMapping(item, "types", path);
+        if (node is null)
+        {
+            return null;
+        }
+
+        var types = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        Dictionary<string, IReadOnlyDictionary<string, MiniProgramFieldType>>? objectFields = null;
+        foreach (var (field, type) in ReadFieldTypes(node, $"{path}.types", depth: 1, StringComparer.OrdinalIgnoreCase))
+        {
+            types[field] = type.Type;
+            if (type.Fields is not null)
+            {
+                objectFields ??= new Dictionary<string, IReadOnlyDictionary<string, MiniProgramFieldType>>(StringComparer.OrdinalIgnoreCase);
+                objectFields[field] = type.Fields;
+            }
+        }
+
+        return (types, objectFields);
+    }
+
+    private static Dictionary<string, MiniProgramFieldType> ReadFieldTypes(YamlMappingNode node, string path, int depth, StringComparer comparer)
+    {
+        var fields = new Dictionary<string, MiniProgramFieldType>(comparer);
+        foreach (var (keyNode, valueNode) in node.Children)
+        {
+            if (keyNode is not YamlScalarNode { Value: { } rawKey } || string.IsNullOrWhiteSpace(rawKey))
+            {
+                throw ConfigYamlHelpers.NodeKindMismatch($"{path} key", "non-empty scalar", keyNode);
+            }
+
+            // An empty type is skipped, as types always allowed.
+            if (valueNode is YamlScalarNode { Value: var rawType } && string.IsNullOrWhiteSpace(rawType))
+            {
+                continue;
+            }
+
+            var key = rawKey.Trim();
+            var fieldPath = $"{path}.{key}";
+            if (!fields.TryAdd(key, ReadFieldType(valueNode, fieldPath, depth)))
+            {
+                throw new ConfigException($"{fieldPath} is declared more than once.", DiagnosticCode.ConfigInvalidValue);
+            }
+        }
+
+        return fields;
+    }
+
+    private static MiniProgramFieldType ReadFieldType(YamlNode node, string path, int depth)
+    {
+        switch (node)
+        {
+            case YamlScalarNode scalar:
+                return new MiniProgramFieldType(scalar.Value!.Trim(), null);
+            case YamlMappingNode mapping:
+                var type = ConfigYamlHelpers.GetOptionalString(mapping, "type", path)
+                    ?? throw new ConfigException($"{path}.type is required.", DiagnosticCode.ConfigRequiredFieldMissing);
+                foreach (var (keyNode, _) in mapping.Children)
+                {
+                    if (keyNode is not YamlScalarNode { Value: "type" or "fields" })
+                    {
+                        throw new ConfigException($"{path} allows only type and fields.", DiagnosticCode.ConfigInvalidValue);
+                    }
+                }
+
+                var fieldsNode = ConfigYamlHelpers.GetOptionalMapping(mapping, "fields", path);
+                if (fieldsNode is not null && depth >= MiniProgramKinds.MaxObjectDepth)
+                {
+                    throw new ConfigException(
+                        $"{path}.fields exceeds the maximum object nesting depth of {MiniProgramKinds.MaxObjectDepth}.", DiagnosticCode.ConfigInvalidValue);
+                }
+
+                // Nested keys are written to JSON as they are, so they match exactly.
+                return new MiniProgramFieldType(type.Trim(), fieldsNode is null ? null : ReadFieldTypes(fieldsNode, $"{path}.fields", depth + 1, StringComparer.Ordinal));
+            default:
+                throw ConfigYamlHelpers.NodeKindMismatch(path, "scalar or mapping", node);
+        }
     }
 }
 
@@ -349,11 +451,9 @@ internal static class MiniProgramConfigValidator
             : new HashSet<string>([.. dataset.Fields ?? [], .. dataset.ListFields ?? [], .. dataset.DetailFields ?? [], "id"], StringComparer.Ordinal);
         foreach (var (field, type) in dataset.Types ?? new Dictionary<string, string>())
         {
-            if (!MiniProgramKinds.FieldTypes.Contains(type, StringComparer.Ordinal))
-            {
-                throw Invalid($"{path}.types.{field} must be {string.Join('|', MiniProgramKinds.FieldTypes)}.");
-            }
-
+            IReadOnlyDictionary<string, MiniProgramFieldType>? fields = null;
+            dataset.ObjectFields?.TryGetValue(field, out fields);
+            ValidateFieldType(new MiniProgramFieldType(type, fields), $"{path}.types.{field}");
             if (field == "body")
             {
                 throw Invalid($"{path}.types.body is not allowed; body is always sanitized HTML.");
@@ -362,9 +462,40 @@ internal static class MiniProgramConfigValidator
             RequireDeclared(declared, field, $"{path}.types.{field}");
         }
 
+        foreach (var field in dataset.ObjectFields?.Keys ?? [])
+        {
+            if (dataset.Types?.ContainsKey(field) != true)
+            {
+                throw Invalid($"{path}.types.{field}.fields has no type.");
+            }
+        }
+
         foreach (var field in dataset.Required ?? [])
         {
             RequireDeclared(declared, field, $"{path}.required");
+        }
+    }
+
+    private static void ValidateFieldType(MiniProgramFieldType type, string path)
+    {
+        if (!MiniProgramKinds.FieldTypes.Contains(type.Type, StringComparer.Ordinal))
+        {
+            throw Invalid($"{path} must be {string.Join('|', MiniProgramKinds.FieldTypes)}.");
+        }
+
+        if (type.Fields is null)
+        {
+            return;
+        }
+
+        if (!MiniProgramKinds.IsObjectType(type.Type))
+        {
+            throw Invalid($"{path}.fields is only allowed for type object or object[].");
+        }
+
+        foreach (var (field, nested) in type.Fields)
+        {
+            ValidateFieldType(nested, $"{path}.fields.{field}");
         }
     }
 

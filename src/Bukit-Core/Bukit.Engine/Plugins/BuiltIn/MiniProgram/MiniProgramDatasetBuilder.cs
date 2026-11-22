@@ -173,20 +173,130 @@ internal sealed partial class MiniProgramDatasetBuilder
             throw Invalid(dataset, recordId, field, "is not a finite number");
         }
 
+        if (type is null)
+        {
+            return Infer(raw!) ?? throw Invalid(dataset, recordId, field, "has a value that is not a scalar or a list of strings; declare it as object or object[]");
+        }
+
+        IReadOnlyDictionary<string, MiniProgramFieldType>? fields = null;
+        dataset.ObjectFields?.TryGetValue(field, out fields);
+        return ConvertTyped(new Target(dataset, recordId, pageUrl), field, type, fields, raw!, depth: 0);
+    }
+
+    /// <summary>The dataset, record and page a value belongs to, carried through nested conversion.</summary>
+    private readonly record struct Target(MiniProgramDatasetConfig Dataset, string RecordId, string? PageUrl);
+
+    private JsonNode? ConvertTyped(Target target, string field, string type, IReadOnlyDictionary<string, MiniProgramFieldType>? fields, object raw, int depth)
+    {
+        var (dataset, recordId, pageUrl) = target;
         return type switch
         {
-            null => Infer(raw!) ?? throw Invalid(dataset, recordId, field, "has a value that is not a scalar or a list of strings"),
-            "string" => ToScalarText(raw!) ?? throw Invalid(dataset, recordId, field, "is not a string"),
-            "number" => ToJsonNumber(raw!) ?? throw Invalid(dataset, recordId, field, "is not a number"),
-            "boolean" => ToBoolean(raw!) is { } flag ? JsonValue.Create(flag) : throw Invalid(dataset, recordId, field, "is not a boolean"),
+            "string" => ToScalarText(raw) ?? throw Invalid(dataset, recordId, field, "is not a string"),
+            "number" => ToJsonNumber(raw) ?? throw Invalid(dataset, recordId, field, "is not a number"),
+            "boolean" => ToBoolean(raw) is { } flag ? JsonValue.Create(flag) : throw Invalid(dataset, recordId, field, "is not a boolean"),
             // A calendar date stays a date: an instant at UTC midnight shows the previous day west of UTC.
-            "date" => ToDateOnly(raw!) is { } day ? day.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture)
-                : ToDate(raw!) is { } date ? MiniProgramJson.FormatDate(date) : throw Invalid(dataset, recordId, field, "is not a date"),
-            "string[]" => ToTextList(raw!) is { } values
+            "date" => ToDateOnly(raw) is { } day ? day.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture)
+                : ToDate(raw) is { } date ? MiniProgramJson.FormatDate(date) : throw Invalid(dataset, recordId, field, "is not a date"),
+            "string[]" => ToTextList(raw) is { } values
                 ? ToStringArray(values)
-                : ToScalarText(raw!) is { } single ? ToStringArray([single]) : throw Invalid(dataset, recordId, field, "is not a list of strings"),
-            "image" or "url" => ToUrl(dataset, recordId, field, raw!, pageUrl),
+                : ToScalarText(raw) is { } single ? ToStringArray([single]) : throw Invalid(dataset, recordId, field, "is not a list of strings"),
+            "image" or "url" => ToUrl(dataset, recordId, field, raw, pageUrl),
+            MiniProgramKinds.Object => ToObject(target, field, fields, raw as System.Collections.IDictionary
+                ?? throw Invalid(dataset, recordId, field, "is not an object"), depth + 1),
+            MiniProgramKinds.ObjectArray => ToObjectArray(target, field, fields, raw, depth + 1),
             _ => throw new InvalidOperationException($"Unsupported mini-program field type '{type}'.")
+        };
+    }
+
+    /// <summary>
+    /// An object with ordinally sorted keys, so its bytes and hash depend only on its content. Declared
+    /// fields project the object to exactly those keys; undeclared ones keep every key and infer types.
+    /// Nested strings are plain text: only the top-level body is HTML.
+    /// </summary>
+    private JsonObject ToObject(Target target, string field, IReadOnlyDictionary<string, MiniProgramFieldType>? fields, System.Collections.IDictionary map, int depth)
+    {
+        if (depth > MiniProgramKinds.MaxObjectDepth)
+        {
+            throw Invalid(target.Dataset, target.RecordId, field, $"exceeds the maximum object nesting depth of {MiniProgramKinds.MaxObjectDepth}");
+        }
+
+        var values = new SortedDictionary<string, object?>(StringComparer.Ordinal);
+        if (fields is null)
+        {
+            foreach (System.Collections.DictionaryEntry entry in map)
+            {
+                values[entry.Key as string ?? throw Invalid(target.Dataset, target.RecordId, field, "has an object key that is not a string")] = entry.Value;
+            }
+        }
+        else
+        {
+            foreach (var key in fields.Keys)
+            {
+                values[key] = map.Contains(key) ? map[key] : null;
+            }
+        }
+
+        var result = new JsonObject();
+        foreach (var (key, value) in values)
+        {
+            MiniProgramFieldType? declared = null;
+            fields?.TryGetValue(key, out declared);
+            result[key] = ConvertNested(target, $"{field}.{key}", declared, value, depth);
+        }
+
+        return result;
+    }
+
+    private JsonArray ToObjectArray(Target target, string field, IReadOnlyDictionary<string, MiniProgramFieldType>? fields, object raw, int depth)
+    {
+        // A single object stands for a list of one, as a single string does for string[].
+        if (raw is System.Collections.IDictionary single)
+        {
+            // Not a collection expression: that binds to the generic JsonArray.Add<T>, which Native AOT rejects.
+            return new JsonArray((JsonNode)ToObject(target, $"{field}[0]", fields, single, depth));
+        }
+
+        if (raw is string || raw is not System.Collections.IEnumerable sequence)
+        {
+            throw Invalid(target.Dataset, target.RecordId, field, "is not a list of objects");
+        }
+
+        var array = new JsonArray();
+        var index = 0;
+        foreach (var item in sequence)
+        {
+            var itemField = $"{field}[{index++}]";
+            array.Add((JsonNode)ToObject(target, itemField, fields, item as System.Collections.IDictionary
+                ?? throw Invalid(target.Dataset, target.RecordId, itemField, "is not an object"), depth));
+        }
+
+        return array;
+    }
+
+    /// <summary>A value inside an object: declared types convert as at the top level; undeclared ones are inferred.</summary>
+    private JsonNode? ConvertNested(Target target, string field, MiniProgramFieldType? declared, object? raw, int depth)
+    {
+        if (IsEmpty(raw))
+        {
+            return null;
+        }
+
+        if (raw is double doubleValue && !double.IsFinite(doubleValue) || raw is float floatValue && !float.IsFinite(floatValue))
+        {
+            throw Invalid(target.Dataset, target.RecordId, field, "is not a finite number");
+        }
+
+        if (declared is not null)
+        {
+            return ConvertTyped(target, field, declared.Type, declared.Fields, raw!, depth);
+        }
+
+        return raw switch
+        {
+            System.Collections.IDictionary map => ToObject(target, field, null, map, depth + 1),
+            _ when Infer(raw!) is { } inferred => inferred,
+            System.Collections.IEnumerable and not string => ToObjectArray(target, field, null, raw!, depth + 1),
+            _ => throw Invalid(target.Dataset, target.RecordId, field, "has a value that is not a scalar, a list of strings or an object")
         };
     }
 

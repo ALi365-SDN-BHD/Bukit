@@ -67,16 +67,38 @@ internal static class ConfigStrictFieldValidator
             RequireOnly(sort, MiniProgramSortKeys, $"{path}.sort");
         }
 
-        if (Map(dataset, "types", $"{path}.types") is not { } types)
+        if (Map(dataset, "types", $"{path}.types") is { } types)
         {
-            return;
+            ValidateMiniProgramTypes(types, $"{path}.types");
         }
+    }
 
+    // A type is a scalar name or { type, fields }, where fields nests more types for object and object[].
+    private static void ValidateMiniProgramTypes(YamlMappingNode types, string path)
+    {
         foreach (var child in types.Children)
         {
-            if (child.Value is not YamlScalarNode)
+            var childPath = $"{path}.{KeyName(child.Key, path)}";
+            switch (child.Value)
             {
-                throw KindMismatch($"{path}.types.{KeyName(child.Key, $"{path}.types")}", "scalar", child.Value);
+                case YamlScalarNode:
+                    break;
+                case YamlMappingNode type:
+                    // Checked here rather than with RequireOnly: types is a dynamic map, so its paths have no fixed whitelist.
+                    if (type.Children.Keys.Select(key => KeyName(key, childPath)).FirstOrDefault(key => key is not ("type" or "fields")) is { } unknown)
+                    {
+                        throw new ConfigException($"Unknown config field '{childPath}.{unknown}'.", DiagnosticCode.ConfigInvalidValue);
+                    }
+
+                    RequireScalarIfPresent(type, "type", $"{childPath}.type");
+                    if (Map(type, "fields", $"{childPath}.fields") is { } fields)
+                    {
+                        ValidateMiniProgramTypes(fields, $"{childPath}.fields");
+                    }
+
+                    break;
+                default:
+                    throw KindMismatch(childPath, "scalar or mapping", child.Value);
             }
         }
     }

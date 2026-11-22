@@ -926,6 +926,169 @@ public sealed class MiniProgramPluginTests : IDisposable
         Assert.Equal("0.1", ReadDataset("banners")["items"]![0]!["order"]!.ToJsonString());
     }
 
+    // Locks the output of a site without object fields to the bytes written before object fields existed.
+    [Fact]
+    public async Task SiteWithoutObjectFields_OutputIsUnchanged()
+    {
+        await RunAsync(Config(), [Article("a1", "First", tags: ["x"]), Article("a2", "Second", day: 2)], [Banner("b1", "One", 1), Banner("b2", "Two", 2.5)]);
+
+        var digest = new System.Text.StringBuilder();
+        foreach (var (path, bytes) in Snapshot())
+        {
+            digest.Append(path).Append(' ').Append(Convert.ToHexStringLower(System.Security.Cryptography.SHA256.HashData(bytes))).Append('\n');
+        }
+
+        Assert.Equal(UnchangedOutputDigest, Convert.ToHexStringLower(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(digest.ToString()))));
+        Assert.Equal("1.0", (string)ReadCatalog()["minClientSchema"]!);
+    }
+
+    private const string UnchangedOutputDigest = "e9993f821e0689e385589bea10a035336902d9f8dcdc2e866b92b123fd1d9cfd";
+
+    private static List<object> Days() =>
+    [
+        new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["title"] = "Day 1",
+            ["text"] = "<b>Arrive</b> in KL",
+            ["stay"] = "KL",
+            ["meals"] = "D",
+            ["sights"] = new List<object> { "Petronas", "Merdeka" },
+            ["exps"] = new List<object> { "Food tour" }
+        },
+        new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["title"] = "Day 2",
+            ["text"] = "Fly to Penang",
+            ["stay"] = "Penang",
+            ["meals"] = "B",
+            ["sights"] = new List<object> { "George Town" },
+            ["exps"] = new List<object>()
+        }
+    ];
+
+    [Fact]
+    public async Task ObjectArrayField_IsWrittenToDetailsWithSortedKeys()
+    {
+        var config = Config(articleDetailFields: ["title", "extra"], articleTypes: new Dictionary<string, string> { ["extra"] = "object[]" });
+
+        await RunAsync(config, [Article("a1", "First", extra: Days())], []);
+
+        var catalog = ReadCatalog();
+        Assert.Equal("1.1", (string)catalog["schemaVersion"]!);
+        Assert.Equal("1.1", (string)catalog["minClientSchema"]!);
+        var details = ReadByUrl((string)catalog["datasets"]!["articles"]!["detailCatalog"]!["url"]!)["items"]!.AsArray();
+        var days = ReadByUrl((string)details[0]!["url"]!)["extra"]!.AsArray();
+        Assert.Equal(2, days.Count);
+        Assert.Equal(["exps", "meals", "sights", "stay", "text", "title"], days[0]!.AsObject().Select(pair => pair.Key));
+        // Nested strings are plain text; only body is HTML.
+        Assert.Equal("<b>Arrive</b> in KL", (string)days[0]!["text"]!);
+        Assert.Equal(["Petronas", "Merdeka"], days[0]!["sights"]!.AsArray().Select(x => (string)x!));
+        Assert.Null(days[1]!["exps"]);
+    }
+
+    [Fact]
+    public async Task ObjectField_KeyOrderDoesNotChangeHash()
+    {
+        var config = Config(articleListFields: ["title", "extra"], articleTypes: new Dictionary<string, string> { ["extra"] = "object" });
+        await RunAsync(config, [Article("a1", "First", extra: new Dictionary<string, object> { ["a"] = "1", ["b"] = "2" })], []);
+        var before = Hash(ReadCatalog(), "articles");
+        Directory.Delete(_outputDir, recursive: true);
+        await RunAsync(config, [Article("a1", "First", extra: new Dictionary<string, object> { ["b"] = "2", ["a"] = "1" })], []);
+
+        Assert.Equal(before, Hash(ReadCatalog(), "articles"));
+    }
+
+    [Fact]
+    public async Task DeclaredNestedFields_ProjectAndConvert()
+    {
+        var config = Config(
+            articleListFields: ["title", "extra"],
+            articleTypes: new Dictionary<string, string> { ["extra"] = "object[]" },
+            articleObjectFields: new() { ["extra"] = new Dictionary<string, MiniProgramFieldType> { ["photo"] = new("image", null), ["night"] = new("number", null) } });
+        var item = new Dictionary<string, object> { ["photo"] = "/assets/a.png", ["night"] = "2", ["secret"] = "x" };
+
+        await RunAsync(config, [Article("a1", "First", extra: new List<object> { item })], []);
+
+        var nested = ReadDataset("articles")["items"]![0]!["extra"]![0]!.AsObject();
+        Assert.Equal(["night", "photo"], nested.Select(pair => pair.Key));
+        Assert.Equal("https://example.com/assets/a.png", (string)nested["photo"]!);
+        Assert.Equal(2, (long)nested["night"]!);
+    }
+
+    [Theory]
+    [InlineData("https://cdn.example.com/a.png?X-Amz-Signature=abc", "extra[0].photo' signed URL was not localized")]
+    [InlineData("javascript:alert(1)", "extra[0].photo' is not an http(s) URL")]
+    public async Task NestedImage_RejectsUnsafeUrls(string url, string expected)
+    {
+        var config = Config(
+            articleListFields: ["title", "extra"],
+            articleTypes: new Dictionary<string, string> { ["extra"] = "object[]" },
+            articleObjectFields: new() { ["extra"] = new Dictionary<string, MiniProgramFieldType> { ["photo"] = new("image", null) } });
+
+        var ex = await Assert.ThrowsAsync<BukitException>(() => RunAsync(config, [Article("a1", "First", extra: new List<object> { new Dictionary<string, object> { ["photo"] = url } })], []));
+
+        Assert.Contains(expected, ex.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task NestedNonFiniteNumber_Fails()
+    {
+        var config = Config(articleListFields: ["title", "extra"], articleTypes: new Dictionary<string, string> { ["extra"] = "object" });
+
+        var ex = await Assert.ThrowsAsync<BukitException>(() => RunAsync(config, [Article("a1", "First", extra: new Dictionary<string, object> { ["lat"] = double.NaN })], []));
+
+        Assert.Contains("record 'first' field 'extra.lat' is not a finite number", ex.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task TooDeepObject_FailsNamingDatasetRecordAndField()
+    {
+        object value = "leaf";
+        for (var i = 0; i < MiniProgramKinds.MaxObjectDepth; i++)
+        {
+            value = new Dictionary<string, object> { ["n"] = value };
+        }
+
+        var config = Config(articleListFields: ["title", "extra"], articleTypes: new Dictionary<string, string> { ["extra"] = "object" });
+        await RunAsync(config, [Article("a1", "First", extra: value)], []);
+        Directory.Delete(_outputDir, recursive: true);
+
+        var ex = await Assert.ThrowsAsync<BukitException>(() => RunAsync(config, [Article("a1", "First", extra: new Dictionary<string, object> { ["n"] = value })], []));
+
+        Assert.Contains("miniprogram dataset 'articles' record 'first' field 'extra.n.n.n.n.n.n.n.n' exceeds the maximum object nesting depth", ex.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task ObjectArrayWithScalarItem_Fails()
+    {
+        var config = Config(articleListFields: ["title", "extra"], articleTypes: new Dictionary<string, string> { ["extra"] = "object[]" });
+
+        var ex = await Assert.ThrowsAsync<BukitException>(() => RunAsync(config, [Article("a1", "First", extra: new List<object> { "x" })], []));
+
+        Assert.Contains("field 'extra[0]' is not an object", ex.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task DataIndexObjectValue_IsWritten()
+    {
+        var dataIndex = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["settings"] = new Dictionary<string, object>(StringComparer.Ordinal)
+            {
+                ["app"] = new Dictionary<string, object>(StringComparer.Ordinal)
+                {
+                    ["contact"] = new Dictionary<string, object> { ["phone"] = "+60", ["logo"] = "/assets/logo.png" }
+                }
+            }
+        };
+
+        await RunAsync(Config(settingsTypes: new Dictionary<string, string> { ["contact"] = "object" }), [], [], dataIndex);
+
+        var contact = ReadDataset("settings")["values"]!["contact"]!.AsObject();
+        Assert.Equal(["logo", "phone"], contact.Select(pair => pair.Key));
+        Assert.Equal("/assets/logo.png", (string)contact["logo"]!);
+    }
+
     private async Task<BuildContext> RunAsync(
         AppConfig config,
         IReadOnlyList<RoutedContentDocument> pages,
@@ -1002,6 +1165,9 @@ public sealed class MiniProgramPluginTests : IDisposable
         string[]? articleListFields = null,
         Dictionary<string, string>? articleTypes = null,
         IReadOnlyList<string>? languages = null,
+        string[]? articleDetailFields = null,
+        Dictionary<string, IReadOnlyDictionary<string, MiniProgramFieldType>>? articleObjectFields = null,
+        Dictionary<string, string>? settingsTypes = null,
         string scopeField = "scope") => new()
     {
         Site = new SiteConfig
@@ -1041,8 +1207,9 @@ public sealed class MiniProgramPluginTests : IDisposable
                     Kind = "collection",
                     Source = "blog",
                     ListFields = articleListFields ?? ["title", "summary"],
-                    DetailFields = ["title", "url", "body", "publishedAt"],
-                    Types = articleTypes
+                    DetailFields = articleDetailFields ?? ["title", "url", "body", "publishedAt"],
+                    Types = articleTypes,
+                    ObjectFields = articleObjectFields
                 },
                 new MiniProgramDatasetConfig
                 {
@@ -1055,7 +1222,7 @@ public sealed class MiniProgramPluginTests : IDisposable
                     Required = ["title", "image"],
                     Types = new Dictionary<string, string> { ["image"] = "image", ["order"] = "number" }
                 },
-                new MiniProgramDatasetConfig { Name = "settings", Kind = "dataIndex", Source = "settings", Scope = "app" },
+                new MiniProgramDatasetConfig { Name = "settings", Kind = "dataIndex", Source = "settings", Scope = "app", Types = settingsTypes },
                 new MiniProgramDatasetConfig { Name = "tags", Kind = "taxonomy", Taxonomy = "tags" },
                 new MiniProgramDatasetConfig { Name = "nav", Kind = "menu", Menu = "main" }
             ]
