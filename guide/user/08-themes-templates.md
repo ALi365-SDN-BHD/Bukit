@@ -140,9 +140,10 @@ Scriban's built-in `object.to_json` uses reflection that the Native AOT
 
 ## Numbers From Data Files And Front Matter
 
-Whole numbers read from `data/*.json`, `data/*.yaml` and front matter are
-64-bit integers, while a number written in a template, such as `2`, is a
-32-bit integer. Both print the same and compare equal with `==`, but Scriban's
+Whole numbers read from `data/*.json` and `data/*.yaml` (in lists or not), and
+front matter fields that hold a single number, are 64-bit integers, while a
+number written in a template, such as `2`, is a 32-bit integer. Items of a
+front matter list such as `city_ids: [1, 2]` are strings. Both print the same and compare equal with `==`, but Scriban's
 array.contains uses .NET equality, which treats the two integer types as
 different. Searching a list from data for a number typed in the template
 therefore returns `false`, even when the list holds that number:
@@ -151,7 +152,10 @@ therefore returns `false`, even when the list holds that number:
 {{ site.data_files.trip.city_ids | array.contains 2 }}
 ```
 
-Compare with `==` instead, either through array.filter with an anonymous
+The same happens when a front matter list is searched for any number, from the
+template, another front matter field or a data file, because its items are
+text; searching it for a string (`"2"`) works. Compare with `==` instead, which
+converts between these types, either through array.filter with an anonymous
 function or in a loop:
 
 ```scriban
@@ -161,9 +165,9 @@ function or in a loop:
 {{ for id in site.data_files.trip.city_ids }}{{ if id == 2 }}{{ has_city = true }}{{ end }}{{ end }}
 ```
 
-array.contains works as expected when both the list and the value come from
-data (for example, a page's id from front matter searched in a data file list)
-and for strings.
+array.contains works as expected for a data file list searched for a number
+from a data file or a single-number front matter field (for example, a page's
+id), and for lists of strings searched for a string.
 
 ## Loop Limit
 

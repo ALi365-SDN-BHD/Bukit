@@ -184,11 +184,12 @@ changes are picked up by the next build; do not delete `.cache` for that.
 
 ## Limits and errors
 
-- Whole numbers from data files and front matter are 64-bit; template literals are
-  32-bit. `==` treats them as equal, but array.contains does not: searching a data
-  list for a literal `2` returns `false`. Use
+- Whole numbers from data files and single-number front matter fields are 64-bit;
+  template literals are 32-bit; front matter list items (`ids: [1, 2]`) are strings.
+  `==` treats them as equal, but array.contains does not: a data list searched for a
+  literal `2`, or a front matter list searched for any number, returns `false`. Use
   `(list | array.filter @(do; ret $0 == 2; end) | array.size) > 0` or a `for` loop
-  with `==`. Searching for a value that also comes from data works.
+  with `==`. A data file list searched for a data or front matter number works.
 
 - Scriban's loop limit (default 1000, set with `build.templateLoopLimit`) counts every
   iteration inside one outermost `for`/`while`, including nested loops and loops in
