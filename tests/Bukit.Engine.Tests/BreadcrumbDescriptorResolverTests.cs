@@ -480,6 +480,29 @@ public sealed class BreadcrumbDescriptorResolverTests
     }
 
     [Fact]
+    public void Resolve_ParentUrlCycleFallback_DescendantFollowsTheFinalAncestorTrail()
+    {
+        var logger = new RecordingLogger();
+        var catalog = BreadcrumbDescriptorResolver.Resolve(
+            Config(),
+            "/",
+            [
+                Routed("hub", "Hub", "/hub/"),
+                Routed("a", "A", "/a/", parentUrl: "/hub/"),
+                Routed("b", "B", "/a/b/", parentUrl: "/a/b/c/"),
+                Routed("c", "C", "/a/b/c/")
+            ],
+            listRouteGraph: null,
+            staticEntries: null,
+            routeMetadata: null,
+            logger);
+
+        Assert.Equal(["Hub", "A", "B"], catalog.Find("/a/b/")!.Items.Select(item => item.Name));
+        Assert.Equal(["Hub", "A", "B", "C"], catalog.Find("/a/b/c/")!.Items.Select(item => item.Name));
+        Assert.Equal("seo.breadcrumb_parent_cycle route=/a/b/ parent=/a/b/c/ hint=remove-one-parent_url-in-the-cycle", Assert.Single(logger.Warnings));
+    }
+
+    [Fact]
     public void Resolve_ParentUrlFallsBack_DescendantsKeepUrlTrail()
     {
         var catalog = BreadcrumbDescriptorResolver.Resolve(
