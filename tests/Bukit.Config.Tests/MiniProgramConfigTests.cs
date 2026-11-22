@@ -202,20 +202,40 @@ public sealed class MiniProgramConfigTests
         Assert.Equal("object", config.MiniProgram.Datasets[1].Types!["contact"]);
     }
 
-    [Fact]
-    public void Load_RejectsObjectFieldsDeeperThanTheLimit()
+    [Theory]
+    [InlineData("string")]
+    [InlineData("object")]
+    public void Load_RejectsObjectsDeeperThanTheLimit(string leaf)
     {
-        var nested = "string";
+        // A ninth object level, declared with fields or as a bare type.
+        var nested = leaf == "object" ? "object" : $"{{ type: object, fields: {{ n: {leaf} }} }}";
         for (var i = 0; i < MiniProgramKinds.MaxObjectDepth; i++)
         {
             nested = $"{{ type: object, fields: {{ n: {nested} }} }}";
         }
 
-        var ex = Assert.Throws<ConfigException>(() => Load(Sources +
-            $"\nminiprogram:\n  enabled: true\n  datasets:\n    - {{ name: a, kind: records, source: modules, fields: [d], sort: {{ field: id }}, types: {{ d: {nested} }} }}\n"));
+        var ex = Assert.Throws<ConfigException>(() => Load(Sources + ObjectDataset(nested)));
 
         Assert.Contains("exceeds the maximum object nesting depth", ex.Message, StringComparison.Ordinal);
     }
+
+    [Fact]
+    public void Load_AcceptsScalarFieldsInsideTheDeepestObjectLevel()
+    {
+        // Eight object levels, the eighth declaring a scalar field, as the runtime converter accepts.
+        var nested = "{ type: object, fields: { n: string } }";
+        for (var i = 1; i < MiniProgramKinds.MaxObjectDepth; i++)
+        {
+            nested = $"{{ type: object, fields: {{ n: {nested} }} }}";
+        }
+
+        var config = Load(Sources + ObjectDataset(nested));
+
+        Assert.Equal("object", config.MiniProgram.Datasets[0].Types!["d"]);
+    }
+
+    private static string ObjectDataset(string type)
+        => $"\nminiprogram:\n  enabled: true\n  datasets:\n    - {{ name: a, kind: records, source: modules, fields: [d], sort: {{ field: id }}, types: {{ d: {type} }} }}\n";
 
     [Fact]
     public void Schema_DescribesObjectTypes()

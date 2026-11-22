@@ -195,12 +195,18 @@ internal static class MiniProgramConfigReader
         return fields;
     }
 
+    // depth is the object level a declared object would occupy; a top-level field is level 1.
+    private static string RequireObjectDepth(string type, string path, int depth)
+        => MiniProgramKinds.IsObjectType(type) && depth > MiniProgramKinds.MaxObjectDepth
+            ? throw new ConfigException($"{path} exceeds the maximum object nesting depth of {MiniProgramKinds.MaxObjectDepth}.", DiagnosticCode.ConfigInvalidValue)
+            : type;
+
     private static MiniProgramFieldType ReadFieldType(YamlNode node, string path, int depth)
     {
         switch (node)
         {
             case YamlScalarNode scalar:
-                return new MiniProgramFieldType(scalar.Value!.Trim(), null);
+                return new MiniProgramFieldType(RequireObjectDepth(scalar.Value!.Trim(), path, depth), null);
             case YamlMappingNode mapping:
                 var type = ConfigYamlHelpers.GetOptionalString(mapping, "type", path)
                     ?? throw new ConfigException($"{path}.type is required.", DiagnosticCode.ConfigRequiredFieldMissing);
@@ -212,13 +218,8 @@ internal static class MiniProgramConfigReader
                     }
                 }
 
+                RequireObjectDepth(type.Trim(), path, depth);
                 var fieldsNode = ConfigYamlHelpers.GetOptionalMapping(mapping, "fields", path);
-                if (fieldsNode is not null && depth >= MiniProgramKinds.MaxObjectDepth)
-                {
-                    throw new ConfigException(
-                        $"{path}.fields exceeds the maximum object nesting depth of {MiniProgramKinds.MaxObjectDepth}.", DiagnosticCode.ConfigInvalidValue);
-                }
-
                 // Nested keys are written to JSON as they are, so they match exactly.
                 return new MiniProgramFieldType(type.Trim(), fieldsNode is null ? null : ReadFieldTypes(fieldsNode, $"{path}.fields", depth + 1, StringComparer.Ordinal));
             default:
