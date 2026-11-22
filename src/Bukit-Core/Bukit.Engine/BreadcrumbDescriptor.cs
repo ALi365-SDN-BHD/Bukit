@@ -127,64 +127,14 @@ internal static class BreadcrumbDescriptorResolver
         var explicitParents = BreadcrumbExplicitParentResolver.Resolve(routed, entries.ContainsKey, logger);
         if (explicitParents.Count > 0)
         {
-            ApplyExplicitParents(config, baseUrl, entries, descriptors, explicitParents, logger);
+            var items = entries.ToDictionary(
+                entry => entry.Key,
+                entry => ToItem(config, baseUrl, entry.Value),
+                StringComparer.OrdinalIgnoreCase);
+            BreadcrumbTrailRewriter.Apply(items, descriptors, explicitParents, logger);
         }
 
         return new BreadcrumbDescriptorCatalog(descriptors, explicitParents.Count > 0);
-    }
-
-    /// <summary>
-    /// Replaces the URL-inferred trail of each page with a parent_url by its parent's trail plus the page.
-    /// Explicit parents are acyclic and exist, so the recursion ends; each trail is built once. A parent
-    /// whose own trail already contains the page (through URL or taxonomy ancestors) would repeat it,
-    /// so that page warns and keeps its original trail.
-    /// </summary>
-    private static void ApplyExplicitParents(
-        AppConfig config,
-        string baseUrl,
-        IReadOnlyDictionary<string, CatalogEntry> entries,
-        Dictionary<string, BreadcrumbDescriptor> descriptors,
-        IReadOnlyDictionary<string, string> explicitParents,
-        ILogger? logger)
-    {
-        var resolved = new Dictionary<string, BreadcrumbDescriptor>(StringComparer.OrdinalIgnoreCase);
-        foreach (var key in explicitParents.Keys)
-        {
-            descriptors[key] = Trail(key);
-        }
-
-        BreadcrumbDescriptor Trail(string key)
-        {
-            if (resolved.TryGetValue(key, out var done))
-            {
-                return done;
-            }
-
-            BreadcrumbDescriptor descriptor;
-            if (!explicitParents.TryGetValue(key, out var parentKey))
-            {
-                descriptor = key == "/"
-                    ? new BreadcrumbDescriptor([ToItem(config, baseUrl, entries["/"])])
-                    : descriptors[key];
-            }
-            else
-            {
-                var current = ToItem(config, baseUrl, entries[key]);
-                var parentTrail = Trail(parentKey);
-                if (parentTrail.Items.Any(item => string.Equals(item.Item, current.Item, StringComparison.OrdinalIgnoreCase)))
-                {
-                    logger?.Warn($"seo.breadcrumb_parent_cycle route={entries[key].Url} parent={parentKey} hint=remove-one-parent_url-in-the-cycle");
-                    descriptor = descriptors[key];
-                }
-                else
-                {
-                    descriptor = new BreadcrumbDescriptor([.. parentTrail.Items, current]);
-                }
-            }
-
-            resolved[key] = descriptor;
-            return descriptor;
-        }
     }
 
     private static CatalogEntry ResolveHome(AppConfig config, IReadOnlyDictionary<string, CatalogEntry> entries)

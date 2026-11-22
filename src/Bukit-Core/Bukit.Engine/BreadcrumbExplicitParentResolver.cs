@@ -4,6 +4,12 @@ using Bukit.Shared;
 namespace Bukit.Engine;
 
 /// <summary>
+/// A page's parent_url: the normalized parent key, the value as the author wrote it (for warnings),
+/// and the page's own route URL.
+/// </summary>
+internal sealed record BreadcrumbExplicitParent(string Key, string Value, string RouteUrl);
+
+/// <summary>
 /// Reads the parent_url content field, which names a page's breadcrumb parent by its site path.
 /// A parent that is missing, invalid, the page itself or part of a cycle is dropped with a warning,
 /// so that page keeps its URL-inferred trail.
@@ -12,13 +18,12 @@ internal static class BreadcrumbExplicitParentResolver
 {
     internal const string FieldKey = "parent_url";
 
-    internal static IReadOnlyDictionary<string, string> Resolve(
+    internal static IReadOnlyDictionary<string, BreadcrumbExplicitParent> Resolve(
         IReadOnlyList<RoutedContentDocument> routed,
         Func<string, bool> routeExists,
         ILogger? logger)
     {
-        var parents = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-        var routes = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        var parents = new Dictionary<string, BreadcrumbExplicitParent>(StringComparer.OrdinalIgnoreCase);
         foreach (var routedDocument in routed)
         {
             var value = ContentFieldReader.GetText(routedDocument.Document.CustomFields, FieldKey)?.Trim();
@@ -41,11 +46,10 @@ internal static class BreadcrumbExplicitParentResolver
                 continue;
             }
 
-            parents[key] = parentKey;
-            routes[key] = routeUrl;
+            parents[key] = new BreadcrumbExplicitParent(parentKey, value, routeUrl);
         }
 
-        RemoveCycles(parents, routes, logger);
+        RemoveCycles(parents, logger);
         return parents;
     }
 
@@ -60,7 +64,7 @@ internal static class BreadcrumbExplicitParentResolver
     /// Drops the explicit parent of every page on a cycle. Pages that merely lead into a cycle keep
     /// theirs, and the result does not depend on the order pages were read in.
     /// </summary>
-    private static void RemoveCycles(Dictionary<string, string> parents, Dictionary<string, string> routes, ILogger? logger)
+    private static void RemoveCycles(Dictionary<string, BreadcrumbExplicitParent> parents, ILogger? logger)
     {
         var onCycle = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         var settled = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
@@ -79,7 +83,7 @@ internal static class BreadcrumbExplicitParentResolver
 
                 positions[current] = path.Count;
                 path.Add(current);
-                current = parents[current];
+                current = parents[current].Key;
             }
 
             settled.UnionWith(path);
@@ -87,7 +91,7 @@ internal static class BreadcrumbExplicitParentResolver
 
         foreach (var key in onCycle.Order(StringComparer.OrdinalIgnoreCase))
         {
-            logger?.Warn($"seo.breadcrumb_parent_cycle route={routes[key]} parent={parents[key]} hint=remove-one-parent_url-in-the-cycle");
+            BreadcrumbTrailRewriter.WarnCycle(logger, parents[key]);
             parents.Remove(key);
         }
     }
