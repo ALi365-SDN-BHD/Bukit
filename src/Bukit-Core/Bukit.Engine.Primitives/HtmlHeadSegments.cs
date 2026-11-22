@@ -1,4 +1,4 @@
-namespace Bukit.Engine;
+namespace Bukit.Engine.Primitives;
 
 /// <summary>
 /// One piece of head HTML: a text run or comment (<see cref="Tag"/> is null), or an element start tag

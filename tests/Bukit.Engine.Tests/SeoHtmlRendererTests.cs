@@ -1,3 +1,4 @@
+using Bukit.Engine.Primitives;
 using Bukit.Rendering;
 using Xunit;
 

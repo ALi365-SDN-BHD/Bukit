@@ -38,55 +38,19 @@ internal static class TemplateJsonWriter
             throw new InvalidOperationException($"JSON value is nested deeper than {MaxDepth} levels; the value may contain a reference cycle.");
         }
 
+        if (value is null)
+        {
+            sb.Append("null");
+            return;
+        }
+
+        if (TryWriteScalar(sb, value))
+        {
+            return;
+        }
+
         switch (value)
         {
-            case null:
-                sb.Append("null");
-                return;
-            case string s:
-                WriteString(sb, s);
-                return;
-            case bool b:
-                sb.Append(b ? "true" : "false");
-                return;
-            case char c:
-                WriteString(sb, c.ToString());
-                return;
-            case sbyte or byte or short or ushort or int or uint or long or ulong or BigInteger or Int128 or UInt128:
-                sb.Append(((IFormattable)value).ToString(null, CultureInfo.InvariantCulture));
-                return;
-            case decimal m:
-                sb.Append(m.ToString(CultureInfo.InvariantCulture));
-                return;
-            case double d:
-                WriteFloat(sb, d, double.IsFinite(d));
-                return;
-            // float and Half are formatted as themselves: widening to double adds digits (1.1f -> 1.100000023841858).
-            case float f:
-                WriteFloat(sb, f, float.IsFinite(f));
-                return;
-            case Half h:
-                WriteFloat(sb, h, Half.IsFinite(h));
-                return;
-            case DateTimeOffset dto:
-                WriteString(sb, dto.ToString("O", CultureInfo.InvariantCulture));
-                return;
-            case DateTime dt:
-                WriteString(sb, dt.ToString("O", CultureInfo.InvariantCulture));
-                return;
-            case DateOnly date:
-                WriteString(sb, date.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture));
-                return;
-            case TimeSpan ts:
-                WriteString(sb, ts.ToString("c", CultureInfo.InvariantCulture));
-                return;
-            case Enum e:
-                WriteString(sb, e.ToString());
-                return;
-            // Template functions (util.*, comp.render, ...) have no data; never publish their .NET type names.
-            case IScriptCustomFunction:
-                sb.Append("null");
-                return;
             // ScriptObject's non-generic IDictionary view yields internal value wrappers; use its typed view.
             case ScriptObject obj:
                 WriteObject(sb, obj.Select(pair => (pair.Key, (object?)pair.Value)), depth);
@@ -112,6 +76,62 @@ internal static class TemplateJsonWriter
                 WriteString(sb, value.ToString() ?? string.Empty);
                 return;
         }
+    }
+
+    // Strings, booleans, numbers, dates, enums and template functions; containers are handled by the caller.
+    private static bool TryWriteScalar(StringBuilder sb, object value)
+    {
+        switch (value)
+        {
+            case string s:
+                WriteString(sb, s);
+                break;
+            case bool b:
+                sb.Append(b ? "true" : "false");
+                break;
+            case char c:
+                WriteString(sb, c.ToString());
+                break;
+            case sbyte or byte or short or ushort or int or uint or long or ulong or BigInteger or Int128 or UInt128:
+                sb.Append(((IFormattable)value).ToString(null, CultureInfo.InvariantCulture));
+                break;
+            case decimal m:
+                sb.Append(m.ToString(CultureInfo.InvariantCulture));
+                break;
+            case double d:
+                WriteFloat(sb, d, double.IsFinite(d));
+                break;
+            // float and Half are formatted as themselves: widening to double adds digits (1.1f -> 1.100000023841858).
+            case float f:
+                WriteFloat(sb, f, float.IsFinite(f));
+                break;
+            case Half h:
+                WriteFloat(sb, h, Half.IsFinite(h));
+                break;
+            case DateTimeOffset dto:
+                WriteString(sb, dto.ToString("O", CultureInfo.InvariantCulture));
+                break;
+            case DateTime dt:
+                WriteString(sb, dt.ToString("O", CultureInfo.InvariantCulture));
+                break;
+            case DateOnly date:
+                WriteString(sb, date.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture));
+                break;
+            case TimeSpan ts:
+                WriteString(sb, ts.ToString("c", CultureInfo.InvariantCulture));
+                break;
+            case Enum e:
+                WriteString(sb, e.ToString());
+                break;
+            // Template functions (util.*, comp.render, ...) have no data; never publish their .NET type names.
+            case IScriptCustomFunction:
+                sb.Append("null");
+                break;
+            default:
+                return false;
+        }
+
+        return true;
     }
 
     private static IEnumerable<(string Key, object? Value)> EnumerateDictionary(IDictionary dictionary)
