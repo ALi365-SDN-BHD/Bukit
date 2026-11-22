@@ -1,4 +1,5 @@
 using Bukit.Engine.Abstractions.Plugins;
+using Bukit.Engine.Primitives;
 
 namespace Bukit.Engine.Audit;
 
@@ -12,7 +13,7 @@ internal sealed class PublishOutputInclusion
     private readonly Dictionary<string, Dictionary<string, PublishRepresentationOutput>> _projections;
     private readonly SeoIndexEntry[] _entries;
     private readonly Dictionary<string, HashSet<string>> _hitsByOutput = new(ReferenceEqualityComparer.Instance);
-    private CaseInsensitiveSubstringFinder? _routeNeedles;
+    private OrdinalIgnoreCaseMultiMatcher.CompiledPatterns? _routeNeedles;
     private HashSet<string>? _knownNeedles;
 
     internal PublishOutputInclusion(
@@ -40,7 +41,7 @@ internal sealed class PublishOutputInclusion
         if (!_hitsByOutput.TryGetValue(outputText, out var hits))
         {
             EnsureRouteNeedles();
-            hits = _routeNeedles!.FindAll(outputText);
+            hits = _routeNeedles!.FindPresent(outputText);
             _hitsByOutput[outputText] = hits;
         }
 
@@ -84,7 +85,7 @@ internal sealed class PublishOutputInclusion
             AddKnown(entry.Canonical is null ? null : SitemapLocNeedle(entry.Canonical));
         }
 
-        _routeNeedles = new CaseInsensitiveSubstringFinder(_knownNeedles);
+        _routeNeedles = OrdinalIgnoreCaseMultiMatcher.Compile(_knownNeedles);
     }
 
     private void AddKnown(string? needle)
