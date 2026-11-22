@@ -29,7 +29,7 @@ internal static class SeoSchemaValidator
             return schemaTypes;
         }
 
-        var keptTypes = ExtractSchemaTypes(kept, routeUrl, issues, searchActionExpected);
+        var keptTypes = ExtractSchemaTypes(kept, routeUrl, issues, searchActionExpected, "Kept head JSON-LD");
         return [.. schemaTypes.Union(keptTypes, StringComparer.Ordinal).Order(StringComparer.Ordinal)];
     }
 
@@ -37,7 +37,8 @@ internal static class SeoSchemaValidator
         IReadOnlyList<string> jsonLd,
         string routeUrl,
         List<SeoAuditIssue> issues,
-        bool searchActionExpected = false)
+        bool searchActionExpected = false,
+        string label = "JSON-LD")
     {
         var types = new SortedSet<string>(StringComparer.Ordinal);
         var position = 0;
@@ -54,7 +55,7 @@ internal static class SeoSchemaValidator
                 ValidateSchemaObject(doc.RootElement, routeUrl, issues, searchActionExpected);
                 if (blockTypes.Count == 0)
                 {
-                    issues.Add(Warning("seo.json_ld_type_missing", routeUrl, $"JSON-LD block {position} of {jsonLd.Count} does not declare @type."));
+                    issues.Add(Warning("seo.json_ld_type_missing", routeUrl, $"{label} block {position} of {jsonLd.Count} does not declare @type."));
                 }
             }
             catch (JsonException ex)
