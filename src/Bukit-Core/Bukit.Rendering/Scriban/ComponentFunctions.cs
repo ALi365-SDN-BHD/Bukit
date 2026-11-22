@@ -333,12 +333,12 @@ internal static class ComponentUtilityFunctions
 }
 
 /// <summary>
-/// The shared, read-only <c>util</c> template object. Its functions are stateless, so one instance
-/// serves every page, component and section context.
+/// The shared <c>util</c> template object. Its functions are stateless, so one frozen instance
+/// serves every page, component and section context; templates cannot add or change members.
 /// </summary>
 internal static class UtilTemplateFunctions
 {
-    internal static readonly ScriptObject Global = Create();
+    internal static readonly ScriptObject Util = Create();
 
     private static ScriptObject Create()
     {
@@ -358,10 +358,15 @@ internal static class UtilTemplateFunctions
         utilObj.SetValue("term_slug", UtilStringFunction.Unary(ComponentUtilityFunctions.TermSlug), readOnly: true);
         utilObj.SetValue("json_string", new JsonStringFunction(), readOnly: true);
         utilObj.SetValue("to_json", ToJsonFunction.Instance, readOnly: true);
-        var global = new ScriptObject();
-        global.SetValue("util", utilObj, readOnly: true);
-        return global;
+        utilObj.IsReadOnly = true;
+        return utilObj;
     }
+
+    /// <summary>
+    /// A per-context global holding <c>util</c> as a writable variable, so a template may still
+    /// assign its own <c>util</c> (as before) without touching the shared object.
+    /// </summary>
+    internal static ScriptObject CreateGlobal() => new() { ["util"] = Util };
 }
 
 /// <summary>

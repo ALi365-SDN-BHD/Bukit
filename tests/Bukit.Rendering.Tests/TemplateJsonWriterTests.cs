@@ -58,13 +58,14 @@ public sealed class TemplateJsonWriterTests
     }
 
     [Fact]
-    public void Serialize_KeepsEnumerationOrderForKeysThatStringifyAlike()
+    public void Serialize_KeepsFirstOfKeysThatStringifyAlike()
     {
         var first = new Dictionary<object, object> { [1] = "int", ["1"] = "string" };
         var second = new Dictionary<object, object> { ["1"] = "string", [1] = "int" };
 
-        Assert.Equal("""{"1":"int","1":"string"}""", TemplateJsonWriter.Serialize(first));
-        Assert.Equal("""{"1":"string","1":"int"}""", TemplateJsonWriter.Serialize(second));
+        Assert.Equal("""{"1":"int"}""", TemplateJsonWriter.Serialize(first));
+        Assert.Equal("""{"1":"string"}""", TemplateJsonWriter.Serialize(second));
+        Assert.Equal("""{"0":0,"1":"int","2":2}""", TemplateJsonWriter.Serialize(new Dictionary<object, object> { [2] = 2, [1] = "int", ["1"] = "string", [0] = 0 }));
     }
 
     [Fact]

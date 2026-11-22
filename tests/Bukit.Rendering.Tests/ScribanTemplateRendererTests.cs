@@ -573,6 +573,59 @@ public sealed class ScribanTemplateRendererTests : IDisposable
     }
 
     [Fact]
+    public void RenderPage_SectionTemplateCanUseUtilJsonFunctions()
+    {
+        var themeDir = Path.Combine(_layoutsDir, "util-section-theme");
+        var layoutsDir = Path.Combine(themeDir, "layouts");
+        var sectionDir = Path.Combine(layoutsDir, "sections", "hero");
+        var pagesDir = Path.Combine(layoutsDir, "pages");
+        Directory.CreateDirectory(sectionDir);
+        Directory.CreateDirectory(pagesDir);
+        File.WriteAllText(Path.Combine(sectionDir, "hero.html"),
+            "<script type=\"application/ld+json\">{{ section.props | util.to_json }}</script>");
+        var manifest = new ThemeManifestV2
+        {
+            Name = "util-section-theme",
+            Version = "1.0.0",
+            Sections = new() { ["hero"] = new() { Template = "sections/hero/hero.html" } }
+        };
+        var renderer = new Bukit.Rendering.Scriban.ScribanTemplateRenderer(
+            layoutsDir, null, null, null, null, new ThemeComponentRegistry(themeDir, manifest, null), null, null, "off");
+        File.WriteAllText(Path.Combine(pagesDir, "page.html"),
+            "{{ render_section '[{\"type\":\"hero\",\"props\":{\"title\":\"A </script>\"}}]' }}");
+
+        var result = renderer.RenderPage("pages/page.html", new PageModel
+        {
+            Site = CreateSite(),
+            Page = new PageInfo { Title = "Test", Content = "", Url = "/test/" }
+        });
+
+        Assert.Contains("""<script type="application/ld+json">{"title":"A \u003c/script\u003e"}</script>""", result, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void RenderPage_UtilIsSharedButFrozenAndStillAssignable()
+    {
+        var templatePath = Path.Combine(_layoutsDir, "page.html");
+        var renderer = new Bukit.Rendering.Scriban.ScribanTemplateRenderer(_layoutsDir);
+        var model = new PageModel
+        {
+            Site = CreateSite(),
+            Page = new PageInfo { Title = "T", Content = "", Url = "/t/" }
+        };
+
+        File.WriteAllText(templatePath, "{{ util.lang = 'en' }}");
+        var ex = Assert.ThrowsAny<Exception>(() => renderer.RenderPage("page.html", model));
+        Assert.Contains("readonly", ex.ToString(), StringComparison.OrdinalIgnoreCase);
+
+        File.WriteAllText(templatePath, "{{ util = 'theme-value' }}{{ util }}");
+        Assert.Equal("theme-value", renderer.RenderPage("page.html", model));
+
+        File.WriteAllText(templatePath, "{{ util.lang }}|{{ 'a' | util.json_string }}");
+        Assert.Equal("|\"a\"", renderer.RenderPage("page.html", model));
+    }
+
+    [Fact]
     public void RenderPage_WithSection_TemplateModifiedBetweenRenders_SeesUpdatedContent()
     {
         var themeDir = Path.Combine(_layoutsDir, "inval-theme");

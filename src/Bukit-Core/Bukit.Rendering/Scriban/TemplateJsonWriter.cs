@@ -120,20 +120,26 @@ internal static class TemplateJsonWriter
 
     private static void WriteObject(StringBuilder sb, IEnumerable<(string Key, object? Value)> members, int depth)
     {
-        // OrderBy is stable: keys that stringify alike (an IDictionary holding 1 and "1") keep their
-        // enumeration order instead of an arbitrary one, so output stays deterministic.
-        var ordered = members.OrderBy(static member => member.Key, StringComparer.Ordinal).ToList();
+        // OrderBy is stable: of keys that stringify alike (an IDictionary holding 1 and "1"), the first
+        // in enumeration order wins and later ones are skipped, so the object never repeats a key.
+        string? previousKey = null;
         sb.Append('{');
-        for (var i = 0; i < ordered.Count; i++)
+        foreach (var (key, value) in members.OrderBy(static member => member.Key, StringComparer.Ordinal))
         {
-            if (i > 0)
+            if (previousKey is not null)
             {
+                if (string.Equals(key, previousKey, StringComparison.Ordinal))
+                {
+                    continue;
+                }
+
                 sb.Append(',');
             }
 
-            WriteString(sb, ordered[i].Key);
+            previousKey = key;
+            WriteString(sb, key);
             sb.Append(':');
-            WriteValue(sb, ordered[i].Value, depth + 1);
+            WriteValue(sb, value, depth + 1);
         }
 
         sb.Append('}');
