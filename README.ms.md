@@ -117,12 +117,17 @@ content:
         dir: content
 build:
   output: dist
-  clean: true
+  clean: false   # kekalkan output sebelumnya supaya halaman yang tidak berubah digunakan semula
 theme:
   name: starter
 logging:
   level: info
 ```
+
+`build.clean` lalai kepada `true`, yang mengosongkan output sebelum setiap binaan, jadi
+binaan tokokan tidak menggunakan semula sebarang halaman. Kekalkan `clean: false` untuk
+binaan tempatan dan jalankan `bukit build --clean` apabila anda memerlukan binaan baharu,
+seperti dalam CI atau sebelum keluaran.
 
 Notion juga provider kandungan Core. Tambah sumber `notion` di bawah `content.sources[]` dan sediakan `NOTION_TOKEN` melalui persekitaran, bukan di dalam `site.yaml`.
 

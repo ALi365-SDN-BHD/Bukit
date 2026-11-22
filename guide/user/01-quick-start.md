@@ -69,8 +69,11 @@ theme:
 
 build:
   output: dist
-  clean: true
+  clean: false   # reuse unchanged pages; bukit build --clean starts fresh
 ```
+
+`build.clean` defaults to `true`, which empties the output before every build and
+turns off page reuse. See [Clean And Incremental Builds](04-site-yaml-config.md#clean-and-incremental-builds).
 
 ## Minimal Theme Manifest
 

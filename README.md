@@ -117,12 +117,16 @@ content:
         dir: content
 build:
   output: dist
-  clean: true
+  clean: false   # keep the previous output so unchanged pages are reused
 theme:
   name: starter
 logging:
   level: info
 ```
+
+`build.clean` defaults to `true`, which empties the output before every build, so
+incremental builds reuse no pages. Keep `clean: false` for local builds and run
+`bukit build --clean` when you need a fresh build, such as in CI or before a release.
 
 Notion is also a Core content provider. Add a `notion` source under `content.sources[]` and provide `NOTION_TOKEN` through the environment, never inside `site.yaml`.
 

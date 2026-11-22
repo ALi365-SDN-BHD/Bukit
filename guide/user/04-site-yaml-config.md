@@ -473,7 +473,7 @@ author.
 | Field | Default | Notes |
 |---|---|---|
 | `build.output` | `dist` | Relative output directory. |
-| `build.clean` | `true` | Clean before build. |
+| `build.clean` | `true` | Empty the output before each build. Incremental builds reuse pages only when `false`; see [Clean And Incremental Builds](#clean-and-incremental-builds). |
 | `build.draft` | `false` | Include draft content. |
 | `build.listPageContentMode` | `auto` | `auto`, `always`, or `never`. |
 | `build.schemaFailMode` | `warn` | `off`, `warn`, or `strict`. |
@@ -484,6 +484,23 @@ author.
 | `build.followSymlinks` | `false` | Allows symlink traversal only in supported copy paths with real-path checks. Default recursive content/static/media/report discovery still skips directory symlinks and reparse points. |
 | `build.languageJobs` | `1` | Positive language build concurrency. |
 | `build.templateLoopLimit` | `1000` | Positive Scriban loop iteration limit for page, component and section templates. See [Loop Limit](08-themes-templates.md#loop-limit). |
+
+### Clean And Incremental Builds
+
+Incremental builds (on by default) reuse a page only when its output file from
+the previous build is still there and none of its inputs changed. With
+`build.clean: true`, the default, the output is emptied first, so every page
+renders again. Set `build.clean: false` (or pass `--no-clean`) for day-to-day
+builds: unchanged pages are skipped, a changed page and the pages whose
+templates read the changed data render again, and files Bukit generated earlier
+but no longer produces are still removed. Files you put in the output yourself
+are kept.
+
+Use `build.clean: true` or `bukit build --clean` when you need output built from
+nothing: in CI and release builds, or with a Bukit binary built without git
+metadata, which incremental builds cannot tell apart from its release. `bukit dev`
+always starts with one clean build and rebuilds incrementally after that.
+`<output>/.bukit/incremental-manifest.json` reports why each page rendered.
 
 ## Theme Fields
 

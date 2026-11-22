@@ -47,7 +47,9 @@ render-dependency, and content hashes all match the manifest in
 Because the default clean build starts from an empty staging directory, every page
 reports `new_page` (no manifest entry yet) or `output_missing` and is re-rendered.
 Reuse happens only with `--no-clean` (or `build.clean: false`) and in `bukit dev`
-rebuilds.
+rebuilds. A site.yaml copied from an example with `clean: true` therefore never
+reuses pages; recommend `clean: false` for local builds and `--clean` for CI and
+release builds.
 
 ```bash
 bukit build --no-clean --metrics .bukit/metrics.json
