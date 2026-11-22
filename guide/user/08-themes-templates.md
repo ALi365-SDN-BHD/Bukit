@@ -124,7 +124,9 @@ not synthesize one; diagnostics and the final audit report the gap.
 booleans, null and dates. Both escape `<`, `>`, `&`, U+2028 and U+2029 as
 `\u003c`-style escapes, so content from Markdown or Notion cannot close a
 `<script>` element early. `util.to_json` sorts object keys (ordinal), so the
-output is byte-for-byte stable. Both work in page, component and section
+output is byte-for-byte stable. Dictionary keys that become the same text
+(such as `1` and `"1"`) keep only the first; template functions are written as
+`null`. Both work in page, component and section
 templates.
 
 Scriban's built-in `object.to_json` uses reflection that the Native AOT

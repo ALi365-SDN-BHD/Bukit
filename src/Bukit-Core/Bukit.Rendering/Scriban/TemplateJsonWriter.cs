@@ -83,6 +83,10 @@ internal static class TemplateJsonWriter
             case Enum e:
                 WriteString(sb, e.ToString());
                 return;
+            // Template functions (util.*, comp.render, ...) have no data; never publish their .NET type names.
+            case IScriptCustomFunction:
+                sb.Append("null");
+                return;
             // ScriptObject's non-generic IDictionary view yields internal value wrappers; use its typed view.
             case ScriptObject obj:
                 WriteObject(sb, obj.Select(pair => (pair.Key, (object?)pair.Value)), depth);

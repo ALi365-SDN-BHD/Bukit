@@ -593,12 +593,16 @@ public sealed class ScribanTemplateRendererTests : IDisposable
             layoutsDir, null, null, null, null, new ThemeComponentRegistry(themeDir, manifest, null), null, null, "off");
         File.WriteAllText(Path.Combine(pagesDir, "page.html"),
             "{{ render_section '[{\"type\":\"hero\",\"props\":{\"title\":\"A </script>\"}}]' }}");
-
-        var result = renderer.RenderPage("pages/page.html", new PageModel
+        File.WriteAllText(Path.Combine(pagesDir, "assign.html"), "{{ util = 'theme-value' }}{{ util }}");
+        var model = new PageModel
         {
             Site = CreateSite(),
             Page = new PageInfo { Title = "Test", Content = "", Url = "/test/" }
-        });
+        };
+
+        // Another page reassigning `util` must not leak into later renders or their sections.
+        Assert.Equal("theme-value", renderer.RenderPage("pages/assign.html", model));
+        var result = renderer.RenderPage("pages/page.html", model);
 
         Assert.Contains("""<script type="application/ld+json">{"title":"A \u003c/script\u003e"}</script>""", result, StringComparison.Ordinal);
     }

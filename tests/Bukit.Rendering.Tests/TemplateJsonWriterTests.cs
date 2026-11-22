@@ -69,6 +69,15 @@ public sealed class TemplateJsonWriterTests
     }
 
     [Fact]
+    public void Serialize_WritesTemplateFunctionsAsNull()
+    {
+        var json = TemplateJsonWriter.Serialize(UtilTemplateFunctions.Util);
+
+        Assert.DoesNotContain("Bukit.", json, StringComparison.Ordinal);
+        Assert.Contains("\"to_json\":null", json, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void Serialize_WritesStringValuedReadOnlyMapsAsObjects()
     {
         IReadOnlyDictionary<string, string> map = new StringMap(new Dictionary<string, string> { ["b"] = "2", ["a"] = "1" });
