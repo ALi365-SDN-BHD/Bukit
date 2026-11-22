@@ -40,14 +40,7 @@ internal sealed class ComponentRenderFunction : IScriptCustomFunction
             var resolveCtx = new TemplateContext { TemplateLoader = _templateLoader };
             var resolvedPath = _templateLoader.GetPath(resolveCtx, default, compDef.Template);
 
-            var compContext = new BukitTemplateContext
-            {
-                TemplateLoader = _templateLoader,
-                EnableRelaxedMemberAccess = true,
-                EnableRelaxedTargetAccess = true,
-                EnableNullIndexer = true,
-                LimitToString = 0
-            };
+            var compContext = BukitTemplateContext.Create(_templateLoader, context.LoopLimit);
 
             var componentGlobals = new ScriptObject();
             if (compDef.Props is { Count: > 0 })
@@ -95,7 +88,7 @@ internal sealed class ComponentRenderFunction : IScriptCustomFunction
                 throw;
             }
 
-            return Diagnostic("theme.component.render_failed", $"component error: {ex.Message}");
+            return Diagnostic("theme.component.render_failed", $"component error: {TemplateLoopLimitHint.Describe(ex, context.LoopLimit)}");
         }
     }
 
@@ -130,6 +123,7 @@ internal sealed class ThemeComponentRenderFunction : IScriptCustomFunction
     private readonly string _registryRoot;
     private readonly string _componentValidation;
     private readonly SectionRenderHelper.GetCachedSectionTemplate _getCachedTemplate;
+    private readonly int _loopLimit;
 
     public ThemeComponentRenderFunction(
         IReadOnlyDictionary<string, ThemeComponentDefinition> components,
@@ -137,7 +131,8 @@ internal sealed class ThemeComponentRenderFunction : IScriptCustomFunction
         ScriptObject parentGlobals,
         string registryRoot,
         string componentValidation,
-        SectionRenderHelper.GetCachedSectionTemplate? getCachedTemplate = null)
+        SectionRenderHelper.GetCachedSectionTemplate? getCachedTemplate = null,
+        int loopLimit = BuildConfig.DefaultTemplateLoopLimit)
     {
         _components = components;
         _templateLoader = templateLoader;
@@ -145,6 +140,7 @@ internal sealed class ThemeComponentRenderFunction : IScriptCustomFunction
         _registryRoot = registryRoot;
         _componentValidation = componentValidation;
         _getCachedTemplate = getCachedTemplate ?? DefaultGetCachedTemplate;
+        _loopLimit = loopLimit;
     }
 
     private bool DefaultGetCachedTemplate(string templatePath, out Template template)
@@ -194,14 +190,7 @@ internal sealed class ThemeComponentRenderFunction : IScriptCustomFunction
                 return Diagnostic("theme.component.template_not_found", $"component template not found: {compDef.Template}");
             }
 
-            var compContext = new BukitTemplateContext
-            {
-                TemplateLoader = _templateLoader,
-                EnableRelaxedMemberAccess = true,
-                EnableRelaxedTargetAccess = true,
-                EnableNullIndexer = true,
-                LimitToString = 0
-            };
+            var compContext = BukitTemplateContext.Create(_templateLoader, _loopLimit);
 
             if (!_getCachedTemplate(templatePath, out var compTemplate))
             {
@@ -236,7 +225,7 @@ internal sealed class ThemeComponentRenderFunction : IScriptCustomFunction
                 throw;
             }
 
-            return Diagnostic("theme.component.render_failed", $"component error: {ex.Message}");
+            return Diagnostic("theme.component.render_failed", $"component error: {TemplateLoopLimitHint.Describe(ex, _loopLimit)}");
         }
     }
 

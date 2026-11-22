@@ -184,9 +184,14 @@ changes are picked up by the next build; do not delete `.cache` for that.
 
 ## Limits and errors
 
-- Scriban's loop limit (1000 iterations) applies (`Exceeding number of iteration limit
-  1000`). On large sites
-  use `limit:` (`for p in pages limit:10`) or pagination.
+- Scriban's loop limit (default 1000, set with `build.templateLoopLimit`) counts every
+  iteration inside one outermost `for`/`while`, including nested loops and loops in
+  functions or includes called from it: 40 pages x 30 tags is 1200 and fails with
+  `Exceeding number of iteration limit`. A component or section rendered from the loop
+  starts its own count. Filter with array.filter or array.map and an anonymous function
+  (`@(do; ret $0.draft == false; end)`), which do not count, instead of a nested `for`
+  with `if`; use `limit:` (`for p in pages limit:10`) or pagination; raise the limit only
+  when the template really needs more iterations.
 - `Template not found` (BKT-0301), parse error (0302), layout depth (0303), component
   failure (0304), `Render failed: <path> at <span>: <cause>` (0399, exit 3).
 - `bukit doctor` checks required templates, parse errors, includes, and the manifest.

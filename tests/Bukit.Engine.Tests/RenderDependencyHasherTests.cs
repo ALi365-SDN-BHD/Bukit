@@ -343,6 +343,20 @@ public sealed class RenderDependencyHasherTests
     }
 
     [Fact]
+    public void Compute_TemplateLoopLimit_OnlyNonDefaultValueChangesHash()
+    {
+        var config = CreateBaseConfig();
+        var baseline = RenderDependencyHasher.Compute(config, s_emptySiteModel);
+
+        Assert.Equal(baseline, RenderDependencyHasher.Compute(
+            config with { Build = config.Build with { TemplateLoopLimit = BuildConfig.DefaultTemplateLoopLimit } },
+            s_emptySiteModel));
+        Assert.NotEqual(baseline, RenderDependencyHasher.Compute(
+            config with { Build = config.Build with { TemplateLoopLimit = 5000 } },
+            s_emptySiteModel));
+    }
+
+    [Fact]
     public void Compute_BaseConfiguration_MatchesGoldenHash()
     {
         Assert.Equal(

@@ -113,6 +113,7 @@ public sealed class StrictYamlContractTests : IDisposable
     [Theory]
     [InlineData("build:\n  clean: maybe\n", "build.clean")]
     [InlineData("build:\n  languageJobs: many\n", "languageJobs")]
+    [InlineData("build:\n  templateLoopLimit: lots\n", "templateLoopLimit")]
     [InlineData("site:\n  name: myblog\n  title: My Blog\n  autoSummaryMaxLength: many\n", "autoSummaryMaxLength")]
     [InlineData("site:\n  name: myblog\n  title: My Blog\n  pagination:\n    pageSize: many\n", "pageSize")]
     [InlineData("site:\n  name: myblog\n  title: My Blog\n  sitemapDetail:\n    defaultPriority: high\n", "defaultPriority")]

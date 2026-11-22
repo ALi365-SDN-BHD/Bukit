@@ -1,6 +1,7 @@
 using Scriban;
 using Scriban.Runtime;
 using Scriban.Syntax;
+using Bukit.Config;
 using Bukit.Theme;
 
 namespace Bukit.Rendering.Scriban;
@@ -15,9 +16,10 @@ internal sealed class RenderComponentFunction : IScriptCustomFunction
         ScriptObject parentGlobals,
         string registryRoot,
         string componentValidation,
-        SectionRenderHelper.GetCachedSectionTemplate? getCachedTemplate = null)
+        SectionRenderHelper.GetCachedSectionTemplate? getCachedTemplate = null,
+        int loopLimit = BuildConfig.DefaultTemplateLoopLimit)
     {
-        _renderer = new ThemeComponentRenderFunction(components, templateLoader, parentGlobals, registryRoot, componentValidation, getCachedTemplate);
+        _renderer = new ThemeComponentRenderFunction(components, templateLoader, parentGlobals, registryRoot, componentValidation, getCachedTemplate, loopLimit);
     }
 
     public object? Invoke(TemplateContext context, ScriptNode? callerContext, ScriptArray arguments, ScriptBlockStatement? blockStatement)

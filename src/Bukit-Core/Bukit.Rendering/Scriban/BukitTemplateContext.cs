@@ -30,6 +30,21 @@ internal sealed class BukitTemplateContext : TemplateContext
         PushGlobal(UtilTemplateFunctions.CreateGlobal());
     }
 
+    /// <summary>
+    /// Creates a context with Bukit's standard render settings. Page, component and section
+    /// contexts all use it, so they share one loop limit (build.templateLoopLimit).
+    /// </summary>
+    internal static BukitTemplateContext Create(ITemplateLoader templateLoader, int loopLimit) => new()
+    {
+        TemplateLoader = templateLoader,
+        EnableRelaxedMemberAccess = true,
+        EnableRelaxedTargetAccess = true,
+        EnableNullIndexer = true,
+        // Scriban's default 1 MiB limit silently truncates large output (counted twice inside include).
+        LimitToString = 0,
+        LoopLimit = loopLimit
+    };
+
     protected override IListAccessor? GetListAccessorImpl(object target, Type type)
     {
         var accessor = base.GetListAccessorImpl(target, type);

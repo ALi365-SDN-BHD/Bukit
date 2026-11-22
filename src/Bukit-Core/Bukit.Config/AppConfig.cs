@@ -495,6 +495,15 @@ public sealed record BuildConfig
     public bool PublishDotFiles { get; init; }
     public bool FollowSymlinks { get; init; }
     public int LanguageJobs { get; init; } = 1;
+
+    /// <summary>Default for <see cref="TemplateLoopLimit"/>; matches the template engine's own default.</summary>
+    public const int DefaultTemplateLoopLimit = 1000;
+
+    /// <summary>
+    /// Maximum template loop iterations allowed inside one outermost loop, counting nested loops and
+    /// loops in functions called from it (build.templateLoopLimit).
+    /// </summary>
+    public int TemplateLoopLimit { get; init; } = DefaultTemplateLoopLimit;
 }
 
 public sealed record BuildReportConfig
