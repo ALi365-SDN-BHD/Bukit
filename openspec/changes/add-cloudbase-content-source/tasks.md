@@ -14,17 +14,17 @@
 
 - [ ] T02 诊断码 `CloudBase*`（`0x0C01`～`0x0C0B`）、formatter 说明、public API 基线、`guide/dev/cli.md` 消费方契约表。
 - [ ] T01 配置模型与校验：internal `CloudBaseConfig`、读取、严格字段校验、语义校验（含 D8 ①②④ 与 ③ 的 `onFailure` 部分、D13、D18）、JSON Schema。
-- [ ] T03 `Bukit.CloudBase` transport 与新项目登记（解决方案、受治理程序集、架构计数、覆盖率清单），行覆盖率不低于 70%。
+- [ ] T03 `Bukit.CloudBase` transport（PostgREST 查询、存储批量签名、JWT `role` 诊断解码）与新项目登记（解决方案、受治理程序集、架构计数、覆盖率清单），行覆盖率不低于 70%。
 
 ## 2. 主体
 
 - [ ] T05 Markdown 渲染的不可信链接模式与 `CloudBaseUrlPolicy`（D9）。
 - [ ] T04 Provider、字段投影、错误映射、工厂接入，以及构建阶段的占位图检查（D8 ③）。
-- [ ] T06 `cloud://` 换链、D17 降级、`SignedUrlIdentity` 的 CloudBase 规则、D8 ⑤。
+- [ ] T06 文件对象批量签名（对象名与 `cloud://` 兼容形式）、D17 降级、`SignedUrlIdentity` 的 CloudBase 规则、D8 ⑤。
 
 ## 3. 收口
 
 - [ ] T07 构建阶段和部署阶段的公开产物隐私检查覆盖 CloudBase 标识（D11）。
-- [ ] T08 `doctor` 的 CloudBase 检查与管理员级凭据警告。
+- [ ] T08 `doctor` 的 CloudBase 检查：`role` 声明（`service_role` 警告）、表可达、RLS 空结果提示、存储签名。
 - [ ] T09 用户、开发、技能、排错文档与三语 CHANGELOG。
 - [ ] T10 归档（需授权）、最终验证、统一审查。

@@ -1,9 +1,9 @@
 ## Purpose
 
-Lets a site read one Tencent CloudBase data model as a read-only content source with
-`content.sources[].type: cloudbase`, map its records to Bukit content documents, render Markdown
-bodies safely, and publish CloudBase-hosted images only after local download, without leaking
-CloudBase identifiers, credentials or temporary links.
+Lets a site read one PostgreSQL table or view in the `public` schema of a Tencent CloudBase PG-mode
+environment as a read-only content source with `content.sources[].type: cloudbase`, map its rows to
+Bukit content documents, render Markdown bodies safely, and publish CloudBase-hosted images only
+after local download, without leaking CloudBase identifiers, credentials or signed links.
 
 ## ADDED Requirements
 
@@ -11,27 +11,35 @@ CloudBase identifiers, credentials or temporary links.
 `config check`, `doctor` and `build` SHALL accept a `content.sources[]` entry with `type: cloudbase`
 and a `cloudbase` section. Validation SHALL fail with `CloudBaseConfigInvalid` naming the offending
 path when a required field is missing, a value is out of range, an unknown field is present,
-`kind` is not `model`, `cacheMode` is not `off`, `bodyFormat` is not `markdown`, `region` is not
-`cn` or `intl`, `filter` contains a key other than `field` and `value`, or `envId` does not match
-`^[a-z0-9][a-z0-9-]{0,62}$`. A credential field written in YAML SHALL fail validation; credentials
-SHALL come only from the environment or `--secrets-stdin`. The configuration types SHALL be
-internal and SHALL NOT add public API.
+`envId` does not match `^[a-z0-9][a-z0-9-]{0,62}$`, `region` is not `cn` or `intl`, `table` or
+`idField` does not match `^[A-Za-z_][A-Za-z0-9_]{0,62}$`, `storageBucket` is missing while
+`fileFields` is non-empty or does not match `^[a-z0-9][a-z0-9._-]{0,62}$`, `pageSize` is outside 1 to
+1000, `signExpiresSeconds` is outside 60 to 3600, `cacheMode` is not `off`, `bodyFormat` is not
+`markdown`, or `filter` contains a key other than `field` and `value`. The former `kind`, `model`
+and `collectionName` keys are unknown fields. A credential field written in YAML SHALL fail
+validation; the credential SHALL come only from the `CLOUDBASE_PUBLISHABLE_KEY` environment
+variable or `--secrets-stdin`. The configuration types SHALL be internal and SHALL NOT add public
+API.
 
 #### Scenario: Valid source
-- **WHEN** a site declares a `cloudbase` source with `envId: prod-abc`, `kind: model`, `model: article` and `bodyField: content`
-- **THEN** `config check` passes and the source uses region `cn`
+- **WHEN** a site declares a `cloudbase` source with `envId: prod-abc`, `table: articles` and `bodyField: content`
+- **THEN** `config check` passes, the source uses region `cn`, `idField` defaults to `id` and `pageSize` defaults to 100
 
-#### Scenario: Unsafe envId
-- **WHEN** `envId` contains `/`, `@`, `#`, `?`, `.` or an uppercase letter, or is longer than 63 characters
-- **THEN** validation fails with `CloudBaseConfigInvalid` naming `cloudbase.envId` and no request is sent
+#### Scenario: Unsafe envId or table
+- **WHEN** `envId` contains `/`, `@`, `#`, `?`, `.` or an uppercase letter or is longer than 63 characters, or `table` contains `.`, `/`, `?` or a space
+- **THEN** validation fails with `CloudBaseConfigInvalid` naming that path and no request is sent
 
 #### Scenario: Credential in YAML
-- **WHEN** the `cloudbase` section contains an API key field
+- **WHEN** the `cloudbase` section contains a key or token field
 - **THEN** validation fails with `CloudBaseConfigInvalid`
 
 #### Scenario: Unsupported options
-- **WHEN** `cacheMode: readonly`, `bodyFormat: html` or `filter: { field: status, op: ne, value: x }` is configured
+- **WHEN** `cacheMode: readonly`, `bodyFormat: html`, `kind: model` or `filter: { field: status, op: ne, value: x }` is configured
 - **THEN** validation fails with `CloudBaseConfigInvalid` naming that path
+
+#### Scenario: File fields without a bucket
+- **WHEN** `fileFields: [cover]` is configured without `storageBucket`
+- **THEN** validation fails with `CloudBaseConfigInvalid` naming `cloudbase.storageBucket`
 
 ### Requirement: File fields require guaranteed local media download
 When `fileFields` is non-empty, configuration validation SHALL fail with `CloudBaseConfigInvalid`
@@ -39,8 +47,9 @@ unless `content.media.downloadToLocal` is not `false`, every file field is liste
 `content.media.fieldKeys`, `content.media.onFailure` is `placeholder`, and every file field is an
 image field. When the placeholder image is missing, `build` SHALL fail with
 `CloudBaseConfigInvalid`, and `config check` and `doctor` SHALL report a warning. When
-`content.media.downloadHosts` or `skipHosts` would exclude the CloudBase temporary-link host,
-validation SHALL fail with `CloudBaseMediaLocalizationRequired`.
+`content.media.downloadHosts` or `skipHosts` would exclude the environment's gateway host
+(`{envId}.api.tcloudbasegateway.com` or `{envId}.api.intl.tcloudbasegateway.com`), validation SHALL
+fail with `CloudBaseMediaLocalizationRequired`.
 
 #### Scenario: Keep on failure
 - **WHEN** `fileFields: [cover]` is configured with `content.media.onFailure: keep`
@@ -54,43 +63,47 @@ validation SHALL fail with `CloudBaseMediaLocalizationRequired`.
 - **WHEN** `fileFields` is non-empty and the media placeholder file does not exist
 - **THEN** `build` fails with `CloudBaseConfigInvalid` and `config check` reports a warning
 
-### Requirement: Records are read completely, filtered, sorted and bounded
-The source SHALL read every page of matching records until the remote result is exhausted, SHALL
-stop at `maxItems` records when it is set, and SHALL send the configured single-field equality
-filter and single-field sort with every query. Responses that exceed the size limit or do not
-match the expected structure SHALL fail with `CloudBaseResponseInvalid`. Automated tests SHALL use
-a fake HTTP handler and SHALL NOT contact the network.
+### Requirement: Rows are read completely, filtered, sorted and bounded
+The source SHALL read the configured table or view through the PostgREST read interface, page by
+page with `limit` and `offset`, requesting the exact total count, and SHALL stop when a page holds
+fewer rows than the page size or the offset reaches the total. Every request SHALL carry the
+configured single-field equality filter as a URL-encoded `eq.` condition, and an order that ends
+with the unique `idField` ascending as a tiebreak so that paging is stable. The source SHALL stop
+at `maxItems` rows when it is set. Responses that exceed the size limit, do not match the expected
+structure, or carry an unparseable count SHALL fail with `CloudBaseResponseInvalid`. Automated
+tests SHALL use a fake HTTP handler and SHALL NOT contact the network.
 
 #### Scenario: Multi-page read
-- **WHEN** the fake remote holds 250 matching records and the page size is 100
+- **WHEN** the fake remote holds 250 matching rows and the page size is 100
 - **THEN** the build produces 250 documents from three requests
 
 #### Scenario: maxItems truncation
-- **WHEN** `maxItems: 120` is configured and 250 records match
+- **WHEN** `maxItems: 120` is configured and 250 rows match
 - **THEN** exactly 120 documents are produced
 
 #### Scenario: Filter and sort sent
-- **WHEN** `filter: { field: status, value: published }` and `sort: { field: publishAt, direction: desc }` are configured
-- **THEN** every query request carries that equality filter and that sort
+- **WHEN** `filter: { field: status, value: published }` and `sort: { field: publish_at, direction: desc }` are configured
+- **THEN** every request carries the `status` equality filter for `published` and orders by `publish_at` descending, then by `id` ascending
 
 #### Scenario: Oversized response
 - **WHEN** a response body exceeds the size limit or is malformed JSON
 - **THEN** the build fails with `CloudBaseResponseInvalid`
 
 ### Requirement: Field projection never publishes system or personal fields
-Field projection SHALL default to `whitelist` with an empty allowed list. System and personal
-fields (including the record creator's open id, owner, creator and updater) SHALL be removed in
-every `fieldPolicy` mode, including `all`. The record id SHALL be used only as an internal source
-identifier; it SHALL NOT be projected in `all` mode and SHALL appear in public fields only when
-listed explicitly in `allowed`, in which case `doctor` SHALL warn.
+Field projection SHALL default to `whitelist` with an empty allowed list. The columns `user_id`,
+`owner`, `created_by`, `updated_by` and `_openid` SHALL be removed in every `fieldPolicy` mode,
+including `all`; configuration MAY add columns to this list and SHALL NOT remove any. The `idField`
+value SHALL be used only as an internal source identifier; it SHALL NOT be projected in `all` mode
+and SHALL appear in public fields only when listed explicitly in `allowed`, in which case `doctor`
+SHALL warn. Timestamp fields SHALL accept ISO-8601 strings and epoch numbers.
 
 #### Scenario: All mode still strips personal fields
-- **WHEN** `fieldPolicy: { mode: all }` is configured and a record carries `_openid` and `createBy`
+- **WHEN** `fieldPolicy: { mode: all }` is configured and a row carries `user_id` and `created_by`
 - **THEN** neither field appears in any public output
 
-#### Scenario: Record id not projected by default
+#### Scenario: Row id not projected by default
 - **WHEN** `fieldPolicy: { mode: all }` is configured
-- **THEN** the record id is not a public field and the document identity is still stable across builds
+- **THEN** the `id` column is not a public field and the document identity is still stable across builds
 
 ### Requirement: Markdown bodies are rendered with untrusted-link policy
 CloudBase Markdown bodies SHALL be rendered in untrusted-link mode. Links, autolinks, reference
@@ -113,47 +126,70 @@ before this change.
 - **WHEN** a body links to `//evil.example/x`
 - **THEN** the link is dropped or rendered as plain text
 
-### Requirement: CloudBase file ids are resolved only where they are localized
-`cloud://` file ids in `fileFields` and in body image positions (inline images and image reference
-definitions) SHALL be resolved in batches to temporary links and downloaded locally within the same
-build. A `cloud://` id in any other position SHALL NOT be resolved: a non-image body link SHALL be
-rendered as plain text, and a public field outside `fileFields` whose value contains `cloud://`
-SHALL be dropped, both with the warning `CloudBaseUnsupportedFileReference`. A failed resolution
-SHALL report `CloudBaseFileResolveFailed` and identify the failing entry. Published output SHALL
-NOT contain `cloud://`, the envId, or a temporary-link host or signature.
+### Requirement: CloudBase file references are resolved only where they are localized
+File references SHALL be resolved only in `fileFields` and in body image positions (inline images
+and image reference definitions). A `fileFields` value SHALL be an object name in the configured
+`storageBucket` or a `cloud://<envId>.<bucket>/<path>` compat reference; a body image position SHALL
+be resolved only when it holds a `cloud://` compat reference. Object names SHALL be non-empty, SHALL
+NOT start with `/`, and SHALL NOT contain `//` or a `..` segment; a compat reference whose
+environment or bucket does not match the configuration SHALL NOT be resolved. Resolution SHALL use
+the PG storage batch-sign interface with at most 500 paths per request and an expiry of
+`signExpiresSeconds`. The signed link SHALL be the returned `fullSignedURL` when present, otherwise
+the environment's gateway origin followed by the returned relative `signedURL`; either way it SHALL be
+used only when it is `https`, its host equals the environment's gateway host and its path starts with
+`/v1/storages/object/sign/<storageBucket>/`. Downloading a signed link SHALL NOT send the credential. Signed links SHALL be downloaded locally within
+the same build. A `cloud://` reference in any other position SHALL NOT be resolved: a non-image body
+link SHALL be rendered as plain text, and a public field outside `fileFields` whose value contains
+`cloud://` SHALL be dropped, both with the warning `CloudBaseUnsupportedFileReference`. A failed
+resolution, including a per-item error in a batch response, SHALL report
+`CloudBaseFileResolveFailed` and identify the failing entry. Published output SHALL NOT contain
+`cloud://`, the envId, the gateway host or a signed link.
 
 #### Scenario: Cover image localized
-- **WHEN** a record's `cover` file field holds a `cloud://` id that resolves and downloads
-- **THEN** the page references the local media file and no published file contains `cloud://` or the temporary link
+- **WHEN** a row's `cover` file field holds the object name `posts/a.png` that signs and downloads
+- **THEN** the page references the local media file and no published file contains `cloud://`, the gateway host or the signed link
+
+#### Scenario: Batch of more than 500 references
+- **WHEN** a build collects 501 distinct file references
+- **THEN** they are signed in two batch requests
+
+#### Scenario: Signed URL on an unexpected host
+- **WHEN** a batch-sign response returns a signed link whose host is not the environment's gateway host, or whose path is outside the configured bucket
+- **THEN** that entry is not downloaded and `CloudBaseFileResolveFailed` is reported
+
+#### Scenario: Relative signed link
+- **WHEN** a batch-sign entry has no `fullSignedURL` and a relative `signedURL` of `/v1/storages/object/sign/media/posts/a.png?token=…`
+- **THEN** the image is downloaded from the environment's gateway host at that path without an `Authorization` header
 
 #### Scenario: Non-image body link degraded
 - **WHEN** a body contains `[pdf](cloud://env.bucket/a.pdf)`
 - **THEN** the link is rendered as plain text and `CloudBaseUnsupportedFileReference` is reported
 
 #### Scenario: Partial resolution failure
-- **WHEN** one id in a batch fails to resolve
+- **WHEN** one path in a batch comes back with an error
 - **THEN** `CloudBaseFileResolveFailed` is reported for that entry and its image falls back to the placeholder
 
 ### Requirement: Public output privacy detects CloudBase identifiers
 The build-time public output privacy check SHALL fail when public output contains the configured
-envId, a `cloud://` id, or a CloudBase temporary-link host or signature parameter. The deployment
-privacy validator SHALL detect `cloud://` ids and temporary-link hosts or signature parameters
-without configuration, and SHALL detect the envId when the deploy command passes it.
+envId, a `cloud://` compat reference, the CloudBase gateway host, or a URL on the PG storage
+signed-download path carrying a `token` parameter. The deployment privacy validator SHALL detect
+`cloud://` references, the gateway host and the signed path with `token` without configuration,
+and SHALL detect the envId when the deploy command passes it.
 
 #### Scenario: envId leaks into a page
 - **WHEN** a public HTML page contains the configured envId
 - **THEN** the build privacy check fails
 
-#### Scenario: Temporary link in deploy staging
-- **WHEN** a staged deployment file contains a CloudBase temporary link
+#### Scenario: Signed link in deploy staging
+- **WHEN** a staged deployment file contains a CloudBase signed link
 - **THEN** deployment fails before any Git write without reading site configuration
 
-### Requirement: Credentials, signatures and temporary links never reach logs
-Logs, diagnostics and exception messages SHALL NOT contain the credential, request headers, URL
-query strings, temporary links or signatures. Internal diagnostics SHALL log only a hash of the
-record id, the model name and the HTTP status code. Before sending a credential the transport
-SHALL assert that the scheme is `https` and the host is exactly `{envId}.api.tcloudbasegateway.com`
-or `{envId}.api.intl.tcloudbasegateway.com`.
+### Requirement: Credentials, signatures and signed links never reach logs
+Logs, diagnostics and exception messages SHALL NOT contain the credential (even though the
+publishable key is not a secret), request headers, URL query strings, signed links or tokens.
+Internal diagnostics SHALL log only a hash of the row id, the table name and the HTTP status code.
+Before sending a credential the transport SHALL assert that the scheme is `https` and the host is
+exactly `{envId}.api.tcloudbasegateway.com` or `{envId}.api.intl.tcloudbasegateway.com`.
 
 #### Scenario: Authentication failure message
 - **WHEN** the remote returns 401 for a request carrying the credential
@@ -164,27 +200,37 @@ or `{envId}.api.intl.tcloudbasegateway.com`.
 - **THEN** no request is sent and no credential is attached
 
 ### Requirement: Doctor reports CloudBase readiness
-`doctor` SHALL report connectivity, permission, model existence and whether mapped fields exist in
-a sample record, using the CloudBase diagnostic codes. It SHALL warn with
-`CloudBaseAdminCredentialInUse` when an administrator-level credential is in use, and its output
-SHALL NOT contain the credential.
+`doctor` SHALL report connectivity, permission, whether the table or view is reachable, and whether
+mapped fields exist in a sample row, using the CloudBase diagnostic codes. It SHALL decode the
+credential's JWT `role` claim without verifying it, as a diagnostic only, and SHALL warn with
+`CloudBaseAdminCredentialInUse` when the role is `service_role` or when the role is missing or
+cannot be parsed; `build` SHALL continue in both cases. When the table is reachable but returns no
+rows, `doctor` SHALL print a hint that a row-level security policy may be filtering rows, without a
+new diagnostic code. When `fileFields` is non-empty and a sample row holds a file reference,
+`doctor` SHALL sign that one object to check bucket access. Its output SHALL NOT contain the
+credential.
 
-#### Scenario: Admin credential warning
-- **WHEN** `doctor` runs with the API key credential configured
+#### Scenario: Service role credential warning
+- **WHEN** `doctor` runs with a credential whose `role` claim is `service_role`
 - **THEN** it reports `CloudBaseAdminCredentialInUse` as a warning
 
-#### Scenario: Missing model
-- **WHEN** the configured model does not exist
+#### Scenario: Missing table
+- **WHEN** the configured table does not exist
 - **THEN** `doctor` reports `CloudBaseNotFound`
+
+#### Scenario: Silent row-level security filter
+- **WHEN** the table is reachable with the publishable key but returns an empty result
+- **THEN** `doctor` prints a hint about row-level security and reports no error
 
 ### Requirement: Delivery passes the scoped gates and syncs documentation
 The change SHALL pass every specialty test emitted by the verification closure, `dotnet-format.sh`,
 `code-analysis-ratchet.sh check` without raising CA1502 or CA1506 counts, and
 `public-api-drift.sh check Debug` reporting only new `DiagnosticCode` members and the empty
 governed `Bukit.CloudBase` assembly. `Bukit.CloudBase` line coverage SHALL be at least 70%. User,
-developer, skill and troubleshooting documentation, the BukitJalil consumer contract table in
-`guide/dev/cli.md`, the three CHANGELOGs and these OpenSpec specs SHALL be updated. A site without a
-CloudBase source SHALL produce byte-identical output.
+developer, skill and troubleshooting documentation (including an SQL setup example for the
+read-only grant, the row-level security policy and the storage policy), the BukitJalil consumer
+contract table in `guide/dev/cli.md`, the three CHANGELOGs and these OpenSpec specs SHALL be
+updated. A site without a CloudBase source SHALL produce byte-identical output.
 
 #### Scenario: Site without CloudBase
 - **WHEN** an existing site without a `cloudbase` source is built before and after this change

@@ -41,7 +41,6 @@ if any(batch["parallel"] for batch in result["executionBatches"][1:]):
     raise SystemExit("serialized batches unexpectedly marked parallel")
 PY
 
-
 # Build-invoking tool gates must serialize with other dotnet work.
 expect_exit 0 "${tool[@]}" classify \
   --policy scripts/checks/codex-workflow-policy.v1.json \

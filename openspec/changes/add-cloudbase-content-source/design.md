@@ -5,8 +5,8 @@
 [任务计划书](../../../docs/plans/2026-11-23-cloudbase-content-source-task-plan.zh-CN.md)。
 本文件不复制方案内容，只记录本变更特有的上下文、偏离和技术债。
 
-G0 的结论和 Phase 0 调研见 proposal.md。环境为 PG 模式，数据访问路径和存储换链接口还在调研，
-方案会在 T01/T03 之前修订为 v4；与访问路径无关的决策已写进 proposal.md 的"实施期决策"。
+G0 的结论和 Phase 0 调研见 proposal.md。环境为 PG 模式（用户确认），方案已修订为 v4：数据通过 PostgREST
+读取 `public` schema 的表或视图，文件通过 PG 存储批量签名接口换成签名链接，凭据是 Publishable Key。
 
 ## Goals / Non-Goals
 
@@ -17,19 +17,25 @@ G0 的结论和 Phase 0 调研见 proposal.md。环境为 PG 模式，数据访�
 
 ## Decisions
 
-沿用方案第 4 节的 D1～D18，以下几点在实施期补充或更正：
+沿用方案 v4 第 4 节的 D1～D18。与本变更规格直接相关的几点：
 
-- **D18 更正**：`envId` 正则改为 `^[a-z0-9][a-z0-9-]{0,62}$`，与 DNS 标签最大长度 63 一致。
-- **D5 / G0-4**：P1 只实现 API Key 一种凭据策略，变量名 `CLOUDBASE_API_KEY`，视为管理员级凭据。
-- **D10 / G0-6**：CloudBase 临时链接的域名和签名参数集中在一处定义，真实环境验证后再调整。
+- **D4**：没有 `kind`；`table` 必填，是 `public` schema 的表或视图名。
+- **D5 / G0-4**：P1 只实现 Publishable Key 一种凭据策略，变量名 `CLOUDBASE_PUBLISHABLE_KEY`。客户端只解码、不验签
+  JWT 的 `role`，仅作诊断：`service_role` 或无法解析时 `doctor` 报 `CloudBaseAdminCredentialInUse`，构建继续。
+- **D10 / G0-6**：CloudBase 签名链接 = 网关主机 + `/v1/storages/object/sign/` 路径前缀 + `token` 参数，集中在一处定义，
+  真实环境验证后再调整。`media-localization` 的签名方案清单和"过期签名不重试"两条现有 requirement 用 MODIFIED 更新；
+  CloudBase 不读过期时间，照常重试。
+- **D18**：`envId` 正则为 `^[a-z0-9][a-z0-9-]{0,62}$`（v4 已从 `{0,63}` 更正）；`storageBucket` 和对象名也做白名单校验。
 - **region**：枚举 `cn`（默认）| `intl`，不接受地域字符串。
 
 ## Risks / Trade-offs
 
 见方案第 12 节。另加：
 
-- 鉴权和临时链接都没有在真实环境验证（用户指示的偏离）。T10 冒烟测试前，相关实现以公开文档为准。
-- PG 模式的访问路径未定。如果 v4 改为 PostgREST 表接口，transport 的请求形状、分页和系统字段清单都要随之调整。
+- 签名链接的形状已在 PG 模式试用环境实测（`signedURL` 是相对路径，`fullSignedURL` 可能不存在）；鉴权在数据库角色层实测，网关加 Publishable Key 待用户提供密钥后验证。
+- RLS 可能静默过滤掉全部行，PostgREST 返回 `200 []`；`doctor` 给出提示，`build` 不把空结果当错误。
+- PostgREST 单次行数上限和签名链接有效期上限都没有文档；P1 取 `pageSize` ≤ 1000、`signExpiresSeconds` ≤ 3600。
+- 传统模式环境（数据模型）不在 P1 范围内，可以在 P2 增加。
 
 ## 技术债：Notion 硬编码
 
