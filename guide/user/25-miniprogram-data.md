@@ -125,7 +125,8 @@ published. Other fields read, in this order, `slug`, `title`, `summary`, `body`,
 no page, so their `url` is the record's own `url` property.
 
 `types` converts and checks a field: `string`, `number`, `boolean`, `date`,
-`image`, `url` or `string[]`. `image` and `url` values become absolute http(s)
+`image`, `url`, `string[]`, `object` or `object[]` (see
+[Object Fields](#object-fields)). `image` and `url` values become absolute http(s)
 URLs, and one that still holds a signed URL fails the build; relative values of data records resolve against the site root, base path
 included. On a multilingual site with `site.sharedAssets`, links to the shared
 files (such as theme images under `assets/`) keep the root path in every
@@ -176,6 +177,61 @@ they sit inside a paragraph), block markup inside a paragraph, heading or
 is expanded. An image, link or embed in `body` that still holds a signed URL
 fails the build. Links to pages of any `collection` dataset carry
 `data-bukit-id` with the target id, so the mini-program can open its own page.
+
+### Object Fields
+
+A field whose value is a mapping, or a list of mappings, is written only when
+`types` declares it `object` or `object[]`; without a type such a value fails
+the build, as before. A type is either a name or a mapping with `type` and an
+optional `fields` mapping that declares nested types the same way:
+
+```yaml
+    - name: routes
+      kind: collection
+      source: routes
+      listFields: [title, cover]
+      detailFields: [title, cover, days]
+      types:
+        cover: image
+        days:
+          type: object[]
+          fields:
+            title: string
+            text: string
+            sights: string[]
+            photo: image
+            hotel: { type: object, fields: { name: string, stars: number } }
+```
+
+With `fields`, each object holds exactly the declared keys (a missing one is
+written as `null`) and other keys are dropped. Without `fields`
+(`days: object[]`), every key is kept and each value is inferred like an
+untyped field: text, numbers, booleans, dates and lists of text keep their
+form, and a nested mapping or list of mappings becomes an object or a list of
+objects. Inferred values are not converted, so an image path stays as written;
+declare `image` or `url` to make it an absolute http(s) URL. Declared nested
+`image` and `url` values follow the same rules as top-level ones, including the
+rejection of signed URLs. Nested strings are plain text: only the top-level
+`body` field is HTML and sanitized, so render nested text with a `text`
+component, not `rich-text`.
+
+Object keys are written in ordinal order, so reordering keys in the source does
+not change a file's hash. `NaN` and infinity fail the build at any depth, and
+objects may nest at most 8 levels (a top-level object is level 1); deeper data
+fails with `SchemaValidationFailed`, naming the dataset, record and the path of
+the field, such as `days[1].hotel`. A single mapping given to `object[]` is
+written as a list of one. As at the top level, an empty value inside an object
+(an empty list `[]`, an empty mapping, blank text or a YAML `null`) is written
+as `null`; quote `"null"` to keep it as text. A `dataIndex` dataset accepts the same types for its
+keys, although data index rows hold text values today.
+
+Object lists can make list files large. Put them in `detailFields`, so each one
+is downloaded only with its own record, and keep `listFields` to what a card
+shows. Bukit does not warn about file size; check the `size` of each dataset in
+the catalog. A catalog with an object field anywhere has `schemaVersion` and
+`minClientSchema` `1.1`, so clients built for `1.0` keep their local data and
+ask for an update instead of reading fields they do not expect; sites without
+object fields keep writing `1.0` and byte-identical files.
 
 ### Visibility
 

@@ -738,6 +738,75 @@ public sealed class MarkdownFolderProviderTests
     }
 
     [Fact]
+    public void ParseFrontMatter_PlainNulls_AreNullAtEveryDepth()
+    {
+        var yaml = """
+            gone: null
+            tilde: ~
+            empty:
+            quoted: "null"
+            single: 'Null'
+            tagged: !!str null
+            taggedTilde: !!str ~
+            explicitNull: !!null ""
+            days: [{"title": "D1", "meals": null, "stay": ~, "note": "null", "sights": [a, NULL, "~"]}]
+            hotel:
+              name: Inn
+              stars:
+            """;
+
+        var dict = InvokeFromType<IReadOnlyDictionary<string, object>>(FmType, "ParseFrontMatter", yaml, new ConsoleLogger(LogLevel.Warn));
+
+        Assert.False(dict.ContainsKey("gone"));
+        Assert.False(dict.ContainsKey("tilde"));
+        Assert.False(dict.ContainsKey("empty"));
+        Assert.Equal("null", dict["quoted"]);
+        Assert.Equal("Null", dict["single"]);
+        Assert.Equal("null", dict["tagged"]);
+        Assert.Equal("~", dict["taggedTilde"]);
+        Assert.False(dict.ContainsKey("explicitNull"));
+        var day = (IReadOnlyDictionary<string, object?>)Assert.Single((IEnumerable<object?>)dict["days"])!;
+        Assert.Equal("D1", day["title"]);
+        Assert.Null(day["meals"]);
+        Assert.Null(day["stay"]);
+        Assert.Equal("null", day["note"]);
+        Assert.Equal(new object?[] { "a", null, "~" }, (IEnumerable<object?>)day["sights"]!);
+        var hotel = (IReadOnlyDictionary<string, object?>)dict["hotel"];
+        Assert.Equal("Inn", hotel["name"]);
+        Assert.Null(hotel["stars"]);
+    }
+
+    [Fact, Trait("Category", "Integration")]
+    public async Task LoadRawAsync_NestedPlainNull_StaysNullInCustomFields()
+    {
+        var root = Path.Combine(Path.GetTempPath(), "bukit-md-null-" + Guid.NewGuid().ToString("N"));
+        try
+        {
+            Directory.CreateDirectory(root);
+            await File.WriteAllTextAsync(Path.Combine(root, "route.md"),
+                "---\ntitle: Route\nsubtitle: null\nlabel: \"null\"\nsights: [a, null, b]\nplain: [a, b]\ndays:\n  - title: D1\n    meals: null\n---\nBody");
+
+            var item = Assert.Single((await new MarkdownFolderProvider(new MarkdownFolderProviderOptions(root)).LoadRawAsync()).Documents);
+
+            Assert.False(ContentFieldReader.TryGetField(item.CustomFields, "subtitle", out _));
+            Assert.Equal("null", ContentFieldReader.GetText(item.CustomFields, "label"));
+            Assert.True(ContentFieldReader.TryGetField(item.CustomFields, "sights", out var sights));
+            Assert.Equal(new object?[] { "a", null, "b" }, (IEnumerable<object?>)sights.Value!);
+            Assert.Equal(new[] { "a", "b" }, ContentFieldReader.GetTextList(item.CustomFields, "plain"));
+            Assert.True(ContentFieldReader.TryGetField(item.CustomFields, "days", out var days));
+            var day = (System.Collections.IDictionary)Assert.Single((IEnumerable<object?>)days.Value!)!;
+            Assert.Null(day["meals"]);
+        }
+        finally
+        {
+            if (Directory.Exists(root))
+            {
+                Directory.Delete(root, recursive: true);
+            }
+        }
+    }
+
+    [Fact]
     public void TryConvertToField_Bool_ReturnsBoolField()
     {
         var args = new object[] { true, null! };

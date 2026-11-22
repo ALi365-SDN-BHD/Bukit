@@ -21,6 +21,7 @@ public sealed class ConfigJsonSchemaGeneratorTests
         "$/properties/taxonomy/properties/pinFieldBySource",
         "$/properties/taxonomy/properties/pinOrderFieldBySource",
         "$/properties/miniprogram/properties/datasets/items/properties/types",
+        "$/$defs/miniProgramFieldType/oneOf[1]/properties/fields",
         "$/properties/content/properties/modelSchema/properties/fieldScopes"
     };
 

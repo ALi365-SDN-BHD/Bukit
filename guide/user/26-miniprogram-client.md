@@ -563,6 +563,13 @@ need `wx.switchTab()` instead of `wx.navigateTo()`.
 - The current catalog format is `schemaVersion` `1.0`, with `minClientSchema`
   `1.0`. Ignore keys you do not know, so a later addition does not break an
   older client.
+- `1.1` adds `object` and `object[]` fields: a field's value can be a JSON
+  object or an array of objects, with keys in ordinal order. A catalog is `1.1`
+  (with `minClientSchema` `1.1`) only when the site declares such a field, so
+  set `clientSchema: '1.1'` once the client renders them. Nested values may be
+  `null`, and nested strings are plain text: show them with `text`, never with
+  `rich-text`. For example, a route detail with `days: object[]` reads
+  `detail.days[0].sights` as an array of strings.
 - `minClientSchema` is the signal for an incompatible change: when it is newer
   than the client's `clientSchema`, the client keeps its local copy and asks
   the user to update.

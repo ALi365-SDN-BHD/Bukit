@@ -187,3 +187,21 @@ output collision check.
 #### Scenario: Output disabled
 - **WHEN** a site that wrote `mp/` is rebuilt with `miniprogram.enabled: false`
 - **THEN** no file under `mp/` remains in the output
+
+### Requirement: Object and object-array fields are opt-in, bounded and deterministic
+A dataset field whose value is a mapping or a list of mappings SHALL be written only when `types`
+declares it `object` or `object[]`, optionally with nested `fields` declared the same way. Declared
+nested fields SHALL project each object to exactly those keys; undeclared objects SHALL keep every
+key with inferred values. Object keys SHALL be written in ordinal order. Nested `image` and `url`
+values SHALL follow the top-level URL rules, nested strings SHALL be plain text, and objects nested
+deeper than 8 levels SHALL fail the build with `SchemaValidationFailed` naming the dataset, record
+and field path. A catalog SHALL use `schemaVersion` and `minClientSchema` `1.1` only when an object
+field is declared; other sites SHALL keep `1.0` and byte-identical output.
+
+#### Scenario: Route days
+- **WHEN** a route record has `days: [{title, text, stay, meals, sights, exps}]` and the dataset declares `days: object[]`
+- **THEN** the detail file contains every day with its keys in ordinal order and the build succeeds
+
+#### Scenario: Site without object fields
+- **WHEN** a site declares no `object` or `object[]` type
+- **THEN** its catalog stays `1.0` and every file under `mp/` is byte-identical to the previous release

@@ -29,6 +29,7 @@ public static class ConfigJsonSchemaGenerator
             ("logging", Obj(("type", "object"), ("properties", Obj(("level", EnumSchema("debug", "info", "warn", "error")))))),
             ("deploy", DeploySchema()),
             ("miniprogram", MiniProgramSchema()));
+        root["$defs"] = Obj(("miniProgramFieldType", MiniProgramFieldTypeSchema()));
 
         var analyticsCspConfigured = Obj(
             ("properties", Obj(
@@ -732,7 +733,18 @@ public static class ConfigJsonSchemaGenerator
                 ("field", StringSchema()),
                 ("order", EnumSchema("asc", "desc")))))),
             ("required", StringArraySchema()),
-            ("types", Obj(("type", "object"), ("additionalProperties", EnumSchema(MiniProgramKinds.FieldTypes)))))));
+            ("types", MiniProgramFieldTypesSchema()))));
+
+    private static JsonObject MiniProgramFieldTypesSchema()
+        => Obj(("type", "object"), ("additionalProperties", Obj(("$ref", "#/$defs/miniProgramFieldType"))));
+
+    // A type name, or { type, fields } where fields nests the same shape for object and object[].
+    private static JsonObject MiniProgramFieldTypeSchema()
+        => Obj(("oneOf", new JsonArray(
+            EnumSchema(MiniProgramKinds.FieldTypes),
+            Obj(("type", "object"), ("required", Arr("type")), ("additionalProperties", false), ("properties", Obj(
+                ("type", EnumSchema(MiniProgramKinds.FieldTypes)),
+                ("fields", MiniProgramFieldTypesSchema())))))));
 
     private static JsonObject StringSchema() => Obj(("type", "string"));
 

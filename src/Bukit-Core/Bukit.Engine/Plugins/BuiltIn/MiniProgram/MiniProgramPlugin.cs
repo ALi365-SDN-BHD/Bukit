@@ -17,6 +17,12 @@ internal sealed class MiniProgramPlugin : IBukitPlugin, IAfterBuildAsyncPlugin
     internal const string CatalogSchema = "https://bukit.dev/schemas/miniprogram-catalog.v1.json";
     internal const string SchemaVersion = "1.0";
 
+    /// <summary>
+    /// The additive version for datasets with object or object[] fields. Sites that use neither keep
+    /// 1.0, so their catalog bytes do not change; older clients refuse 1.1 through minClientSchema.
+    /// </summary>
+    internal const string ObjectFieldsSchemaVersion = "1.1";
+
     private readonly AppConfig _config;
     private readonly BuildExecutionMode _executionMode;
 
@@ -135,11 +141,12 @@ internal sealed class MiniProgramPlugin : IBukitPlugin, IAfterBuildAsyncPlugin
             entries[name] = entry;
         }
 
+        var version = UsesObjectFields() ? ObjectFieldsSchemaVersion : SchemaVersion;
         var catalog = new JsonObject
         {
             ["schema"] = CatalogSchema,
-            ["schemaVersion"] = SchemaVersion,
-            ["minClientSchema"] = SchemaVersion,
+            ["schemaVersion"] = version,
+            ["minClientSchema"] = version,
             ["language"] = _config.Site.Language,
             ["datasets"] = entries
         };
@@ -153,6 +160,9 @@ internal sealed class MiniProgramPlugin : IBukitPlugin, IAfterBuildAsyncPlugin
         catalog["datasets"] = entries;
         return catalog;
     }
+
+    private bool UsesObjectFields()
+        => _config.MiniProgram.Datasets.Any(dataset => dataset.Types?.Values.Any(MiniProgramKinds.IsObjectType) == true);
 
     private JsonObject BuildSite(MiniProgramUrls urls)
     {

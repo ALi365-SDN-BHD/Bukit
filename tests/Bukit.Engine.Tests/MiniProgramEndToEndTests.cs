@@ -115,6 +115,31 @@ public sealed class MiniProgramEndToEndTests : IDisposable
     }
 
     // Clean is off, so stale files are removed by the build manifest, not by wiping the output.
+    // Nested YAML nulls reach mini-program JSON as null from content and data Markdown sources alike;
+    // a quoted "null" stays text.
+    [Fact]
+    public async Task ObjectFields_KeepNestedYamlNullsFromContentAndDataSources()
+    {
+        WriteSite(module: "banner", enabled: true);
+        const string types = "types: { days: { type: 'object[]', fields: { title: string, meals: string, note: string, sights: 'string[]' } } }";
+        var yaml = File.ReadAllText(_sandbox.PathFor("site.yaml"))
+            .Replace("listFields: [title]", "listFields: [title, days]\n      " + types, StringComparison.Ordinal)
+            .Replace("fields: [title, order]", "fields: [title, order, days]\n      " + types, StringComparison.Ordinal);
+        _sandbox.Write("site.yaml", yaml);
+        const string days = "days: [{\"title\": \"D1\", \"meals\": null, \"note\": \"null\", \"sights\": []}, {title: D2, meals: ~}]\n";
+        _sandbox.Write("content/hello.md", "---\nslug: hello\ntitle: Hello\nlanguage: en\npublishAt: 2024-06-01T00:00:00Z\ncollection: page\n" + days + "---\nHello body\n");
+        _sandbox.Write("data/sale.md", "---\ntype: banner\ntitle: Sale\nslug: sale\nlocale: en\norder: 1\n" + days + "---\n");
+
+        await BuildAsync();
+
+        foreach (var name in new[] { "articles", "banners" })
+        {
+            var dayList = Dataset("dist/mp", name)["items"]![0]!["days"]!.AsArray();
+            Assert.Equal("""{"meals":null,"note":"null","sights":null,"title":"D1"}""", dayList[0]!.ToJsonString());
+            Assert.Null(dayList[1]!["meals"]);
+        }
+    }
+
     private Task BuildAsync() => BuildAsync(incremental: false);
 
     private Task BuildAsync(bool incremental)

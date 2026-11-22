@@ -1,3 +1,4 @@
+using YamlDotNet.Core;
 using YamlDotNet.RepresentationModel;
 using Bukit.Shared;
 
@@ -97,7 +98,11 @@ internal static class MarkdownFrontMatterParser
                 }
 
                 var key = k.Value.Trim();
-                dict[key] = ToObject(kv.Value);
+                // A YAML null leaves the key out, as if it were not written.
+                if (ToObject(kv.Value) is { } value)
+                {
+                    dict[key] = value;
+                }
             }
 
             NormalizeTaxonomy(dict, "tags");
@@ -136,11 +141,11 @@ internal static class MarkdownFrontMatterParser
         }
     }
 
-    private static object ToObject(YamlNode node)
+    private static object? ToObject(YamlNode node)
     {
         return node switch
         {
-            YamlScalarNode s => s.Value ?? string.Empty,
+            YamlScalarNode s => IsNull(s) ? null : s.Value ?? string.Empty,
             YamlSequenceNode seq => seq.Children.Select(ToObject).ToList(),
             YamlMappingNode map => map.Children
                 .Where(p => p.Key is YamlScalarNode ks && !string.IsNullOrWhiteSpace(ks.Value))
@@ -151,4 +156,21 @@ internal static class MarkdownFrontMatterParser
             _ => node.ToString()
         };
     }
+
+    /// <summary>
+    /// A YAML 1.2 core-schema null: a plain (unquoted), untagged <c>null</c>, <c>Null</c>, <c>NULL</c>,
+    /// <c>~</c> or empty value, or any value tagged <c>!!null</c>. Quoted text such as <c>"null"</c> and
+    /// values with another explicit tag such as <c>!!str null</c> stay strings.
+    /// </summary>
+    private static bool IsNull(YamlScalarNode scalar)
+    {
+        if (!scalar.Tag.IsEmpty)
+        {
+            return scalar.Tag.Value == NullTag;
+        }
+
+        return scalar.Style == ScalarStyle.Plain && scalar.Value is null or "" or "~" or "null" or "Null" or "NULL";
+    }
+
+    private const string NullTag = "tag:yaml.org,2002:null";
 }
