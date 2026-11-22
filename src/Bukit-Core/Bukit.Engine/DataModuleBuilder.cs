@@ -4,6 +4,7 @@ using Bukit.Engine.Abstractions.Content;
 using Bukit.Rendering;
 using Bukit.Shared;
 using Bukit.Engine.Content;
+using System.Globalization;
 using System.Net.Mail;
 
 namespace Bukit.Engine;
@@ -241,11 +242,14 @@ internal static class DataModuleBuilder
         // A map or list has no text form; its ToString() is a .NET type name.
         if (raw is System.Collections.IDictionary or (System.Collections.IEnumerable and not string))
         {
-            var shape = raw is System.Collections.IDictionary ? "an object" : "a list";
+            var shape = raw is System.Collections.IDictionary or IEnumerable<KeyValuePair<string, object?>> ? "an object" : "a list";
             throw new ContentException($"{context} has value type '{valueType}' but its value is {shape}; use value type 'object' or 'object[]'.");
         }
 
-        var value = raw?.ToString()?.Trim() ?? string.Empty;
+        // Invariant, so a number or date builds the same text on every machine.
+        var value = (raw is IFormattable formattable
+            ? formattable.ToString(null, CultureInfo.InvariantCulture)
+            : raw?.ToString())?.Trim() ?? string.Empty;
         if (valueType == "email" && value.Length > 0 && !MailAddress.TryCreate(value, out _))
         {
             throw new ContentException($"{context} has invalid email value.");

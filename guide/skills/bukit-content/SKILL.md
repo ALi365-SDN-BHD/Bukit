@@ -151,9 +151,11 @@ and `email`/`url` values are validated. Template access:
 `{{ site.data_index.settings.contact.email }}`. A text type given a YAML mapping or list
 fails the build. `object` takes a mapping and `object[]` a list of mappings (YAML in
 Markdown, JSON text in Notion), read as `site.data_index.settings.trip.info.days`. All
-scalars inside are strings (Notion `5`/`true` become `"5"`/`"true"`, digits kept), keys
-are ordinal-sorted, nesting is at most 8 levels (each mapping or list is one), `NaN` and
-infinity fail, and an empty mapping or list counts as empty for `requiredKeys`.
+scalars inside are strings (Notion `5`/`true` become `"5"`/`"true"`, digits kept), so test
+switches with `== "true"` (`"false"` is truthy). Keys are ordinal-sorted and must not be
+blank, nesting is at most 8 levels (each mapping or list is one), JSON numbers beyond double
+range fail, a single mapping given to `object[]` is a list of one, and a mapping or list of
+only empty values counts as empty for `requiredKeys`.
 
 Files in `<root>/data/` (`.json`, `.yaml`, `.yml`; `.toml` is an error) are exposed
 under `site.data_files`: `data/a.yaml` → `site.data_files.a`, `data/dir/b.yaml` →

@@ -235,7 +235,10 @@ write JSON numbers and booleans:
       types:
         info:
           type: object
-          fields: { title: string, days: number, stops: object[] }
+          fields:
+            title: string
+            days: number
+            stops: object[]
 ```
 
 Object lists can make list files large. Put them in `detailFields`, so each one

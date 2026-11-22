@@ -1,6 +1,9 @@
 using Bukit.Content;
 using Bukit.Config;
 using Bukit.Engine.Abstractions.Content;
+using System.Collections;
+using System.Diagnostics.CodeAnalysis;
+using System.Globalization;
 using Bukit.Shared;
 using Xunit;
 
@@ -407,6 +410,8 @@ public sealed class DataModuleBuilderTests
     [InlineData("object", "")]
     [InlineData("object", "{}")]
     [InlineData("object[]", "[]")]
+    [InlineData("object", "{\"title\":null,\"note\":\"  \",\"stops\":[]}")]
+    [InlineData("object[]", "[{\"title\":null}]")]
     public void BuildDataIndex_RequiredEmptyObjectValue_Throws(string valueType, string value)
     {
         var source = CreateIndexedSource() with
@@ -424,7 +429,9 @@ public sealed class DataModuleBuilderTests
     [InlineData("object", "{\"days\":", "is not valid JSON")]
     [InlineData("object", "[{\"days\":5}]", "has value type 'object' but its value is not an object")]
     [InlineData("object", "\"text\"", "has value type 'object' but its value is not an object")]
-    [InlineData("object[]", "{\"days\":5}", "has value type 'object[]' but its value is not a list of objects")]
+    [InlineData("object[]", "\"text\"", "has value type 'object[]' but its value is not a list of objects")]
+    [InlineData("object", "{\"\":1}", "value has a blank object key")]
+    [InlineData("object", "{\"a\":{\" \":1}}", "value at 'a' has a blank object key")]
     [InlineData("object[]", "[{\"days\":5},\"x\"]", "has value type 'object[]' but its value at '[1]' is not an object")]
     [InlineData("object", "{\"a\":1,\"a\":2}", "value at 'a' is a duplicate key")]
     [InlineData("object", "{\"a\":{\"b\":1e400}}", "value at 'a.b' is not a finite number")]
@@ -448,6 +455,72 @@ public sealed class DataModuleBuilderTests
             DataModuleBuilder.BuildDataIndex([CreateIndexedDocument("deep", "trip", "info", tooDeep, "object")], [CreateIndexedSource()]));
 
         Assert.Contains("exceeds the maximum nesting depth of 8", ex.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void BuildDataIndex_ObjectArrayGivenSingleMapping_IsListOfOne()
+    {
+        var fromJson = ReadIndexed(CreateIndexedDocument("a", "trip", "stops", """{"name":"A"}""", "object[]"), "trip", "stops");
+        var fromMap = ReadIndexed(CreateIndexedDocument("b", "trip", "stops",
+            new Dictionary<string, object?>(StringComparer.OrdinalIgnoreCase) { ["name"] = "B" }, "object[]"), "trip", "stops");
+
+        Assert.Equal("A", Assert.IsAssignableFrom<IReadOnlyDictionary<string, object>>(Assert.Single(Assert.IsType<List<object?>>(fromJson)))["name"]);
+        Assert.Equal("B", Assert.IsAssignableFrom<IReadOnlyDictionary<string, object>>(Assert.Single(Assert.IsType<List<object?>>(fromMap)))["name"]);
+    }
+
+    [Fact]
+    public void BuildDataIndex_ObjectArrayGivenSingleMappingAtMaxDepth_Throws()
+    {
+        // Eight levels on its own; the list it is wrapped in makes nine.
+        var atLimit = string.Concat(Enumerable.Repeat("{\"a\":", 8)) + "1" + new string('}', 8);
+
+        var ex = Assert.Throws<ContentException>(() =>
+            DataModuleBuilder.BuildDataIndex([CreateIndexedDocument("deep", "trip", "stops", atLimit, "object[]")], [CreateIndexedSource()]));
+
+        Assert.Contains("exceeds the maximum nesting depth of 8 as a list of one object", ex.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void BuildDataIndex_ObjectFromGenericOnlyDictionary_IsReadAsMap()
+    {
+        var value = new GenericOnlyMap(new Dictionary<string, object?> { ["days"] = 5, ["inner"] = new GenericOnlyMap(new() { ["x"] = "y" }) });
+
+        var info = ReadIndexed(CreateIndexedDocument("trip", "trip", "info", value, "object"), "trip", "info");
+
+        var map = Assert.IsAssignableFrom<IReadOnlyDictionary<string, object>>(info);
+        Assert.Equal("5", map["days"]);
+        Assert.Equal("y", Assert.IsAssignableFrom<IReadOnlyDictionary<string, object>>(map["inner"])["x"]);
+    }
+
+    [Fact]
+    public void BuildDataIndex_TextTypeGivenGenericOnlyDictionary_ReportsObject()
+    {
+        var value = new GenericOnlyMap(new Dictionary<string, object?> { ["days"] = "5" });
+
+        var ex = Assert.Throws<ContentException>(() =>
+            DataModuleBuilder.BuildDataIndex([CreateIndexedDocument("map", "trip", "info", value, "text")], [CreateIndexedSource()]));
+
+        Assert.Contains("but its value is an object", ex.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void BuildDataIndex_TextTypeGivenNumberOrDate_FormatsInvariantly()
+    {
+        var culture = CultureInfo.CurrentCulture;
+        try
+        {
+            CultureInfo.CurrentCulture = CultureInfo.GetCultureInfo("de-DE");
+
+            var number = ReadIndexed(CreateIndexedDocument("n", "trip", "price", 12.5d, "text"), "trip", "price");
+            var date = ReadIndexed(CreateIndexedDocument("d", "trip", "start", new DateTime(2026, 11, 23), "text"), "trip", "start");
+
+            Assert.Equal("12.5", number);
+            Assert.Equal(new DateTime(2026, 11, 23).ToString(CultureInfo.InvariantCulture), date);
+        }
+        finally
+        {
+            CultureInfo.CurrentCulture = culture;
+        }
     }
 
     [Fact]
@@ -542,5 +615,18 @@ public sealed class DataModuleBuilderTests
         {
             return Task.FromResult(new ContentBody(_html));
         }
+    }
+
+    /// <summary>A map that implements only the generic read-only dictionary, not <see cref="IDictionary"/>.</summary>
+    private sealed class GenericOnlyMap(Dictionary<string, object?> values) : IReadOnlyDictionary<string, object?>
+    {
+        public object? this[string key] => values[key];
+        public IEnumerable<string> Keys => values.Keys;
+        public IEnumerable<object?> Values => values.Values;
+        public int Count => values.Count;
+        public bool ContainsKey(string key) => values.ContainsKey(key);
+        public bool TryGetValue(string key, [MaybeNullWhen(false)] out object? value) => values.TryGetValue(key, out value);
+        public IEnumerator<KeyValuePair<string, object?>> GetEnumerator() => values.GetEnumerator();
+        IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
     }
 }

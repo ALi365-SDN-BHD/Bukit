@@ -66,6 +66,18 @@ internal static class DataIndexObjectValue
             return new List<object?>();
         }
 
+        // A single mapping stands for a list of one, as for a mini-program object[] field;
+        // the list it is wrapped in is one more level.
+        if (value is SortedDictionary<string, object?> single)
+        {
+            if (Depth(single) + 1 > MaxDepth)
+            {
+                throw Invalid(context, valueType, string.Empty, $"exceeds the maximum nesting depth of {MaxDepth} as a list of one object");
+            }
+
+            return new List<object?> { single };
+        }
+
         if (value is not List<object?> list)
         {
             throw Invalid(context, valueType, string.Empty, "is not a list of objects");
@@ -82,13 +94,25 @@ internal static class DataIndexObjectValue
         return list;
     }
 
-    /// <summary>True when a stored value counts as empty for <c>requiredKeys</c>.</summary>
+    /// <summary>
+    /// True when a stored value counts as empty for <c>requiredKeys</c>: null, blank text, or a
+    /// mapping or list that holds nothing but empty values (so <c>{title: null}</c> is empty too).
+    /// </summary>
     internal static bool IsEmpty(object? value) => value switch
     {
         null => true,
         string text => string.IsNullOrWhiteSpace(text),
-        ICollection collection => collection.Count == 0,
+        SortedDictionary<string, object?> map => map.Values.All(IsEmpty),
+        List<object?> list => list.All(IsEmpty),
         _ => false
+    };
+
+    /// <summary>The nesting depth of a canonical value: every mapping and list is one level.</summary>
+    private static int Depth(object? value) => value switch
+    {
+        SortedDictionary<string, object?> map => 1 + map.Values.Select(Depth).DefaultIfEmpty(0).Max(),
+        List<object?> list => 1 + list.Select(Depth).DefaultIfEmpty(0).Max(),
+        _ => 0
     };
 
     private static object? Parse(string json, string context, string valueType)
@@ -113,7 +137,7 @@ internal static class DataIndexObjectValue
                 var map = new SortedDictionary<string, object?>(StringComparer.Ordinal);
                 foreach (var property in element.EnumerateObject())
                 {
-                    var childPath = Child(path, property.Name);
+                    var childPath = Key(path, property.Name, context);
                     if (!map.TryAdd(property.Name, FromJson(property.Value, depth + 1, childPath, context)))
                     {
                         throw Invalid(context, null, childPath, "is a duplicate key");
@@ -177,10 +201,24 @@ internal static class DataIndexObjectValue
                         throw Invalid(context, null, path, "has an object key that is not a string");
                     }
 
-                    map[key] = FromValue(entry.Value, depth + 1, Child(path, key), context);
+                    map[key] = FromValue(entry.Value, depth + 1, Key(path, key, context), context);
                 }
 
                 return map;
+            // A map that implements only the generic dictionary interfaces is still a map, not a list of pairs.
+            case IEnumerable<KeyValuePair<string, object?>> pairs:
+                CheckDepth(depth, path, context);
+                var pairMap = new SortedDictionary<string, object?>(StringComparer.Ordinal);
+                foreach (var (key, item) in pairs)
+                {
+                    var childPath = Key(path, key, context);
+                    if (!pairMap.TryAdd(key, FromValue(item, depth + 1, childPath, context)))
+                    {
+                        throw Invalid(context, null, childPath, "is a duplicate key");
+                    }
+                }
+
+                return pairMap;
             case IEnumerable sequence:
                 CheckDepth(depth, path, context);
                 var list = new List<object?>();
@@ -204,7 +242,19 @@ internal static class DataIndexObjectValue
         }
     }
 
-    private static string Child(string path, string key) => path.Length == 0 ? key : $"{path}.{key}";
+    /// <summary>
+    /// The path of an object key. A blank key is rejected: templates cannot read it, so it would
+    /// reach the mini-program output and the hash but never a page.
+    /// </summary>
+    private static string Key(string path, string key, string context)
+    {
+        if (string.IsNullOrWhiteSpace(key))
+        {
+            throw Invalid(context, null, path, "has a blank object key");
+        }
+
+        return path.Length == 0 ? key : $"{path}.{key}";
+    }
 
     private static ContentException Invalid(string context, string? valueType, string path, string problem)
     {

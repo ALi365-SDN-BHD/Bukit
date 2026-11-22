@@ -212,11 +212,13 @@ mappings) besides `text`, `multiline`, `email`, `phone` and `url`. A Markdown ro
 value as YAML; a Notion row SHALL give it as JSON text, parsed without reflection. Every scalar in an
 object value SHALL be stored as text (JSON numbers keep their source digits, booleans become `true`
 or `false`, null stays null), so equal values from either source SHALL build the same model and render
-dependency hash. Keys SHALL be ordered ordinally, nesting SHALL be limited to 8 levels with every
-mapping and list counting as one, and `NaN`, infinity, invalid JSON, duplicate JSON keys or a value of
-the wrong shape SHALL fail the build naming the source, content id and `scope.key`. A text value type
-whose value is a mapping or a list SHALL fail the build instead of storing the .NET type name. An
-empty object value SHALL be an empty mapping or list and SHALL count as empty for `requiredKeys`.
+dependency hash. Keys SHALL be ordered ordinally and SHALL not be blank, nesting SHALL be limited to 8
+levels with every mapping and list counting as one, a single mapping given to `object[]` SHALL be a
+list of one, and a non-finite number, invalid JSON, duplicate JSON keys or a value of the wrong shape
+SHALL fail the build naming the source, content id and `scope.key`. A text value type whose value is a
+mapping or a list SHALL fail the build instead of storing the .NET type name, and a text value type
+SHALL format numbers and dates culture-invariantly. An empty object value SHALL be an empty mapping or
+list, and a mapping or list holding only empty values SHALL count as empty for `requiredKeys`.
 
 #### Scenario: Object row read by a template and a dataset
 - **WHEN** a Markdown row `trip.info` has `value_type: object` and `value: {days: 5, stops: [{name: George Town}]}`

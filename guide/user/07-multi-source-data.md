@@ -118,17 +118,25 @@ Rules for object values:
   is needed (`info.days | string.to_int`), or declare nested `number` and
   `boolean` fields in a [mini-program dataset](25-miniprogram-data.md#object-fields).
   A YAML or JSON `null` inside the value stays null.
+- **Test switches by comparing text.** Scriban treats every non-empty string as
+  true, so `{{ if info.open }}` is true for `"false"` as well. Write
+  `{{ if info.open == "true" }}` instead.
 - Nested strings are plain text; templates escape them as usual.
 - Keys keep their spelling and are ordered ordinally, so reordering keys in the
-  source changes neither the output nor the incremental build hash.
+  source changes neither the output nor the incremental build hash. A blank key
+  fails, since templates cannot read it.
 - Values may nest at most 8 levels, where every mapping and every list counts as
-  one level. `NaN`, infinity and JSON numbers outside the double range fail.
-- Invalid JSON, duplicate JSON keys, a list given to `object`, a mapping given
-  to `object[]` or a list item that is not a mapping fail the build with a
-  message that names the source, content id, `scope.key` and the nested path
-  (for example `stops[1]`).
+  one level. A JSON number outside the double range (such as `1e400`) fails.
+  Text such as `NaN` or `.nan` is not a number here; it stays text like any
+  other scalar.
+- A single mapping given to `object[]` is a list of one, as for a mini-program
+  `object[]` field.
+- Invalid JSON, duplicate JSON keys, a list given to `object` or a list item
+  that is not a mapping fail the build with a message that names the source,
+  content id, `scope.key` and the nested path (for example `stops[1]`).
 - An empty value builds an empty mapping (`object`) or an empty list
-  (`object[]`); `requiredKeys` treats an empty mapping or list as missing.
+  (`object[]`). `requiredKeys` treats a mapping or list as missing when it holds
+  nothing but empty values, so `{title: null}` is missing too.
 
 ## Collection Assignment
 
