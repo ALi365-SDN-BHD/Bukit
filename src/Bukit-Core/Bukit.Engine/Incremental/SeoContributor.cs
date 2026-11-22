@@ -9,6 +9,9 @@ internal sealed class SeoContributor : IRenderDependencyContributor
         var seo = context.Config.Site.Seo;
         writer.AppendLabeledCanonicalValue("seo.enabled", seo.Enabled);
         writer.AppendLabeledCanonicalValue("seo.renderMode", seo.RenderMode);
+        // Skipped pages replay the warnings their last render logged, so a diagnostics change
+        // (off, warn, strict; case-insensitive like SeoDiagnostics) must render them again.
+        writer.AppendLabeledCanonicalValue("seo.diagnostics", seo.Diagnostics?.ToLowerInvariant());
         writer.AppendLabeledCanonicalValue("seo.homeTitleTemplate", seo.HomeTitleTemplate);
         writer.AppendLabeledCanonicalValue("seo.pageTitleTemplate", seo.PageTitleTemplate);
         writer.AppendLabeledCanonicalValue("seo.titleSeparator", seo.TitleSeparator);

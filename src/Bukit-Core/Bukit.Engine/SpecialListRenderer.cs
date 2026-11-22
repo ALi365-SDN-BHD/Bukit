@@ -114,6 +114,7 @@ internal static class SpecialListRenderer
         if (canSkip)
         {
             renderReasons.AddOrUpdate("list_unchanged", 1, (_, v) => v + 1);
+            RenderWarningRecorder.Replay(existing!, logger);
             return new PageRenderDispatcher.SpecialListRenderResult(0, 1, stageMetrics.Snapshot());
         }
 
@@ -130,6 +131,7 @@ internal static class SpecialListRenderer
 
         var listModel = CreateListPageModel(siteModel, listPage, pageInfos, pageContext);
         var html = RenderReadTracking.Render(dependencySnapshot, () => renderer.RenderList(listRoute.Template, listModel), out var reads);
+        var listLog = new RenderWarningRecorder(logger);
         if (htmlTransformPipeline is not null)
         {
             html = htmlTransformPipeline.Transform(
@@ -137,7 +139,7 @@ internal static class SpecialListRenderer
                 HtmlDocumentKind.List,
                 listPage,
                 null,
-                logger,
+                listLog,
                 html);
         }
 
@@ -157,7 +159,8 @@ internal static class SpecialListRenderer
             TemplateHash = templateHash,
             RenderDependencyHash = RenderReadTracking.HashFor(dependencySnapshot, renderDependencyHash, reads),
             RenderBaseHash = dependencySnapshot is null ? null : renderDependencyHash,
-            RenderReads = reads
+            RenderReads = reads,
+            RenderWarnings = listLog.Warnings
         };
 
         return new PageRenderDispatcher.SpecialListRenderResult(1, 0, stageMetrics.Snapshot());

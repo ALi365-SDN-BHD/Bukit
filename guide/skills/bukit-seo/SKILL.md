@@ -82,8 +82,7 @@ script differs from all of Core's JSON-LD blocks, the build warns
 than five pages collapse into one `event=diagnostics.summary` line). A theme that echoes
 `page.seo.json_ld` in the head gets no warning, even pretty-printed or with different
 string escaping; HTML-escaped or reordered JSON still warns. Incremental
-builds skip unchanged pages, so the warning appears only for pages rendered in that build
-(clean builds report every page). Core does not check kept JSON-LD for types it already
+builds report it again for skipped unchanged pages, as clean builds do. Core does not check kept JSON-LD for types it already
 emits: marking a theme `WebPage` or `BreadcrumbList` keep publishes a duplicate, so keep
 only types Core does not generate. The publish audit validates kept head
 JSON-LD like Core's (`seo.json_ld_invalid`) and adds its `@type` values to the route's

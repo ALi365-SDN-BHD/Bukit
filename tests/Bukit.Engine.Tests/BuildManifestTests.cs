@@ -70,7 +70,7 @@ public sealed class BuildManifestTests
         // Multilingual worktree builds pass manifest entries from worker to parent as JSON.
         var typeInfo = (System.Text.Json.Serialization.Metadata.JsonTypeInfo<BuildManifestEntry>)
             I18nWorktreeJsonContext.Default.GetTypeInfo(typeof(BuildManifestEntry))!;
-        var entry = new BuildManifestEntry { OutputPath = "a/index.html", RenderBaseHash = "base", RenderReads = ["pages", "site.data.menu"] };
+        var entry = new BuildManifestEntry { OutputPath = "a/index.html", RenderBaseHash = "base", RenderReads = ["pages", "site.data.menu"], RenderWarnings = ["seo.canonical_missing route=/a/"] };
 
         var json = System.Text.Json.JsonSerializer.Serialize(entry, typeInfo);
         var restored = System.Text.Json.JsonSerializer.Deserialize(json, typeInfo)!;
@@ -78,6 +78,26 @@ public sealed class BuildManifestTests
         Assert.Equal("base", restored.RenderBaseHash);
         Assert.Equal(["pages", "site.data.menu"], restored.RenderReads);
         Assert.Contains("\"renderReads\"", json, StringComparison.Ordinal);
+        Assert.Equal(["seo.canonical_missing route=/a/"], restored.RenderWarnings);
+    }
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData("seo.canonical_missing route=/a/|seo.theme_json_ld_replaced route=/a/ count=1")]
+    public void SaveAndLoad_RenderWarnings(string? warningsText)
+    {
+        var path = Path.GetTempFileName();
+        try
+        {
+            string[]? warnings = warningsText?.Split('|');
+            var manifest = new BuildManifest();
+            manifest.Entries["a/index.html"] = new BuildManifestEntry { OutputPath = "a/index.html", RenderWarnings = warnings };
+            manifest.Save(path);
+
+            Assert.Equal(warnings, BuildManifest.Load(path).Entries["a/index.html"].RenderWarnings);
+            Assert.Equal(warnings is not null, File.ReadAllText(path).Contains("renderWarnings", StringComparison.Ordinal));
+        }
+        finally { File.Delete(path); }
     }
 
     [Fact]
