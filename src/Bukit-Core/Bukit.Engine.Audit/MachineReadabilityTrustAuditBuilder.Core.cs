@@ -72,9 +72,17 @@ internal static partial class MachineReadabilityTrustAuditBuilder
                 seoIssues.Add(Warning("seo.json_ld_not_rendered", entry.Route.Url, "The SEO model has JSON-LD but the page HTML contains no application/ld+json script; the theme should output seo.json_ld."));
             }
 
-            var schemaTypes = model is null
+            IReadOnlyList<string> schemaTypes = model is null
                 ? Array.Empty<string>()
                 : SeoSchemaValidator.ExtractSchemaTypes(model.JsonLd, entry.Route.Url, jsonLdNotRendered ? [] : seoIssues, searchActionExpected);
+            // Theme JSON-LD kept in the head with data-bukit-seo="keep" is published too: validate it and report its types.
+            var keptJsonLd = html is null ? [] : SeoJsonLdScripts.ExtractKeptHeadJsonLd(html);
+            if (keptJsonLd.Count > 0)
+            {
+                var keptTypes = SeoSchemaValidator.ExtractSchemaTypes(keptJsonLd, entry.Route.Url, seoIssues, searchActionExpected);
+                schemaTypes = schemaTypes.Union(keptTypes, StringComparer.Ordinal).Order(StringComparer.Ordinal).ToArray();
+            }
+
             var document = PublishDocumentBuilder.Build(entry, model, record, schemaTypes, config.Site.BaseUrl, projectionResults, languageFallback);
             HtmlDocumentTitleInspection? titleInspection = null;
             if (!outputExists)

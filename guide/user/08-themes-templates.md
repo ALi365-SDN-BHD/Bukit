@@ -92,9 +92,43 @@ The base layout renders child content with `{{ content }}`.
 - A content field `seo_inject: false` skips Core mutation for that content page,
   but does not opt the output out of the final HTML audit.
 
+In `inject` mode Core also replaces the head's `application/ld+json` scripts
+with the JSON-LD it generates (WebSite, WebPage, BreadcrumbList, Article types,
+FAQPage, HowTo, Organization, LocalBusiness, Person). To publish another schema
+type such as `TouristTrip`, `Product` or `Event`, either:
+
+- mark the head script `data-bukit-seo="keep"`; it stays where the theme wrote
+  it, before Core's block, byte for byte;
+- put the script in `<body>`, which injection never changes; or
+- switch to `renderMode: theme` and render the whole head yourself.
+
+An unmarked head script whose content differs from Core's JSON-LD is dropped
+with the build warning `seo.theme_json_ld_replaced route=<url> count=<n>`
+(collapsed into `event=diagnostics.summary` when more than five pages hit it; it
+stays a warning under `diagnostics: strict`). Kept head JSON-LD is validated by the
+publish audit (`seo.json_ld_invalid`) and its types appear in `schemaTypes`.
+
 Managed-tag scanning is limited to the standard head. An SVG `<title>` in the
 body is not removed. If rendered HTML has no complete standard head, Core does
 not synthesize one; diagnostics and the final audit report the gap.
+
+## JSON In Templates
+
+`util.json_string` writes a value's text as a JSON string literal and
+`util.to_json` serializes any value: objects, arrays, strings, numbers,
+booleans, null and dates. Both escape `<`, `>`, `&`, U+2028 and U+2029 as
+`\u003c`-style escapes, so content from Markdown or Notion cannot close a
+`<script>` element early. `util.to_json` sorts object keys (ordinal), so the
+output is byte-for-byte stable.
+
+Scriban's built-in `object.to_json` uses reflection that the Native AOT
+`bukit` binary disables; Bukit maps it to the same implementation as
+`util.to_json`, so either name works.
+
+```scriban
+{{ trip = {"@context": "https://schema.org", "@type": "TouristTrip", "name": page.title} }}
+<script type="application/ld+json" data-bukit-seo="keep">{{ trip | util.to_json }}</script>
+```
 
 ## Live Reload And Capability Decisions
 

@@ -125,6 +125,7 @@ internal sealed class TemplateContextBuilder
         utilObj.SetValue("slugify", UtilStringFunction.Unary(ComponentUtilityFunctions.Slugify), readOnly: true);
         utilObj.SetValue("term_slug", UtilStringFunction.Unary(ComponentUtilityFunctions.TermSlug), readOnly: true);
         utilObj.SetValue("json_string", new JsonStringFunction(), readOnly: true);
+        utilObj.SetValue("to_json", ToJsonFunction.Instance, readOnly: true);
         context.PushGlobal(new ScriptObject { ["util"] = utilObj });
 
         // Run all registered contributors before pushing model globals.

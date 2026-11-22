@@ -142,6 +142,22 @@ internal static partial class SeoDiagnostics
         return html;
     }
 
+    /// <summary>
+    /// Inject mode replaced head JSON-LD the theme wrote itself (content not produced by Core).
+    /// The build log collapses repeats across pages into one <c>event=diagnostics.summary</c> line.
+    /// It stays a warning in strict mode: inject mode has always replaced head JSON-LD, and existing
+    /// strict builds must not start failing because the replacement is now reported.
+    /// </summary>
+    internal static void ReportThemeJsonLdReplaced(AppConfig config, RouteInfo route, int count, ILogger logger)
+    {
+        if (count == 0 || !IsEnabled(config))
+        {
+            return;
+        }
+
+        logger.Warn($"seo.theme_json_ld_replaced route={route.Url} count={count} hint=add-data-bukit-seo-keep-or-move-to-body");
+    }
+
     private static bool IsEnabled(AppConfig config)
         => !string.Equals(config.Site.Seo.Diagnostics, "off", StringComparison.OrdinalIgnoreCase);
 

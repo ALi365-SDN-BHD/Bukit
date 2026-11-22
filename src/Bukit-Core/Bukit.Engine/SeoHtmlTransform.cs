@@ -25,12 +25,13 @@ internal sealed class SeoHtmlTransform(
 
         var skipSeo = context.Document is not null &&
                       SeoInjectionPolicy.ShouldSkip(context.Document.CustomFields);
+        var route = new RouteInfo(context.RouteUrl, context.OutputPath, string.Empty);
         if (shouldInjectSeo && !skipSeo)
         {
-            html = SeoHtmlRenderer.InjectIntoHead(html, page.Seo);
+            html = SeoHtmlRenderer.InjectIntoHead(html, page.Seo, out var replacedThemeJsonLd);
+            SeoDiagnostics.ReportThemeJsonLdReplaced(config, route, replacedThemeJsonLd, logger);
         }
 
-        var route = new RouteInfo(context.RouteUrl, context.OutputPath, string.Empty);
         if (!skipSeo && ShouldLinkRepresentations(context, page.Seo))
         {
             var urls = ContentProjectionPaths.GetRepresentationUrls(route, config.Site.BaseUrl);

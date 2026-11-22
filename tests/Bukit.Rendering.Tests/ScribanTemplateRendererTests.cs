@@ -270,6 +270,54 @@ public sealed class ScribanTemplateRendererTests : IDisposable
     }
 
     [Fact]
+    public void RenderPage_UtilJsonString_EscapesScriptBreakingCharacters()
+    {
+        var templatePath = Path.Combine(_layoutsDir, "page.html");
+        File.WriteAllText(templatePath, """<script type="application/ld+json">{"name":{{ page.title | util.json_string }}}</script>""");
+        const string title = "吉隆坡 </script><script>alert(1)</script> & <!-- \u2028\u2029";
+        var renderer = new Bukit.Rendering.Scriban.ScribanTemplateRenderer(_layoutsDir);
+        var model = new PageModel
+        {
+            Site = CreateSite(),
+            Page = new PageInfo { Title = title, Content = "", Url = "/hello/" }
+        };
+
+        var result = renderer.RenderPage("page.html", model);
+
+        Assert.Equal(
+            """<script type="application/ld+json">{"name":"吉隆坡 \u003c/script\u003e\u003cscript\u003ealert(1)\u003c/script\u003e \u0026 \u003c!-- \u2028\u2029"}</script>""",
+            result);
+        var json = result["<script type=\"application/ld+json\">".Length..^"</script>".Length];
+        using var document = JsonDocument.Parse(json);
+        Assert.Equal(title, document.RootElement.GetProperty("name").GetString());
+    }
+
+    [Theory]
+    [InlineData("util.to_json")]
+    [InlineData("object.to_json")]
+    public void RenderPage_ToJson_SerializesNestedScriptValuesWithoutReflection(string function)
+    {
+        var templatePath = Path.Combine(_layoutsDir, "page.html");
+        File.WriteAllText(templatePath, $$$"""
+            {{ trip = {"@type": "TouristTrip", "name": page.title, "itinerary": [{"day": 1, "km": 2.5}, {"day": 2, "note": null}], "big": 9007199254740993, "ok": true} }}{{ trip | {{{function}}} }}
+            """);
+        var renderer = new Bukit.Rendering.Scriban.ScribanTemplateRenderer(_layoutsDir);
+        var model = new PageModel
+        {
+            Site = CreateSite(),
+            Page = new PageInfo { Title = "槟城 </script>", Content = "", Url = "/trip/" }
+        };
+
+        var result = renderer.RenderPage("page.html", model).Trim();
+
+        Assert.Equal(
+            """{"@type":"TouristTrip","big":9007199254740993,"itinerary":[{"day":1,"km":2.5},{"day":2,"note":null}],"name":"槟城 \u003c/script\u003e","ok":true}""",
+            result);
+        using var document = JsonDocument.Parse(result);
+        Assert.Equal("槟城 </script>", document.RootElement.GetProperty("name").GetString());
+    }
+
+    [Fact]
     public void RenderList_RendersListTemplate()
     {
         var templatePath = Path.Combine(_layoutsDir, "list.html");

@@ -8,13 +8,14 @@ public sealed class SeoHtmlRendererTests
     [Fact]
     public void InjectIntoHead_DoesNotAcceptAnalyticsModel()
     {
-        var method = typeof(SeoHtmlRenderer).GetMethod(
-            "InjectIntoHead",
-            System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.NonPublic);
+        var methods = typeof(SeoHtmlRenderer)
+            .GetMethods(System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.NonPublic)
+            .Where(method => method.Name == "InjectIntoHead")
+            .ToArray();
 
-        Assert.NotNull(method);
-        Assert.DoesNotContain(method.GetParameters(), parameter =>
-            string.Equals(parameter.ParameterType.FullName, "Bukit.Rendering.AnalyticsModel", StringComparison.Ordinal));
+        Assert.NotEmpty(methods);
+        Assert.All(methods, method => Assert.DoesNotContain(method.GetParameters(), parameter =>
+            string.Equals(parameter.ParameterType.FullName?.TrimEnd('&'), "Bukit.Rendering.AnalyticsModel", StringComparison.Ordinal)));
     }
 
     [Fact]
@@ -251,4 +252,98 @@ public sealed class SeoHtmlRendererTests
 
         Assert.Equal("<p>no head</p>", SeoHtmlRenderer.InjectRepresentationLinks("<p>no head</p>", "/a.md", "/a.json"));
     }
+
+    private const string CoreWebPage = "{\"@context\":\"https://schema.org\",\"@type\":\"WebPage\",\"name\":\"New\"}";
+
+    [Fact]
+    public void InjectIntoHead_RemovesUnmarkedThemeJsonLdAndCountsIt()
+    {
+        var html = """
+            <html>
+            <head>
+              <script type="application/ld+json">{"@type":"ProbeThing"}</script>
+            </head>
+            <body>ok</body>
+            </html>
+            """;
+
+        var injected = SeoHtmlRenderer.InjectIntoHead(html, JsonLdSeo(), out var replaced);
+
+        Assert.Equal(1, replaced);
+        Assert.DoesNotContain("ProbeThing", injected, StringComparison.Ordinal);
+        Assert.Equal(1, CountOccurrences(injected, "application/ld+json"));
+        Assert.Contains(CoreWebPage, injected, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void InjectIntoHead_ThemeEchoOfCoreJsonLdIsNotCountedAsReplaced()
+    {
+        var html = $"<html><head>\n  <script type=\"application/ld+json\">\n{CoreWebPage}\n</script>\n</head><body></body></html>";
+
+        var injected = SeoHtmlRenderer.InjectIntoHead(html, JsonLdSeo(), out var replaced);
+
+        Assert.Equal(0, replaced);
+        Assert.Equal(1, CountOccurrences(injected, "application/ld+json"));
+    }
+
+    [Fact]
+    public void InjectIntoHead_KeepsMarkedHeadJsonLdInPlaceAndLeavesBodyJsonLdAlone()
+    {
+        const string kept = """<script type="application/ld+json" data-bukit-seo="keep">{"@type":"TouristTrip","name":"KL"}</script>""";
+        const string bodyScripts = """<body><script type="application/ld+json">{"@type":"Event"}</script><script type="application/ld+json" data-bukit-seo="keep">{"@type":"Product"}</script></body>""";
+        var html = $$"""
+            <html>
+            <head>
+              <meta charset="utf-8" />
+              {{kept}}
+              <script type="application/ld+json">{"@type":"ProbeThing"}</script>
+              <link rel="stylesheet" href="/site.css" />
+            </head>
+            {{bodyScripts}}
+            </html>
+            """;
+
+        var first = SeoHtmlRenderer.InjectIntoHead(html, JsonLdSeo(), out var replaced);
+        var second = SeoHtmlRenderer.InjectIntoHead(html, JsonLdSeo(), out _);
+
+        Assert.Equal(1, replaced);
+        Assert.Equal(first, second);
+        Assert.DoesNotContain("ProbeThing", first, StringComparison.Ordinal);
+        Assert.Contains(bodyScripts, first, StringComparison.Ordinal);
+        Assert.Equal(1, CountOccurrences(first, kept));
+        var keptAt = first.IndexOf(kept, StringComparison.Ordinal);
+        Assert.True(keptAt > first.IndexOf("charset", StringComparison.Ordinal));
+        Assert.True(keptAt < first.IndexOf("/site.css", StringComparison.Ordinal));
+        Assert.True(keptAt < first.IndexOf(CoreWebPage, StringComparison.Ordinal));
+        Assert.Equal(1, CountOccurrences(first, CoreWebPage));
+    }
+
+    [Fact]
+    public void InjectIntoHead_KeptJsonLdIsStableAcrossRepeatedInjection()
+    {
+        const string html = """<html><head><script data-bukit-seo="KEEP" type="application/ld+json">{"@type":"Product"}</script></head><body></body></html>""";
+
+        var once = SeoHtmlRenderer.InjectIntoHead(html, JsonLdSeo(), out var replaced);
+        var twice = SeoHtmlRenderer.InjectIntoHead(once, JsonLdSeo(), out var replacedAgain);
+
+        Assert.Equal(0, replaced);
+        Assert.Equal(0, replacedAgain);
+        Assert.Equal(once, twice);
+        Assert.Equal(1, CountOccurrences(twice, "\"Product\""));
+    }
+
+    [Fact]
+    public void ExtractKeptHeadJsonLd_ReturnsOnlyMarkedHeadScripts()
+    {
+        const string html = """<html><head><script type="application/ld+json" data-bukit-seo="keep"> {"@type":"A"} </script><script type="application/ld+json">{"@type":"B"}</script><script data-bukit-seo="keep">var c;</script></head><body><script type="application/ld+json" data-bukit-seo="keep">{"@type":"D"}</script></body></html>""";
+
+        Assert.Equal(["""{"@type":"A"}"""], SeoJsonLdScripts.ExtractKeptHeadJsonLd(html));
+    }
+
+    private static SeoModel JsonLdSeo() => new()
+    {
+        Title = "New",
+        Canonical = "https://example.com/new/",
+        JsonLd = new[] { CoreWebPage }
+    };
 }
