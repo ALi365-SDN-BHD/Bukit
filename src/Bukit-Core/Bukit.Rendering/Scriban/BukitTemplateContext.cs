@@ -10,9 +10,26 @@ namespace Bukit.Rendering.Scriban;
 /// Scriban 7.2.5 assigns <c>array[index] = value</c> through the non-generic <see cref="System.Collections.IList"/>
 /// indexer, which ignores <see cref="ScriptArray{T}.IsReadOnly"/>. This context makes such
 /// assignments fail for read-only arrays, so shared template values cannot be changed by one page.
+/// <para>
+/// It also replaces Scriban's <c>object.to_json</c>, which needs reflection-based serialization that
+/// Native AOT disables, with the AOT-safe <see cref="ToJsonFunction"/> also exposed as <c>util.to_json</c>.
+/// Each context owns its copy of the built-in <c>object</c> functions, so the override never leaks.
+/// Every context also gets the shared, frozen <c>util.*</c> functions, so components and sections
+/// can use them like pages.
+/// </para>
 /// </summary>
 internal sealed class BukitTemplateContext : TemplateContext
 {
+    public BukitTemplateContext()
+    {
+        if (BuiltinObject.TryGetValue("object", out var objectFunctions) && objectFunctions is ScriptObject functions)
+        {
+            functions.SetValue("to_json", ToJsonFunction.Instance, readOnly: true);
+        }
+
+        PushGlobal(UtilTemplateFunctions.CreateGlobal());
+    }
+
     protected override IListAccessor? GetListAccessorImpl(object target, Type type)
     {
         var accessor = base.GetListAccessorImpl(target, type);

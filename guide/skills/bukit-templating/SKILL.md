@@ -147,13 +147,25 @@ Besides Scriban built-ins (the `string`, `array`, `date`, `math`, and `html` mod
 | `util.format_date v "yyyy-MM-dd"` | .NET format strings (use `date.to_string "%Y-%m-%d"` for strftime). |
 | `util.truncate v 100`, `util.titleize v`, `util.slugify v` | |
 | `util.term_slug` | Same slug as taxonomy URLs. |
-| `util.json_string` | JSON string with quotes; does not escape `</script>`. |
+| `util.json_string` | JSON string literal with quotes. Also escapes `<`, `>`, `&`, U+2028 and U+2029 as `\u003c`-style escapes, so the value cannot end a `<script>` element. |
+| `util.to_json v` | JSON for any value (objects, arrays, strings, numbers, booleans, null, dates) with the same string escaping. Object keys are sorted (ordinal), so output is deterministic; keys that become the same text (`1`, `"1"`) keep the first; functions become `null`. Works under Native AOT; `object.to_json` is the same function. All util functions also work in components and sections. |
 | `comp.render "name" ...` | Theme components (`bukit-theme`). |
 | `render_section {type: "hero", ...}` | Theme sections. |
 | `shortcode "name" "a1" ...` | Theme shortcode, up to four arguments; only when `theme.shortcodes` is set (`bukit-theme`). |
 | `image` functions `srcset` and `img` | Produce `?w=N` URLs that no build step serves; prefer plain `<img>` plus image processing. |
 
 There is no translation helper, `markdownify`, `relative_url`, or asset fingerprinting.
+
+Scriban's own `object.to_json` needs reflection that the Native AOT `bukit` binary
+disables (render error BKT-0399 in 2.2.7 and earlier); Bukit replaces it with
+`util.to_json`. Build structured data as an object and serialize it once:
+
+```scriban
+{{ trip = {"@context": "https://schema.org", "@type": "TouristTrip", "name": page.title} }}
+<script type="application/ld+json" data-bukit-seo="keep">{{ trip | util.to_json }}</script>
+```
+
+Head JSON-LD needs `data-bukit-seo="keep"` in SEO `inject` mode (`bukit-seo`).
 
 ## Capabilities manifest
 

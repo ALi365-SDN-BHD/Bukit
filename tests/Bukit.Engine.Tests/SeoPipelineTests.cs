@@ -233,6 +233,99 @@ public sealed class SeoPipelineTests
         Assert.Contains(logger.Warnings, warning => warning.Contains("seo.canonical_missing", StringComparison.Ordinal));
     }
 
+    [Theory]
+    [InlineData("inject")]
+    [InlineData("theme")]
+    [InlineData("off")]
+    public void Execute_ThemeHeadJsonLd_IsReplacedWithWarningOnlyInInjectMode(string renderMode)
+    {
+        var item = ContentDocument.Create(
+            id: "hello",
+            title: "Hello World",
+            slug: "hello",
+            publishAt: DateTimeOffset.UnixEpoch,
+            contentHtml: "<p>Hello</p>");
+        var route = new RouteInfo("/hello/", "hello/index.html", "pages/page.html");
+        var config = new AppConfig
+        {
+            Site = new SiteConfig
+            {
+                Name = "test",
+                Title = "Test",
+                Url = "https://example.com",
+                Seo = new SeoConfig { Enabled = true, RenderMode = renderMode, Diagnostics = "warn" }
+            },
+            Content = TestContent.Markdown()
+        };
+        var logger = new RecordingLogger();
+        var result = new SeoPipeline().Execute(
+            config,
+            baseUrl: "/",
+            renderQueue: new[] { (item, route) }.ToRoutedDocuments(),
+            listRoutes: Array.Empty<RouteInfo>(),
+            seoAlternates: new Dictionary<string, IReadOnlyList<SeoAlternateModel>>(),
+            logger);
+        var page = new PageInfo { Title = item.Title, Url = route.Url, Content = string.Empty, Seo = result.SeoBuilder!(item, route) };
+        const string html = """<html><head><title>Hello World</title><script type="application/ld+json">{"@type":"ProbeThing"}</script><script type="application/ld+json" data-bukit-seo="keep">{"@type":"TouristTrip"}</script></head><body><script type="application/ld+json">{"@type":"Event"}</script></body></html>""";
+
+        var processed = result.HtmlTransform!.Transform(
+            new HtmlTransformContext(route.Url, route.OutputPath, HtmlDocumentKind.Content,
+                BuildExecutionMode.Production, logger, page, item), html);
+
+        Assert.Contains("TouristTrip", processed, StringComparison.Ordinal);
+        Assert.Contains("""<body><script type="application/ld+json">{"@type":"Event"}</script></body>""", processed, StringComparison.Ordinal);
+        if (renderMode == "inject")
+        {
+            Assert.DoesNotContain("ProbeThing", processed, StringComparison.Ordinal);
+            Assert.Single(logger.Warnings, warning => warning.StartsWith("seo.theme_json_ld_replaced route=/hello/ count=1 ", StringComparison.Ordinal));
+        }
+        else
+        {
+            Assert.Equal(html, processed);
+            Assert.DoesNotContain(logger.Warnings, warning => warning.Contains("seo.theme_json_ld_replaced", StringComparison.Ordinal));
+        }
+    }
+
+    [Fact]
+    public void Execute_ThemeJsonLdReplaced_StaysAWarningInStrictDiagnostics()
+    {
+        var item = ContentDocument.Create(
+            id: "hello",
+            title: "Hello World",
+            slug: "hello",
+            publishAt: DateTimeOffset.UnixEpoch,
+            contentHtml: "<p>Hello</p>");
+        var route = new RouteInfo("/hello/", "hello/index.html", "pages/page.html");
+        var config = new AppConfig
+        {
+            Site = new SiteConfig
+            {
+                Name = "test",
+                Title = "Test",
+                Url = "https://example.com",
+                Seo = new SeoConfig { Enabled = true, RenderMode = "inject", Diagnostics = "strict" }
+            },
+            Content = TestContent.Markdown()
+        };
+        var logger = new RecordingLogger();
+        var result = new SeoPipeline().Execute(
+            config,
+            baseUrl: "/",
+            renderQueue: new[] { (item, route) }.ToRoutedDocuments(),
+            listRoutes: Array.Empty<RouteInfo>(),
+            seoAlternates: new Dictionary<string, IReadOnlyList<SeoAlternateModel>>(),
+            logger);
+        var page = new PageInfo { Title = item.Title, Url = route.Url, Content = string.Empty, Seo = result.SeoBuilder!(item, route) };
+        const string html = """<html><head><script type="application/ld+json">{"@type":"ProbeThing"}</script></head><body></body></html>""";
+
+        var processed = result.HtmlTransform!.Transform(
+            new HtmlTransformContext(route.Url, route.OutputPath, HtmlDocumentKind.Content,
+                BuildExecutionMode.Production, logger, page, item), html);
+
+        Assert.DoesNotContain("ProbeThing", processed, StringComparison.Ordinal);
+        Assert.Single(logger.Warnings, warning => warning.StartsWith("seo.theme_json_ld_replaced route=/hello/ count=1 ", StringComparison.Ordinal));
+    }
+
     [Fact]
     public void Execute_ListSeoBuilder_UsesGraphBackedIndexModel()
     {

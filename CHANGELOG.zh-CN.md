@@ -4,6 +4,10 @@ Bukit 所有重要变更都将记录在此文件中。
 
 ## [Unreleased]
 
+- **模板里可以安全输出 JSON**：`util.json_string` 现在还会把 `<`、`>`、`&`、U+2028、U+2029 转义成 `\u003c`、`\u003e`、`\u0026`、`\u2028`、`\u2029`，值里出现 `</script>`（比如来自 Notion）时不会再提前结束主题写的 `<script type="application/ld+json">`。输出仍是合法 JSON，解码后的值不变，但凡是含这些字符的值，输出字节会变。新增 `util.to_json value`，可序列化对象、数组、字符串、数字、布尔、null 和日期，转义规则相同，对象键按序数排序（转成文本后相同的字典键，如 `1` 和 `"1"`，只保留第一个），不使用反射，Native AOT 版 `bukit` 也能用。Scriban 的 `object.to_json` 以前在 AOT 下报 BKT-0399，现在改用同一实现；它输出的对象键改为排序，不再按插入顺序。`util.*` 函数现在在主题组件和 section 里也能用，此前这些模板里没有 `util` 对象。见 [08 Themes And Templates](guide/user/08-themes-templates.md#json-in-templates)。
+
+- **注入模式保留带标记的主题 JSON-LD，删除其余的前会给出警告**：`site.seo.renderMode: inject` 下，head 里的 `<script type="application/ld+json" data-bukit-seo="keep">` 会留在主题写的位置，主题因此可以输出 Core 不生成的类型（`TouristTrip`、`Product`、`Event` 等）。未标记的 head JSON-LD 仍由 Core 的替换，但内容和 Core 生成的每一块都不同时，构建会警告 `seo.theme_json_ld_replaced route=<url> count=<n>`，不再静默删除；多页重复时汇总成 `event=diagnostics.summary`。`site.seo.diagnostics: strict` 下它仍只是警告，现有 strict 构建不受影响。主题在 head 里输出 `page.seo.json_ld` 不会触发警告，即使经过格式化或转义方式不同。警告只来自本次实际渲染的页面，增量构建中未变化的页面不会再报。发布审计会校验保留下来的 head JSON-LD（`seo.json_ld_invalid`），并把其类型计入该路由的 `schemaTypes`。body 里的 JSON-LD 以及 `theme`、`off` 模式行为不变。
+
 ## [2.2.7] - 2026-11-21
 
 - **小程序版本化数据（需开启）**：`site.yaml` 新增 `miniprogram` 配置节用来声明数据集，每次构建把它们以 JSON 写到每种语言输出根目录下的 `mp/`：内容集合（一个列表加每页一个详情文件）、数据模块、数据索引的某个 scope、整个 data 源（取代 `data/*.yaml`）、分类和 `site.menus` 菜单，另外总有一个 `site` 数据集。每个文件按其字节的 SHA-256 命名，并连同哈希列在 `mp/catalog.json` 里，小程序启动时只请求目录，只下载变了的文件。只输出声明过的字段；重复构建、跨操作系统输出字节一致；正文清洗成微信 `rich-text` 可用的 HTML 子集；图片和链接都是绝对地址。必填字段缺失、类型不对、图片仍是未本地化的签名 URL 时，构建以 `SchemaValidationFailed` 失败；必须配置 `https://` 的站点 URL。Bukit 不生成小程序项目。见 [25 Mini-Program Data](guide/user/25-miniprogram-data.md)。没有这个配置节的站点不受影响。

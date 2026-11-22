@@ -333,6 +333,43 @@ internal static class ComponentUtilityFunctions
 }
 
 /// <summary>
+/// The shared <c>util</c> template object. Its functions are stateless, so one frozen instance
+/// serves every page, component and section context; templates cannot add or change members.
+/// </summary>
+internal static class UtilTemplateFunctions
+{
+    internal static readonly ScriptObject Util = Create();
+
+    private static ScriptObject Create()
+    {
+        var utilObj = new ScriptObject();
+        // IScriptCustomFunction instead of Func delegates: delegates are bound by reflection and fail under Native AOT.
+        utilObj.SetValue("format_date", UtilStringFunction.WithOptionalArg((input, format) =>
+        {
+            var fmt = format?.ToString();
+            return string.IsNullOrEmpty(fmt)
+                ? ComponentUtilityFunctions.FormatDate(input)
+                : ComponentUtilityFunctions.FormatDate(input, fmt);
+        }, "format"), readOnly: true);
+        utilObj.SetValue("truncate", UtilStringFunction.WithOptionalArg((input, maxLen) =>
+            int.TryParse(maxLen?.ToString(), out var n) ? ComponentUtilityFunctions.Truncate(input, n) : ComponentUtilityFunctions.Truncate(input), "max_length"), readOnly: true);
+        utilObj.SetValue("titleize", UtilStringFunction.Unary(ComponentUtilityFunctions.Titleize), readOnly: true);
+        utilObj.SetValue("slugify", UtilStringFunction.Unary(ComponentUtilityFunctions.Slugify), readOnly: true);
+        utilObj.SetValue("term_slug", UtilStringFunction.Unary(ComponentUtilityFunctions.TermSlug), readOnly: true);
+        utilObj.SetValue("json_string", new JsonStringFunction(), readOnly: true);
+        utilObj.SetValue("to_json", ToJsonFunction.Instance, readOnly: true);
+        utilObj.IsReadOnly = true;
+        return utilObj;
+    }
+
+    /// <summary>
+    /// A per-context global holding <c>util</c> as a writable variable, so a template may still
+    /// assign its own <c>util</c> (as before) without touching the shared object.
+    /// </summary>
+    internal static ScriptObject CreateGlobal() => new() { ["util"] = Util };
+}
+
+/// <summary>
 /// AOT-safe wrapper for util.* string helpers. Scriban binds a plain <c>Func</c>
 /// through reflection, which Native AOT trims away ("not a valid function").
 /// </summary>
@@ -373,12 +410,15 @@ internal sealed class UtilStringFunction : IScriptCustomFunction
     public ScriptParameterInfo GetParameterInfo(int index) => new(typeof(object), _parameterNames[Math.Min(index, _parameterNames.Length - 1)]);
 }
 
+/// <summary>
+/// <c>util.json_string</c>: the value's text as a JSON string literal, safe inside an HTML script element.
+/// </summary>
 internal sealed class JsonStringFunction : IScriptCustomFunction
 {
     public object? Invoke(TemplateContext context, ScriptNode? callerContext, ScriptArray arguments, ScriptBlockStatement? blockStatement)
     {
         var value = arguments.Count > 0 ? arguments[0] : null;
-        return ToJsonString(value?.ToString() ?? string.Empty);
+        return TemplateJsonWriter.SerializeString(value?.ToString() ?? string.Empty);
     }
 
     public ValueTask<object?> InvokeAsync(TemplateContext context, ScriptNode? callerContext, ScriptArray arguments, ScriptBlockStatement? blockStatement)
@@ -391,52 +431,35 @@ internal sealed class JsonStringFunction : IScriptCustomFunction
     public ScriptVarParamKind VarParamKind => ScriptVarParamKind.None;
     public Type ReturnType => typeof(string);
     public ScriptParameterInfo GetParameterInfo(int index) => new(typeof(object), "value");
+}
 
-    private static string ToJsonString(string value)
+/// <summary>
+/// <c>util.to_json</c> and the <c>object.to_json</c> override: AOT-safe JSON for any template value.
+/// Scriban's built-in <c>object.to_json</c> uses reflection-based System.Text.Json serialization,
+/// which Native AOT disables.
+/// </summary>
+internal sealed class ToJsonFunction : IScriptCustomFunction
+{
+    internal static readonly ToJsonFunction Instance = new();
+
+    private ToJsonFunction()
     {
-        var sb = new StringBuilder(value.Length + 2);
-        sb.Append('"');
-        foreach (var ch in value)
-        {
-            switch (ch)
-            {
-                case '"':
-                    sb.Append("\\\"");
-                    break;
-                case '\\':
-                    sb.Append("\\\\");
-                    break;
-                case '\b':
-                    sb.Append("\\b");
-                    break;
-                case '\f':
-                    sb.Append("\\f");
-                    break;
-                case '\n':
-                    sb.Append("\\n");
-                    break;
-                case '\r':
-                    sb.Append("\\r");
-                    break;
-                case '\t':
-                    sb.Append("\\t");
-                    break;
-                default:
-                    if (char.IsControl(ch))
-                    {
-                        sb.Append("\\u");
-                        sb.Append(((int)ch).ToString("x4"));
-                    }
-                    else
-                    {
-                        sb.Append(ch);
-                    }
-
-                    break;
-            }
-        }
-
-        sb.Append('"');
-        return sb.ToString();
     }
+
+    public object? Invoke(TemplateContext context, ScriptNode? callerContext, ScriptArray arguments, ScriptBlockStatement? blockStatement)
+    {
+        var value = arguments.Count > 0 ? arguments[0] : null;
+        return TemplateJsonWriter.Serialize(value);
+    }
+
+    public ValueTask<object?> InvokeAsync(TemplateContext context, ScriptNode? callerContext, ScriptArray arguments, ScriptBlockStatement? blockStatement)
+    {
+        return new ValueTask<object?>(Invoke(context, callerContext, arguments, blockStatement));
+    }
+
+    public int RequiredParameterCount => 1;
+    public int ParameterCount => 1;
+    public ScriptVarParamKind VarParamKind => ScriptVarParamKind.None;
+    public Type ReturnType => typeof(string);
+    public ScriptParameterInfo GetParameterInfo(int index) => new(typeof(object), "value");
 }

@@ -1714,4 +1714,35 @@ public sealed class SeoAuditReportWriterTests : IDisposable
         Assert.Single(report.Issues, issue => issue.Code == "seo.json_ld_not_rendered");
         Assert.DoesNotContain(report.Issues, issue => issue.Code.StartsWith("seo.schema_", StringComparison.Ordinal));
     }
+
+    [Fact]
+    public void Build_KeptThemeJsonLd_IsValidatedAndReportedAsSchemaType()
+    {
+        WriteOutput("trip/index.html", """
+            <!doctype html><html><head>
+            <script type="application/ld+json">{"@context":"https://schema.org","@type":"WebPage","name":"Trip"}</script>
+            <script type="application/ld+json" data-bukit-seo="keep">{"@context":"https://schema.org","@type":"TouristTrip","name":"Trip"}</script>
+            <script type="application/ld+json" data-bukit-seo="keep">{"@type":"Broken",</script>
+            </head><body></body></html>
+            """);
+        var seoIndex = new Dictionary<string, SeoIndexEntry>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["trip/index.html"] = Entry("/trip/", "trip/index.html", "https://example.com/trip/")
+        };
+        var seoModels = new Dictionary<string, SeoModel>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["trip/index.html"] = new()
+            {
+                Title = "Trip",
+                Canonical = "https://example.com/trip/",
+                JsonLd = ["""{"@context":"https://schema.org","@type":"WebPage","name":"Trip"}"""]
+            }
+        };
+
+        var report = SeoAuditReportWriter.Build(Config(), _outputDir, seoIndex, seoModels);
+
+        Assert.Single(report.Issues, issue => issue.Code == "seo.json_ld_invalid" && issue.Route == "/trip/");
+        var route = Assert.Single(report.Routes);
+        Assert.Equal(["TouristTrip", "WebPage"], route.SchemaTypes);
+    }
 }

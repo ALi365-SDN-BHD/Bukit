@@ -1,4 +1,5 @@
 using System.Text.Json;
+using Bukit.Engine.Primitives;
 
 namespace Bukit.Engine;
 
@@ -10,6 +11,27 @@ internal static class SeoSchemaValidator
     internal static bool IsSupportedProfileAuthorType(string? type)
         => string.Equals(type, "Person", StringComparison.OrdinalIgnoreCase) ||
            string.Equals(type, "Organization", StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>
+    /// Theme JSON-LD kept in the head with <c>data-bukit-seo="keep"</c> is published too: validates it
+    /// and returns <paramref name="schemaTypes"/> merged with its types (ordinal order).
+    /// </summary>
+    internal static IReadOnlyList<string> AddKeptHeadSchemaTypes(
+        IReadOnlyList<string> schemaTypes,
+        string? html,
+        string routeUrl,
+        List<SeoAuditIssue> issues,
+        bool searchActionExpected)
+    {
+        var kept = html is null ? [] : SeoJsonLdScripts.ExtractKeptHeadJsonLd(html);
+        if (kept.Count == 0)
+        {
+            return schemaTypes;
+        }
+
+        var keptTypes = ExtractSchemaTypes(kept, routeUrl, issues, searchActionExpected);
+        return [.. schemaTypes.Union(keptTypes, StringComparer.Ordinal).Order(StringComparer.Ordinal)];
+    }
 
     internal static IReadOnlyList<string> ExtractSchemaTypes(
         IReadOnlyList<string> jsonLd,

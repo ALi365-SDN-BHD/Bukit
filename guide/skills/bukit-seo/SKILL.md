@@ -53,7 +53,7 @@ unbalanced braces, or empty templates fail config validation.
 
 | Mode | Behavior |
 |---|---|
-| `inject` | Core writes the head tags and replaces all existing `<title>` elements with exactly one encoded document title. Adds JSON/Markdown alternate links for indexable content pages. |
+| `inject` | Core writes the head tags and replaces all existing `<title>` elements with exactly one encoded document title. Head JSON-LD is replaced by Core's unless marked `data-bukit-seo="keep"` (see "Theme JSON-LD"). Adds JSON/Markdown alternate links for indexable content pages. |
 | `theme` | No HTML changes. The theme renders the head from `page.seo.*` (for example `page.seo.document_title` and the JSON-LD). Audits still run. |
 | `off` | No injection; model still exposed; diagnostics still run. |
 
@@ -64,6 +64,31 @@ write the canonical, robots, hreflang, and JSON-LD tags itself, or each page war
 
 `page.seo.title` is the semantic page title; `page.seo.document_title` is the final
 `<title>` text. A single page can opt out of injection with `seo_inject: false`.
+
+### Theme JSON-LD
+
+Core generates WebSite, WebPage, BreadcrumbList, the Article family, FAQPage, HowTo,
+Organization, LocalBusiness and Person. For other types (`TouristTrip`, `Product`,
+`Event`, ...) pick one:
+
+1. Head, marked: `<script type="application/ld+json" data-bukit-seo="keep">`. Inject
+   mode leaves it where the theme wrote it; Core's block follows at the end of the head.
+2. Body: inject mode never touches `<body>`.
+3. `renderMode: theme`: the theme writes the whole head, including `page.seo.json_ld`.
+
+In inject mode, every other head `application/ld+json` script is removed. When a removed
+script differs from all of Core's JSON-LD blocks, the build warns
+`seo.theme_json_ld_replaced route=<url> count=<n>` (a warning even with `strict`; more
+than five pages collapse into one `event=diagnostics.summary` line). A theme that echoes
+`page.seo.json_ld` in the head gets no warning, even pretty-printed or with different
+string escaping; HTML-escaped or reordered JSON still warns. Incremental
+builds skip unchanged pages, so the warning appears only for pages rendered in that build
+(clean builds report every page). Core does not check kept JSON-LD for types it already
+emits: marking a theme `WebPage` or `BreadcrumbList` keep publishes a duplicate, so keep
+only types Core does not generate. The publish audit validates kept head
+JSON-LD like Core's (`seo.json_ld_invalid`) and adds its `@type` values to the route's
+`schemaTypes`. Serialize values with `util.to_json` or `util.json_string`
+(`bukit-templating`), which escape `</script>`.
 
 ## Per-page front matter
 
@@ -90,11 +115,12 @@ Logged during build, controlled by `site.seo.diagnostics`: `seo.site_url_missing
 `seo.canonical_relative`, `seo.canonical_external`, `seo.canonical_double_slash`,
 `seo.canonical_duplicate_index`, `seo.hreflang_x_default_missing`, per-page HTML checks
 (`seo.head_missing`, `seo.canonical_missing`, `seo.canonical_duplicate`,
-`seo.robots_missing`, `seo.hreflang_missing`, `seo.json_ld_missing`), and GEO schema
+`seo.robots_missing`, `seo.hreflang_missing`, `seo.json_ld_missing`,
+`seo.theme_json_ld_replaced` in inject mode), and GEO schema
 checks, and `geo.llms_*` curation checks when llms output is on (versions
 through 2.0.15 do not run the `geo.llms_*` checks; see `bukit-geo`).
 `strict` makes any of these stop the build at the first one hit (exit 2), except
-`seo.og_locale_region_missing`, which stays a warning; `off` silences them.
+`seo.og_locale_region_missing` and `seo.theme_json_ld_replaced`, which stay warnings; `off` silences them.
 
 ## Audit
 

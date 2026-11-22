@@ -1,6 +1,9 @@
+using System.Buffers;
 using System.Net;
 using System.Text;
+using System.Text.Json;
 using System.Text.RegularExpressions;
+using Bukit.Engine.Primitives;
 using Bukit.Rendering;
 
 namespace Bukit.Engine;
@@ -8,7 +11,17 @@ namespace Bukit.Engine;
 internal static partial class SeoHtmlRenderer
 {
     internal static string InjectIntoHead(string html, SeoModel? seo)
+        => InjectIntoHead(html, seo, out _);
+
+    /// <summary>
+    /// Replaces the Core-managed head tags with the tags rendered from <paramref name="seo"/>.
+    /// Head JSON-LD marked <c>data-bukit-seo="keep"</c> stays where the theme put it; other head
+    /// JSON-LD is removed. <paramref name="replacedThemeJsonLd"/> counts removed scripts whose content
+    /// differs from every Core-generated JSON-LD block, so callers can warn that theme data was dropped.
+    /// </summary>
+    internal static string InjectIntoHead(string html, SeoModel? seo, out int replacedThemeJsonLd)
     {
+        replacedThemeJsonLd = 0;
         if (seo is null || string.IsNullOrWhiteSpace(html))
         {
             return html;
@@ -22,7 +35,7 @@ internal static partial class SeoHtmlRenderer
         var beforeHeadContent = html[..head.ContentStart];
         var headContent = html[head.ContentStart..head.ContentEnd];
         var afterHeadContent = html[head.ContentEnd..];
-        headContent = RemoveManagedSeoTags(headContent);
+        headContent = RemoveManagedSeoTags(headContent, seo.JsonLd, out replacedThemeJsonLd);
         var seoHtml = RenderHead(seo);
         return beforeHeadContent + headContent.TrimEnd() + Environment.NewLine + seoHtml + afterHeadContent;
     }
@@ -149,68 +162,68 @@ internal static partial class SeoHtmlRenderer
         return sb.ToString();
     }
 
-    private static string RemoveManagedSeoTags(string html)
+    private static string RemoveManagedSeoTags(string html, IReadOnlyList<string> coreJsonLd, out int replacedThemeJsonLd)
     {
+        replacedThemeJsonLd = 0;
         var sb = new StringBuilder(html.Length);
-        var index = 0;
-        while (index < html.Length)
+        foreach (var segment in HtmlHeadSegments.Enumerate(html))
         {
-            var tagStart = html.IndexOf('<', index);
-            if (tagStart < 0)
+            if (segment.Tag is not { } tag || !IsManagedTag(tag))
             {
-                sb.Append(html, index, html.Length - index);
-                break;
-            }
-
-            sb.Append(html, index, tagStart - index);
-            if (HtmlHeadScanner.IsCommentStart(html, tagStart))
-            {
-                var commentEnd = HtmlHeadScanner.FindCommentEnd(html, tagStart, html.Length);
-                if (commentEnd < 0)
-                {
-                    sb.Append(html, tagStart, html.Length - tagStart);
-                    break;
-                }
-
-                sb.Append(html, tagStart, commentEnd - tagStart);
-                index = commentEnd;
+                sb.Append(html, segment.Start, segment.Length);
                 continue;
             }
 
-            var tagEnd = HtmlHeadScanner.FindTagEnd(html, tagStart);
-            if (tagEnd < 0)
+            if (SeoJsonLdScripts.IsJsonLdScript(tag))
             {
-                sb.Append(html, tagStart, html.Length - tagStart);
-                break;
-            }
-
-            var tag = html.Substring(tagStart, tagEnd - tagStart + 1);
-            var blockEnd = tagEnd;
-            var block = tag;
-            var rawTextElement = HtmlHeadScanner.GetRawTextElementName(tag);
-            if (rawTextElement is not null)
-            {
-                var elementClose = HtmlHeadScanner.FindClosingElementEnd(
-                    html,
-                    tagEnd + 1,
-                    html.Length,
-                    rawTextElement);
-                if (elementClose >= 0)
+                if (SeoJsonLdScripts.IsKept(tag))
                 {
-                    blockEnd = elementClose;
-                    block = html.Substring(tagStart, blockEnd - tagStart + 1);
+                    sb.Append(html, segment.Start, segment.Length);
+                    continue;
+                }
+
+                // A theme that echoes seo.json_ld loses nothing when Core writes the same block.
+                if (!IsCoreJsonLdEcho(SeoJsonLdScripts.GetContent(html, segment).Trim(), coreJsonLd))
+                {
+                    replacedThemeJsonLd++;
                 }
             }
-
-            if (!IsManagedTag(tag, block))
-            {
-                sb.Append(block);
-            }
-
-            index = blockEnd + 1;
         }
 
         return sb.ToString();
+    }
+
+    // Whitespace and string escaping may differ (pretty-printed or reserialized echoes); property
+    // order and values must match. Text that is not valid JSON never matches Core's block.
+    private static bool IsCoreJsonLdEcho(string content, IReadOnlyList<string> coreJsonLd)
+    {
+        if (coreJsonLd.Any(json => string.Equals(json.Trim(), content, StringComparison.Ordinal)))
+        {
+            return true;
+        }
+
+        var normalized = NormalizeJson(content);
+        return normalized is not null &&
+               coreJsonLd.Any(json => string.Equals(NormalizeJson(json), normalized, StringComparison.Ordinal));
+    }
+
+    private static string? NormalizeJson(string json)
+    {
+        try
+        {
+            using var document = JsonDocument.Parse(json);
+            var buffer = new ArrayBufferWriter<byte>();
+            using (var writer = new Utf8JsonWriter(buffer))
+            {
+                document.RootElement.WriteTo(writer);
+            }
+
+            return Encoding.UTF8.GetString(buffer.WrittenSpan);
+        }
+        catch (JsonException)
+        {
+            return null;
+        }
     }
 
     private static void WriteMetaName(StringBuilder sb, string name, string? content)
@@ -231,7 +244,7 @@ internal static partial class SeoHtmlRenderer
 
     private static string Attr(string value) => WebUtility.HtmlEncode(value);
 
-    private static bool IsManagedTag(string tag, string block)
+    private static bool IsManagedTag(string tag)
     {
         if (HtmlHeadScanner.IsStartTag(tag, "title"))
         {
@@ -259,13 +272,7 @@ internal static partial class SeoHtmlRenderer
                    StartsWithToken(property, "article:");
         }
 
-        if (HtmlHeadScanner.IsStartTag(tag, "script"))
-        {
-            var type = HtmlTagAttributeReader.GetAttribute(tag, "type");
-            return string.Equals(type, "application/ld+json", StringComparison.OrdinalIgnoreCase);
-        }
-
-        return false;
+        return SeoJsonLdScripts.IsJsonLdScript(tag);
     }
 
     private static bool StartsWithToken(string? value, string prefix)

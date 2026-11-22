@@ -75,6 +75,8 @@ internal static partial class MachineReadabilityTrustAuditBuilder
             var schemaTypes = model is null
                 ? Array.Empty<string>()
                 : SeoSchemaValidator.ExtractSchemaTypes(model.JsonLd, entry.Route.Url, jsonLdNotRendered ? [] : seoIssues, searchActionExpected);
+            schemaTypes = SeoSchemaValidator.AddKeptHeadSchemaTypes(schemaTypes, html, entry.Route.Url, seoIssues, searchActionExpected);
+
             var document = PublishDocumentBuilder.Build(entry, model, record, schemaTypes, config.Site.BaseUrl, projectionResults, languageFallback);
             HtmlDocumentTitleInspection? titleInspection = null;
             if (!outputExists)

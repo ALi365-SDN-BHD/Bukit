@@ -67,6 +67,26 @@ public sealed class RenderComponentFunctionTests : IDisposable
     }
 
     [Fact]
+    public void Invoke_ComponentTemplateCanUseUtilJsonFunctions()
+    {
+        var componentsDir = Path.Combine(_themeDir, "components");
+        Directory.CreateDirectory(componentsDir);
+        File.WriteAllText(Path.Combine(componentsDir, "trip.html"), "{{ data | util.to_json }}|{{ data.name | util.json_string }}|{{ data | object.to_json }}");
+
+        var function = CreateFunction(new Dictionary<string, ThemeComponentDefinition>
+        {
+            ["trip"] = new() { Template = "components/trip.html" }
+        });
+        var data = new ScriptObject { ["name"] = "KL </script>", ["@type"] = "TouristTrip" };
+        var arguments = new ScriptArray { "trip", new ScriptObject { ["data"] = data } };
+
+        var result = function.Invoke(new TemplateContext(), callerContext: null, arguments, blockStatement: null);
+
+        const string json = """{"@type":"TouristTrip","name":"KL \u003c/script\u003e"}""";
+        Assert.Equal(json + "|\"KL \\u003c/script\\u003e\"|" + json, Assert.IsType<string>(result));
+    }
+
+    [Fact]
     public void Metadata_ReportsExpectedSignature()
     {
         var function = CreateFunction(new Dictionary<string, ThemeComponentDefinition>());
