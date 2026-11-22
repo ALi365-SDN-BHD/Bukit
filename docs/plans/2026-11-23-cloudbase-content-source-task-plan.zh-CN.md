@@ -653,30 +653,33 @@ Phase 0（S1～S4） ──> G0-1～G0-5 ──> T00
 
 - 修改：`Bukit.Engine.Audit/PublicOutputPrivacyCheck.cs`
 - 修改：`Bukit.Cli/Deploy/DeploymentPrivacyValidator.cs`
-- 修改：`Bukit.Content/Media/HtmlMediaReferenceScanner.cs`。新增一个只读的扫描入口，返回任意标签上 D11 列出的 URL 属性值（以及 `style` 属性的内容），复用现有的标签和属性分词（`FindTagEnd`、`ScanAttributes`）；现有的 `Find` 只认媒体位置（`img`、`video poster`、`a href`、`data-src`、`srcset`），不覆盖 `link`、`script`、`iframe`、`source`、`form` 等，所以不能直接拿来用，也不改它的行为。
-- 修改：`Bukit.Content/InternalsVisibleTo.cs`。加上 `bukit`，让部署校验能用这个 internal 扫描器。
+- 修改：`Bukit.Content/Media/HtmlMediaReferenceScanner.cs`。新增一个只读的扫描入口，返回任意标签上 D11 列出的 URL 属性值（含 `<meta>` 的 `content`、`style` 属性的内容），复用现有的标签和属性分词（`FindTagEnd`、`ScanAttributes`）。现有 `ScanAttributes` 会跳过不带引号的属性值（"Unquoted value — skip"），所以新入口通过一个只在新模式下打开的开关，把不带引号的值（到空白或 `>` 为止）也返回；现有的 `Find` 不打开这个开关，行为不变。现有的 `Find` 只认媒体位置（`img`、`video poster`、`a href`、`data-src`、`srcset`），不覆盖 `link`、`script`、`iframe`、`source`、`form`、`meta` 等，所以不能直接拿来用。
+- 新建：`Bukit.Engine/CloudBaseDeployUrlScanner.cs`（internal）。对一个文件的文本判断 URL 位置上有没有 `cloud://`：HTML 类文件调用上面的新入口，CSS 匹配 `url(...)`（先去掉空白和成对引号），JSON 遍历字符串值。放在 `Bukit.Engine` 的理由：它已经是 `Bukit.Content` 的友元（能调用 internal 扫描器），并且对 `bukit` 可见（`Bukit.Engine/InternalsVisibleTo.cs`），所以**不需要**改 `Bukit.Content` 的友元集合；`Bukit.Content` 的友元集合由三个架构测试固定（`tests/Bukit.Architecture.Tests/ContentBoundaryExpectations.cs`、`G04D3AContentBodyGraphTests.cs`、`Ad03C4ContentNotionBridgeInternalizationTests.cs`），扩大它要改这三处并另做边界决策。也不在 `Bukit.Cli` 里另写一个属性扫描器：那会复制现有的标签和属性分词，违反 `AGENTS.md` 的"不重复已有 helper"。
 - 修改：`Bukit.Engine.Primitives/PublicContentProjectionPolicy.cs`
 - 修改：`Bukit.Engine.Feeds/JsonFeedGenerator.cs`
 - 按需修改：`Bukit.Engine.Audit/PublishUrlSnapshot.cs`，也就是 `PublishUrlSemanticHasher` 的归一化规则
 - 修改：`Bukit.Config/InternalsVisibleTo.cs`。加上 `Bukit.Engine.Audit` 和 `bukit`（D11）。不加的话，隐私检查读不到 internal 的 `CloudBase` 配置，T08 的 doctor 也读不到。
 - 修改：deploy 命令的入口，让它读取 site.yaml 里的 envId 并传给 `DeploymentPrivacyValidator`（D11）。具体文件在本任务开始时用 closure 和调用方检索确定，写进报告和提交清单。
-- 测试：`tests/Bukit.Engine.Tests/`、`tests/Bukit.Cli.Tests/`
+- 测试：`tests/Bukit.Content.Tests/`（扫描器新入口，以及 `Find` 行为不变的回归用例）、`tests/Bukit.Engine.Tests/`（`CloudBaseDeployUrlScanner`）、`tests/Bukit.Cli.Tests/`（部署校验）。`tests/Bukit.Architecture.Tests/` 不改，但要显式跑一次（closure 不会给出），确认 `Bukit.Content` 的友元集合没有变化。
 
 **步骤：**
 
 1. `queue acquire --task T07`，然后运行 closure 和 classify。
 2. 先写测试：
    - 公开 HTML 或 JSON Feed 里出现 envId、`cloud://` 兼容形式、网关主机、签名路径加 `token`，或存储 CDN 主机 `*.storage.tcloudbase.com` 时，构建阶段检测会失败（AC6）；
-   - 部署暂存目录里 URL 位置出现 `cloud://`（`<img src="cloud://…">`、`<a href>`、`srcset` 的某个候选、`<link href>`、`style="background:url(cloud://…)"`、CSS 文件的 `url(cloud://…)`、JSON 里整个字符串值是 `cloud://…`），或出现网关主机加签名路径加 `token`、存储 CDN 主机加 `token` 时，部署校验失败（`BKT-DEPLOY-PRIVACY-0001`），不需要配置；deploy 命令传入 envId 时，envId 也能检测到；
+   - 部署暂存目录里 URL 位置出现 `cloud://` 时，部署校验失败（`BKT-DEPLOY-PRIVACY-0001`），不需要配置。用例：`<img src="cloud://…">`、不带引号的 `<img src=cloud://…>`、`<a href>`、`srcset` 的非首个候选、`<link href>`、`<meta property="og:image" content="cloud://…">`、`style="background:url(cloud://…)"`、CSS 文件的 `url("cloud://…")` 和 `url(cloud://…)`、JSON 里整个字符串值是 `cloud://…`；
+   - 网关主机加签名路径加 `token`、存储 CDN 主机加 `token` 的签名链接，出现在任何文本类文件的任何位置（包括 `<code>` 文本、`.js`、`.md`）时，部署校验失败；
+   - deploy 命令传入 envId 时，envId 也能检测到；
+   - 扫描器回归：现有 `HtmlMediaReferenceScanner.Find` 对不带引号的属性值仍然不返回结果，现有调用方的输出不变；
    - 没有 cloudbase 源的教程页面在 `<code>`/`<pre>` 文本、正文段落、`.md`/`.txt`/`.js` 文件，或 JSON 字符串中间提到 `cloud://` 时，部署校验通过；
    - 有 cloudbase 源的站点，构建阶段在正文文本里发现 `cloud://` 仍然失败（全文检测）；
    - 没有 cloudbase 源的站点链接到公开、未签名的 CDN 对象（`https://x.storage.tcloudbase.com/b/a.pdf`，没有 `token`）或网关主机上不带 `token` 的地址时，部署校验通过，结果与改动前一致；
    - 发布审计报告 `.bukit/publish-audit-report.json` 的结构不变；
    - 投影策略和 JSON Feed 会过滤掉 CloudBase 来源的敏感实体；
    - 正文里如果有每次构建都会变的签名链接，语义哈希不应因此改变。只有确认确实需要时才改 hasher。
-3. 实现：在现有的 Notion 逻辑旁边并列加上 CloudBase 的检测（D11），不做通用化重构。部署阶段先对文件文本做一次不区分大小写的 `cloud://` 子串预筛，命中了才按扩展名做 URL 位置扫描：HTML 类文件用扫描器的新入口（线性扫描，不建 DOM；构建阶段已经在用同一套分词），CSS 用 `url(...)` 匹配，JSON 遍历字符串值。没有 `cloud://` 的文件不增加额外开销。如果审查认为改扫描器不合适，退一步的最小方案是只匹配带引号的属性值（`\s(src|href|srcset|poster|data-src|action)\s*=\s*["']\s*cloud://`）加 CSS `url(...)` 的正则，并在报告里写明它会漏掉不带引号的属性值、`srcset` 里非首个候选。
+3. 实现：在现有的 Notion 逻辑旁边并列加上 CloudBase 的检测（D11），不做通用化重构。部署阶段对每个文本类文件：(a) 用固定模式全文匹配带 `token` 的签名链接；(b) 先做一次不区分大小写的 `cloud://` 子串预筛，命中了才调用 `CloudBaseDeployUrlScanner` 做 URL 位置扫描（HTML 类文件走扫描器新入口，线性扫描、不建 DOM，构建阶段已经在用同一套分词；CSS 匹配 `url(...)`；JSON 遍历字符串值）。没有 `cloud://` 的文件不增加额外开销。不用纯正则方案：只匹配带引号属性值的正则会漏掉不带引号的值和 `srcset` 的非首个候选，而把它扩展到这些情况，就等于重写一遍属性分词。
 4. 转到 `testing`。跑 closure 给出的测试，预计包括：
-   - `Bukit.Engine.Tests`、`Bukit.Cli.Tests` 全量；
+   - `Bukit.Content.Tests`、`Bukit.Engine.Tests`、`Bukit.Cli.Tests`、`Bukit.Architecture.Tests` 全量（policy 已覆盖：`Bukit.Content` 和 `Bukit.Engine` 的源码规则会给出这几个测试项目，2026-11-23 用 closure 核对过）；
    - `core-report-inventory.py --self-test`；
    - `core-report-contracts` 规则对应的测试；
    - 工具门禁。
@@ -883,7 +886,7 @@ BukitJalil 按固定表给 BKT 码分类。本计划合入之后，要把下面�
 - [ ] T05：不可信链接模式（包括自动链接、引用定义、大小写和实体编码）；`#片段` 和相对链接保留；默认行为不变
 - [ ] T04：provider；硬性剔除；错误映射；占位图检查；端到端；body store 打开安全模式
 - [ ] T06：文件对象批量签名（500 一批；`fullSignedURL` 或网关源加相对 `signedURL`；协议、主机和路径前缀校验）和 D17 降级；签名链接规则（网关主机 + 签名路径 + `token`；存储 CDN 主机 + `token`）；D8 第 ⑤ 条
-- [ ] T07：隐私检测与过滤；`Bukit.Config` 和 `Bukit.Content` 内部可见性；部署阶段检测（URL 位置的 `cloud://`、带 `token` 的签名链接；复用 `HtmlMediaReferenceScanner` 的分词）
+- [ ] T07：隐私检测与过滤；`Bukit.Config` 内部可见性（`Bukit.Content` 友元集合不变）；部署阶段检测（URL 位置的 `cloud://`，含不带引号的值；全文的带 `token` 签名链接；`Bukit.Engine` 包装类复用 `HtmlMediaReferenceScanner` 的分词）
 - [ ] T08：doctor（`role` 警告、表可达、RLS 空结果提示、存储签名）
 - [ ] T09：用户、开发、技能、排错文档；三语 CHANGELOG
 - [ ] T10：openspec 已归档（已授权时）；包括归档改动在内的全部 specialtyTests 和工具门禁通过；AOT 和真实环境冒烟（已授权的部分）；统一审查；tasks.md 已提交；metrics 报告；队列已清空
