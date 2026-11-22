@@ -259,12 +259,24 @@ parent_url: /malaysia/routes/
 With `breadcrumbHome: true`, `/routes/klang/` becomes Home › 马来西亚 › 路线 ›
 巴生谷三日游 when `/malaysia/routes/` itself infers 马来西亚 from its URL (or
 names it with its own `parent_url`). `parent_url: /` makes the home page the
-parent. The field is named apart from `site.seo.schema.breadcrumbParent`,
+parent.
+
+Pages below a rewritten page in the URL follow it. A page without
+`parent_url` whose nearest generated URL ancestor has a rewritten trail gets
+that trail followed by the page; levels without a page are still skipped, and
+this repeats down the URL. If `/malaysia/routes/` sets `parent_url: /`, its
+trail is Home › 路线 and `/malaysia/routes/klang/` becomes Home › 路线 › 巴生谷
+rather than Home › 马来西亚 › 路线 › 巴生谷; `/malaysia/kl/` keeps Home ›
+马来西亚 › 吉隆坡. Such a page takes its ancestor's trail in place of a
+`breadcrumbParent` taxonomy parent.
+
+The field is named apart from `site.seo.schema.breadcrumbParent`,
 which takes a taxonomy kind for all pages. A parent that is not a generated
 page, is not a site path (a full URL or a path without the leading `/`), or is
 the page itself logs `seo.breadcrumb_parent_missing route=<url> parent=<value>`;
 pages whose parents form a cycle, or whose parent's trail already contains the
-page (such as `/a/` naming `/a/b/`), log `seo.breadcrumb_parent_cycle`. Those pages
+page or leads back to it through URL ancestors (such as `/a/` naming `/a/b/`),
+log `seo.breadcrumb_parent_cycle`. Both warnings show `parent=` as written. Those pages
 keep their URL-inferred trail, and pages that only lead into a cycle keep their
 parent. Both are warnings, also under `site.seo.diagnostics: strict`. When any
 page sets `parent_url`, incremental builds re-render a page when any of its
@@ -331,8 +343,8 @@ the visible summary.
 ## Breadcrumb Route Contract
 
 Breadcrumb JSON-LD uses only strict URL ancestors present in the current
-language variant's final HTML route inventory, unless the page names a parent
-with `parent_url` (see above). Content, taxonomy, list and
+language variant's final HTML route inventory, unless the page or its nearest
+generated URL ancestor has a trail rewritten by `parent_url` (see above). Content, taxonomy, list and
 pagination, filtered list, and managed static HTML routes participate. Matching
 ignores case and trailing slashes, but does not invent a route from a URL
 segment. Thus `/companies/page/2/` can include `/companies/` but not
