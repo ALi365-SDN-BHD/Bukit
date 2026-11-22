@@ -42,7 +42,8 @@ internal static class VariantSeoStage
             renderAssetPlan.RenderDocuments,
             routeResult.ListRouteGraph,
             routePipelineResult.StaticEntries,
-            routeMetadata);
+            routeMetadata,
+            logger);
         var seoResult = new SeoPipeline().Execute(
             context.Config,
             context.BaseUrl,

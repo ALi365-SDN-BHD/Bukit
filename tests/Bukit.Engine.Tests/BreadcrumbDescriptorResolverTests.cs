@@ -3,6 +3,7 @@ using Bukit.Content;
 using Bukit.Engine.Abstractions.Content;
 using Bukit.Engine.RouteMetadata;
 using Bukit.Routing;
+using Bukit.Shared;
 using Bukit.Engine.Abstractions.Routing;
 using Xunit;
 
@@ -274,6 +275,173 @@ public sealed class BreadcrumbDescriptorResolverTests
         Assert.Equal(["最新動態", "文章一"], catalog.Find("/2596/")!.Items.Select(item => item.Name));
     }
 
+    [Fact]
+    public void Resolve_ParentUrl_UsesParentTrailInsteadOfUrlAncestors()
+    {
+        var catalog = BreadcrumbDescriptorResolver.Resolve(
+            Config(schema => schema with { BreadcrumbHome = true }),
+            "/",
+            [
+                Routed("home", "首页", "/"),
+                Routed("malaysia", "马来西亚", "/malaysia/"),
+                Routed("routes", "路线", "/malaysia/routes/"),
+                Routed("route-index", "全部路线", "/routes/"),
+                Routed("klang", "巴生谷三日游", "/routes/klang/", parentUrl: "/malaysia/routes/")
+            ],
+            listRouteGraph: null,
+            staticEntries: null,
+            routeMetadata: null);
+
+        var descriptor = catalog.Find("/routes/klang/")!;
+        Assert.Equal(["首页", "马来西亚", "路线", "巴生谷三日游"], descriptor.Items.Select(item => item.Name));
+        Assert.Equal(
+            ["https://example.com/", "https://example.com/malaysia/", "https://example.com/malaysia/routes/", "https://example.com/routes/klang/"],
+            descriptor.Items.Select(item => item.Item));
+        Assert.True(catalog.HasExplicitParents);
+    }
+
+    [Fact]
+    public void Resolve_ParentUrl_FollowsParentsRecursively()
+    {
+        var catalog = BreadcrumbDescriptorResolver.Resolve(
+            Config(),
+            "/",
+            [
+                Routed("c", "C", "/c/"),
+                Routed("b", "B", "/b/", parentUrl: "/c"),
+                Routed("a", "A", "/x/a/", parentUrl: "/b/")
+            ],
+            listRouteGraph: null,
+            staticEntries: null,
+            routeMetadata: null);
+
+        Assert.Equal(["C", "B", "A"], catalog.Find("/x/a/")!.Items.Select(item => item.Name));
+        Assert.Equal(["C", "B"], catalog.Find("/b/")!.Items.Select(item => item.Name));
+    }
+
+    [Fact]
+    public void Resolve_ParentUrlHome_StartsWithHomeWithoutBreadcrumbHome()
+    {
+        var catalog = BreadcrumbDescriptorResolver.Resolve(
+            Config(),
+            "/",
+            [Routed("home", "首页", "/"), Routed("about", "关于", "/company/about/", parentUrl: "/")],
+            listRouteGraph: null,
+            staticEntries: null,
+            routeMetadata: null);
+
+        Assert.Equal(["首页", "关于"], catalog.Find("/company/about/")!.Items.Select(item => item.Name));
+    }
+
+    [Theory]
+    [InlineData("/missing/")]
+    [InlineData("routes/")]
+    [InlineData("https://example.com/malaysia/")]
+    [InlineData("/routes/klang/")]
+    public void Resolve_ParentUrlUnusable_WarnsAndKeepsUrlTrail(string parentUrl)
+    {
+        var logger = new RecordingLogger();
+        var catalog = BreadcrumbDescriptorResolver.Resolve(
+            Config(),
+            "/",
+            [
+                Routed("malaysia", "马来西亚", "/malaysia/"),
+                Routed("routes", "路线", "/routes/"),
+                Routed("klang", "巴生谷三日游", "/routes/klang/", parentUrl: parentUrl)
+            ],
+            listRouteGraph: null,
+            staticEntries: null,
+            routeMetadata: null,
+            logger);
+
+        Assert.Equal(["路线", "巴生谷三日游"], catalog.Find("/routes/klang/")!.Items.Select(item => item.Name));
+        Assert.Equal($"seo.breadcrumb_parent_missing route=/routes/klang/ parent={parentUrl} hint=use-the-site-path-of-a-generated-page", Assert.Single(logger.Warnings));
+        Assert.False(catalog.HasExplicitParents);
+    }
+
+    [Fact]
+    public void Resolve_ParentUrlCycle_WarnsAndFallsBackOnlyForPagesOnTheCycle()
+    {
+        var logger = new RecordingLogger();
+        var catalog = BreadcrumbDescriptorResolver.Resolve(
+            Config(),
+            "/",
+            [
+                Routed("d", "D", "/d/", parentUrl: "/a/"),
+                Routed("a", "A", "/a/", parentUrl: "/b/"),
+                Routed("b", "B", "/b/", parentUrl: "/a/")
+            ],
+            listRouteGraph: null,
+            staticEntries: null,
+            routeMetadata: null,
+            logger);
+
+        Assert.Equal(["A"], catalog.Find("/a/")!.Items.Select(item => item.Name));
+        Assert.Equal(["B"], catalog.Find("/b/")!.Items.Select(item => item.Name));
+        Assert.Equal(["A", "D"], catalog.Find("/d/")!.Items.Select(item => item.Name));
+        Assert.Equal(
+            [
+                "seo.breadcrumb_parent_cycle route=/a/ parent=/b hint=remove-one-parent_url-in-the-cycle",
+                "seo.breadcrumb_parent_cycle route=/b/ parent=/a hint=remove-one-parent_url-in-the-cycle"
+            ],
+            logger.Warnings);
+    }
+
+    [Fact]
+    public void Resolve_ParentUrlWhoseUrlTrailContainsThePage_WarnsAndKeepsUrlTrail()
+    {
+        var logger = new RecordingLogger();
+        var catalog = BreadcrumbDescriptorResolver.Resolve(
+            Config(),
+            "/",
+            [
+                Routed("a", "A", "/a/", parentUrl: "/a/b/"),
+                Routed("b", "B", "/a/b/"),
+                Routed("c", "C", "/c/", parentUrl: "/a/")
+            ],
+            listRouteGraph: null,
+            staticEntries: null,
+            routeMetadata: null,
+            logger);
+
+        Assert.Equal(["A"], catalog.Find("/a/")!.Items.Select(item => item.Name));
+        Assert.Equal(["A", "B"], catalog.Find("/a/b/")!.Items.Select(item => item.Name));
+        Assert.Equal(["A", "C"], catalog.Find("/c/")!.Items.Select(item => item.Name));
+        Assert.Equal("seo.breadcrumb_parent_cycle route=/a/ parent=/a/b hint=remove-one-parent_url-in-the-cycle", Assert.Single(logger.Warnings));
+    }
+
+    [Fact]
+    public void WithBreadcrumbDependencies_ParentUrlAloneHashesBreadcrumbs()
+    {
+        var catalog = BreadcrumbDescriptorResolver.Resolve(
+            Config(),
+            "/",
+            [Routed("c", "C", "/c/"), Routed("a", "A", "/x/a/", parentUrl: "/c/")],
+            listRouteGraph: null,
+            staticEntries: null,
+            routeMetadata: null);
+        var withoutParent = BreadcrumbDescriptorResolver.Resolve(
+            Config(),
+            "/",
+            [Routed("c", "C", "/c/"), Routed("a", "A", "/x/a/")],
+            listRouteGraph: null,
+            staticEntries: null,
+            routeMetadata: null);
+
+        var schema = Config().Site.Seo.Schema;
+        Assert.NotNull(VariantRenderStage.WithBreadcrumbDependencies(schema, catalog, "base", inner: null));
+        Assert.Null(VariantRenderStage.WithBreadcrumbDependencies(schema, withoutParent, "base", inner: null));
+    }
+
+    private sealed class RecordingLogger : ILogger
+    {
+        public List<string> Warnings { get; } = [];
+        public void Debug(string message) { }
+        public void Info(string message) { }
+        public void Warn(string message) => Warnings.Add(message);
+        public void Error(string message) { }
+    }
+
     private static ListRouteGraph TaxonomyGraph()
         => ListRouteGraph.Create(
         [
@@ -331,7 +499,7 @@ public sealed class BreadcrumbDescriptorResolverTests
             Content = TestContent.Markdown()
         };
 
-    private static RoutedContentDocument Routed(string id, string title, string url, IReadOnlyList<string>? categories = null)
+    private static RoutedContentDocument Routed(string id, string title, string url, IReadOnlyList<string>? categories = null, string? parentUrl = null)
     {
         var fields = new Dictionary<string, object>
         {
@@ -341,6 +509,11 @@ public sealed class BreadcrumbDescriptorResolverTests
         if (categories is not null)
         {
             fields["categories"] = categories.ToList();
+        }
+
+        if (parentUrl is not null)
+        {
+            fields["parent_url"] = parentUrl;
         }
 
         var document = ContentDocument.Create(

@@ -2354,6 +2354,111 @@ public sealed partial class SiteEngineIntegrationTests
     }
 
     [Fact]
+    public async Task BuildAsync_ParentUrlFrontMatter_BuildsBreadcrumbFromParentTrail()
+    {
+        var root = Path.Combine(Path.GetTempPath(), "bukit-breadcrumb-parent-url-test", Guid.NewGuid().ToString("N"));
+
+        try
+        {
+            Directory.CreateDirectory(Path.Combine(root, "content", "pages"));
+            Directory.CreateDirectory(Path.Combine(root, "content", "routes"));
+            Directory.CreateDirectory(Path.Combine(root, "layouts", "layouts"));
+            Directory.CreateDirectory(Path.Combine(root, "layouts", "pages"));
+
+            File.WriteAllText(Path.Combine(root, "site.yaml"), """
+                site:
+                  name: breadcrumb-parent-url
+                  title: 南洋私旅
+                  url: https://example.com
+                  collections:
+                    page:
+                      permalink: /{slug}/
+                      template: pages/post.html
+                    route:
+                      permalink: /routes/{slug}/
+                      template: pages/post.html
+                  seo:
+                    renderMode: inject
+                    schema:
+                      breadcrumbHome: true
+                content:
+                  sources:
+                    - type: markdown
+                      name: pages
+                      collection: page
+                      markdown:
+                        dir: content/pages
+                    - type: markdown
+                      name: routes
+                      collection: route
+                      markdown:
+                        dir: content/routes
+                build:
+                  output: dist
+                theme:
+                  layouts: layouts
+                """);
+            File.WriteAllText(Path.Combine(root, "content", "pages", "malaysia.md"), """
+                ---
+                title: 马来西亚
+                slug: malaysia
+                publishAt: 2024-06-01T00:00:00Z
+                ---
+                Malaysia
+                """);
+            File.WriteAllText(Path.Combine(root, "content", "pages", "malaysia-routes.md"), """
+                ---
+                title: 路线
+                slug: malaysia-routes
+                publishAt: 2024-06-01T00:00:00Z
+                route:
+                  url: /malaysia/routes
+                ---
+                Routes
+                """);
+            File.WriteAllText(Path.Combine(root, "content", "routes", "klang.md"), """
+                ---
+                title: 巴生谷三日游
+                slug: klang
+                publishAt: 2024-06-02T00:00:00Z
+                parent_url: /malaysia/routes/
+                ---
+                Klang
+                """);
+            File.WriteAllText(Path.Combine(root, "layouts", "layouts", "base.html"), """
+                <!DOCTYPE html><html><head><title>{{ page.title }}</title></head><body>{{ content }}</body></html>
+                """);
+            File.WriteAllText(Path.Combine(root, "layouts", "pages", "post.html"), "{% layout \"layouts/base.html\" %}\n{{ page.content }}");
+            File.WriteAllText(Path.Combine(root, "layouts", "pages", "index.html"), "{% layout \"layouts/base.html\" %}\nIndex");
+            File.WriteAllText(Path.Combine(root, "layouts", "pages", "list.html"), "{% layout \"layouts/base.html\" %}\nList");
+
+            var config = ConfigLoader.Load(Path.Combine(root, "site.yaml"));
+            var logger = new TestLogger();
+            WriteTestThemeTemplates(root);
+            await new SiteEngine(logger).BuildAsync(config, root, new ConfigOverrides(), CancellationToken.None);
+
+            var html = File.ReadAllText(Path.Combine(root, "dist", "routes", "klang", "index.html"));
+            var breadcrumb = ExtractJsonLdByType(html, "BreadcrumbList");
+            var items = breadcrumb.GetProperty("itemListElement").EnumerateArray().ToArray();
+            Assert.Equal(["马来西亚", "路线", "巴生谷三日游"], items.Skip(1).Select(item => item.GetProperty("name").GetString()));
+            Assert.Equal(
+                ["https://example.com/", "https://example.com/malaysia/", "https://example.com/malaysia/routes/", "https://example.com/routes/klang/"],
+                items.Select(item => item.GetProperty("item").GetString()));
+            Assert.Equal([1, 2, 3, 4], items.Select(item => item.GetProperty("position").GetInt32()));
+            AssertBreadcrumbItemsResolveToHtmlFiles(Path.Combine(root, "dist"), breadcrumb);
+            Assert.DoesNotContain(logger.Warnings, warning => warning.Contains("breadcrumb_parent", StringComparison.Ordinal));
+            Assert.Empty(logger.Errors);
+        }
+        finally
+        {
+            if (Directory.Exists(root))
+            {
+                Directory.Delete(root, recursive: true);
+            }
+        }
+    }
+
+    [Fact]
     public async Task BuildAsync_TaxonomyTermTemplate_ExposesListCompatibleContext()
     {
         var root = Path.Combine(Path.GetTempPath(), "bukit-taxonomy-list-context-test", Guid.NewGuid().ToString("N"));

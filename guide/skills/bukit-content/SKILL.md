@@ -97,7 +97,7 @@ image_alt: A cup of green tea   # required with image (requireMediaAlt default)
 | `language`, `i18nKey` | Language variant and translation group (`bukit-i18n`). No `lang` alias. |
 | `draft: true` | Dropped unless `--draft` / `build.draft: true`. |
 | `image`, `cover` (+ `image_alt` / `cover_alt`) | Page image. Without the `_alt` key the build logs `canonical_media_alt_missing` (fails under `schemaFailMode: strict`; see `bukit-content-model`). Optional `_caption`, `_description`, `_license`. |
-| `noindex`, `canonical`, `seo_title`, `seo_desc`, `geo:` ... | `bukit-seo`, `bukit-geo`. |
+| `noindex`, `canonical`, `seo_title`, `seo_desc`, `parent_url`, `geo:` ... | `bukit-seo`, `bukit-geo`. |
 | `sitemapexclude`, `searchexclude`, `feedexclude` | Output exclusions (key case is ignored; `excludeFromSitemap`, `excludeFromSearch`, `excludeFromFeed` also work). |
 | `author`, `organization`, `reviewer`, `people`, `source_url`, ... | Ownership, trust, and entity fields (`bukit-content-model`). |
 
