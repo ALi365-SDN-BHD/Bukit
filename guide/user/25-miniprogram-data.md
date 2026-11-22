@@ -206,7 +206,9 @@ optional `fields` mapping that declares nested types the same way:
 ```
 
 With `fields`, each object holds exactly the declared keys (a missing one is
-written as `null`) and other keys are dropped. Without `fields`
+written as `null`) and other keys are dropped. `fields` must declare at least
+one typed field: an empty mapping (or one whose types are all blank) fails
+config validation, since it would write every object as `{}`. Without `fields`
 (`days: object[]`), every key is kept and each value is inferred like an
 untyped field: text, numbers, booleans, dates and lists of text keep their
 form, and a nested mapping or list of mappings becomes an object or a list of

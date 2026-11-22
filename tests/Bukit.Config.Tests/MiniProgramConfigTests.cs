@@ -124,6 +124,9 @@ public sealed class MiniProgramConfigTests
     [InlineData("{ name: a, kind: records, source: modules, fields: [d], sort: { field: id }, types: { d: { type: 'object[]', fields: { x: float } } } }", "types.d.fields.x must be")]
     [InlineData("{ name: a, kind: records, source: modules, fields: [d], sort: { field: id }, types: { d: { type: object, extra: 1 } } }", "types.d.extra")]
     [InlineData("{ name: a, kind: records, source: modules, fields: [d], sort: { field: id }, types: { d: { fields: { x: string } } } }", "types.d.type")]
+    [InlineData("{ name: a, kind: records, source: modules, fields: [d], sort: { field: id }, types: { d: { type: object, fields: {} } } }", "types.d.fields must declare at least one field")]
+    [InlineData("{ name: a, kind: records, source: modules, fields: [d], sort: { field: id }, types: { d: { type: 'object[]', fields: { x: '' } } } }", "types.d.fields must declare at least one field")]
+    [InlineData("{ name: a, kind: records, source: modules, fields: [d], sort: { field: id }, types: { d: { type: object, fields: { x: { type: object, fields: {} } } } } }", "types.d.fields.x.fields must declare at least one field")]
     public void Validate_RejectsInvalidDatasets(string dataset, string expected)
     {
         var ex = Assert.Throws<ConfigException>(() => Load(Sources + $"\nminiprogram:\n  enabled: true\n  datasets:\n    - {dataset}\n", menus: true));

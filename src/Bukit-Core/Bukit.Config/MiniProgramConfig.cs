@@ -494,6 +494,12 @@ internal static class MiniProgramConfigValidator
             throw Invalid($"{path}.fields is only allowed for type object or object[].");
         }
 
+        // An empty projection would write every object as {}; omit fields to keep every key instead.
+        if (type.Fields.Count == 0)
+        {
+            throw Invalid($"{path}.fields must declare at least one field with a type; omit fields to keep every key.");
+        }
+
         foreach (var (field, nested) in type.Fields)
         {
             ValidateFieldType(nested, $"{path}.fields.{field}");
