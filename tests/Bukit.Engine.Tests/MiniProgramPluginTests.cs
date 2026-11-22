@@ -1015,6 +1015,24 @@ public sealed class MiniProgramPluginTests : IDisposable
         Assert.Equal(2, (long)nested["night"]!);
     }
 
+    [Fact]
+    public async Task DeclaredNestedFields_MatchKeysOrdinally()
+    {
+        var config = Config(
+            articleListFields: ["title", "extra"],
+            articleTypes: new Dictionary<string, string> { ["extra"] = "object" },
+            articleObjectFields: new() { ["extra"] = new Dictionary<string, MiniProgramFieldType>(StringComparer.Ordinal) { ["name"] = new("string", null), ["Name"] = new("number", null) } });
+        // Markdown front matter maps ignore case.
+        var hotel = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase) { ["name"] = "Inn" };
+
+        await RunAsync(config, [Article("a1", "First", extra: hotel)], []);
+
+        var nested = ReadDataset("articles")["items"]![0]!["extra"]!.AsObject();
+        Assert.Equal("Inn", (string)nested["name"]!);
+        Assert.True(nested.ContainsKey("Name"));
+        Assert.Null(nested["Name"]);
+    }
+
     [Theory]
     [InlineData("https://cdn.example.com/a.png?X-Amz-Signature=abc", "extra[0].photo' signed URL was not localized")]
     [InlineData("javascript:alert(1)", "extra[0].photo' is not an http(s) URL")]

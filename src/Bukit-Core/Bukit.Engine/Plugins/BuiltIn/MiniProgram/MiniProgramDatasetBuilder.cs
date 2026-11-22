@@ -220,19 +220,27 @@ internal sealed partial class MiniProgramDatasetBuilder
             throw Invalid(target.Dataset, target.RecordId, field, $"exceeds the maximum object nesting depth of {MiniProgramKinds.MaxObjectDepth}");
         }
 
+        // Keys match exactly: a source map may ignore case (Markdown front matter does), but declared
+        // nested fields are ordinal, so name and Name are different fields.
+        var source = new Dictionary<string, object?>(StringComparer.Ordinal);
+        foreach (System.Collections.DictionaryEntry entry in map)
+        {
+            source[entry.Key as string ?? throw Invalid(target.Dataset, target.RecordId, field, "has an object key that is not a string")] = entry.Value;
+        }
+
         var values = new SortedDictionary<string, object?>(StringComparer.Ordinal);
         if (fields is null)
         {
-            foreach (System.Collections.DictionaryEntry entry in map)
+            foreach (var (key, value) in source)
             {
-                values[entry.Key as string ?? throw Invalid(target.Dataset, target.RecordId, field, "has an object key that is not a string")] = entry.Value;
+                values[key] = value;
             }
         }
         else
         {
             foreach (var key in fields.Keys)
             {
-                values[key] = map.Contains(key) ? map[key] : null;
+                values[key] = source.GetValueOrDefault(key);
             }
         }
 
