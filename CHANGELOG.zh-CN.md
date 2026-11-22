@@ -4,6 +4,8 @@ Bukit 所有重要变更都将记录在此文件中。
 
 ## [Unreleased]
 
+- **Markdown front matter 里的 YAML null 现在是真正的 null**：front matter（内容源和 `mode: data` 的 Markdown 源）里未加引号的 `null`、`Null`、`NULL`、`~` 或空值，以前会变成字符串 `"null"`、`"~"` 或 `""`，现在在任何层级都是 null：顶层键的值为 null 时视为未填写，映射或列表里的 null 保持为 null。加了引号的 `"null"` 仍是字符串。对模板的影响：Scriban 里非空字符串都是真值，所以以前 `subtitle: null` 时 `if page.subtitle` 为真并输出 `null`；现在该字段不存在，条件为假。含 null 项的列表（`sights: [a, null]`）里现在是 null 而不是字符串 `null`。确实需要字面文本的站点请加引号。
+
 - **模板里可以安全输出 JSON**：`util.json_string` 现在还会把 `<`、`>`、`&`、U+2028、U+2029 转义成 `\u003c`、`\u003e`、`\u0026`、`\u2028`、`\u2029`，值里出现 `</script>`（比如来自 Notion）时不会再提前结束主题写的 `<script type="application/ld+json">`。输出仍是合法 JSON，解码后的值不变，但凡是含这些字符的值，输出字节会变。新增 `util.to_json value`，可序列化对象、数组、字符串、数字、布尔、null 和日期，转义规则相同，对象键按序数排序（转成文本后相同的字典键，如 `1` 和 `"1"`，只保留第一个），不使用反射，Native AOT 版 `bukit` 也能用。Scriban 的 `object.to_json` 以前在 AOT 下报 BKT-0399，现在改用同一实现；它输出的对象键改为排序，不再按插入顺序。`util.*` 函数现在在主题组件和 section 里也能用，此前这些模板里没有 `util` 对象。见 [08 Themes And Templates](guide/user/08-themes-templates.md#json-in-templates)。
 
 - **注入模式保留带标记的主题 JSON-LD，删除其余的前会给出警告**：`site.seo.renderMode: inject` 下，head 里的 `<script type="application/ld+json" data-bukit-seo="keep">` 会留在主题写的位置，主题因此可以输出 Core 不生成的类型（`TouristTrip`、`Product`、`Event` 等）。未标记的 head JSON-LD 仍由 Core 的替换，但内容和 Core 生成的每一块都不同时，构建会警告 `seo.theme_json_ld_replaced route=<url> count=<n>`，不再静默删除；多页重复时汇总成 `event=diagnostics.summary`。`site.seo.diagnostics: strict` 下它仍只是警告，现有 strict 构建不受影响。主题在 head 里输出 `page.seo.json_ld` 不会触发警告，即使经过格式化或转义方式不同。警告只来自本次实际渲染的页面，增量构建中未变化的页面不会再报。发布审计会校验保留下来的 head JSON-LD（`seo.json_ld_invalid`），并把其类型计入该路由的 `schemaTypes`。body 里的 JSON-LD 以及 `theme`、`off` 模式行为不变。
