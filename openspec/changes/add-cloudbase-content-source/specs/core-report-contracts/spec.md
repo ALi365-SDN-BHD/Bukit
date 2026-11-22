@@ -6,9 +6,10 @@ Notion detection, without changing it: when a site has a `cloudbase` content sou
 SHALL treat the configured envId, any `cloud://` compat reference, the CloudBase gateway host
 (`*.api.tcloudbasegateway.com` or `*.api.intl.tcloudbasegateway.com`), and any URL whose path starts
 with the PG storage signed-download prefix `/v1/storages/object/sign/` and carries a `token`
-parameter in public output as a leak, and SHALL map it to the existing
+parameter, and the storage CDN host (`*.storage.tcloudbase.com`) in public output as a leak, and SHALL map it to the existing
 `publicOutputPrivacy=failed` result. The deployment-side `DeploymentPrivacyValidator` SHALL detect
-`cloud://` compat references, the gateway host and the signed path with `token` by fixed pattern
+`cloud://` compat references, the gateway host, the signed path with `token` and the storage CDN
+host by fixed pattern
 without reading configuration, and SHALL detect the envId only when the deploy command reads it
 from `site.yaml` and passes it in. The report schemas, the `.bukit/publish-audit-report.json`
 contract, the existing error codes and the Notion applicability rules MUST NOT change. Diagnostics

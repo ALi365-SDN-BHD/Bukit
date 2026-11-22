@@ -7,7 +7,8 @@ existing metadata, content, route, template and render dependency hashes. Becaus
 storage signed links are re-signed on every build, a CloudBase page whose body references a
 resolved file MAY be re-rendered on every incremental build; this SHALL NOT be reported as an
 error. Signed-link reporting for shared render data SHALL include CloudBase signed links (gateway
-host, `/v1/storages/object/sign/` path and `token` parameter) as a recognized signing scheme.
+host, `/v1/storages/object/sign/` path and `token` parameter, or the storage CDN host
+`*.storage.tcloudbase.com` with `token`) as a recognized signing scheme.
 Incremental behaviour of sites without a CloudBase source MUST NOT change.
 
 #### Scenario: Re-signed body image

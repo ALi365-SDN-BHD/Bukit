@@ -55,7 +55,7 @@
 | G0-1 内部消费方 | 部分通过 | 站点：travel 网站；负责人：张三。**业务理由和可验证的验收标准待用户补充**，补齐前本项不算完全通过。 |
 | G0-2 Core 任务授权 | 通过 | 用户明确授权把本变更作为一个独立的、用户可见的 Core 任务实施。按方案第 2 节照抄说明：`AGENTS.md` 的 Website/Core 隔离规则字面上针对的是缺陷修复，把它用在新增能力上是类推，不是规则原文。 |
 | G0-3 数据形态 | 通过 | 环境为 PG 模式（用户确认）。数据是 `public` schema 里的 PostgreSQL 表或视图，通过 PostgREST 读取。文档写明 PG 模式不支持数据模型（"PG 模式环境暂不支持"），所以不读数据模型；配置用 `table`，不再有 `kind`（D4）。 |
-| G0-4 鉴权 | 通过（按文档机制；数据库角色层已实测，网关层待验证） | 凭据是 Publishable Key（JWT `role: anon`），从环境变量 `CLOUDBASE_PUBLISHABLE_KEY` 或 `--secrets-stdin` 读取（D5）。只读靠两层：表上 `GRANT SELECT ... TO anon` 加 ADMINWRITE 模式的 RLS `FOR SELECT` 策略，存储上 `storage.objects` 的 `FOR SELECT TO anon` 策略。机制是**文档**写明的。2026-11-23 在 PG 模式试用环境里**实测**：数据库角色层 `anon` 加 RLS 只返回已发布行；网关加 Publishable Key 的验证等用户提供密钥，在 T10 冒烟前完成。凭据的 `role` 是 `service_role` 时 `doctor` 报 `CloudBaseAdminCredentialInUse`。 |
+| G0-4 鉴权 | 通过（文档 + 实测） | 凭据是 Publishable Key（JWT `role: anon`），从环境变量 `CLOUDBASE_PUBLISHABLE_KEY` 或 `--secrets-stdin` 读取（D5）。只读靠两层：表上 `GRANT SELECT ... TO anon` 加 ADMINWRITE 模式的 RLS `FOR SELECT` 策略，存储上 `storage.objects` 的 `FOR SELECT TO anon` 策略。机制是**文档**写明的。2026-11-23 在 PG 模式试用环境里**实测**：网关 + Publishable Key + RLS 下草稿行被隐藏，计数、分页、过滤和批量签名都正常，缺失对象在批量签名里返回单项 `error`。凭据的 `role` 是 `service_role` 时 `doctor` 报 `CloudBaseAdminCredentialInUse`。 |
 | G0-5 Transport | 通过 | 自己写只依赖 BCL 的 transport。证据：`Tencent.CloudBase` 1.0.1 的 PublishAot 试编译有 5 条警告（IL3050×3、IL2026×2），并引入 3 个 Microsoft.Extensions 依赖。 |
 | G0-6 签名链接 | 通过（文档 + 实测） | 签名链接 = 网关主机 `{envId}.api[.intl].tcloudbasegateway.com` + 路径 `/v1/storages/object/sign/{bucket}/{object}` + 查询参数 `token`（**文档**，2026-11-23 **实测**）。签名响应的 `signedURL` 是相对路径，`fullSignedURL` 可能不存在：有就用它，否则网关源加 `signedURL`，并校验协议、主机和路径前缀。兑换不需要 Authorization，境内和境外主机都返回 200。批量签名单次最多 500 个，`expiresIn` 单位秒；上限没有文档，P1 取默认 3600、范围 60～3600。主机、路径前缀、参数名集中定义在一处，真实环境核实后再调整（D10）。 |
 
@@ -70,17 +70,18 @@ OpenAPI 明确写出；**推断** = 未见于任何官方材料的结论。
    envId 字符集没有文档定义，示例都是小写字母、数字和连字符（推断为 DNS 标签）。
 3. **PostgREST 读接口（文档）**：`GET /v1/rdb/rest/{table}`，查询参数 `select`、`order`（`field.asc|desc`，可多个）、`limit`、`offset`；
    等值过滤写成 `col=eq.value`，请求前做 URL 编码；请求头 `Prefer: count=exact` 时响应头 `Content-Range` 给出总数（如 `0-9/100`）；
-   `HEAD` 同一路径可只取总数。只支持 `public` schema。单次返回行数上限没有文档。错误体 `{code, message, details, hint}`；
+   `HEAD` 同一路径可只取总数。只支持 `public` schema。单次返回行数上限没有文档。错误体文档写的是 `{code, message, details, hint}`，**实测**是 `{code, message, requestId}`，所以 `details`/`hint` 可选，码可能是 `DATABASE_PGRST*`（表不存在：404 `DATABASE_PGRST205`）；
    网关码 `PERMISSION_DENIED`（401/403）、`RESOURCE_NOT_FOUND`（404）等。`anon` 角色的 `statement_timeout` 是 3 秒。
    `200 []` 可能是 RLS 静默过滤的结果，不能当作"表里没有内容"的证据。
 4. **鉴权（文档）**：`Authorization: Bearer <key>`。PG 模式的 Publishable Key、API Key、Access Token 都是 JWT，网关读其中的
-   `role`（`anon`、`authenticated`、`service_role`）。Publishable Key 不过期、可以嵌入前端，权限等于 `anon` 被授予的权限；
+   `role`（`anon`、`authenticated`、`service_role`）。Publishable Key 实际上不过期（**实测** JWT 带 `role: anon`、`is_anonymous: true`，`exp` 在约 73 年后）、可以嵌入前端，权限等于 `anon` 被授予的权限；
    API Key 是 `service_role`，带 BYPASSRLS，严禁暴露。只读的最小权限组合是 Publishable Key + `GRANT SELECT` + ADMINWRITE RLS 策略。
 5. **存储批量签名（文档）**：`POST /v1/storages/object/sign/{bucketId}`，请求体 `{expiresIn: 秒, ≥1, paths: 对象名[], ≤500}`，
    响应 `[{error, path, signedURL, fullSignedURL}]`，单项失败在 `error` 里表示。需要 `storage.objects` 上的 SELECT 策略。
    兑换签名链接 `GET .../sign/{bucket}/{object}?token=...` 不需要 Authorization。文档里兑换路径模板漏了 `/{objectName}`，
    所以不自己拼对象路径。**实测**：`signedURL` 是相对路径 `/v1/storages/object/sign/{bucket}/{object}?token=<JWT>`，CLI 的签名输出里没有 `fullSignedURL`；
    兑换不带 Authorization 时境内和境外主机都返回 200，篡改或缺少 `token` 返回 401（`STORAGE_INVALID_JWT`）；`token` 是带 `exp`、`iat`、`url` 的 JWT，有效期等于 `expiresIn`。
+   **实测**：HTTP 批量签名还返回 `fullSignedURLForCDN`（`https://{envId}.storage.tcloudbase.com/{bucket}/{object}?token=…`，能兑换）。provider 不用它，只校验网关一个主机；但签名识别和输出检测要覆盖这个 CDN 主机。
    规则：有 `fullSignedURL` 用它，否则网关源加 `signedURL`；都校验 https、主机等于网关主机、路径以 `/v1/storages/object/sign/{storageBucket}/` 开头。
 6. **文件引用（文档 + 推断）**：PG 存储 API 的路径参数是桶内对象名，不是 `cloud://`。文档的兼容示例里出现过
    `cloud://<env-id>.<bucket>/<path>`，所以也接受这种形式；`<env>.<bucket>` 的拆分规则没有文档，因为 envId 不含 `.`，按第一个 `.` 拆分（推断）。

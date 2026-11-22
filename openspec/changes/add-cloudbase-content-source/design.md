@@ -32,7 +32,7 @@ G0 的结论和 Phase 0 调研见 proposal.md。环境为 PG 模式（用户确�
 
 见方案第 12 节。另加：
 
-- 签名链接的形状已在 PG 模式试用环境实测（`signedURL` 是相对路径，`fullSignedURL` 可能不存在）；鉴权在数据库角色层实测，网关加 Publishable Key 待用户提供密钥后验证。
+- 签名链接的形状已在 PG 模式试用环境实测（`signedURL` 是相对路径，`fullSignedURL` 可能不存在）；鉴权（网关 + Publishable Key + RLS）已实测。签名响应还有存储 CDN 形式 `fullSignedURLForCDN`，provider 不用它，但签名识别、输出检测和 D8 ⑤ 都覆盖 `*.storage.tcloudbase.com`。
 - RLS 可能静默过滤掉全部行，PostgREST 返回 `200 []`；`doctor` 给出提示，`build` 不把空结果当错误。
 - PostgREST 单次行数上限和签名链接有效期上限都没有文档；P1 取 `pageSize` ≤ 1000、`signExpiresSeconds` ≤ 3600。
 - 传统模式环境（数据模型）不在 P1 范围内，可以在 P2 增加。

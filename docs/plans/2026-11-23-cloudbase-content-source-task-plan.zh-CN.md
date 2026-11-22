@@ -2,9 +2,9 @@
 
 > **执行方式：** 任务一个接一个做，每个任务单独验证、单独提交。提交的写法见第 0 节第 4 条。没有授权时，不 push、不开 PR、不发布，也不跑 full/release gate。
 >
-> **状态：** 执行中。2026-11-23 起按用户授权开始执行。G0-1～G0-5 已记录：G0-1 的业务理由和验收标准待用户补充；G0-4 按文档化的机制通过（Publishable Key + ADMINWRITE）；数据库角色层（`anon` + RLS 只返回已发布行）已在真实环境验证，网关加 Publishable Key 的验证等用户提供密钥。G0-6 已按文档解决，并已在真实环境验证（2026-11-23 探测）。记录见 openspec `add-cloudbase-content-source` 的 proposal。门禁规则：**G0-1～G0-5 没通过，不能开始 T00；G0-6 没通过，不能开始 T06。**
+> **状态：** 执行中。2026-11-23 起按用户授权开始执行。G0-1～G0-5 已记录：G0-1 的业务理由和验收标准待用户补充；G0-4 已在真实环境验证（2026-11-23：网关 + Publishable Key + RLS，草稿行被隐藏，计数、分页、过滤和批量签名都正常）。G0-6 已按文档解决，并已在真实环境验证（2026-11-23 探测）。记录见 openspec `add-cloudbase-content-source` 的 proposal。门禁规则：**G0-1～G0-5 没通过，不能开始 T00；G0-6 没通过，不能开始 T06。**
 >
-> **修订：** v4（2026-11-23）。v2 按第一轮独立审计（Critical 1 / Important 12 / Minor 15）修订，v3 按第二轮严格审计（Critical 0 / Important 11 / Minor 10）修订，v4 按用户确认的 PG 模式和 PG 模式公开文档调研修订（T01、T03、T04、T06、T08、T09 的测试和步骤随之调整），处置和变更记录见方案附录 A、B、C。
+> **修订：** v4（2026-11-23）。v2 按第一轮独立审计（Critical 1 / Important 12 / Minor 15）修订，v3 按第二轮严格审计（Critical 0 / Important 11 / Minor 10）修订，v4 按用户确认的 PG 模式和 PG 模式公开文档调研修订，v4.1 补入 2026-11-23 的真实环境实测结果（T01、T03、T04、T06、T08、T09 的测试和步骤随之调整），处置和变更记录见方案附录 A、B、C。
 >
 > **依据：**
 > - [实施方案](2026-11-23-cloudbase-content-source-implementation-design.zh-CN.md)，下文简称"方案"。D1～D18 指方案第 4 节的决策。
@@ -165,7 +165,7 @@ Phase 0（S1～S4） ──> G0-1～G0-5 ──> T00
 
 **负责人：** 方案负责人和消费方。
 
-**产出：** 调研结论，写进 T00 创建的 openspec proposal 的"调研结果"一节。S1～S3 已按 PG 模式的公开文档完成。S3 已在真实环境验证（2026-11-23 探测）；S1 中网关加 Publishable Key 的 PostgREST 读取等用户提供密钥后验证，最晚在 T10；S4 待消费方提供样本。
+**产出：** 调研结论，写进 T00 创建的 openspec proposal 的"调研结果"一节。S1～S3 已按 PG 模式的公开文档完成。S1（网关 + Publishable Key 的 PostgREST 读取）、S2（凭据角色）和 S3 已在真实环境验证（2026-11-23 探测）；S4 待消费方提供样本。
 
 | 调研 | 内容 | 完成标准 |
 |---|---|---|
@@ -464,7 +464,7 @@ Phase 0（S1～S4） ──> G0-1～G0-5 ──> T00
    - JWT `role` 解码（只解码 payload，不验签）：`anon`、`service_role`、缺少 `role`、不是三段、base64url 或 JSON 畸形，都不抛出未处理异常，只返回诊断结果；
    - 429 和 5xx 按指数退避重试，最多 `maxRetries` 次；
    - 限速符合 `maxRps`；
-   - 401、403、404 映射到对应的 `CloudBaseErrorKind`，错误体 `{code, message, details, hint}` 只取 `code`（transport 不引用 `Bukit.Shared`，不产生 `DiagnosticCode`，见 D2）；
+   - 401、403、404 映射到对应的 `CloudBaseErrorKind`，错误体只取 `code`（实测形状是 `{code, message, requestId}`；`details`、`hint` 可选，码可能是 `DATABASE_PGRST*`，例如表不存在时 404 `DATABASE_PGRST205`）（transport 不引用 `Bukit.Shared`，不产生 `DiagnosticCode`，见 D2）；
    - 响应体超过上限或 JSON 畸形时，产生 `CloudBaseErrorKind` 的响应无效类（T04 映射成 `CloudBaseResponseInvalid`，D2）；
    - 所有异常和日志文本里都不含凭据、`token`、签名链接和查询串（AC7、D14）。
 3. 实现 transport。JSON 一律用源生成，以兼容 AOT，不用反射序列化。
@@ -608,8 +608,8 @@ Phase 0（S1～S4） ──> G0-1～G0-5 ──> T00
 **文件：**
 
 - 新建：`Bukit.Content/CloudBase/CloudBaseFileResolver.cs`
-- 修改：`Bukit.Content/Media/SignedUrlIdentity.cs`。新增 CloudBase 规则（D10）：主机匹配 `*.api.tcloudbasegateway.com` / `*.api.intl.tcloudbasegateway.com`，路径以 `/v1/storages/object/sign/` 开头时去掉 `token`；不读过期时间。
-- 修改：`Bukit.Config/ProviderValidators.cs`。实现 D8 第 ⑤ 条：`downloadHosts` 和 `skipHosts` 不能把网关主机 `{envId}.api[.intl].tcloudbasegateway.com` 排除在外，违反时报 `CloudBaseMediaLocalizationRequired`。
+- 修改：`Bukit.Content/Media/SignedUrlIdentity.cs`。新增 CloudBase 规则（D10）：主机匹配 `*.api.tcloudbasegateway.com` / `*.api.intl.tcloudbasegateway.com`，路径以 `/v1/storages/object/sign/` 开头时去掉 `token`；存储 CDN 主机 `*.storage.tcloudbase.com`（路径 `/{bucket}/{object}`，无固定前缀）也去掉 `token`；不读过期时间。
+- 修改：`Bukit.Config/ProviderValidators.cs`。实现 D8 第 ⑤ 条：`downloadHosts` 和 `skipHosts` 不能把网关主机 `{envId}.api[.intl].tcloudbasegateway.com` 和存储 CDN 主机 `{envId}.storage.tcloudbase.com` 排除在外，违反时报 `CloudBaseMediaLocalizationRequired`。
 - 修改：`guide/user/04-site-yaml-config.md`。在签名方案表里加一行。
 - 测试：`tests/Bukit.Content.Tests/`、`tests/Bukit.Config.Tests/`、`tests/Bukit.Engine.Tests/`（小程序签名链接拦截）。
 
@@ -621,12 +621,14 @@ Phase 0（S1～S4） ──> G0-1～G0-5 ──> T00
    - 签名链接取值：响应有 `fullSignedURL` 时用它；没有时用网关源 `https://{envId}.api[.intl].tcloudbasegateway.com` 拼上相对的 `signedURL`（两种都要有用例，后者是实测的形状）；
    - 签名链接不是 https、主机不是配置的网关主机，或路径不以 `/v1/storages/object/sign/{storageBucket}/` 开头时，该条按 `CloudBaseFileResolveFailed` 处理，不下载；
    - 兑换签名链接的下载请求不带 Authorization；
+   - 签名响应里同时有 `fullSignedURLForCDN` 时，provider 仍用网关形式，不用 CDN 形式（只校验一个主机）；
    - `cloud://` 兼容形式按第一个 `.` 拆出 envId 和桶名，与配置不一致时不换链；对象名不合规（空、以 `/` 开头、含 `//` 或 `..`）时不换链；
    - D17：正文里指向非图片的 `[pdf](cloud://…/a.pdf)` 降级为纯文本；不在 `fileFields` 里的公开字段含 `cloud://` 时整个值被丢弃；两种情况都报 `CloudBaseUnsupportedFileReference`；
    - 批量响应里单项 `error` 不为空时报 `CloudBaseFileResolveFailed`，并且能定位到失败的条目；
    - 换链失败的取值（D17）：单项 `error`、协议/主机/路径前缀不符、`cloud://` 的 envId 或桶名不一致、对象名不合规，这几种失败各写一个用例，分别覆盖 `fileFields` 里的对象名（如 `posts/a.png`）和正文里的 `cloud://` 图片。断言：构建产物里出现 `content.media.defaultImageUrl` 占位图；产物里没有该对象名、`cloud://` 和 envId；报 `CloudBaseFileResolveFailed`；
-   - `SignedUrlIdentity.IdentityTarget` 对网关主机加签名路径的链接去掉 `token`；别的主机上同样路径和 `token` 的链接身份不变；CloudBase 签名链接被拒绝时照常重试（不读过期时间）；
-   - `MiniProgramJson.IsSignedUrl` 能识别 CloudBase 签名链接和 `cloud://` 兼容形式；
+   - `SignedUrlIdentity.IdentityTarget` 对网关主机加签名路径的链接去掉 `token`；存储 CDN 形式 `https://{envId}.storage.tcloudbase.com/{bucket}/{object}?token=…` 同样去掉 `token`，两次重签解析到同一个本地文件；别的主机上同样路径和 `token` 的链接身份不变；CloudBase 签名链接被拒绝时照常重试（不读过期时间）；
+   - `MiniProgramJson.IsSignedUrl` 能识别 CloudBase 签名链接（网关形式和存储 CDN 形式）和 `cloud://` 兼容形式；
+   - 正文里作者写好的存储 CDN 签名链接走现有媒体本地化，`skipHosts` 排除 CDN 主机时报 `CloudBaseMediaLocalizationRequired`；
    - D8 第 ⑤ 条的失败用例；
    - 下载失败时落到占位图；
    - 构建产物里没有 `cloud://`、envId、网关主机和签名链接（AC5）。
@@ -662,8 +664,8 @@ Phase 0（S1～S4） ──> G0-1～G0-5 ──> T00
 
 1. `queue acquire --task T07`，然后运行 closure 和 classify。
 2. 先写测试：
-   - 公开 HTML 或 JSON Feed 里出现 envId、`cloud://` 兼容形式、网关主机，或签名路径加 `token` 时，构建阶段检测会失败（AC6）；
-   - 部署暂存目录里出现 `cloud://`、网关主机或签名路径加 `token` 时，部署校验失败，不需要配置；deploy 命令传入 envId 时，envId 也能检测到；
+   - 公开 HTML 或 JSON Feed 里出现 envId、`cloud://` 兼容形式、网关主机、签名路径加 `token`，或存储 CDN 主机 `*.storage.tcloudbase.com` 时，构建阶段检测会失败（AC6）；
+   - 部署暂存目录里出现 `cloud://`、网关主机、签名路径加 `token` 或存储 CDN 主机时，部署校验失败，不需要配置；deploy 命令传入 envId 时，envId 也能检测到；
    - 发布审计报告 `.bukit/publish-audit-report.json` 的结构不变；
    - 投影策略和 JSON Feed 会过滤掉 CloudBase 来源的敏感实体；
    - 正文里如果有每次构建都会变的签名链接，语义哈希不应因此改变。只有确认确实需要时才改 hasher。
@@ -704,7 +706,7 @@ Phase 0（S1～S4） ──> G0-1～G0-5 ──> T00
    - 连通性正常和失败；
    - 凭据缺失；
    - 401 和 403；
-   - 表可达性：用 `HEAD /v1/rdb/rest/{table}` 加 `Prefer: count=exact` 取总数；表或视图不存在时报 `CloudBaseNotFound`；
+   - 表可达性：用 `HEAD /v1/rdb/rest/{table}` 加 `Prefer: count=exact` 取总数；表或视图不存在（404，实测码 `DATABASE_PGRST205`）时报 `CloudBaseNotFound`；
    - 表可达但总数为 0：输出 RLS 静默过滤的提示，不报错，不新增诊断码；
    - 映射的字段在样本行里不存在；
    - 凭据的 JWT `role` 是 `service_role` 时报 `CloudBaseAdminCredentialInUse` 警告；`role` 缺失或无法解析时同样警告；`anon` 时不警告（AC8、D5）；
@@ -796,7 +798,7 @@ Phase 0（S1～S4） ──> G0-1～G0-5 ──> T00
    ```
 
    然后用伪造的配置跑一次 `config check`。没有授权时，改用 `dotnet run` 做一次端到端，并在最终报告里写明"AOT 未验证"。
-5. **真实环境冒烟（需要授权，用消费方的测试环境）。** 运行 `doctor` 和 `build`，确认 AC5、AC6 在真实数据上成立；同时核实 G0-4 的网关层（Publishable Key 走网关时，GRANT 和 RLS 能收窄到只读；数据库角色层已实测）和 HTTP 批量签名接口是否返回 `fullSignedURL`（G0-6 的链接形状已实测）。不符时按第 5 节的风险表处理。结果脱敏后记录。
+5. **真实环境冒烟（需要授权，用消费方的测试环境）。** 运行 `doctor` 和 `build`，确认 AC5、AC6 在真实数据上成立；在消费方的环境里复核 G0-4 和 G0-6（两者已在 2026-11-23 的试用环境实测通过，包括 HTTP 批量签名返回 `fullSignedURL` 和 `fullSignedURLForCDN`）。不符时按第 5 节的风险表处理。结果脱敏后记录。
 6. **统一审查。** 转到 `review_wait`。用第 4 节生成的每个任务的证据文件和共用的问题文件，每个任务一个 `--evidence`，每个变更文件一个 `--changed`：
 
    ```bash
@@ -875,7 +877,7 @@ BukitJalil 按固定表给 BKT 码分类。本计划合入之后，要把下面�
 - [ ] T03：transport（PostgREST 查询、`Content-Range`、存储批量签名、JWT `role` 解码；只产生 `CloudBaseErrorKind`；主机名断言）；新项目登记全部完成（项目数 19、受治理程序集和 `GovernedAssemblyCount` 19、覆盖率清单、测试项目数 14）；覆盖率不低于 70%；没有 AOT 警告
 - [ ] T05：不可信链接模式（包括自动链接、引用定义、大小写和实体编码）；`#片段` 和相对链接保留；默认行为不变
 - [ ] T04：provider；硬性剔除；错误映射；占位图检查；端到端；body store 打开安全模式
-- [ ] T06：文件对象批量签名（500 一批；`fullSignedURL` 或网关源加相对 `signedURL`；协议、主机和路径前缀校验）和 D17 降级；签名链接规则（网关主机 + 签名路径 + `token`）；D8 第 ⑤ 条
+- [ ] T06：文件对象批量签名（500 一批；`fullSignedURL` 或网关源加相对 `signedURL`；协议、主机和路径前缀校验）和 D17 降级；签名链接规则（网关主机 + 签名路径 + `token`；存储 CDN 主机 + `token`）；D8 第 ⑤ 条
 - [ ] T07：隐私检测与过滤；`Bukit.Config` 内部可见性；部署阶段检测
 - [ ] T08：doctor（`role` 警告、表可达、RLS 空结果提示、存储签名）
 - [ ] T09：用户、开发、技能、排错文档；三语 CHANGELOG

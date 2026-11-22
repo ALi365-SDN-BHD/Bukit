@@ -48,7 +48,8 @@ unless `content.media.downloadToLocal` is not `false`, every file field is liste
 image field. When the placeholder image is missing, `build` SHALL fail with
 `CloudBaseConfigInvalid`, and `config check` and `doctor` SHALL report a warning. When
 `content.media.downloadHosts` or `skipHosts` would exclude the environment's gateway host
-(`{envId}.api.tcloudbasegateway.com` or `{envId}.api.intl.tcloudbasegateway.com`), validation SHALL
+(`{envId}.api.tcloudbasegateway.com` or `{envId}.api.intl.tcloudbasegateway.com`) or its storage CDN
+host (`{envId}.storage.tcloudbase.com`), validation SHALL
 fail with `CloudBaseMediaLocalizationRequired`.
 
 #### Scenario: Keep on failure
@@ -137,7 +138,10 @@ the PG storage batch-sign interface with at most 500 paths per request and an ex
 `signExpiresSeconds`. The signed link SHALL be the returned `fullSignedURL` when present, otherwise
 the environment's gateway origin followed by the returned relative `signedURL`; either way it SHALL be
 used only when it is `https`, its host equals the environment's gateway host and its path starts with
-`/v1/storages/object/sign/<storageBucket>/`. Downloading a signed link SHALL NOT send the credential. Signed links SHALL be downloaded locally within
+`/v1/storages/object/sign/<storageBucket>/`. The CDN form returned as `fullSignedURLForCDN` SHALL NOT
+be used, so that only one host has to be validated. Body https links already written in the gateway
+or storage CDN signed form SHALL go through existing media localization. Downloading a signed link
+SHALL NOT send the credential. Signed links SHALL be downloaded locally within
 the same build. A `cloud://` reference in any other position SHALL NOT be resolved: a non-image body
 link SHALL be rendered as plain text, and a public field outside `fileFields` whose value contains
 `cloud://` SHALL be dropped, both with the warning `CloudBaseUnsupportedFileReference`. A failed
@@ -146,7 +150,7 @@ wrong scheme, host or path, a compat reference whose environment or bucket does 
 invalid object name) SHALL report `CloudBaseFileResolveFailed`, identify the failing entry, and
 replace the field value or body image URL with the configured media placeholder
 (`content.media.defaultImageUrl`); the object name or `cloud://` reference SHALL NOT be kept. Published output SHALL NOT contain
-`cloud://`, the envId, the gateway host or a signed link.
+`cloud://`, the envId, the gateway host, the storage CDN host or a signed link.
 
 #### Scenario: Cover image localized
 - **WHEN** a row's `cover` file field holds the object name `posts/a.png` that signs and downloads
@@ -164,6 +168,10 @@ replace the field value or body image URL with the configured media placeholder
 - **WHEN** a batch-sign entry has no `fullSignedURL` and a relative `signedURL` of `/v1/storages/object/sign/media/posts/a.png?token=…`
 - **THEN** the image is downloaded from the environment's gateway host at that path without an `Authorization` header
 
+#### Scenario: CDN form ignored
+- **WHEN** a batch-sign entry carries both `fullSignedURL` and `fullSignedURLForCDN`
+- **THEN** the image is downloaded from the `fullSignedURL` gateway link and the CDN link is not used
+
 #### Scenario: Non-image body link degraded
 - **WHEN** a body contains `[pdf](cloud://env.bucket/a.pdf)`
 - **THEN** the link is rendered as plain text and `CloudBaseUnsupportedFileReference` is reported
@@ -178,9 +186,10 @@ replace the field value or body image URL with the configured media placeholder
 
 ### Requirement: Public output privacy detects CloudBase identifiers
 The build-time public output privacy check SHALL fail when public output contains the configured
-envId, a `cloud://` compat reference, the CloudBase gateway host, or a URL on the PG storage
-signed-download path carrying a `token` parameter. The deployment privacy validator SHALL detect
-`cloud://` references, the gateway host and the signed path with `token` without configuration,
+envId, a `cloud://` compat reference, the CloudBase gateway host, a URL on the PG storage
+signed-download path carrying a `token` parameter, or the storage CDN host
+(`*.storage.tcloudbase.com`). The deployment privacy validator SHALL detect `cloud://` references,
+the gateway host, the signed path with `token` and the storage CDN host without configuration,
 and SHALL detect the envId when the deploy command passes it.
 
 #### Scenario: envId leaks into a page

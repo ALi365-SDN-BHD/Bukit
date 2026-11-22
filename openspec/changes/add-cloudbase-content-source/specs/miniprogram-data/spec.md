@@ -6,7 +6,8 @@ URLs under the site URL or the original external host. When a written image- or 
 still carries an expiring signature (`X-Amz-Signature`, `X-Amz-Credential`, `Signature` or
 `Expires` query parameter), is a CloudBase PG storage signed link (a host matching
 `*.api.tcloudbasegateway.com` or `*.api.intl.tcloudbasegateway.com` with a path that starts with
-`/v1/storages/object/sign/`), or is a CloudBase `cloud://` reference, the build SHALL fail with
+`/v1/storages/object/sign/`, or a host matching `*.storage.tcloudbase.com` with a `token` query
+parameter), or is a CloudBase `cloud://` reference, the build SHALL fail with
 `SchemaValidationFailed` naming the dataset, record id and field. Links to pages that have
 mini-program detail records SHALL carry `data-bukit-id` with the target id.
 
@@ -28,6 +29,10 @@ mini-program detail records SHALL carry `data-bukit-id` with the target id.
 
 #### Scenario: Unlocalized CloudBase signed link
 - **WHEN** a `records` dataset backed by a `cloudbase` source has an `image` field whose value is still `https://env-abc.api.tcloudbasegateway.com/v1/storages/object/sign/media/a.png?token=…`
+- **THEN** the build fails with `SchemaValidationFailed` naming that dataset, record and field
+
+#### Scenario: Unlocalized CloudBase CDN signed link
+- **WHEN** a `records` dataset has an `image` field whose value is still `https://env-abc.storage.tcloudbase.com/media/a.png?token=…`
 - **THEN** the build fails with `SchemaValidationFailed` naming that dataset, record and field
 
 #### Scenario: CloudBase compat reference in a body
