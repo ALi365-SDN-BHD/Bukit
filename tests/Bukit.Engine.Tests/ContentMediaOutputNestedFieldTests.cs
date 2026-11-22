@@ -19,7 +19,7 @@ public sealed class ContentMediaOutputNestedFieldTests
         {
             var config = new AppConfig
             {
-                Site = new SiteConfig { Name = "t", Title = "t", BaseUrl = "/", Url = "https://example.com" },
+                Site = new SiteConfig { Name = "t", Title = "t", BaseUrl = "/blog", Url = "https://example.com" },
                 Content = new ContentConfig { Media = new MediaConfig { DownloadToLocal = true } }
             };
             var context = new BuildVariantContext(
@@ -30,7 +30,7 @@ public sealed class ContentMediaOutputNestedFieldTests
                 CanonicalContentGraph.Empty,
                 NullContentBodyStore.Instance,
                 Path.Combine(root, "dist"),
-                "/",
+                "/blog",
                 root,
                 root,
                 root,
@@ -62,7 +62,18 @@ public sealed class ContentMediaOutputNestedFieldTests
             var days = Assert.IsType<List<object?>>(normalized.CustomFields!["days"].Value);
             var normalizedDay = Assert.IsType<Dictionary<string, object?>>(days[0]);
             Assert.Equal("D1", normalizedDay["TITLE"]);
-            Assert.Equal(new object?[] { "/assets/uploads/day.jpg", null }, Assert.IsType<List<object?>>(normalizedDay["photos"]));
+            Assert.Equal(new object?[] { "/blog/assets/uploads/day.jpg", null }, Assert.IsType<List<object?>>(normalizedDay["photos"]));
+            Assert.Equal("/assets/uploads/day.jpg", ((List<object?>)day["photos"]!)[0]);
+
+            var indexedField = new Dictionary<string, object> { ["value"] = new List<object?> { new Dictionary<string, object?> { ["image"] = "/assets/uploads/day.jpg" } } };
+            var pages = new Dictionary<string, object>
+            {
+                ["page"] = new Dictionary<string, object> { ["fields"] = new Dictionary<string, object> { ["days"] = indexedField } }
+            };
+            output.NormalizeIndexedPages(pages);
+            var indexedDay = Assert.IsType<Dictionary<string, object?>>(Assert.IsType<List<object?>>(indexedField["value"])[0]);
+            Assert.Equal("/blog/assets/uploads/day.jpg", indexedDay["image"]);
+
             var planned = Assert.Single(output.Plan(new ConsoleLogger(LogLevel.Error), CancellationToken.None));
             Assert.Equal("assets/uploads/day.jpg", planned.Destination);
         }

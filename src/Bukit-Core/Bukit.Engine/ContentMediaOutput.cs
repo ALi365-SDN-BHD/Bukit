@@ -69,25 +69,69 @@ internal sealed partial class ContentMediaOutput(BuildVariantContext context) : 
                 continue;
             foreach (var field in fields.Values.OfType<IDictionary<string, object>>())
             {
-                if (field.TryGetValue("value", out var value)) field["value"] = RewriteValue(value, collect: true)!;
+                if (!field.TryGetValue("value", out var value)) continue;
+                // A plugin's read-only list (not List or array) keeps its earlier treatment: text items only.
+                field["value"] = value is IReadOnlyList<object> other and not List<object?> and not object?[] and not IReadOnlyList<string>
+                    ? other.Select(item => item is string text ? RewriteUrl(text, collect: true) : item).ToArray()
+                    : RewriteValue(value, collect: true)!;
             }
         }
     }
 
     // Localized media links are rewritten (and collected for copying) at any depth, so a link inside
-    // an object field, such as days[0].photo, is published as one at the top level is.
-    private object? RewriteValue(object? value, bool collect) => value switch
+    // an object field, such as days[0].photo, is published as one at the top level is. A mapping or
+    // list is copied only when something in it changed.
+    private object? RewriteValue(object? value, bool collect)
     {
-        string text => RewriteUrl(text, collect),
-        IReadOnlyList<string> texts => texts.Select(text => RewriteUrl(text, collect)).ToArray(),
-        IDictionary<string, object?> map => map.ToDictionary(
-            pair => pair.Key,
-            pair => RewriteValue(pair.Value, collect),
-            (map as Dictionary<string, object?>)?.Comparer ?? StringComparer.Ordinal),
-        List<object?> items => items.Select(item => RewriteValue(item, collect)).ToList(),
-        object?[] items => items.Select(item => RewriteValue(item, collect)).ToArray(),
-        _ => value
-    };
+        switch (value)
+        {
+            case string text:
+                return RewriteUrl(text, collect);
+            case IReadOnlyList<string> texts:
+                return texts.Select(text => RewriteUrl(text, collect)).ToArray();
+            case IDictionary<string, object?> map:
+                Dictionary<string, object?>? mapCopy = null;
+                foreach (var (key, item) in map)
+                {
+                    var rewritten = RewriteValue(item, collect);
+                    if (!Equals(rewritten, item))
+                    {
+                        mapCopy ??= new Dictionary<string, object?>(map, (map as Dictionary<string, object?>)?.Comparer ?? StringComparer.Ordinal);
+                        mapCopy[key] = rewritten;
+                    }
+                }
+
+                return mapCopy ?? value;
+            case List<object?> list:
+                List<object?>? listCopy = null;
+                for (var index = 0; index < list.Count; index++)
+                {
+                    var rewritten = RewriteValue(list[index], collect);
+                    if (!Equals(rewritten, list[index]))
+                    {
+                        listCopy ??= [.. list];
+                        listCopy[index] = rewritten;
+                    }
+                }
+
+                return listCopy ?? value;
+            case object?[] array:
+                object?[]? arrayCopy = null;
+                for (var index = 0; index < array.Length; index++)
+                {
+                    var rewritten = RewriteValue(array[index], collect);
+                    if (!Equals(rewritten, array[index]))
+                    {
+                        arrayCopy ??= [.. array];
+                        arrayCopy[index] = rewritten;
+                    }
+                }
+
+                return arrayCopy ?? value;
+            default:
+                return value;
+        }
+    }
 
     internal IReadOnlyList<AssetOutputItem> Plan(ILogger logger, CancellationToken cancellationToken)
     {
