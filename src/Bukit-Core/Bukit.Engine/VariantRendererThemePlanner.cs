@@ -61,13 +61,15 @@ internal static class VariantRendererThemePlanner
                 null,
                 config.Theme.ComponentValidation,
                 allPagesForSections,
-                resolvedSectionPlugins)
+                resolvedSectionPlugins,
+                templateLoopLimit: config.Build.TemplateLoopLimit)
             : new ScribanTemplateRendererAdapter(
                 context.LayoutsDir,
                 context.ParentLayoutsDir,
                 config.Theme.Shortcodes,
                 config.Theme.Components,
-                context.UserLayoutsDir);
+                context.UserLayoutsDir,
+                templateLoopLimit: config.Build.TemplateLoopLimit);
     }
 
     internal static (string? ThemeRoot, string? ParentThemeRoot) GetThemeRootForTokens(

@@ -17,7 +17,7 @@ internal static class ConfigStrictFieldValidator
     private static readonly HashSet<string> ContentKeys = Set("sources", "media", "modelSchema", "routeMetadata", "ordering");
     private static readonly HashSet<string> BuildKeys = Set(
         "output", "clean", "draft", "listPageContentMode", "schemaFailMode", "fingerprintMode",
-        "publishDotFiles", "followSymlinks", "languageJobs", "report");
+        "publishDotFiles", "followSymlinks", "languageJobs", "templateLoopLimit", "report");
     private static readonly HashSet<string> BuildReportKeys = Set("enabled", "securityFailMode");
     private static readonly HashSet<string> ThemeKeys = Set(
         "name", "layouts", "assets", "static", "staticTemplate", "params", "shortcodes",

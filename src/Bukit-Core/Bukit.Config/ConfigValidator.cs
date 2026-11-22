@@ -147,6 +147,11 @@ public static class ConfigValidator
             throw new ConfigException("build.fingerprintMode must be size-time|sha256.", DiagnosticCode.ConfigInvalidValue);
         }
 
+        if (config.Build.TemplateLoopLimit < 1)
+        {
+            throw new ConfigException("build.templateLoopLimit must be a positive integer.", DiagnosticCode.ConfigInvalidValue);
+        }
+
         var securityFailMode = (config.Build.Report.SecurityFailMode ?? "auto").Trim().ToLowerInvariant();
         if (securityFailMode is not ("auto" or "off" or "warn" or "strict"))
         {

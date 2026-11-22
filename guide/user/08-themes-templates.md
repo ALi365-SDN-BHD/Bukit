@@ -138,6 +138,37 @@ Scriban's built-in `object.to_json` uses reflection that the Native AOT
 <script type="application/ld+json" data-bukit-seo="keep">{{ trip | util.to_json }}</script>
 ```
 
+## Loop Limit
+
+Scriban stops a template that runs too many loop iterations. The default limit
+is 1000; set `build.templateLoopLimit` to a positive integer to change it for
+page, component and section templates:
+
+```yaml
+build:
+  templateLoopLimit: 5000
+```
+
+The limit counts every iteration inside one outermost `for` or `while` loop,
+including nested loops and loops in functions or includes called from it. Two
+nested loops over 40 pages and 30 tags therefore count 1200 iterations and fail,
+although neither loop reaches 1000 alone. A component or section rendered from
+the loop starts its own count. The build fails with `Render failed` and a cause
+such as `Exceeding number of iteration limit` that names the setting and its
+current value.
+
+Before raising the limit, remove nested loops that only filter. array.filter
+and array.map with an anonymous function do not count toward the limit:
+
+```scriban
+{{ for city in cities }}
+  {{ spots = pages | array.filter @(do; ret ($0.url | string.starts_with city.url); end) }}
+  {{ city.title }}: {{ spots | array.size }}
+{{ end }}
+```
+
+`limit:` (`for p in pages limit:10`) and pagination also keep loops short.
+
 ## Live Reload And Capability Decisions
 
 An optional `bukit.templates.yaml` in the resolved layouts directory declares

@@ -8,6 +8,8 @@ Bukit 所有重要变更都将记录在此文件中。
 
 - **注入模式保留带标记的主题 JSON-LD，删除其余的前会给出警告**：`site.seo.renderMode: inject` 下，head 里的 `<script type="application/ld+json" data-bukit-seo="keep">` 会留在主题写的位置，主题因此可以输出 Core 不生成的类型（`TouristTrip`、`Product`、`Event` 等）。未标记的 head JSON-LD 仍由 Core 的替换，但内容和 Core 生成的每一块都不同时，构建会警告 `seo.theme_json_ld_replaced route=<url> count=<n>`，不再静默删除；多页重复时汇总成 `event=diagnostics.summary`。`site.seo.diagnostics: strict` 下它仍只是警告，现有 strict 构建不受影响。主题在 head 里输出 `page.seo.json_ld` 不会触发警告，即使经过格式化或转义方式不同。警告只来自本次实际渲染的页面，增量构建中未变化的页面不会再报。发布审计会校验保留下来的 head JSON-LD（`seo.json_ld_invalid`），并把其类型计入该路由的 `schemaTypes`。body 里的 JSON-LD 以及 `theme`、`off` 模式行为不变。
 
+- **模板循环上限可配置**：新增 `build.templateLoopLimit`（正整数，默认 1000，与 Scriban 自身默认值相同），设定页面、组件和 section 模板允许的循环次数。Scriban 统计的是一个最外层循环内的全部迭代，包括嵌套循环以及在循环里调用的函数和 include 中的循环，所以 40 个页面 × 30 个标签的两层循环会在 1200 次时失败，尽管单层都不到 1000。这种情况下的 `Render failed` 错误现在会说明原因，并给出 `build.templateLoopLimit` 及其当前值；组件和 section 的诊断信息带有同样的提示。用 array.filter 或 array.map 加匿名函数过滤不计入上限。不设置该项的网站构建结果与以前完全相同。见 [08 Themes And Templates](guide/user/08-themes-templates.md#loop-limit)。
+
 - **可在 front matter 中指定面包屑父页面**：页面可以设置 `parent_url: /malaysia/routes/`（某个已生成页面的站内路径，不含 base URL 和语言前缀），把该页面作为 BreadcrumbList 的父级。面包屑变为「父页面的面包屑 + 当前页」，并逐级向上递归，所以 `/routes/klang/` 这样的路线页可以得到 首页 › 马来西亚 › 路线 › 巴生谷三日游；`parent_url: /` 表示以首页为父级。父页面不是已生成的页面、不是站内路径或就是页面自身时，警告 `seo.breadcrumb_parent_missing`；父级之间形成循环时，警告 `seo.breadcrumb_parent_cycle`；这些页面继续使用按网址推断的面包屑。字段名特意和 `site.seo.schema.breadcrumbParent` 区分开，后者是对所有页面生效的分类类型。没有设置 `parent_url` 的页面不受影响。见 [11 I18n And SEO](guide/user/11-i18n-seo.md)。
 
 ## [2.2.7] - 2026-11-21

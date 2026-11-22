@@ -381,6 +381,34 @@ public sealed class ConfigLoaderTests : IDisposable
     }
 
     [Fact]
+    public void Load_TemplateLoopLimit_DefaultsAndReadsValue()
+    {
+        Assert.Equal(BuildConfig.DefaultTemplateLoopLimit, ConfigLoader.Load(WriteTempYaml(MinimalConfig)).Build.TemplateLoopLimit);
+
+        var config = ConfigLoader.Load(WriteTempYaml(MinimalConfig + "\nbuild:\n  templateLoopLimit: 5000\n"));
+
+        Assert.Equal(5000, config.Build.TemplateLoopLimit);
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(-1)]
+    public void Validate_NonPositiveTemplateLoopLimit_ThrowsConfigException(int limit)
+    {
+        var config = new AppConfig
+        {
+            Site = new SiteConfig { Name = "myblog", Title = "My Blog" },
+            Content = ContentConfigFactory.FromSources([new ContentSourceConfig { Type = "markdown", Markdown = new MarkdownConfig() }]),
+            Build = new BuildConfig { TemplateLoopLimit = limit }
+        };
+
+        var ex = Assert.Throws<ConfigException>(() => ConfigValidator.Validate(config));
+
+        Assert.Contains("build.templateLoopLimit", ex.Message, StringComparison.Ordinal);
+        Assert.Equal(DiagnosticCode.ConfigInvalidValue, ex.Code);
+    }
+
+    [Fact]
     public void Load_EmptyPath_ThrowsConfigException()
     {
         var ex = Assert.Throws<ConfigException>(() => ConfigLoader.Load(""));

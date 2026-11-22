@@ -107,6 +107,9 @@ page that merely contains a dot, such as `/docs/node.js`, end it with `/`.
 - Check layout directives are at the start of the file.
 - Use `page`, `site`, `pages`, `items`, `pagination`, `collection`, `taxonomy`,
   and `filter` according to template type.
+- `Exceeding number of iteration limit` means one outermost loop, with its nested
+  loops and the functions it calls, ran more than `build.templateLoopLimit`
+  iterations (default 1000). See [Loop Limit](08-themes-templates.md#loop-limit).
 
 In `dev`, edits to template manifests, root templates, includes, and layout
 targets are re-read for the next build. If old behavior remains, confirm that
