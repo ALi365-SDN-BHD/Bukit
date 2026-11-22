@@ -64,6 +64,13 @@ internal static class MarkdownFieldBuilder
 
     private static bool TryConvertToField(object value, out ContentField field)
     {
+        // A list of only YAML nulls (a lone empty "- ") is absent, like a top-level null.
+        if (value is not string && value is IEnumerable<object?> items && items.Any() && items.All(item => item is null))
+        {
+            field = null!;
+            return false;
+        }
+
         if (TryConvertToList(value, out var list))
         {
             field = new ContentField("list", list);

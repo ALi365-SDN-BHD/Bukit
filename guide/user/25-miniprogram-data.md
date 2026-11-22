@@ -126,7 +126,9 @@ no page, so their `url` is the record's own `url` property.
 
 `types` converts and checks a field: `string`, `number`, `boolean`, `date`,
 `image`, `url`, `string[]`, `object` or `object[]` (see
-[Object Fields](#object-fields)). `image` and `url` values become absolute http(s)
+[Object Fields](#object-fields)). A `string[]` value drops null items (an
+empty `- ` or `~` in YAML) at any depth, and a list of only nulls counts as
+empty; `object[]` items must all be mappings. `image` and `url` values become absolute http(s)
 URLs, and one that still holds a signed URL fails the build; relative values of data records resolve against the site root, base path
 included. On a multilingual site with `site.sharedAssets`, links to the shared
 files (such as theme images under `assets/`) keep the root path in every
@@ -222,8 +224,7 @@ fails with `SchemaValidationFailed`, naming the dataset, record and the path of
 the field, such as `days[1].hotel`. A single mapping given to `object[]` is
 written as a list of one. As at the top level, an empty value inside an object
 (an empty list `[]`, an empty mapping, blank text or a YAML `null`) is written
-as `null`; quote `"null"` to keep it as text. A `string[]` value drops YAML
-null items (an empty `- ` or `~`), at the top level and inside objects. A `dataIndex` dataset accepts the same types for its
+as `null`; quote `"null"` to keep it as text. A `dataIndex` dataset accepts the same types for its
 keys, although data index rows hold text values today.
 
 Object lists can make list files large. Put them in `detailFields`, so each one

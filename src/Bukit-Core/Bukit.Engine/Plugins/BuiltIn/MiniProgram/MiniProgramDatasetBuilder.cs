@@ -372,14 +372,15 @@ internal sealed partial class MiniProgramDatasetBuilder
     {
         null => true,
         string text => string.IsNullOrWhiteSpace(text),
+        // A list of only nulls (an empty "- " item) is empty too, so required rejects it and it is written as null.
+        IEnumerable<object?> sequence => sequence.All(item => item is null),
         System.Collections.ICollection collection => collection.Count == 0,
-        IEnumerable<object?> sequence => !sequence.Any(),
         _ => false
     };
 
     /// <summary>
     /// A list whose items are all strings or invariant scalars; null for scalars, maps and mixed lists.
-    /// A YAML null item (an empty "- " or "~") is dropped, as a top-level front matter list drops it.
+    /// A null item (a YAML empty "- " or "~") is dropped, as a top-level front matter list drops it.
     /// </summary>
     private static List<string>? ToTextList(object raw)
     {
