@@ -158,9 +158,19 @@ internal static class MarkdownFrontMatterParser
     }
 
     /// <summary>
-    /// A YAML 1.2 core-schema null: a plain (unquoted) <c>null</c>, <c>Null</c>, <c>NULL</c>, <c>~</c> or
-    /// empty value. Quoted text such as <c>"null"</c> stays a string.
+    /// A YAML 1.2 core-schema null: a plain (unquoted), untagged <c>null</c>, <c>Null</c>, <c>NULL</c>,
+    /// <c>~</c> or empty value, or any value tagged <c>!!null</c>. Quoted text such as <c>"null"</c> and
+    /// values with another explicit tag such as <c>!!str null</c> stay strings.
     /// </summary>
     private static bool IsNull(YamlScalarNode scalar)
-        => scalar.Style == ScalarStyle.Plain && scalar.Value is null or "" or "~" or "null" or "Null" or "NULL";
+    {
+        if (!scalar.Tag.IsEmpty)
+        {
+            return scalar.Tag.Value == NullTag;
+        }
+
+        return scalar.Style == ScalarStyle.Plain && scalar.Value is null or "" or "~" or "null" or "Null" or "NULL";
+    }
+
+    private const string NullTag = "tag:yaml.org,2002:null";
 }

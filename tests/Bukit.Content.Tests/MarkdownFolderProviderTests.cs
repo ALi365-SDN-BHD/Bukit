@@ -746,6 +746,9 @@ public sealed class MarkdownFolderProviderTests
             empty:
             quoted: "null"
             single: 'Null'
+            tagged: !!str null
+            taggedTilde: !!str ~
+            explicitNull: !!null ""
             days: [{"title": "D1", "meals": null, "stay": ~, "note": "null", "sights": [a, NULL, "~"]}]
             hotel:
               name: Inn
@@ -759,6 +762,9 @@ public sealed class MarkdownFolderProviderTests
         Assert.False(dict.ContainsKey("empty"));
         Assert.Equal("null", dict["quoted"]);
         Assert.Equal("Null", dict["single"]);
+        Assert.Equal("null", dict["tagged"]);
+        Assert.Equal("~", dict["taggedTilde"]);
+        Assert.False(dict.ContainsKey("explicitNull"));
         var day = (IReadOnlyDictionary<string, object?>)Assert.Single((IEnumerable<object?>)dict["days"])!;
         Assert.Equal("D1", day["title"]);
         Assert.Null(day["meals"]);
@@ -778,12 +784,15 @@ public sealed class MarkdownFolderProviderTests
         {
             Directory.CreateDirectory(root);
             await File.WriteAllTextAsync(Path.Combine(root, "route.md"),
-                "---\ntitle: Route\nsubtitle: null\nlabel: \"null\"\ndays:\n  - title: D1\n    meals: null\n---\nBody");
+                "---\ntitle: Route\nsubtitle: null\nlabel: \"null\"\nsights: [a, null, b]\nplain: [a, b]\ndays:\n  - title: D1\n    meals: null\n---\nBody");
 
             var item = Assert.Single((await new MarkdownFolderProvider(new MarkdownFolderProviderOptions(root)).LoadRawAsync()).Documents);
 
             Assert.False(ContentFieldReader.TryGetField(item.CustomFields, "subtitle", out _));
             Assert.Equal("null", ContentFieldReader.GetText(item.CustomFields, "label"));
+            Assert.True(ContentFieldReader.TryGetField(item.CustomFields, "sights", out var sights));
+            Assert.Equal(new object?[] { "a", null, "b" }, (IEnumerable<object?>)sights.Value!);
+            Assert.Equal(new[] { "a", "b" }, ContentFieldReader.GetTextList(item.CustomFields, "plain"));
             Assert.True(ContentFieldReader.TryGetField(item.CustomFields, "days", out var days));
             var day = (System.Collections.IDictionary)Assert.Single((IEnumerable<object?>)days.Value!)!;
             Assert.Null(day["meals"]);
