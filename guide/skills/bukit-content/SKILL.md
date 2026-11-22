@@ -153,7 +153,9 @@ and `email`/`url` values are validated. Template access:
 Files in `<root>/data/` (`.json`, `.yaml`, `.yml`; `.toml` is an error) are exposed
 under `site.data_files`: `data/a.yaml` → `site.data_files.a`, `data/dir/b.yaml` →
 `site.data_files.dir.b`. A file and a folder with the same name fail. All of this data
-is public once a template prints it.
+is public once a template prints it. Whole numbers in these files (and in front matter)
+are 64-bit, so a template literal is not found by array.contains; compare with `==`
+(`bukit-templating`).
 
 ## Notion, media, model schema, route metadata
 

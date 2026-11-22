@@ -184,6 +184,12 @@ changes are picked up by the next build; do not delete `.cache` for that.
 
 ## Limits and errors
 
+- Whole numbers from data files and front matter are 64-bit; template literals are
+  32-bit. `==` treats them as equal, but array.contains does not: searching a data
+  list for a literal `2` returns `false`. Use
+  `(list | array.filter @(do; ret $0 == 2; end) | array.size) > 0` or a `for` loop
+  with `==`. Searching for a value that also comes from data works.
+
 - Scriban's loop limit (default 1000, set with `build.templateLoopLimit`) counts every
   iteration inside one outermost `for`/`while`, including nested loops and loops in
   functions or includes called from it: 40 pages x 30 tags is 1200 and fails with

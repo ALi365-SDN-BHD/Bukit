@@ -113,12 +113,15 @@ content:
         dir: content
 build:
   output: dist
-  clean: true
+  clean: false   # 保留上次的输出，未改动的页面直接复用
 theme:
   name: starter
 logging:
   level: info
 ```
+
+`build.clean` 默认为 `true`，每次构建前都会清空输出目录，增量构建因此一个页面也复用不了。
+本地构建保持 `clean: false`；需要全新构建时（例如在 CI 中或发布前）运行 `bukit build --clean`。
 
 Notion 也是 Core 内容 provider。在 `content.sources[]` 中添加 `notion` 源，并通过环境变量提供 `NOTION_TOKEN`，不要写入 `site.yaml`。
 
