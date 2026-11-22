@@ -215,7 +215,14 @@ form, and a nested mapping or list of mappings becomes an object or a list of
 objects. Inferred values are not converted, so an image path stays as written;
 declare `image` or `url` to make it an absolute http(s) URL. Declared nested
 `image` and `url` values follow the same rules as top-level ones, including the
-rejection of signed URLs. Nested strings are plain text: only the top-level
+rejection of signed URLs. Image localization reaches inside objects too: a
+remote image is downloaded when its own key, at any depth, is listed in
+`content.media.fieldKeys` (`cover`, `image`, `thumbnail`, `og_image`,
+`seo_image` and `icon` by default), so name such keys `image` or add yours to
+that list; under any other key the link is kept, and a signed one fails the
+build. Relative paths are never copied from the content folder, at the top
+level or inside objects; keep such images under the theme's `assets/` or
+`static/` and write their site path. Nested strings are plain text: only the top-level
 `body` field is HTML and sanitized, so render nested text with a `text`
 component, not `rich-text`.
 

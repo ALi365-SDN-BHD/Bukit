@@ -324,7 +324,7 @@ internal sealed partial class MiniProgramDatasetBuilder
         // A signed link expires and leaks its signature, for a file link as much as for an image.
         if (MiniProgramJson.IsSignedUrl(absolute))
         {
-            throw Invalid(dataset, recordId, field, $"signed URL was not localized: {MiniProgramJson.RedactQuery(absolute)}");
+            throw Invalid(dataset, recordId, field, $"signed URL was not localized: {MiniProgramJson.RedactQuery(absolute)} (only fields named in content.media.fieldKeys, at any depth, are downloaded)");
         }
 
         return absolute;

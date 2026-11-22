@@ -91,6 +91,47 @@ public sealed class ContentImageRewritePipelineTests
         Assert.Equal(fallback, rewritten.CustomFields!["seo_image"].Value);
     }
 
+    [Fact]
+    public async Task RewriteAsync_LocalizesFieldKeyImagesInsideObjectFieldsOnly()
+    {
+        const string photo = "https://img.example/day.jpg";
+        const string other = "https://img.example/link.jpg";
+        var day = new Dictionary<string, object?>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["title"] = "D1",
+            ["image"] = photo,
+            ["link"] = other,
+            ["hotel"] = new Dictionary<string, object?>(StringComparer.OrdinalIgnoreCase) { ["cover"] = new List<object?> { photo, null } }
+        };
+        var item = ContentDocument.Create(
+            id: "1",
+            title: "t",
+            slug: "s",
+            publishAt: DateTimeOffset.UtcNow,
+            contentHtml: null,
+            fields: new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["days"] = new ContentField("text", new List<object?> { day })
+            });
+        var localizer = new MappingLocalizer(new Dictionary<string, string>(StringComparer.Ordinal)
+        {
+            [photo] = "/assets/uploads/day.jpg"
+        });
+        var pipeline = new ContentImageRewritePipeline(new MediaConfig(), localizer);
+
+        var rewritten = Assert.Single(await pipeline.RewriteAsync(new[] { item }, CancellationToken.None));
+
+        var days = Assert.IsType<List<object?>>(rewritten.CustomFields!["days"].Value);
+        var rewrittenDay = Assert.IsType<Dictionary<string, object?>>(days[0]);
+        Assert.Equal("/assets/uploads/day.jpg", rewrittenDay["IMAGE"]);
+        Assert.Equal(other, rewrittenDay["link"]);
+        Assert.Equal("D1", rewrittenDay["title"]);
+        var hotel = Assert.IsType<Dictionary<string, object?>>(rewrittenDay["hotel"]);
+        Assert.Equal(new object?[] { "/assets/uploads/day.jpg", null }, Assert.IsType<List<object?>>(hotel["cover"]));
+        Assert.Equal(photo, day["image"]);
+        Assert.Equal(new[] { photo }, localizer.ReceivedUrls);
+    }
+
     [Fact, Trait("Category", "Integration")]
     public async Task RewriteAsync_FrontMatterImageListWithEmptyItemIsLocalized()
     {

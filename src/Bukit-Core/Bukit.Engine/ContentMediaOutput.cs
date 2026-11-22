@@ -30,12 +30,7 @@ internal sealed partial class ContentMediaOutput(BuildVariantContext context) : 
     {
         var fields = document.CustomFields?.ToDictionary(pair => pair.Key, pair => pair.Value with
         {
-            Value = pair.Value.Value switch
-            {
-                string value => RewriteUrl(value, collect),
-                IReadOnlyList<string> values => values.Select(value => RewriteUrl(value, collect)).ToArray(),
-                _ => pair.Value.Value
-            }
+            Value = RewriteValue(pair.Value.Value, collect)
         }, StringComparer.OrdinalIgnoreCase);
         var html = document.Body.Html is null ? null : RewriteHtml(document.Body.Html, collect);
         return document with
@@ -74,15 +69,25 @@ internal sealed partial class ContentMediaOutput(BuildVariantContext context) : 
                 continue;
             foreach (var field in fields.Values.OfType<IDictionary<string, object>>())
             {
-                if (!field.TryGetValue("value", out var value)) continue;
-                if (value is string text) field["value"] = RewriteUrl(text, collect: true);
-                else if (value is IReadOnlyList<string> strings)
-                    field["value"] = strings.Select(text => RewriteUrl(text, collect: true)).ToArray();
-                else if (value is IReadOnlyList<object> values)
-                    field["value"] = values.Select(item => item is string text ? RewriteUrl(text, collect: true) : item).ToArray();
+                if (field.TryGetValue("value", out var value)) field["value"] = RewriteValue(value, collect: true)!;
             }
         }
     }
+
+    // Localized media links are rewritten (and collected for copying) at any depth, so a link inside
+    // an object field, such as days[0].photo, is published as one at the top level is.
+    private object? RewriteValue(object? value, bool collect) => value switch
+    {
+        string text => RewriteUrl(text, collect),
+        IReadOnlyList<string> texts => texts.Select(text => RewriteUrl(text, collect)).ToArray(),
+        IDictionary<string, object?> map => map.ToDictionary(
+            pair => pair.Key,
+            pair => RewriteValue(pair.Value, collect),
+            (map as Dictionary<string, object?>)?.Comparer ?? StringComparer.Ordinal),
+        List<object?> items => items.Select(item => RewriteValue(item, collect)).ToList(),
+        object?[] items => items.Select(item => RewriteValue(item, collect)).ToArray(),
+        _ => value
+    };
 
     internal IReadOnlyList<AssetOutputItem> Plan(ILogger logger, CancellationToken cancellationToken)
     {
