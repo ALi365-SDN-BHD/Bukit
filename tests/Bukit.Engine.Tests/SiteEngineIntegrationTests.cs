@@ -3595,6 +3595,145 @@ public sealed partial class SiteEngineIntegrationTests
     }
 
     [Fact]
+    public async Task BuildAsync_DataIndexObjectValue_RendersNestedFieldsAndRerendersOnChange()
+    {
+        var root = Path.Combine(Path.GetTempPath(), "bukit-integration-test", Guid.NewGuid().ToString("N"));
+
+        try
+        {
+            Directory.CreateDirectory(Path.Combine(root, "data"));
+            Directory.CreateDirectory(Path.Combine(root, "layouts", "pages"));
+
+            const string trip = """
+                ---
+                type: settings
+                title: Trip info
+                slug: trip-info
+                scope: trip
+                key: info
+                value_type: object
+                value:
+                  days: 5
+                  title: Penang food trail
+                  stops:
+                    - name: George Town
+                    - name: Balik Pulau
+                ---
+                """;
+            var tripPath = Path.Combine(root, "data", "trip-info.md");
+            File.WriteAllText(tripPath, trip);
+
+            File.WriteAllText(Path.Combine(root, "layouts", "pages", "index.html"), """
+                days={{ site.data_index.settings.trip.info.days }}
+                title={{ site.data_index.settings.trip.info.title }}
+                stops={{ for stop in site.data_index.settings.trip.info.stops }}[{{ stop.name }}]{{ end }}
+                """);
+            File.WriteAllText(Path.Combine(root, "layouts", "pages", "list.html"), "List");
+
+            var config = new AppConfig
+            {
+                Site = new SiteConfig { Name = "t", Title = "T", Collections = TestCollections() },
+                Content = ContentConfigFactory.FromSources(
+                [
+                    new ContentSourceConfig
+                    {
+                        Type = "markdown",
+                        Name = "settings",
+                        Mode = "data",
+                        Markdown = new MarkdownConfig { Dir = "data" },
+                        DataIndex = new DataIndexConfig { RequiredKeys = ["trip.info"] }
+                    }
+                ],
+                media: new MediaConfig { DownloadToLocal = false }),
+                Build = new BuildConfig { Output = "dist", Clean = false },
+                Theme = new ThemeConfig { Layouts = "layouts" }
+            };
+
+            WriteTestThemeTemplates(root);
+            var overrides = new ConfigOverrides { Clean = false, Incremental = true };
+
+            var first = await new SiteEngine(new TestLogger()).BuildAsync(config, root, overrides, CancellationToken.None);
+            var html = File.ReadAllText(Path.Combine(root, "dist", "index.html"));
+            Assert.Contains("days=5", html, StringComparison.Ordinal);
+            Assert.Contains("title=Penang food trail", html, StringComparison.Ordinal);
+            Assert.Contains("stops=[George Town][Balik Pulau]", html, StringComparison.Ordinal);
+            Assert.DoesNotContain("System.Collections", html, StringComparison.Ordinal);
+
+            var unchanged = await new SiteEngine(new TestLogger()).BuildAsync(config, root, overrides, CancellationToken.None);
+            Assert.Equal(0, unchanged.Incremental.CacheMissCount);
+
+            // Only a nested value changes; the page that reads the index renders again.
+            File.WriteAllText(tripPath, trip.Replace("days: 5", "days: 6", StringComparison.Ordinal));
+            var changed = await new SiteEngine(new TestLogger()).BuildAsync(config, root, overrides, CancellationToken.None);
+
+            Assert.True(first.Incremental.CacheMissCount > 0);
+            Assert.True(changed.Incremental.CacheMissCount > 0);
+            Assert.Contains("days=6", File.ReadAllText(Path.Combine(root, "dist", "index.html")), StringComparison.Ordinal);
+        }
+        finally
+        {
+            CleanupDir(root);
+        }
+    }
+
+    [Fact]
+    public async Task BuildAsync_DataIndexTextValueGivenAnObject_Fails()
+    {
+        var root = Path.Combine(Path.GetTempPath(), "bukit-integration-test", Guid.NewGuid().ToString("N"));
+
+        try
+        {
+            Directory.CreateDirectory(Path.Combine(root, "data"));
+            Directory.CreateDirectory(Path.Combine(root, "layouts", "pages"));
+            File.WriteAllText(Path.Combine(root, "data", "trip-info.md"), """
+                ---
+                type: settings
+                title: Trip info
+                slug: trip-info
+                scope: trip
+                key: info
+                value_type: text
+                value:
+                  days: 5
+                ---
+                """);
+            File.WriteAllText(Path.Combine(root, "layouts", "pages", "index.html"), "{{ site.data_index.settings.trip.info }}");
+            File.WriteAllText(Path.Combine(root, "layouts", "pages", "list.html"), "List");
+
+            var config = new AppConfig
+            {
+                Site = new SiteConfig { Name = "t", Title = "T", Collections = TestCollections() },
+                Content = ContentConfigFactory.FromSources(
+                [
+                    new ContentSourceConfig
+                    {
+                        Type = "markdown",
+                        Name = "settings",
+                        Mode = "data",
+                        Markdown = new MarkdownConfig { Dir = "data" },
+                        DataIndex = new DataIndexConfig()
+                    }
+                ],
+                media: new MediaConfig { DownloadToLocal = false }),
+                Build = new BuildConfig { Output = "dist", Clean = true },
+                Theme = new ThemeConfig { Layouts = "layouts" }
+            };
+            WriteTestThemeTemplates(root);
+
+            var ex = await Assert.ThrowsAnyAsync<Exception>(() =>
+                new SiteEngine(new TestLogger()).BuildAsync(config, root, new ConfigOverrides(), CancellationToken.None));
+
+            var content = ex as ContentException ?? ex.InnerException as ContentException;
+            Assert.NotNull(content);
+            Assert.Contains("key 'trip.info' has value type 'text' but its value is an object", content!.Message, StringComparison.Ordinal);
+        }
+        finally
+        {
+            CleanupDir(root);
+        }
+    }
+
+    [Fact]
     public async Task BuildAsync_DuplicateContentRouteUrl_FailsBeforeRendering()
     {
         var root = CreateRouteConflictSite();

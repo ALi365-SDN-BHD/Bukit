@@ -122,7 +122,7 @@ as `item.fields.<key>.value`) and
 `site.modules.<type>`. Items with `enabled: false` are skipped; `order` sorts them.
 
 Key-value settings: add `dataIndex` (data mode only, source name like `settings`) to
-expose scalars as `site.data_index.<source>.<scope>.<key>`:
+expose values as `site.data_index.<source>.<scope>.<key>`:
 
 ```yaml
     - type: markdown
@@ -142,13 +142,18 @@ in `requiredKeys` (default field names shown; rename with `scopeField`, `keyFiel
 scope: contact
 key: email
 value: hello@example.com
-value_type: email      # required: text|multiline|email|phone|url
+value_type: email      # required: text|multiline|email|phone|url|object|object[]
 ---
 ```
 
 `scope` and `key` must match `^[a-z][a-z0-9_]*$`, each `scope` + `key` pair must be unique,
 and `email`/`url` values are validated. Template access:
-`{{ site.data_index.settings.contact.email }}`.
+`{{ site.data_index.settings.contact.email }}`. A text type given a YAML mapping or list
+fails the build. `object` takes a mapping and `object[]` a list of mappings (YAML in
+Markdown, JSON text in Notion), read as `site.data_index.settings.trip.info.days`. All
+scalars inside are strings (Notion `5`/`true` become `"5"`/`"true"`, digits kept), keys
+are ordinal-sorted, nesting is at most 8 levels (each mapping or list is one), `NaN` and
+infinity fail, and an empty mapping or list counts as empty for `requiredKeys`.
 
 Files in `<root>/data/` (`.json`, `.yaml`, `.yml`; `.toml` is an error) are exposed
 under `site.data_files`: `data/a.yaml` → `site.data_files.a`, `data/dir/b.yaml` →

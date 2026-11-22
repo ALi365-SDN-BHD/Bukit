@@ -205,3 +205,23 @@ field is declared; other sites SHALL keep `1.0` and byte-identical output.
 #### Scenario: Site without object fields
 - **WHEN** a site declares no `object` or `object[]` type
 - **THEN** its catalog stays `1.0` and every file under `mp/` is byte-identical to the previous release
+
+### Requirement: Data index rows can hold object values
+A data index row SHALL accept the value types `object` (one mapping) and `object[]` (a list of
+mappings) besides `text`, `multiline`, `email`, `phone` and `url`. A Markdown row SHALL give the
+value as YAML; a Notion row SHALL give it as JSON text, parsed without reflection. Every scalar in an
+object value SHALL be stored as text (JSON numbers keep their source digits, booleans become `true`
+or `false`, null stays null), so equal values from either source SHALL build the same model and render
+dependency hash. Keys SHALL be ordered ordinally, nesting SHALL be limited to 8 levels with every
+mapping and list counting as one, and `NaN`, infinity, invalid JSON, duplicate JSON keys or a value of
+the wrong shape SHALL fail the build naming the source, content id and `scope.key`. A text value type
+whose value is a mapping or a list SHALL fail the build instead of storing the .NET type name. An
+empty object value SHALL be an empty mapping or list and SHALL count as empty for `requiredKeys`.
+
+#### Scenario: Object row read by a template and a dataset
+- **WHEN** a Markdown row `trip.info` has `value_type: object` and `value: {days: 5, stops: [{name: George Town}]}`
+- **THEN** `site.data_index.settings.trip.info.days` renders `5`, and a `dataIndex` dataset that declares `info: object` writes `{"days":"5","stops":[{"name":"George Town"}]}`
+
+#### Scenario: Text row given a mapping
+- **WHEN** a row has `value_type: text` and its `value` is a YAML mapping
+- **THEN** the build fails naming the source, content id and `scope.key`

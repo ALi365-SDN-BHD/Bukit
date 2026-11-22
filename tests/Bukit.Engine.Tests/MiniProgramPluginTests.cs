@@ -1107,6 +1107,75 @@ public sealed class MiniProgramPluginTests : IDisposable
         Assert.Equal("/assets/logo.png", (string)contact["logo"]!);
     }
 
+    [Fact]
+    public async Task DataIndexObjectValues_FromMarkdownAndNotionRows_AreWrittenEndToEnd()
+    {
+        // Markdown front matter hands over a case-insensitive map with string scalars; Notion hands over JSON text.
+        var markdownInfo = new Dictionary<string, object?>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["title"] = "Penang food trail",
+            ["days"] = "5",
+            ["stops"] = new List<object?> { new Dictionary<string, object?>(StringComparer.OrdinalIgnoreCase) { ["name"] = "George Town" } }
+        };
+        var config = Config(settingsTypes: new Dictionary<string, string> { ["info"] = "object", ["contact"] = "object" });
+        var rows = new[]
+        {
+            SettingsRow("info", markdownInfo),
+            SettingsRow("contact", """{"phone":"+60","open":true,"rating":4.50}""")
+        };
+        var dataIndex = DataModuleBuilder.BuildDataIndex(rows, config.Content.Sources)!;
+
+        await RunAsync(config, [], [], dataIndex);
+
+        var values = ReadDataset("settings")["values"]!.AsObject();
+        Assert.Equal(
+            """{"days":"5","stops":[{"name":"George Town"}],"title":"Penang food trail"}""",
+            values["info"]!.ToJsonString());
+        var contact = values["contact"]!.AsObject();
+        Assert.Equal(["open", "phone", "rating"], contact.Select(pair => pair.Key));
+        Assert.Equal("true", (string)contact["open"]!);
+        Assert.Equal("+60", (string)contact["phone"]!);
+        Assert.Equal("4.50", (string)contact["rating"]!);
+    }
+
+    [Fact]
+    public async Task DataIndexObjectValue_WithDeclaredNestedTypes_WritesNumbersAndBooleans()
+    {
+        var config = Config();
+        config = config with
+        {
+            MiniProgram = config.MiniProgram! with
+            {
+                Datasets = [.. config.MiniProgram.Datasets.Select(dataset => dataset.Name == "settings"
+                    ? dataset with
+                    {
+                        Types = new Dictionary<string, string> { ["info"] = "object" },
+                        ObjectFields = new Dictionary<string, IReadOnlyDictionary<string, MiniProgramFieldType>>
+                        {
+                            ["info"] = new Dictionary<string, MiniProgramFieldType> { ["days"] = new("number", null), ["open"] = new("boolean", null) }
+                        }
+                    }
+                    : dataset)]
+            }
+        };
+        var dataIndex = DataModuleBuilder.BuildDataIndex([SettingsRow("info", """{"days":5,"open":true,"extra":"x"}""")], config.Content.Sources)!;
+
+        await RunAsync(config, [], [], dataIndex);
+
+        Assert.Equal("""{"days":5,"open":true}""", ReadDataset("settings")["values"]!["info"]!.ToJsonString());
+    }
+
+    private static ContentDocument SettingsRow(string key, object value)
+        => ContentDocument.Create(key, key, key, Day, null, ContentFieldReader.ToFieldMap(new Dictionary<string, object>
+        {
+            ["sourceKey"] = "settings",
+            ["sourceMode"] = "data",
+            ["scope"] = "app",
+            ["key"] = key,
+            ["value"] = value,
+            ["value_type"] = "object"
+        }));
+
     private async Task<BuildContext> RunAsync(
         AppConfig config,
         IReadOnlyList<RoutedContentDocument> pages,
