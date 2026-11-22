@@ -29,8 +29,9 @@ internal sealed class SeoHtmlTransform(
         var route = new RouteInfo(context.RouteUrl, context.OutputPath, string.Empty);
         if (shouldInjectSeo && !skipSeo)
         {
-            html = SeoHtmlRenderer.InjectIntoHead(html, page.Seo, out var replacedThemeJsonLd);
+            html = SeoHtmlRenderer.InjectIntoHead(html, page.Seo, out var replacedThemeJsonLd, out var duplicateKeptTypes);
             SeoDiagnostics.ReportThemeJsonLdReplaced(config, route, replacedThemeJsonLd, logger);
+            SeoDiagnostics.ReportThemeJsonLdDuplicateTypes(config, route, duplicateKeptTypes, logger);
         }
 
         if (!skipSeo && ShouldLinkRepresentations(context, page.Seo))

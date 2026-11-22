@@ -20,8 +20,17 @@ internal static partial class SeoHtmlRenderer
     /// differs from every Core-generated JSON-LD block, so callers can warn that theme data was dropped.
     /// </summary>
     internal static string InjectIntoHead(string html, SeoModel? seo, out int replacedThemeJsonLd)
+        => InjectIntoHead(html, seo, out replacedThemeJsonLd, out _);
+
+    /// <summary>
+    /// As <see cref="InjectIntoHead(string, SeoModel?, out int)"/>; <paramref name="duplicateKeptTypes"/>
+    /// lists, in ordinal order, the top-level types of kept head JSON-LD that a Core-generated block
+    /// also declares, so the page publishes them twice (two <c>BreadcrumbList</c> blocks, say).
+    /// </summary>
+    internal static string InjectIntoHead(string html, SeoModel? seo, out int replacedThemeJsonLd, out IReadOnlyList<string> duplicateKeptTypes)
     {
         replacedThemeJsonLd = 0;
+        duplicateKeptTypes = [];
         if (seo is null || string.IsNullOrWhiteSpace(html))
         {
             return html;
@@ -35,7 +44,13 @@ internal static partial class SeoHtmlRenderer
         var beforeHeadContent = html[..head.ContentStart];
         var headContent = html[head.ContentStart..head.ContentEnd];
         var afterHeadContent = html[head.ContentEnd..];
-        headContent = RemoveManagedSeoTags(headContent, seo.JsonLd, out replacedThemeJsonLd);
+        headContent = RemoveManagedSeoTags(headContent, seo.JsonLd, out replacedThemeJsonLd, out var keptTypes);
+        if (keptTypes.Count > 0)
+        {
+            var coreTypes = seo.JsonLd.SelectMany(TopLevelTypes).ToHashSet(StringComparer.Ordinal);
+            duplicateKeptTypes = [.. keptTypes.Where(coreTypes.Contains).Order(StringComparer.Ordinal)];
+        }
+
         var seoHtml = RenderHead(seo);
         return beforeHeadContent + headContent.TrimEnd() + Environment.NewLine + seoHtml + afterHeadContent;
     }
@@ -162,9 +177,10 @@ internal static partial class SeoHtmlRenderer
         return sb.ToString();
     }
 
-    private static string RemoveManagedSeoTags(string html, IReadOnlyList<string> coreJsonLd, out int replacedThemeJsonLd)
+    private static string RemoveManagedSeoTags(string html, IReadOnlyList<string> coreJsonLd, out int replacedThemeJsonLd, out HashSet<string> keptTypes)
     {
         replacedThemeJsonLd = 0;
+        keptTypes = new HashSet<string>(StringComparer.Ordinal);
         var sb = new StringBuilder(html.Length);
         foreach (var segment in HtmlHeadSegments.Enumerate(html))
         {
@@ -178,6 +194,7 @@ internal static partial class SeoHtmlRenderer
             {
                 if (SeoJsonLdScripts.IsKept(tag))
                 {
+                    keptTypes.UnionWith(TopLevelTypes(SeoJsonLdScripts.GetContent(html, segment)));
                     sb.Append(html, segment.Start, segment.Length);
                     continue;
                 }
@@ -205,6 +222,63 @@ internal static partial class SeoHtmlRenderer
         var normalized = NormalizeJson(content);
         return normalized is not null &&
                coreJsonLd.Any(json => string.Equals(NormalizeJson(json), normalized, StringComparison.Ordinal));
+    }
+
+    /// <summary>
+    /// The <c>@type</c> values a JSON-LD block publishes as entities: the root object's, each item of a
+    /// root array, and each item of a root <c>@graph</c>. Nested values such as a breadcrumb's
+    /// <c>ListItem</c> are parts of those entities and are not listed. Invalid JSON has no types.
+    /// </summary>
+    private static IEnumerable<string> TopLevelTypes(string json)
+    {
+        var types = new List<string>();
+        try
+        {
+            using var document = JsonDocument.Parse(json);
+            var root = document.RootElement;
+            IEnumerable<JsonElement> entities = root.ValueKind == JsonValueKind.Array ? root.EnumerateArray() : [root];
+            foreach (var entity in entities)
+            {
+                if (entity.ValueKind != JsonValueKind.Object)
+                {
+                    continue;
+                }
+
+                AddTypes(entity, types);
+                if (entity.TryGetProperty("@graph", out var graph) && graph.ValueKind == JsonValueKind.Array)
+                {
+                    foreach (var item in graph.EnumerateArray().Where(item => item.ValueKind == JsonValueKind.Object))
+                    {
+                        AddTypes(item, types);
+                    }
+                }
+            }
+        }
+        catch (JsonException)
+        {
+            return [];
+        }
+
+        return types;
+
+        static void AddTypes(JsonElement entity, List<string> types)
+        {
+            if (!entity.TryGetProperty("@type", out var type))
+            {
+                return;
+            }
+
+            if (type.ValueKind == JsonValueKind.String && !string.IsNullOrWhiteSpace(type.GetString()))
+            {
+                types.Add(type.GetString()!.Trim());
+            }
+            else if (type.ValueKind == JsonValueKind.Array)
+            {
+                types.AddRange(type.EnumerateArray()
+                    .Where(item => item.ValueKind == JsonValueKind.String && !string.IsNullOrWhiteSpace(item.GetString()))
+                    .Select(item => item.GetString()!.Trim()));
+            }
+        }
     }
 
     private static string? NormalizeJson(string json)

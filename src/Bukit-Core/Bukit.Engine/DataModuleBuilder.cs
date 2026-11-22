@@ -4,6 +4,7 @@ using Bukit.Engine.Abstractions.Content;
 using Bukit.Rendering;
 using Bukit.Shared;
 using Bukit.Engine.Content;
+using System.Globalization;
 using System.Net.Mail;
 
 namespace Bukit.Engine;
@@ -136,7 +137,7 @@ internal static class DataModuleBuilder
 
         var valuesBySource = indexedSources.Keys.ToDictionary(
             sourceName => sourceName,
-            _ => new Dictionary<string, Dictionary<string, string>>(StringComparer.Ordinal),
+            _ => new Dictionary<string, Dictionary<string, object>>(StringComparer.Ordinal),
             StringComparer.OrdinalIgnoreCase);
 
         foreach (var document in dataDocuments)
@@ -162,15 +163,15 @@ internal static class DataModuleBuilder
             }
 
             var context = $"Data index source '{sourceName}' content '{document.Id}'";
-            var value = ConfiguredContentFieldReader.TryGetField(document.CustomFields, config.ValueField, context, out var valueField)
-                ? valueField.Value?.ToString()?.Trim() ?? string.Empty
-                : string.Empty;
-            ValidateIndexValue(sourceName, document.Id, valueType, value);
+            var raw = ConfiguredContentFieldReader.TryGetField(document.CustomFields, config.ValueField, context, out var valueField)
+                ? valueField.Value
+                : null;
+            var value = ReadIndexValue($"{context} key '{scope}.{key}'", valueType, raw);
 
             var scopes = valuesBySource[sourceName];
             if (!scopes.TryGetValue(scope, out var keys))
             {
-                keys = new Dictionary<string, string>(StringComparer.Ordinal);
+                keys = new Dictionary<string, object>(StringComparer.Ordinal);
                 scopes[scope] = keys;
             }
 
@@ -189,7 +190,7 @@ internal static class DataModuleBuilder
                 if (parts.Length != 2 ||
                     !scopes.TryGetValue(parts[0], out var keys) ||
                     !keys.TryGetValue(parts[1], out var value) ||
-                    string.IsNullOrWhiteSpace(value))
+                    DataIndexObjectValue.IsEmpty(value))
                 {
                     throw new ContentException($"Data index source '{sourceName}' required key '{requiredKey}' is missing or empty.");
                 }
@@ -202,7 +203,7 @@ internal static class DataModuleBuilder
             var sourceObject = new Dictionary<string, object>(StringComparer.Ordinal);
             foreach (var (scope, keys) in scopes)
             {
-                sourceObject[scope] = keys.ToDictionary(pair => pair.Key, pair => (object)pair.Value, StringComparer.Ordinal);
+                sourceObject[scope] = keys;
             }
 
             result[sourceName] = sourceObject;
@@ -225,22 +226,41 @@ internal static class DataModuleBuilder
         return value;
     }
 
-    private static void ValidateIndexValue(string sourceName, string documentId, string valueType, string value)
+    /// <param name="context">Names the source, content id and <c>scope.key</c>.</param>
+    private static object ReadIndexValue(string context, string valueType, object? raw)
     {
-        if (valueType is not ("text" or "multiline" or "email" or "phone" or "url"))
+        if (valueType is DataIndexObjectValue.ObjectType or DataIndexObjectValue.ObjectArrayType)
         {
-            throw new ContentException($"Data index source '{sourceName}' content '{documentId}' has unsupported value type '{valueType}'.");
+            return DataIndexObjectValue.Read(raw, valueType == DataIndexObjectValue.ObjectArrayType, context);
         }
 
+        if (valueType is not ("text" or "multiline" or "email" or "phone" or "url"))
+        {
+            throw new ContentException($"{context} has unsupported value type '{valueType}'; use text, multiline, email, phone, url, object or object[].");
+        }
+
+        // A map or list has no text form; its ToString() is a .NET type name.
+        if (raw is System.Collections.IDictionary or (System.Collections.IEnumerable and not string))
+        {
+            var shape = raw is System.Collections.IDictionary or IEnumerable<KeyValuePair<string, object?>> ? "an object" : "a list";
+            throw new ContentException($"{context} has value type '{valueType}' but its value is {shape}; use value type 'object' or 'object[]'.");
+        }
+
+        // Invariant, so a number or date builds the same text on every machine.
+        var value = (raw is IFormattable formattable
+            ? formattable.ToString(null, CultureInfo.InvariantCulture)
+            : raw?.ToString())?.Trim() ?? string.Empty;
         if (valueType == "email" && value.Length > 0 && !MailAddress.TryCreate(value, out _))
         {
-            throw new ContentException($"Data index source '{sourceName}' content '{documentId}' has invalid email value.");
+            throw new ContentException($"{context} has invalid email value.");
         }
 
         if (valueType == "url" && value.Length > 0 && !IsAllowedIndexUrl(value))
         {
-            throw new ContentException($"Data index source '{sourceName}' content '{documentId}' has invalid URL value.");
+            throw new ContentException($"{context} has invalid URL value.");
         }
+
+        return value;
     }
 
     private static bool IsAllowedIndexUrl(string value)
