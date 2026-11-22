@@ -140,6 +140,24 @@ public sealed class MiniProgramEndToEndTests : IDisposable
         }
     }
 
+    // An empty "- " item is a YAML null; a string[] field drops it, at the top level and inside objects.
+    [Fact]
+    public async Task StringListFields_DropEmptyYamlItems()
+    {
+        WriteSite(module: "banner", enabled: true);
+        const string types = "types: { highlights: 'string[]', days: { type: 'object[]', fields: { sights: 'string[]' } } }";
+        var yaml = File.ReadAllText(_sandbox.PathFor("site.yaml"))
+            .Replace("listFields: [title]", "listFields: [title, highlights, days]\n      " + types, StringComparison.Ordinal);
+        _sandbox.Write("site.yaml", yaml);
+        _sandbox.Write("content/hello.md", "---\nslug: hello\ntitle: Hello\nlanguage: en\npublishAt: 2024-06-01T00:00:00Z\ncollection: page\nhighlights:\n  - a\n  -\ndays:\n  - sights:\n      - b\n      - ~\n---\nHello body\n");
+
+        await BuildAsync();
+
+        var item = Dataset("dist/mp", "articles")["items"]![0]!;
+        Assert.Equal("""["a"]""", item["highlights"]!.ToJsonString());
+        Assert.Equal("""[{"sights":["b"]}]""", item["days"]!.ToJsonString());
+    }
+
     private Task BuildAsync() => BuildAsync(incremental: false);
 
     private Task BuildAsync(bool incremental)

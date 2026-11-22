@@ -135,8 +135,8 @@ internal static class MarkdownFieldBuilder
 
     private static bool TryConvertToList(object value, out IReadOnlyList<string> list)
     {
-        // A list holding a YAML null keeps its raw items, so the null keeps its position and the list its length.
-        if (value is IEnumerable<object?> seq && seq.All(item => item is not null && IsScalarValue(item)))
+        // A YAML null item (an empty "- " or "~") is dropped like a blank one, so the list stays a list of text.
+        if (value is IEnumerable<object?> seq && seq.All(IsScalarValue))
         {
             var items = seq.Select(x => x?.ToString() ?? string.Empty)
                 .Select(x => x.Trim())

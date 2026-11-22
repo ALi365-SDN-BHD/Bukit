@@ -784,14 +784,14 @@ public sealed class MarkdownFolderProviderTests
         {
             Directory.CreateDirectory(root);
             await File.WriteAllTextAsync(Path.Combine(root, "route.md"),
-                "---\ntitle: Route\nsubtitle: null\nlabel: \"null\"\nsights: [a, null, b]\nplain: [a, b]\ndays:\n  - title: D1\n    meals: null\n---\nBody");
+                "---\ntitle: Route\nsubtitle: null\nlabel: \"null\"\nsights: [a, null, b]\nhighlights:\n  - a\n  -\nplain: [a, b]\ndays:\n  - title: D1\n    meals: null\n---\nBody");
 
             var item = Assert.Single((await new MarkdownFolderProvider(new MarkdownFolderProviderOptions(root)).LoadRawAsync()).Documents);
 
             Assert.False(ContentFieldReader.TryGetField(item.CustomFields, "subtitle", out _));
             Assert.Equal("null", ContentFieldReader.GetText(item.CustomFields, "label"));
-            Assert.True(ContentFieldReader.TryGetField(item.CustomFields, "sights", out var sights));
-            Assert.Equal(new object?[] { "a", null, "b" }, (IEnumerable<object?>)sights.Value!);
+            Assert.Equal(new[] { "a", "b" }, ContentFieldReader.GetTextList(item.CustomFields, "sights"));
+            Assert.Equal(new[] { "a" }, ContentFieldReader.GetTextList(item.CustomFields, "highlights"));
             Assert.Equal(new[] { "a", "b" }, ContentFieldReader.GetTextList(item.CustomFields, "plain"));
             Assert.True(ContentFieldReader.TryGetField(item.CustomFields, "days", out var days));
             var day = (System.Collections.IDictionary)Assert.Single((IEnumerable<object?>)days.Value!)!;

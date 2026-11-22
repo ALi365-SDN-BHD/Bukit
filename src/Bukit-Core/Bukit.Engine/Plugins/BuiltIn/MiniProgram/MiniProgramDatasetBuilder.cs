@@ -377,7 +377,10 @@ internal sealed partial class MiniProgramDatasetBuilder
         _ => false
     };
 
-    /// <summary>A list whose items are all strings or invariant scalars; null for scalars, maps and mixed lists.</summary>
+    /// <summary>
+    /// A list whose items are all strings or invariant scalars; null for scalars, maps and mixed lists.
+    /// A YAML null item (an empty "- " or "~") is dropped, as a top-level front matter list drops it.
+    /// </summary>
     private static List<string>? ToTextList(object raw)
     {
         if (raw is string || raw is System.Collections.IDictionary || raw is not System.Collections.IEnumerable sequence)
@@ -388,7 +391,12 @@ internal sealed partial class MiniProgramDatasetBuilder
         var values = new List<string>();
         foreach (var item in sequence)
         {
-            if (item is null || ToScalarText(item) is not { } text)
+            if (item is null)
+            {
+                continue;
+            }
+
+            if (ToScalarText(item) is not { } text)
             {
                 return null;
             }

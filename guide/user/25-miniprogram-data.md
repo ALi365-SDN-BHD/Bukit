@@ -222,7 +222,8 @@ fails with `SchemaValidationFailed`, naming the dataset, record and the path of
 the field, such as `days[1].hotel`. A single mapping given to `object[]` is
 written as a list of one. As at the top level, an empty value inside an object
 (an empty list `[]`, an empty mapping, blank text or a YAML `null`) is written
-as `null`; quote `"null"` to keep it as text. A `dataIndex` dataset accepts the same types for its
+as `null`; quote `"null"` to keep it as text. A `string[]` value drops YAML
+null items (an empty `- ` or `~`), at the top level and inside objects. A `dataIndex` dataset accepts the same types for its
 keys, although data index rows hold text values today.
 
 Object lists can make list files large. Put them in `detailFields`, so each one

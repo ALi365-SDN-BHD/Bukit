@@ -91,6 +91,33 @@ public sealed class ContentImageRewritePipelineTests
         Assert.Equal(fallback, rewritten.CustomFields!["seo_image"].Value);
     }
 
+    [Fact, Trait("Category", "Integration")]
+    public async Task RewriteAsync_FrontMatterImageListWithEmptyItemIsLocalized()
+    {
+        const string photo = "https://img.example/a.jpg";
+        var root = Path.Combine(Path.GetTempPath(), "bukit-md-null-list-" + Guid.NewGuid().ToString("N"));
+        try
+        {
+            Directory.CreateDirectory(root);
+            await File.WriteAllTextAsync(Path.Combine(root, "page.md"), $"---\ntitle: Page\ngallery:\n  - {photo}\n  -\n---\nBody");
+            var raw = Assert.Single((await new Bukit.Content.Markdown.MarkdownFolderProvider(new Bukit.Content.Markdown.MarkdownFolderProviderOptions(root)).LoadRawAsync()).Documents);
+            var document = ContentDocument.Create(id: "1", title: "t", slug: "s", publishAt: DateTimeOffset.UtcNow, contentHtml: null, fields: raw.CustomFields);
+            var localizer = new MappingLocalizer(new Dictionary<string, string>(StringComparer.Ordinal)
+            {
+                [photo] = "/assets/uploads/a.jpg"
+            });
+            var pipeline = new ContentImageRewritePipeline(new MediaConfig { FieldKeys = ["gallery"] }, localizer);
+
+            var rewritten = Assert.Single(await pipeline.RewriteAsync(new[] { document }, CancellationToken.None));
+
+            Assert.Equal(new[] { "/assets/uploads/a.jpg" }, Assert.IsAssignableFrom<IReadOnlyList<string>>(rewritten.CustomFields!["gallery"].Value));
+        }
+        finally
+        {
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
     [Fact]
     public async Task RewriteAsync_PreservesVideoSourceAndNonImageFileFields()
     {
