@@ -189,8 +189,14 @@ The build-time public output privacy check SHALL fail when public output contain
 envId, a `cloud://` compat reference, the CloudBase gateway host, a URL on the PG storage
 signed-download path carrying a `token` parameter, or the storage CDN host
 (`*.storage.tcloudbase.com`). The deployment privacy validator reads no configuration and applies to
-every site, so it SHALL detect only `cloud://` references and signed links: a gateway-host URL on the
-signed path with a `token` parameter, or a storage CDN host URL with a `token` parameter. A gateway
+every site, so it SHALL detect only `cloud://` in URL positions and signed links: a gateway-host URL
+on the signed path with a `token` parameter, or a storage CDN host URL with a `token` parameter. URL
+positions are URL attribute values of any tag in HTML-like files (`src`, `href`, each `srcset`
+candidate, `poster`, `data-src`, `action`, `formaction`, `cite`, `data`, `xlink:href`, `url`) and
+CSS `url(...)` arguments in `style` attributes, CSS `url(...)` arguments in `.css` files, and whole
+string values in JSON files, each trimmed and starting with `cloud://` case-insensitively. Text
+nodes, code blocks and other text files SHALL NOT be checked for `cloud://` at deploy time; the
+build-time check keeps full-text detection for sites with a `cloudbase` source. A gateway
 or CDN host URL without `token` SHALL NOT fail deployment, so sites without a CloudBase source keep
 their behaviour. It SHALL detect the envId when the deploy command passes it.
 
@@ -213,6 +219,14 @@ their behaviour. It SHALL detect the envId when the deploy command passes it.
 #### Scenario: Unsigned CDN link on a site without CloudBase
 - **WHEN** a site without a `cloudbase` source links to `https://x.storage.tcloudbase.com/b/a.pdf` without a `token` parameter
 - **THEN** deployment privacy validation passes, as before this change
+
+#### Scenario: cloud:// image in deploy staging
+- **WHEN** a staged HTML file contains `<img src="cloud://env-abc.media/a.png">`
+- **THEN** deployment fails with `BKT-DEPLOY-PRIVACY-0001` before any Git write
+
+#### Scenario: Tutorial mentions cloud:// in a code block
+- **WHEN** a site without a `cloudbase` source publishes a page whose `<code>` block shows `cloud://env.bucket/a.png`
+- **THEN** deployment privacy validation passes
 
 ### Requirement: Credentials, signatures and signed links never reach logs
 Logs, diagnostics and exception messages SHALL NOT contain the credential (even though the
