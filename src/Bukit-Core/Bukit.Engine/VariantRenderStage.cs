@@ -157,7 +157,7 @@ internal static class VariantRenderStage
     }
 
     /// <summary>
-    /// With breadcrumb home/parent enabled, a page's BreadcrumbList depends on other pages' titles,
+    /// With breadcrumb home/parent enabled or a parent_url set, a page's BreadcrumbList depends on other pages' titles,
     /// so each page's dependency hash also covers its breadcrumb nodes.
     /// </summary>
     internal static Func<RouteInfo, string>? WithBreadcrumbDependencies(
@@ -166,7 +166,7 @@ internal static class VariantRenderStage
         string renderDependencyHash,
         Func<RouteInfo, string>? inner)
     {
-        if (breadcrumbs is null || (!schema.BreadcrumbHome && schema.BreadcrumbParent is null))
+        if (breadcrumbs is null || (!schema.BreadcrumbHome && schema.BreadcrumbParent is null && !breadcrumbs.HasExplicitParents))
         {
             return inner;
         }

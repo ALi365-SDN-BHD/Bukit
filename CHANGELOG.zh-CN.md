@@ -8,6 +8,8 @@ Bukit 所有重要变更都将记录在此文件中。
 
 - **注入模式保留带标记的主题 JSON-LD，删除其余的前会给出警告**：`site.seo.renderMode: inject` 下，head 里的 `<script type="application/ld+json" data-bukit-seo="keep">` 会留在主题写的位置，主题因此可以输出 Core 不生成的类型（`TouristTrip`、`Product`、`Event` 等）。未标记的 head JSON-LD 仍由 Core 的替换，但内容和 Core 生成的每一块都不同时，构建会警告 `seo.theme_json_ld_replaced route=<url> count=<n>`，不再静默删除；多页重复时汇总成 `event=diagnostics.summary`。`site.seo.diagnostics: strict` 下它仍只是警告，现有 strict 构建不受影响。主题在 head 里输出 `page.seo.json_ld` 不会触发警告，即使经过格式化或转义方式不同。警告只来自本次实际渲染的页面，增量构建中未变化的页面不会再报。发布审计会校验保留下来的 head JSON-LD（`seo.json_ld_invalid`），并把其类型计入该路由的 `schemaTypes`。body 里的 JSON-LD 以及 `theme`、`off` 模式行为不变。
 
+- **可在 front matter 中指定面包屑父页面**：页面可以设置 `parent_url: /malaysia/routes/`（某个已生成页面的站内路径，不含 base URL 和语言前缀），把该页面作为 BreadcrumbList 的父级。面包屑变为「父页面的面包屑 + 当前页」，并逐级向上递归，所以 `/routes/klang/` 这样的路线页可以得到 首页 › 马来西亚 › 路线 › 巴生谷三日游；`parent_url: /` 表示以首页为父级。父页面不是已生成的页面、不是站内路径或就是页面自身时，警告 `seo.breadcrumb_parent_missing`；父级之间形成循环时，警告 `seo.breadcrumb_parent_cycle`；这些页面继续使用按网址推断的面包屑。字段名特意和 `site.seo.schema.breadcrumbParent` 区分开，后者是对所有页面生效的分类类型。没有设置 `parent_url` 的页面不受影响。见 [11 I18n And SEO](guide/user/11-i18n-seo.md)。
+
 ## [2.2.7] - 2026-11-21
 
 - **小程序版本化数据（需开启）**：`site.yaml` 新增 `miniprogram` 配置节用来声明数据集，每次构建把它们以 JSON 写到每种语言输出根目录下的 `mp/`：内容集合（一个列表加每页一个详情文件）、数据模块、数据索引的某个 scope、整个 data 源（取代 `data/*.yaml`）、分类和 `site.menus` 菜单，另外总有一个 `site` 数据集。每个文件按其字节的 SHA-256 命名，并连同哈希列在 `mp/catalog.json` 里，小程序启动时只请求目录，只下载变了的文件。只输出声明过的字段；重复构建、跨操作系统输出字节一致；正文清洗成微信 `rich-text` 可用的 HTML 子集；图片和链接都是绝对地址。必填字段缺失、类型不对、图片仍是未本地化的签名 URL 时，构建以 `SchemaValidationFailed` 失败；必须配置 `https://` 的站点 URL。Bukit 不生成小程序项目。见 [25 Mini-Program Data](guide/user/25-miniprogram-data.md)。没有这个配置节的站点不受影响。

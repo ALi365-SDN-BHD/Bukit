@@ -2,6 +2,7 @@ using Bukit.Config;
 using Bukit.Engine.Abstractions.Content;
 using Bukit.Engine.RouteMetadata;
 using Bukit.Routing;
+using Bukit.Shared;
 
 namespace Bukit.Engine;
 
@@ -13,10 +14,14 @@ internal sealed class BreadcrumbDescriptorCatalog
 {
     private readonly IReadOnlyDictionary<string, BreadcrumbDescriptor> descriptors;
 
-    internal BreadcrumbDescriptorCatalog(IReadOnlyDictionary<string, BreadcrumbDescriptor> descriptors)
+    internal BreadcrumbDescriptorCatalog(IReadOnlyDictionary<string, BreadcrumbDescriptor> descriptors, bool hasExplicitParents = false)
     {
         this.descriptors = descriptors;
+        HasExplicitParents = hasExplicitParents;
     }
+
+    /// <summary>True when some page sets parent_url, so its trail depends on other pages' titles.</summary>
+    internal bool HasExplicitParents { get; }
 
     internal BreadcrumbDescriptor? Find(string routeUrl)
         => descriptors.TryGetValue(BreadcrumbDescriptorResolver.NormalizeForComparison(routeUrl), out var descriptor)
@@ -32,7 +37,8 @@ internal static class BreadcrumbDescriptorResolver
         IReadOnlyList<RoutedContentDocument> routed,
         ListRouteGraph? listRouteGraph,
         IReadOnlyList<RenderEntry>? staticEntries,
-        IReadOnlyDictionary<string, RouteMetadataEntry>? routeMetadata)
+        IReadOnlyDictionary<string, RouteMetadataEntry>? routeMetadata,
+        ILogger? logger = null)
     {
         var entries = new Dictionary<string, CatalogEntry>(StringComparer.OrdinalIgnoreCase);
         foreach (var routedDocument in routed)
@@ -118,7 +124,54 @@ internal static class BreadcrumbDescriptorResolver
             descriptors[key] = new BreadcrumbDescriptor(items);
         }
 
-        return new BreadcrumbDescriptorCatalog(descriptors);
+        var explicitParents = BreadcrumbExplicitParentResolver.Resolve(routed, entries.ContainsKey, logger);
+        if (explicitParents.Count > 0)
+        {
+            ApplyExplicitParents(config, baseUrl, entries, descriptors, explicitParents);
+        }
+
+        return new BreadcrumbDescriptorCatalog(descriptors, explicitParents.Count > 0);
+    }
+
+    /// <summary>
+    /// Replaces the URL-inferred trail of each page with a parent_url by its parent's trail plus the page.
+    /// Parents are acyclic and exist, so the recursion ends; each trail is built once.
+    /// </summary>
+    private static void ApplyExplicitParents(
+        AppConfig config,
+        string baseUrl,
+        IReadOnlyDictionary<string, CatalogEntry> entries,
+        Dictionary<string, BreadcrumbDescriptor> descriptors,
+        IReadOnlyDictionary<string, string> explicitParents)
+    {
+        var resolved = new Dictionary<string, BreadcrumbDescriptor>(StringComparer.OrdinalIgnoreCase);
+        foreach (var key in explicitParents.Keys)
+        {
+            descriptors[key] = Trail(key);
+        }
+
+        BreadcrumbDescriptor Trail(string key)
+        {
+            if (resolved.TryGetValue(key, out var done))
+            {
+                return done;
+            }
+
+            BreadcrumbDescriptor descriptor;
+            if (!explicitParents.TryGetValue(key, out var parentKey))
+            {
+                descriptor = key == "/"
+                    ? new BreadcrumbDescriptor([ToItem(config, baseUrl, entries["/"])])
+                    : descriptors[key];
+            }
+            else
+            {
+                descriptor = new BreadcrumbDescriptor([.. Trail(parentKey).Items, ToItem(config, baseUrl, entries[key])]);
+            }
+
+            resolved[key] = descriptor;
+            return descriptor;
+        }
     }
 
     private static CatalogEntry ResolveHome(AppConfig config, IReadOnlyDictionary<string, CatalogEntry> entries)

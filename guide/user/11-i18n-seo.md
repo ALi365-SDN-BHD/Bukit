@@ -244,6 +244,31 @@ names follow `content.routeMetadata` titles. Both are off by default. A
 without `taxonomy.kinds`) fails validation. With either option on, incremental
 builds re-render a page when any of its breadcrumb names or targets change.
 
+A page can name its breadcrumb parent in front matter (or a Notion property)
+with `parent_url`, the site path of a generated page, without `site.baseUrl`
+or language prefix. Its trail is then the parent's trail followed by the page,
+instead of the URL-inferred one, and parents are followed recursively:
+
+```yaml
+---
+title: 巴生谷三日游
+parent_url: /malaysia/routes/
+---
+```
+
+With `breadcrumbHome: true`, `/routes/klang/` becomes Home › 马来西亚 › 路线 ›
+巴生谷三日游 when `/malaysia/routes/` itself infers 马来西亚 from its URL (or
+names it with its own `parent_url`). `parent_url: /` makes the home page the
+parent. The field is named apart from `site.seo.schema.breadcrumbParent`,
+which takes a taxonomy kind for all pages. A parent that is not a generated
+page, is not a site path (a full URL or a path without the leading `/`), or is
+the page itself logs `seo.breadcrumb_parent_missing route=<url> parent=<value>`;
+pages whose parents form a cycle log `seo.breadcrumb_parent_cycle`. Those pages
+keep their URL-inferred trail, and pages that only lead into a cycle keep their
+parent. Both are warnings, also under `site.seo.diagnostics: strict`. When any
+page sets `parent_url`, incremental builds re-render a page when any of its
+breadcrumb names or targets change.
+
 `site.seo.schema.searchAction` permits output; `site.search.route` explicitly
 declares that a complete search page exists. When both switches and SEO are
 enabled, the route must be present in each variant's final HTML route inventory
@@ -305,7 +330,8 @@ the visible summary.
 ## Breadcrumb Route Contract
 
 Breadcrumb JSON-LD uses only strict URL ancestors present in the current
-language variant's final HTML route inventory. Content, taxonomy, list and
+language variant's final HTML route inventory, unless the page names a parent
+with `parent_url` (see above). Content, taxonomy, list and
 pagination, filtered list, and managed static HTML routes participate. Matching
 ignores case and trailing slashes, but does not invent a route from a URL
 segment. Thus `/companies/page/2/` can include `/companies/` but not

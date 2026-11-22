@@ -46,7 +46,7 @@ internal static class ContentFieldReservations
         "image_license", "cover_license", "video_license", "attachment_license",
         // SEO / GEO
         "seo_title", "seotitle", "seo_desc", "seodesc", "seo_image", "og_image", "canonical", "robots",
-        "twitter_creator", "schema_type", "seo_schema_type", "seo_article", "seo_inject", "geo",
+        "twitter_creator", "schema_type", "seo_schema_type", "seo_article", "seo_inject", "geo", "parent_url",
         // Entities and relations
         "entities", "products", "services", "places", "people", "companies", "related_to",
         "sameas", "same_as"
