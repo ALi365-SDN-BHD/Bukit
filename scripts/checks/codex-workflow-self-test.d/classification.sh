@@ -41,3 +41,28 @@ if any(batch["parallel"] for batch in result["executionBatches"][1:]):
     raise SystemExit("serialized batches unexpectedly marked parallel")
 PY
 
+
+# Build-invoking tool gates must serialize with other dotnet work.
+expect_exit 0 "${tool[@]}" classify \
+  --policy scripts/checks/codex-workflow-policy.v1.json \
+  --test-command "bash scripts/checks/dotnet-format.sh" \
+  --test-command "bash scripts/checks/code-analysis-ratchet.sh check" \
+  --test-command "bash scripts/checks/public-api-drift.sh check Debug" \
+  --test-command "dotnet build tests/Bukit.CloudBase.Tests/Bukit.CloudBase.Tests.csproj"
+python3 - "$command_output" <<'PY'
+import json
+import sys
+
+result = json.loads(sys.argv[1])
+groups = result["groups"]
+expected = sorted([
+    "bash scripts/checks/code-analysis-ratchet.sh check",
+    "bash scripts/checks/dotnet-format.sh",
+    "bash scripts/checks/public-api-drift.sh check Debug",
+    "dotnet build tests/Bukit.CloudBase.Tests/Bukit.CloudBase.Tests.csproj",
+])
+if groups["dotnet-serial"]["commands"] != expected:
+    raise SystemExit(f"tool gates not serialized: {groups['dotnet-serial']}")
+if groups["static-parallel"]["commands"]:
+    raise SystemExit(f"tool gates unexpectedly parallel: {groups['static-parallel']}")
+PY

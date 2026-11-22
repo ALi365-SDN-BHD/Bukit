@@ -1,7 +1,7 @@
 # Bukit Core 内置 `type: cloudbase` 内容源：实施方案
 
 - 日期：2026-11-23
-- 状态：**草案，未批准**。门禁规则见第 2 节：G0-1～G0-5 不通过就不能开始 T00；G0-6 不通过就不能开始 T06。
+- 状态：**执行中**。2026-11-23 起按用户授权开始执行；G0-4、G0-6 按用户指示推迟到真实环境验证，见 openspec `add-cloudbase-content-source` 的 proposal。原门禁规则见第 2 节：G0-1～G0-5 不通过就不能开始 T00；G0-6 不通过就不能开始 T06。
 - 修订：v3（2026-11-23）。v2 根据第一轮独立审计（Critical 1 / Important 12 / Minor 15）修订；v3 根据第二轮严格审计（Critical 0 / Important 11 / Minor 10）修订。处置记录见附录 A 和附录 B。
 - 依据：[可行性分析](../analysis/bukit-core-cloudbase-builtin-provider-feasibility-2026-11-22.zh-CN.md)，下文简称"分析文档"。分析文档经过三轮独立审计修订，提交 `52699535`。
 - 配套：[实施任务计划书](2026-11-23-cloudbase-content-source-task-plan.zh-CN.md)。本文件讲"做成什么样、为什么这样做"；计划书讲"按什么顺序做、怎么做、怎么验收"。

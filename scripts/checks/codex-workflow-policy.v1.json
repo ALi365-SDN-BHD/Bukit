@@ -2425,6 +2425,91 @@
       "contractConsumerGlobs": [],
       "publicContract": false,
       "resource": "dotnet-serial"
+    },
+    {
+      "id": "bukit-cloudbase-source",
+      "matches": [
+        "src/Bukit-Core/Bukit.CloudBase/*.cs",
+        "src/Bukit-Core/Bukit.CloudBase/**/*.cs",
+        "src/Bukit-Core/Bukit.CloudBase/Bukit.CloudBase.csproj"
+      ],
+      "specialtyTests": [
+        "dotnet test tests/Bukit.CloudBase.Tests/Bukit.CloudBase.Tests.csproj",
+        "bash scripts/checks/dotnet-format.sh",
+        "bash scripts/checks/code-analysis-ratchet.sh check"
+      ],
+      "resource": "dotnet-serial",
+      "publicContract": true,
+      "contractConsumerGlobs": [
+        "tests/Bukit.CloudBase.Tests/*.cs",
+        "tests/Bukit.CloudBase.Tests/**/*.cs",
+        "tests/Bukit.Content.Tests/*.cs",
+        "tests/Bukit.Content.Tests/**/*.cs",
+        "tests/Bukit.Cli.Tests/*.cs",
+        "tests/Bukit.Cli.Tests/**/*.cs",
+        "tests/Bukit.Engine.Tests/*.cs",
+        "tests/Bukit.Engine.Tests/**/*.cs",
+        "tests/Bukit.Architecture.Tests/*.cs",
+        "tests/Bukit.Architecture.Tests/**/*.cs"
+      ]
+    },
+    {
+      "id": "bukit-cloudbase-tests",
+      "matches": [
+        "tests/Bukit.CloudBase.Tests/*",
+        "tests/Bukit.CloudBase.Tests/**"
+      ],
+      "specialtyTests": [
+        "dotnet test tests/Bukit.CloudBase.Tests/Bukit.CloudBase.Tests.csproj"
+      ],
+      "resource": "dotnet-serial",
+      "publicContract": false,
+      "contractConsumerGlobs": []
+    },
+    {
+      "id": "cloudbase-content-source-change",
+      "matches": [
+        "openspec/changes/add-cloudbase-content-source/*",
+        "openspec/changes/add-cloudbase-content-source/**",
+        "openspec/changes/archive/*-add-cloudbase-content-source/**",
+        "openspec/specs/cloudbase-content-source/spec.md",
+        "docs/plans/2026-11-23-cloudbase-content-source-implementation-design.zh-CN.md",
+        "docs/plans/2026-11-23-cloudbase-content-source-task-plan.zh-CN.md"
+      ],
+      "specialtyTests": [
+        "openspec validate add-cloudbase-content-source --type change --strict --no-interactive"
+      ],
+      "resource": "static-parallel",
+      "publicContract": false,
+      "contractConsumerGlobs": []
+    },
+    {
+      "id": "cloudbase-user-docs",
+      "matches": [
+        "guide/user/07-multi-source-data.md",
+        "guide/user/27-cloudbase-content.md"
+      ],
+      "specialtyTests": [
+        "bash scripts/checks/docs/active-links.sh",
+        "bash scripts/checks/docs/size-policy.sh",
+        "bash scripts/checks/config-docs-contract.sh"
+      ],
+      "resource": "static-parallel",
+      "publicContract": false,
+      "contractConsumerGlobs": []
+    },
+    {
+      "id": "bukit-test-solution",
+      "matches": [
+        "bukit-test.slnx"
+      ],
+      "specialtyTests": [
+        "dotnet test tests/Bukit.Architecture.Tests/Bukit.Architecture.Tests.csproj",
+        "dotnet build tests/Bukit.CloudBase.Tests/Bukit.CloudBase.Tests.csproj"
+      ],
+      "resource": "dotnet-serial",
+      "publicContract": false,
+      "contractConsumerGlobs": []
     }
   ],
   "resourceRules": [
@@ -2457,7 +2542,11 @@
       "class": "dotnet-serial",
       "commandContains": [
         "dotnet build src/Bukit-Core/Bukit.Cli/Bukit.Cli.csproj",
-        "tools/Bukit.PublicApiDrift"
+        "tools/Bukit.PublicApiDrift",
+        "dotnet-format.sh",
+        "code-analysis-ratchet.sh",
+        "public-api-drift.sh",
+        "dotnet build tests/"
       ],
       "matches": [
         "src/Bukit-Core/Bukit.Cli/Bukit.Cli.csproj",
