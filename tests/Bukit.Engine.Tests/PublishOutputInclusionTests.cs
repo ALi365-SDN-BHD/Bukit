@@ -21,6 +21,22 @@ public sealed class PublishOutputInclusionTests
         Assert.False(inclusion.OutputContains(sitemap, PublishOutputInclusion.SitemapLocNeedle(Other.Canonical)));
     }
 
+    [Theory]
+    [InlineData("see /poſts/ here")]
+    [InlineData("see /POSTS/ here")]
+    [InlineData("see /pösts/ here")]
+    public void OutputContains_MatchesOrdinalIgnoreCaseInTheCurrentGlobalizationMode(string text)
+    {
+        // U+017F folds to 'S' only under invariant globalization (the shipped CLI); either way
+        // the result must equal the framework's own ordinal ignore-case comparison.
+        var entry = Entry("/posts/", "https://x.test/posts/");
+        var inclusion = new PublishOutputInclusion([entry], projectionResults: null);
+
+        Assert.Equal(
+            text.Contains(entry.Route.Url, StringComparison.OrdinalIgnoreCase),
+            inclusion.OutputContains(text, entry.Route.Url));
+    }
+
     [Fact]
     public void OutputContains_ReturnsFalseForNullTextOrNeedle()
     {

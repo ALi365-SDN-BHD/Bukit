@@ -1,4 +1,4 @@
-namespace Bukit.Engine;
+namespace Bukit.Engine.Primitives;
 
 /// <summary>
 /// Finds which of many patterns occur in one text in a single pass (Aho-Corasick).
@@ -36,41 +36,74 @@ internal static class OrdinalIgnoreCaseMultiMatcher
 
     /// <summary>Returns the patterns that occur in <paramref name="text"/>, compared ordinally.</summary>
     internal static HashSet<string> FindPresent(string text, IEnumerable<string> patterns)
+        => Compile(patterns).FindPresent(text);
+
+    /// <summary>
+    /// Builds the automaton once so the same patterns can be searched in many texts,
+    /// each in a single pass.
+    /// </summary>
+    internal static CompiledPatterns Compile(IEnumerable<string> patterns)
     {
-        var present = new HashSet<string>(StringComparer.Ordinal);
-        var automatonPatterns = new List<string>();
-        foreach (var pattern in patterns.Distinct(StringComparer.Ordinal))
+        ArgumentNullException.ThrowIfNull(patterns);
+        return new CompiledPatterns(patterns);
+    }
+
+    /// <summary>A fixed pattern set compiled for repeated <see cref="FindPresent(string)"/> calls.</summary>
+    internal sealed class CompiledPatterns
+    {
+        private readonly List<string> _emptyPatterns = [];
+        private readonly List<string> _surrogatePatterns = [];
+        private readonly List<string> _automatonPatterns = [];
+        private readonly Automaton? _automaton;
+
+        internal CompiledPatterns(IEnumerable<string> patterns)
         {
-            if (pattern.Length == 0)
+            foreach (var pattern in patterns.Distinct(StringComparer.Ordinal))
             {
-                // Contains("") is true for any text.
-                present.Add(pattern);
+                ArgumentNullException.ThrowIfNull(pattern, nameof(patterns));
+                if (pattern.Length == 0)
+                {
+                    // Contains("") is true for any text.
+                    _emptyPatterns.Add(pattern);
+                }
+                else if (HasSurrogate(pattern))
+                {
+                    _surrogatePatterns.Add(pattern);
+                }
+                else
+                {
+                    _automatonPatterns.Add(pattern);
+                }
             }
-            else if (HasSurrogate(pattern))
+
+            _automaton = _automatonPatterns.Count == 0 ? null : new Automaton(_automatonPatterns);
+        }
+
+        /// <summary>Returns the patterns that occur in <paramref name="text"/>, compared ordinally.</summary>
+        internal HashSet<string> FindPresent(string text)
+        {
+            ArgumentNullException.ThrowIfNull(text);
+            var present = new HashSet<string>(_emptyPatterns, StringComparer.Ordinal);
+            foreach (var pattern in _surrogatePatterns)
             {
                 if (text.Contains(pattern, StringComparison.OrdinalIgnoreCase))
                 {
                     present.Add(pattern);
                 }
             }
-            else
-            {
-                automatonPatterns.Add(pattern);
-            }
-        }
 
-        if (automatonPatterns.Count == 0 || text.Length == 0)
-        {
+            if (_automaton is null || text.Length == 0)
+            {
+                return present;
+            }
+
+            foreach (var index in _automaton.Scan(text))
+            {
+                present.Add(_automatonPatterns[index]);
+            }
+
             return present;
         }
-
-        var automaton = new Automaton(automatonPatterns);
-        foreach (var index in automaton.Scan(text))
-        {
-            present.Add(automatonPatterns[index]);
-        }
-
-        return present;
     }
 
     private static bool HasSurrogate(string value)
