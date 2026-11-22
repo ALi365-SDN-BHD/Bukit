@@ -81,7 +81,7 @@ script differs from all of Core's JSON-LD blocks, the build warns
 `seo.theme_json_ld_replaced route=<url> count=<n>` (a warning even with `strict`; more
 than five pages collapse into one `event=diagnostics.summary` line). A theme that echoes
 `page.seo.json_ld` in the head gets no warning, even pretty-printed or with different
-string escaping; HTML-escaped (`html.escape`) or reordered JSON still warns. Incremental
+string escaping; HTML-escaped or reordered JSON still warns. Incremental
 builds skip unchanged pages, so the warning appears only for pages rendered in that build
 (clean builds report every page). Core does not check kept JSON-LD for types it already
 emits: marking a theme `WebPage` or `BreadcrumbList` keep publishes a duplicate, so keep
