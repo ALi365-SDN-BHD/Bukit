@@ -1,6 +1,7 @@
 using Bukit.Config;
 using Bukit.Engine.Abstractions.Content;
 using Bukit.Engine.Abstractions.Plugins;
+using Bukit.Engine.Audit;
 using Bukit.Engine.Primitives;
 using Bukit.Engine.PublishAuditRules;
 using Bukit.Rendering;
@@ -21,7 +22,7 @@ internal static partial class MachineReadabilityTrustAuditBuilder
         AuditOutputReadPaths? readPaths = null)
     {
         contentGraph ??= CanonicalContentGraph.Empty;
-        var projectionLookup = BuildProjectionLookup(projectionResults);
+        var inclusion = new PublishOutputInclusion(seoIndex.Values, projectionResults);
         var paths = readPaths ?? AuditOutputReadPaths.ForOutputDirectory(outputDir, config.Site.Feed.Path);
         var sitemapText = ReadOptional(paths.Sitemap);
         var searchText = ReadOptional(paths.Search);
@@ -100,44 +101,44 @@ internal static partial class MachineReadabilityTrustAuditBuilder
             // Pages whose canonical points outside the site's sitemap location are left out of
             // the sitemap by design, so they must not be reported as missing from it.
             var sitemapExpected = entry.Indexable && isInSitemapScope(entry.Canonical);
-            var sitemapIncluded = TryGetProjectionIncluded(projectionLookup, "sitemap", entry, out var projectedSitemap)
+            var sitemapIncluded = inclusion.TryGetProjected("sitemap", entry, out var projectedSitemap)
                 ? projectedSitemap
-                : entry.Indexable && (ContainsInvariant(sitemapText, $"<loc>{entry.Canonical}</loc>") || isInSitemap(entry.Canonical));
-            var searchIncluded = TryGetProjectionIncluded(projectionLookup, "search", entry, out var projectedSearch)
+                : entry.Indexable && (inclusion.OutputContains(sitemapText, PublishOutputInclusion.SitemapLocNeedle(entry.Canonical)) || isInSitemap(entry.Canonical));
+            var searchIncluded = inclusion.TryGetProjected("search", entry, out var projectedSearch)
                 ? projectedSearch
-                : entry.Indexable && ContainsInvariant(searchText, entry.Route.Url);
-            var rssIncluded = TryGetProjectionIncluded(projectionLookup, "feed", entry, out var projectedRss)
+                : entry.Indexable && inclusion.OutputContains(searchText, entry.Route.Url);
+            var rssIncluded = inclusion.TryGetProjected("feed", entry, out var projectedRss)
                 ? projectedRss
-                : entry.Indexable && rssExpected && ContainsInvariant(rssText, entry.Canonical);
+                : entry.Indexable && rssExpected && inclusion.OutputContains(rssText, entry.Canonical);
             var atomFeedExpected = IsFeedFormatEnabled(config, "atom") && feedWindowRoutes.Contains(entry.Route.Url);
-            var atomFeedIncluded = TryGetProjectionIncluded(projectionLookup, "atom", entry, out var projectedAtom)
+            var atomFeedIncluded = inclusion.TryGetProjected("atom", entry, out var projectedAtom)
                 ? projectedAtom
-                : entry.Indexable && atomFeedExpected && ContainsInvariant(atomFeedText, entry.Canonical);
+                : entry.Indexable && atomFeedExpected && inclusion.OutputContains(atomFeedText, entry.Canonical);
             var jsonFeedExpected = IsFeedFormatEnabled(config, "json") && feedWindowRoutes.Contains(entry.Route.Url);
-            var jsonFeedIncluded = TryGetProjectionIncluded(projectionLookup, "jsonfeed", entry, out var projectedJsonFeed)
+            var jsonFeedIncluded = inclusion.TryGetProjected("jsonfeed", entry, out var projectedJsonFeed)
                 ? projectedJsonFeed
-                : entry.Indexable && jsonFeedExpected && ContainsInvariant(jsonFeedText, entry.Canonical);
+                : entry.Indexable && jsonFeedExpected && inclusion.OutputContains(jsonFeedText, entry.Canonical);
             var llmsExpected = !llmsExcluded && IsLlmsContent(config, entry);
             var llmsKindExpected = !llmsExcluded && (llmsExpected || (entry.Indexable && llmsText is not null));
-            var llmsIncluded = TryGetProjectionIncluded(projectionLookup, "llms", entry, out var projectedLlms)
+            var llmsIncluded = inclusion.TryGetProjected("llms", entry, out var projectedLlms)
                 ? projectedLlms
                 : entry.Indexable &&
-                  (ContainsInvariant(llmsText, entry.Route.Url) || ContainsInvariant(llmsText, entry.Canonical));
+                  (inclusion.OutputContains(llmsText, entry.Route.Url) || inclusion.OutputContains(llmsText, entry.Canonical));
             var llmsFullExpected = !llmsExcluded && IsLlmsFullContent(config, entry);
             var llmsFullKindExpected = !llmsExcluded && (llmsFullExpected || (entry.Indexable && llmsFullText is not null));
-            var llmsFullIncluded = TryGetProjectionIncluded(projectionLookup, "llms-full", entry, out var projectedLlmsFull)
+            var llmsFullIncluded = inclusion.TryGetProjected("llms-full", entry, out var projectedLlmsFull)
                 ? projectedLlmsFull
                 : entry.Indexable &&
-                  (ContainsInvariant(llmsFullText, entry.Route.Url) || ContainsInvariant(llmsFullText, entry.Canonical));
+                  (inclusion.OutputContains(llmsFullText, entry.Route.Url) || inclusion.OutputContains(llmsFullText, entry.Canonical));
             var robotsExpected = config.Site.Seo.RobotsTxt.Enabled || robotsText is not null;
             var agentManifestExpected = entry.Indexable;
-            var manifestIncluded = TryGetProjectionIncluded(projectionLookup, "agent-manifest", entry, out var projectedManifest)
+            var manifestIncluded = inclusion.TryGetProjected("agent-manifest", entry, out var projectedManifest)
                 ? projectedManifest
                 : !entry.Indexable ||
                   (agentManifestText is not null &&
-                   (ContainsInvariant(agentManifestText, entry.Route.Url) ||
-                    ContainsInvariant(agentManifestText, entry.Canonical)));
-            var robotsIncluded = TryGetProjectionIncluded(projectionLookup, "robots", entry, out var projectedRobots)
+                   (inclusion.OutputContains(agentManifestText, entry.Route.Url) ||
+                    inclusion.OutputContains(agentManifestText, entry.Canonical)));
+            var robotsIncluded = inclusion.TryGetProjected("robots", entry, out var projectedRobots)
                 ? projectedRobots
                 : robotsText is not null;
             document = document with
@@ -171,7 +172,7 @@ internal static partial class MachineReadabilityTrustAuditBuilder
                 seoIssues.Add(Warning("seo.sitemap_missing_url", entry.Route.Url, $"Indexable route is missing from sitemap: {entry.Canonical}."));
             }
 
-            if (!entry.Indexable && sitemapText is not null && ContainsInvariant(sitemapText, $"<loc>{entry.Canonical}</loc>"))
+            if (!entry.Indexable && sitemapText is not null && inclusion.OutputContains(sitemapText, PublishOutputInclusion.SitemapLocNeedle(entry.Canonical)))
             {
                 seoIssues.Add(Error("seo.noindex_in_sitemap", entry.Route.Url, $"Noindex route appears in sitemap: {entry.Canonical}."));
             }
