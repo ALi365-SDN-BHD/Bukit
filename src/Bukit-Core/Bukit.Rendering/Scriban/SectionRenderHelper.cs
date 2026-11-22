@@ -1,5 +1,6 @@
 using Scriban;
 using Scriban.Runtime;
+using Bukit.Config;
 using Bukit.Engine.Abstractions;
 using Bukit.Engine.Abstractions.Content;
 using Bukit.Engine.Abstractions.Plugins;
@@ -21,6 +22,7 @@ internal sealed class SectionRenderHelper
     private readonly IReadOnlyList<(ContentDocument Document, RouteInfo? Route)>? _allPages;
     private readonly IReadOnlyDictionary<string, ISectionPlugin>? _sectionPlugins;
     private readonly GetCachedSectionTemplate _getCachedTemplate;
+    private readonly int _loopLimit;
 
     internal ScriptObject ParentGlobals => _parentGlobals;
 
@@ -34,7 +36,8 @@ internal sealed class SectionRenderHelper
         ScriptObject parentGlobals,
         IReadOnlyList<(ContentDocument, RouteInfo?)>? allPages,
         IReadOnlyDictionary<string, ISectionPlugin>? sectionPlugins = null,
-        GetCachedSectionTemplate? getCachedTemplate = null)
+        GetCachedSectionTemplate? getCachedTemplate = null,
+        int loopLimit = BuildConfig.DefaultTemplateLoopLimit)
     {
         _themeRegistry = themeRegistry;
         _schemaValidator = schemaValidator;
@@ -44,6 +47,7 @@ internal sealed class SectionRenderHelper
         _allPages = allPages;
         _sectionPlugins = sectionPlugins;
         _getCachedTemplate = getCachedTemplate ?? DefaultGetCachedTemplate;
+        _loopLimit = loopLimit;
     }
 
     private bool DefaultGetCachedTemplate(string templatePath, out Template template)
@@ -89,7 +93,7 @@ internal sealed class SectionRenderHelper
                 throw;
             }
 
-            return Diagnostic("theme.render_section.failed", $"render_section error: {ex.Message}");
+            return Diagnostic("theme.render_section.failed", $"render_section error: {TemplateLoopLimitHint.Describe(ex, _loopLimit)}");
         }
     }
 
@@ -144,7 +148,7 @@ internal sealed class SectionRenderHelper
                 throw;
             }
 
-            return Diagnostic("theme.render_section.failed", $"render_section error: {ex.Message}");
+            return Diagnostic("theme.render_section.failed", $"render_section error: {TemplateLoopLimitHint.Describe(ex, _loopLimit)}");
         }
     }
 
@@ -240,15 +244,7 @@ internal sealed class SectionRenderHelper
 
         RecordSectionReads(sectionTemplate, sectionDef);
 
-        var sectionContext = new BukitTemplateContext
-        {
-            TemplateLoader = _templateLoader,
-            EnableRelaxedMemberAccess = true,
-            EnableRelaxedTargetAccess = true,
-            EnableNullIndexer = true,
-            // Scriban's default 1 MiB limit silently truncates large output (counted twice inside include).
-            LimitToString = 0
-        };
+        var sectionContext = BukitTemplateContext.Create(_templateLoader, _loopLimit);
 
         var so = new ScriptObject();
         so.SetValue("type", sectionDef.Type, readOnly: true);
@@ -294,7 +290,8 @@ internal sealed class SectionRenderHelper
                     parentGlobals,
                     Path.Combine(_themeRegistry.ThemeRoot, "layouts"),
                     _componentValidation,
-                    _getCachedTemplate),
+                    _getCachedTemplate,
+                    _loopLimit),
                 readOnly: true);
         }
 

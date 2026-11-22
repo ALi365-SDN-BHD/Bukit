@@ -91,6 +91,7 @@ pages silently disappear.
 | `publishDotFiles` | `false` | |
 | `followSymlinks` | `false` | Supported copy paths only; forced off by `--ci`. |
 | `languageJobs` | `1` | Multilingual worker count. |
+| `templateLoopLimit` | `1000` | Positive Scriban loop iteration limit; see `bukit-templating`. |
 | `build.report.enabled` | `true` | Optional `.bukit/` reports. |
 | `build.report.securityFailMode` | `auto` | `auto\|off\|warn\|strict`. |
 

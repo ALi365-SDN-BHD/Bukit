@@ -137,6 +137,7 @@ public static class ConfigLoader
             PublishDotFiles = buildNode is null ? false : ConfigYamlHelpers.GetOptionalBool(buildNode, "publishDotFiles") ?? false,
             FollowSymlinks = buildNode is null ? false : ConfigYamlHelpers.GetOptionalBool(buildNode, "followSymlinks") ?? false,
             LanguageJobs = buildNode is null ? 1 : ConfigYamlHelpers.GetOptionalIntStrict(buildNode, "languageJobs") ?? 1,
+            TemplateLoopLimit = buildNode is null ? BuildConfig.DefaultTemplateLoopLimit : ConfigYamlHelpers.GetOptionalIntStrict(buildNode, "templateLoopLimit") ?? BuildConfig.DefaultTemplateLoopLimit,
             Report = new BuildReportConfig
             {
                 Enabled = buildReportNode is null || (ConfigYamlHelpers.GetOptionalBool(buildReportNode, "enabled") ?? true),

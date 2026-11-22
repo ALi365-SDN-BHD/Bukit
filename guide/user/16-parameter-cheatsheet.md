@@ -121,6 +121,7 @@
 | `build.publishDotFiles` | `false` |
 | `build.followSymlinks` | `false` |
 | `build.languageJobs` | `1` |
+| `build.templateLoopLimit` | `1000` |
 | `theme.layouts` | `layouts` |
 | `theme.assets` | `assets` |
 | `theme.static` | `static` |

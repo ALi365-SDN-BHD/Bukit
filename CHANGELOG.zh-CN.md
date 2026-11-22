@@ -8,6 +8,8 @@ Bukit 所有重要变更都将记录在此文件中。
 
 - **注入模式保留带标记的主题 JSON-LD，删除其余的前会给出警告**：`site.seo.renderMode: inject` 下，head 里的 `<script type="application/ld+json" data-bukit-seo="keep">` 会留在主题写的位置，主题因此可以输出 Core 不生成的类型（`TouristTrip`、`Product`、`Event` 等）。未标记的 head JSON-LD 仍由 Core 的替换，但内容和 Core 生成的每一块都不同时，构建会警告 `seo.theme_json_ld_replaced route=<url> count=<n>`，不再静默删除；多页重复时汇总成 `event=diagnostics.summary`。`site.seo.diagnostics: strict` 下它仍只是警告，现有 strict 构建不受影响。主题在 head 里输出 `page.seo.json_ld` 不会触发警告，即使经过格式化或转义方式不同。警告只来自本次实际渲染的页面，增量构建中未变化的页面不会再报。发布审计会校验保留下来的 head JSON-LD（`seo.json_ld_invalid`），并把其类型计入该路由的 `schemaTypes`。body 里的 JSON-LD 以及 `theme`、`off` 模式行为不变。
 
+- **模板循环上限可配置**：新增 `build.templateLoopLimit`（正整数，默认 1000，与 Scriban 自身默认值相同），设定页面、组件和 section 模板允许的循环次数。Scriban 统计的是一个最外层循环内的全部迭代，包括嵌套循环以及在循环里调用的函数和 include 中的循环，所以 40 个页面 × 30 个标签的两层循环会在 1200 次时失败，尽管单层都不到 1000。这种情况下的 `Render failed` 错误现在会说明原因，并给出 `build.templateLoopLimit` 及其当前值；组件和 section 的诊断信息带有同样的提示。用 array.filter 或 array.map 加匿名函数过滤不计入上限。不设置该项的网站构建结果与以前完全相同。见 [08 Themes And Templates](guide/user/08-themes-templates.md#loop-limit)。
+
 ## [2.2.7] - 2026-11-21
 
 - **小程序版本化数据（需开启）**：`site.yaml` 新增 `miniprogram` 配置节用来声明数据集，每次构建把它们以 JSON 写到每种语言输出根目录下的 `mp/`：内容集合（一个列表加每页一个详情文件）、数据模块、数据索引的某个 scope、整个 data 源（取代 `data/*.yaml`）、分类和 `site.menus` 菜单，另外总有一个 `site` 数据集。每个文件按其字节的 SHA-256 命名，并连同哈希列在 `mp/catalog.json` 里，小程序启动时只请求目录，只下载变了的文件。只输出声明过的字段；重复构建、跨操作系统输出字节一致；正文清洗成微信 `rich-text` 可用的 HTML 子集；图片和链接都是绝对地址。必填字段缺失、类型不对、图片仍是未本地化的签名 URL 时，构建以 `SchemaValidationFailed` 失败；必须配置 `https://` 的站点 URL。Bukit 不生成小程序项目。见 [25 Mini-Program Data](guide/user/25-miniprogram-data.md)。没有这个配置节的站点不受影响。

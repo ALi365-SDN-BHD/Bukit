@@ -126,7 +126,8 @@ public static class ConfigJsonSchemaGenerator
             ("fingerprintMode", EnumSchema("size-time", "sha256")),
             ("publishDotFiles", BoolSchema()),
             ("followSymlinks", BoolSchema()),
-            ("languageJobs", IntSchema(1)))));
+            ("languageJobs", IntSchema(1)),
+            ("templateLoopLimit", IntSchema(1)))));
 
     private static JsonObject ThemeSchema()
         => Obj(("type", "object"), ("properties", Obj(

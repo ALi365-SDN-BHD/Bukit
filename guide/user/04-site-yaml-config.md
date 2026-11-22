@@ -483,6 +483,7 @@ author.
 | `build.publishDotFiles` | `false` | Allows dotfiles in copied output. |
 | `build.followSymlinks` | `false` | Allows symlink traversal only in supported copy paths with real-path checks. Default recursive content/static/media/report discovery still skips directory symlinks and reparse points. |
 | `build.languageJobs` | `1` | Positive language build concurrency. |
+| `build.templateLoopLimit` | `1000` | Positive Scriban loop iteration limit for page, component and section templates. See [Loop Limit](08-themes-templates.md#loop-limit). |
 
 ## Theme Fields
 

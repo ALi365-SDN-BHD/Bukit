@@ -1,3 +1,5 @@
+using Bukit.Config;
+
 namespace Bukit.Engine.Incremental;
 
 internal sealed class ThemeAndTemplateModelContributor : IRenderDependencyContributor
@@ -43,5 +45,11 @@ internal sealed class ThemeAndTemplateModelContributor : IRenderDependencyContri
 
         writer.AppendLabeledCanonicalValue("theme.componentValidation", theme.ComponentValidation);
         writer.AppendLabeledCanonicalValue("build.listPageContentMode", context.Config.Build.ListPageContentMode);
+
+        // Only a non-default limit is hashed, so existing build manifests stay valid.
+        if (context.Config.Build.TemplateLoopLimit != BuildConfig.DefaultTemplateLoopLimit)
+        {
+            writer.AppendLabeledCanonicalValue("build.templateLoopLimit", context.Config.Build.TemplateLoopLimit);
+        }
     }
 }

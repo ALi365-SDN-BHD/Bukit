@@ -68,6 +68,13 @@ public sealed class ScribanTemplateRenderer
             _contributors);
     }
 
+    /// <summary>Scriban loop limit for page, component and section templates (build.templateLoopLimit).</summary>
+    internal int TemplateLoopLimit
+    {
+        get => _contextBuilder.LoopLimit;
+        init => _contextBuilder.LoopLimit = value;
+    }
+
     public string RenderPage(string templateRelativePath, PageModel model)
     {
         RenderReadRecorder.Current?.MarkTracked();
@@ -161,7 +168,7 @@ public sealed class ScribanTemplateRenderer
             }
 
             // Include the root cause; a bare position is not enough to fix a template.
-            var cause = ex.GetBaseException().Message.ReplaceLineEndings(" ").Trim();
+            var cause = TemplateLoopLimitHint.Describe(ex.GetBaseException(), context.LoopLimit).ReplaceLineEndings(" ").Trim();
             var reason = cause.Length == 0 ? string.Empty : $": {cause}";
             throw new RenderException($"Render failed: {templateRelativePath}{suffix}{reason}", ex, DiagnosticCode.RenderFailed);
         }

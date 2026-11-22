@@ -46,17 +46,12 @@ internal sealed class TemplateContextBuilder
         _contributors = contributors ?? Array.Empty<ITemplateContextContributor>();
     }
 
+    /// <summary>Scriban loop limit for every context this builder creates (build.templateLoopLimit).</summary>
+    public int LoopLimit { get; set; } = BuildConfig.DefaultTemplateLoopLimit;
+
     public TemplateContext BuildContext(ScriptObject globals)
     {
-        var context = new BukitTemplateContext
-        {
-            TemplateLoader = _templateLoader,
-            EnableRelaxedMemberAccess = true,
-            EnableRelaxedTargetAccess = true,
-            EnableNullIndexer = true,
-            // Scriban's default 1 MiB limit silently truncates large output (counted twice inside include).
-            LimitToString = 0
-        };
+        var context = BukitTemplateContext.Create(_templateLoader, LoopLimit);
 
         if (_shortcodes is { Count: > 0 })
         {
@@ -86,7 +81,7 @@ internal sealed class TemplateContextBuilder
             var sectionHelpers = new SectionRenderHelper(
                 _themeRegistry, _schemaValidator, _componentValidation,
                 _templateLoader, globals, _allPages, _sectionPlugins,
-                _getCachedSectionTemplate);
+                _getCachedSectionTemplate, LoopLimit);
             var sectionObj = new ScriptObject();
             sectionObj.SetValue("render_section", new RenderSectionFunction(sectionHelpers), readOnly: true);
             context.PushGlobal(sectionObj);
@@ -100,7 +95,8 @@ internal sealed class TemplateContextBuilder
                     globals,
                     Path.Combine(_themeRegistry.ThemeRoot, "layouts"),
                     _componentValidation,
-                    _getCachedSectionTemplate), readOnly: true);
+                    _getCachedSectionTemplate,
+                    LoopLimit), readOnly: true);
                 context.PushGlobal(new ScriptObject { ["comp"] = compObj });
             }
         }
