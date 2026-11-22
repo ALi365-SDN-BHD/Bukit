@@ -263,7 +263,8 @@ parent. The field is named apart from `site.seo.schema.breadcrumbParent`,
 which takes a taxonomy kind for all pages. A parent that is not a generated
 page, is not a site path (a full URL or a path without the leading `/`), or is
 the page itself logs `seo.breadcrumb_parent_missing route=<url> parent=<value>`;
-pages whose parents form a cycle log `seo.breadcrumb_parent_cycle`. Those pages
+pages whose parents form a cycle, or whose parent's trail already contains the
+page (such as `/a/` naming `/a/b/`), log `seo.breadcrumb_parent_cycle`. Those pages
 keep their URL-inferred trail, and pages that only lead into a cycle keep their
 parent. Both are warnings, also under `site.seo.diagnostics: strict`. When any
 page sets `parent_url`, incremental builds re-render a page when any of its

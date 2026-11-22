@@ -388,6 +388,29 @@ public sealed class BreadcrumbDescriptorResolverTests
     }
 
     [Fact]
+    public void Resolve_ParentUrlWhoseUrlTrailContainsThePage_WarnsAndKeepsUrlTrail()
+    {
+        var logger = new RecordingLogger();
+        var catalog = BreadcrumbDescriptorResolver.Resolve(
+            Config(),
+            "/",
+            [
+                Routed("a", "A", "/a/", parentUrl: "/a/b/"),
+                Routed("b", "B", "/a/b/"),
+                Routed("c", "C", "/c/", parentUrl: "/a/")
+            ],
+            listRouteGraph: null,
+            staticEntries: null,
+            routeMetadata: null,
+            logger);
+
+        Assert.Equal(["A"], catalog.Find("/a/")!.Items.Select(item => item.Name));
+        Assert.Equal(["A", "B"], catalog.Find("/a/b/")!.Items.Select(item => item.Name));
+        Assert.Equal(["A", "C"], catalog.Find("/c/")!.Items.Select(item => item.Name));
+        Assert.Equal("seo.breadcrumb_parent_cycle route=/a/ parent=/a/b hint=remove-one-parent_url-in-the-cycle", Assert.Single(logger.Warnings));
+    }
+
+    [Fact]
     public void WithBreadcrumbDependencies_ParentUrlAloneHashesBreadcrumbs()
     {
         var catalog = BreadcrumbDescriptorResolver.Resolve(

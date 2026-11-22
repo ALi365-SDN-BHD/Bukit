@@ -101,7 +101,7 @@ JSON-LD like Core's (`seo.json_ld_invalid`) and adds its `@type` values to the r
 | `image`, `cover`, `seo_image`, `og_image` | Social image. |
 | `schema_type`, `seo_article` | JSON-LD type selection (`Article`, `BlogPosting`, `NewsArticle`, ...). |
 | `twitter_creator` | Twitter creator handle. |
-| `parent_url` | Breadcrumb parent by site path (`/malaysia/routes/`, no base URL); the trail becomes the parent's trail plus this page, recursively. Missing or cyclic parents warn (`seo.breadcrumb_parent_missing`, `seo.breadcrumb_parent_cycle`) and fall back to URL inference. Not the same as the taxonomy-kind config `breadcrumbParent`. |
+| `parent_url` | Breadcrumb parent by site path (`/malaysia/routes/`, no base URL); the trail becomes the parent's trail plus this page, recursively. Missing parents, and parents whose trail loops back to the page, warn (`seo.breadcrumb_parent_missing`, `seo.breadcrumb_parent_cycle`) and fall back to URL inference. Not the same as the taxonomy-kind config `breadcrumbParent`. |
 | `sitemapexclude`, `searchexclude`, `feedexclude` | Exclude from those outputs. |
 | `geo:` | GEO structured data; see `bukit-geo`. |
 
