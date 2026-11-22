@@ -331,48 +331,6 @@ internal static partial class MachineReadabilityTrustAuditBuilder
         return kinds;
     }
 
-    private static IReadOnlyDictionary<string, IReadOnlyDictionary<string, PublishRepresentationOutput>> BuildProjectionLookup(
-        IReadOnlyList<PublishProjectionResult>? projectionResults)
-    {
-        if (projectionResults is null || projectionResults.Count == 0)
-        {
-            return new Dictionary<string, IReadOnlyDictionary<string, PublishRepresentationOutput>>(StringComparer.OrdinalIgnoreCase);
-        }
-
-        var result = new Dictionary<string, IReadOnlyDictionary<string, PublishRepresentationOutput>>(StringComparer.OrdinalIgnoreCase);
-        foreach (var group in projectionResults.SelectMany(x => x.Outputs).GroupBy(x => x.Kind, StringComparer.OrdinalIgnoreCase))
-        {
-            result[group.Key] = group
-                .Where(x => !string.IsNullOrWhiteSpace(x.Url))
-                .GroupBy(x => x.Url, StringComparer.OrdinalIgnoreCase)
-                .ToDictionary(x => x.Key, x => x.Last(), StringComparer.OrdinalIgnoreCase);
-        }
-
-        return result;
-    }
-
-    private static bool TryGetProjectionIncluded(
-        IReadOnlyDictionary<string, IReadOnlyDictionary<string, PublishRepresentationOutput>> projectionLookup,
-        string kind,
-        SeoIndexEntry entry,
-        out bool included)
-    {
-        included = false;
-        if (!projectionLookup.TryGetValue(kind, out var byUrl))
-        {
-            return false;
-        }
-
-        if (byUrl.TryGetValue(entry.Route.Url, out var output) ||
-            byUrl.TryGetValue(entry.Canonical, out output))
-        {
-            included = output.Exists;
-            return true;
-        }
-
-        return false;
-    }
-
     private static void AddKind(List<string> kinds, bool enabled, string kind)
     {
         if (enabled && !kinds.Contains(kind, StringComparer.OrdinalIgnoreCase))
@@ -485,9 +443,6 @@ internal static partial class MachineReadabilityTrustAuditBuilder
 
     private static string? ReadOptional(string? path)
         => path is not null && File.Exists(path) ? File.ReadAllText(path) : null;
-
-    private static bool ContainsInvariant(string? haystack, string needle)
-        => haystack?.IndexOf(needle, StringComparison.OrdinalIgnoreCase) >= 0;
 
     private static SeoAuditIssue Error(string code, string? route, string message) => new("error", code, route, message);
 
