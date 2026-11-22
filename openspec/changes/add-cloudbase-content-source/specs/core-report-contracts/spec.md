@@ -7,10 +7,11 @@ SHALL treat the configured envId, any `cloud://` compat reference, the CloudBase
 (`*.api.tcloudbasegateway.com` or `*.api.intl.tcloudbasegateway.com`), and any URL whose path starts
 with the PG storage signed-download prefix `/v1/storages/object/sign/` and carries a `token`
 parameter, and the storage CDN host (`*.storage.tcloudbase.com`) in public output as a leak, and SHALL map it to the existing
-`publicOutputPrivacy=failed` result. The deployment-side `DeploymentPrivacyValidator` SHALL detect
-`cloud://` compat references, the gateway host, the signed path with `token` and the storage CDN
-host by fixed pattern
-without reading configuration, and SHALL detect the envId only when the deploy command reads it
+`publicOutputPrivacy=failed` result. The deployment-side `DeploymentPrivacyValidator` reads no configuration and
+applies to every site, so it SHALL detect by fixed pattern only `cloud://` compat references and
+signed links: a gateway-host URL on the signed path with a `token` parameter, or a storage CDN host
+URL with a `token` parameter; a gateway or CDN host URL without `token` SHALL NOT be treated as a
+leak, so sites without a CloudBase source keep their privacy results. It SHALL work without reading configuration, and SHALL detect the envId only when the deploy command reads it
 from `site.yaml` and passes it in. The report schemas, the `.bukit/publish-audit-report.json`
 contract, the existing error codes and the Notion applicability rules MUST NOT change. Diagnostics
 MUST stay redacted and MUST NOT print the envId, the `cloud://` reference or the signed link.
@@ -22,6 +23,14 @@ MUST stay redacted and MUST NOT print the envId, the `cloud://` reference or the
 #### Scenario: Signed link in deploy staging without configuration
 - **WHEN** a staged deployment file contains a `cloud://` compat reference or a CloudBase gateway signed link and no configuration is passed
 - **THEN** deployment returns `BKT-DEPLOY-PRIVACY-0001` before any Git add, commit or push
+
+#### Scenario: CDN signed link in deploy staging
+- **WHEN** a staged deployment file contains `https://env-abc.storage.tcloudbase.com/media/a.png?token=…` and no configuration is passed
+- **THEN** deployment returns `BKT-DEPLOY-PRIVACY-0001` before any Git add, commit or push
+
+#### Scenario: Unsigned CDN link on a site without CloudBase
+- **WHEN** a site without a `cloudbase` source links to a public object at `https://x.storage.tcloudbase.com/b/a.pdf` without a `token` parameter
+- **THEN** deployment privacy validation passes and the privacy results are identical to those produced before this change
 
 #### Scenario: Report contract unchanged
 - **WHEN** a site without a `cloudbase` source is built and deployed

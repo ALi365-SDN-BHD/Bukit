@@ -603,14 +603,14 @@ Phase 0（S1～S4） ──> G0-1～G0-5 ──> T00
 
 ### T06：文件对象签名、签名链接与 D8 第 ⑤ 条
 
-**前置：** G0-6 通过。已按文档通过，并已实测（2026-11-23）：签名链接 = 网关主机 + `/v1/storages/object/sign/{bucket}/{object}` + `token`；签名响应的 `signedURL` 是相对路径，`fullSignedURL` 可能不存在；兑换不需要 Authorization，境内和境外主机都返回 200；篡改或缺少 `token` 返回 401（`STORAGE_INVALID_JWT`）；`token` 是带 `exp`、`iat`、`url` 的 JWT，有效期等于 `expiresIn`。
+**前置：** G0-6 通过。已按文档通过，并已实测（2026-11-23）：签名链接 = 网关主机 + `/v1/storages/object/sign/{bucket}/{object}` + `token`；签名响应的 `signedURL` 是相对路径，`fullSignedURL` 可能不存在；兑换不需要 Authorization，境内和境外主机都返回 200；篡改或缺少 `token` 返回 401（`STORAGE_INVALID_JWT`）；`token` 是带 `exp`、`iat`、`url` 的 JWT，有效期等于 `expiresIn`；签名响应另有 `fullSignedURLForCDN`（`https://{envId}.storage.tcloudbase.com/{bucket}/{object}?token=…`，实测能兑换），provider 不使用。
 
 **文件：**
 
 - 新建：`Bukit.Content/CloudBase/CloudBaseFileResolver.cs`
 - 修改：`Bukit.Content/Media/SignedUrlIdentity.cs`。新增 CloudBase 规则（D10）：主机匹配 `*.api.tcloudbasegateway.com` / `*.api.intl.tcloudbasegateway.com`，路径以 `/v1/storages/object/sign/` 开头时去掉 `token`；存储 CDN 主机 `*.storage.tcloudbase.com`（路径 `/{bucket}/{object}`，无固定前缀）也去掉 `token`；不读过期时间。
 - 修改：`Bukit.Config/ProviderValidators.cs`。实现 D8 第 ⑤ 条：`downloadHosts` 和 `skipHosts` 不能把网关主机 `{envId}.api[.intl].tcloudbasegateway.com` 和存储 CDN 主机 `{envId}.storage.tcloudbase.com` 排除在外，违反时报 `CloudBaseMediaLocalizationRequired`。
-- 修改：`guide/user/04-site-yaml-config.md`。在签名方案表里加一行。
+- 修改：`guide/user/04-site-yaml-config.md`。在签名方案表里加 CloudBase 的两行：网关形式（网关主机 + 签名路径 + `token`）和存储 CDN 形式（`*.storage.tcloudbase.com` + `token`）。
 - 测试：`tests/Bukit.Content.Tests/`、`tests/Bukit.Config.Tests/`、`tests/Bukit.Engine.Tests/`（小程序签名链接拦截）。
 
 **步骤：**
@@ -631,7 +631,7 @@ Phase 0（S1～S4） ──> G0-1～G0-5 ──> T00
    - 正文里作者写好的存储 CDN 签名链接走现有媒体本地化，`skipHosts` 排除 CDN 主机时报 `CloudBaseMediaLocalizationRequired`；
    - D8 第 ⑤ 条的失败用例；
    - 下载失败时落到占位图；
-   - 构建产物里没有 `cloud://`、envId、网关主机和签名链接（AC5）。
+   - 构建产物里没有 `cloud://`、envId、网关主机、存储 CDN 主机和签名链接（AC5）。
 3. 实现。换链失败时，`CloudBaseFileResolver` 把 `fileFields` 的值或正文图片的 URL 替换成 `content.media.defaultImageUrl`（与 `ImageAssetLocalizer.FailureResult` 在 `onFailure: placeholder` 下返回的值相同），不把裸对象名或 `cloud://` 交给 `ImageAssetLocalizer`：它对非 http(s) 的值原样返回，不会落到占位图。签名链接不能写进任何会持久化的地方；有效期用 `signExpiresSeconds`（默认 3600）；主机模式、路径前缀和参数名集中定义在一处。
 4. 转到 `testing`。跑 closure 给出的测试（会命中 media-localization 相关规则，测试范围可能变大）和工具门禁，记录缓存。
 5. 转到 `review_wait`，做专项审查。
@@ -665,7 +665,8 @@ Phase 0（S1～S4） ──> G0-1～G0-5 ──> T00
 1. `queue acquire --task T07`，然后运行 closure 和 classify。
 2. 先写测试：
    - 公开 HTML 或 JSON Feed 里出现 envId、`cloud://` 兼容形式、网关主机、签名路径加 `token`，或存储 CDN 主机 `*.storage.tcloudbase.com` 时，构建阶段检测会失败（AC6）；
-   - 部署暂存目录里出现 `cloud://`、网关主机、签名路径加 `token` 或存储 CDN 主机时，部署校验失败，不需要配置；deploy 命令传入 envId 时，envId 也能检测到；
+   - 部署暂存目录里出现 `cloud://`、网关主机加签名路径加 `token`，或存储 CDN 主机加 `token` 时，部署校验失败，不需要配置；deploy 命令传入 envId 时，envId 也能检测到；
+   - 没有 cloudbase 源的站点链接到公开、未签名的 CDN 对象（`https://x.storage.tcloudbase.com/b/a.pdf`，没有 `token`）或网关主机上不带 `token` 的地址时，部署校验通过，结果与改动前一致；
    - 发布审计报告 `.bukit/publish-audit-report.json` 的结构不变；
    - 投影策略和 JSON Feed 会过滤掉 CloudBase 来源的敏感实体；
    - 正文里如果有每次构建都会变的签名链接，语义哈希不应因此改变。只有确认确实需要时才改 hasher。
@@ -706,7 +707,7 @@ Phase 0（S1～S4） ──> G0-1～G0-5 ──> T00
    - 连通性正常和失败；
    - 凭据缺失；
    - 401 和 403；
-   - 表可达性：用 `HEAD /v1/rdb/rest/{table}` 加 `Prefer: count=exact` 取总数；表或视图不存在（404，实测码 `DATABASE_PGRST205`）时报 `CloudBaseNotFound`；
+   - 表可达性：用 `HEAD /v1/rdb/rest/{table}` 加 `Prefer: count=exact` 取总数；表或视图不存在时按 HTTP 状态 404 报 `CloudBaseNotFound`（HEAD 响应没有响应体；`DATABASE_PGRST205` 是 GET 实测到的码，映射只看状态码）；
    - 表可达但总数为 0：输出 RLS 静默过滤的提示，不报错，不新增诊断码；
    - 映射的字段在样本行里不存在；
    - 凭据的 JWT `role` 是 `service_role` 时报 `CloudBaseAdminCredentialInUse` 警告；`role` 缺失或无法解析时同样警告；`anon` 时不警告（AC8、D5）；

@@ -106,3 +106,7 @@ SHALL fall back to the placeholder and SHALL NOT keep the signed link.
 #### Scenario: Skip rule excludes the gateway host
 - **WHEN** `content.media.skipHosts` matches the environment's CloudBase gateway host and `fileFields` is non-empty
 - **THEN** configuration validation fails with `CloudBaseMediaLocalizationRequired`
+
+#### Scenario: Skip rule excludes the storage CDN host
+- **WHEN** `content.media.skipHosts` matches the environment's storage CDN host `{envId}.storage.tcloudbase.com` and `fileFields` is non-empty
+- **THEN** configuration validation fails with `CloudBaseMediaLocalizationRequired`

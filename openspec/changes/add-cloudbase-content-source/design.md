@@ -22,7 +22,7 @@ G0 的结论和 Phase 0 调研见 proposal.md。环境为 PG 模式（用户确�
 - **D4**：没有 `kind`；`table` 必填，是 `public` schema 的表或视图名。
 - **D5 / G0-4**：P1 只实现 Publishable Key 一种凭据策略，变量名 `CLOUDBASE_PUBLISHABLE_KEY`。客户端只解码、不验签
   JWT 的 `role`，仅作诊断：`service_role` 或无法解析时 `doctor` 报 `CloudBaseAdminCredentialInUse`，构建继续。
-- **D10 / G0-6**：CloudBase 签名链接 = 网关主机 + `/v1/storages/object/sign/` 路径前缀 + `token` 参数，集中在一处定义，
+- **D10 / G0-6**：CloudBase 签名链接有两种形式：网关主机 + `/v1/storages/object/sign/` 路径前缀 + `token`，以及存储 CDN 主机 `*.storage.tcloudbase.com` + `token`（provider 不生成后者），集中在一处定义，
   真实环境验证后再调整。`media-localization` 的签名方案清单和"过期签名不重试"两条现有 requirement 用 MODIFIED 更新；
   CloudBase 不读过期时间，照常重试。
 - **D18**：`envId` 正则为 `^[a-z0-9][a-z0-9-]{0,62}$`（v4 已从 `{0,63}` 更正）；`storageBucket` 和对象名也做白名单校验。

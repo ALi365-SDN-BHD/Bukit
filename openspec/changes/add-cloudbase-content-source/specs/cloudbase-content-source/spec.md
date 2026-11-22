@@ -188,9 +188,11 @@ replace the field value or body image URL with the configured media placeholder
 The build-time public output privacy check SHALL fail when public output contains the configured
 envId, a `cloud://` compat reference, the CloudBase gateway host, a URL on the PG storage
 signed-download path carrying a `token` parameter, or the storage CDN host
-(`*.storage.tcloudbase.com`). The deployment privacy validator SHALL detect `cloud://` references,
-the gateway host, the signed path with `token` and the storage CDN host without configuration,
-and SHALL detect the envId when the deploy command passes it.
+(`*.storage.tcloudbase.com`). The deployment privacy validator reads no configuration and applies to
+every site, so it SHALL detect only `cloud://` references and signed links: a gateway-host URL on the
+signed path with a `token` parameter, or a storage CDN host URL with a `token` parameter. A gateway
+or CDN host URL without `token` SHALL NOT fail deployment, so sites without a CloudBase source keep
+their behaviour. It SHALL detect the envId when the deploy command passes it.
 
 #### Scenario: envId leaks into a page
 - **WHEN** a public HTML page contains the configured envId
@@ -199,6 +201,18 @@ and SHALL detect the envId when the deploy command passes it.
 #### Scenario: Signed link in deploy staging
 - **WHEN** a staged deployment file contains a CloudBase signed link
 - **THEN** deployment fails before any Git write without reading site configuration
+
+#### Scenario: CDN signed link in deploy staging
+- **WHEN** a staged deployment file contains `https://env-abc.storage.tcloudbase.com/media/a.png?token=…`
+- **THEN** deployment fails before any Git write without reading site configuration
+
+#### Scenario: CDN host in a CloudBase build
+- **WHEN** a site with a `cloudbase` source writes any `*.storage.tcloudbase.com` URL into public output
+- **THEN** the build privacy check fails
+
+#### Scenario: Unsigned CDN link on a site without CloudBase
+- **WHEN** a site without a `cloudbase` source links to `https://x.storage.tcloudbase.com/b/a.pdf` without a `token` parameter
+- **THEN** deployment privacy validation passes, as before this change
 
 ### Requirement: Credentials, signatures and signed links never reach logs
 Logs, diagnostics and exception messages SHALL NOT contain the credential (even though the

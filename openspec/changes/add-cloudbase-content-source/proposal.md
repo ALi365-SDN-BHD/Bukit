@@ -57,7 +57,7 @@
 | G0-3 数据形态 | 通过 | 环境为 PG 模式（用户确认）。数据是 `public` schema 里的 PostgreSQL 表或视图，通过 PostgREST 读取。文档写明 PG 模式不支持数据模型（"PG 模式环境暂不支持"），所以不读数据模型；配置用 `table`，不再有 `kind`（D4）。 |
 | G0-4 鉴权 | 通过（文档 + 实测） | 凭据是 Publishable Key（JWT `role: anon`），从环境变量 `CLOUDBASE_PUBLISHABLE_KEY` 或 `--secrets-stdin` 读取（D5）。只读靠两层：表上 `GRANT SELECT ... TO anon` 加 ADMINWRITE 模式的 RLS `FOR SELECT` 策略，存储上 `storage.objects` 的 `FOR SELECT TO anon` 策略。机制是**文档**写明的。2026-11-23 在 PG 模式试用环境里**实测**：网关 + Publishable Key + RLS 下草稿行被隐藏，计数、分页、过滤和批量签名都正常，缺失对象在批量签名里返回单项 `error`。凭据的 `role` 是 `service_role` 时 `doctor` 报 `CloudBaseAdminCredentialInUse`。 |
 | G0-5 Transport | 通过 | 自己写只依赖 BCL 的 transport。证据：`Tencent.CloudBase` 1.0.1 的 PublishAot 试编译有 5 条警告（IL3050×3、IL2026×2），并引入 3 个 Microsoft.Extensions 依赖。 |
-| G0-6 签名链接 | 通过（文档 + 实测） | 签名链接 = 网关主机 `{envId}.api[.intl].tcloudbasegateway.com` + 路径 `/v1/storages/object/sign/{bucket}/{object}` + 查询参数 `token`（**文档**，2026-11-23 **实测**）。签名响应的 `signedURL` 是相对路径，`fullSignedURL` 可能不存在：有就用它，否则网关源加 `signedURL`，并校验协议、主机和路径前缀。兑换不需要 Authorization，境内和境外主机都返回 200。批量签名单次最多 500 个，`expiresIn` 单位秒；上限没有文档，P1 取默认 3600、范围 60～3600。主机、路径前缀、参数名集中定义在一处，真实环境核实后再调整（D10）。 |
+| G0-6 签名链接 | 通过（文档 + 实测） | 签名链接 = 网关主机 `{envId}.api[.intl].tcloudbasegateway.com` + 路径 `/v1/storages/object/sign/{bucket}/{object}` + 查询参数 `token`（**文档**，2026-11-23 **实测**）。签名响应的 `signedURL` 是相对路径，`fullSignedURL` 可能不存在：有就用它，否则网关源加 `signedURL`，并校验协议、主机和路径前缀。兑换不需要 Authorization，境内和境外主机都返回 200。签名响应另有 `fullSignedURLForCDN`（`https://{envId}.storage.tcloudbase.com/{bucket}/{object}?token=…`，实测能兑换），provider 不使用，只校验网关一个主机；签名识别和输出检测覆盖这个 CDN 主机。批量签名单次最多 500 个，`expiresIn` 单位秒；上限没有文档，P1 取默认 3600、范围 60～3600。主机、路径前缀、参数名集中定义在一处，真实环境核实后再调整（D10）。 |
 
 ## 调研结果
 
