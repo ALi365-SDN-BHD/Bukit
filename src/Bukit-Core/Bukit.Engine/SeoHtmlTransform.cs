@@ -10,8 +10,7 @@ namespace Bukit.Engine;
 
 internal sealed class SeoHtmlTransform(
     AppConfig config,
-    bool shouldInjectSeo,
-    ILogger logger) : IHtmlTransform
+    bool shouldInjectSeo) : IHtmlTransform
 {
     public string Name => "seo";
 
@@ -25,6 +24,8 @@ internal sealed class SeoHtmlTransform(
 
         var skipSeo = context.Document is not null &&
                       SeoInjectionPolicy.ShouldSkip(context.Document.CustomFields);
+        // The context logger, not the build logger: it records the page's warnings for incremental replay.
+        var logger = context.Logger;
         var route = new RouteInfo(context.RouteUrl, context.OutputPath, string.Empty);
         if (shouldInjectSeo && !skipSeo)
         {

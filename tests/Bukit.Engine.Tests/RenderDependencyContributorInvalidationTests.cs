@@ -78,7 +78,7 @@ public sealed class RenderDependencyContributorInvalidationTests
     }
 
     [Fact]
-    public void Seo_ChangesRenderedFieldButIgnoresDiagnostics()
+    public void Seo_ChangesRenderedFieldAndDiagnostics()
     {
         var contributor = new SeoContributor();
         var baseline = Hash(contributor, Config());
@@ -91,9 +91,12 @@ public sealed class RenderDependencyContributorInvalidationTests
         {
             Site = Config().Site with { Seo = new SeoConfig { Geo = new SeoGeoConfig { Enabled = false } } }
         }));
-        Assert.Equal(
-            Hash(contributor, Config() with { Site = Config().Site with { Seo = new SeoConfig { Diagnostics = "warn" } } }),
-            Hash(contributor, Config() with { Site = Config().Site with { Seo = new SeoConfig { Diagnostics = "error" } } }));
+        // Skipped pages replay their recorded warnings, so a diagnostics change renders them again.
+        AppConfig WithDiagnostics(string diagnostics)
+            => Config() with { Site = Config().Site with { Seo = new SeoConfig { Diagnostics = diagnostics } } };
+        Assert.NotEqual(Hash(contributor, WithDiagnostics("warn")), Hash(contributor, WithDiagnostics("off")));
+        Assert.NotEqual(Hash(contributor, WithDiagnostics("warn")), Hash(contributor, WithDiagnostics("strict")));
+        Assert.Equal(Hash(contributor, WithDiagnostics("warn")), Hash(contributor, WithDiagnostics("Warn")));
     }
 
     [Fact]

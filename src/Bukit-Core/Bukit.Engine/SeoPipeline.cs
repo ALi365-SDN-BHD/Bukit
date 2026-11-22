@@ -47,7 +47,7 @@ internal sealed class SeoPipeline
         : null;
 
         IHtmlTransform? htmlTransform = shouldProvideSeoModel
-            ? new SeoHtmlTransform(config, shouldInjectSeo, logger)
+            ? new SeoHtmlTransform(config, shouldInjectSeo)
             : null;
 
         Func<ContentDocument, RouteInfo, SeoModel>? listItemSeoBuilder = shouldProvideSeoModel

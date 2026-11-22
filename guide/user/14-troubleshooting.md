@@ -221,6 +221,12 @@ addition:
   `content_changed` (the body alone) or `render` (none of these). Skipped pages
   count as `unchanged`. Lists count as `list_render` or `list_unchanged`. With
   `--no-incremental`, every page counts as `full_render`.
+- A skipped page or list logs the render warnings its last render logged, such
+  as `seo.theme_json_ld_replaced`, from `renderWarnings` in the build cache
+  (`.cache/build-manifest.json`).
+  An incremental build therefore reports the same per-page warnings as a full
+  build, and a warning goes away once the page renders again without it.
+  Changing `site.seo.diagnostics` renders every page again.
 
 Use `--metrics` to inspect stage timing, `--jobs` to limit or increase render
 parallelism, and `--incremental` to reuse unchanged render results. For an

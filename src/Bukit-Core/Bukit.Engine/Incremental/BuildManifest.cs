@@ -72,7 +72,8 @@ public sealed class BuildManifest
                         TemplateHash = GetString(entryEl, "templateHash") ?? string.Empty,
                         RenderDependencyHash = GetString(entryEl, "renderDependencyHash") ?? string.Empty,
                         RenderBaseHash = GetString(entryEl, "renderBaseHash"),
-                        RenderReads = GetStringArray(entryEl, "renderReads")
+                        RenderReads = GetStringArray(entryEl, "renderReads"),
+                        RenderWarnings = GetStringArray(entryEl, "renderWarnings")
                     };
 
                     manifest.Entries[key] = entry;
@@ -148,6 +149,13 @@ public sealed class BuildManifest
                     {
                         writer.WriteStartArray("renderReads");
                         foreach (var read in kv.Value.RenderReads) writer.WriteStringValue(read);
+                        writer.WriteEndArray();
+                    }
+
+                    if (kv.Value.RenderWarnings is { Count: > 0 } warnings)
+                    {
+                        writer.WriteStartArray("renderWarnings");
+                        foreach (var warning in warnings) writer.WriteStringValue(warning);
                         writer.WriteEndArray();
                     }
 
@@ -332,4 +340,12 @@ public sealed class BuildManifestEntry
     [JsonInclude]
     [JsonPropertyName("renderReads")]
     internal IReadOnlyList<string>? RenderReads { get; set; }
+
+    /// <summary>
+    /// The warnings the last render's HTML transforms logged (see <c>RenderWarningRecorder</c>),
+    /// logged again when an incremental build skips the page. Null when there were none.
+    /// </summary>
+    [JsonInclude]
+    [JsonPropertyName("renderWarnings")]
+    internal IReadOnlyList<string>? RenderWarnings { get; set; }
 }

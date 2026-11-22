@@ -143,6 +143,7 @@ internal static class PageRenderDispatcher
                         {
                             Interlocked.Increment(ref skippedCount);
                             renderReasons.AddOrUpdate("unchanged", 1, (_, v) => v + 1);
+                            RenderWarningRecorder.Replay(existing!, logger);
                             return;
                         }
 
@@ -215,11 +216,12 @@ internal static class PageRenderDispatcher
                         // no shared collection: only its content hash (the target) decides when it renders again.
                         if (rawRedirect) pageReads = [];
                         stageMetrics.AddElapsedTicks("renderCall", Stopwatch.GetTimestamp() - renderCallStarted);
+                        var pageLog = new RenderWarningRecorder(logger);
                         if (!rawRedirect && htmlTransformPipeline is not null)
                         {
                             var transformStarted = Stopwatch.GetTimestamp();
                             html = htmlTransformPipeline.Transform(
-                                route, HtmlDocumentKind.Content, pageInfo, document, logger, html);
+                                route, HtmlDocumentKind.Content, pageInfo, document, pageLog, html);
                             stageMetrics.AddElapsedTicks("htmlTransform", Stopwatch.GetTimestamp() - transformStarted);
                         }
                         var writeStarted = Stopwatch.GetTimestamp();
@@ -228,7 +230,7 @@ internal static class PageRenderDispatcher
                         Interlocked.Increment(ref renderedCount);
                         stageMetrics.Increment("pageRender");
                         stageMetrics.AddElapsedTicks("pageRender", Stopwatch.GetTimestamp() - pageRenderStarted);
-                        if (needsIncrementalMode) manifestEntries![key] = new BuildManifestEntry { OutputPath = key, Url = route.Url, Template = route.Template, MetadataHash = mh, ContentHash = contentHash ?? IncrementalBuildEngine.ComputeContentHash(document, mh, content), RouteHash = rh, TemplateHash = templateHash, RenderDependencyHash = RenderReadTracking.HashFor(dependencySnapshot, routeBaseHash, pageReads), RenderBaseHash = dependencySnapshot is null ? null : routeBaseHash, RenderReads = pageReads };
+                        if (needsIncrementalMode) manifestEntries![key] = new BuildManifestEntry { OutputPath = key, Url = route.Url, Template = route.Template, MetadataHash = mh, ContentHash = contentHash ?? IncrementalBuildEngine.ComputeContentHash(document, mh, content), RouteHash = rh, TemplateHash = templateHash, RenderDependencyHash = RenderReadTracking.HashFor(dependencySnapshot, routeBaseHash, pageReads), RenderBaseHash = dependencySnapshot is null ? null : routeBaseHash, RenderReads = pageReads, RenderWarnings = pageLog.Warnings };
                         break;
                     }
 
@@ -254,6 +256,7 @@ internal static class PageRenderDispatcher
                         {
                             Interlocked.Increment(ref skippedCount);
                             renderReasons.AddOrUpdate("list_unchanged", 1, (_, v) => v + 1);
+                            RenderWarningRecorder.Replay(le!, logger);
                             return;
                         }
 
@@ -271,11 +274,12 @@ internal static class PageRenderDispatcher
                         var listCallStarted = Stopwatch.GetTimestamp();
                         var listHtml = RenderReadTracking.Render(dependencySnapshot, () => renderer.RenderList(listRoute.Template, listModel), out var listReads);
                         stageMetrics.AddElapsedTicks("renderCall", Stopwatch.GetTimestamp() - listCallStarted);
+                        var listLog = new RenderWarningRecorder(logger);
                         if (htmlTransformPipeline is not null)
                         {
                             var transformStarted = Stopwatch.GetTimestamp();
                             listHtml = htmlTransformPipeline.Transform(
-                                listRoute, HtmlDocumentKind.List, listPage, null, logger, listHtml);
+                                listRoute, HtmlDocumentKind.List, listPage, null, listLog, listHtml);
                             stageMetrics.AddElapsedTicks("htmlTransform", Stopwatch.GetTimestamp() - transformStarted);
                         }
                         var listWriteStarted = Stopwatch.GetTimestamp();
@@ -288,7 +292,7 @@ internal static class PageRenderDispatcher
 
                         if (needsIncrementalMode)
                         {
-                            manifestEntries![key] = new BuildManifestEntry { OutputPath = key, Url = listRoute.Url, Template = listRoute.Template, ContentHash = ch, RouteHash = rh, TemplateHash = templateHash, RenderDependencyHash = RenderReadTracking.HashFor(dependencySnapshot, routeBaseHash, listReads), RenderBaseHash = dependencySnapshot is null ? null : routeBaseHash, RenderReads = listReads };
+                            manifestEntries![key] = new BuildManifestEntry { OutputPath = key, Url = listRoute.Url, Template = listRoute.Template, ContentHash = ch, RouteHash = rh, TemplateHash = templateHash, RenderDependencyHash = RenderReadTracking.HashFor(dependencySnapshot, routeBaseHash, listReads), RenderBaseHash = dependencySnapshot is null ? null : routeBaseHash, RenderReads = listReads, RenderWarnings = listLog.Warnings };
                         }
                         break;
                     }
