@@ -261,7 +261,7 @@ indexable false, and feeds keep emitting eligible content items.
 | `content.sources[].dataIndex.scopeField` | `scope` | Scope field for a `mode: data` scalar index. |
 | `content.sources[].dataIndex.keyField` | `key` | Key field for a `mode: data` scalar index. |
 | `content.sources[].dataIndex.valueField` | `value` | Scalar value field. |
-| `content.sources[].dataIndex.valueTypeField` | `value_type` | Validation type field: `text`, `multiline`, `email`, `phone`, or `url`. |
+| `content.sources[].dataIndex.valueTypeField` | `value_type` | Validation type field: `text`, `multiline`, `email`, `phone`, `url`, `object`, or `object[]` (see [07](07-multi-source-data.md#object-values)). |
 | `content.sources[].dataIndex.requiredKeys` | none | Required non-empty scope and key pairs. |
 
 `NOTION_TOKEN` must come from the environment when Notion provider secret

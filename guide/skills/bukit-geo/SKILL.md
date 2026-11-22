@@ -94,7 +94,7 @@ geo:
   citations:
     - { title: Study, url: https://example.org/study, relation: citation }   # citation (default) | based-on
   faq:
-    - { question: How hot?, answer: 80-85 °C. }
+    - { question: "How hot?", answer: 80-85 °C. }
   steps:                       # for HowTo
     - { name: Heat water, text: Bring water to 85 °C. }
   speakable_xpath: /html/body/main/h1

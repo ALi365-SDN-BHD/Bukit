@@ -235,7 +235,24 @@ the field, such as `days[1].hotel`. A single mapping given to `object[]` is
 written as a list of one. As at the top level, an empty value inside an object
 (an empty list `[]`, an empty mapping, blank text or a YAML `null`) is written
 as `null`; quote `"null"` to keep it as text. A `dataIndex` dataset accepts the same types for its
-keys, although data index rows hold text values today.
+keys. Data index rows with `value_type: object` or `object[]` hold mappings
+(see [07 Multi-Source Data](07-multi-source-data.md#object-values)) whose
+booleans and numbers are already typed, so undeclared nested fields are written
+as JSON booleans and numbers. Declare nested fields to project the object to
+exactly those keys and to check their types:
+
+```yaml
+      kind: dataIndex
+      source: settings
+      scope: trip
+      types:
+        info:
+          type: object
+          fields:
+            title: string
+            days: number
+            stops: object[]
+```
 
 Object lists can make list files large. Put them in `detailFields`, so each one
 is downloaded only with its own record, and keep `listFields` to what a card
