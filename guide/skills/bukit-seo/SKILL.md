@@ -85,7 +85,8 @@ string escaping; HTML-escaped or reordered JSON still warns. Incremental
 builds skip unchanged pages, so the warning appears only for pages rendered in that build
 (clean builds report every page). Core does not check kept JSON-LD for types it already
 emits: marking a theme `WebPage` or `BreadcrumbList` keep publishes a duplicate, so keep
-only types Core does not generate. The publish audit validates kept head
+only types Core does not generate; the build warns
+`seo.theme_json_ld_duplicate_type route=<url> types=<types>` for each such page. The publish audit validates kept head
 JSON-LD like Core's (`seo.json_ld_invalid`) and adds its `@type` values to the route's
 `schemaTypes`. Serialize values with `util.to_json` or `util.json_string`
 (`bukit-templating`), which escape `</script>`.
@@ -121,7 +122,8 @@ Logged during build, controlled by `site.seo.diagnostics`: `seo.site_url_missing
 checks, and `geo.llms_*` curation checks when llms output is on (versions
 through 2.0.15 do not run the `geo.llms_*` checks; see `bukit-geo`).
 `strict` makes any of these stop the build at the first one hit (exit 2), except
-`seo.og_locale_region_missing` and `seo.theme_json_ld_replaced`, which stay warnings; `off` silences them.
+`seo.og_locale_region_missing`, `seo.theme_json_ld_replaced` and
+`seo.theme_json_ld_duplicate_type`, which stay warnings; `off` silences them.
 
 ## Audit
 

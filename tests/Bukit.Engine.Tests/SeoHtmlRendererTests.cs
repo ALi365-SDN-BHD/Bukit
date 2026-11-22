@@ -363,6 +363,23 @@ public sealed class SeoHtmlRendererTests
         Assert.Equal(["""{"@type":"A"}"""], SeoJsonLdScripts.ExtractKeptHeadJsonLd(html));
     }
 
+    [Theory]
+    [InlineData("""{"@context":"https://schema.org","@type":"WebPage","name":"Theme"}""", "WebPage")]
+    [InlineData("""{"@graph":[{"@type":"TouristTrip"},{"@type":["WebPage","Thing"]}]}""", "WebPage")]
+    [InlineData("""[{"@type":"TouristTrip"},{"@type":"WebPage"}]""", "WebPage")]
+    [InlineData("""{"@type":"TouristTrip","subjectOf":{"@type":"WebPage"}}""", "")]
+    [InlineData("""{"@type":"TouristTrip"}""", "")]
+    [InlineData("""not json""", "")]
+    public void InjectIntoHead_ReportsKeptTopLevelTypesCoreAlsoGenerates(string keptJson, string expected)
+    {
+        var html = $"<html><head><script type=\"application/ld+json\" data-bukit-seo=\"keep\">{keptJson}</script></head><body></body></html>";
+
+        SeoHtmlRenderer.InjectIntoHead(html, JsonLdSeo(), out var replaced, out var duplicates);
+
+        Assert.Equal(0, replaced);
+        Assert.Equal(expected.Length == 0 ? [] : expected.Split(','), duplicates);
+    }
+
     private static SeoModel JsonLdSeo() => new()
     {
         Title = "New",

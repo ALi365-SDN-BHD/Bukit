@@ -327,6 +327,49 @@ public sealed class SeoPipelineTests
     }
 
     [Fact]
+    public void Execute_KeptThemeJsonLdWithACoreType_WarnsNamingPageAndType()
+    {
+        var item = ContentDocument.Create(
+            id: "hello",
+            title: "Hello World",
+            slug: "hello",
+            publishAt: DateTimeOffset.UnixEpoch,
+            contentHtml: "<p>Hello</p>");
+        var route = new RouteInfo("/hello/", "hello/index.html", "pages/page.html");
+        var config = new AppConfig
+        {
+            Site = new SiteConfig
+            {
+                Name = "test",
+                Title = "Test",
+                Url = "https://example.com",
+                Seo = new SeoConfig { Enabled = true, RenderMode = "inject" }
+            },
+            Content = TestContent.Markdown()
+        };
+        var logger = new RecordingLogger();
+        var result = new SeoPipeline().Execute(
+            config,
+            baseUrl: "/",
+            renderQueue: new[] { (item, route) }.ToRoutedDocuments(),
+            listRoutes: Array.Empty<RouteInfo>(),
+            seoAlternates: new Dictionary<string, IReadOnlyList<SeoAlternateModel>>(),
+            logger);
+        var page = new PageInfo { Title = item.Title, Url = route.Url, Content = string.Empty, Seo = result.SeoBuilder!(item, route) };
+        using var core = System.Text.Json.JsonDocument.Parse(page.Seo!.JsonLd[0]);
+        var coreType = core.RootElement.GetProperty("@type").GetString();
+        var html = $$"""<html><head><script type="application/ld+json" data-bukit-seo="keep">{"@type":"{{coreType}}","name":"Theme"}</script></head><body></body></html>""";
+
+        var processed = result.HtmlTransform!.Transform(
+            new HtmlTransformContext(route.Url, route.OutputPath, HtmlDocumentKind.Content,
+                BuildExecutionMode.Production, logger, page, item), html);
+
+        Assert.Contains("\"name\":\"Theme\"", processed, StringComparison.Ordinal);
+        Assert.Single(logger.Warnings, warning => warning.StartsWith($"seo.theme_json_ld_duplicate_type route=/hello/ types={coreType} ", StringComparison.Ordinal));
+        Assert.DoesNotContain(logger.Warnings, warning => warning.Contains("seo.theme_json_ld_replaced", StringComparison.Ordinal));
+    }
+
+    [Fact]
     public void Execute_ListSeoBuilder_UsesGraphBackedIndexModel()
     {
         var config = new AppConfig

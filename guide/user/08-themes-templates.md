@@ -110,7 +110,10 @@ stays a warning under `diagnostics: strict`). A pretty-printed or re-escaped ech
 that build, so an incremental build of unchanged pages is silent; run a clean build
 to see every page. Core does not deduplicate kept scripts against its own JSON-LD:
 keep only types Core does not generate, or the page publishes, for example, two
-`BreadcrumbList` blocks. Kept head JSON-LD is validated by the
+`BreadcrumbList` blocks; the build then warns
+`seo.theme_json_ld_duplicate_type route=<url> types=<types>`, naming each
+top-level type (the root object, root array items and `@graph` items) that a
+Core block also declares. It stays a warning under `diagnostics: strict`. Kept head JSON-LD is validated by the
 publish audit (`seo.json_ld_invalid`) and its types appear in `schemaTypes`.
 
 Managed-tag scanning is limited to the standard head. An SVG `<title>` in the
