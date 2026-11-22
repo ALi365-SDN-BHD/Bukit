@@ -40,16 +40,21 @@ internal static class SeoSchemaValidator
         bool searchActionExpected = false)
     {
         var types = new SortedSet<string>(StringComparer.Ordinal);
+        var position = 0;
         foreach (var json in jsonLd)
         {
+            position++;
             try
             {
                 using var doc = JsonDocument.Parse(json);
-                ExtractSchemaTypes(doc.RootElement, types);
+                // Each block must declare a type of its own; one typed block does not cover the others.
+                var blockTypes = new SortedSet<string>(StringComparer.Ordinal);
+                ExtractSchemaTypes(doc.RootElement, blockTypes);
+                types.UnionWith(blockTypes);
                 ValidateSchemaObject(doc.RootElement, routeUrl, issues, searchActionExpected);
-                if (types.Count == 0)
+                if (blockTypes.Count == 0)
                 {
-                    issues.Add(Warning("seo.json_ld_type_missing", routeUrl, "JSON-LD does not declare @type."));
+                    issues.Add(Warning("seo.json_ld_type_missing", routeUrl, $"JSON-LD block {position} of {jsonLd.Count} does not declare @type."));
                 }
             }
             catch (JsonException ex)
