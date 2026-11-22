@@ -126,7 +126,9 @@ no page, so their `url` is the record's own `url` property.
 
 `types` converts and checks a field: `string`, `number`, `boolean`, `date`,
 `image`, `url`, `string[]`, `object` or `object[]` (see
-[Object Fields](#object-fields)). `image` and `url` values become absolute http(s)
+[Object Fields](#object-fields)). A `string[]` value drops null items (an
+empty `- ` or `~` in YAML) at any depth, and a list of only nulls counts as
+empty; `object[]` items must all be mappings. `image` and `url` values become absolute http(s)
 URLs, and one that still holds a signed URL fails the build; relative values of data records resolve against the site root, base path
 included. On a multilingual site with `site.sharedAssets`, links to the shared
 files (such as theme images under `assets/`) keep the root path in every
@@ -204,14 +206,24 @@ optional `fields` mapping that declares nested types the same way:
 ```
 
 With `fields`, each object holds exactly the declared keys (a missing one is
-written as `null`) and other keys are dropped. Without `fields`
+written as `null`) and other keys are dropped. `fields` must declare at least
+one typed field: an empty mapping (or one whose types are all blank) fails
+config validation, since it would write every object as `{}`. Without `fields`
 (`days: object[]`), every key is kept and each value is inferred like an
 untyped field: text, numbers, booleans, dates and lists of text keep their
 form, and a nested mapping or list of mappings becomes an object or a list of
 objects. Inferred values are not converted, so an image path stays as written;
 declare `image` or `url` to make it an absolute http(s) URL. Declared nested
 `image` and `url` values follow the same rules as top-level ones, including the
-rejection of signed URLs. Nested strings are plain text: only the top-level
+rejection of signed URLs. Image localization reaches inside objects too: with
+`content.media.downloadToLocal` on (the default), a remote image is downloaded
+when its own key, at any depth, is listed in `content.media.fieldKeys`
+(`cover`, `image`, `thumbnail`, `og_image`, `seo_image` and `icon` by
+default), so name such keys `image` or add yours to that list. Under any other
+key the link is kept, and a signed one fails the build when the key is
+declared `image` or `url`. Relative paths are never copied from the content
+folder, at the top level or inside objects; keep such images under the theme's
+`assets/` or `static/` and write their site path. Nested strings are plain text: only the top-level
 `body` field is HTML and sanitized, so render nested text with a `text`
 component, not `rich-text`.
 

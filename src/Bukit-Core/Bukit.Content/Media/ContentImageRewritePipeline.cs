@@ -225,7 +225,21 @@ public sealed class ContentImageRewritePipeline
             var isFileType = string.Equals(field.Type, "file", StringComparison.OrdinalIgnoreCase)
                              || string.Equals(field.Type, "files", StringComparison.OrdinalIgnoreCase);
 
-            if (!isFileType && !_fieldKeys.Contains(key))
+            var localize = isFileType || _fieldKeys.Contains(key);
+            if (field.Value is not string and not IReadOnlyList<string>)
+            {
+                // An object field: its own keys decide what is localized at every depth.
+                var nested = await RewriteNestedAsync(field.Value, localize, localizeMemo, downloadGate, cancellationToken);
+                if (!Equals(nested, field.Value))
+                {
+                    copy[key] = field with { Value = nested };
+                    changed = true;
+                }
+
+                continue;
+            }
+
+            if (!localize)
             {
                 continue;
             }
@@ -289,6 +303,53 @@ public sealed class ContentImageRewritePipeline
         }
 
         return changed ? copy : fields;
+    }
+
+    /// <summary>
+    /// Localizes the text inside a mapping or list from front matter or a data file: a string, or a
+    /// list of strings, is localized when its own key is in <c>fieldKeys</c>, at any depth. Returns the
+    /// same instance when nothing changed.
+    /// </summary>
+    private async Task<object?> RewriteNestedAsync(
+        object? value,
+        bool localize,
+        Dictionary<string, string> localizeMemo,
+        SemaphoreSlim downloadGate,
+        CancellationToken cancellationToken)
+    {
+        switch (value)
+        {
+            case string text when localize && !string.IsNullOrWhiteSpace(text):
+                return await LocalizeMemoizedAsync(text, localizeMemo, downloadGate, cancellationToken);
+            case IDictionary<string, object?> map:
+                Dictionary<string, object?>? mapCopy = null;
+                foreach (var (key, item) in map)
+                {
+                    var rewritten = await RewriteNestedAsync(item, _fieldKeys.Contains(key), localizeMemo, downloadGate, cancellationToken);
+                    if (!Equals(rewritten, item))
+                    {
+                        mapCopy ??= new Dictionary<string, object?>(map, (map as Dictionary<string, object?>)?.Comparer ?? StringComparer.Ordinal);
+                        mapCopy[key] = rewritten;
+                    }
+                }
+
+                return mapCopy ?? value;
+            case List<object?> list:
+                List<object?>? listCopy = null;
+                for (var index = 0; index < list.Count; index++)
+                {
+                    var rewritten = await RewriteNestedAsync(list[index], localize, localizeMemo, downloadGate, cancellationToken);
+                    if (!Equals(rewritten, list[index]))
+                    {
+                        listCopy ??= [.. list];
+                        listCopy[index] = rewritten;
+                    }
+                }
+
+                return listCopy ?? value;
+            default:
+                return value;
+        }
     }
 
     private async Task<string> LocalizeMemoizedAsync(

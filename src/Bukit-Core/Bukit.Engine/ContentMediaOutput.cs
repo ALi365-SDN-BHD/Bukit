@@ -30,12 +30,7 @@ internal sealed partial class ContentMediaOutput(BuildVariantContext context) : 
     {
         var fields = document.CustomFields?.ToDictionary(pair => pair.Key, pair => pair.Value with
         {
-            Value = pair.Value.Value switch
-            {
-                string value => RewriteUrl(value, collect),
-                IReadOnlyList<string> values => values.Select(value => RewriteUrl(value, collect)).ToArray(),
-                _ => pair.Value.Value
-            }
+            Value = RewriteValue(pair.Value.Value, collect)
         }, StringComparer.OrdinalIgnoreCase);
         var html = document.Body.Html is null ? null : RewriteHtml(document.Body.Html, collect);
         return document with
@@ -75,12 +70,66 @@ internal sealed partial class ContentMediaOutput(BuildVariantContext context) : 
             foreach (var field in fields.Values.OfType<IDictionary<string, object>>())
             {
                 if (!field.TryGetValue("value", out var value)) continue;
-                if (value is string text) field["value"] = RewriteUrl(text, collect: true);
-                else if (value is IReadOnlyList<string> strings)
-                    field["value"] = strings.Select(text => RewriteUrl(text, collect: true)).ToArray();
-                else if (value is IReadOnlyList<object> values)
-                    field["value"] = values.Select(item => item is string text ? RewriteUrl(text, collect: true) : item).ToArray();
+                // A plugin's read-only list (not List or array) keeps its earlier treatment: text items only.
+                field["value"] = value is IReadOnlyList<object> other and not List<object?> and not object?[] and not IReadOnlyList<string>
+                    ? other.Select(item => item is string text ? RewriteUrl(text, collect: true) : item).ToArray()
+                    : RewriteValue(value, collect: true)!;
             }
+        }
+    }
+
+    // Localized media links are rewritten (and collected for copying) at any depth, so a link inside
+    // an object field, such as days[0].photo, is published as one at the top level is. A mapping or
+    // list is copied only when something in it changed.
+    private object? RewriteValue(object? value, bool collect)
+    {
+        switch (value)
+        {
+            case string text:
+                return RewriteUrl(text, collect);
+            case IReadOnlyList<string> texts:
+                return texts.Select(text => RewriteUrl(text, collect)).ToArray();
+            case IDictionary<string, object?> map:
+                Dictionary<string, object?>? mapCopy = null;
+                foreach (var (key, item) in map)
+                {
+                    var rewritten = RewriteValue(item, collect);
+                    if (!Equals(rewritten, item))
+                    {
+                        mapCopy ??= new Dictionary<string, object?>(map, (map as Dictionary<string, object?>)?.Comparer ?? StringComparer.Ordinal);
+                        mapCopy[key] = rewritten;
+                    }
+                }
+
+                return mapCopy ?? value;
+            case List<object?> list:
+                List<object?>? listCopy = null;
+                for (var index = 0; index < list.Count; index++)
+                {
+                    var rewritten = RewriteValue(list[index], collect);
+                    if (!Equals(rewritten, list[index]))
+                    {
+                        listCopy ??= [.. list];
+                        listCopy[index] = rewritten;
+                    }
+                }
+
+                return listCopy ?? value;
+            case object?[] array:
+                object?[]? arrayCopy = null;
+                for (var index = 0; index < array.Length; index++)
+                {
+                    var rewritten = RewriteValue(array[index], collect);
+                    if (!Equals(rewritten, array[index]))
+                    {
+                        arrayCopy ??= [.. array];
+                        arrayCopy[index] = rewritten;
+                    }
+                }
+
+                return arrayCopy ?? value;
+            default:
+                return value;
         }
     }
 

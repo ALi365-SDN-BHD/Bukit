@@ -324,7 +324,7 @@ internal sealed partial class MiniProgramDatasetBuilder
         // A signed link expires and leaks its signature, for a file link as much as for an image.
         if (MiniProgramJson.IsSignedUrl(absolute))
         {
-            throw Invalid(dataset, recordId, field, $"signed URL was not localized: {MiniProgramJson.RedactQuery(absolute)}");
+            throw Invalid(dataset, recordId, field, $"signed URL was not localized: {MiniProgramJson.RedactQuery(absolute)} (images are downloaded only under content.media.fieldKeys keys, at any depth, when content.media.downloadToLocal is on and the host is allowed)");
         }
 
         return absolute;
@@ -372,12 +372,16 @@ internal sealed partial class MiniProgramDatasetBuilder
     {
         null => true,
         string text => string.IsNullOrWhiteSpace(text),
+        // A list of only nulls (an empty "- " item) is empty too, so required rejects it and it is written as null.
+        IEnumerable<object?> sequence => sequence.All(item => item is null),
         System.Collections.ICollection collection => collection.Count == 0,
-        IEnumerable<object?> sequence => !sequence.Any(),
         _ => false
     };
 
-    /// <summary>A list whose items are all strings or invariant scalars; null for scalars, maps and mixed lists.</summary>
+    /// <summary>
+    /// A list whose items are all strings or invariant scalars; null for scalars, maps and mixed lists.
+    /// A null item (a YAML empty "- " or "~") is dropped, as a top-level front matter list drops it.
+    /// </summary>
     private static List<string>? ToTextList(object raw)
     {
         if (raw is string || raw is System.Collections.IDictionary || raw is not System.Collections.IEnumerable sequence)
@@ -388,7 +392,12 @@ internal sealed partial class MiniProgramDatasetBuilder
         var values = new List<string>();
         foreach (var item in sequence)
         {
-            if (item is null || ToScalarText(item) is not { } text)
+            if (item is null)
+            {
+                continue;
+            }
+
+            if (ToScalarText(item) is not { } text)
             {
                 return null;
             }

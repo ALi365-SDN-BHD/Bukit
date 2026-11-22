@@ -64,6 +64,13 @@ internal static class MarkdownFieldBuilder
 
     private static bool TryConvertToField(object value, out ContentField field)
     {
+        // A list of only YAML nulls (a lone empty "- ") is absent, like a top-level null.
+        if (value is not string && value is IEnumerable<object?> items && items.Any() && items.All(item => item is null))
+        {
+            field = null!;
+            return false;
+        }
+
         if (TryConvertToList(value, out var list))
         {
             field = new ContentField("list", list);
@@ -135,8 +142,8 @@ internal static class MarkdownFieldBuilder
 
     private static bool TryConvertToList(object value, out IReadOnlyList<string> list)
     {
-        // A list holding a YAML null keeps its raw items, so the null keeps its position and the list its length.
-        if (value is IEnumerable<object?> seq && seq.All(item => item is not null && IsScalarValue(item)))
+        // A YAML null item (an empty "- " or "~") is dropped like a blank one, so the list stays a list of text.
+        if (value is IEnumerable<object?> seq && seq.All(IsScalarValue))
         {
             var items = seq.Select(x => x?.ToString() ?? string.Empty)
                 .Select(x => x.Trim())

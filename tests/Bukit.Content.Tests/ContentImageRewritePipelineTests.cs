@@ -92,6 +92,74 @@ public sealed class ContentImageRewritePipelineTests
     }
 
     [Fact]
+    public async Task RewriteAsync_LocalizesFieldKeyImagesInsideObjectFieldsOnly()
+    {
+        const string photo = "https://img.example/day.jpg";
+        const string other = "https://img.example/link.jpg";
+        var day = new Dictionary<string, object?>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["title"] = "D1",
+            ["image"] = photo,
+            ["link"] = other,
+            ["hotel"] = new Dictionary<string, object?>(StringComparer.OrdinalIgnoreCase) { ["cover"] = new List<object?> { photo, null } }
+        };
+        var item = ContentDocument.Create(
+            id: "1",
+            title: "t",
+            slug: "s",
+            publishAt: DateTimeOffset.UtcNow,
+            contentHtml: null,
+            fields: new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["days"] = new ContentField("text", new List<object?> { day })
+            });
+        var localizer = new MappingLocalizer(new Dictionary<string, string>(StringComparer.Ordinal)
+        {
+            [photo] = "/assets/uploads/day.jpg"
+        });
+        var pipeline = new ContentImageRewritePipeline(new MediaConfig(), localizer);
+
+        var rewritten = Assert.Single(await pipeline.RewriteAsync(new[] { item }, CancellationToken.None));
+
+        var days = Assert.IsType<List<object?>>(rewritten.CustomFields!["days"].Value);
+        var rewrittenDay = Assert.IsType<Dictionary<string, object?>>(days[0]);
+        Assert.Equal("/assets/uploads/day.jpg", rewrittenDay["IMAGE"]);
+        Assert.Equal(other, rewrittenDay["link"]);
+        Assert.Equal("D1", rewrittenDay["title"]);
+        var hotel = Assert.IsType<Dictionary<string, object?>>(rewrittenDay["hotel"]);
+        Assert.Equal(new object?[] { "/assets/uploads/day.jpg", null }, Assert.IsType<List<object?>>(hotel["cover"]));
+        Assert.Equal(photo, day["image"]);
+        Assert.Equal(new[] { photo }, localizer.ReceivedUrls);
+    }
+
+    [Fact, Trait("Category", "Integration")]
+    public async Task RewriteAsync_FrontMatterImageListWithEmptyItemIsLocalized()
+    {
+        const string photo = "https://img.example/a.jpg";
+        var root = Path.Combine(Path.GetTempPath(), "bukit-md-null-list-" + Guid.NewGuid().ToString("N"));
+        try
+        {
+            Directory.CreateDirectory(root);
+            await File.WriteAllTextAsync(Path.Combine(root, "page.md"), $"---\ntitle: Page\ngallery:\n  - {photo}\n  -\n---\nBody");
+            var raw = Assert.Single((await new Bukit.Content.Markdown.MarkdownFolderProvider(new Bukit.Content.Markdown.MarkdownFolderProviderOptions(root)).LoadRawAsync()).Documents);
+            var document = ContentDocument.Create(id: "1", title: "t", slug: "s", publishAt: DateTimeOffset.UtcNow, contentHtml: null, fields: raw.CustomFields);
+            var localizer = new MappingLocalizer(new Dictionary<string, string>(StringComparer.Ordinal)
+            {
+                [photo] = "/assets/uploads/a.jpg"
+            });
+            var pipeline = new ContentImageRewritePipeline(new MediaConfig { FieldKeys = ["gallery"] }, localizer);
+
+            var rewritten = Assert.Single(await pipeline.RewriteAsync(new[] { document }, CancellationToken.None));
+
+            Assert.Equal(new[] { "/assets/uploads/a.jpg" }, Assert.IsAssignableFrom<IReadOnlyList<string>>(rewritten.CustomFields!["gallery"].Value));
+        }
+        finally
+        {
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
+    [Fact]
     public async Task RewriteAsync_PreservesVideoSourceAndNonImageFileFields()
     {
         const string video = "https://media.example/clip.mp4";
