@@ -220,7 +220,9 @@ not change a file's hash. `NaN` and infinity fail the build at any depth, and
 objects may nest at most 8 levels (a top-level object is level 1); deeper data
 fails with `SchemaValidationFailed`, naming the dataset, record and the path of
 the field, such as `days[1].hotel`. A single mapping given to `object[]` is
-written as a list of one. A `dataIndex` dataset accepts the same types for its
+written as a list of one. As at the top level, an empty value inside an object
+(an empty list `[]`, an empty mapping, blank text or a YAML `null`) is written
+as `null`; quote `"null"` to keep it as text. A `dataIndex` dataset accepts the same types for its
 keys, although data index rows hold text values today.
 
 Object lists can make list files large. Put them in `detailFields`, so each one
