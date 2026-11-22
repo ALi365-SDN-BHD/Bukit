@@ -1,5 +1,7 @@
+using System.Buffers;
 using System.Net;
 using System.Text;
+using System.Text.Json;
 using System.Text.RegularExpressions;
 using Bukit.Rendering;
 
@@ -180,8 +182,7 @@ internal static partial class SeoHtmlRenderer
                 }
 
                 // A theme that echoes seo.json_ld loses nothing when Core writes the same block.
-                var content = SeoJsonLdScripts.GetContent(html, segment).Trim();
-                if (!coreJsonLd.Any(json => string.Equals(json.Trim(), content, StringComparison.Ordinal)))
+                if (!IsCoreJsonLdEcho(SeoJsonLdScripts.GetContent(html, segment).Trim(), coreJsonLd))
                 {
                     replacedThemeJsonLd++;
                 }
@@ -189,6 +190,39 @@ internal static partial class SeoHtmlRenderer
         }
 
         return sb.ToString();
+    }
+
+    // Whitespace and string escaping may differ (pretty-printed or reserialized echoes); property
+    // order and values must match. Text that is not valid JSON never matches Core's block.
+    private static bool IsCoreJsonLdEcho(string content, IReadOnlyList<string> coreJsonLd)
+    {
+        if (coreJsonLd.Any(json => string.Equals(json.Trim(), content, StringComparison.Ordinal)))
+        {
+            return true;
+        }
+
+        var normalized = NormalizeJson(content);
+        return normalized is not null &&
+               coreJsonLd.Any(json => string.Equals(NormalizeJson(json), normalized, StringComparison.Ordinal));
+    }
+
+    private static string? NormalizeJson(string json)
+    {
+        try
+        {
+            using var document = JsonDocument.Parse(json);
+            var buffer = new ArrayBufferWriter<byte>();
+            using (var writer = new Utf8JsonWriter(buffer))
+            {
+                document.RootElement.WriteTo(writer);
+            }
+
+            return Encoding.UTF8.GetString(buffer.WrittenSpan);
+        }
+        catch (JsonException)
+        {
+            return null;
+        }
     }
 
     private static void WriteMetaName(StringBuilder sb, string name, string? content)

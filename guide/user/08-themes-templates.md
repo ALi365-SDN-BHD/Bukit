@@ -105,7 +105,12 @@ type such as `TouristTrip`, `Product` or `Event`, either:
 An unmarked head script whose content differs from Core's JSON-LD is dropped
 with the build warning `seo.theme_json_ld_replaced route=<url> count=<n>`
 (collapsed into `event=diagnostics.summary` when more than five pages hit it; it
-stays a warning under `diagnostics: strict`). Kept head JSON-LD is validated by the
+stays a warning under `diagnostics: strict`). A pretty-printed or re-escaped echo of
+`page.seo.json_ld` is not reported. The warning comes only from pages rendered in
+that build, so an incremental build of unchanged pages is silent; run a clean build
+to see every page. Core does not deduplicate kept scripts against its own JSON-LD:
+keep only types Core does not generate, or the page publishes, for example, two
+`BreadcrumbList` blocks. Kept head JSON-LD is validated by the
 publish audit (`seo.json_ld_invalid`) and its types appear in `schemaTypes`.
 
 Managed-tag scanning is limited to the standard head. An SVG `<title>` in the
@@ -119,7 +124,8 @@ not synthesize one; diagnostics and the final audit report the gap.
 booleans, null and dates. Both escape `<`, `>`, `&`, U+2028 and U+2029 as
 `\u003c`-style escapes, so content from Markdown or Notion cannot close a
 `<script>` element early. `util.to_json` sorts object keys (ordinal), so the
-output is byte-for-byte stable.
+output is byte-for-byte stable. Both work in page, component and section
+templates.
 
 Scriban's built-in `object.to_json` uses reflection that the Native AOT
 `bukit` binary disables; Bukit maps it to the same implementation as

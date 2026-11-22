@@ -80,7 +80,12 @@ In inject mode, every other head `application/ld+json` script is removed. When a
 script differs from all of Core's JSON-LD blocks, the build warns
 `seo.theme_json_ld_replaced route=<url> count=<n>` (a warning even with `strict`; more
 than five pages collapse into one `event=diagnostics.summary` line). A theme that echoes
-`page.seo.json_ld` in the head gets no warning. The publish audit validates kept head
+`page.seo.json_ld` in the head gets no warning, even pretty-printed or with different
+string escaping; HTML-escaped (`html.escape`) or reordered JSON still warns. Incremental
+builds skip unchanged pages, so the warning appears only for pages rendered in that build
+(clean builds report every page). Core does not check kept JSON-LD for types it already
+emits: marking a theme `WebPage` or `BreadcrumbList` keep publishes a duplicate, so keep
+only types Core does not generate. The publish audit validates kept head
 JSON-LD like Core's (`seo.json_ld_invalid`) and adds its `@type` values to the route's
 `schemaTypes`. Serialize values with `util.to_json` or `util.json_string`
 (`bukit-templating`), which escape `</script>`.

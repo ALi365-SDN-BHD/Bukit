@@ -333,6 +333,38 @@ internal static class ComponentUtilityFunctions
 }
 
 /// <summary>
+/// The shared, read-only <c>util</c> template object. Its functions are stateless, so one instance
+/// serves every page, component and section context.
+/// </summary>
+internal static class UtilTemplateFunctions
+{
+    internal static readonly ScriptObject Global = Create();
+
+    private static ScriptObject Create()
+    {
+        var utilObj = new ScriptObject();
+        // IScriptCustomFunction instead of Func delegates: delegates are bound by reflection and fail under Native AOT.
+        utilObj.SetValue("format_date", UtilStringFunction.WithOptionalArg((input, format) =>
+        {
+            var fmt = format?.ToString();
+            return string.IsNullOrEmpty(fmt)
+                ? ComponentUtilityFunctions.FormatDate(input)
+                : ComponentUtilityFunctions.FormatDate(input, fmt);
+        }, "format"), readOnly: true);
+        utilObj.SetValue("truncate", UtilStringFunction.WithOptionalArg((input, maxLen) =>
+            int.TryParse(maxLen?.ToString(), out var n) ? ComponentUtilityFunctions.Truncate(input, n) : ComponentUtilityFunctions.Truncate(input), "max_length"), readOnly: true);
+        utilObj.SetValue("titleize", UtilStringFunction.Unary(ComponentUtilityFunctions.Titleize), readOnly: true);
+        utilObj.SetValue("slugify", UtilStringFunction.Unary(ComponentUtilityFunctions.Slugify), readOnly: true);
+        utilObj.SetValue("term_slug", UtilStringFunction.Unary(ComponentUtilityFunctions.TermSlug), readOnly: true);
+        utilObj.SetValue("json_string", new JsonStringFunction(), readOnly: true);
+        utilObj.SetValue("to_json", ToJsonFunction.Instance, readOnly: true);
+        var global = new ScriptObject();
+        global.SetValue("util", utilObj, readOnly: true);
+        return global;
+    }
+}
+
+/// <summary>
 /// AOT-safe wrapper for util.* string helpers. Scriban binds a plain <c>Func</c>
 /// through reflection, which Native AOT trims away ("not a valid function").
 /// </summary>

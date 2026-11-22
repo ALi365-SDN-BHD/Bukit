@@ -59,13 +59,14 @@ internal static class TemplateJsonWriter
                 sb.Append(m.ToString(CultureInfo.InvariantCulture));
                 return;
             case double d:
-                WriteFloat(sb, d);
+                WriteFloat(sb, d, double.IsFinite(d));
                 return;
+            // float and Half are formatted as themselves: widening to double adds digits (1.1f -> 1.100000023841858).
             case float f:
-                WriteFloat(sb, f);
+                WriteFloat(sb, f, float.IsFinite(f));
                 return;
             case Half h:
-                WriteFloat(sb, (double)h);
+                WriteFloat(sb, h, Half.IsFinite(h));
                 return;
             case DateTimeOffset dto:
                 WriteString(sb, dto.ToString("O", CultureInfo.InvariantCulture));
@@ -92,6 +93,11 @@ internal static class TemplateJsonWriter
             case IEnumerable<KeyValuePair<string, object?>> pairs:
                 WriteObject(sb, pairs.Select(pair => (pair.Key, pair.Value)), depth);
                 return;
+            // KeyValuePair is not covariant: string-valued maps that are not IDictionary need their own case.
+            // Other non-IDictionary maps serialize as arrays, because detecting KeyValuePair<,> needs reflection.
+            case IEnumerable<KeyValuePair<string, string?>> stringPairs:
+                WriteObject(sb, stringPairs.Select(pair => (pair.Key, (object?)pair.Value)), depth);
+                return;
             case IEnumerable sequence:
                 WriteArray(sb, sequence, depth);
                 return;
@@ -114,8 +120,9 @@ internal static class TemplateJsonWriter
 
     private static void WriteObject(StringBuilder sb, IEnumerable<(string Key, object? Value)> members, int depth)
     {
-        var ordered = members.ToList();
-        ordered.Sort(static (a, b) => string.CompareOrdinal(a.Key, b.Key));
+        // OrderBy is stable: keys that stringify alike (an IDictionary holding 1 and "1") keep their
+        // enumeration order instead of an arbitrary one, so output stays deterministic.
+        var ordered = members.OrderBy(static member => member.Key, StringComparer.Ordinal).ToList();
         sb.Append('{');
         for (var i = 0; i < ordered.Count; i++)
         {
@@ -151,11 +158,12 @@ internal static class TemplateJsonWriter
     }
 
     // JSON has no NaN or Infinity literals, so non-finite numbers are written as null.
-    private static void WriteFloat(StringBuilder sb, double value)
+    // The default format of floating-point types is the shortest round-trippable form.
+    private static void WriteFloat(StringBuilder sb, IFormattable value, bool isFinite)
     {
-        if (double.IsFinite(value))
+        if (isFinite)
         {
-            sb.Append(value.ToString("R", CultureInfo.InvariantCulture));
+            sb.Append(value.ToString(null, CultureInfo.InvariantCulture));
         }
         else
         {

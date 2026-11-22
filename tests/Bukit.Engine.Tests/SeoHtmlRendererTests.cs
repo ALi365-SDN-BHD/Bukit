@@ -287,6 +287,28 @@ public sealed class SeoHtmlRendererTests
     }
 
     [Fact]
+    public void InjectIntoHead_ReformattedEchoOfCoreJsonLdIsNotCountedAsReplaced()
+    {
+        const string pretty = "{\n  \"@context\": \"https://schema.org\",\n  \"@type\": \"WebPage\",\n  \"name\": \"\\u004eew\"\n}";
+        var html = $"<html><head><script type=\"application/ld+json\">{pretty}</script></head><body></body></html>";
+
+        SeoHtmlRenderer.InjectIntoHead(html, JsonLdSeo(), out var replaced);
+
+        Assert.Equal(0, replaced);
+    }
+
+    [Fact]
+    public void InjectIntoHead_HtmlEscapedEchoIsCountedAsReplaced()
+    {
+        var escaped = System.Net.WebUtility.HtmlEncode(CoreWebPage);
+        var html = $"<html><head><script type=\"application/ld+json\">{escaped}</script></head><body></body></html>";
+
+        SeoHtmlRenderer.InjectIntoHead(html, JsonLdSeo(), out var replaced);
+
+        Assert.Equal(1, replaced);
+    }
+
+    [Fact]
     public void InjectIntoHead_KeepsMarkedHeadJsonLdInPlaceAndLeavesBodyJsonLdAlone()
     {
         const string kept = """<script type="application/ld+json" data-bukit-seo="keep">{"@type":"TouristTrip","name":"KL"}</script>""";

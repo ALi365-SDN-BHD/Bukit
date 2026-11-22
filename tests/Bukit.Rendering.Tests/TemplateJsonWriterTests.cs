@@ -16,7 +16,8 @@ public sealed class TemplateJsonWriterTests
             ["negative"] = -42L,
             ["double"] = 0.1 + 0.2,
             ["decimal"] = 1234.5600m,
-            ["float"] = 1.5f,
+            ["float"] = 1.1f,
+            ["half"] = (Half)0.5,
             ["nan"] = double.NaN,
             ["infinity"] = double.PositiveInfinity
         };
@@ -24,7 +25,7 @@ public sealed class TemplateJsonWriterTests
         var json = TemplateJsonWriter.Serialize(value);
 
         Assert.Equal(
-            """{"decimal":1234.5600,"double":0.30000000000000004,"float":1.5,"infinity":null,"long":9223372036854775807,"nan":null,"negative":-42}""",
+            """{"decimal":1234.5600,"double":0.30000000000000004,"float":1.1,"half":0.5,"infinity":null,"long":9223372036854775807,"nan":null,"negative":-42}""",
             json);
         using var _ = JsonDocument.Parse(json);
     }
@@ -57,6 +58,24 @@ public sealed class TemplateJsonWriterTests
     }
 
     [Fact]
+    public void Serialize_KeepsEnumerationOrderForKeysThatStringifyAlike()
+    {
+        var first = new Dictionary<object, object> { [1] = "int", ["1"] = "string" };
+        var second = new Dictionary<object, object> { ["1"] = "string", [1] = "int" };
+
+        Assert.Equal("""{"1":"int","1":"string"}""", TemplateJsonWriter.Serialize(first));
+        Assert.Equal("""{"1":"string","1":"int"}""", TemplateJsonWriter.Serialize(second));
+    }
+
+    [Fact]
+    public void Serialize_WritesStringValuedReadOnlyMapsAsObjects()
+    {
+        IReadOnlyDictionary<string, string> map = new StringMap(new Dictionary<string, string> { ["b"] = "2", ["a"] = "1" });
+
+        Assert.Equal("""{"a":"1","b":"2"}""", TemplateJsonWriter.Serialize(map));
+    }
+
+    [Fact]
     public void SerializeString_EscapesHtmlSensitiveAndInvalidCharacters()
     {
         var value = "a\"b\\c\n\u0001<>&\u2028\u2029😀";
@@ -75,5 +94,18 @@ public sealed class TemplateJsonWriterTests
         value["self"] = value;
 
         Assert.Throws<InvalidOperationException>(() => TemplateJsonWriter.Serialize(value));
+    }
+
+    // Not an IDictionary, like a hand-written read-only model map.
+    private sealed class StringMap(Dictionary<string, string> inner) : IReadOnlyDictionary<string, string>
+    {
+        public string this[string key] => inner[key];
+        public IEnumerable<string> Keys => inner.Keys;
+        public IEnumerable<string> Values => inner.Values;
+        public int Count => inner.Count;
+        public bool ContainsKey(string key) => inner.ContainsKey(key);
+        public bool TryGetValue(string key, out string value) => inner.TryGetValue(key, out value!);
+        public IEnumerator<KeyValuePair<string, string>> GetEnumerator() => inner.GetEnumerator();
+        System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator() => GetEnumerator();
     }
 }

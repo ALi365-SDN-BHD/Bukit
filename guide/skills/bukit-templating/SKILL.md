@@ -148,7 +148,7 @@ Besides Scriban built-ins (the `string`, `array`, `date`, `math`, and `html` mod
 | `util.truncate v 100`, `util.titleize v`, `util.slugify v` | |
 | `util.term_slug` | Same slug as taxonomy URLs. |
 | `util.json_string` | JSON string literal with quotes. Also escapes `<`, `>`, `&`, U+2028 and U+2029 as `\u003c`-style escapes, so the value cannot end a `<script>` element. |
-| `util.to_json v` | JSON for any value (objects, arrays, strings, numbers, booleans, null, dates) with the same string escaping. Object keys are sorted (ordinal), so output is deterministic. Works under Native AOT; `object.to_json` is the same function. |
+| `util.to_json v` | JSON for any value (objects, arrays, strings, numbers, booleans, null, dates) with the same string escaping. Object keys are sorted (ordinal), so output is deterministic. Works under Native AOT; `object.to_json` is the same function. All `util.*` functions also work in components and sections. |
 | `comp.render "name" ...` | Theme components (`bukit-theme`). |
 | `render_section {type: "hero", ...}` | Theme sections. |
 | `shortcode "name" "a1" ...` | Theme shortcode, up to four arguments; only when `theme.shortcodes` is set (`bukit-theme`). |
