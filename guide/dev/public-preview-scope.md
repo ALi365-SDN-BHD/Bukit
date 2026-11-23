@@ -13,7 +13,7 @@ support or release readiness.
 
 - Static command registry.
 - Strict config.
-- Markdown, Notion and CloudBase content sources.
+- Markdown and Notion content sources.
 - Local themes.
 - Scriban rendering.
 - Routing, list routes, taxonomy, and pagination.

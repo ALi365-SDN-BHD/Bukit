@@ -98,7 +98,6 @@
         "dotnet test tests/Bukit.Engine.Tests/Bukit.Engine.Tests.csproj -c Release --filter \"FullyQualifiedName~SingleLanguage|FullyQualifiedName~I18nLanguagePolicy|FullyQualifiedName~Stage7|FullyQualifiedName~ReportSchemaContract|FullyQualifiedName~SignedLinkDiagnostics|FullyQualifiedName~TestInfrastructure|FullyQualifiedName~SiteEngineIntegration|FullyQualifiedName~I18n|FullyQualifiedName~SearchIndex\"",
         "dotnet test tests/Bukit.Config.Tests/Bukit.Config.Tests.csproj -c Release --filter \"FullyQualifiedName~ConfigLoader|FullyQualifiedName~StrictYamlContract|FullyQualifiedName~ConfigJsonSchemaGenerator|FullyQualifiedName~ConfigPhase2Validator\"",
         "dotnet test tests/Bukit.Importing.Tests/Bukit.Importing.Tests.csproj -c Release --filter \"FullyQualifiedName~HtmlDemoImporter\"",
-        "openspec validate unify-site-languages --strict --no-interactive",
         "bash scripts/checks/docs/size-policy.sh",
         "bash scripts/checks/docs/active-links.sh"
       ],
@@ -1937,6 +1936,7 @@
         "global.json",
         "src/Bukit-Core/Bukit.Cli.Shared/Bukit.Cli.Shared.csproj",
         "src/Bukit-Core/Bukit.Cli/Bukit.Cli.csproj",
+        "src/Bukit-Core/Bukit.CloudBase/Bukit.CloudBase.csproj",
         "src/Bukit-Core/Bukit.Config/Bukit.Config.csproj",
         "src/Bukit-Core/Bukit.Content/Bukit.Content.csproj",
         "src/Bukit-Core/Bukit.Engine.Abstractions/Bukit.Engine.Abstractions.csproj",
@@ -2477,7 +2477,7 @@
         "docs/plans/2026-11-23-cloudbase-content-source-task-plan.zh-CN.md"
       ],
       "specialtyTests": [
-        "openspec validate add-cloudbase-content-source --type change --strict --no-interactive"
+        "openspec validate cloudbase-content-source --type spec --strict --no-interactive"
       ],
       "resource": "static-parallel",
       "publicContract": false,
