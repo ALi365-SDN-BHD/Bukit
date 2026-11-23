@@ -515,6 +515,96 @@ public sealed class ImageProcessingPluginTests
         }
     }
 
+    [Fact]
+    public async Task AfterBuild_WebpSourceGetsWebpVariantsWithoutPicture()
+    {
+        var outDir = GetTempDir();
+        try
+        {
+            var assetsDir = Path.Combine(outDir, "assets");
+            Directory.CreateDirectory(assetsDir);
+            WriteImage(Path.Combine(assetsDir, "photo.webp"), 1000, 8, SKEncodedImageFormat.Webp);
+            var (plugin, context, transformed) = TransformWithWebp(outDir, assetsDir, "<img src=\"/assets/photo.webp\" alt=\"\">");
+
+            await plugin.AfterBuildAsync(context);
+
+            var variant = Path.Combine(assetsDir, "photo-480w.webp");
+            using (var codec = SKCodec.Create(variant))
+            {
+                Assert.Equal(SKEncodedImageFormat.Webp, codec.EncodedFormat);
+                Assert.Equal(480, codec.Info.Width);
+            }
+            Assert.False(File.Exists(Path.Combine(assetsDir, "photo-1000w.webp")));
+            Assert.False(File.Exists(Path.Combine(assetsDir, "photo-1200w.webp")));
+            var freshness = JsonNode.Parse(File.ReadAllText(variant + ".bukit-freshness.json"))!.AsObject();
+            Assert.Equal(".webp", freshness["format"]!.GetValue<string>());
+            Assert.Equal("assets/photo.webp", freshness["sourcePath"]!.GetValue<string>());
+
+            var html = File.ReadAllText(Path.Combine(outDir, "index.html"));
+            Assert.Contains("srcset=\"/assets/photo-480w.webp 480w, /assets/photo.webp 1000w\"", html, StringComparison.Ordinal);
+            Assert.DoesNotContain("<picture>", html, StringComparison.Ordinal);
+            Assert.DoesNotContain("data-bukit-generated-srcset", html, StringComparison.Ordinal);
+            var outputs = Assert.IsType<HashSet<PluginOutputTrackingInfo>>(context.Get(BuildDataKeys.PluginOutputs));
+            Assert.Contains(outputs, output => output.Path == "assets/photo-480w.webp");
+        }
+        finally
+        {
+            if (Directory.Exists(outDir)) Directory.Delete(outDir, true);
+        }
+    }
+
+    [Fact]
+    public async Task AfterBuild_WebpSourceBesideSameStemPngIsLeftAlone()
+    {
+        var outDir = GetTempDir();
+        try
+        {
+            var assetsDir = Path.Combine(outDir, "assets");
+            Directory.CreateDirectory(assetsDir);
+            WriteImage(Path.Combine(assetsDir, "photo.png"), 1000, 8, SKEncodedImageFormat.Png);
+            WriteImage(Path.Combine(assetsDir, "photo.webp"), 1000, 8, SKEncodedImageFormat.Webp);
+            var (plugin, context, transformed) = TransformWithWebp(outDir, assetsDir, "<img src=\"/assets/photo.webp\" alt=\"\">");
+
+            await plugin.AfterBuildAsync(context);
+
+            Assert.DoesNotContain("srcset", transformed, StringComparison.Ordinal);
+            var freshness = JsonNode.Parse(File.ReadAllText(Path.Combine(assetsDir, "photo-480w.webp.bukit-freshness.json")))!.AsObject();
+            Assert.Equal("assets/photo.png", freshness["sourcePath"]!.GetValue<string>());
+        }
+        finally
+        {
+            if (Directory.Exists(outDir)) Directory.Delete(outDir, true);
+        }
+    }
+
+    private static void WriteImage(string path, int width, int height, SKEncodedImageFormat format)
+    {
+        using var image = new SKBitmap(width, height);
+        image.Erase(SKColors.SteelBlue);
+        using var encoded = image.Encode(format, 90);
+        File.WriteAllBytes(path, encoded.ToArray());
+    }
+
+    private static (ImageProcessingPlugin Plugin, BuildContext Context, string Transformed) TransformWithWebp(
+        string outDir,
+        string assetsDir,
+        string img)
+    {
+        var config = CreateConfig(new ImageOptimizationConfig { Enabled = true, Formats = new[] { "webp" }, Sizes = new[] { 480, 1200 } }) with
+        {
+            Content = TestContent.Markdown() with { Media = new MediaConfig { UrlBase = "/assets" } }
+        };
+        var context = CreateContext(outDir);
+        context.Set(BuildDataKeys.MediaDownloadDir, assetsDir);
+        context.Set(BuildDataKeys.CurrentHtmlOutputs, new[] { "index.html" });
+        var plugin = new ImageProcessingPlugin(config);
+        var transformed = plugin.CreateHtmlTransform(new HtmlTransformPluginContext(context, BuildExecutionMode.Production)).Transform(
+            new HtmlTransformContext("/", "index.html", HtmlDocumentKind.Content, BuildExecutionMode.Production, context.Logger),
+            img);
+        File.WriteAllText(Path.Combine(outDir, "index.html"), $"<html><body>{transformed}</body></html>");
+        return (plugin, context, transformed);
+    }
+
     [Theory]
     [InlineData(false)]
     [InlineData(true)]

@@ -4,6 +4,8 @@ Bukit 所有重要变更都将记录在此文件中。
 
 ## [Unreleased]
 
+- **WebP 图片生成响应式变体**：启用 `theme.images.enabled` 时，本地静态 WebP 图片（例如从 Notion 或微信下载的封面和正文图片）会按配置中小于原图宽度的档位生成缩小的 WebP 变体，`img` 也会加上 `srcset`，与 JPEG/PNG 一致，但不包 `<picture>`。动图 WebP、文件名已是 `-<宽度>w.webp` 形式的文件、以及旁边有同名 JPEG/PNG 的 WebP 保持原样。WebP 源图始终用 SkiaSharp 缩放。含 WebP 媒体的站点会多出变体文件及其 freshness 记录，相关 `img` 多出 `srcset` 和 `decoding="async"`；升级后第一次增量构建会重新渲染页面，因为图片指纹现在包含 WebP 文件。见 [04 site.yaml 配置](guide/user/04-site-yaml-config.md)。
+
 ## [2.2.8] - 2026-11-23
 
 - **数据索引支持对象值**：`content.sources[].dataIndex` 的行新增值类型 `object`（一个映射）和 `object[]`（映射列表），模板可以读 `site.data_index.<源>.<scope>.<key>.<字段>`，声明了 `object` 的小程序 `dataIndex` 数据集也能拿到真正的对象。Markdown 行用 YAML 写值；Notion 行用 JSON 文本写值（解析不用反射，Native AOT 二进制可用）。布尔值和数字保留类型，所以 `if info.open` 遇到 `false` 为假，`info.days > 3` 按数字比较：Notion JSON 保留原有类型（JSON 字符串如 `"5"` 仍是文本）；Markdown 标量为 `true`/`false`（YAML 核心写法）时视为布尔值，写成 JSON 数字形式时视为数字，`0123`、`+60`、`yes` 等其他文本保持文本，在 Markdown 里加引号也不能让 `"5"` 保持文本。64 位范围内的整数存为整数，其他数字存为保留原始位数的小数（`12.50`），所以同样的值无论来自哪个源，构建出的模型和增量哈希都相同，小程序 `dataIndex` 数据集也会输出 JSON 布尔值和数字。键按序数排序且不能为空白，嵌套最多 8 层（每个映射或列表算一层），给 `object[]` 单个映射时视为只有一项的列表（与小程序 `object[]` 字段一致），超出 double 范围的数字、无效 JSON、重复键或形状不对都会导致构建失败，报错写明源、内容 id 和 `scope.key`。空的对象值是空映射或空列表；只含空值的映射或列表，`requiredKeys` 也视其为空。**行为变化**：`text`、`multiline`、`email`、`phone`、`url` 行如果值是 YAML 映射或列表，以前会静默构建并输出 .NET 类型名（`System.Collections.Generic.Dictionary...`），现在会构建失败；这些文本行里的数字和日期改为按固定区域格式化，不再随构建机器的区域设置变化。见 [07 多源数据](guide/user/07-multi-source-data.md#object-values)。

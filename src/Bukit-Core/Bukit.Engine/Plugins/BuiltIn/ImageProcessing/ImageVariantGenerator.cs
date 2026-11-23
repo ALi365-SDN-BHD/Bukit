@@ -45,6 +45,8 @@ internal sealed class ImageVariantGenerator
         width = 0;
         using var codec = SKCodec.Create(path);
         if (codec is null) return false;
+        // Resizing keeps only the first frame, so animated WebP stays as uploaded.
+        if (codec.EncodedFormat == SKEncodedImageFormat.Webp && codec.FrameCount > 1) return false;
         var origin = ImageOptimizer.GetEncodedOrigin(path, codec);
         width = origin >= SKEncodedOrigin.LeftTop ? codec.Info.Height : codec.Info.Width;
         return width > 0;
@@ -65,6 +67,12 @@ internal sealed class ImageVariantGenerator
         CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
+        if (tool is not null && ImageVariantPlan.IsWebpSource(imageFile))
+        {
+            // The external tool is not guaranteed to have a WebP delegate.
+            tool = null;
+            toolIdentity = "skiasharp-orientation-v2";
+        }
         var ext = Path.GetExtension(imageFile);
         var sizedFile = ImageVariantPlan.VariantFileName(imageFile, size, ext);
         var freshnessFile = sizedFile + FreshnessSuffix;
@@ -246,9 +254,15 @@ internal sealed class ImageVariantGenerator
         int quality,
         CancellationToken cancellationToken)
     {
-        var format = Path.GetExtension(destination).Equals(".png", StringComparison.OrdinalIgnoreCase)
-            ? SKEncodedImageFormat.Png : SKEncodedImageFormat.Jpeg;
-        return ImageOptimizer.EncodeAsync(source, destination, width, quality, format, cancellationToken);
+        var format = Path.GetExtension(destination).ToLowerInvariant() switch
+        {
+            ".png" => SKEncodedImageFormat.Png,
+            ".webp" => SKEncodedImageFormat.Webp,
+            _ => SKEncodedImageFormat.Jpeg
+        };
+        // Resizing a WebP source keeps it WebP; animated WebP never reaches this point.
+        return ImageOptimizer.EncodeAsync(source, destination, width, quality, format, cancellationToken,
+            allowStaticWebpSource: format == SKEncodedImageFormat.Webp);
     }
 
     internal async Task<Dictionary<string, string>> GenerateWebpVariantsAsync(

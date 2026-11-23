@@ -118,7 +118,7 @@ internal sealed class ImageProcessingPlugin : IBukitPlugin, IAfterBuildAsyncPlug
         {
             var webpSrcsets = await _generator.GenerateWebpVariantsAsync(
                 context,
-                imageFiles,
+                [.. imageFiles.Where(file => !ImageVariantPlan.IsWebpSource(file))],
                 sourceWidths,
                 sizes,
                 quality,
@@ -193,7 +193,8 @@ internal sealed class ImageProcessingPlugin : IBukitPlugin, IAfterBuildAsyncPlug
             if (hasWidth)
             {
                 sourceWidths[imageFile] = width;
-                if (webpEnabled)
+                // A WebP source's resized variants are already WebP.
+                if (webpEnabled && !ImageVariantPlan.IsWebpSource(imageFile))
                 {
                     CleanupStaleVariants(
                         context.OutputDir,
@@ -334,10 +335,9 @@ internal sealed class ImageProcessingPlugin : IBukitPlugin, IAfterBuildAsyncPlug
             CleanupOrphanedOwnedVariants(context.OutputDir, directory, priorPluginOutputs, cancellationToken);
         }
 
-        var exts = new[] { ".jpg", ".jpeg", ".png" };
         return [.. imageDirectories.SelectMany(directory => SafeFileEnumerator.EnumerateFiles(directory, "*.*"))
             .Distinct(StringComparer.Ordinal)
-            .Where(f => exts.Contains(Path.GetExtension(f).ToLowerInvariant()))
+            .Where(ImageVariantPlan.IsResizableSource)
             .Where(f => !IsOwnedGeneratedVariant(context.OutputDir, f, priorPluginOutputs))];
     }
 

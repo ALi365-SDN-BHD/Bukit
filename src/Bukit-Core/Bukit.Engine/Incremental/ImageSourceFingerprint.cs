@@ -17,7 +17,7 @@ internal static class ImageSourceFingerprint
 {
     private static readonly HashSet<string> Extensions = new(StringComparer.OrdinalIgnoreCase)
     {
-        ".jpg", ".jpeg", ".png"
+        ".jpg", ".jpeg", ".png", ".webp"
     };
 
     internal static string? Compute(

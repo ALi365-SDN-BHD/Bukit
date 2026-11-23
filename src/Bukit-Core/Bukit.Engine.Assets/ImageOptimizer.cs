@@ -107,7 +107,8 @@ internal static class ImageOptimizer
         int? width,
         int quality,
         SKEncodedImageFormat format,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        bool allowStaticWebpSource = false)
     {
         if (width is <= 0)
         {
@@ -124,7 +125,9 @@ internal static class ImageOptimizer
             }
             using var codec = SKCodec.Create(stream);
             cancellationToken.ThrowIfCancellationRequested();
-            if (codec is null || codec.EncodedFormat is not (SKEncodedImageFormat.Jpeg or SKEncodedImageFormat.Png))
+            var staticWebp = allowStaticWebpSource &&
+                codec?.EncodedFormat == SKEncodedImageFormat.Webp && codec.FrameCount <= 1;
+            if (codec is null || (codec.EncodedFormat is not (SKEncodedImageFormat.Jpeg or SKEncodedImageFormat.Png) && !staticWebp))
             {
                 throw new InvalidDataException("Expected a fully decodable JPEG or PNG source.");
             }
