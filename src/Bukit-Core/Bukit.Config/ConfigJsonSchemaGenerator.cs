@@ -480,7 +480,7 @@ public static class ConfigJsonSchemaGenerator
 
     private static JsonObject ContentSourceItemSchema()
         => Obj(("type", "object"), ("required", Arr("type")), ("properties", Obj(
-            ("type", EnumSchema("markdown", "notion")),
+            ("type", EnumSchema("markdown", "notion", "cloudbase")),
             ("name", StringSchema()),
             ("mode", EnumSchema("content", "data")),
             ("collection", StringSchema()),
@@ -492,6 +492,7 @@ public static class ConfigJsonSchemaGenerator
                 ("includePaths", StringArraySchema()),
                 ("includeGlobs", StringArraySchema()))))),
             ("notion", NotionSchema()),
+            ("cloudbase", CloudBaseSchema()),
             ("dataIndex", DataIndexSchema()))));
 
     private static JsonObject DataIndexSchema()
@@ -522,6 +523,34 @@ public static class ConfigJsonSchemaGenerator
             ("cacheMode", EnumSchema("off", "readwrite", "readonly")),
             ("cacheDir", StringSchema()),
             ("propertyMap", NotionPropertyMapSchema()))));
+
+    private static JsonObject CloudBaseSchema()
+        => Obj(("type", "object"), ("properties", Obj(
+            ("envId", StringSchema()),
+            ("region", EnumSchema("cn", "intl")),
+            ("table", StringSchema()),
+            ("idField", StringSchema()),
+            ("pageSize", IntSchema(1, 1000)),
+            ("maxItems", IntSchema(1)),
+            ("filter", Obj(("type", "object"), ("properties", Obj(
+                ("field", StringSchema()),
+                ("value", StringSchema()))))),
+            ("sort", Obj(("type", "object"), ("properties", Obj(
+                ("field", StringSchema()),
+                ("direction", EnumSchema("asc", "desc")))))),
+            ("titleField", StringSchema()),
+            ("slugField", StringSchema()),
+            ("publishAtField", StringSchema()),
+            ("updatedAtField", StringSchema()),
+            ("bodyField", StringSchema()),
+            ("bodyFormat", EnumSchema("markdown")),
+            ("fieldPolicy", NotionFieldPolicySchema()),
+            ("fileFields", StringArraySchema()),
+            ("storageBucket", StringSchema()),
+            ("signExpiresSeconds", IntSchema(60, 3600)),
+            ("cacheMode", EnumSchema("off")),
+            ("maxRps", IntSchema(1)),
+            ("maxRetries", IntSchema(0)))));
 
     private static JsonObject NotionPropertyMapSchema()
         => Obj(("type", "object"), ("properties", Obj(

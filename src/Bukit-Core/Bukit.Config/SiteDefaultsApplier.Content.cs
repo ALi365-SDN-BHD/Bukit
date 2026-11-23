@@ -32,6 +32,51 @@ internal static partial class SiteDefaultsApplier
         };
     }
 
+    internal static CloudBaseConfig ReadCloudBaseConfigFrom(YamlMappingNode contentNode)
+    {
+        var node = ConfigYamlHelpers.GetOptionalMapping(contentNode, "cloudbase");
+        if (node is null)
+        {
+            return new CloudBaseConfig();
+        }
+
+        var filterNode = ConfigYamlHelpers.GetOptionalMapping(node, "filter");
+        var sortNode = ConfigYamlHelpers.GetOptionalMapping(node, "sort");
+        var policyNode = ConfigYamlHelpers.GetOptionalMapping(node, "fieldPolicy");
+        return new CloudBaseConfig
+        {
+            EnvId = ConfigYamlHelpers.GetOptionalString(node, "envId") ?? string.Empty,
+            Region = ConfigYamlHelpers.GetOptionalString(node, "region") ?? "cn",
+            Table = ConfigYamlHelpers.GetOptionalString(node, "table") ?? string.Empty,
+            IdField = ConfigYamlHelpers.GetOptionalString(node, "idField") ?? "id",
+            PageSize = ConfigYamlHelpers.GetOptionalIntStrict(node, "pageSize") ?? 100,
+            MaxItems = ConfigYamlHelpers.GetOptionalInt(node, "maxItems"),
+            Filter = filterNode is null ? null : new CloudBaseFilterConfig
+            {
+                Field = ConfigYamlHelpers.GetOptionalString(filterNode, "field") ?? string.Empty,
+                Value = ConfigYamlHelpers.GetOptionalString(filterNode, "value") ?? string.Empty
+            },
+            Sort = sortNode is null ? null : new CloudBaseSortConfig
+            {
+                Field = ConfigYamlHelpers.GetOptionalString(sortNode, "field") ?? string.Empty,
+                Direction = ConfigYamlHelpers.GetOptionalString(sortNode, "direction") ?? "asc"
+            },
+            TitleField = ConfigYamlHelpers.GetOptionalString(node, "titleField") ?? "title",
+            SlugField = ConfigYamlHelpers.GetOptionalString(node, "slugField") ?? "slug",
+            PublishAtField = ConfigYamlHelpers.GetOptionalString(node, "publishAtField") ?? "publish_at",
+            UpdatedAtField = ConfigYamlHelpers.GetOptionalString(node, "updatedAtField") ?? "updated_at",
+            BodyField = ConfigYamlHelpers.GetOptionalString(node, "bodyField") ?? string.Empty,
+            BodyFormat = ConfigYamlHelpers.GetOptionalString(node, "bodyFormat") ?? "markdown",
+            FieldPolicy = ReadNotionFieldPolicy(policyNode),
+            FileFields = ConfigYamlHelpers.ReadStringList(node, "fileFields") ?? [],
+            StorageBucket = ConfigYamlHelpers.GetOptionalString(node, "storageBucket"),
+            SignExpiresSeconds = ConfigYamlHelpers.GetOptionalIntStrict(node, "signExpiresSeconds") ?? 3600,
+            CacheMode = ConfigYamlHelpers.GetOptionalString(node, "cacheMode") ?? "off",
+            MaxRps = ConfigYamlHelpers.GetOptionalInt(node, "maxRps") ?? 5,
+            MaxRetries = ConfigYamlHelpers.GetOptionalInt(node, "maxRetries") ?? 3
+        };
+    }
+
     internal static MediaConfig ReadMediaConfigFrom(YamlMappingNode contentNode)
     {
         var mediaNode = ConfigYamlHelpers.GetOptionalMapping(contentNode, "media");

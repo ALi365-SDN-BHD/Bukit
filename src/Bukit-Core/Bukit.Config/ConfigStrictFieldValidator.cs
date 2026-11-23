@@ -409,9 +409,17 @@ internal static class ConfigStrictFieldValidator
                 }
 
                 var path = $"content.sources[{index}]";
-                RequireOnly(sourceMap, Set("type", "name", "mode", "collection", "addToCollections", "markdown", "notion", "dataIndex"), path);
+                var sourceType = sourceMap.Children.TryGetValue(new YamlScalarNode("type"), out var typeNode) &&
+                    typeNode is YamlScalarNode typeScalar
+                        ? typeScalar.Value
+                        : null;
+                var sourceCode = string.Equals(sourceType, "cloudbase", StringComparison.OrdinalIgnoreCase)
+                    ? DiagnosticCode.CloudBaseConfigInvalid
+                    : DiagnosticCode.ConfigInvalidValue;
+                RequireOnly(sourceMap, Set("type", "name", "mode", "collection", "addToCollections", "markdown", "notion", "cloudbase", "dataIndex"), path, sourceCode);
                 if (Map(sourceMap, "markdown") is { } markdown) RequireOnly(markdown, Set("dir", "defaultType", "maxItems", "includePaths", "includeGlobs"), $"{path}.markdown");
                 if (Map(sourceMap, "notion") is { } notion) ValidateNotion(notion, $"{path}.notion");
+                if (Map(sourceMap, "cloudbase") is { } cloudbase) ValidateCloudBase(cloudbase, $"{path}.cloudbase");
                 if (Map(sourceMap, "dataIndex") is { } dataIndex)
                 {
                     RequireOnly(dataIndex, Set("scopeField", "keyField", "valueField", "valueTypeField", "requiredKeys"), $"{path}.dataIndex");
@@ -439,6 +447,29 @@ internal static class ConfigStrictFieldValidator
             RequireOnly(routeMetadata, Set(
                 "source", "routeField", "titleField", "summaryField", "seoTitleField",
                 "seoDescriptionField", "requiredRoutes"), "content.routeMetadata");
+        }
+    }
+
+    private static void ValidateCloudBase(YamlMappingNode cloudBase, string path)
+    {
+        RequireOnly(cloudBase, Set(
+            "envId", "region", "table", "idField", "pageSize", "maxItems", "filter", "sort",
+            "titleField", "slugField", "publishAtField", "updatedAtField", "bodyField", "bodyFormat",
+            "fieldPolicy", "fileFields", "storageBucket", "signExpiresSeconds", "cacheMode",
+            "maxRps", "maxRetries"), path, DiagnosticCode.CloudBaseConfigInvalid);
+        if (Map(cloudBase, "filter") is { } filter)
+        {
+            RequireOnly(filter, Set("field", "value"), $"{path}.filter", DiagnosticCode.CloudBaseConfigInvalid);
+        }
+
+        if (Map(cloudBase, "sort") is { } sort)
+        {
+            RequireOnly(sort, Set("field", "direction"), $"{path}.sort", DiagnosticCode.CloudBaseConfigInvalid);
+        }
+
+        if (Map(cloudBase, "fieldPolicy") is { } fieldPolicy)
+        {
+            RequireOnly(fieldPolicy, Set("mode", "allowed"), $"{path}.fieldPolicy", DiagnosticCode.CloudBaseConfigInvalid);
         }
     }
 
@@ -682,14 +713,18 @@ internal static class ConfigStrictFieldValidator
         }
     }
 
-    private static void RequireOnly(YamlMappingNode node, HashSet<string> allowedKeys, string path)
+    private static void RequireOnly(
+        YamlMappingNode node,
+        HashSet<string> allowedKeys,
+        string path,
+        DiagnosticCode code = DiagnosticCode.ConfigInvalidValue)
     {
         foreach (var child in node.Children)
         {
             var key = KeyName(child.Key, path);
             if (!allowedKeys.Contains(key))
             {
-                throw new ConfigException($"Unknown config field '{path}.{key}'.", DiagnosticCode.ConfigInvalidValue);
+                throw new ConfigException($"Unknown config field '{path}.{key}'.", code);
             }
         }
     }

@@ -3,8 +3,166 @@ using System.Text.RegularExpressions;
 
 namespace Bukit.Config;
 
-internal static class ProviderValidators
+internal static partial class ProviderValidators
 {
+    [GeneratedRegex("^[A-Za-z_][A-Za-z0-9_]{0,62}$", RegexOptions.CultureInvariant)]
+    private static partial Regex CloudBaseIdentifierRegex();
+
+    [GeneratedRegex("^[a-z0-9][a-z0-9-]{0,62}$", RegexOptions.CultureInvariant)]
+    private static partial Regex CloudBaseEnvIdRegex();
+
+    [GeneratedRegex("^[a-z0-9][a-z0-9._-]{0,62}$", RegexOptions.CultureInvariant)]
+    private static partial Regex CloudBaseBucketRegex();
+
+    internal static void ValidateCloudBase(
+        CloudBaseConfig cloudBase,
+        string pathPrefix,
+        string mode,
+        MediaConfig media)
+    {
+        if (!CloudBaseEnvIdRegex().IsMatch(cloudBase.EnvId))
+        {
+            throw CloudBaseInvalid($"{pathPrefix}.envId must match ^[a-z0-9][a-z0-9-]{{0,62}}$.");
+        }
+
+        if (cloudBase.Region is not ("cn" or "intl"))
+        {
+            throw CloudBaseInvalid($"{pathPrefix}.region must be cn or intl.");
+        }
+
+        if (!CloudBaseIdentifierRegex().IsMatch(cloudBase.Table))
+        {
+            throw CloudBaseInvalid($"{pathPrefix}.table must match ^[A-Za-z_][A-Za-z0-9_]{{0,62}}$.");
+        }
+
+        if (!CloudBaseIdentifierRegex().IsMatch(cloudBase.IdField))
+        {
+            throw CloudBaseInvalid($"{pathPrefix}.idField must match ^[A-Za-z_][A-Za-z0-9_]{{0,62}}$.");
+        }
+
+        if (cloudBase.PageSize is < 1 or > 1000)
+        {
+            throw CloudBaseInvalid($"{pathPrefix}.pageSize must be between 1 and 1000.");
+        }
+
+        if (cloudBase.MaxItems is <= 0)
+        {
+            throw CloudBaseInvalid($"{pathPrefix}.maxItems must be a positive integer when set.");
+        }
+
+        if (cloudBase.SignExpiresSeconds is < 60 or > 3600)
+        {
+            throw CloudBaseInvalid($"{pathPrefix}.signExpiresSeconds must be between 60 and 3600.");
+        }
+
+        if (!string.Equals(cloudBase.CacheMode, "off", StringComparison.Ordinal))
+        {
+            throw CloudBaseInvalid($"{pathPrefix}.cacheMode must be off.");
+        }
+
+        if (!string.Equals(cloudBase.BodyFormat, "markdown", StringComparison.Ordinal))
+        {
+            throw CloudBaseInvalid($"{pathPrefix}.bodyFormat must be markdown.");
+        }
+
+        ValidateCloudBaseMappings(cloudBase, pathPrefix, mode);
+
+        if (cloudBase.Filter is { } filter &&
+            (string.IsNullOrWhiteSpace(filter.Field) || string.IsNullOrWhiteSpace(filter.Value)))
+        {
+            throw CloudBaseInvalid($"{pathPrefix}.filter requires non-empty field and value.");
+        }
+
+        if (cloudBase.Sort is { } sort &&
+            (string.IsNullOrWhiteSpace(sort.Field) || sort.Direction is not ("asc" or "desc")))
+        {
+            throw CloudBaseInvalid($"{pathPrefix}.sort requires a field and direction asc or desc.");
+        }
+
+        if (cloudBase.MaxRps is <= 0)
+        {
+            throw CloudBaseInvalid($"{pathPrefix}.maxRps must be a positive integer when set.");
+        }
+
+        if (cloudBase.MaxRetries is < 0)
+        {
+            throw CloudBaseInvalid($"{pathPrefix}.maxRetries must not be negative.");
+        }
+
+        ValidateCloudBaseFileFields(cloudBase, pathPrefix, media);
+    }
+
+    private static void ValidateCloudBaseMappings(CloudBaseConfig cloudBase, string pathPrefix, string mode)
+    {
+        if (mode == "content" && string.IsNullOrWhiteSpace(cloudBase.BodyField))
+        {
+            throw CloudBaseInvalid($"{pathPrefix}.bodyField is required when mode is content.");
+        }
+
+        if (cloudBase.FieldPolicy.Mode is not ("whitelist" or "all"))
+        {
+            throw CloudBaseInvalid($"{pathPrefix}.fieldPolicy.mode must be whitelist or all.");
+        }
+
+        ValidateCloudBaseField("titleField", cloudBase.TitleField);
+        ValidateCloudBaseField("slugField", cloudBase.SlugField);
+        ValidateCloudBaseField("publishAtField", cloudBase.PublishAtField);
+        ValidateCloudBaseField("updatedAtField", cloudBase.UpdatedAtField);
+
+        void ValidateCloudBaseField(string name, string value)
+        {
+            if (string.IsNullOrWhiteSpace(value))
+            {
+                throw CloudBaseInvalid($"{pathPrefix}.{name} must be a non-empty string.");
+            }
+        }
+    }
+
+    private static void ValidateCloudBaseFileFields(CloudBaseConfig cloudBase, string pathPrefix, MediaConfig media)
+    {
+        if (cloudBase.FileFields.Count == 0)
+        {
+            if (cloudBase.StorageBucket is not null && !CloudBaseBucketRegex().IsMatch(cloudBase.StorageBucket))
+            {
+                throw CloudBaseInvalid($"{pathPrefix}.storageBucket must match ^[a-z0-9][a-z0-9._-]{{0,62}}$.");
+            }
+
+            return;
+        }
+
+        if (cloudBase.FileFields.Any(string.IsNullOrWhiteSpace))
+        {
+            throw CloudBaseInvalid($"{pathPrefix}.fileFields must not contain empty names.");
+        }
+
+        if (string.IsNullOrWhiteSpace(cloudBase.StorageBucket) ||
+            !CloudBaseBucketRegex().IsMatch(cloudBase.StorageBucket))
+        {
+            throw CloudBaseInvalid($"{pathPrefix}.storageBucket is required when fileFields is non-empty and must match ^[a-z0-9][a-z0-9._-]{{0,62}}$.");
+        }
+
+        if (!media.DownloadToLocal)
+        {
+            throw CloudBaseInvalid($"{pathPrefix}.fileFields requires content.media.downloadToLocal to be true.");
+        }
+
+        foreach (var field in cloudBase.FileFields)
+        {
+            if (!media.FieldKeys.Contains(field, StringComparer.Ordinal))
+            {
+                throw CloudBaseInvalid($"{pathPrefix}.fileFields entry '{field}' is not listed in content.media.fieldKeys.");
+            }
+        }
+
+        if (!string.Equals(media.OnFailure.Trim(), "placeholder", StringComparison.OrdinalIgnoreCase))
+        {
+            throw CloudBaseInvalid($"{pathPrefix}.fileFields requires content.media.onFailure to be placeholder.");
+        }
+    }
+
+    private static ConfigException CloudBaseInvalid(string message)
+        => new(message, DiagnosticCode.CloudBaseConfigInvalid);
+
     internal static IReadOnlyDictionary<string, object>? AsObjectMap(object value)
     {
         if (value is IReadOnlyDictionary<string, object> readOnlyMap)

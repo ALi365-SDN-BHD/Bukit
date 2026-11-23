@@ -385,6 +385,7 @@ public sealed record ContentSourceConfig
     public IReadOnlyList<string>? AddToCollections { get; init; }
     public NotionConfig? Notion { get; init; }
     public MarkdownConfig? Markdown { get; init; }
+    internal CloudBaseConfig? CloudBase { get; init; }
     public DataIndexConfig? DataIndex { get; init; }
 }
 
@@ -395,6 +396,43 @@ public sealed record DataIndexConfig
     public string ValueField { get; init; } = "value";
     public string ValueTypeField { get; init; } = "value_type";
     public IReadOnlyList<string>? RequiredKeys { get; init; }
+}
+
+internal sealed record CloudBaseConfig
+{
+    public string EnvId { get; init; } = string.Empty;
+    public string Region { get; init; } = "cn";
+    public string Table { get; init; } = string.Empty;
+    public string IdField { get; init; } = "id";
+    public int PageSize { get; init; } = 100;
+    public int? MaxItems { get; init; }
+    public CloudBaseFilterConfig? Filter { get; init; }
+    public CloudBaseSortConfig? Sort { get; init; }
+    public string TitleField { get; init; } = "title";
+    public string SlugField { get; init; } = "slug";
+    public string PublishAtField { get; init; } = "publish_at";
+    public string UpdatedAtField { get; init; } = "updated_at";
+    public string BodyField { get; init; } = string.Empty;
+    public string BodyFormat { get; init; } = "markdown";
+    public NotionFieldPolicyConfig FieldPolicy { get; init; } = new();
+    public IReadOnlyList<string> FileFields { get; init; } = [];
+    public string? StorageBucket { get; init; }
+    public int SignExpiresSeconds { get; init; } = 3600;
+    public string CacheMode { get; init; } = "off";
+    public int? MaxRps { get; init; } = 5;
+    public int? MaxRetries { get; init; } = 3;
+}
+
+internal sealed record CloudBaseFilterConfig
+{
+    public string Field { get; init; } = string.Empty;
+    public string Value { get; init; } = string.Empty;
+}
+
+internal sealed record CloudBaseSortConfig
+{
+    public string Field { get; init; } = string.Empty;
+    public string Direction { get; init; } = "asc";
 }
 
 public sealed record NotionConfig
