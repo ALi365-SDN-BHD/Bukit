@@ -33,4 +33,16 @@ internal static class TestContent
             Collection = collection,
             Notion = new NotionConfig { DatabaseId = databaseId }
         };
+
+    internal static ContentSourceConfig CloudBaseSource(
+        CloudBaseConfig cloudBase,
+        string name = "page",
+        string collection = "page")
+        => new()
+        {
+            Type = "cloudbase",
+            Name = name,
+            Collection = collection,
+            CloudBase = cloudBase
+        };
 }

@@ -19,7 +19,7 @@
 ## 2. 主体
 
 - [x] T05 Markdown 渲染的不可信链接模式与 `CloudBaseUrlPolicy`（D9）。
-- [ ] T04 Provider、字段投影、错误映射、工厂接入，以及构建阶段的占位图检查（D8 ③）。
+- [x] T04 Provider、字段投影、错误映射、工厂接入，以及构建阶段的占位图检查（D8 ③）。
 - [ ] T06 文件对象批量签名（对象名与 `cloud://` 兼容形式）、D17 降级、`SignedUrlIdentity` 的 CloudBase 规则、D8 ⑤。
 
 ## 3. 收口

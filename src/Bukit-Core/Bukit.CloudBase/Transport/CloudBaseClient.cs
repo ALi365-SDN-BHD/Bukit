@@ -9,6 +9,9 @@ namespace Bukit.CloudBase.Transport;
 
 internal sealed class CloudBaseClient : IDisposable
 {
+    /// <summary>Test seam: when set, the transport uses this handler instead of the network.</summary>
+    internal static readonly AsyncLocal<Func<HttpMessageHandler>?> TransportOverride = new();
+
     private const int SignBatchSize = 500;
     private const int ErrorBodyBytes = 8 * 1024;
     private const int BackoffBaseMs = 500;
@@ -21,6 +24,25 @@ internal sealed class CloudBaseClient : IDisposable
     private readonly System.Threading.Lock _throttleLock = new();
     private DateTimeOffset _nextPermitAt = DateTimeOffset.MinValue;
     private int _disposed;
+
+    internal CloudBaseClient(CloudBaseClientOptions options)
+        : this(
+            options,
+            CreateDefaultHttpClient(options),
+            static (milliseconds, cancellationToken) => Task.Delay(milliseconds, cancellationToken),
+            static () => DateTimeOffset.UtcNow)
+    {
+    }
+
+    private static HttpClient CreateDefaultHttpClient(CloudBaseClientOptions options)
+    {
+        var client = TransportOverride.Value?.Invoke() is { } handler
+            ? new HttpClient(handler, disposeHandler: true)
+            : new HttpClient();
+        client.BaseAddress = options.GatewayOrigin;
+        client.Timeout = TimeSpan.FromMilliseconds(int.MaxValue);
+        return client;
+    }
 
     internal CloudBaseClient(CloudBaseClientOptions options, HttpMessageHandler handler)
         : this(

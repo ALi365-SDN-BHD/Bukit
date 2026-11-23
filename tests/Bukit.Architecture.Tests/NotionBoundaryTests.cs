@@ -123,7 +123,7 @@ public sealed class NotionBoundaryTests
             .ToArray();
 
         Assert.Equal(
-            ["Bukit.Config", "Bukit.Engine.Abstractions", "Bukit.Notion", "Bukit.Shared"],
+            ["Bukit.CloudBase", "Bukit.Config", "Bukit.Engine.Abstractions", "Bukit.Notion", "Bukit.Shared"],
             references);
     }
 
