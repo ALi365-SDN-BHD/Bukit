@@ -12,7 +12,7 @@ settings above the separator and remove it.
 | Section | Required | Purpose |
 |---|---:|---|
 | `site` | yes | Site identity, route rules, SEO/GEO, plugins, feed, sitemap detail, search, related content, and menus. |
-| `content` | yes | Markdown/Notion source list, media localization, and optional content model schema. |
+| `content` | yes | Markdown/Notion/CloudBase source list, media localization, and optional content model schema. |
 | `build` | no | Output directory, cleaning, draft mode, report behavior, fingerprinting, and language concurrency. |
 | `theme` | no | Local theme path, template roots, params, shortcodes, components, SCSS, image optimization, and component validation. |
 | `taxonomy` | no | Taxonomy kinds, output mode, page size, pin fields, and term injection. |
@@ -229,7 +229,7 @@ indexable false, and feeds keep emitting eligible content items.
 
 | Field | Default | Notes |
 |---|---|---|
-| `content.sources[].type` | required | Provider identifier: `markdown` or `notion`. It is unrelated to document metadata `type`. |
+| `content.sources[].type` | required | Provider identifier: `markdown`, `notion`, or `cloudbase`. It is unrelated to document metadata `type`. |
 | `content.sources[].name` | none | Unique source key when set; used by data modules. |
 | `content.sources[].mode` | `content` | `content` or `data`. |
 | `content.sources[].collection` | none | Required ownership for `mode: content` unless each item supplies a collection. A source value overrides item collection without changing item type. |

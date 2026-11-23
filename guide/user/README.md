@@ -24,6 +24,7 @@ quality audits, and GitHub Pages deployment.
 | Configure `site.yaml` | [04 Site YAML Config](04-site-yaml-config.md) |
 | Author Markdown | [05 Markdown Content](05-markdown-content.md) |
 | Use Notion | [06 Notion Content](06-notion-content.md) |
+| Use CloudBase | [27 CloudBase Content](27-cloudbase-content.md) |
 | Combine content and data | [07 Multi-Source Data](07-multi-source-data.md) |
 | Build themes and templates | [08 Themes and Templates](08-themes-templates.md) |
 | Use structured data modules | [09 Modules Data](09-modules-data.md) |

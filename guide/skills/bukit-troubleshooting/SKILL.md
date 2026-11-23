@@ -86,6 +86,8 @@ the command; error objects are multi-line JSON, see `bukit-cli-reference`). Read
 | `Non-fast-forward push rejected` | Target branch diverged | `--force` only if overwriting is intended. |
 | Page missing from llms.txt | Invalid front matter `geo` → `llms` curation | Look for build warnings `geo.llms_field_unknown`, `geo.llms_visibility_invalid`, `geo.llms_tier_invalid`, `geo.llms_priority_invalid`, `geo.llms_shape_invalid` (they fail the build under `strict`; versions through 2.0.15 do not log them) and the publish audit warning `publish.llms_missing_route route=<url>`; check that `geo` and `llms` are mappings (not, for example, `llms: false`) and that the `llms` map uses only `visibility`, `tier`, and an integer `priority` (`bukit-geo`). |
 
+| `BKT-0C01`–`BKT-0C0B` | CloudBase config, credential, auth, not-found, rate limit, request, response, file-signing, media-host, admin-key and unsupported-reference codes; run `bukit doctor` for role/table/RLS/signing hints. |
+
 ## Reports to inspect
 
 `dist/.bukit/`: `build-report.json` (counts, generated files), `routes.json`,

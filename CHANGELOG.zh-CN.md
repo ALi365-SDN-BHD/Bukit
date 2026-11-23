@@ -4,6 +4,8 @@ Bukit 所有重要变更都将记录在此文件中。
 
 ## [Unreleased]
 
+- **CloudBase 内容源**：`content.sources[].type: cloudbase` 通过 PostgREST 读取 CloudBase PG 模式的表或视图，字段投影硬性剔除个人列，Markdown 正文使用不可信链接模式渲染，`fileFields` 对象和正文 `cloud://` 图片会批量签名，任何失败都落到 `content.media.defaultImageUrl`。构建和部署阶段的隐私检查会拦截公开产物里的 envId、`cloud://`、网关/存储主机和签名链接；`doctor` 检查凭据 role、表可达性、RLS 空结果和存储签名。见 [27 CloudBase Content](guide/user/27-cloudbase-content.md)。
+
 - **WebP 图片生成响应式变体**：启用 `theme.images.enabled` 时，本地静态 WebP 图片（例如从 Notion 或微信下载的封面和正文图片）会按配置中小于原图宽度的档位生成缩小的 WebP 变体，`img` 也会加上 `srcset`，与 JPEG/PNG 一致，但不包 `<picture>`。动图 WebP、文件名已是 `-<宽度>w.webp` 形式的文件、以及旁边有同名 JPEG/PNG 的 WebP 保持原样。WebP 源图始终用 SkiaSharp 缩放。含 WebP 媒体的站点会多出变体文件及其 freshness 记录，相关 `img` 多出 `srcset` 和 `decoding="async"`；升级后第一次增量构建会重新渲染页面，因为图片指纹现在包含 WebP 文件。见 [04 site.yaml 配置](guide/user/04-site-yaml-config.md)。
 
 ## [2.2.8] - 2026-11-23

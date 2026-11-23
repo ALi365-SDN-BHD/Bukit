@@ -8,7 +8,7 @@ writes HTML plus machine-readable outputs.
 
 1. `ConfigLoader` reads `site.yaml`, rejects unknown fields, applies defaults,
    and validates provider, collection, taxonomy, theme, and deploy settings.
-2. `ContentPipeline` loads `content.sources[]` through Markdown or Notion
+2. `ContentPipeline` loads `content.sources[]` through Markdown, Notion or CloudBase
    providers and builds a canonical content graph.
 3. `RoutePipeline` filters data-only items, applies route rules, builds static
    list routes, and rejects conflicts.

@@ -79,14 +79,15 @@ Bukit reads stdin to end of file before any other work. The input is one JSON
 object, at most 64 KiB, mapping a name to a non-empty string:
 
 ```json
-{"NOTION_TOKEN":"<notion token>","GITHUB_TOKEN":"<github token>"}
+{"NOTION_TOKEN":"<notion token>","CLOUDBASE_PUBLISHABLE_KEY":"<cloudbase publishable key>","GITHUB_TOKEN":"<github token>"}
 ```
 
 - Names look like environment variable names: a letter or `_`, then letters,
   digits, and `_`, up to 128 characters. Names Bukit does not use are ignored,
   and `{}` is valid.
 - Each secret Bukit needs is looked up in the stdin object first, then in the
-  environment: `NOTION_TOKEN` for Notion sources, and for `deploy` the name
+  environment: `NOTION_TOKEN` for Notion sources, `CLOUDBASE_PUBLISHABLE_KEY`
+  for CloudBase sources, and for `deploy` the name
   given by `--token-env` (default `GITHUB_TOKEN`). Without `--secrets-stdin`
   nothing changes: tokens come from environment variables as before.
 - Bukit never copies stdin secrets into an environment, so `git`, Sass, image

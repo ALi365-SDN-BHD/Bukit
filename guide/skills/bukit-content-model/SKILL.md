@@ -42,6 +42,17 @@ leaves the body empty], `renderConcurrency` [4, 2 on CI], `maxRps` [3], `maxRetr
 (fetch only these slugs) with `includeSlugProperty` [`Slug`], `cacheDir`
 [`.cache/notion`, used only when `cacheMode` is not `off`].
 
+## CloudBase
+
+Use `type: cloudbase` for a CloudBase PG-mode table or view: set `cloudbase.envId`,
+`table`, `bodyField`, and read `CLOUDBASE_PUBLISHABLE_KEY` (never a
+`service_role` key). `fieldPolicy.mode: all` still drops `user_id`, `owner`,
+`created_by`, `updated_by` and `_openid`. `fileFields` values are object names or
+`cloud://` references and require `storageBucket`, `content.media.fieldKeys`,
+`downloadToLocal`, `onFailure: placeholder`, and gateway/storage hosts in
+`downloadHosts`. Only body images and file fields are rewritten; other `cloud://`
+values are degraded (`BKT-0C0B`). See `guide/user/27-cloudbase-content.md`.
+
 ## Remote media
 
 ```yaml

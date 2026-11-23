@@ -92,6 +92,13 @@
 | `content.sources[].notion.sortDirection` | `ascending` |
 | `content.sources[].notion.includeSlugProperty` | `Slug` |
 | `content.sources[].notion.cacheMode` | `off` |
+| `content.sources[].cloudbase.region` | `cn` |
+| `content.sources[].cloudbase.idField` | `id` |
+| `content.sources[].cloudbase.pageSize` | `100` |
+| `content.sources[].cloudbase.signExpiresSeconds` | `3600` |
+| `content.sources[].cloudbase.cacheMode` | `off` |
+| `content.sources[].cloudbase.maxRps` | `5` |
+| `content.sources[].cloudbase.maxRetries` | `3` |
 | `content.sources[].markdown.dir` | `content` |
 | `content.sources[].markdown.defaultType` | empty string |
 | `content.media.downloadToLocal` | `true` |
@@ -191,7 +198,7 @@ Safety semantics that do not fit in the default-value table:
 | `site.collections.<name>.schemaFailMode` | `off`, `warn`, `strict` |
 | `site.collections.<name>.filteredLists[].operator` | `equals`, `contains`, `in` |
 | `site.collections.<name>.filteredLists[].emptyBehavior` | `render`, `skip` |
-| `content.sources[].type` | `markdown`, `notion` |
+| `content.sources[].type` | `markdown`, `notion`, `cloudbase` |
 | `content.sources[].mode` | `content`, `data` |
 | `content.sources[].notion.filterType` | `checkbox_true`, `checkbox_false`, `select_equals`, `status_equals`, `rich_text_equals`, `none` |
 | `content.sources[].notion.sortDirection` | `ascending`, `descending` |

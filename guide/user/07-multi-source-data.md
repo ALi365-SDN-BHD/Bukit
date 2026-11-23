@@ -152,6 +152,8 @@ Rules for object values:
 `CollectionsValidator` ensures configured source collections exist in
 `site.collections`.
 
-The source `type` above selects the `markdown` or `notion` provider; it is not
+The source `type` above selects the `markdown`, `notion` or `cloudbase` provider; it is not
 document metadata `type`. A source collection overrides an item collection but
 never changes document type. Type and collection never derive from each other.
+CloudBase sources read a PostgreSQL table or view; see
+[27 CloudBase Content](27-cloudbase-content.md).

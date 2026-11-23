@@ -11,14 +11,14 @@ default application, typed model validation, and JSON Schema generation.
 | `ConfigStrictFieldValidator.cs` | Unknown field rejection. |
 | `SiteDefaultsApplier*.cs` | Default conversion from YAML nodes. |
 | `ConfigValidator.cs` | Cross-field validation. |
-| `ProviderValidators.cs` | Markdown, Notion, media, and deploy rules. |
+| `ProviderValidators.cs` | Markdown, Notion, CloudBase, media, and deploy rules. |
 | `CollectionsValidator.cs` | Collection routes, list routes, pagination, filters. |
 | `ConfigJsonSchemaGenerator.cs` | Generated JSON Schema. |
 
 ## Important Rules
 
 - `site.name`, `site.title`, and `content.sources` are required.
-- `content.sources[].type` is `markdown` or `notion`.
+- `content.sources[].type` is `markdown`, `notion`, or `cloudbase`.
 - `content.sources[].mode` is `content` or `data`.
 - `site.collections` keys must match collection references from content sources.
 - Unknown fields are fatal.
@@ -46,7 +46,7 @@ validator, schema generator, user docs, and tests:
 | SEO/GEO | `SeoConfig` | Includes schema switches, robots, organization metadata, the default SEO author, llms outputs, and AI bot mode. |
 | Analytics | `AnalyticsConfig`, consent/CSP config records, `AnalyticsProviderConfig` | Core built-in plugin output policy, explicit Google Consent Mode v2 policy, CSP requirements reporting, and an ordered list of GA4, GTM, Plausible, or Umami providers. |
 | Collections and list routes | `CollectionConfig`, `CollectionsValidator` | Includes collection permalink, list route, pagination, output, archive detail, and filtered lists. |
-| Content sources | `ContentSourceConfig`, `ProviderValidators` | Includes Markdown paths, Notion filters, Notion cache, field policy, and `propertyMap` keys. |
+| Content sources | `ContentSourceConfig`, `ProviderValidators` | Includes Markdown paths, Notion filters, Notion cache, and CloudBase table/filter/field-policy keys. |
 | Content schema | `ContentModelSchemaConfig` | Includes canonical mappings, custom fields, field scopes, entity mappings, relation mappings, and media policy. |
 | Media localization | `MediaConfig`, `ProviderValidators` media validation | Includes local download paths, field keys, retry controls, SSRF guard, and size/time limits. |
 | Build reports | `BuildConfig`, `BuildReportConfig` | Includes report enabled state, security fail mode, fingerprinting, dotfile/symlink handling, and language jobs. |

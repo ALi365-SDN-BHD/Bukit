@@ -69,7 +69,7 @@ internal static class SecretsStdinOption
         {
             return new CliDiagnostic(
                 SecretsInputException.DiagnosticCode,
-                "--secrets-stdin requires standard input to be a pipe or file holding one JSON object, for example {\"NOTION_TOKEN\":\"...\"}.",
+                "--secrets-stdin requires standard input to be a pipe or file holding one JSON object, for example {\"NOTION_TOKEN\":\"...\",\"CLOUDBASE_PUBLISHABLE_KEY\":\"...\"}.",
                 ShowUsage: false);
         }
 

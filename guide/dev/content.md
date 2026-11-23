@@ -18,10 +18,10 @@ empty, and the module does not enter page routing or collection indexes. There
 is no `type -> collection` or `collection -> type` derivation.
 
 Collection inputs are Markdown front matter, Notion
-`content.sources[].notion.propertyMap.Collection`, or
+`content.sources[].notion.propertyMap.Collection`, CloudBase rows, or
 `content.sources[].collection`.
 `markdown.defaultType` affects type only. The source configuration `type`
-selects the provider (`markdown`/`notion`) and is unrelated to document type.
+selects the provider (`markdown`/`notion`/`cloudbase`) and is unrelated to document type.
 
 ## Providers
 
@@ -29,6 +29,7 @@ selects the provider (`markdown`/`notion`) and is unrelated to document type.
 |---|---|---|
 | Markdown | `MarkdownFolderProvider` | Reads files, parses front matter, renders body lazily. |
 | Notion | `NotionContentSource` in `Bukit.Content` | Queries Notion database pages and can render blocks. |
+| CloudBase | `CloudBaseContentSource` in `Bukit.Content` | Reads a PostgreSQL table or view, projects fields, signs file objects. |
 | Composite | `CompositeContentProvider` | Combines multiple sources and preserves body stores per source. |
 
 Notion canonical Collection projection precedes ordinary whitelist filtering.

@@ -129,7 +129,8 @@ no page, so their `url` is the record's own `url` property.
 [Object Fields](#object-fields)). A `string[]` value drops null items (an
 empty `- ` or `~` in YAML) at any depth, and a list of only nulls counts as
 empty; `object[]` items must all be mappings. `image` and `url` values become absolute http(s)
-URLs, and one that still holds a signed URL fails the build; relative values of data records resolve against the site root, base path
+URLs, and one that still holds a signed URL fails the build; a `cloud://` reference
+(e.g. from a CloudBase source) also fails because it is not an absolute http(s) URL. Relative values of data records resolve against the site root, base path
 included. On a multilingual site with `site.sharedAssets`, links to the shared
 files (such as theme images under `assets/`) keep the root path in every
 language, as the website's do, whether written as a site path, a relative

@@ -33,7 +33,7 @@ Bukit 不是 SaaS 平台、全功能 CMS 后端、可视化页面构建器，也
 ## Core 2.0 能力
 
 - **Native AOT CLI**：启动快、内存占用低，可面向 Linux、macOS、Windows 发布单文件二进制。
-- **内容源**：Core 直接 provider 只有 Markdown 和 Notion。
+- **内容源**：Core 直接 provider 有 Markdown、Notion 和 CloudBase（PostgreSQL 表/视图）。
 - **笔记即 CMS**：Obsidian 和其他笔记应用通过 Markdown 兼容导出接入。飞书、语雀和其他知识库的直接集成属于未来工作。
 - **Scriban 模板**：布局、局部模板、片段、集合页、分页、分类和多语言输出。
 - **文件系统主题**：本地 `themes/<name>/` 目录，包含 layouts、assets、static 文件和必需的 `theme.yaml` 清单。
@@ -203,7 +203,7 @@ Labs skills 位于 [`guide/labs-skills`](guide/labs-skills/README.md)。它们�
 
 - [Core CLI 命令](#core-cli-命令)列出的命令
 - `content.sources[]` 配置契约
-- Markdown 和 Notion provider
+- Markdown、Notion 和 CloudBase provider
 - 通过 Markdown provider 接入的 Markdown 兼容笔记导出
 - `content.media`
 - 集合路由
@@ -235,7 +235,7 @@ Labs skills 位于 [`guide/labs-skills`](guide/labs-skills/README.md)。它们�
 | 优先级 | 状态 |
 |---|---|
 | 确定性构建、安全性、契约真实性、审计 | 路线 2 - 进行中 |
-| Markdown/Notion 内部发布 | 路线 2 - 进行中 |
+| Markdown/Notion/CloudBase 内部发布 | 路线 2 - 进行中 |
 | 现有企业站点和受控部署 | 路线 3 - 优先 |
 | 可靠性、可观测性、维护简化 | 路线 3 - 优先 |
 | 通用 SSG 扩展和广泛集成 | 非当前目标 |

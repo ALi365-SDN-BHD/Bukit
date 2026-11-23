@@ -4,6 +4,8 @@ Semua perubahan penting kepada Bukit akan didokumenkan dalam fail ini.
 
 ## [Belum Dikeluarkan]
 
+- **Sumber kandungan CloudBase**: `content.sources[].type: cloudbase` membaca jadual atau paparan mod PG CloudBase melalui PostgREST, menapis medan dengan lajur peribadi dikecualikan keras, memaparkan Markdown dengan dasar pautan tidak dipercayai, menandatangani objek `fileFields` dan imej `cloud://` dalam badan, dan kembali ke `content.media.defaultImageUrl` apabila gagal. Semakan privasi binaan dan deploy menolak envId, `cloud://`, hos gateway/storan dan pautan bertandatangan dalam output awam; `doctor` menyemak peranan kelayakan, kebolehcapaian jadual, keputusan RLS kosong dan tandatangan storan. Lihat [27 CloudBase Content](guide/user/27-cloudbase-content.md).
+
 - **Varian responsif untuk imej WebP**: dengan `theme.images.enabled`, imej WebP statik tempatan (contohnya kulit dan imej badan yang dimuat turun daripada Notion atau WeChat) kini mendapat calon WebP yang diubah saiz pada lebar yang dikonfigurasi di bawah lebarnya sendiri, dan `img`-nya mendapat `srcset`, seperti imej JPEG/PNG. Imej ini tidak dibalut dalam `<picture>`. WebP animasi, fail yang namanya sudah berakhir dengan `-<lebar>w.webp`, dan fail WebP di sebelah JPEG/PNG yang sama nama dibiarkan seperti dimuat naik. Sumber WebP sentiasa diubah saiz dengan SkiaSharp. Tapak yang mempunyai media WebP mendapat fail varian dan rekod kesegarannya, tag `img` berkaitan mendapat `srcset` dan `decoding="async"`, dan binaan tokokan pertama selepas naik taraf memaparkan semula halaman kerana cap jari imej kini merangkumi fail WebP. Lihat [04 Konfigurasi site.yaml](guide/user/04-site-yaml-config.md).
 
 ## [2.2.8] - 2026-11-23

@@ -1,6 +1,6 @@
 ---
 name: bukit-content
-description: Use when adding or fixing Bukit content — content.sources (Markdown and Notion providers, content vs data mode), collection and type rules, Markdown front matter fields, slugs and dates, drafts, data modules and data/ files, and dataIndex. Notion, remote media, model schema, and route metadata are in bukit-content-model.
+description: Use when adding or fixing Bukit content — content.sources (Markdown, Notion and CloudBase providers, content vs data mode), collection and type rules, Markdown front matter fields, slugs and dates, drafts, data modules and data/ files, and dataIndex. Notion, remote media, model schema, and route metadata are in bukit-content-model.
 ---
 
 # Bukit Content

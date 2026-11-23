@@ -15,6 +15,7 @@ Common causes:
 | `Unknown config field` | The YAML field is not in `ConfigStrictFieldValidator`. |
 | `content.sources is required` | Bukit 1.0 does not use legacy top-level provider config. |
 | `NOTION_TOKEN is required` | Notion provider validation needs the token in the environment. |
+| `CLOUDBASE_PUBLISHABLE_KEY is required` | CloudBase provider needs the Publishable Key in the environment or `--secrets-stdin`. |
 | `deploy.provider must be 'github-pages'` | Core has one deploy provider. |
 
 ## Notion Fails
@@ -41,6 +42,16 @@ cli-error keeps the worker's code and reason.
 | `BKT-0B15` | The snapshot could not be written. |
 | `BKT-0B16` / `BKT-0B17` | Invalid `--notion-snapshot` value / unsupported offline request. |
 | `BKT-0B18` / `BKT-0B19` | Invalid `--notion-pin` file / a Notion source missing from it (apply the change and build again). |
+| `BKT-0C01` | Invalid CloudBase config: required fields, character sets, ranges, unknown/credential fields, or `fileFields` preconditions. |
+| `BKT-0C02` | `CLOUDBASE_PUBLISHABLE_KEY` is missing. |
+| `BKT-0C03` / `BKT-0C04` | 401/403 (bad key or `GRANT`/RLS) / 404 (environment, table or view not found). |
+| `BKT-0C05` / `BKT-0C06` | Rate limited after retries / other HTTP or network failure. |
+| `BKT-0C07` | Invalid or oversized CloudBase response, including an unparseable `Content-Range`. |
+| `BKT-0C08` | CloudBase file object signing failed; the value fell back to `content.media.defaultImageUrl`. |
+| `BKT-0C09` | `downloadHosts`/`skipHosts` exclude the gateway or storage CDN host. |
+| `BKT-0C0A` | The credential's JWT `role` is `service_role` or unreadable; use a Publishable Key. |
+| `BKT-0C0B` | `cloud://` appeared where it is never rewritten and was degraded or dropped. |
+| Empty CloudBase table | `doctor` warns that Row-Level Security may hide rows; check `GRANT` and policies. |
 
 ## Build Fails Before Rendering
 
