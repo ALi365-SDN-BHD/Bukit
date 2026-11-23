@@ -90,6 +90,20 @@ internal sealed class CloudBaseClient : IDisposable
         };
     }
 
+    internal async Task<int?> HeadCountAsync(string table, CancellationToken cancellationToken = default)
+    {
+        EnsureIdentifier(table);
+        using var response = await SendWithRetryAsync(
+            () =>
+            {
+                var request = new HttpRequestMessage(HttpMethod.Head, $"{CloudBaseEndpoints.RestPrefix}{table}");
+                request.Headers.TryAddWithoutValidation("Prefer", "count=exact");
+                return request;
+            },
+            cancellationToken).ConfigureAwait(false);
+        return ParseContentRange(response);
+    }
+
     internal async Task<CloudBaseQueryResult> QueryAsync(
         CloudBaseQueryRequest query,
         CancellationToken cancellationToken = default)
