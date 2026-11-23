@@ -1,6 +1,9 @@
+using Bukit.Content.CloudBase;
 using Bukit.Engine.Abstractions.Content;
 using Markdig;
 using Markdig.Extensions.AutoIdentifiers;
+using Markdig.Syntax;
+using Markdig.Syntax.Inlines;
 using System.Text.RegularExpressions;
 
 namespace Bukit.Content.Markdown;
@@ -27,6 +30,9 @@ internal static class BasicMarkdownToHtml
         RegexOptions.Compiled);
 
     public static string Convert(string markdown)
+        => Convert(markdown, untrustedLinks: false);
+
+    public static string Convert(string markdown, bool untrustedLinks)
     {
         if (string.IsNullOrWhiteSpace(markdown))
         {
@@ -34,8 +40,30 @@ internal static class BasicMarkdownToHtml
         }
 
         var normalized = NormalizeStandaloneImageBlocks(markdown.Replace("\r\n", "\n"));
-        var html = global::Markdig.Markdown.ToHtml(normalized, Pipeline)
-            .TrimEnd('\r', '\n');
+        string html;
+        if (untrustedLinks)
+        {
+            var document = global::Markdig.Markdown.Parse(normalized, Pipeline);
+            foreach (var link in document.Descendants<LinkInline>())
+            {
+                link.Url = link.IsImage
+                    ? CloudBaseUrlPolicy.SanitizeMedia(link.Url)
+                    : CloudBaseUrlPolicy.SanitizeLink(link.Url);
+            }
+
+            foreach (var autolink in document.Descendants<AutolinkInline>())
+            {
+                autolink.Url = CloudBaseUrlPolicy.SanitizeLink(autolink.Url);
+            }
+
+            html = document.ToHtml(Pipeline);
+        }
+        else
+        {
+            html = global::Markdig.Markdown.ToHtml(normalized, Pipeline);
+        }
+
+        html = html.TrimEnd('\r', '\n');
 
         return StandaloneImageParagraphRegex.Replace(html, "${image}");
     }
