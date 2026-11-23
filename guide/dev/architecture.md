@@ -7,6 +7,7 @@ Bukit Core is split into focused projects under `src/Bukit-Core`.
 | `Bukit.Cli` | User command entry point, command binding, dev server, deploy provider. |
 | `Bukit.Cli.Shared` | CLI metadata, parser, help renderer, config path resolver. |
 | `Bukit.Config` | Strict YAML loading, defaults, schema generation, validation. |
+| `Bukit.CloudBase` | BCL-only CloudBase transport: PostgREST queries, storage batch signing, JWT role diagnostics. |
 | `Bukit.Content` | Content-source composition, Markdown, Notion and CloudBase providers, source-to-content mapping, body stores and media localization. |
 | `Bukit.Notion` | Notion transport, request lifetime, retries and source contracts. |
 | `Bukit.Engine.Abstractions` | Content, routing, and plugin models shared by runtime layers. |

@@ -69,7 +69,7 @@ RLS filters silently: when `doctor` sees a reachable table with a total count of
 
 ## Image and file fields
 
-A `fileFields` value is an object name in `storageBucket` (such as `posts/a.png`) or a `cloud://<envId>.<bucket>/<path>` compatible reference. The build signs batches of up to 500 objects and substitutes the signed links for media localization. In the body only image positions with `cloud://` are rewritten; links to non-images are degraded to plain text, and any other public field whose value contains `cloud://` is dropped with `BKT-0C0B`.
+A `fileFields` value is an object name in `storageBucket` (such as `posts/a.png`) or a `cloud://<envId>.<bucket>/<path>` compatible reference. The build signs batches of up to 500 objects and substitutes the signed links for media localization. In the body only image positions with `cloud://` are rewritten; links to non-images are reduced to their text (autolinks are removed), and in `mode: content` any other public field whose value contains `cloud://` is dropped with `BKT-0C0B`. `mode: data` does not rewrite file references.
 
 When `fileFields` is non-empty, all five conditions must hold (D8):
 
@@ -79,7 +79,7 @@ When `fileFields` is non-empty, all five conditions must hold (D8):
 4. P1 accepts image fields only;
 5. `downloadHosts`/`skipHosts` do not exclude `{envId}.api[.intl].tcloudbasegateway.com` or `{envId}.storage.tcloudbase.com`.
 
-Any rewrite failure (invalid object name, `cloud://` env or bucket mismatch, per-item signing error, wrong scheme/host/path) falls back to `content.media.defaultImageUrl` with `BKT-0C08`; bare object names and `cloud://` never reach the output. `signExpiresSeconds` defaults to 3600 (60–3600).
+Any rewrite failure (invalid object name, `cloud://` env or bucket mismatch, per-item signing error, wrong scheme/host/path) falls back to `content.media.defaultImageUrl` with `BKT-0C08`; in `mode: content`, bare object names and `cloud://` never reach the rewritten content output. `signExpiresSeconds` defaults to 3600 (60–3600).
 
 ## P1 limits
 

@@ -49,8 +49,8 @@ Use `type: cloudbase` for a CloudBase PG-mode table or view: set `cloudbase.envI
 `service_role` key). `fieldPolicy.mode: all` still drops `user_id`, `owner`,
 `created_by`, `updated_by` and `_openid`. `fileFields` values are object names or
 `cloud://` references and require `storageBucket`, `content.media.fieldKeys`,
-`downloadToLocal`, `onFailure: placeholder`, and gateway/storage hosts in
-`downloadHosts`. Only body images and file fields are rewritten; other `cloud://`
+`downloadToLocal`, `onFailure: placeholder`, and no exclusion of the gateway/storage
+hosts (an empty `downloadHosts` is fine; when set it must include them). Only body images and file fields are rewritten; other `cloud://`
 values are degraded (`BKT-0C0B`). See `guide/user/27-cloudbase-content.md`.
 
 ## Remote media

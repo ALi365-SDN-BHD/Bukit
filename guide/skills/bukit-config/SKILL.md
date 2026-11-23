@@ -124,7 +124,8 @@ snake_case to camelCase: `BUKIT_SITE__URL=https://example.com`,
 this way, misspelled segments fail strict validation, and an empty value still creates
 the key.
 
-Secrets never go in `site.yaml`: Notion reads `NOTION_TOKEN`, deploy reads
+Secrets never go in `site.yaml`: Notion reads `NOTION_TOKEN`, CloudBase reads
+`CLOUDBASE_PUBLISHABLE_KEY`, deploy reads
 `GITHUB_TOKEN` (or `--token-env`). Anything in `theme.params` or data sources can end up
 in public HTML.
 

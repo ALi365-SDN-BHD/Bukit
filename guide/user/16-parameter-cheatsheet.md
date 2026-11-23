@@ -95,6 +95,8 @@
 | `content.sources[].cloudbase.region` | `cn` |
 | `content.sources[].cloudbase.idField` | `id` |
 | `content.sources[].cloudbase.pageSize` | `100` |
+| `content.sources[].cloudbase.bodyFormat` | `markdown` |
+| `content.sources[].cloudbase.fieldPolicy.mode` | `whitelist` |
 | `content.sources[].cloudbase.signExpiresSeconds` | `3600` |
 | `content.sources[].cloudbase.cacheMode` | `off` |
 | `content.sources[].cloudbase.maxRps` | `5` |
@@ -199,6 +201,10 @@ Safety semantics that do not fit in the default-value table:
 | `site.collections.<name>.filteredLists[].operator` | `equals`, `contains`, `in` |
 | `site.collections.<name>.filteredLists[].emptyBehavior` | `render`, `skip` |
 | `content.sources[].type` | `markdown`, `notion`, `cloudbase` |
+| `content.sources[].cloudbase.region` | `cn`, `intl` |
+| `content.sources[].cloudbase.bodyFormat` | `markdown` |
+| `content.sources[].cloudbase.cacheMode` | `off` |
+| `content.sources[].cloudbase.fieldPolicy.mode` | `whitelist`, `all` |
 | `content.sources[].mode` | `content`, `data` |
 | `content.sources[].notion.filterType` | `checkbox_true`, `checkbox_false`, `select_equals`, `status_equals`, `rich_text_equals`, `none` |
 | `content.sources[].notion.sortDirection` | `ascending`, `descending` |
