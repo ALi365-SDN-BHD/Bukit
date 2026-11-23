@@ -40,6 +40,11 @@ internal static partial class ProviderValidators
             throw CloudBaseInvalid($"{pathPrefix}.idField must match ^[A-Za-z_][A-Za-z0-9_]{{0,62}}$.");
         }
 
+        if (CloudBaseFieldRules.IsHardExcluded(cloudBase.IdField))
+        {
+            throw CloudBaseInvalid($"{pathPrefix}.idField must not use reserved personal field '{cloudBase.IdField}'.");
+        }
+
         if (cloudBase.PageSize is < 1 or > 1000)
         {
             throw CloudBaseInvalid($"{pathPrefix}.pageSize must be between 1 and 1000.");
@@ -108,9 +113,18 @@ internal static partial class ProviderValidators
         ValidateCloudBaseField("slugField", cloudBase.SlugField);
         ValidateCloudBaseField("publishAtField", cloudBase.PublishAtField);
         ValidateCloudBaseField("updatedAtField", cloudBase.UpdatedAtField);
+        if (!string.IsNullOrWhiteSpace(cloudBase.BodyField))
+        {
+            ValidateCloudBaseField("bodyField", cloudBase.BodyField);
+        }
 
         void ValidateCloudBaseField(string name, string value)
         {
+            if (CloudBaseFieldRules.IsHardExcluded(value))
+            {
+                throw CloudBaseInvalid($"{pathPrefix}.{name} must not use reserved personal field '{value}'.");
+            }
+
             if (string.IsNullOrWhiteSpace(value))
             {
                 throw CloudBaseInvalid($"{pathPrefix}.{name} must be a non-empty string.");

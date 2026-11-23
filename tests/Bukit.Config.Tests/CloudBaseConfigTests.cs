@@ -623,6 +623,36 @@ public sealed class CloudBaseConfigTests
         Assert.Equal(envId, Assert.IsType<CloudBaseConfig>(Assert.Single(config.Content.Sources!).CloudBase).EnvId);
     }
 
+    [Theory]
+    [InlineData("titleField")]
+    [InlineData("slugField")]
+    [InlineData("publishAtField")]
+    [InlineData("updatedAtField")]
+    [InlineData("idField")]
+    public void Load_MappedFieldUsesHardExcludedColumn_Fails(string field)
+    {
+        var ex = Fails($"""
+            envId: prod-abc
+            table: articles
+            bodyField: content
+            {field}: owner
+            """);
+        AssertCloudBaseError(ex);
+        Assert.Contains(field, ex.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Load_BodyFieldUsesHardExcludedColumn_Fails()
+    {
+        var ex = Fails("""
+            envId: prod-abc
+            table: articles
+            bodyField: user_id
+            """);
+        AssertCloudBaseError(ex);
+        Assert.Contains("bodyField", ex.Message, StringComparison.Ordinal);
+    }
+
     private static void AssertCloudBaseError(ConfigException ex)
         => Assert.Equal(DiagnosticCode.CloudBaseConfigInvalid, ex.Code);
 
