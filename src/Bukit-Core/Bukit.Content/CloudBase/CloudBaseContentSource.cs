@@ -76,6 +76,7 @@ internal sealed class CloudBaseContentSource : IContentProvider
                 _options.FieldPolicyMode,
                 _options.AllowedFields,
                 _options.IdField);
+            fields["source"] = new ContentField("text", "cloudbase");
             if (ParseDate(row, _options.UpdatedAtField) is { } updatedAt)
             {
                 fields["last_edited_time"] = new ContentField("date", updatedAt);

@@ -13,7 +13,7 @@ internal static partial class DeploymentPrivacyValidator
         ".rss", ".svg", ".txt", ".xml", ".yaml", ".yml"
     };
 
-    internal static IReadOnlyList<string> Validate(string outputDir, string stagedDir)
+    internal static IReadOnlyList<string> Validate(string outputDir, string stagedDir, string? cloudBaseEnvId = null)
     {
         var identity = CollectSensitiveTokens(outputDir);
         if (!identity.ReportValid)
@@ -59,6 +59,16 @@ internal static partial class DeploymentPrivacyValidator
                     };
                 }
                 else if (JsonProviderMarkerRegex().IsMatch(text) || LineProviderMarkerRegex().IsMatch(text))
+                {
+                    contentScan = FilePrivacyScan.Leak;
+                }
+
+                if (contentScan != FilePrivacyScan.Leak &&
+                    (GatewaySignedUrlRegex().IsMatch(text) ||
+                     StorageCdnSignedUrlRegex().IsMatch(text) ||
+                     (!string.IsNullOrWhiteSpace(cloudBaseEnvId) &&
+                      text.Contains(cloudBaseEnvId, StringComparison.Ordinal)) ||
+                     CloudBaseDeployUrlScanner.ContainsCloudReference(text, Path.GetExtension(path))))
                 {
                     contentScan = FilePrivacyScan.Leak;
                 }
@@ -197,6 +207,12 @@ internal static partial class DeploymentPrivacyValidator
 
     [GeneratedRegex("(?im)^\\s*(?:[-*]\\s*)?(?:source|sourceKey)\\s*:\\s*[\"']?notion[\"']?\\s*$", RegexOptions.CultureInvariant)]
     private static partial Regex LineProviderMarkerRegex();
+
+    [GeneratedRegex(@"(?i)https://[a-z0-9.-]+\.api(?:\.intl)?\.tcloudbasegateway\.com/v1/storages/object/sign/[^\s""'<>]*[?&]token=", RegexOptions.CultureInvariant)]
+    private static partial Regex GatewaySignedUrlRegex();
+
+    [GeneratedRegex(@"(?i)https://[a-z0-9.-]+\.storage\.tcloudbase\.com/[^\s""'<>]*[?&]token=", RegexOptions.CultureInvariant)]
+    private static partial Regex StorageCdnSignedUrlRegex();
 
     private sealed record DeploymentIdentityTokens(bool ReportValid, HashSet<string> Tokens);
 }

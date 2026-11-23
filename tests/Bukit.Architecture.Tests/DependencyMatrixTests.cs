@@ -222,6 +222,8 @@ public class DependencyMatrixTests
             "Bukit.Shared->Bukit.PluginHost",
             "Bukit.Shared->Bukit.PluginHost.Tests",
             "Bukit.Content->Bukit.Engine.Assets",
+            "Bukit.Config->Bukit.Engine.Audit",
+            "Bukit.Config->bukit",
             "Bukit.Rendering->Bukit.Engine.Audit",
             "Bukit.Engine.Abstractions->Bukit.Content",
             "Bukit.Engine.Abstractions->Bukit.Theme",

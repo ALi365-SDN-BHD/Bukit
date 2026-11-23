@@ -38,7 +38,7 @@ public sealed class CloudBaseContentSourceTests
         Assert.Equal("one", first.Slug);
         Assert.Equal(new DateTimeOffset(2026, 1, 2, 3, 4, 5, TimeSpan.Zero), first.PublishedAt);
         Assert.NotNull(first.CustomFields);
-        Assert.Equal(["last_edited_time", "tags", "title"], first.CustomFields!.Keys.Order(StringComparer.Ordinal));
+        Assert.Equal(["last_edited_time", "source", "tags", "title"], first.CustomFields!.Keys.Order(StringComparer.Ordinal));
         Assert.DoesNotContain("user_id", first.CustomFields.Keys);
         Assert.Equal("date", first.CustomFields["last_edited_time"].Type);
 
@@ -162,7 +162,8 @@ public sealed class CloudBaseContentSourceTests
         var result = await source.LoadRawAsync();
 
         var document = Assert.Single(result.Documents);
-        var cover = Assert.IsType<string>(document.CustomFields!["cover"].Value);
+        Assert.Equal("cloudbase", document.CustomFields!["source"].Value);
+        var cover = Assert.IsType<string>(document.CustomFields["cover"].Value);
         Assert.Equal(
             "https://env-abc.api.tcloudbasegateway.com/v1/storages/object/sign/media/posts/a.png?token=x",
             cover);
