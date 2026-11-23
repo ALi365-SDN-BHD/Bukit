@@ -38,6 +38,30 @@ public sealed class CloudBaseBuildPrivacyTests : IDisposable
     }
 
     [Fact]
+    public void Evaluate_BareSignPathWithoutToken_Passes()
+    {
+        File.WriteAllText(
+            Path.Combine(_root, "index.html"),
+            "<p>Signed links look like /v1/storages/object/sign/media/a.png without the token parameter</p>");
+
+        var result = PublicOutputPrivacyCheck.Evaluate(Config(), _root, []);
+
+        Assert.Equal("passed", result.Status);
+    }
+
+    [Fact]
+    public void Evaluate_RelativeSignedPathWithToken_Fails()
+    {
+        File.WriteAllText(
+            Path.Combine(_root, "index.html"),
+            """<img src="/v1/storages/object/sign/media/a.png?token=x">""");
+
+        var result = PublicOutputPrivacyCheck.Evaluate(Config(), _root, []);
+
+        Assert.Equal("failed", result.Status);
+    }
+
+    [Fact]
     public void Evaluate_NoCloudBaseSource_IsNotApplicable()
     {
         var config = Config() with

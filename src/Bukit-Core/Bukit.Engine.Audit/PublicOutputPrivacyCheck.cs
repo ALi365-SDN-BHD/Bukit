@@ -129,7 +129,6 @@ internal static partial class PublicOutputPrivacyCheck
 
             sensitiveTokens.Add(cloudBase.EnvId);
             sensitiveTokens.Add("cloud://");
-            sensitiveTokens.Add("/v1/storages/object/sign/");
             var suffix = cloudBase.Region == "intl" ? ".api.intl.tcloudbasegateway.com" : ".api.tcloudbasegateway.com";
             sensitiveTokens.Add(cloudBase.EnvId + suffix);
             sensitiveTokens.Add(cloudBase.EnvId + ".storage.tcloudbase.com");
@@ -182,6 +181,11 @@ internal static partial class PublicOutputPrivacyCheck
             }
 
             if (LineProviderMarkerRegex().IsMatch(line) || JsonProviderMarkerRegex().IsMatch(line))
+            {
+                return FilePrivacyScan.Leak;
+            }
+
+            if (CloudBaseSignedLinkRegex().IsMatch(line))
             {
                 return FilePrivacyScan.Leak;
             }
@@ -450,6 +454,9 @@ internal static partial class PublicOutputPrivacyCheck
 
     [GeneratedRegex("(?i)\"(?:source|sourceKey)\"\\s*:\\s*\"notion\"", RegexOptions.CultureInvariant)]
     private static partial Regex JsonProviderMarkerRegex();
+
+    [GeneratedRegex(@"(?i)(?:/v1/storages/object/sign/[^\s""'<>]*[?&]token=|\.storage\.tcloudbase\.com/[^\s""'<>]*[?&]token=)", RegexOptions.CultureInvariant)]
+    private static partial Regex CloudBaseSignedLinkRegex();
 
     [GeneratedRegex("(?im)^\\s*(?:[-*]\\s*)?(?:source|sourceKey)\\s*:\\s*[\"']?notion[\"']?\\s*$", RegexOptions.CultureInvariant)]
     private static partial Regex LineProviderMarkerRegex();

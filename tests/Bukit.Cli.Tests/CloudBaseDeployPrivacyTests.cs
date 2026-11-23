@@ -54,6 +54,7 @@ public sealed class CloudBaseDeployPrivacyTests : IDisposable
     [InlineData("guide.md", "Call `cloud://env-abc.media/a.png` at runtime.")]
     [InlineData("app.js", "const x = 'cloud://env-abc.media/a.png';")]
     [InlineData("notes.txt", "cloud://env-abc.media/a.png")]
+    [InlineData("guide.md", "Use `/v1/storages/object/sign/media/a.png` without the token parameter.")]
     [InlineData("data.json", """{"note":"mentions cloud://env-abc.media/a.png inline"}""")]
     public void Validate_CloudReferenceInText_DoesNotFail(string file, string content)
     {
