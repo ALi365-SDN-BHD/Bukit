@@ -1,4 +1,5 @@
 using System.Text.Json;
+using Bukit.Config;
 using Bukit.Engine.Abstractions.Content;
 
 namespace Bukit.Content.CloudBase;
@@ -9,11 +10,6 @@ namespace Bukit.Content.CloudBase;
 /// </summary>
 internal static class CloudBaseFieldProjector
 {
-    private static readonly HashSet<string> HardExcluded = new(StringComparer.OrdinalIgnoreCase)
-    {
-        "user_id", "owner", "created_by", "updated_by", "_openid"
-    };
-
     internal static Dictionary<string, ContentField> Project(
         JsonElement row,
         string policyMode,
@@ -34,7 +30,7 @@ internal static class CloudBaseFieldProjector
         foreach (var property in row.EnumerateObject())
         {
             var name = property.Name;
-            if (HardExcluded.Contains(name))
+            if (CloudBaseFieldRules.IsHardExcluded(name))
             {
                 continue;
             }

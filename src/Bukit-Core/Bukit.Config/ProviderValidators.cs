@@ -89,7 +89,7 @@ internal static partial class ProviderValidators
             throw CloudBaseInvalid($"{pathPrefix}.maxRetries must not be negative.");
         }
 
-        ValidateCloudBaseFileFields(cloudBase, pathPrefix, media);
+        ValidateCloudBaseFileFields(cloudBase, pathPrefix, mode, media);
     }
 
     private static void ValidateCloudBaseMappings(CloudBaseConfig cloudBase, string pathPrefix, string mode)
@@ -118,7 +118,7 @@ internal static partial class ProviderValidators
         }
     }
 
-    private static void ValidateCloudBaseFileFields(CloudBaseConfig cloudBase, string pathPrefix, MediaConfig media)
+    private static void ValidateCloudBaseFileFields(CloudBaseConfig cloudBase, string pathPrefix, string mode, MediaConfig media)
     {
         if (cloudBase.FileFields.Count == 0)
         {
@@ -128,6 +128,19 @@ internal static partial class ProviderValidators
             }
 
             return;
+        }
+
+        if (mode == "data")
+        {
+            throw CloudBaseInvalid($"{pathPrefix}.fileFields is not supported when mode is data.");
+        }
+
+        foreach (var field in cloudBase.FileFields)
+        {
+            if (CloudBaseFieldRules.IsHardExcluded(field))
+            {
+                throw CloudBaseInvalid($"{pathPrefix}.fileFields entry '{field}' is a reserved personal field.");
+            }
         }
 
         if (cloudBase.FileFields.Any(string.IsNullOrWhiteSpace))
@@ -158,6 +171,49 @@ internal static partial class ProviderValidators
         {
             throw CloudBaseInvalid($"{pathPrefix}.fileFields requires content.media.onFailure to be placeholder.");
         }
+
+        ValidateCloudBaseMediaHosts(cloudBase, pathPrefix, media);
+    }
+
+    private static void ValidateCloudBaseMediaHosts(CloudBaseConfig cloudBase, string pathPrefix, MediaConfig media)
+    {
+        var gateway = cloudBase.Region == "intl"
+            ? $"{cloudBase.EnvId}.api.intl.tcloudbasegateway.com"
+            : $"{cloudBase.EnvId}.api.tcloudbasegateway.com";
+        var storageCdn = $"{cloudBase.EnvId}.storage.tcloudbase.com";
+        foreach (var host in new[] { gateway, storageCdn })
+        {
+            var excluded = MatchesHost(media.SkipHosts, host) ||
+                (media.DownloadHosts.Count > 0 && !MatchesHost(media.DownloadHosts, host));
+            if (excluded)
+            {
+                throw new ConfigException(
+                    $"{pathPrefix}.fileFields requires content.media.downloadHosts/skipHosts to include {host}.",
+                    DiagnosticCode.CloudBaseMediaLocalizationRequired);
+            }
+        }
+    }
+
+    private static bool MatchesHost(IReadOnlyList<string> patterns, string host)
+    {
+        foreach (var pattern in patterns)
+        {
+            var normalized = pattern.Trim().TrimEnd('.').ToLowerInvariant();
+            if (normalized.StartsWith("*.", StringComparison.Ordinal))
+            {
+                if (host.Length > normalized.Length - 1 &&
+                    host.EndsWith(normalized[1..], StringComparison.OrdinalIgnoreCase))
+                {
+                    return true;
+                }
+            }
+            else if (host.Equals(normalized, StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private static ConfigException CloudBaseInvalid(string message)

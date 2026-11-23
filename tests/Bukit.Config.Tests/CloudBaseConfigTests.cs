@@ -373,6 +373,107 @@ public sealed class CloudBaseConfigTests
     }
 
     [Fact]
+    public void Load_SkipHostsExcludesGateway_FailsMediaLocalization()
+    {
+        var ex = Fails("""
+            envId: prod-abc
+            table: articles
+            bodyField: content
+            fileFields:
+              - cover
+            storageBucket: media
+            """, MediaWithHosts(skip: ["prod-abc.api.tcloudbasegateway.com"]));
+
+        Assert.Equal(DiagnosticCode.CloudBaseMediaLocalizationRequired, ex.Code);
+        Assert.Contains("prod-abc.api.tcloudbasegateway.com", ex.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Load_DownloadHostsExcludeStorageCdn_FailsMediaLocalization()
+    {
+        var ex = Fails("""
+            envId: prod-abc
+            table: articles
+            bodyField: content
+            fileFields:
+              - cover
+            storageBucket: media
+            """, MediaWithHosts(download: ["prod-abc.api.tcloudbasegateway.com"]));
+
+        Assert.Equal(DiagnosticCode.CloudBaseMediaLocalizationRequired, ex.Code);
+        Assert.Contains("prod-abc.storage.tcloudbase.com", ex.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Load_DownloadHostsIncludeBothCloudBaseHosts_Passes()
+    {
+        var config = Load("""
+            envId: prod-abc
+            table: articles
+            bodyField: content
+            fileFields:
+              - cover
+            storageBucket: media
+            """, MediaWithHosts(download: ["prod-abc.api.tcloudbasegateway.com", "prod-abc.storage.tcloudbase.com"]));
+
+        Assert.Equal("media", Assert.IsType<CloudBaseConfig>(Assert.Single(config.Content.Sources!).CloudBase).StorageBucket);
+    }
+
+    [Fact]
+    public void Load_DataModeWithFileFields_Fails()
+    {
+        var ex = Fails("""
+            envId: prod-abc
+            table: articles
+            fileFields:
+              - cover
+            storageBucket: media
+            """, MediaBlock(downloadToLocal: true, fieldKeys: ["cover"], onFailure: "placeholder"), mode: "data");
+        AssertCloudBaseError(ex);
+        Assert.Contains("fileFields", ex.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Load_FileFieldsHardExcluded_Fails()
+    {
+        var ex = Fails("""
+            envId: prod-abc
+            table: articles
+            bodyField: content
+            fileFields:
+              - user_id
+            storageBucket: media
+            """, MediaBlock(downloadToLocal: true, fieldKeys: ["user_id"], onFailure: "placeholder"));
+        AssertCloudBaseError(ex);
+        Assert.Contains("user_id", ex.Message, StringComparison.Ordinal);
+    }
+
+    private static string MediaWithHosts(string[]? download = null, string[]? skip = null)
+    {
+        var lines = new List<string>
+        {
+            "  media:",
+            "    downloadToLocal: true",
+            "    fieldKeys:",
+            "      - cover",
+            "    onFailure: placeholder"
+        };
+        if (download is not null)
+        {
+            lines.Add("    downloadHosts:");
+            lines.AddRange(download.Select(host => $"      - {host}"));
+        }
+
+        if (skip is not null)
+        {
+            lines.Add("    skipHosts:");
+            lines.AddRange(skip.Select(host => $"      - {host}"));
+        }
+
+        return string.Join(System.Environment.NewLine, lines) + System.Environment.NewLine;
+    }
+
+    [Fact]
     public void Load_OnFailureKeep_Fails()
     {
         var ex = Fails("""

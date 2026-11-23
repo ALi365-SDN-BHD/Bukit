@@ -59,8 +59,7 @@ internal sealed class CloudBaseContentSource : IContentProvider
         }
 
         var isData = string.Equals(_options.Mode, "data", StringComparison.OrdinalIgnoreCase);
-        var documents = new List<RawContentDocument>(page.Rows.Count);
-        var bodies = new Dictionary<string, string>(StringComparer.Ordinal);
+        var drafts = new List<Draft>(page.Rows.Count);
         foreach (var row in page.Rows)
         {
             cancellationToken.ThrowIfCancellationRequested();
@@ -82,30 +81,154 @@ internal sealed class CloudBaseContentSource : IContentProvider
                 fields["last_edited_time"] = new ContentField("date", updatedAt);
             }
 
-            var markdown = isData ? string.Empty : GetString(row, _options.BodyField) ?? string.Empty;
+            foreach (var fileField in _options.FileFields)
+            {
+                if (GetString(row, fileField) is { } fileValue)
+                {
+                    fields[fileField] = new ContentField("text", fileValue);
+                }
+            }
+
+            drafts.Add(new Draft(
+                id,
+                GetNonBlank(row, _options.TitleField) ?? id,
+                GetNonBlank(row, _options.SlugField) ?? id,
+                ParseDate(row, _options.PublishAtField),
+                fields,
+                isData ? string.Empty : GetString(row, _options.BodyField) ?? string.Empty));
+        }
+
+        await ResolveFilesAsync(drafts, client, isData, cancellationToken).ConfigureAwait(false);
+
+        var documents = new List<RawContentDocument>(drafts.Count);
+        var bodies = new Dictionary<string, string>(StringComparer.Ordinal);
+        foreach (var draft in drafts)
+        {
             if (!isData)
             {
-                bodies[id] = markdown;
+                bodies[draft.Id] = draft.Markdown;
             }
 
             documents.Add(new RawContentDocument(
-                SourceId: id,
+                SourceId: draft.Id,
                 SourceKind: "cloudbase",
-                Title: GetNonBlank(row, _options.TitleField) ?? id,
-                Slug: GetNonBlank(row, _options.SlugField) ?? id,
-                PublishedAt: ParseDate(row, _options.PublishAtField),
-                Body: isData ? new RawBody() : new RawBody(BodyKey: id, Markdown: markdown),
+                Title: draft.Title,
+                Slug: draft.Slug,
+                PublishedAt: draft.PublishedAt,
+                Body: isData ? new RawBody() : new RawBody(BodyKey: draft.Id, Markdown: draft.Markdown),
                 Properties: null,
                 Source: new ContentSourceInfo(
                     "cloudbase",
                     SourcePath: _options.Table,
-                    ExternalId: id,
+                    ExternalId: draft.Id,
                     SyncStatus: "loaded"),
-                CustomFields: fields));
+                CustomFields: draft.Fields));
         }
 
         _logger?.Info($"event=cloudbase.stats table={_options.Table} count={documents.Count}");
         return new RawContentLoadResult(documents, new CloudBaseBodyStore(bodies));
+    }
+
+    private async Task ResolveFilesAsync(
+        List<Draft> drafts,
+        CloudBaseClient client,
+        bool isData,
+        CancellationToken cancellationToken)
+    {
+        if (isData ||
+            (_options.FileFields.Count == 0 &&
+             !drafts.Any(draft =>
+                 draft.Markdown.Contains("cloud://", StringComparison.OrdinalIgnoreCase) ||
+                 draft.Fields.Values.Any(field => ContainsCloudReference(field.Value)))))
+        {
+            return;
+        }
+
+        var resolver = new CloudBaseFileResolver(
+            client,
+            _options.EnvId,
+            _options.StorageBucket ?? string.Empty,
+            _options.DefaultImageUrl,
+            _options.SignExpiresSeconds);
+        foreach (var draft in drafts)
+        {
+            foreach (var fileField in _options.FileFields)
+            {
+                if (draft.Fields.TryGetValue(fileField, out var field) &&
+                    field.Value?.ToString() is { } value)
+                {
+                    if (resolver.TryAddFieldValue(value, out var objectName))
+                    {
+                        draft.FileObjects[fileField] = objectName;
+                    }
+                    else
+                    {
+                        draft.Fields[fileField] = new ContentField("text", resolver.Placeholder);
+                    }
+                }
+            }
+
+            resolver.CollectMarkdownReferences(draft.Markdown);
+        }
+
+        await resolver.SignAsync(cancellationToken).ConfigureAwait(false);
+        foreach (var draft in drafts)
+        {
+            foreach (var (fileField, objectName) in draft.FileObjects)
+            {
+                draft.Fields[fileField] = new ContentField("text", resolver.Resolve(objectName));
+            }
+
+            foreach (var name in draft.Fields.Keys.Where(name =>
+                !_options.FileFields.Contains(name, StringComparer.OrdinalIgnoreCase)).ToArray())
+            {
+                if (ContainsCloudReference(draft.Fields[name].Value))
+                {
+                    draft.Fields.Remove(name);
+                    resolver.MarkUnsupported();
+                }
+            }
+
+            draft.Markdown = resolver.RewriteMarkdown(draft.Markdown);
+        }
+
+        if (resolver.ResolveFailures > 0)
+        {
+            _logger?.Warn(
+                $"event=cloudbase.file_resolve_failed code={DiagnosticCodeFormatter.Format(DiagnosticCode.CloudBaseFileResolveFailed)} count={resolver.ResolveFailures}");
+        }
+
+        if (resolver.UnsupportedReferences > 0)
+        {
+            _logger?.Warn(
+                $"event=cloudbase.unsupported_file_reference code={DiagnosticCodeFormatter.Format(DiagnosticCode.CloudBaseUnsupportedFileReference)} count={resolver.UnsupportedReferences}");
+        }
+    }
+
+    private static bool ContainsCloudReference(object? value)
+        => value switch
+        {
+            string text => text.Contains("cloud://", StringComparison.OrdinalIgnoreCase),
+            IEnumerable<string> items => items.Any(item =>
+                item?.Contains("cloud://", StringComparison.OrdinalIgnoreCase) == true),
+            _ => false
+        };
+
+    private sealed class Draft(
+        string id,
+        string title,
+        string slug,
+        DateTimeOffset? publishedAt,
+        Dictionary<string, ContentField> fields,
+        string markdown)
+    {
+        internal string Id { get; } = id;
+        internal string Title { get; } = title;
+        internal string Slug { get; } = slug;
+        internal DateTimeOffset? PublishedAt { get; } = publishedAt;
+        internal Dictionary<string, ContentField> Fields { get; } = fields;
+        internal string Markdown { get; set; } = markdown;
+        internal Dictionary<string, string> FileObjects { get; } = new(StringComparer.OrdinalIgnoreCase);
     }
 
     [System.Diagnostics.CodeAnalysis.SuppressMessage(

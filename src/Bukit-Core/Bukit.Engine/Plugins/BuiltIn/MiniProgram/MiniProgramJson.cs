@@ -49,6 +49,11 @@ internal static class MiniProgramJson
     /// </summary>
     internal static bool IsSignedUrl(string value)
     {
+        if (value.StartsWith("cloud://", StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
         if (!Uri.TryCreate(value, UriKind.Absolute, out var uri) || string.IsNullOrEmpty(uri.Query))
         {
             return false;

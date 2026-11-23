@@ -384,6 +384,8 @@ downloaded again:
 | Google Cloud Storage V4 | `X-Goog-Signature` | `X-Goog-Algorithm`, `X-Goog-Credential`, `X-Goog-Date`, `X-Goog-Expires`, `X-Goog-SignedHeaders`, `X-Goog-Signature` |
 | AWS SigV2, GCS V2, CloudFront | `Signature` together with `AWSAccessKeyId`, `GoogleAccessId` or `Key-Pair-Id` | `Signature`, `Expires`, `Policy`, `AWSAccessKeyId`, `GoogleAccessId`, `Key-Pair-Id` |
 | Notion file proxy | host notion.so, *.notion.so or *.notion.site | `expirationTimestamp`, `signature` |
+| CloudBase gateway | host `*.api.tcloudbasegateway.com` or `*.api.intl.tcloudbasegateway.com` with path `/v1/storages/object/sign/` | `token` |
+| CloudBase storage CDN | host `*.storage.tcloudbase.com` | `token` |
 
 Parameter names match case-insensitively. All other parameters, such as S3
 `versionId` or image sizes, still select different files, and the download

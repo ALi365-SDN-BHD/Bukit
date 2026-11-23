@@ -169,6 +169,10 @@ internal static class ContentProviderFactory
                 FieldPolicyMode = cloudBase.FieldPolicy.Mode,
                 AllowedFields = cloudBase.FieldPolicy.Allowed,
                 PublishableKey = publishableKey,
+                StorageBucket = cloudBase.StorageBucket,
+                FileFields = cloudBase.FileFields,
+                DefaultImageUrl = config.Content.Media.DefaultImageUrl,
+                SignExpiresSeconds = cloudBase.SignExpiresSeconds,
                 MaxRps = cloudBase.MaxRps is > 0 ? cloudBase.MaxRps.Value : 5,
                 MaxRetries = cloudBase.MaxRetries ?? 3
             },

@@ -144,6 +144,18 @@ public sealed partial class SiteEngineIntegrationTests
         }
     }
 
+    [Theory]
+    [InlineData("https://env-abc.api.tcloudbasegateway.com/v1/storages/object/sign/media/a.png?token=x")]
+    [InlineData("https://env-abc.storage.tcloudbase.com/media/a.png?token=x")]
+    [InlineData("cloud://env-abc.media/posts/a.png")]
+    public void MiniProgramJson_RecognizesCloudBaseReferences(string value)
+        => Assert.True(Bukit.Engine.Plugins.BuiltIn.MiniProgram.MiniProgramJson.IsSignedUrl(value));
+
+    [Fact]
+    public void MiniProgramJson_OtherHostToken_IsNotSigned()
+        => Assert.False(Bukit.Engine.Plugins.BuiltIn.MiniProgram.MiniProgramJson.IsSignedUrl(
+            "https://evil.example.com/media/a.png?token=x"));
+
     private sealed class CloudBaseApi : HttpMessageHandler
     {
         private readonly ConcurrentQueue<string> _queries = new();

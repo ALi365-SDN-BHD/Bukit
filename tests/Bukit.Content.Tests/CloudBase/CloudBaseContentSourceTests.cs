@@ -145,6 +145,149 @@ public sealed class CloudBaseContentSourceTests
         Assert.DoesNotContain("pk_test", ex.Message, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public async Task LoadRawAsync_SignsFileFieldsAndBodyCloudImages()
+    {
+        var api = new FakeCloudBaseApi();
+        api.Pages[0] = """[{"id":"a1","title":"A","slug":"a","cover":"posts/a.png","content":"![x](cloud://env-abc.media/posts/b.png)","other":"cloud://env-abc.media/posts/c.png"}]""";
+        api.Total = 1;
+        var source = Create(api, options => options with
+        {
+            FileFields = ["cover"],
+            StorageBucket = "media",
+            DefaultImageUrl = "/ph.jpg",
+            FieldPolicyMode = "all"
+        });
+
+        var result = await source.LoadRawAsync();
+
+        var document = Assert.Single(result.Documents);
+        var cover = Assert.IsType<string>(document.CustomFields!["cover"].Value);
+        Assert.Equal(
+            "https://env-abc.api.tcloudbasegateway.com/v1/storages/object/sign/media/posts/a.png?token=x",
+            cover);
+        Assert.Equal(
+            "![x](https://env-abc.api.tcloudbasegateway.com/v1/storages/object/sign/media/posts/b.png?token=x)",
+            document.Body.Markdown);
+        Assert.DoesNotContain("cloud://", document.Body.Markdown!, StringComparison.Ordinal);
+        Assert.DoesNotContain("other", document.CustomFields.Keys);
+        Assert.Contains(api.Requests, uri => uri.AbsolutePath == "/v1/storages/object/sign/media");
+    }
+
+    [Fact]
+    public async Task LoadRawAsync_FileSignError_FallsBackToPlaceholder()
+    {
+        var api = new FakeCloudBaseApi { SignError = "denied" };
+        api.Pages[0] = """[{"id":"a1","title":"A","slug":"a","cover":"posts/a.png","content":"x"}]""";
+        api.Total = 1;
+        var source = Create(api, options => options with
+        {
+            FileFields = ["cover"],
+            StorageBucket = "media",
+            DefaultImageUrl = "/ph.jpg"
+        });
+
+        var document = Assert.Single((await source.LoadRawAsync()).Documents);
+
+        Assert.Equal("/ph.jpg", document.CustomFields!["cover"].Value);
+    }
+
+    [Theory]
+    [InlineData("cloud://other-env.media/posts/a.png")]
+    [InlineData("posts/../a.png")]
+    public async Task LoadRawAsync_InvalidFileField_FallsBackToPlaceholder(string value)
+    {
+        var api = new FakeCloudBaseApi();
+        api.Pages[0] = $$"""[{"id":"a1","title":"A","slug":"a","cover":"{{value}}","content":"x"}]""";
+        api.Total = 1;
+        var source = Create(api, options => options with
+        {
+            FileFields = ["cover"],
+            StorageBucket = "media",
+            DefaultImageUrl = "/ph.jpg"
+        });
+
+        var document = Assert.Single((await source.LoadRawAsync()).Documents);
+
+        Assert.Equal("/ph.jpg", document.CustomFields!["cover"].Value);
+    }
+
+    [Fact]
+    public async Task LoadRawAsync_InvalidBodyCloudImage_UsesPlaceholder()
+    {
+        var api = new FakeCloudBaseApi();
+        api.Pages[0] = """[{"id":"a1","title":"A","slug":"a","content":"![x](cloud://other-env.media/posts/a.png)"}]""";
+        api.Total = 1;
+        var source = Create(api, options => options with { DefaultImageUrl = "/ph.jpg" });
+
+        var document = Assert.Single((await source.LoadRawAsync()).Documents);
+
+        Assert.Equal("![x](/ph.jpg)", document.Body.Markdown);
+        Assert.DoesNotContain("cloud://", document.Body.Markdown!, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task LoadRawAsync_NonImageCloudReference_DegradesToText()
+    {
+        var api = new FakeCloudBaseApi();
+        api.Pages[0] = """[{"id":"a1","title":"A","slug":"a","content":"[pdf][r]\n\n[r]: cloud://env-abc.media/posts/a.pdf"}]""";
+        api.Total = 1;
+        var source = Create(api, options => options with { DefaultImageUrl = "/ph.jpg" });
+
+        var document = Assert.Single((await source.LoadRawAsync()).Documents);
+
+        Assert.Equal("pdf", document.Body.Markdown!.TrimEnd());
+        Assert.DoesNotContain("cloud://", document.Body.Markdown!, StringComparison.Ordinal);
+        Assert.DoesNotContain("a.pdf", document.Body.Markdown!, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task LoadRawAsync_ListFieldWithCloudReference_IsDropped()
+    {
+        var api = new FakeCloudBaseApi();
+        api.Pages[0] = """[{"id":"a1","title":"A","slug":"a","content":"x","gallery":["cloud://env-abc.media/posts/a.png"]}]""";
+        api.Total = 1;
+        var source = Create(api, options => options with { FieldPolicyMode = "all" });
+
+        var document = Assert.Single((await source.LoadRawAsync()).Documents);
+
+        Assert.DoesNotContain("gallery", document.CustomFields!.Keys);
+    }
+
+    [Fact]
+    public async Task LoadRawAsync_MixedBodyImages_KeepsOrdinaryImages()
+    {
+        var api = new FakeCloudBaseApi();
+        api.Pages[0] = """[{"id":"a1","title":"A","slug":"a","content":"![a](https://example.com/a.png)\n![b](cloud://env-abc.media/b.png)"}]""";
+        api.Total = 1;
+        var source = Create(api, options => options with
+        {
+            StorageBucket = "media",
+            DefaultImageUrl = "/ph.jpg"
+        });
+
+        var document = Assert.Single((await source.LoadRawAsync()).Documents);
+
+        Assert.Contains("![a](https://example.com/a.png)", document.Body.Markdown, StringComparison.Ordinal);
+        Assert.DoesNotContain("cloud://", document.Body.Markdown!, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task LoadRawAsync_DuplicateReferenceDefinitions_DoNotThrow()
+    {
+        var api = new FakeCloudBaseApi();
+        api.Pages[0] = """[{"id":"a1","title":"A","slug":"a","content":"![x][r]\n\n[r]: cloud://env-abc.media/a.png\n[r]: cloud://env-abc.media/b.png"}]""";
+        api.Total = 1;
+        var source = Create(api, options => options with
+        {
+            StorageBucket = "media",
+            DefaultImageUrl = "/ph.jpg"
+        });
+
+        var document = Assert.Single((await source.LoadRawAsync()).Documents);
+        Assert.DoesNotContain("cloud://", document.Body.Markdown!, StringComparison.Ordinal);
+    }
+
     private static CloudBaseContentSource Create(
         FakeCloudBaseApi api,
         Func<CloudBaseContentSourceOptions, CloudBaseContentSourceOptions> configure)
@@ -177,28 +320,44 @@ public sealed class CloudBaseContentSourceTests
         public List<Uri> Requests { get; } = [];
         public int Total { get; set; } = 3;
         public bool Unauthorized { get; set; }
+        public string? SignError { get; set; }
 
-        protected override Task<HttpResponseMessage> SendAsync(
+        protected override async Task<HttpResponseMessage> SendAsync(
             HttpRequestMessage request,
             CancellationToken cancellationToken)
         {
             Requests.Add(request.RequestUri!);
+            if (request.Method == HttpMethod.Post &&
+                request.RequestUri!.AbsolutePath == "/v1/storages/object/sign/media")
+            {
+                var body = await request.Content!.ReadAsStringAsync(cancellationToken);
+                using var payload = System.Text.Json.JsonDocument.Parse(body);
+                var items = payload.RootElement.GetProperty("paths").EnumerateArray()
+                    .Select(path => SignError is null
+                        ? $$"""{"path":"{{path.GetString()}}","signedURL":"/v1/storages/object/sign/media/{{path.GetString()}}?token=x"}"""
+                        : $$"""{"path":"{{path.GetString()}}","error":"{{SignError}}"}""");
+                return new HttpResponseMessage(HttpStatusCode.OK)
+                {
+                    Content = new StringContent($"[{string.Join(",", items)}]", Encoding.UTF8, "application/json")
+                };
+            }
+
             if (Unauthorized)
             {
-                return Task.FromResult(new HttpResponseMessage(HttpStatusCode.Unauthorized)
+                return new HttpResponseMessage(HttpStatusCode.Unauthorized)
                 {
                     Content = new StringContent("""{"code":"AUTH"}""", Encoding.UTF8, "application/json")
-                });
+                };
             }
 
             var offset = ParseOffset(request.RequestUri!.Query);
-            var body = Pages.TryGetValue(offset, out var page) ? page : "[]";
+            var pageBody = Pages.TryGetValue(offset, out var page) ? page : "[]";
             var response = new HttpResponseMessage(HttpStatusCode.OK)
             {
-                Content = new StringContent(body, Encoding.UTF8, "application/json")
+                Content = new StringContent(pageBody, Encoding.UTF8, "application/json")
             };
             response.Content.Headers.TryAddWithoutValidation("Content-Range", $"*/{Total}");
-            return Task.FromResult(response);
+            return response;
         }
 
         private static int ParseOffset(string query)
