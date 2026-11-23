@@ -92,7 +92,7 @@ internal sealed class ImageProcessingPlugin : IBukitPlugin, IAfterBuildAsyncPlug
                 context.Logger.Info("event=image_processing.fallback tool=skiasharp");
             }
         }
-        var toolIdentity = tool is null ? "skiasharp-orientation-v2" : $"{tool}-auto-orient-v1";
+        var toolIdentity = tool is null ? SkiaSharpResizeIdentity : $"{tool}-auto-orient-v1";
 
         // HTML srcset is planned from source widths, so every planned variant is
         // referenced by pages. Collect failures and fail the plugin after the run
@@ -260,7 +260,7 @@ internal sealed class ImageProcessingPlugin : IBukitPlugin, IAfterBuildAsyncPlug
                 if (timedOut)
                 {
                     tool = null;
-                    toolIdentity = "skiasharp-orientation-v2";
+                    toolIdentity = SkiaSharpResizeIdentity;
                 }
             }
         }

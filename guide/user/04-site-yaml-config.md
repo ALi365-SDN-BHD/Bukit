@@ -535,7 +535,8 @@ Local static WebP images get resized WebP candidates and an `img` `srcset` the
 same way JPEG/PNG images get original-format ones, but no `<picture>` (the
 source is already WebP). A WebP file is left as uploaded when it is animated,
 when its name already ends in `-<width>w.webp`, or when a JPEG/PNG with the same
-name sits beside it (their WebP candidates would share file names). WebP sources
+name sits beside it, compared without regard to case (their WebP candidates
+would share file names). WebP sources
 are always resized with SkiaSharp, even when ImageMagick is on PATH.
 
 Image validation uses SkiaSharp for JPEG/PNG/GIF/WebP/BMP and TiffLibrary for

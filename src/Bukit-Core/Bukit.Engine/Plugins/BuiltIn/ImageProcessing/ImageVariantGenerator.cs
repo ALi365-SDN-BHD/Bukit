@@ -17,6 +17,7 @@ internal sealed class ImageVariantGenerator
     private readonly ImageContentValidator _imageValidator = new();
 
     internal const int MaxVariantFailures = 5;
+    internal const string SkiaSharpResizeIdentity = "skiasharp-orientation-v2";
     internal static readonly int[] DefaultSizes = [480, 768, 1200];
 
     internal static IReadOnlyList<int> NormalizeSizes(IReadOnlyList<int>? sizes) =>
@@ -71,7 +72,7 @@ internal sealed class ImageVariantGenerator
         {
             // The external tool is not guaranteed to have a WebP delegate.
             tool = null;
-            toolIdentity = "skiasharp-orientation-v2";
+            toolIdentity = SkiaSharpResizeIdentity;
         }
         var ext = Path.GetExtension(imageFile);
         var sizedFile = ImageVariantPlan.VariantFileName(imageFile, size, ext);
@@ -180,7 +181,7 @@ internal sealed class ImageVariantGenerator
                         temporarySizedFile = Path.Combine(
                             Path.GetDirectoryName(sizedFile)!,
                             $".{Path.GetFileNameWithoutExtension(sizedFile)}.bukit-{Guid.NewGuid():N}{ext}");
-                        toolIdentity = "skiasharp-orientation-v2";
+                        toolIdentity = SkiaSharpResizeIdentity;
                         await ResizeWithSkiaSharpAsync(imageFile, temporarySizedFile, size, quality, cancellationToken);
                         result = (0, string.Empty);
                     }

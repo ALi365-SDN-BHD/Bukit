@@ -26,8 +26,32 @@ internal static class ImageVariantPlan
             return false;
         }
 
-        var stem = Path.Combine(Path.GetDirectoryName(path) ?? string.Empty, Path.GetFileNameWithoutExtension(path));
-        return !RasterSourceExtensions.Any(raster => File.Exists(stem + raster));
+        return !HasRasterSibling(path);
+    }
+
+    // Compares names case-insensitively so photo.JPG beside photo.webp is found
+    // on case-sensitive file systems too; on case-insensitive ones the two
+    // spellings would already address the same variant files.
+    private static bool HasRasterSibling(string webpPath)
+    {
+        var directory = Path.GetDirectoryName(webpPath);
+        if (string.IsNullOrEmpty(directory) || !Directory.Exists(directory))
+        {
+            return false;
+        }
+
+        var stem = Path.GetFileNameWithoutExtension(webpPath);
+        // '*' and '?' are wildcards in search patterns; fall back to a full listing.
+        var pattern = stem.AsSpan().IndexOfAny('*', '?') >= 0 ? "*" : stem + ".*";
+        var options = new EnumerationOptions
+        {
+            MatchCasing = MatchCasing.CaseInsensitive,
+            IgnoreInaccessible = true,
+            RecurseSubdirectories = false
+        };
+        return Directory.EnumerateFiles(directory, pattern, options).Any(candidate =>
+            string.Equals(Path.GetFileNameWithoutExtension(candidate), stem, StringComparison.OrdinalIgnoreCase) &&
+            RasterSourceExtensions.Contains(Path.GetExtension(candidate).ToLowerInvariant()));
     }
 
     internal static bool IsWebpSource(string path)
