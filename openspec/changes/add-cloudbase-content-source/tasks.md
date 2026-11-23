@@ -12,7 +12,7 @@
 
 ## 1. 基础
 
-- [ ] T02 诊断码 `CloudBase*`（`0x0C01`～`0x0C0B`）、formatter 说明、public API 基线、`guide/dev/cli.md` 消费方契约表。
+- [x] T02 诊断码 `CloudBase*`（`0x0C01`～`0x0C0B`）、formatter 说明、public API 基线、`guide/dev/cli.md` 消费方契约表。
 - [ ] T01 配置模型与校验：internal `CloudBaseConfig`、读取、严格字段校验、语义校验（含 D8 ①②④ 与 ③ 的 `onFailure` 部分、D13、D18）、JSON Schema。
 - [ ] T03 `Bukit.CloudBase` transport（PostgREST 查询、存储批量签名、JWT `role` 诊断解码）与新项目登记（解决方案、受治理程序集、架构计数、覆盖率清单），行覆盖率不低于 70%。
 

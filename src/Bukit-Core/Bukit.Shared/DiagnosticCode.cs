@@ -88,4 +88,16 @@ public enum DiagnosticCode
     NotionSnapshotUnsupportedRequest = 0x0B17,
     NotionPinInvalid = 0x0B18,
     NotionPinSourceMissing = 0x0B19,
+
+    CloudBaseConfigInvalid = 0x0C01,
+    CloudBaseCredentialMissing = 0x0C02,
+    CloudBaseAuthFailed = 0x0C03,
+    CloudBaseNotFound = 0x0C04,
+    CloudBaseRateLimited = 0x0C05,
+    CloudBaseRequestFailed = 0x0C06,
+    CloudBaseResponseInvalid = 0x0C07,
+    CloudBaseFileResolveFailed = 0x0C08,
+    CloudBaseMediaLocalizationRequired = 0x0C09,
+    CloudBaseAdminCredentialInUse = 0x0C0A,
+    CloudBaseUnsupportedFileReference = 0x0C0B,
 }

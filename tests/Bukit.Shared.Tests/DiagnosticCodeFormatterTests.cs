@@ -55,6 +55,17 @@ public sealed class DiagnosticCodeFormatterTests
     [InlineData(DiagnosticCode.NotionSnapshotUnsupportedRequest, "BKT-0B17")]
     [InlineData(DiagnosticCode.NotionPinInvalid, "BKT-0B18")]
     [InlineData(DiagnosticCode.NotionPinSourceMissing, "BKT-0B19")]
+    [InlineData(DiagnosticCode.CloudBaseConfigInvalid, "BKT-0C01")]
+    [InlineData(DiagnosticCode.CloudBaseCredentialMissing, "BKT-0C02")]
+    [InlineData(DiagnosticCode.CloudBaseAuthFailed, "BKT-0C03")]
+    [InlineData(DiagnosticCode.CloudBaseNotFound, "BKT-0C04")]
+    [InlineData(DiagnosticCode.CloudBaseRateLimited, "BKT-0C05")]
+    [InlineData(DiagnosticCode.CloudBaseRequestFailed, "BKT-0C06")]
+    [InlineData(DiagnosticCode.CloudBaseResponseInvalid, "BKT-0C07")]
+    [InlineData(DiagnosticCode.CloudBaseFileResolveFailed, "BKT-0C08")]
+    [InlineData(DiagnosticCode.CloudBaseMediaLocalizationRequired, "BKT-0C09")]
+    [InlineData(DiagnosticCode.CloudBaseAdminCredentialInUse, "BKT-0C0A")]
+    [InlineData(DiagnosticCode.CloudBaseUnsupportedFileReference, "BKT-0C0B")]
     public void Format_AllCodes_ReturnsCorrectHexFormat(DiagnosticCode code, string expected)
     {
         var result = DiagnosticCodeFormatter.Format(code);
@@ -111,11 +122,46 @@ public sealed class DiagnosticCodeFormatterTests
     [InlineData(DiagnosticCode.NotionSnapshotUnsupportedRequest, "Notion", "request")]
     [InlineData(DiagnosticCode.NotionPinInvalid, "Notion", "pin")]
     [InlineData(DiagnosticCode.NotionPinSourceMissing, "Notion", "source")]
+    [InlineData(DiagnosticCode.CloudBaseConfigInvalid, "CloudBase", "config")]
+    [InlineData(DiagnosticCode.CloudBaseCredentialMissing, "CloudBase", "credential")]
+    [InlineData(DiagnosticCode.CloudBaseAuthFailed, "CloudBase", "authentication")]
+    [InlineData(DiagnosticCode.CloudBaseNotFound, "CloudBase", "not found")]
+    [InlineData(DiagnosticCode.CloudBaseRateLimited, "CloudBase", "rate limited")]
+    [InlineData(DiagnosticCode.CloudBaseRequestFailed, "CloudBase", "failed")]
+    [InlineData(DiagnosticCode.CloudBaseResponseInvalid, "CloudBase", "invalid")]
+    [InlineData(DiagnosticCode.CloudBaseFileResolveFailed, "CloudBase", "file")]
+    [InlineData(DiagnosticCode.CloudBaseMediaLocalizationRequired, "CloudBase", "localization")]
+    [InlineData(DiagnosticCode.CloudBaseAdminCredentialInUse, "CloudBase", "service_role")]
+    [InlineData(DiagnosticCode.CloudBaseUnsupportedFileReference, "CloudBase", "unsupported")]
     public void Describe_AllCodes_ReturnsMeaningfulDescription(DiagnosticCode code, string expectedCategory, string expectedKeyword)
     {
         var result = DiagnosticCodeFormatter.Describe(code);
         Assert.Contains(expectedCategory, result, StringComparison.OrdinalIgnoreCase);
         Assert.Contains(expectedKeyword, result, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void Describe_CloudBaseCodes_StartWithCloudBasePrefix()
+    {
+        DiagnosticCode[] codes =
+        [
+            DiagnosticCode.CloudBaseConfigInvalid,
+            DiagnosticCode.CloudBaseCredentialMissing,
+            DiagnosticCode.CloudBaseAuthFailed,
+            DiagnosticCode.CloudBaseNotFound,
+            DiagnosticCode.CloudBaseRateLimited,
+            DiagnosticCode.CloudBaseRequestFailed,
+            DiagnosticCode.CloudBaseResponseInvalid,
+            DiagnosticCode.CloudBaseFileResolveFailed,
+            DiagnosticCode.CloudBaseMediaLocalizationRequired,
+            DiagnosticCode.CloudBaseAdminCredentialInUse,
+            DiagnosticCode.CloudBaseUnsupportedFileReference
+        ];
+
+        foreach (var code in codes)
+        {
+            Assert.StartsWith("CloudBase:", DiagnosticCodeFormatter.Describe(code), StringComparison.Ordinal);
+        }
     }
 
     [Theory]
