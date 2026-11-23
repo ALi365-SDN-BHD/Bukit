@@ -34,6 +34,7 @@ internal static class ApiPolicy
     public static readonly IReadOnlyList<ApiAssembly> GovernedAssemblies =
     [
         new("Bukit.Cli.Shared", "src/Bukit-Core/Bukit.Cli.Shared/Bukit.Cli.Shared.csproj"),
+        new("Bukit.CloudBase", "src/Bukit-Core/Bukit.CloudBase/Bukit.CloudBase.csproj"),
         new("Bukit.Config", "src/Bukit-Core/Bukit.Config/Bukit.Config.csproj"),
         new("Bukit.Content", "src/Bukit-Core/Bukit.Content/Bukit.Content.csproj"),
         new("Bukit.Engine", "src/Bukit-Core/Bukit.Engine/Bukit.Engine.csproj"),

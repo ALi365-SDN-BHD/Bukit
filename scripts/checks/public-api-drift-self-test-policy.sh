@@ -43,7 +43,7 @@ def block(assembly: str, project: str) -> str:
     )
 
 first = block("Bukit.Cli.Shared", "src/Bukit-Core/Bukit.Cli.Shared/Bukit.Cli.Shared.csproj")
-second = block("Bukit.Config", "src/Bukit-Core/Bukit.Config/Bukit.Config.csproj")
+second = block("Bukit.CloudBase", "src/Bukit-Core/Bukit.CloudBase/Bukit.CloudBase.csproj")
 last = block("bukit", "src/Bukit-Core/Bukit.Cli/Bukit.Cli.csproj")
 extra = block("Bukit.Unexpected", "tools/Bukit.PublicApiDrift/Bukit.PublicApiDrift.csproj")
 

@@ -30,6 +30,7 @@ case "$(uname -s)" in
 esac
 
 emit tests/Bukit.Cli.Tests/Bukit.Cli.Tests.csproj "$cli_filter"
+emit tests/Bukit.CloudBase.Tests/Bukit.CloudBase.Tests.csproj
 emit tests/Bukit.Config.Tests/Bukit.Config.Tests.csproj
 emit tests/Bukit.Content.Tests/Bukit.Content.Tests.csproj
 emit tests/Bukit.Content.Notion.Tests/Bukit.Content.Notion.Tests.csproj

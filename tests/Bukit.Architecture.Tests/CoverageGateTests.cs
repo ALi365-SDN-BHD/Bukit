@@ -42,7 +42,7 @@ public sealed class CoverageGateTests
         Assert.DoesNotContain("tests/Bukit.Importing.Tests", listProjects, StringComparison.Ordinal);
         Assert.DoesNotContain("tests/Bukit.Labs.Cli.Tests", listProjects, StringComparison.Ordinal);
         Assert.Contains("--collect:XPlat Code Coverage", runOne, StringComparison.Ordinal);
-        Assert.Equal(13, listProjects.Split('\n').Count(line => line.StartsWith("emit tests/", StringComparison.Ordinal)));
+        Assert.Equal(14, listProjects.Split('\n').Count(line => line.StartsWith("emit tests/", StringComparison.Ordinal)));
         Assert.Equal(1, runOne.Split("dotnet test", StringSplitOptions.None).Length - 1);
         Assert.Contains("trx;LogFileName=tests.trx", runOne, StringComparison.Ordinal);
         Assert.Contains("coverage.cobertura.xml", findResults, StringComparison.Ordinal);

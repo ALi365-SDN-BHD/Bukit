@@ -9,6 +9,10 @@
       "project": "src/Bukit-Core/Bukit.Cli.Shared/Bukit.Cli.Shared.csproj"
     },
     {
+      "assembly": "Bukit.CloudBase",
+      "project": "src/Bukit-Core/Bukit.CloudBase/Bukit.CloudBase.csproj"
+    },
+    {
       "assembly": "Bukit.Config",
       "project": "src/Bukit-Core/Bukit.Config/Bukit.Config.csproj"
     },
