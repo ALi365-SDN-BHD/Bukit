@@ -37,6 +37,20 @@ public sealed class CloudBaseClientTests
     }
 
     [Fact]
+    public async Task HeadCount_UsesHeadWithExactCountHeader()
+    {
+        var (client, handler, _) = Create();
+        using var _client = client;
+        handler.Enqueue(string.Empty, contentRange: "*/0");
+
+        var total = await client.HeadCountAsync("articles");
+
+        Assert.Equal(0, total);
+        Assert.Equal(HttpMethod.Head, handler.Requests[0].Method);
+        Assert.Equal("count=exact", handler.Requests[0].Prefer);
+    }
+
+    [Fact]
     public async Task Query_SendsPostgrestRequest()
     {
         var (client, handler, _) = Create();

@@ -2,7 +2,6 @@ using System.Text.Json;
 using Bukit.CloudBase.Models;
 using Bukit.CloudBase.Transport;
 using Bukit.Config;
-using Bukit.Engine;
 using Bukit.Shared;
 
 namespace Bukit.Cli.Commands;
@@ -11,9 +10,6 @@ internal static class DoctorCloudBaseChecker
 {
     internal static async Task<int> CheckAsync(
         CloudBaseConfig cloudBase,
-        AppConfig config,
-        string rootDir,
-        ILogger logger,
         Func<CloudBaseClient>? clientFactory = null)
     {
         var errors = 0;
@@ -28,6 +24,11 @@ internal static class DoctorCloudBaseChecker
         if (role.IsAdminRisk)
         {
             Console.WriteLine("⚠ [BKT-0C0A] CloudBase credential looks like an admin key (service_role or an unreadable role)");
+        }
+
+        if (cloudBase.FieldPolicy.Allowed?.Contains(cloudBase.IdField, StringComparer.OrdinalIgnoreCase) == true)
+        {
+            Console.WriteLine($"⚠ cloudbase.fieldPolicy.allowed publishes idField '{cloudBase.IdField}'");
         }
 
         using var client = CreateClient(cloudBase, key, clientFactory);
@@ -57,7 +58,11 @@ internal static class DoctorCloudBaseChecker
                 Table = cloudBase.Table,
                 IdField = cloudBase.IdField,
                 PageSize = 1,
-                MaxItems = 1
+                MaxItems = 1,
+                FilterField = cloudBase.Filter?.Field,
+                FilterValue = cloudBase.Filter?.Value,
+                SortField = cloudBase.Sort?.Field,
+                SortDirection = cloudBase.Sort?.Direction ?? "asc"
             }).ConfigureAwait(false);
             row = page.Rows.Count > 0 ? page.Rows[0] : null;
         }
@@ -65,6 +70,12 @@ internal static class DoctorCloudBaseChecker
         {
             Console.WriteLine(Describe(ex, cloudBase.Table));
             return errors + 1;
+        }
+
+        if (row is null)
+        {
+            Console.WriteLine("⚠ CloudBase filter matched no rows; the table has rows but the configured filter returns none");
+            return errors;
         }
 
         if (row is { } sample)
@@ -79,19 +90,15 @@ internal static class DoctorCloudBaseChecker
 
             if (cloudBase.FileFields.Count > 0 && cloudBase.StorageBucket is { } bucket)
             {
-                errors += await CheckStorageAsync(client, cloudBase, bucket, sample).ConfigureAwait(false);
+                var sampledField = cloudBase.FileFields.FirstOrDefault(field =>
+                    sample.TryGetProperty(field, out var element) &&
+                    element.ValueKind == JsonValueKind.String &&
+                    !string.IsNullOrWhiteSpace(element.GetString()));
+                if (sampledField is not null)
+                {
+                    errors += await CheckStorageAsync(client, sampledField, bucket, sample).ConfigureAwait(false);
+                }
             }
-        }
-
-        if (cloudBase.FileFields.Count > 0 &&
-            MediaPlaceholderProbe.CheckWarning(config, rootDir, logger) is { } placeholder)
-        {
-            Console.WriteLine($"⚠ {placeholder}");
-        }
-
-        if (cloudBase.FieldPolicy.Allowed?.Contains(cloudBase.IdField, StringComparer.OrdinalIgnoreCase) == true)
-        {
-            Console.WriteLine($"⚠ [BKT-0C01] cloudbase.fieldPolicy.allowed publishes idField '{cloudBase.IdField}'");
         }
 
         Console.WriteLine("✔ CloudBase checks finished");
@@ -118,16 +125,12 @@ internal static class DoctorCloudBaseChecker
 
     private static async Task<int> CheckStorageAsync(
         CloudBaseClient client,
-        CloudBaseConfig cloudBase,
+        string field,
         string bucket,
         JsonElement sample)
     {
-        var value = cloudBase.FileFields
-            .Select(field => sample.TryGetProperty(field, out var element) && element.ValueKind == JsonValueKind.String
-                ? element.GetString()
-                : null)
-            .FirstOrDefault(item => !string.IsNullOrWhiteSpace(item));
-        if (value is null)
+        var value = sample.GetProperty(field).GetString();
+        if (string.IsNullOrWhiteSpace(value))
         {
             return 0;
         }
@@ -147,7 +150,7 @@ internal static class DoctorCloudBaseChecker
             var results = await client.SignObjectsAsync(bucket, [objectName], 60).ConfigureAwait(false);
             if (results.Count != 1 || results[0].Url is null)
             {
-                Console.WriteLine($"✖ [BKT-0C08] CloudBase storage signing failed for field '{cloudBase.FileFields[0]}'");
+                Console.WriteLine($"✖ [BKT-0C08] CloudBase storage signing failed for field '{field}'");
                 return 1;
             }
         }

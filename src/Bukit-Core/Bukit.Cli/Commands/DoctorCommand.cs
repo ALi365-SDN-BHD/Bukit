@@ -420,14 +420,17 @@ public static class DoctorCommand
             }
         }
 
-        var cloudBaseSource = config.Content.Sources?.FirstOrDefault(source => source.CloudBase is not null);
-        if (cloudBaseSource?.CloudBase is { } cloudBase)
+        var cloudBaseSources = config.Content.Sources?
+            .Where(source => source.CloudBase is not null)
+            .ToArray() ?? [];
+        if (cloudBaseSources.Length > 0)
         {
-            var cloudBaseErrors = await DoctorCloudBaseChecker.CheckAsync(
-                cloudBase,
-                config,
-                rootDir,
-                new ConsoleLogger(LogLevel.Error, logFormat));
+            var cloudBaseErrors = 0;
+            foreach (var source in cloudBaseSources)
+            {
+                cloudBaseErrors += await DoctorCloudBaseChecker.CheckAsync(source.CloudBase!).ConfigureAwait(false);
+            }
+
             if (cloudBaseErrors > 0)
             {
                 return 1;

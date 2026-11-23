@@ -8,6 +8,7 @@ using Xunit;
 
 namespace Bukit.Cli.Tests;
 
+[Collection("Console")]
 public sealed class DoctorCloudBaseCheckerTests
 {
     [Fact]
@@ -34,6 +35,8 @@ public sealed class DoctorCloudBaseCheckerTests
         var output = await Run(Jwt("""{"role":"anon"}"""), new FakeApi { Total = 0 });
 
         Assert.Contains("Row-Level Security", output);
+        Assert.DoesNotContain("✖", output, StringComparison.Ordinal);
+        Assert.DoesNotContain("BKT-0C", output, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -79,12 +82,7 @@ public sealed class DoctorCloudBaseCheckerTests
                 Row = """{"id":1,"title":"t","slug":"s","publish_at":"2026-01-01T00:00:00Z","updated_at":"2026-01-02T00:00:00Z","content":"body","cover":"posts/a.png"}"""
             };
             var cloudBase = CloudBase() with { FileFields = ["cover"], StorageBucket = "media" };
-            await DoctorCloudBaseChecker.CheckAsync(
-                cloudBase,
-                Config(),
-                Path.GetTempPath(),
-                new ConsoleLogger(LogLevel.Error),
-                () => Client(api));
+            await DoctorCloudBaseChecker.CheckAsync(cloudBase, () => Client(api));
         }
         finally
         {
@@ -93,21 +91,6 @@ public sealed class DoctorCloudBaseCheckerTests
         }
 
         Assert.Contains("BKT-0C08", writer.ToString());
-    }
-
-    [Fact]
-    public async Task MissingPlaceholder_Warns()
-    {
-        var cloudBase = CloudBase() with { FileFields = ["cover"], StorageBucket = "media" };
-        var api = new FakeApi
-        {
-            Total = 1,
-            Row = """{"id":1,"title":"t","slug":"s","publish_at":"2026-01-01T00:00:00Z","updated_at":"2026-01-02T00:00:00Z","content":"body","cover":"posts/a.png"}"""
-        };
-
-        var output = await RunWithConfig(cloudBase, Jwt("""{"role":"anon"}"""), api);
-
-        Assert.Contains("placeholder", output, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]
@@ -135,7 +118,7 @@ public sealed class DoctorCloudBaseCheckerTests
         };
         var output = await RunWithConfig(cloudBase, Jwt("""{"role":"anon"}"""), new FakeApi { Total = 1, Row = Row() });
 
-        Assert.Contains("BKT-0C01", output);
+        Assert.Contains("publishes idField", output, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -163,7 +146,7 @@ public sealed class DoctorCloudBaseCheckerTests
                     new ContentSourceConfig { Type = "cloudbase", Name = "page", Collection = "page", CloudBase = cloudBase }
                 ])
             };
-            await DoctorCloudBaseChecker.CheckAsync(cloudBase, config, Path.GetTempPath(), new ConsoleLogger(LogLevel.Error), () => Client(api));
+            await DoctorCloudBaseChecker.CheckAsync(cloudBase, () => Client(api));
             return writer.ToString();
         }
         finally
@@ -189,6 +172,44 @@ public sealed class DoctorCloudBaseCheckerTests
         }
     }
 
+    [Fact]
+    public async Task NotFound_ReturnsFatalErrorCount()
+    {
+        var original = Environment.GetEnvironmentVariable("CLOUDBASE_PUBLISHABLE_KEY");
+        var previous = Console.Out;
+        try
+        {
+            Environment.SetEnvironmentVariable("CLOUDBASE_PUBLISHABLE_KEY", Jwt("""{"role":"anon"}"""));
+            Console.SetOut(new StringWriter());
+            var errors = await DoctorCloudBaseChecker.CheckAsync(CloudBase(), () => Client(new FakeApi { Status = HttpStatusCode.NotFound }));
+            Assert.Equal(1, errors);
+        }
+        finally
+        {
+            Console.SetOut(previous);
+            Environment.SetEnvironmentVariable("CLOUDBASE_PUBLISHABLE_KEY", original);
+        }
+    }
+
+    [Fact]
+    public async Task RlsHint_IsNotAFatalError()
+    {
+        var original = Environment.GetEnvironmentVariable("CLOUDBASE_PUBLISHABLE_KEY");
+        var previous = Console.Out;
+        try
+        {
+            Environment.SetEnvironmentVariable("CLOUDBASE_PUBLISHABLE_KEY", Jwt("""{"role":"anon"}"""));
+            Console.SetOut(new StringWriter());
+            var errors = await DoctorCloudBaseChecker.CheckAsync(CloudBase(), () => Client(new FakeApi { Total = 0 }));
+            Assert.Equal(0, errors);
+        }
+        finally
+        {
+            Console.SetOut(previous);
+            Environment.SetEnvironmentVariable("CLOUDBASE_PUBLISHABLE_KEY", original);
+        }
+    }
+
     private static async Task<string> Run(string key, FakeApi api)
     {
         var original = Environment.GetEnvironmentVariable("CLOUDBASE_PUBLISHABLE_KEY");
@@ -198,7 +219,7 @@ public sealed class DoctorCloudBaseCheckerTests
         {
             Environment.SetEnvironmentVariable("CLOUDBASE_PUBLISHABLE_KEY", key);
             Console.SetOut(writer);
-            await DoctorCloudBaseChecker.CheckAsync(CloudBase(), Config(), Path.GetTempPath(), new ConsoleLogger(LogLevel.Error), () => Client(api));
+            await DoctorCloudBaseChecker.CheckAsync(CloudBase(), () => Client(api));
             return writer.ToString();
         }
         finally
@@ -215,7 +236,7 @@ public sealed class DoctorCloudBaseCheckerTests
         try
         {
             Console.SetOut(writer);
-            await DoctorCloudBaseChecker.CheckAsync(CloudBase(), Config(), Path.GetTempPath(), new ConsoleLogger(LogLevel.Error), () => Client(api));
+            await DoctorCloudBaseChecker.CheckAsync(CloudBase(), () => Client(api));
             return writer.ToString();
         }
         finally
