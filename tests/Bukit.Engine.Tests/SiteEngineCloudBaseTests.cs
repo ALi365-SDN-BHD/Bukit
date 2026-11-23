@@ -110,6 +110,40 @@ public sealed partial class SiteEngineIntegrationTests
         }
     }
 
+    [Fact]
+    public async Task BuildAsync_MarkdownOnlySite_ProducesIdenticalOutputWithoutCloudBaseSource()
+    {
+        var originalKey = Environment.GetEnvironmentVariable("CLOUDBASE_PUBLISHABLE_KEY");
+        try
+        {
+            Environment.SetEnvironmentVariable("CLOUDBASE_PUBLISHABLE_KEY", null);
+
+            using var first = new Infrastructure.SiteBuilder();
+            first.Markdown("hello", "Hello", "Hello body");
+            await first.BuildAsync();
+
+            using var second = new Infrastructure.SiteBuilder();
+            second.Markdown("hello", "Hello", "Hello body");
+            await second.BuildAsync();
+
+            var files = EnumeratePublicOutputFiles(first.Output);
+            Assert.Contains("hello/index.html", files);
+            Assert.DoesNotContain(files, file => file.Contains("cloudbase", StringComparison.OrdinalIgnoreCase));
+            Assert.Equal(files, EnumeratePublicOutputFiles(second.Output));
+            foreach (var file in files)
+            {
+                Assert.True(
+                    File.ReadAllBytes(Path.Combine(first.Output, file)).AsSpan()
+                        .SequenceEqual(File.ReadAllBytes(Path.Combine(second.Output, file))),
+                    $"Output differs: {file}");
+            }
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable("CLOUDBASE_PUBLISHABLE_KEY", originalKey);
+        }
+    }
+
     private sealed class CloudBaseApi : HttpMessageHandler
     {
         private readonly ConcurrentQueue<string> _queries = new();
