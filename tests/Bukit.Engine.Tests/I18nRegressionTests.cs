@@ -103,6 +103,29 @@ public sealed class I18nRegressionTests : IDisposable
         Assert.Contains("zh summary", text, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public void MergedLlms_KeepsRootLanguageEntries()
+    {
+        var chinese = Document("zh-page", "zh");
+        var english = Document("en-page", "en");
+        var config = Config();
+        var state = I18nMergedVariantState.Create([Variant("zh", chinese), Variant("en", english)], RootLayout("zh", "en"));
+
+        Assert.Contains("zh-page/index.html", state.SeoIndex.Keys);
+        Assert.Contains("en/en-page/index.html", state.SeoIndex.Keys);
+        LlmsTxtPlugin.WriteLlmsTxt(config, _root, "/", state.RoutedDocuments, [], state.SeoIndex, state.SeoModels,
+            config.Site.Seo.Geo);
+        LlmsTxtPlugin.WriteLlmsFullTxt(config, _root, "/", state.RoutedDocuments, [], state.ContentGraph,
+            state.SeoIndex, state.BodyStore);
+
+        foreach (var file in new[] { "llms.txt", "llms-full.txt" })
+        {
+            var text = File.ReadAllText(Path.Combine(_root, file));
+            Assert.Contains("/docs/zh/zh-page/", text, StringComparison.Ordinal);
+            Assert.Contains("/docs/en/en-page/", text, StringComparison.Ordinal);
+        }
+    }
+
     [Theory]
     [InlineData("search", "search.json", "[{\"url\":\"/docs/en/a/b/\",\"content\":\"/docs/en/a/\"}]")]
     [InlineData("sitemap", "sitemap.xml", "<urlset><url><loc>https://example.com/docs/en/a/b/</loc></url></urlset>")]
@@ -406,6 +429,10 @@ public sealed class I18nRegressionTests : IDisposable
     private static I18nOutputLayout PrefixedLayout(params string[] languages) => I18nOutputLayout.Create(
         new SiteConfig { Name = "prefixed", Title = "Prefixed", Languages = languages, DefaultLanguage = languages[0] },
         languages, "/", defaultLanguageInSubdir: true);
+
+    private static I18nOutputLayout RootLayout(params string[] languages) => I18nOutputLayout.Create(
+        new SiteConfig { Name = "root", Title = "Root", Languages = languages, DefaultLanguage = languages[0] },
+        languages, "/", defaultLanguageInSubdir: false);
 
     private static readonly IReadOnlyDictionary<string, string> LanguagePrefixes =
         new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase) { ["en"] = "en", ["zh"] = "zh" };

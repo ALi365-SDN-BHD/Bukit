@@ -450,8 +450,6 @@ internal static partial class MachineReadabilityTrustAuditBuilder
 
     private static PublishAuditIssue PublishWarning(string code, string? route, string message) => new("warning", code, route, message);
 
-    private static string BuildMergedKey(string language, string key) => language + "/" + key;
-
     private static string CombineBaseUrl(string baseUrl, string routeUrl)
     {
         var b = BuildPathUtils.NormalizeBaseUrl(baseUrl).TrimEnd('/');
