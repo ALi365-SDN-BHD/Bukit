@@ -183,6 +183,17 @@ public static class RssGenerator
         sb.AppendLine($"    <title>{EscapeXml(siteTitle)}</title>");
         sb.AppendLine($"    <link>{EscapeXml(homeUrl)}</link>");
         sb.AppendLine($"    <description>{EscapeXml(channelDescription)}</description>");
+        // A channel has one <language>: the one language its posts declare. Posts without a language
+        // (blank or "und") do not count; a feed that mixes languages (a merged i18n feed) omits it.
+        var language = posts
+            .Select(x => x.Language?.Trim())
+            .Where(x => !string.IsNullOrEmpty(x) && !string.Equals(x, ContentLanguageFallback.Undetermined, StringComparison.OrdinalIgnoreCase))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+        if (language is [{ } channelLanguage])
+        {
+            sb.AppendLine($"    <language>{EscapeXml(channelLanguage)}</language>");
+        }
         // lastBuildDate is optional in RSS 2.0; an empty feed omits it instead of claiming 1970.
         if (posts.Count > 0)
         {

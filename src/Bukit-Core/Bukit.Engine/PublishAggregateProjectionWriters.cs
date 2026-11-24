@@ -18,7 +18,7 @@ internal static class RssProjectionWriter
 
         var posts = CollectFeedPosts(context);
         var limit = ResolveFeedLimit(context);
-        RssGenerator.GenerateMerged(context.OutputDir, context.Config.Site.Url!, context.BaseUrl, context.Config.Site.Title, posts, limit, context.Config.Site.Description);
+        RssGenerator.GenerateMerged(context.OutputDir, context.Config.Site.Url!, context.BaseUrl, context.Config.Site.Title, ForRss(context, posts, limit), limit, context.Config.Site.Description);
         WriteCollectionRssFeeds(context, limit);
     }
 
@@ -70,7 +70,7 @@ internal static class RssProjectionWriter
     {
         foreach (var (_, _, posts, feedBase, title, description) in ResolveCollectionFeeds(context))
         {
-            RssGenerator.GenerateAtPath(context.OutputDir, context.Config.Site.Url!, context.BaseUrl, title, posts, feedBase, limit, description);
+            RssGenerator.GenerateAtPath(context.OutputDir, context.Config.Site.Url!, context.BaseUrl, title, ForRss(context, posts, limit), feedBase, limit, description);
         }
     }
 
@@ -81,6 +81,11 @@ internal static class RssProjectionWriter
             AtomFeedGenerator.Generate(context.OutputDir, context.Config.Site.Url!, context.BaseUrl, title, posts, $"{feedBase}/atom.xml", limit, description);
         }
     }
+
+    // RSS posts name the channel language and carry item HTML that readers show without the page's
+    // origin, so the posts the feed keeps get the site-language fallback and absolute root-relative URLs.
+    private static IReadOnlyList<RssGenerator.Post> ForRss(PublishProjectionContext context, IReadOnlyList<RssGenerator.Post> posts, int limit)
+        => FeedHtmlUrls.AbsolutizeContent(WithSiteLanguage(context, RssGenerator.SelectWindow(posts, limit)), context.Config.Site.Url!);
 
     // JSON Feed items name their language: an undetermined page of a single-language site uses the
     // site language, as its content projections and agent manifest entry do.

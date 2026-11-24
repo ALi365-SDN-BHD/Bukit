@@ -387,6 +387,54 @@ public sealed class RssGeneratorTests
         Assert.Contains("<description>Merged feed summary</description>", rss, StringComparison.Ordinal);
     }
 
+    private static string RenderMerged(IReadOnlyList<RssGenerator.Post> posts, string siteUrl = "https://example.com", string baseUrl = "/")
+    {
+        var root = Path.Combine(Path.GetTempPath(), "bukit-tests", Guid.NewGuid().ToString("N"));
+        var outDir = Path.Combine(root, "dist");
+        Directory.CreateDirectory(outDir);
+        try
+        {
+            RssGenerator.GenerateMerged(outDir, siteUrl, baseUrl, "Site", posts);
+            return File.ReadAllText(Path.Combine(outDir, "rss.xml"));
+        }
+        finally
+        {
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
+    private static RssGenerator.Post LanguagePost(string slug, string? language, string? contentHtml = null) =>
+        new("T " + slug, "https://example.com/" + slug + "/", new DateTimeOffset(2024, 6, 1, 0, 0, 0, TimeSpan.Zero), null, null, contentHtml, Language: language);
+
+    [Fact]
+    public void GenerateMerged_SingleLanguage_WritesChannelLanguage()
+    {
+        var rss = RenderMerged([LanguagePost("a", "zh-CN"), LanguagePost("b", "zh-CN")]);
+
+        Assert.Contains("    <language>zh-CN</language>", rss, StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData("en", null)]
+    [InlineData("und", "en")]
+    public void GenerateMerged_UndeclaredPostsDoNotHideChannelLanguage(string? first, string? second)
+    {
+        var rss = RenderMerged([LanguagePost("a", first), LanguagePost("b", second)]);
+
+        Assert.Contains("<language>en</language>", rss, StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData("en", "zh-CN")]
+    [InlineData(null, null)]
+    [InlineData("und", "und")]
+    public void GenerateMerged_MixedOrMissingLanguage_OmitsChannelLanguage(string? first, string? second)
+    {
+        var rss = RenderMerged([LanguagePost("a", first), LanguagePost("b", second)]);
+
+        Assert.DoesNotContain("<language>", rss, StringComparison.Ordinal);
+    }
+
     [Fact]
     public void GenerateMerged_EmptyFeed_OmitsLastBuildDate()
     {
