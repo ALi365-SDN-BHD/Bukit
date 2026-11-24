@@ -16,6 +16,7 @@ internal sealed class CloudBaseClient : IDisposable
     private const int ErrorBodyBytes = 8 * 1024;
     private const int BackoffBaseMs = 500;
     private const int BackoffMaxMs = 8_000;
+    private const int RetryAfterMaxMs = 30_000;
     internal const string SignMismatchError = "sign-mismatch";
 
     private readonly CloudBaseClientOptions _options;
@@ -472,6 +473,7 @@ internal sealed class CloudBaseClient : IDisposable
 
             using var deadline = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
             deadline.CancelAfter(_options.RequestTimeout);
+            int? retryAfterMs = null;
             try
             {
                 using var response = await _httpClient
@@ -479,7 +481,11 @@ internal sealed class CloudBaseClient : IDisposable
                     .ConfigureAwait(false);
                 var retryable = response.StatusCode == HttpStatusCode.TooManyRequests ||
                     (int)response.StatusCode >= 500;
-                if (!retryable || attempt >= _options.MaxRetries)
+                if (retryable && attempt < _options.MaxRetries)
+                {
+                    retryAfterMs = GetRetryAfterMs(response);
+                }
+                else
                 {
                     if (!response.IsSuccessStatusCode)
                     {
@@ -509,8 +515,35 @@ internal sealed class CloudBaseClient : IDisposable
                 }
             }
 
-            await DelayBackoffAsync(attempt, cancellationToken).ConfigureAwait(false);
+            if (retryAfterMs is { } waitMs)
+            {
+                await _delayAsync(waitMs, cancellationToken).ConfigureAwait(false);
+            }
+            else
+            {
+                await DelayBackoffAsync(attempt, cancellationToken).ConfigureAwait(false);
+            }
         }
+    }
+
+    /// <summary>
+    /// The server-requested wait from <c>Retry-After</c> (seconds or an HTTP date), capped so a
+    /// hostile or broken value cannot stall the build; null when absent or already past.
+    /// </summary>
+    private int? GetRetryAfterMs(HttpResponseMessage response)
+    {
+        var wait = response.Headers.RetryAfter switch
+        {
+            { Delta: { } delta } => delta,
+            { Date: { } date } => date - _utcNow(),
+            _ => (TimeSpan?)null
+        };
+        if (wait is not { } value || value <= TimeSpan.Zero)
+        {
+            return null;
+        }
+
+        return (int)Math.Ceiling(Math.Min(value.TotalMilliseconds, RetryAfterMaxMs));
     }
 
     private async Task ThrottleAsync(CancellationToken cancellationToken)

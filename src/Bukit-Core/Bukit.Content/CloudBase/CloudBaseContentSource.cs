@@ -1,4 +1,6 @@
 using System.Globalization;
+using System.Security.Cryptography;
+using System.Text;
 using System.Text.Json;
 using Bukit.CloudBase.Models;
 using Bukit.CloudBase.Transport;
@@ -12,6 +14,7 @@ internal sealed class CloudBaseContentSource : IContentProvider
     // DateTimeOffset.MinValue / MaxValue as Unix time.
     private const long MinUnixSeconds = -62_135_596_800;
     private const long MaxUnixMilliseconds = 253_402_300_799_999;
+    private const int MaxLoggedFailures = 10;
 
     private readonly CloudBaseContentSourceOptions _options;
     private readonly ILogger? _logger;
@@ -200,7 +203,7 @@ internal sealed class CloudBaseContentSource : IContentProvider
                 if (draft.Fields.TryGetValue(fileField, out var field) &&
                     field.Value?.ToString() is { } value)
                 {
-                    if (resolver.TryAddFieldValue(value, out var objectName))
+                    if (resolver.TryAddFieldValue(value, LogEntry(draft.Id, fileField), out var objectName))
                     {
                         draft.FileObjects[fileField] = objectName;
                     }
@@ -211,7 +214,7 @@ internal sealed class CloudBaseContentSource : IContentProvider
                 }
             }
 
-            resolver.CollectMarkdownReferences(draft.Markdown);
+            resolver.CollectMarkdownReferences(draft.Markdown, LogEntry(draft.Id, "body"));
         }
 
         await resolver.SignAsync(cancellationToken).ConfigureAwait(false);
@@ -223,10 +226,16 @@ internal sealed class CloudBaseContentSource : IContentProvider
             }
         }
 
-        if (resolver.ResolveFailures > 0)
+        // Name the failing entries (deduplicated, capped) so the cause is findable without the object names.
+        var failures = resolver.Failures.Distinct(StringComparer.Ordinal).ToArray();
+        if (failures.Length > 0)
         {
+            var shown = string.Join("; ", failures.Take(MaxLoggedFailures));
+            var more = failures.Length > MaxLoggedFailures
+                ? $" (+{failures.Length - MaxLoggedFailures} more)"
+                : string.Empty;
             _logger?.Warn(
-                $"event=cloudbase.file_resolve_failed code={DiagnosticCodeFormatter.Format(DiagnosticCode.CloudBaseFileResolveFailed)} count={resolver.ResolveFailures}");
+                $"event=cloudbase.file_resolve_failed code={DiagnosticCodeFormatter.Format(DiagnosticCode.CloudBaseFileResolveFailed)} count={failures.Length} entries=\"{shown}{more}\"");
         }
 
         WarnUnsupported(resolver.UnsupportedReferences + StripCloudReferenceFields(drafts));
@@ -256,6 +265,13 @@ internal sealed class CloudBaseContentSource : IContentProvider
 
         return dropped;
     }
+
+    /// <summary>
+    /// Names a failing entry by a short hash of the row id (the id itself may be sensitive and
+    /// diagnostics log only its hash) and the configured field name.
+    /// </summary>
+    internal static string LogEntry(string id, string field)
+        => $"row:{Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes(id)), 0, 6)}/{field}";
 
     private void WarnUnsupported(int count)
     {

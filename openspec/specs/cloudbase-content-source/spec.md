@@ -150,10 +150,11 @@ link SHALL be rendered as plain text, and a public field outside `fileFields` wh
 `cloud://` SHALL be dropped, both with the warning `CloudBaseUnsupportedFileReference`. A failed
 resolution (a per-item error in a batch response, a failed sign request, a signed link with the
 wrong scheme, host or path, a compat reference whose environment or bucket does not match, or an
-invalid object name) SHALL report `CloudBaseFileResolveFailed`, identify the failing entry, and
+invalid object name) SHALL report `CloudBaseFileResolveFailed`, identify the failing entry by a hash of the row id and
+the field name, and
 replace the field value or body image URL with the configured media placeholder
 (`content.media.defaultImageUrl`); the object name or `cloud://` reference SHALL NOT be kept. Published output SHALL NOT contain
-`cloud://`, the envId, the gateway host, the storage CDN host or a signed link.
+`cloud://`, the gateway host, the storage CDN host or a signed link.
 
 #### Scenario: Cover image localized
 - **WHEN** a row's `cover` file field holds the object name `posts/a.png` that signs and downloads
@@ -185,18 +186,18 @@ replace the field value or body image URL with the configured media placeholder
 
 #### Scenario: Unresolvable references use the placeholder
 - **WHEN** a `cover` file field holds the object name `posts/a.png` and a body image holds `cloud://other-env.media/a.png`, and neither can be resolved
-- **THEN** both reference the media placeholder, and no published file contains `posts/a.png`, `cloud://` or the envId
+- **THEN** both reference the media placeholder, and no published file contains `posts/a.png`, `cloud://` or the environment's gateway host
 
 ### Requirement: Public output privacy detects CloudBase identifiers
 The build-time public output privacy check SHALL fail when public output contains a CloudBase
 identifier: the gateway host `{envId}.api.tcloudbasegateway.com` or
-`{envId}.api.intl.tcloudbasegateway.com`, the storage CDN host `{envId}.storage.tcloudbase.com`,
-a `cloud://` compat reference, a URL on the PG storage signed-download path carrying a
+`{envId}.api.intl.tcloudbasegateway.com`, the storage CDN host `{envId}.storage.tcloudbase.com` (hosts matched at a host-label boundary,
+so `xprod-1.api.tcloudbasegateway.com` is not a match for envId `prod-1`), a `cloud://` compat reference, a URL on the PG storage signed-download path carrying a
 `token` parameter, or any other `*.storage.tcloudbase.com` URL. It SHALL NOT fail for a bare
 envId in ordinary text or in an output file path. The deployment privacy validator reads no
 configuration and applies to every site, so it SHALL detect only (a) signed links anywhere in
 the text of any scanned text file: a gateway-host URL on the signed path with a `token`
-parameter, or a storage CDN host URL with a `token` parameter; and (b) `cloud://` in URL
+parameter, or a storage CDN host URL with a `token` parameter, in any `//` URL form (`https`, `http`, protocol-relative or another scheme); and (b) `cloud://` in URL
 positions. URL positions are quoted or unquoted URL attribute values of any tag in HTML-like
 files (`src`, `href`, each `srcset` candidate, `poster`, `data-src`, `action`, `formaction`,
 `cite`, `data`, `xlink:href`, `url`, and `content` on `<meta>`) and CSS `url(...)` arguments in

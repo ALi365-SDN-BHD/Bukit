@@ -66,8 +66,7 @@ internal static partial class DeploymentPrivacyValidator
                 }
 
                 cloudBaseLeak =
-                    GatewaySignedUrlRegex().IsMatch(text) ||
-                    StorageCdnSignedUrlRegex().IsMatch(text) ||
+                    HostSignedUrlRegex().IsMatch(text) ||
                     ContainsCloudBaseIdentifier(text, cloudBaseEnvIds) ||
                     CloudBaseDeployUrlScanner.ContainsCloudReference(text, Path.GetExtension(path));
             }
@@ -211,9 +210,10 @@ internal static partial class DeploymentPrivacyValidator
                 continue;
             }
 
-            if (text.Contains(envId + CloudBaseEndpoints.GatewaySuffix, StringComparison.OrdinalIgnoreCase) ||
-                text.Contains(envId + CloudBaseEndpoints.IntlGatewaySuffix, StringComparison.OrdinalIgnoreCase) ||
-                text.Contains(envId + CloudBaseEndpoints.StorageSuffix, StringComparison.OrdinalIgnoreCase) ||
+            // Host forms match at a label boundary only: prod-1 must not match xprod-1's host.
+            if (PublicOutputPrivacyCheck.ContainsHostToken(text, envId + CloudBaseEndpoints.GatewaySuffix) ||
+                PublicOutputPrivacyCheck.ContainsHostToken(text, envId + CloudBaseEndpoints.IntlGatewaySuffix) ||
+                PublicOutputPrivacyCheck.ContainsHostToken(text, envId + CloudBaseEndpoints.StorageSuffix) ||
                 text.Contains($"cloud://{envId}.", StringComparison.OrdinalIgnoreCase))
             {
                 return true;
@@ -235,11 +235,12 @@ internal static partial class DeploymentPrivacyValidator
     [GeneratedRegex("(?im)^\\s*(?:[-*]\\s*)?(?:source|sourceKey)\\s*:\\s*[\"']?notion[\"']?\\s*$", RegexOptions.CultureInvariant)]
     private static partial Regex LineProviderMarkerRegex();
 
-    [GeneratedRegex(@"(?i)https://[a-z0-9.-]+\.api(?:\.intl)?\.tcloudbasegateway\.com/v1/storages/object/sign/[^\s""'<>]*[?&]token=", RegexOptions.CultureInvariant)]
-    private static partial Regex GatewaySignedUrlRegex();
-
-    [GeneratedRegex(@"(?i)https://[a-z0-9.-]+\.storage\.tcloudbase\.com/[^\s""'<>]*[?&]token=", RegexOptions.CultureInvariant)]
-    private static partial Regex StorageCdnSignedUrlRegex();
+    /// <summary>
+    /// A gateway-host URL on the signed path, or a storage CDN host URL, with a <c>token</c>
+    /// parameter, in any <c>//</c> URL form (https, http, protocol-relative or another scheme).
+    /// </summary>
+    [GeneratedRegex(@"(?i)//[a-z0-9.-]+\.(?:api(?:\.intl)?\.tcloudbasegateway\.com/v1/storages/object/sign/|storage\.tcloudbase\.com/)[^\s""'<>]*[?&]token=", RegexOptions.CultureInvariant)]
+    private static partial Regex HostSignedUrlRegex();
 
     private sealed record DeploymentIdentityTokens(bool ReportValid, HashSet<string> Tokens);
 }

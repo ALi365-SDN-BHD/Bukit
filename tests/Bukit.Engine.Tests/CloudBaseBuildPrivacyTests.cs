@@ -60,6 +60,55 @@ public sealed class CloudBaseBuildPrivacyTests : IDisposable
     }
 
     [Fact]
+    public void Evaluate_OtherEnvironmentGatewayHost_Passes()
+    {
+        File.WriteAllText(
+            Path.Combine(_root, "index.html"),
+            """<a href="https://xprod-1.api.tcloudbasegateway.com/x">x</a>""");
+
+        Assert.Equal("passed", PublicOutputPrivacyCheck.Evaluate(ConfigFor("prod-1"), _root, []).Status);
+    }
+
+    [Fact]
+    public void Evaluate_OwnEnvironmentGatewayHost_Fails()
+    {
+        File.WriteAllText(
+            Path.Combine(_root, "index.html"),
+            """<a href="https://prod-1.api.tcloudbasegateway.com/x">x</a>""");
+
+        Assert.Equal("failed", PublicOutputPrivacyCheck.Evaluate(ConfigFor("prod-1"), _root, []).Status);
+    }
+
+    [Theory]
+    [InlineData(@"<script type=""application/ld+json"">{""articleBody"":""para\ncloud://env-abc.media/a.png""}</script>")]
+    [InlineData("""<img src="/img?url=https%3A%2F%2Fprod-1.api.tcloudbasegateway.com%2Fx">""")]
+    [InlineData(@"<script type=""application/ld+json"">{""articleBody"":""See\nprod-1.api.tcloudbasegateway.com""}</script>")]
+    public void Evaluate_EscapedCloudBaseReferenceInHtml_Fails(string html)
+    {
+        File.WriteAllText(Path.Combine(_root, "index.html"), html);
+
+        Assert.Equal("failed", PublicOutputPrivacyCheck.Evaluate(ConfigFor("prod-1"), _root, []).Status);
+    }
+
+    [Theory]
+    [InlineData("prod-1.storage.tcloudbase.com", "prod-1.storage.tcloudbase.com", true)]
+    [InlineData("see https://prod-1.storage.tcloudbase.com/a", "prod-1.storage.tcloudbase.com", true)]
+    [InlineData("xprod-1.storage.tcloudbase.com", "prod-1.storage.tcloudbase.com", false)]
+    [InlineData("a-prod-1.storage.tcloudbase.com", "prod-1.storage.tcloudbase.com", false)]
+    [InlineData("a.prod-1.storage.tcloudbase.com", "prod-1.storage.tcloudbase.com", true)]
+    [InlineData("xprod-1.storage.tcloudbase.com prod-1.storage.tcloudbase.com", "prod-1.storage.tcloudbase.com", true)]
+    [InlineData("https%3A%2F%2Fprod-1.storage.tcloudbase.com%2Fa", "prod-1.storage.tcloudbase.com", true)]
+    [InlineData(@"https:\x2F\x2Fprod-1.storage.tcloudbase.com", "prod-1.storage.tcloudbase.com", true)]
+    [InlineData(@"https:\u002F\u002Fprod-1.storage.tcloudbase.com", "prod-1.storage.tcloudbase.com", true)]
+    [InlineData(@"para\ncloud://env.media/a.png", "cloud://", true)]
+    [InlineData(@"See\nprod-1.storage.tcloudbase.com", "prod-1.storage.tcloudbase.com", true)]
+    [InlineData(@"See\tprod-1.storage.tcloudbase.com", "prod-1.storage.tcloudbase.com", true)]
+    public void ContainsHostToken_MatchesAtLabelBoundary(string text, string token, bool expected)
+    {
+        Assert.Equal(expected, PublicOutputPrivacyCheck.ContainsHostToken(text, token));
+    }
+
+    [Fact]
     public void Evaluate_BareSignPathWithoutToken_Passes()
     {
         File.WriteAllText(
