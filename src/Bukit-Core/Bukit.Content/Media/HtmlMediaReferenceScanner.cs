@@ -166,8 +166,12 @@ internal static class HtmlMediaReferenceScanner
         "xlink:href", "content", "srcset", "style"
     };
 
+    // Span lookup: attribute names are checked once per attribute on every page, so avoid a string per name.
+    private static readonly HashSet<string>.AlternateLookup<ReadOnlySpan<char>> CollectedUrlAttributeLookup =
+        CollectedUrlAttributes.GetAlternateLookup<ReadOnlySpan<char>>();
+
     private static bool IsCollectedUrlAttribute(ReadOnlySpan<char> name)
-        => CollectedUrlAttributes.Contains(name.ToString());
+        => CollectedUrlAttributeLookup.Contains(name);
 
     /// <summary>Materializes the value only when URL values are being collected for this attribute.</summary>
     private static void CollectUrlValueIfRequested(List<string>? urlValues, ReadOnlySpan<char> name, ReadOnlySpan<char> value)

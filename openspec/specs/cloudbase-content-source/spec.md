@@ -219,7 +219,7 @@ so `xprod-1.api.tcloudbasegateway.com` is not a match for envId `prod-1`), a `cl
 envId in ordinary text or in an output file path. The deployment privacy validator reads no
 configuration and applies to every site, so it SHALL detect only (a) signed links anywhere in
 the text of any scanned text file: a gateway-host URL on the signed path with a `token`
-parameter, or a storage CDN host URL with a `token` parameter, in any `//` URL form (`https`, `http`, protocol-relative or another scheme); and (b) `cloud://` in URL
+parameter, or a storage CDN host URL with a `token` parameter, in any `//` URL form (`https`, `http`, protocol-relative or another scheme, with JSON-escaped `\/` slashes, an explicit port, or `\u0026` / `&amp;` before `token` allowed); and (b) `cloud://` in URL
 positions. URL positions are quoted or unquoted URL attribute values of any tag in HTML-like
 files (`src`, `href`, each `srcset` candidate, `poster`, `data-src`, `action`, `formaction`,
 `cite`, `data`, `xlink:href`, `url`, and `content` on `<meta>`) and CSS `url(...)` arguments in

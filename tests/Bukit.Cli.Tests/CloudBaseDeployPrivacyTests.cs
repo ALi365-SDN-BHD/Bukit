@@ -68,6 +68,11 @@ public sealed class CloudBaseDeployPrivacyTests : IDisposable
     [InlineData("""<img src="https://env-abc.storage.tcloudbase.com/media/a.png?token=x">""")]
     [InlineData("""<a href="http://env-abc.api.intl.tcloudbasegateway.com/v1/storages/object/sign/media/a.png?token=x">x</a>""")]
     [InlineData("""<img src="//env-abc.storage.tcloudbase.com/media/a.png?x=1&token=x">""")]
+    [InlineData("""<img src="https://env-abc.storage.tcloudbase.com:443/media/a.png?token=x">""")]
+    [InlineData("""{"u":"https:\/\/env-abc.storage.tcloudbase.com\/media\/a.png?token=x"}""")]
+    [InlineData("""{"u":"https:\/\/env-abc.api.tcloudbasegateway.com\/v1\/storages\/object\/sign\/media\/a.png?x=1\u0026token=x"}""")]
+    [InlineData("""<img src="https://env-abc.storage.tcloudbase.com/media/a.png?x=1&amp;token=x">""")]
+    [InlineData("""<img src="https://env-abc.storage.tcloudbase.com/media/a.png?x=1&#38;token=x">""")]
     public void Validate_SignedCloudBaseLink_FailsAnywhere(string content)
     {
         Write("guide.md", content);
@@ -79,6 +84,7 @@ public sealed class CloudBaseDeployPrivacyTests : IDisposable
     [Theory]
     [InlineData("""<a href="https://env-abc.api.tcloudbasegateway.com/v1/storages/object/sign/media/a.png">x</a>""")]
     [InlineData("""<img src="https://env-abc.storage.tcloudbase.com/media/a.png">""")]
+    [InlineData("""{"u":"https:\/\/env-abc.storage.tcloudbase.com:443\/media\/a.png?x=1"}""")]
     public void Validate_UnsignedCloudBaseLink_Passes(string content)
     {
         Write("index.html", content);
@@ -158,12 +164,15 @@ public sealed class CloudBaseDeployPrivacyTests : IDisposable
             error => error.Contains("unable to complete the content provenance privacy scan", StringComparison.Ordinal));
     }
 
-    [Fact]
-    public void Validate_MalformedJsonWithCloudReference_Fails()
+    [Theory]
+    [InlineData("""{"summary":"\ud83d","note":"see cloud://docs"}""")]
+    [InlineData("""{"image":"cloud://env-abc.media/a.png""")]
+    public void Validate_UndecodableJsonWithCloudReference_ReportsIncompleteScan(string json)
     {
-        Write("data.json", """{"image":"cloud://env-abc.media/a.png""");
+        Write("search.json", json);
 
-        Assert.NotEmpty(Validate());
+        var error = Assert.Single(Validate());
+        Assert.StartsWith("BKT-DEPLOY-PRIVACY-0001: unable to complete", error, StringComparison.Ordinal);
     }
 
     private IReadOnlyList<string> Validate() => DeploymentPrivacyValidator.Validate(_output, _staged);

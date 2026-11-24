@@ -88,7 +88,10 @@ internal sealed class CloudBaseFileResolver
 
     internal void CollectMarkdownReferences(string markdown, string entry)
     {
-        if (string.IsNullOrWhiteSpace(markdown))
+        // Markdig decodes entities and backslash escapes in link destinations, so cloud&#58;// and
+        // cloud\:// resolve to cloud://. A decoded scheme needs a literal ':' or an entity that starts
+        // with '&'; a body with neither holds no reference to sign, so skip the parse.
+        if (string.IsNullOrWhiteSpace(markdown) || markdown.AsSpan().IndexOfAny(':', '&') < 0)
         {
             return;
         }

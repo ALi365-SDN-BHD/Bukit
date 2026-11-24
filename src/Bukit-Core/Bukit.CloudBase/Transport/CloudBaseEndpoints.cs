@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using System.Text.RegularExpressions;
 
 namespace Bukit.CloudBase.Transport;
@@ -63,7 +64,7 @@ internal static partial class CloudBaseEndpoints
     }
 
     /// <summary>A storage object name: non-blank, relative, with no empty or <c>..</c> segment.</summary>
-    internal static bool IsValidObjectName([System.Diagnostics.CodeAnalysis.NotNullWhen(true)] string? name)
+    internal static bool IsValidObjectName([NotNullWhen(true)] string? name)
     {
         if (string.IsNullOrWhiteSpace(name) || name.StartsWith('/') || name.Contains("//", StringComparison.Ordinal))
         {

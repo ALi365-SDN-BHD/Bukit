@@ -134,7 +134,7 @@ tag in HTML-like files, `url(...)` arguments in CSS files after removing quotes,
 string values, each starting with `cloud://` after trimming; text nodes, code blocks and other text
 files are not checked for `cloud://` at deploy time) and (b) signed links anywhere in the text of any
 scanned text file: a gateway-host URL on the signed path with a `token` parameter, or a storage CDN host
-URL with a `token` parameter, in any `//` URL form (`https`, `http`, protocol-relative or another scheme); a gateway or CDN host URL without `token` SHALL NOT be treated as a
+URL with a `token` parameter, in any `//` URL form (`https`, `http`, protocol-relative or another scheme, with JSON-escaped `\/` slashes, an explicit port, or `\u0026` / `&amp;` before `token` allowed); a gateway or CDN host URL without `token` SHALL NOT be treated as a
 leak, so sites without a CloudBase source keep their privacy results. It SHALL work without reading configuration, and SHALL detect the envId only when the deploy command reads it
 from `site.yaml` and passes it in. The report schemas, the `.bukit/publish-audit-report.json`
 contract, the existing error codes and the Notion applicability rules MUST NOT change. Diagnostics
