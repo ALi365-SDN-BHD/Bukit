@@ -41,6 +41,7 @@ internal sealed class CloudBaseContentSource : IContentProvider
                 new CloudBaseQueryRequest
                 {
                     Table = _options.Table,
+                    Select = BuildSelectList(),
                     IdField = _options.IdField,
                     PageSize = _options.PageSize,
                     MaxItems = _options.MaxItems,
@@ -59,6 +60,7 @@ internal sealed class CloudBaseContentSource : IContentProvider
         }
 
         var isData = string.Equals(_options.Mode, "data", StringComparison.OrdinalIgnoreCase);
+        var allowedSet = CloudBaseFieldProjector.BuildAllowedSet(_options.FieldPolicyMode, _options.AllowedFields);
         var drafts = new List<Draft>(page.Rows.Count);
         foreach (var row in page.Rows)
         {
@@ -71,10 +73,10 @@ internal sealed class CloudBaseContentSource : IContentProvider
                     DiagnosticCode.CloudBaseResponseInvalid);
             }
 
-            var fields = CloudBaseFieldProjector.Project(
+            var fields = CloudBaseFieldProjector.ProjectWithSet(
                 row,
                 _options.FieldPolicyMode,
-                _options.AllowedFields,
+                allowedSet,
                 _options.IdField);
             fields["source"] = new ContentField("text", "cloudbase");
             if (ParseDate(row, _options.UpdatedAtField) is { } updatedAt)
@@ -99,7 +101,7 @@ internal sealed class CloudBaseContentSource : IContentProvider
                 isData ? string.Empty : GetString(row, _options.BodyField) ?? string.Empty));
         }
 
-        await ResolveFilesAsync(drafts, client, isData, cancellationToken).ConfigureAwait(false);
+        var imageUrls = await ResolveFilesAsync(drafts, client, isData, cancellationToken).ConfigureAwait(false);
 
         var documents = new List<RawContentDocument>(drafts.Count);
         var bodies = new Dictionary<string, string>(StringComparer.Ordinal);
@@ -127,10 +129,12 @@ internal sealed class CloudBaseContentSource : IContentProvider
         }
 
         _logger?.Info($"event=cloudbase.stats table={_options.Table} count={documents.Count}");
-        return new RawContentLoadResult(documents, new CloudBaseBodyStore(bodies));
+        return new RawContentLoadResult(
+            documents,
+            new CloudBaseBodyStore(bodies, imageUrls, _options.DefaultImageUrl));
     }
 
-    private async Task ResolveFilesAsync(
+    private async Task<IReadOnlyDictionary<string, string>> ResolveFilesAsync(
         List<Draft> drafts,
         CloudBaseClient client,
         bool isData,
@@ -142,7 +146,7 @@ internal sealed class CloudBaseContentSource : IContentProvider
                  draft.Markdown.Contains("cloud://", StringComparison.OrdinalIgnoreCase) ||
                  draft.Fields.Values.Any(field => ContainsCloudReference(field.Value)))))
         {
-            return;
+            return new Dictionary<string, string>(StringComparer.Ordinal);
         }
 
         var resolver = new CloudBaseFileResolver(
@@ -190,7 +194,6 @@ internal sealed class CloudBaseContentSource : IContentProvider
                 }
             }
 
-            draft.Markdown = resolver.RewriteMarkdown(draft.Markdown);
         }
 
         if (resolver.ResolveFailures > 0)
@@ -204,6 +207,8 @@ internal sealed class CloudBaseContentSource : IContentProvider
             _logger?.Warn(
                 $"event=cloudbase.unsupported_file_reference code={DiagnosticCodeFormatter.Format(DiagnosticCode.CloudBaseUnsupportedFileReference)} count={resolver.UnsupportedReferences}");
         }
+
+        return resolver.BuildBodyUrlMap();
     }
 
     private static bool ContainsCloudReference(object? value)
@@ -230,6 +235,34 @@ internal sealed class CloudBaseContentSource : IContentProvider
         internal Dictionary<string, ContentField> Fields { get; } = fields;
         internal string Markdown { get; set; } = markdown;
         internal Dictionary<string, string> FileObjects { get; } = new(StringComparer.OrdinalIgnoreCase);
+    }
+
+    private IReadOnlyList<string>? BuildSelectList()
+    {
+        if (!string.Equals(_options.FieldPolicyMode, "whitelist", StringComparison.OrdinalIgnoreCase))
+        {
+            return null;
+        }
+
+        var columns = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        {
+            _options.IdField,
+            _options.TitleField,
+            _options.SlugField,
+            _options.PublishAtField,
+            _options.UpdatedAtField
+        };
+        if (!string.IsNullOrWhiteSpace(_options.BodyField))
+        {
+            columns.Add(_options.BodyField);
+        }
+
+        foreach (var field in _options.FileFields.Concat(_options.AllowedFields ?? []))
+        {
+            columns.Add(field);
+        }
+
+        return [.. columns];
     }
 
     [System.Diagnostics.CodeAnalysis.SuppressMessage(

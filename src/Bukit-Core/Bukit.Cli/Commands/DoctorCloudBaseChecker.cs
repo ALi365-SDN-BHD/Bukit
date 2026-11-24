@@ -80,6 +80,16 @@ internal static class DoctorCloudBaseChecker
 
         if (row is { } sample)
         {
+            if (sample.TryGetProperty(cloudBase.IdField, out var idValue) &&
+                !(idValue.ValueKind is JsonValueKind.String or JsonValueKind.Number &&
+                  !string.IsNullOrWhiteSpace(idValue.ValueKind == JsonValueKind.String
+                      ? idValue.GetString()
+                      : idValue.GetRawText())))
+            {
+                Console.WriteLine($"✖ [BKT-0C07] CloudBase sample row has no usable idField '{cloudBase.IdField}'");
+                errors++;
+            }
+
             foreach (var (name, field) in MappedFields(cloudBase))
             {
                 if (!sample.TryGetProperty(field, out _))

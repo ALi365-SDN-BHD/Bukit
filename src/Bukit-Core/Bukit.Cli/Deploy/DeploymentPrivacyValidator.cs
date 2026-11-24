@@ -1,5 +1,6 @@
 using System.Text.Json;
 using System.Text.RegularExpressions;
+using Bukit.CloudBase.Transport;
 using Bukit.Engine;
 
 namespace Bukit.Cli.Deploy;
@@ -13,7 +14,7 @@ internal static partial class DeploymentPrivacyValidator
         ".rss", ".svg", ".txt", ".xml", ".yaml", ".yml"
     };
 
-    internal static IReadOnlyList<string> Validate(string outputDir, string stagedDir, string? cloudBaseEnvId = null)
+    internal static IReadOnlyList<string> Validate(string outputDir, string stagedDir, IReadOnlyList<string>? cloudBaseEnvIds = null)
     {
         var identity = CollectSensitiveTokens(outputDir);
         if (!identity.ReportValid)
@@ -39,14 +40,15 @@ internal static partial class DeploymentPrivacyValidator
                 continue;
             }
 
-            var pathLeak = ContainsSensitiveToken(relativePath, sensitiveTokens);
+            var notionLeak = ContainsSensitiveToken(relativePath, sensitiveTokens);
+            var cloudBaseLeak = false;
             var contentScan = FilePrivacyScan.Clean;
             if (s_textExtensions.Contains(Path.GetExtension(path)))
             {
                 var text = File.ReadAllText(path);
                 if (ContainsSensitiveToken(text, sensitiveTokens))
                 {
-                    contentScan = FilePrivacyScan.Leak;
+                    notionLeak = true;
                 }
                 else if (Path.GetExtension(path).Equals(".json", StringComparison.OrdinalIgnoreCase) ||
                          Path.GetExtension(path).Equals(".jsonld", StringComparison.OrdinalIgnoreCase))
@@ -60,27 +62,26 @@ internal static partial class DeploymentPrivacyValidator
                 }
                 else if (JsonProviderMarkerRegex().IsMatch(text) || LineProviderMarkerRegex().IsMatch(text))
                 {
-                    contentScan = FilePrivacyScan.Leak;
+                    notionLeak = true;
                 }
 
-                if (contentScan != FilePrivacyScan.Leak &&
-                    (GatewaySignedUrlRegex().IsMatch(text) ||
-                     StorageCdnSignedUrlRegex().IsMatch(text) ||
-                     (!string.IsNullOrWhiteSpace(cloudBaseEnvId) &&
-                      text.Contains(cloudBaseEnvId, StringComparison.Ordinal)) ||
-                     CloudBaseDeployUrlScanner.ContainsCloudReference(text, Path.GetExtension(path))))
-                {
-                    contentScan = FilePrivacyScan.Leak;
-                }
+                cloudBaseLeak =
+                    GatewaySignedUrlRegex().IsMatch(text) ||
+                    StorageCdnSignedUrlRegex().IsMatch(text) ||
+                    ContainsCloudBaseIdentifier(text, cloudBaseEnvIds) ||
+                    CloudBaseDeployUrlScanner.ContainsCloudReference(text, Path.GetExtension(path));
             }
 
-            if (pathLeak || contentScan == FilePrivacyScan.Leak)
+            if (notionLeak || contentScan == FilePrivacyScan.Leak || cloudBaseLeak)
             {
-                errors.Add($"BKT-DEPLOY-PRIVACY-0001: staged public output contains internal Notion provenance at '{RedactPath(relativePath, sensitiveTokens)}'.");
+                var label = cloudBaseLeak && notionLeak
+                    ? "internal content provenance"
+                    : cloudBaseLeak ? "internal CloudBase provenance" : "internal Notion provenance";
+                errors.Add($"BKT-DEPLOY-PRIVACY-0001: staged public output contains {label} at '{RedactPath(relativePath, sensitiveTokens)}'.");
             }
             else if (contentScan == FilePrivacyScan.Incomplete)
             {
-                errors.Add($"BKT-DEPLOY-PRIVACY-0001: unable to complete the Notion provenance privacy scan for staged public output at '{RedactPath(relativePath, sensitiveTokens)}' because the JSON is malformed, too deep, or contains invalid Unicode; rebuild after fixing it.");
+                errors.Add($"BKT-DEPLOY-PRIVACY-0001: unable to complete the content provenance privacy scan for staged public output at '{RedactPath(relativePath, sensitiveTokens)}' because the JSON is malformed, too deep, or contains invalid Unicode; rebuild after fixing it.");
             }
         }
 
@@ -194,6 +195,32 @@ internal static partial class DeploymentPrivacyValidator
         }
 
         return NotionIdentifierRegex().Replace(redacted, "[redacted-notion-id]");
+    }
+
+    private static bool ContainsCloudBaseIdentifier(string text, IReadOnlyList<string>? envIds)
+    {
+        if (envIds is null)
+        {
+            return false;
+        }
+
+        foreach (var envId in envIds)
+        {
+            if (string.IsNullOrWhiteSpace(envId))
+            {
+                continue;
+            }
+
+            if (text.Contains(envId + CloudBaseEndpoints.GatewaySuffix, StringComparison.OrdinalIgnoreCase) ||
+                text.Contains(envId + CloudBaseEndpoints.IntlGatewaySuffix, StringComparison.OrdinalIgnoreCase) ||
+                text.Contains(envId + CloudBaseEndpoints.StorageSuffix, StringComparison.OrdinalIgnoreCase) ||
+                text.Contains($"cloud://{envId}.", StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private static string NormalizePath(string path)

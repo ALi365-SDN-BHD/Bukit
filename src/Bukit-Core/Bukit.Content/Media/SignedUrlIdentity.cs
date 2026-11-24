@@ -1,4 +1,5 @@
 using System.Globalization;
+using Bukit.CloudBase.Transport;
 
 namespace Bukit.Content.Media;
 
@@ -29,7 +30,6 @@ internal static class SignedUrlIdentity
 
     private static readonly string[] NotionParameters = ["expirationTimestamp", "signature"];
 
-    private const string CloudBaseSignPath = "/v1/storages/object/sign/";
 
     /// <summary>The escaped request target (no fragment), as sent on the wire.</summary>
     internal static string RequestTarget(Uri uri)
@@ -203,10 +203,10 @@ internal static class SignedUrlIdentity
            host.EndsWith(".notion.site", StringComparison.OrdinalIgnoreCase);
 
     private static bool IsCloudBaseGateway(Uri uri)
-        => (uri.Host.EndsWith(".api.tcloudbasegateway.com", StringComparison.OrdinalIgnoreCase) ||
-            uri.Host.EndsWith(".api.intl.tcloudbasegateway.com", StringComparison.OrdinalIgnoreCase)) &&
-           uri.AbsolutePath.StartsWith(CloudBaseSignPath, StringComparison.Ordinal);
+        => (uri.Host.EndsWith(CloudBaseEndpoints.GatewaySuffix, StringComparison.OrdinalIgnoreCase) ||
+            uri.Host.EndsWith(CloudBaseEndpoints.IntlGatewaySuffix, StringComparison.OrdinalIgnoreCase)) &&
+           uri.AbsolutePath.StartsWith(CloudBaseEndpoints.SignPrefix, StringComparison.Ordinal);
 
     private static bool IsCloudBaseStorageHost(string host)
-        => host.EndsWith(".storage.tcloudbase.com", StringComparison.OrdinalIgnoreCase);
+        => host.EndsWith(CloudBaseEndpoints.StorageSuffix, StringComparison.OrdinalIgnoreCase);
 }

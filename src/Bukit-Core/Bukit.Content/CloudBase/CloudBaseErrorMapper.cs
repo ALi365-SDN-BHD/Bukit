@@ -11,7 +11,6 @@ internal static class CloudBaseErrorMapper
             CloudBaseErrorKind.Unauthorized or CloudBaseErrorKind.Forbidden => DiagnosticCode.CloudBaseAuthFailed,
             CloudBaseErrorKind.NotFound => DiagnosticCode.CloudBaseNotFound,
             CloudBaseErrorKind.RateLimited => DiagnosticCode.CloudBaseRateLimited,
-            CloudBaseErrorKind.InvalidRequest => DiagnosticCode.CloudBaseConfigInvalid,
             CloudBaseErrorKind.ResponseInvalid => DiagnosticCode.CloudBaseResponseInvalid,
             _ => DiagnosticCode.CloudBaseRequestFailed
         };

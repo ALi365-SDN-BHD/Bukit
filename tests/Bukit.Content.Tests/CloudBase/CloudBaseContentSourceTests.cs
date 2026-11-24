@@ -48,6 +48,44 @@ public sealed class CloudBaseContentSourceTests
     }
 
     [Fact]
+    public async Task LoadRawAsync_Whitelist_SelectsOnlyConfiguredColumns()
+    {
+        var api = new FakeCloudBaseApi();
+        api.Pages[0] = """[{"id":"a1","title":"A","slug":"a","content":"x","tags":["t"],"user_id":"u"}]""";
+        api.Total = 1;
+        var source = Create(api, options => options with
+        {
+            FieldPolicyMode = "whitelist",
+            AllowedFields = ["tags"]
+        });
+
+        await source.LoadRawAsync();
+
+        var query = Uri.UnescapeDataString(api.Requests[0].Query);
+        var parts = query.Split('&');
+        var select = parts.FirstOrDefault(part => part.TrimStart('?').StartsWith("select=", StringComparison.Ordinal));
+        Assert.True(select is not null, query);
+        Assert.Contains("id", select, StringComparison.Ordinal);
+        Assert.Contains("title", select, StringComparison.Ordinal);
+        Assert.Contains("content", select, StringComparison.Ordinal);
+        Assert.Contains("tags", select, StringComparison.Ordinal);
+        Assert.DoesNotContain("user_id", select, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task LoadRawAsync_AllMode_DoesNotSendSelect()
+    {
+        var api = new FakeCloudBaseApi();
+        api.Pages[0] = """[{"id":"a1","title":"A","slug":"a","content":"x"}]""";
+        api.Total = 1;
+        var source = Create(api, options => options with { FieldPolicyMode = "all" });
+
+        await source.LoadRawAsync();
+
+        Assert.DoesNotContain("select=", Uri.UnescapeDataString(api.Requests[0].Query), StringComparison.Ordinal);
+    }
+
+    [Fact]
     public async Task LoadRawAsync_MaxItems_StopsPaging()
     {
         var api = new FakeCloudBaseApi();
@@ -167,10 +205,9 @@ public sealed class CloudBaseContentSourceTests
         Assert.Equal(
             "https://env-abc.api.tcloudbasegateway.com/v1/storages/object/sign/media/posts/a.png?token=x",
             cover);
-        Assert.Equal(
-            "![x](https://env-abc.api.tcloudbasegateway.com/v1/storages/object/sign/media/posts/b.png?token=x)",
-            document.Body.Markdown);
-        Assert.DoesNotContain("cloud://", document.Body.Markdown!, StringComparison.Ordinal);
+        var html = (await result.BodyStore.GetAsync(document)).Html;
+        Assert.Contains("/v1/storages/object/sign/media/posts/b.png?token=x", html, StringComparison.Ordinal);
+        Assert.DoesNotContain("cloud://", html, StringComparison.Ordinal);
         Assert.DoesNotContain("other", document.CustomFields.Keys);
         Assert.Contains(api.Requests, uri => uri.AbsolutePath == "/v1/storages/object/sign/media");
     }
@@ -221,10 +258,12 @@ public sealed class CloudBaseContentSourceTests
         api.Total = 1;
         var source = Create(api, options => options with { DefaultImageUrl = "/ph.jpg" });
 
-        var document = Assert.Single((await source.LoadRawAsync()).Documents);
+        var result = await source.LoadRawAsync();
+        var document = Assert.Single(result.Documents);
 
-        Assert.Equal("![x](/ph.jpg)", document.Body.Markdown);
-        Assert.DoesNotContain("cloud://", document.Body.Markdown!, StringComparison.Ordinal);
+        var html = (await result.BodyStore.GetAsync(document)).Html;
+        Assert.Contains("/ph.jpg", html, StringComparison.Ordinal);
+        Assert.DoesNotContain("cloud://", html, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -235,11 +274,33 @@ public sealed class CloudBaseContentSourceTests
         api.Total = 1;
         var source = Create(api, options => options with { DefaultImageUrl = "/ph.jpg" });
 
-        var document = Assert.Single((await source.LoadRawAsync()).Documents);
+        var result = await source.LoadRawAsync();
+        var document = Assert.Single(result.Documents);
 
-        Assert.Equal("pdf", document.Body.Markdown!.TrimEnd());
-        Assert.DoesNotContain("cloud://", document.Body.Markdown!, StringComparison.Ordinal);
-        Assert.DoesNotContain("a.pdf", document.Body.Markdown!, StringComparison.Ordinal);
+        var html = (await result.BodyStore.GetAsync(document)).Html;
+        Assert.Contains(">pdf</a>", html, StringComparison.Ordinal);
+        Assert.DoesNotContain("cloud://", html, StringComparison.Ordinal);
+        Assert.DoesNotContain("a.pdf", html, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task LoadRawAsync_CodeFenceCloudReference_IsUntouched()
+    {
+        var api = new FakeCloudBaseApi();
+        api.Pages[0] = """[{"id":"a1","title":"A","slug":"a","content":"```\n![x](cloud://env-abc.media/posts/b.png)\n```"}]""";
+        api.Total = 1;
+        var source = Create(api, options => options with
+        {
+            StorageBucket = "media",
+            DefaultImageUrl = "/ph.jpg"
+        });
+
+        var result = await source.LoadRawAsync();
+        var document = Assert.Single(result.Documents);
+        var html = (await result.BodyStore.GetAsync(document)).Html;
+
+        Assert.Contains("cloud://env-abc.media/posts/b.png", html, StringComparison.Ordinal);
+        Assert.DoesNotContain("token=", html, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -267,10 +328,12 @@ public sealed class CloudBaseContentSourceTests
             DefaultImageUrl = "/ph.jpg"
         });
 
-        var document = Assert.Single((await source.LoadRawAsync()).Documents);
+        var result = await source.LoadRawAsync();
+        var document = Assert.Single(result.Documents);
 
-        Assert.Contains("![a](https://example.com/a.png)", document.Body.Markdown, StringComparison.Ordinal);
-        Assert.DoesNotContain("cloud://", document.Body.Markdown!, StringComparison.Ordinal);
+        var html = (await result.BodyStore.GetAsync(document)).Html;
+        Assert.Contains("https://example.com/a.png", html, StringComparison.Ordinal);
+        Assert.DoesNotContain("cloud://", html, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -285,8 +348,9 @@ public sealed class CloudBaseContentSourceTests
             DefaultImageUrl = "/ph.jpg"
         });
 
-        var document = Assert.Single((await source.LoadRawAsync()).Documents);
-        Assert.DoesNotContain("cloud://", document.Body.Markdown!, StringComparison.Ordinal);
+        var result = await source.LoadRawAsync();
+        var document = Assert.Single(result.Documents);
+        Assert.DoesNotContain("cloud://", (await result.BodyStore.GetAsync(document)).Html, StringComparison.Ordinal);
     }
 
     private static CloudBaseContentSource Create(

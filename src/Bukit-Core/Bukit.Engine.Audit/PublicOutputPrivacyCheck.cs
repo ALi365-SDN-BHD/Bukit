@@ -29,33 +29,34 @@ internal static partial class PublicOutputPrivacyCheck
             return new PublicOutputPrivacyCheckResult("not_applicable", []);
         }
 
-        var sensitiveTokens = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var notionTokens = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         foreach (var source in notionSources)
         {
-            AddIdentifierTokens(sensitiveTokens, source.Notion?.DatabaseId);
+            AddIdentifierTokens(notionTokens, source.Notion?.DatabaseId);
         }
 
-        AddCloudBaseTokens(sensitiveTokens, cloudBaseSources);
+        var cloudBaseTokens = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        AddCloudBaseTokens(cloudBaseTokens, cloudBaseSources);
 
         foreach (var record in notionRecords)
         {
-            AddIdentifierTokens(sensitiveTokens, record.Identity.Id);
-            AddIdentifierTokens(sensitiveTokens, record.Identity.CanonicalUrlKey);
+            AddIdentifierTokens(notionTokens, record.Identity.Id);
+            AddIdentifierTokens(notionTokens, record.Identity.CanonicalUrlKey);
             foreach (var entity in record.Entities)
             {
-                AddIdentifierTokens(sensitiveTokens, entity.Name);
-                AddIdentifierTokens(sensitiveTokens, entity.Id);
-                AddIdentifierTokens(sensitiveTokens, entity.Url);
+                AddIdentifierTokens(notionTokens, entity.Name);
+                AddIdentifierTokens(notionTokens, entity.Id);
+                AddIdentifierTokens(notionTokens, entity.Url);
                 foreach (var sameAs in entity.SameAs ?? [])
                 {
-                    AddIdentifierTokens(sensitiveTokens, sameAs);
+                    AddIdentifierTokens(notionTokens, sameAs);
                 }
             }
 
             foreach (var relation in record.Relations)
             {
-                AddIdentifierTokens(sensitiveTokens, relation.Target);
-                AddIdentifierTokens(sensitiveTokens, relation.TargetId);
+                AddIdentifierTokens(notionTokens, relation.Target);
+                AddIdentifierTokens(notionTokens, relation.TargetId);
             }
         }
 
@@ -64,7 +65,12 @@ internal static partial class PublicOutputPrivacyCheck
             return new PublicOutputPrivacyCheckResult("passed", []);
         }
 
-        var matcher = NotionIdentifierMatcher.From(sensitiveTokens);
+        var allTokens = new HashSet<string>(notionTokens, StringComparer.OrdinalIgnoreCase);
+        allTokens.UnionWith(cloudBaseTokens);
+        var matcher = NotionIdentifierMatcher.From(allTokens);
+        var notionMatcher = NotionIdentifierMatcher.From(notionTokens);
+        var cloudBaseMatcher = NotionIdentifierMatcher.From(cloudBaseTokens);
+        var redactionTokens = allTokens;
 
         var errors = new List<string>();
         var options = new EnumerationOptions
@@ -82,21 +88,20 @@ internal static partial class PublicOutputPrivacyCheck
                 continue;
             }
 
-            var pathLeak = matcher.ContainsAny(relativePath);
-            var contentScan = FilePrivacyScan.Clean;
-            if (s_textExtensions.Contains(Path.GetExtension(path)))
-            {
-                contentScan = ScanFileForLeaks(path, matcher);
-            }
+            var pathSource = SourceFor(relativePath, notionMatcher, cloudBaseMatcher);
+            var contentScan = s_textExtensions.Contains(Path.GetExtension(path))
+                ? ScanFileForLeaks(path, matcher, notionMatcher, cloudBaseMatcher)
+                : new FileScanResult(FilePrivacyScan.Clean, PrivacySource.None);
 
-            if (pathLeak || contentScan == FilePrivacyScan.Leak)
+            if (pathSource != PrivacySource.None || contentScan.Status == FilePrivacyScan.Leak)
             {
-                errors.Add($"BKT-BUILD-SECURITY-PRIVACY-0001: public output contains internal Notion provenance at '{RedactPath(relativePath, sensitiveTokens)}'.");
+                var source = pathSource | contentScan.Source;
+                errors.Add($"BKT-BUILD-SECURITY-PRIVACY-0001: public output contains {ProvenanceLabel(source)} at '{RedactPath(relativePath, redactionTokens)}'.");
             }
-            else if (contentScan == FilePrivacyScan.Incomplete)
+            else if (contentScan.Status == FilePrivacyScan.Incomplete)
             {
                 // Do not claim a confirmed leak; the scan could not prove the output clean.
-                errors.Add($"BKT-BUILD-SECURITY-PRIVACY-0001: unable to complete the Notion provenance privacy scan for public output at '{RedactPath(relativePath, sensitiveTokens)}' because the JSON is malformed, too deep, or contains invalid Unicode.");
+                errors.Add($"BKT-BUILD-SECURITY-PRIVACY-0001: unable to complete the content provenance privacy scan for public output at '{RedactPath(relativePath, redactionTokens)}' because the JSON is malformed, too deep, or contains invalid Unicode.");
             }
         }
 
@@ -121,19 +126,15 @@ internal static partial class PublicOutputPrivacyCheck
         foreach (var source in sources)
         {
             var cloudBase = source.CloudBase;
-            AddIdentifierTokens(sensitiveTokens, cloudBase?.EnvId);
             if (string.IsNullOrWhiteSpace(cloudBase?.EnvId))
             {
                 continue;
             }
 
-            sensitiveTokens.Add(cloudBase.EnvId);
             sensitiveTokens.Add("cloud://");
-            var suffix = cloudBase.Region == "intl" ? ".api.intl.tcloudbasegateway.com" : ".api.tcloudbasegateway.com";
-            sensitiveTokens.Add(cloudBase.EnvId + suffix);
+            sensitiveTokens.Add(cloudBase.EnvId + ".api.tcloudbasegateway.com");
+            sensitiveTokens.Add(cloudBase.EnvId + ".api.intl.tcloudbasegateway.com");
             sensitiveTokens.Add(cloudBase.EnvId + ".storage.tcloudbase.com");
-            sensitiveTokens.Add(".api.tcloudbasegateway.com");
-            sensitiveTokens.Add(".api.intl.tcloudbasegateway.com");
             sensitiveTokens.Add(".storage.tcloudbase.com");
         }
     }
@@ -164,12 +165,15 @@ internal static partial class PublicOutputPrivacyCheck
     }
 
     /// <summary>
-    /// Streams a file line-by-line, checking each line for sensitive tokens
-    /// and provider markers. Returns <c>true</c> as soon as a leak is found
-    /// (early exit), avoiding full-file reads on large outputs.
-    /// Falls back to full JSON parse for .json/.jsonld to catch Unicode escapes.
+    /// Streams a file line-by-line, checking each line for sensitive tokens and provider
+    /// markers. Returns the leak status and which provider matched, so the caller can name
+    /// the right one. Falls back to a full JSON parse for .json/.jsonld.
     /// </summary>
-    private static FilePrivacyScan ScanFileForLeaks(string path, NotionIdentifierMatcher matcher)
+    private static FileScanResult ScanFileForLeaks(
+        string path,
+        NotionIdentifierMatcher matcher,
+        NotionIdentifierMatcher notionMatcher,
+        NotionIdentifierMatcher cloudBaseMatcher)
     {
         var extension = Path.GetExtension(path);
         using var reader = new StreamReader(path);
@@ -177,17 +181,17 @@ internal static partial class PublicOutputPrivacyCheck
         {
             if (matcher.ContainsAny(line))
             {
-                return FilePrivacyScan.Leak;
+                return new FileScanResult(FilePrivacyScan.Leak, SourceFor(line, notionMatcher, cloudBaseMatcher));
             }
 
             if (LineProviderMarkerRegex().IsMatch(line) || JsonProviderMarkerRegex().IsMatch(line))
             {
-                return FilePrivacyScan.Leak;
+                return new FileScanResult(FilePrivacyScan.Leak, PrivacySource.Notion);
             }
 
             if (CloudBaseSignedLinkRegex().IsMatch(line))
             {
-                return FilePrivacyScan.Leak;
+                return new FileScanResult(FilePrivacyScan.Leak, PrivacySource.CloudBase);
             }
         }
 
@@ -196,16 +200,67 @@ internal static partial class PublicOutputPrivacyCheck
         if (extension.Equals(".json", StringComparison.OrdinalIgnoreCase) ||
             extension.Equals(".jsonld", StringComparison.OrdinalIgnoreCase))
         {
-            return ScanJson(File.ReadAllText(path), matcher) switch
+            var json = File.ReadAllText(path);
+            if (ScanJson(json, matcher) == JsonPrivacyScan.Leak)
             {
-                JsonPrivacyScan.Leak => FilePrivacyScan.Leak,
-                JsonPrivacyScan.Incomplete => FilePrivacyScan.Incomplete,
-                _ => FilePrivacyScan.Clean
-            };
+                var source = PrivacySource.None;
+                if (ScanJson(json, notionMatcher) == JsonPrivacyScan.Leak)
+                {
+                    source |= PrivacySource.Notion;
+                }
+
+                if (ScanJson(json, cloudBaseMatcher) == JsonPrivacyScan.Leak)
+                {
+                    source |= PrivacySource.CloudBase;
+                }
+
+                return new FileScanResult(FilePrivacyScan.Leak, source);
+            }
+
+            return ScanJson(json, matcher) == JsonPrivacyScan.Incomplete
+                ? new FileScanResult(FilePrivacyScan.Incomplete, PrivacySource.None)
+                : new FileScanResult(FilePrivacyScan.Clean, PrivacySource.None);
         }
 
-        return FilePrivacyScan.Clean;
+        return new FileScanResult(FilePrivacyScan.Clean, PrivacySource.None);
     }
+
+    private static PrivacySource SourceFor(
+        string value,
+        NotionIdentifierMatcher notionMatcher,
+        NotionIdentifierMatcher cloudBaseMatcher)
+    {
+        var source = PrivacySource.None;
+        if (notionMatcher.ContainsAny(value))
+        {
+            source |= PrivacySource.Notion;
+        }
+
+        if (cloudBaseMatcher.ContainsAny(value))
+        {
+            source |= PrivacySource.CloudBase;
+        }
+
+        return source;
+    }
+
+    private static string ProvenanceLabel(PrivacySource source)
+        => source switch
+        {
+            PrivacySource.CloudBase => "internal CloudBase provenance",
+            PrivacySource.Notion => "internal Notion provenance",
+            _ => "internal content provenance"
+        };
+
+    [Flags]
+    private enum PrivacySource
+    {
+        None = 0,
+        Notion = 1,
+        CloudBase = 2
+    }
+
+    private readonly record struct FileScanResult(FilePrivacyScan Status, PrivacySource Source);
 
     /// <summary>
     /// Shared JSON privacy scan for build and deployment checks. Parses once, then checks

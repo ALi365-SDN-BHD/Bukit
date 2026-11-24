@@ -235,12 +235,56 @@ public sealed class CloudBaseClientTests
     }
 
     [Fact]
+    public async Task Sign_MapsByPathNotPosition()
+    {
+        var (client, handler, _) = Create();
+        using var _client = client;
+        handler.Enqueue("""
+            [
+              {"path":"b.jpg","fullSignedURL":"https://env-abc.api.tcloudbasegateway.com/v1/storages/object/sign/media/b.jpg?token=x"},
+              {"path":"a.jpg","fullSignedURL":"https://env-abc.api.tcloudbasegateway.com/v1/storages/object/sign/media/a.jpg?token=x"}
+            ]
+            """);
+
+        var result = await client.SignObjectsAsync("media", ["a.jpg", "b.jpg"], 600);
+
+        Assert.Contains("/a.jpg?", result[0].Url, StringComparison.Ordinal);
+        Assert.Contains("/b.jpg?", result[1].Url, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task Sign_UnknownPath_ThrowsResponseInvalid()
+    {
+        var (client, handler, _) = Create();
+        using var _client = client;
+        handler.Enqueue("""[{"path":"other.jpg","signedURL":"/v1/storages/object/sign/media/other.jpg?token=x"}]""");
+
+        var ex = await Assert.ThrowsAsync<CloudBaseApiException>(() =>
+            client.SignObjectsAsync("media", ["a.jpg"], 600));
+
+        Assert.Equal(CloudBaseErrorKind.ResponseInvalid, ex.Kind);
+    }
+
+    [Fact]
+    public async Task Sign_NonDefaultPort_IsRejected()
+    {
+        var (client, handler, _) = Create();
+        using var _client = client;
+        handler.Enqueue("""[{"path":"a.jpg","fullSignedURL":"https://env-abc.api.tcloudbasegateway.com:8443/v1/storages/object/sign/media/a.jpg?token=x"}]""");
+
+        var result = Assert.Single(await client.SignObjectsAsync("media", ["a.jpg"], 600));
+
+        Assert.Null(result.Url);
+        Assert.Equal("invalid-signed-url", result.Error);
+    }
+
+    [Fact]
     public async Task Sign_BatchesAtMost500()
     {
         var (client, handler, _) = Create();
         using var _client = client;
         handler.Enqueue(BuildSignResponse(500));
-        handler.Enqueue(BuildSignResponse(1));
+        handler.Enqueue("""[{"path":"p/500.jpg","signedURL":"/v1/storages/object/sign/media/p/500.jpg?token=x"}]""");
         var names = Enumerable.Range(0, 501).Select(index => $"p/{index}.jpg").ToArray();
 
         var result = await client.SignObjectsAsync("media", names, 600);

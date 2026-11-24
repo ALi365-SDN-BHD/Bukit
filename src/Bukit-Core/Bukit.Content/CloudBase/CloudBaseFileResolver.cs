@@ -1,14 +1,16 @@
-using System.Text.RegularExpressions;
+using Markdig.Syntax;
+using Markdig.Syntax.Inlines;
 using Bukit.CloudBase.Transport;
+using Bukit.Content.Markdown;
 
 namespace Bukit.Content.CloudBase;
 
 /// <summary>
-/// Signs CloudBase file objects and rewrites the two allowed positions: fileFields values and
-/// body image positions. Everything else that carries <c>cloud://</c> is dropped or degraded
-/// (D17); failures fall back to the media placeholder instead of publishing raw references.
+/// Signs CloudBase file objects for the two allowed positions: fileFields values and body image
+/// nodes. Body references are collected from the parsed Markdown, so code fences, inline code and
+/// raw HTML are never rewritten (D17).
 /// </summary>
-internal sealed partial class CloudBaseFileResolver
+internal sealed class CloudBaseFileResolver
 {
     private readonly CloudBaseClient _client;
     private readonly string _envId;
@@ -16,6 +18,7 @@ internal sealed partial class CloudBaseFileResolver
     private readonly string _placeholder;
     private readonly int _expiresSeconds;
     private readonly Dictionary<string, string?> _resolved = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, string> _bodyObjects = new(StringComparer.Ordinal);
     private readonly List<string> _pending = [];
 
     internal CloudBaseFileResolver(
@@ -76,147 +79,58 @@ internal sealed partial class CloudBaseFileResolver
     internal string Resolve(string objectName)
         => _resolved.TryGetValue(objectName, out var url) && url is not null ? url : _placeholder;
 
-    internal string RewriteMarkdown(string markdown)
-    {
-        if (!markdown.Contains("cloud://", StringComparison.OrdinalIgnoreCase))
-        {
-            return markdown;
-        }
-
-        markdown = InlineImage().Replace(markdown, match =>
-        {
-            var url = match.Groups["url"].Value;
-            if (!url.StartsWith("cloud://", StringComparison.OrdinalIgnoreCase))
-            {
-                return match.Value;
-            }
-
-            return TryParseCloudReference(url, out var objectName)
-                ? match.Value.Replace(url, Resolve(objectName), StringComparison.Ordinal)
-                : match.Value.Replace(url, _placeholder, StringComparison.Ordinal);
-        });
-
-        markdown = InlineLink().Replace(markdown, match =>
-        {
-            var url = match.Groups["url"].Value;
-            if (!url.StartsWith("cloud://", StringComparison.OrdinalIgnoreCase))
-            {
-                return match.Value;
-            }
-
-            return match.Groups["text"].Value;
-        });
-
-        var usedImageLabels = ImageReferenceUse().Matches(markdown)
-            .Select(match => match.Groups["label"].Value)
-            .ToHashSet(StringComparer.Ordinal);
-        var definitions = new Dictionary<string, string>(StringComparer.Ordinal);
-        foreach (Match match in ReferenceDefinition().Matches(markdown))
-        {
-            definitions[match.Groups["label"].Value] = match.Groups["url"].Value;
-        }
-        var linkOnlyLabels = definitions
-            .Where(pair => pair.Value.StartsWith("cloud://", StringComparison.OrdinalIgnoreCase) &&
-                !usedImageLabels.Contains(pair.Key))
-            .Select(pair => pair.Key)
-            .ToHashSet(StringComparer.Ordinal);
-        markdown = ReferenceDefinition().Replace(markdown, match =>
-        {
-            var url = match.Groups["url"].Value;
-            if (linkOnlyLabels.Contains(match.Groups["label"].Value))
-            {
-                return string.Empty;
-            }
-
-            if (!usedImageLabels.Contains(match.Groups["label"].Value))
-            {
-                return match.Value;
-            }
-
-            if (!url.StartsWith("cloud://", StringComparison.OrdinalIgnoreCase))
-            {
-                return match.Value;
-            }
-
-            return TryParseCloudReference(url, out var objectName)
-                ? match.Value.Replace(url, Resolve(objectName), StringComparison.Ordinal)
-                : match.Value.Replace(url, _placeholder, StringComparison.Ordinal);
-        });
-
-        markdown = LinkReferenceUse().Replace(markdown, match =>
-            definitions.TryGetValue(match.Groups["label"].Value, out var url) &&
-            url.StartsWith("cloud://", StringComparison.OrdinalIgnoreCase) &&
-            !usedImageLabels.Contains(match.Groups["label"].Value)
-                ? match.Groups["text"].Value
-                : match.Value);
-
-        markdown = CloudBaseAutolink().Replace(markdown, string.Empty);
-        return markdown;
-    }
-
     internal void CollectMarkdownReferences(string markdown)
     {
-        if (!markdown.Contains("cloud://", StringComparison.OrdinalIgnoreCase))
+        if (string.IsNullOrWhiteSpace(markdown))
         {
             return;
         }
 
-        foreach (Match match in InlineImage().Matches(markdown))
+        var document = BasicMarkdownToHtml.ParseDocument(markdown);
+        foreach (var link in document.Descendants<LinkInline>())
         {
-            CollectReference(match.Groups["url"].Value);
-        }
+            var url = link.Url;
+            if (url is null || !url.StartsWith("cloud://", StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
 
-        foreach (Match match in InlineLink().Matches(markdown))
-        {
-            if (match.Groups["url"].Value.StartsWith("cloud://", StringComparison.OrdinalIgnoreCase))
+            if (!link.IsImage)
             {
                 UnsupportedReferences++;
+                continue;
+            }
+
+            if (TryParseCloudReference(url, out var objectName))
+            {
+                _bodyObjects[url] = objectName;
+                AddPending(objectName);
+            }
+            else
+            {
+                ResolveFailures++;
             }
         }
 
-        var usedImageLabels = ImageReferenceUse().Matches(markdown)
-            .Select(match => match.Groups["label"].Value)
-            .ToHashSet(StringComparer.Ordinal);
-        var definitions = new Dictionary<string, string>(StringComparer.Ordinal);
-        foreach (Match match in ReferenceDefinition().Matches(markdown))
+        foreach (var autolink in document.Descendants<AutolinkInline>())
         {
-            definitions[match.Groups["label"].Value] = match.Groups["url"].Value;
-        }
-        foreach (Match match in LinkReferenceUse().Matches(markdown))
-        {
-            if (definitions.TryGetValue(match.Groups["label"].Value, out var url) &&
-                url.StartsWith("cloud://", StringComparison.OrdinalIgnoreCase) &&
-                !usedImageLabels.Contains(match.Groups["label"].Value))
+            if (autolink.Url?.StartsWith("cloud://", StringComparison.OrdinalIgnoreCase) == true)
             {
                 UnsupportedReferences++;
-            }
-        }
-
-        UnsupportedReferences += CloudBaseAutolink().Matches(markdown).Count;
-        foreach (Match match in ReferenceDefinition().Matches(markdown))
-        {
-            if (usedImageLabels.Contains(match.Groups["label"].Value))
-            {
-                CollectReference(match.Groups["url"].Value);
             }
         }
     }
 
-    private void CollectReference(string url)
+    /// <summary>Maps each original body cloud:// URL to its signed URL or the media placeholder.</summary>
+    internal IReadOnlyDictionary<string, string> BuildBodyUrlMap()
     {
-        if (!url.StartsWith("cloud://", StringComparison.OrdinalIgnoreCase))
+        var map = new Dictionary<string, string>(_bodyObjects.Count, StringComparer.Ordinal);
+        foreach (var (url, objectName) in _bodyObjects)
         {
-            return;
+            map[url] = Resolve(objectName);
         }
 
-        if (TryParseCloudReference(url, out var objectName))
-        {
-            AddPending(objectName);
-        }
-        else
-        {
-            ResolveFailures++;
-        }
+        return map;
     }
 
     internal async Task SignAsync(CancellationToken cancellationToken)
@@ -297,22 +211,4 @@ internal sealed partial class CloudBaseFileResolver
 
         return !name.Split('/').Any(segment => segment == "..");
     }
-
-    [GeneratedRegex(@"!\[[^\]]*\]\[(?<label>[^\]]+)\]", RegexOptions.CultureInvariant)]
-    private static partial Regex ImageReferenceUse();
-
-    [GeneratedRegex(@"!\[(?<alt>[^\]]*)\]\((?<url>[^)\s]+)(?<title>\s+""[^""]*"")?\)", RegexOptions.CultureInvariant)]
-    private static partial Regex InlineImage();
-
-    [GeneratedRegex(@"(?<!!)\[(?<text>[^\]]*)\]\((?<url>[^)\s]+)(?<title>\s+""[^""]*"")?\)", RegexOptions.CultureInvariant)]
-    private static partial Regex InlineLink();
-
-    [GeneratedRegex(@"(?m)^(?<prefix>\s*\[(?<label>[^\]]+)\]:\s*)(?<url>\S+)(?<rest>.*)$", RegexOptions.CultureInvariant)]
-    private static partial Regex ReferenceDefinition();
-
-    [GeneratedRegex(@"(?<!!)\[(?<text>[^\]]*)\]\[(?<label>[^\]]+)\]", RegexOptions.CultureInvariant)]
-    private static partial Regex LinkReferenceUse();
-
-    [GeneratedRegex(@"<(?<url>cloud://[^>]+)>", RegexOptions.CultureInvariant | RegexOptions.IgnoreCase)]
-    private static partial Regex CloudBaseAutolink();
 }

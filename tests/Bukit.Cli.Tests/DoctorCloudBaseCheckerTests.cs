@@ -50,6 +50,16 @@ public sealed class DoctorCloudBaseCheckerTests
     }
 
     [Fact]
+    public async Task BlankSampleIdField_IsFatal()
+    {
+        var output = await Run(
+            Jwt("""{"role":"anon"}"""),
+            new FakeApi { Total = 1, Row = """{"id":"","title":"t","slug":"s","publish_at":"2026-01-01T00:00:00Z","updated_at":"2026-01-02T00:00:00Z","content":"body"}""" });
+
+        Assert.Contains("BKT-0C07", output);
+    }
+
+    [Fact]
     public async Task HealthyTable_NoDiagnosticCodes()
     {
         var output = await Run(Jwt("""{"role":"anon"}"""), new FakeApi { Total = 1, Row = Row() });

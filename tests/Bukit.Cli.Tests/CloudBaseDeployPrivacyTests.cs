@@ -87,10 +87,52 @@ public sealed class CloudBaseDeployPrivacyTests : IDisposable
     [Fact]
     public void Validate_ConfiguredEnvId_Fails()
     {
-        Write("index.html", "<p>env-abc</p>");
+        Write("index.html", "<p>https://env-abc.api.tcloudbasegateway.com/x</p>");
 
-        Assert.NotEmpty(DeploymentPrivacyValidator.Validate(_output, _staged, "env-abc"));
+        Assert.NotEmpty(DeploymentPrivacyValidator.Validate(_output, _staged, ["env-abc"]));
         Assert.Empty(DeploymentPrivacyValidator.Validate(_output, _staged));
+    }
+
+    [Fact]
+    public void Validate_BareEnvIdInProseAndPath_Passes()
+    {
+        Write("blog/index.html", "<p>blog test results</p>");
+
+        Assert.Empty(DeploymentPrivacyValidator.Validate(_output, _staged, ["blog"]));
+    }
+
+    [Fact]
+    public void Validate_EnvIdPrefixDoesNotMatchLongerHost()
+    {
+        Write("index.html", """<a href="https://prod-10.api.tcloudbasegateway.com/x">x</a>""");
+
+        Assert.Empty(DeploymentPrivacyValidator.Validate(_output, _staged, ["prod-1"]));
+    }
+
+    [Fact]
+    public void Validate_SecondCloudBaseEnvId_Fails()
+    {
+        Write("index.html", """<a href="https://env-b.api.tcloudbasegateway.com/x">x</a>""");
+
+        Assert.NotEmpty(DeploymentPrivacyValidator.Validate(_output, _staged, ["env-a", "env-b"]));
+    }
+
+    [Fact]
+    public void Validate_CloudBaseSignedLink_NamesCloudBase()
+    {
+        Write("guide.md", """https://env-abc.api.tcloudbasegateway.com/v1/storages/object/sign/media/a.png?token=x""");
+
+        var errors = DeploymentPrivacyValidator.Validate(_output, _staged);
+
+        Assert.Contains(errors, error => error.Contains("CloudBase provenance", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void Validate_MalformedJsonWithCloudReference_Fails()
+    {
+        Write("data.json", """{"image":"cloud://env-abc.media/a.png""");
+
+        Assert.NotEmpty(Validate());
     }
 
     private IReadOnlyList<string> Validate() => DeploymentPrivacyValidator.Validate(_output, _staged);

@@ -159,7 +159,7 @@ if [[ -n "$native_lib" && ! -f "$publish_dir/$native_lib" ]]; then
     exit 1
   }
   cp -- "$source_lib" "$publish_dir/$native_lib"
-  touch -t 202001010000 "$publish_dir/$native_lib"
+  TZ=UTC touch -t 202001010000 "$publish_dir/$native_lib"
   echo "restored $native_lib from $source_lib" >&2
 fi
 

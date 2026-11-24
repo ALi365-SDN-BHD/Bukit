@@ -10,14 +10,17 @@ internal static partial class CloudBaseEndpoints
     internal const string RestPrefix = "/v1/rdb/rest/";
     internal const string SignPrefix = "/v1/storages/object/sign/";
     internal const string SignedUrlTokenParameter = "token";
+    internal const string GatewaySuffix = ".api.tcloudbasegateway.com";
+    internal const string IntlGatewaySuffix = ".api.intl.tcloudbasegateway.com";
+    internal const string StorageSuffix = ".storage.tcloudbase.com";
 
     internal static string GatewayHost(string envId, string region)
         => region == "intl"
-            ? $"{envId}.api.intl.tcloudbasegateway.com"
-            : $"{envId}.api.tcloudbasegateway.com";
+            ? envId + IntlGatewaySuffix
+            : envId + GatewaySuffix;
 
     internal static string StorageCdnHost(string envId)
-        => $"{envId}.storage.tcloudbase.com";
+        => envId + StorageSuffix;
 
     [GeneratedRegex("^[a-z0-9][a-z0-9-]{0,62}$", RegexOptions.CultureInvariant)]
     internal static partial Regex EnvIdPattern();

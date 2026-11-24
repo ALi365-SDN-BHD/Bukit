@@ -7,10 +7,17 @@ namespace Bukit.Content.CloudBase;
 internal sealed class CloudBaseBodyStore : IContentBodyStore
 {
     private readonly IReadOnlyDictionary<string, string> _markdownByKey;
+    private readonly IReadOnlyDictionary<string, string> _imageUrls;
+    private readonly string _placeholder;
 
-    internal CloudBaseBodyStore(IReadOnlyDictionary<string, string> markdownByKey)
+    internal CloudBaseBodyStore(
+        IReadOnlyDictionary<string, string> markdownByKey,
+        IReadOnlyDictionary<string, string>? imageUrls = null,
+        string placeholder = "/assets/images/noneimg-news.jpg")
     {
         _markdownByKey = markdownByKey;
+        _imageUrls = imageUrls ?? new Dictionary<string, string>(StringComparer.Ordinal);
+        _placeholder = placeholder;
     }
 
     public Task<ContentBody> GetAsync(ContentDocument document, CancellationToken cancellationToken = default)
@@ -22,6 +29,19 @@ internal sealed class CloudBaseBodyStore : IContentBodyStore
             return Task.FromResult(new ContentBody(document.Body.Html ?? string.Empty));
         }
 
-        return Task.FromResult(new ContentBody(BasicMarkdownToHtml.Convert(markdown, untrustedLinks: true)));
+        return Task.FromResult(new ContentBody(BasicMarkdownToHtml.Convert(
+            markdown,
+            untrustedLinks: true,
+            imageUrlResolver: ResolveImageUrl)));
+    }
+
+    private string ResolveImageUrl(string url)
+    {
+        if (!url.StartsWith("cloud://", StringComparison.OrdinalIgnoreCase))
+        {
+            return url;
+        }
+
+        return _imageUrls.TryGetValue(url, out var signed) ? signed : _placeholder;
     }
 }
