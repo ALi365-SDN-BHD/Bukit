@@ -277,7 +277,10 @@ internal sealed class SitemapPublishProjection : AggregatePublishProjectionBase
         }
 
         var sitemapDir = Path.GetDirectoryName(I18nOutputLayout.VariantSitemapRelativePath(context.Config)) ?? string.Empty;
-        SitemapGenerator.GenerateAbsolute(Path.Combine(context.OutputDir, sitemapDir), filtered);
+        SitemapGenerator.GenerateAbsolute(
+            Path.Combine(context.OutputDir, sitemapDir),
+            filtered,
+            TimeZoneResolver.ResolveOrUtc(context.Config.Site.Timezone));
     }
 
     protected override string ResolveRelativePath(PublishProjectionContext context)

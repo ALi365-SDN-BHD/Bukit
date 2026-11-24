@@ -16,7 +16,7 @@ Bukit 所有重要变更都将记录在此文件中。
 
 - **面包屑分类上级排在网址祖先之后**：开启 `site.seo.schema.breadcrumbParent` 时，BreadcrumbList 改为「首页 › 网址祖先 › 分类页 › 当前页」，不再把分类页放在网址祖先前面；分类页本身就是网址祖先时只出现一次。见 [11 I18n And SEO](guide/user/11-i18n-seo.md)。
 
-- **JSON-LD 语言与日期**：`WebSite` JSON-LD 用 `inLanguage` 写出 `site.language`，`WebPage`/`CollectionPage` 写出页面语言。`datePublished`、`dateModified`、`dateReviewed` 改为按 `site.timezone` 输出、精确到秒（如 `2026-06-05T18:00:00+08:00`），不再使用往返格式。发布审计的 `publish.jsonld_date_mismatch` 按 JSON-LD 日期自带的时区比较发布时间所在的日期，同一时刻不再误报。
+- **JSON-LD 语言与日期**：`WebSite` JSON-LD 用 `inLanguage` 写出 `site.language`，`WebPage`/`CollectionPage` 写出页面语言。`datePublished`、`dateModified`、`dateReviewed` 改为按 `site.timezone` 输出、精确到秒（如 `2026-06-05T18:00:00+08:00`），不再使用往返格式；`article:published_time`、`article:modified_time` meta 标签同样如此，sitemap 的 `<lastmod>` 也改为 `site.timezone` 下的日期。发布审计的 `publish.jsonld_date_mismatch` 按 JSON-LD 日期自带的时区比较发布时间所在的日期，同一时刻不再误报。
 
 - **sitemap 网址百分号编码**：sitemap 的 `<loc>` 和 `xhtml:link` 的 `href` 会按 RFC 3986 把主机之后的非 ASCII 字符和其他不允许出现在 URI 中的字符编码为 UTF-8 百分号形式（`/新闻/` → `/%E6%96%B0%E9%97%BB/`）。HTML 的 canonical 和 hreflang 标签不变。发布审计仍能查出出现在 sitemap 中的非 ASCII 网址 noindex 页面。
 

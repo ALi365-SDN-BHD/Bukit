@@ -28,7 +28,7 @@ internal static class SitemapGenerator
             var loc = BuildAbsoluteUrl(normalizedSiteUrl, normalizedBaseUrl, route.Url);
             sb.AppendLine("  <url>");
             sb.AppendLine($"    <loc>{Loc(loc)}</loc>");
-            AppendLastModified(sb, lastModified);
+            AppendLastModified(sb, lastModified, timeZone: null);
             sb.AppendLine("  </url>");
         }
 
@@ -46,9 +46,11 @@ internal static class SitemapGenerator
             .Select(static route => (route.Route, (DateTimeOffset?)route.LastModified))
             .ToArray());
 
+    /// <param name="timeZone">Zone whose calendar date <c>lastmod</c> uses; <c>null</c> keeps each value's own offset.</param>
     public static void GenerateAbsolute(
         string outputDir,
-        IReadOnlyList<(string AbsoluteUrl, DateTimeOffset? LastModified)> entries)
+        IReadOnlyList<(string AbsoluteUrl, DateTimeOffset? LastModified)> entries,
+        TimeZoneInfo? timeZone = null)
     {
         var sb = new StringBuilder();
         sb.AppendLine("<?xml version=\"1.0\" encoding=\"UTF-8\"?>");
@@ -58,7 +60,7 @@ internal static class SitemapGenerator
         {
             sb.AppendLine("  <url>");
             sb.AppendLine($"    <loc>{Loc(absoluteUrl)}</loc>");
-            AppendLastModified(sb, lastModified);
+            AppendLastModified(sb, lastModified, timeZone);
             sb.AppendLine("  </url>");
         }
 
@@ -68,12 +70,13 @@ internal static class SitemapGenerator
 
     public static void GenerateAbsolute(
         string outputDir,
-        IReadOnlyList<(string AbsoluteUrl, DateTimeOffset LastModified)> entries)
+        IReadOnlyList<(string AbsoluteUrl, DateTimeOffset LastModified)> entries,
+        TimeZoneInfo? timeZone = null)
         => GenerateAbsolute(outputDir, entries
             .Select(static entry => (entry.AbsoluteUrl, (DateTimeOffset?)entry.LastModified))
-            .ToArray());
+            .ToArray(), timeZone);
 
-    public static void GenerateAbsoluteWithAlternates(string outputDir, IReadOnlyList<UrlEntry> entries)
+    public static void GenerateAbsoluteWithAlternates(string outputDir, IReadOnlyList<UrlEntry> entries, TimeZoneInfo? timeZone = null)
     {
         var hasAlternates = entries.Any(e => e.Alternates is { Count: > 0 });
 
@@ -87,7 +90,7 @@ internal static class SitemapGenerator
         {
             sb.AppendLine("  <url>");
             sb.AppendLine($"    <loc>{Loc(entry.AbsoluteUrl)}</loc>");
-            AppendLastModified(sb, entry.LastModified);
+            AppendLastModified(sb, entry.LastModified, timeZone);
 
             if (hasAlternates && entry.Alternates is { Count: > 0 } alts)
             {
@@ -130,14 +133,15 @@ internal static class SitemapGenerator
         return siteUrl + path;
     }
 
-    private static void AppendLastModified(StringBuilder sb, DateTimeOffset? lastModified)
+    private static void AppendLastModified(StringBuilder sb, DateTimeOffset? lastModified, TimeZoneInfo? timeZone)
     {
-        if (lastModified is null || lastModified == DateTimeOffset.UnixEpoch)
+        if (lastModified is not { } value || value == DateTimeOffset.UnixEpoch)
         {
             return;
         }
 
-        sb.AppendLine($"    <lastmod>{lastModified.Value:yyyy-MM-dd}</lastmod>");
+        var local = timeZone is null ? value : TimeZoneInfo.ConvertTime(value, timeZone);
+        sb.AppendLine($"    <lastmod>{local:yyyy-MM-dd}</lastmod>");
     }
 
     private static string NormalizeSiteUrl(string siteUrl)

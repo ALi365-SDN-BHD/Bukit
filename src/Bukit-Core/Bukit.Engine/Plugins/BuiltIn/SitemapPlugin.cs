@@ -71,7 +71,10 @@ internal sealed class SitemapPlugin : IBukitPlugin, IAfterBuildPlugin
         }
 
         var sitemapDir = Path.GetDirectoryName(I18nOutputLayout.VariantSitemapRelativePath(_config)) ?? string.Empty;
-        SitemapGenerator.GenerateAbsolute(Path.Combine(context.OutputDir, sitemapDir), filtered);
+        SitemapGenerator.GenerateAbsolute(
+            Path.Combine(context.OutputDir, sitemapDir),
+            filtered,
+            TimeZoneResolver.ResolveOrUtc(_config.Site.Timezone));
     }
 
     internal static HashSet<string> BuildDocumentSitemapExclusions(

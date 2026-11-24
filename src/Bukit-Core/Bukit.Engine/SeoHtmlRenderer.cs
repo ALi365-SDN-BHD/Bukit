@@ -1,4 +1,5 @@
 using System.Buffers;
+using System.Globalization;
 using System.Net;
 using System.Text;
 using System.Text.Json;
@@ -147,12 +148,12 @@ internal static partial class SeoHtmlRenderer
 
         if (seo.Article.PublishedTime is { } published)
         {
-            WriteMetaProperty(sb, "article:published_time", published.ToString("O"));
+            WriteMetaProperty(sb, "article:published_time", FormatArticleTime(published));
         }
 
         if (seo.Article.ModifiedTime is { } modified)
         {
-            WriteMetaProperty(sb, "article:modified_time", modified.ToString("O"));
+            WriteMetaProperty(sb, "article:modified_time", FormatArticleTime(modified));
         }
 
         WriteMetaProperty(sb, "article:author", seo.Article.Author);
@@ -321,6 +322,9 @@ internal static partial class SeoHtmlRenderer
     }
 
     private static string Attr(string value) => WebUtility.HtmlEncode(value);
+
+    private static string FormatArticleTime(DateTimeOffset value)
+        => value.ToString("yyyy-MM-dd'T'HH:mm:sszzz", CultureInfo.InvariantCulture);
 
     private static bool IsManagedTag(string tag)
     {
