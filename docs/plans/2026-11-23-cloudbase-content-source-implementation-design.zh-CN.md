@@ -55,7 +55,7 @@
 | 编号 | 验收条件 |
 |---|---|
 | AC1 | 配置了 `type: cloudbase` 的站点能通过 `config check`。以下情况都要以 CloudBase 诊断码失败：缺少必填项、取值越界、`envId` 不符合字符集、凭据写进 YAML、违反 D8 第 ①②④⑤ 条。D8 第 ③ 条中"占位图存在"这一半只能在构建阶段判断：`build` 以 `CloudBaseConfigInvalid` 失败，`config check`/`doctor` 给出警告 |
-| AC2 | 用伪造的 HTTP 响应跑 `build`，端到端生成页面。要求：按 `limit`/`offset` 分页读完全部行（以 `Content-Range` 总数或短页判断结束）；按 `maxItems` 截断；查询请求正确带上 `eq.` filter，以及以 `idField` 结尾的 order |
+| AC2 | 用伪造的 HTTP 响应跑 `build`，端到端生成页面。要求：按 `limit`/`offset` 分页读完全部行（已知 `Content-Range` 总数时读到 offset 达到总数或空页才停，没有总数时以短页判断结束）；按 `maxItems` 截断；查询请求正确带上 `eq.` filter，以及以 `idField` 结尾的 order |
 | AC3 | 字段投影默认用白名单。`user_id`、`owner`、`created_by`、`updated_by`、`_openid` 这些列在任何 `fieldPolicy` 模式下都不会进入公开产物；`idField`（默认 `id`）只作内部来源标识，`all` 模式下也不投影（D7） |
 | AC4 | Markdown 正文里，链接、自动链接（`<scheme:...>`）、引用式链接定义和图片中的 `javascript:`、`vbscript:`、`data:`、`//host` 被丢弃，大小写变体和 HTML 实体编码（如 `jav&#x61;script:`）也一样；`#片段` 和不带协议的相对链接保留。这些都要有测试覆盖 |
 | AC5 | `fileFields` 里的对象名（或 `cloud://` 兼容形式）和正文图片位置里的 `cloud://` 兼容引用，通过 PG 存储批量签名接口换成签名链接，并在同一次构建内下载到本地；其他位置的 `cloud://` 不换链，按 D17 降级并报诊断。发布产物里不能出现 `cloud://`、envId、网关主机、存储 CDN 主机和签名链接 |
@@ -118,7 +118,7 @@ CloudBaseBodyStore : IContentBodyStore ──> BasicMarkdownToHtml（不可信�
 
 **数据流**：
 
-1. `LoadRawAsync` 用 PostgREST 按 `limit`/`offset` 分页读取全部行（D6），带 `Prefer: count=exact`，order 以唯一的 `idField` 结尾；读到短页或 offset 达到总数就停，最多取 `maxItems` 行。
+1. `LoadRawAsync` 用 PostgREST 按 `limit`/`offset` 分页读取全部行（D6），带 `Prefer: count=exact`，order 以唯一的 `idField` 结尾；已知总数时读到 offset 达到总数或空页才停（短页可能只是网关的行数上限），没有总数时读到短页就停，最多取 `maxItems` 行。
 2. 对每一行做字段投影：先硬性剔除敏感列，再应用白名单（D7）。
 3. 只收集两类位置的文件引用（D17）：`fileFields` 字段里的对象名（或 `cloud://` 兼容形式），以及正文图片位置（`![]()` 和图片引用定义）里的 `cloud://` 兼容引用。按每批最多 500 个调用存储批量签名接口，按 D17 的取值规则得到签名链接（有 `fullSignedURL` 用它，否则网关源加相对的 `signedURL`），校验协议、主机和路径前缀后替换回原文。正文里已经是网关存储路由或存储 CDN 形式的 https 链接走现有媒体本地化；其他位置的 `cloud://` 按 D17 处理。
 4. 返回 `RawContentDocument`。
@@ -285,7 +285,7 @@ BukitJalil 按固定表给 BKT 码分类。它维护中的消费方契约在 `gu
 
 - **Transport**（`Bukit.CloudBase.Tests`，用伪造的 `HttpMessageHandler`）：
   - 鉴权头生成、网关域名选择；
-  - PostgREST 分页：`limit`/`offset`、`Prefer: count=exact`、`Content-Range` 解析（含畸形值）、短页或达到总数时停止；
+  - PostgREST 分页：`limit`/`offset`、`Prefer: count=exact`、`Content-Range` 解析（含畸形值）、已知总数时达到总数或空页才停止、无总数时短页停止；
   - 查询请求里 `eq.` filter 的 URL 编码和以 `idField` 结尾的 order（AC2）；
   - 存储批量签名：每批最多 500 个、单项 `error`；签名链接取值（有 `fullSignedURL` 用它，否则网关源加相对的 `signedURL`）；协议、主机和路径前缀校验；
   - JWT `role` 解码：`anon`、`service_role`、缺失、畸形；
@@ -374,7 +374,7 @@ BukitJalil 按固定表给 BKT 码分类。它维护中的消费方契约在 `gu
 |---|---|
 | 真实环境里 Publishable Key 收窄不到只读（G0-4 只按文档通过） | T10 冒烟验证；不通过时改走方案 C，或者书面接受 `service_role` 的风险，同时启用 doctor 警告、隔离密钥、定期轮换 |
 | RLS 静默过滤，`200 []` 被当成"没有内容" | doctor 提示；文档给出 GRANT 和 RLS 的 SQL 示例 |
-| PostgREST 单次行数上限没有文档 | `pageSize` 上限 1000，按短页或 `Content-Range` 总数判断结束，不依赖服务端上限 |
+| PostgREST 单次行数上限没有文档 | `pageSize` 上限 1000，已知 `Content-Range` 总数时按总数或空页判断结束，短页不算结束，因此不依赖服务端上限 |
 | 文档里签名兑换路径模板漏了 `/{objectName}`；`fullSignedURL` 可能不存在 | 不自己拼对象路径：有 `fullSignedURL` 用它，否则只把网关源拼在服务端返回的相对 `signedURL` 前面（实测 `signedURL` 带完整的 `{bucket}/{object}` 路径）；两种都校验协议、主机和路径前缀 |
 | 传统模式环境不在范围内 | P1 只支持 PG 模式；传统模式（数据模型）可以在 P2 增加 |
 | 签名链接在构建过程中过期（正文图片延迟本地化） | `signExpiresSeconds` 默认 3600；失败时落到占位图，并报诊断 |

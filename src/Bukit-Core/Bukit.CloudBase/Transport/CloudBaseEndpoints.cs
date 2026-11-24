@@ -22,12 +22,12 @@ internal static partial class CloudBaseEndpoints
     internal static string StorageCdnHost(string envId)
         => envId + StorageSuffix;
 
-    [GeneratedRegex("^[a-z0-9][a-z0-9-]{0,62}$", RegexOptions.CultureInvariant)]
+    [GeneratedRegex("^[a-z0-9][a-z0-9-]{0,62}\\z", RegexOptions.CultureInvariant)]
     internal static partial Regex EnvIdPattern();
 
-    [GeneratedRegex("^[a-z0-9][a-z0-9._-]{0,62}$", RegexOptions.CultureInvariant)]
+    [GeneratedRegex("^[a-z0-9][a-z0-9._-]{0,62}\\z", RegexOptions.CultureInvariant)]
     internal static partial Regex BucketPattern();
 
-    [GeneratedRegex("^[A-Za-z_][A-Za-z0-9_]{0,62}$", RegexOptions.CultureInvariant)]
+    [GeneratedRegex("^[A-Za-z_][A-Za-z0-9_]{0,62}\\z", RegexOptions.CultureInvariant)]
     internal static partial Regex IdentifierPattern();
 }

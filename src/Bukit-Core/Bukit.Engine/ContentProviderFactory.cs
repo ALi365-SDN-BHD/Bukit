@@ -171,7 +171,7 @@ internal static class ContentProviderFactory
                 PublishableKey = publishableKey,
                 StorageBucket = cloudBase.StorageBucket,
                 FileFields = cloudBase.FileFields,
-                DefaultImageUrl = config.Content.Media.DefaultImageUrl,
+                DefaultImageUrl = CloudBasePlaceholderUrl(config.Content.Media.DefaultImageUrl),
                 SignExpiresSeconds = cloudBase.SignExpiresSeconds,
                 MaxRps = cloudBase.MaxRps is > 0 ? cloudBase.MaxRps.Value : 5,
                 MaxRetries = cloudBase.MaxRetries ?? 3
@@ -253,6 +253,30 @@ internal static class ContentProviderFactory
         return value.StartsWith('/') ? value : "/" + value;
     }
 
+    /// <summary>The site path of the media placeholder: trimmed, defaulted and root-relative.</summary>
+    private static string NormalizeDefaultImageUrl(string? defaultImageUrl)
+    {
+        var value = (defaultImageUrl ?? string.Empty).Trim();
+        if (value.Length == 0)
+        {
+            return "/assets/images/noneimg-news.jpg";
+        }
+
+        return value.StartsWith('/') ? value : "/" + value;
+    }
+
+    /// <summary>
+    /// CloudBase substitutes the placeholder directly into fields and body images, so an absolute
+    /// http(s) placeholder is kept as written; anything else gets the site-path normalization.
+    /// </summary>
+    internal static string CloudBasePlaceholderUrl(string? defaultImageUrl)
+    {
+        var value = (defaultImageUrl ?? string.Empty).Trim();
+        return Uri.TryCreate(value, UriKind.Absolute, out var absolute) && absolute.Scheme is "http" or "https"
+            ? value
+            : NormalizeDefaultImageUrl(value);
+    }
+
     internal static MediaConfig BuildEffectiveMediaConfig(MediaConfig media, string rootDir, string cacheDir)
     {
         var downloadDir = (media.DownloadDir ?? string.Empty).Trim();
@@ -269,15 +293,7 @@ internal static class ContentProviderFactory
 
         var urlBase = NormalizeMediaUrlBase(media.UrlBase);
 
-        var defaultImageUrl = (media.DefaultImageUrl ?? string.Empty).Trim();
-        if (defaultImageUrl.Length == 0)
-        {
-            defaultImageUrl = "/assets/images/noneimg-news.jpg";
-        }
-        if (!defaultImageUrl.StartsWith('/'))
-        {
-            defaultImageUrl = "/" + defaultImageUrl;
-        }
+        var defaultImageUrl = NormalizeDefaultImageUrl(media.DefaultImageUrl);
 
         return media with
         {

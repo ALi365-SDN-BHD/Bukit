@@ -95,13 +95,41 @@ chmod +x "$fake_bin/dotnet" "$fake_bin/pwsh" "$fake_bin/tar"
 export PATH="$fake_bin:$PATH"
 export FAKE_DOTNET_ARGS="$scratch/dotnet.args"
 
+pinned_version() {
+  sed -n "s/.*<PackageVersion Include=\"$1\" Version=\"\([^\"]*\)\".*/\1/p" Directory.Packages.props | head -n 1
+}
+
 create_fake_nuget() {
   export NUGET_PACKAGES="$1/fake-nuget"
   local root="$NUGET_PACKAGES"
-  mkdir -p "$root/skiasharp.nativeassets.linux.nodependencies/1.0.0/runtimes/linux-x64/native"
-  printf 'native\n' > "$root/skiasharp.nativeassets.linux.nodependencies/1.0.0/runtimes/linux-x64/native/libSkiaSharp.so"
-  mkdir -p "$root/skiasharp.nativeassets.win32/1.0.0/runtimes/win-x64/native"
-  printf 'native\n' > "$root/skiasharp.nativeassets.win32/1.0.0/runtimes/win-x64/native/libSkiaSharp.dll"
-  mkdir -p "$root/skiasharp.nativeassets.macos/1.0.0/runtimes/osx/native"
-  printf 'native\n' > "$root/skiasharp.nativeassets.macos/1.0.0/runtimes/osx/native/libSkiaSharp.dylib"
+  local skia linux
+  skia="$(pinned_version SkiaSharp)"
+  linux="$(pinned_version SkiaSharp.NativeAssets.Linux.NoDependencies)"
+  [[ -n "$skia" && -n "$linux" ]] || { echo "native-aot self-test: SkiaSharp pins not found" >&2; exit 1; }
+  for rid in linux-x64 linux-arm64; do
+    mkdir -p "$root/skiasharp.nativeassets.linux.nodependencies/$linux/runtimes/$rid/native"
+    printf 'native\n' > "$root/skiasharp.nativeassets.linux.nodependencies/$linux/runtimes/$rid/native/libSkiaSharp.so"
+  done
+  for rid in win-x64 win-arm64; do
+    mkdir -p "$root/skiasharp.nativeassets.win32/$skia/runtimes/$rid/native"
+    printf 'native\n' > "$root/skiasharp.nativeassets.win32/$skia/runtimes/$rid/native/libSkiaSharp.dll"
+  done
+  mkdir -p "$root/skiasharp.nativeassets.macos/$skia/runtimes/osx/native"
+  printf 'native\n' > "$root/skiasharp.nativeassets.macos/$skia/runtimes/osx/native/libSkiaSharp.dylib"
+}
+
+# Only the pinned native asset version may be restored; another cached version must fail.
+check_unpinned_native_asset_fails() {
+  local scratch="$1"
+  local wrong_version_root wrong_nuget_root
+  wrong_version_root="$scratch/wrong-version"
+  wrong_nuget_root="$scratch/wrong-version-nuget"
+  mkdir -p "$wrong_version_root" "$wrong_nuget_root/skiasharp.nativeassets.linux.nodependencies/0.0.1-other/runtimes/linux-x64/native"
+  printf 'native\n' > "$wrong_nuget_root/skiasharp.nativeassets.linux.nodependencies/0.0.1-other/runtimes/linux-x64/native/libSkiaSharp.so"
+  if NUGET_PACKAGES="$wrong_nuget_root" bash scripts/build/package-native-aot.sh 1.2.3 linux-x64 "$wrong_version_root" Release \
+    >"$scratch/wrong-version.stdout" 2>"$scratch/wrong-version.stderr"; then
+    echo "native-aot self-test: unpinned native asset version unexpectedly succeeded" >&2
+    exit 1
+  fi
+  grep -F 'native AOT publish is missing libSkiaSharp.so' "$scratch/wrong-version.stderr" >/dev/null
 }

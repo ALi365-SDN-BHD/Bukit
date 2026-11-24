@@ -7,7 +7,8 @@ unset BUKIT_REPRO_ROUNDS BUKIT_REPRO_REFERENCE
 scratch="$(mktemp -d "${TMPDIR:-/tmp}/bukit-build-repro-self-test.XXXXXX")"
 trap 'rm -rf -- "$scratch"' EXIT
 
-export NUGET_PACKAGES="$scratch/fake-nuget"; mkdir -p "$NUGET_PACKAGES/skiasharp.nativeassets.linux.nodependencies/1.0.0/runtimes/linux-x64/native"; printf 'native\n' > "$NUGET_PACKAGES/skiasharp.nativeassets.linux.nodependencies/1.0.0/runtimes/linux-x64/native/libSkiaSharp.so"
+skia_linux="$(sed -n 's/.*<PackageVersion Include="SkiaSharp.NativeAssets.Linux.NoDependencies" Version="\([^"]*\)".*/\1/p' Directory.Packages.props | head -n 1)"
+export NUGET_PACKAGES="$scratch/fake-nuget"; mkdir -p "$NUGET_PACKAGES/skiasharp.nativeassets.linux.nodependencies/$skia_linux/runtimes/linux-x64/native"; printf 'native\n' > "$NUGET_PACKAGES/skiasharp.nativeassets.linux.nodependencies/$skia_linux/runtimes/linux-x64/native/libSkiaSharp.so"
 
 fake_bin="$scratch/bin"
 mkdir -p "$fake_bin"

@@ -68,6 +68,17 @@ public sealed partial class SiteEngineIntegrationTests
         Assert.DoesNotContain("u-secret", html, StringComparison.Ordinal);
     }
 
+    [Theory]
+    [InlineData("assets/images/p.jpg", "/assets/images/p.jpg")]
+    [InlineData("  /assets/images/p.jpg  ", "/assets/images/p.jpg")]
+    [InlineData("   ", "/assets/images/noneimg-news.jpg")]
+    [InlineData(null, "/assets/images/noneimg-news.jpg")]
+    [InlineData("https://cdn.example.com/p.jpg", "https://cdn.example.com/p.jpg")]
+    public void CloudBasePlaceholderUrl_MatchesMediaNormalization(string? configured, string expected)
+    {
+        Assert.Equal(expected, ContentProviderFactory.CloudBasePlaceholderUrl(configured));
+    }
+
     [Fact]
     public void Create_CloudBaseFileFieldsWithoutPlaceholder_Throws()
     {

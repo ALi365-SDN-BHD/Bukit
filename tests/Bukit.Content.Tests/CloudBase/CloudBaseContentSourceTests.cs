@@ -278,9 +278,112 @@ public sealed class CloudBaseContentSourceTests
         var document = Assert.Single(result.Documents);
 
         var html = (await result.BodyStore.GetAsync(document)).Html;
-        Assert.Contains(">pdf</a>", html, StringComparison.Ordinal);
+        Assert.Equal("<p>pdf</p>", html);
+    }
+
+    [Theory]
+    [InlineData("[Download the PDF](cloud://env-abc.media/posts/a.pdf)", "<p>Download the PDF</p>")]
+    [InlineData("see <cloud://env-abc.media/posts/a.pdf> now", "<p>see  now</p>")]
+    [InlineData("[**bold** text](javascript:alert(1))", "<p><strong>bold</strong> text</p>")]
+    public async Task LoadRawAsync_RefusedLink_RendersAsPlainText(string markdown, string expected)
+    {
+        var api = new FakeCloudBaseApi();
+        api.Pages[0] = System.Text.Json.JsonSerializer.Serialize(new[]
+        {
+            new Dictionary<string, string> { ["id"] = "a1", ["title"] = "A", ["slug"] = "a", ["content"] = markdown }
+        });
+        api.Total = 1;
+        var source = Create(api, options => options with { DefaultImageUrl = "/ph.jpg" });
+
+        var result = await source.LoadRawAsync();
+        var document = Assert.Single(result.Documents);
+
+        Assert.Equal(expected, (await result.BodyStore.GetAsync(document)).Html);
+    }
+
+    [Fact]
+    public async Task LoadRawAsync_WhitelistSelectRejected_RetriesWithoutSelect()
+    {
+        // A table without the default slug/publish_at/updated_at columns rejects the select with 400.
+        var api = new FakeCloudBaseApi { RejectSelect = true };
+        api.Pages[0] = """[{"id":"a1","title":"A","content":"x","secret":"s"}]""";
+        api.Total = 1;
+        var source = Create(api, options => options with { FieldPolicyMode = "whitelist" });
+
+        var document = Assert.Single((await source.LoadRawAsync()).Documents);
+
+        Assert.Equal(2, api.Requests.Count);
+        Assert.Contains("select=", Uri.UnescapeDataString(api.Requests[0].Query), StringComparison.Ordinal);
+        Assert.DoesNotContain("select=", Uri.UnescapeDataString(api.Requests[1].Query), StringComparison.Ordinal);
+        Assert.DoesNotContain("secret", document.CustomFields!.Keys);
+    }
+
+    [Fact]
+    public async Task LoadRawAsync_DuplicateId_ThrowsResponseInvalid()
+    {
+        var api = new FakeCloudBaseApi();
+        api.Pages[0] = """[{"id":"a1","title":"One","content":"x"},{"id":"a1","title":"Two","content":"y"}]""";
+        api.Total = 2;
+        var source = Create(api, options => options);
+
+        var ex = await Assert.ThrowsAsync<ContentException>(() => source.LoadRawAsync());
+
+        Assert.Equal(DiagnosticCode.CloudBaseResponseInvalid, ex.Code);
+    }
+
+    [Theory]
+    [InlineData("1732406400000000")]
+    [InlineData("9223372036854775807")]
+    [InlineData("-62135596801")]
+    public async Task LoadRawAsync_OutOfRangeEpoch_IsTreatedAsMissing(string epoch)
+    {
+        var api = new FakeCloudBaseApi();
+        api.Pages[0] = $$"""[{"id":"a1","title":"A","publish_at":{{epoch}},"updated_at":{{epoch}},"content":"x"}]""";
+        api.Total = 1;
+        var source = Create(api, options => options);
+
+        var document = Assert.Single((await source.LoadRawAsync()).Documents);
+
+        Assert.Null(document.PublishedAt);
+        Assert.DoesNotContain("last_edited_time", document.CustomFields!.Keys);
+    }
+
+    [Fact]
+    public async Task LoadRawAsync_ModeData_DropsCloudReferenceFields()
+    {
+        var api = new FakeCloudBaseApi();
+        api.Pages[0] = """[{"id":"a1","title":"A","note":"see cloud://env-abc.media/a.png","tag":"kept"}]""";
+        api.Total = 1;
+        var source = Create(api, options => options with
+        {
+            Mode = "data",
+            FieldPolicyMode = "whitelist",
+            AllowedFields = ["note", "tag"]
+        });
+
+        var document = Assert.Single((await source.LoadRawAsync()).Documents);
+
+        Assert.DoesNotContain("note", document.CustomFields!.Keys);
+        Assert.Equal("kept", document.CustomFields["tag"].Value);
+        Assert.DoesNotContain(api.Requests, uri => uri.AbsolutePath.StartsWith("/v1/storages/", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task LoadRawAsync_EmptyBucketCloudImage_UsesPlaceholder()
+    {
+        // No fileFields and no storageBucket: an empty-bucket reference must not reach the sign call.
+        var api = new FakeCloudBaseApi();
+        api.Pages[0] = """[{"id":"a1","title":"A","content":"![x](cloud://env-abc./a.png)"}]""";
+        api.Total = 1;
+        var source = Create(api, options => options with { DefaultImageUrl = "/ph.jpg" });
+
+        var result = await source.LoadRawAsync();
+        var document = Assert.Single(result.Documents);
+
+        var html = (await result.BodyStore.GetAsync(document)).Html;
+        Assert.Contains("/ph.jpg", html, StringComparison.Ordinal);
         Assert.DoesNotContain("cloud://", html, StringComparison.Ordinal);
-        Assert.DoesNotContain("a.pdf", html, StringComparison.Ordinal);
+        Assert.DoesNotContain(api.Requests, uri => uri.AbsolutePath.StartsWith("/v1/storages/", StringComparison.Ordinal));
     }
 
     [Fact]
@@ -386,6 +489,7 @@ public sealed class CloudBaseContentSourceTests
         public int Total { get; set; } = 3;
         public bool Unauthorized { get; set; }
         public string? SignError { get; set; }
+        public bool RejectSelect { get; set; }
 
         protected override async Task<HttpResponseMessage> SendAsync(
             HttpRequestMessage request,
@@ -412,6 +516,14 @@ public sealed class CloudBaseContentSourceTests
                 return new HttpResponseMessage(HttpStatusCode.Unauthorized)
                 {
                     Content = new StringContent("""{"code":"AUTH"}""", Encoding.UTF8, "application/json")
+                };
+            }
+
+            if (RejectSelect && request.RequestUri!.Query.Contains("select=", StringComparison.Ordinal))
+            {
+                return new HttpResponseMessage(HttpStatusCode.BadRequest)
+                {
+                    Content = new StringContent("""{"code":"DATABASE_42703"}""", Encoding.UTF8, "application/json")
                 };
             }
 

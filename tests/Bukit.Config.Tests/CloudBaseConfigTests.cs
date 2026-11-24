@@ -307,6 +307,52 @@ public sealed class CloudBaseConfigTests
         Assert.Contains("bodyFormat", ex.Message, StringComparison.Ordinal);
     }
 
+    [Theory]
+    [InlineData("publish-at")]
+    [InlineData("status code")]
+    [InlineData("1status")]
+    public void Load_InvalidFilterField_Fails(string field)
+    {
+        var ex = Fails($"""
+            envId: prod-abc
+            table: articles
+            bodyField: content
+            filter:
+              field: "{field}"
+              value: published
+            """);
+        AssertCloudBaseError(ex);
+        Assert.Contains("filter.field", ex.Message, StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData("publish-at")]
+    [InlineData("publish_at desc")]
+    public void Load_InvalidSortField_Fails(string field)
+    {
+        var ex = Fails($"""
+            envId: prod-abc
+            table: articles
+            bodyField: content
+            sort:
+              field: "{field}"
+              direction: desc
+            """);
+        AssertCloudBaseError(ex);
+        Assert.Contains("sort.field", ex.Message, StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData("envId: \"prod-abc\\n\"\ntable: articles", "envId")]
+    [InlineData("envId: prod-abc\ntable: \"articles\\n\"", "table")]
+    [InlineData("envId: prod-abc\ntable: articles\nidField: \"id\\n\"", "idField")]
+    public void Load_TrailingNewlineInIdentifier_Fails(string head, string field)
+    {
+        var ex = Fails(head + "\nbodyField: content");
+        AssertCloudBaseError(ex);
+        Assert.Contains(field, ex.Message, StringComparison.Ordinal);
+    }
+
     [Fact]
     public void Load_FilterWithExtraKey_Fails()
     {

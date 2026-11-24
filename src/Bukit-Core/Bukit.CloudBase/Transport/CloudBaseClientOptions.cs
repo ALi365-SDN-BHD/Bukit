@@ -9,8 +9,11 @@ internal sealed record CloudBaseClientOptions
     public int MaxRetries { get; init; } = 3;
     public int MaxResponseBytes { get; init; } = 8 * 1024 * 1024;
 
+    /// <summary>Deadline for one attempt, covering the response headers and the whole body.</summary>
+    public TimeSpan RequestTimeout { get; init; } = TimeSpan.FromSeconds(30);
+
     public override string ToString()
-        => $"CloudBaseClientOptions {{ EnvId = {EnvId}, Region = {Region}, PublishableKey = ***, MaxRps = {MaxRps}, MaxRetries = {MaxRetries}, MaxResponseBytes = {MaxResponseBytes} }}";
+        => $"CloudBaseClientOptions {{ EnvId = {EnvId}, Region = {Region}, PublishableKey = ***, MaxRps = {MaxRps}, MaxRetries = {MaxRetries}, MaxResponseBytes = {MaxResponseBytes}, RequestTimeout = {RequestTimeout} }}";
 
     internal string GatewayHost => CloudBaseEndpoints.GatewayHost(EnvId, Region);
 
@@ -41,6 +44,11 @@ internal sealed record CloudBaseClientOptions
         if (MaxRetries < 0)
         {
             throw new ArgumentOutOfRangeException(nameof(MaxRetries));
+        }
+
+        if (RequestTimeout <= TimeSpan.Zero)
+        {
+            throw new ArgumentOutOfRangeException(nameof(RequestTimeout));
         }
     }
 }

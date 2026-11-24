@@ -146,16 +146,15 @@ case "$rid" in
 esac
 if [[ -n "$native_lib" && ! -f "$publish_dir/$native_lib" ]]; then
   nuget_root="${NUGET_PACKAGES:-$HOME/.nuget/packages}"
-  skia_version="$(sed -n 's/.*<PackageVersion Include="SkiaSharp" Version="\([^"]*\)".*/\1/p' Directory.Packages.props | head -n 1)"
-  source_lib=""
-  if [[ -n "$skia_version" && -f "$nuget_root/$native_package/$skia_version/runtimes/$native_rid/native/$native_lib" ]]; then
-    source_lib="$nuget_root/$native_package/$skia_version/runtimes/$native_rid/native/$native_lib"
-  else
-    # Fallback for an unusual cache layout: newest path by version sort.
-    source_lib="$(find "$nuget_root/$native_package" -path "*/runtimes/$native_rid/native/$native_lib" -print 2>/dev/null | sort -V | tail -n 1 || true)"
-  fi
-  [[ -n "$source_lib" ]] || {
-    echo "native AOT publish is missing $native_lib and it was not found in $nuget_root/$native_package" >&2
+  # Linux pins its own NativeAssets package; macOS and Windows native assets follow SkiaSharp.
+  pin_name="SkiaSharp"
+  [[ "$native_package" != skiasharp.nativeassets.linux.nodependencies ]] || pin_name="SkiaSharp.NativeAssets.Linux.NoDependencies"
+  skia_version="$(sed -n "s/.*<PackageVersion Include=\"$pin_name\" Version=\"\([^\"]*\)\".*/\1/p" Directory.Packages.props | head -n 1)"
+  # Only the pinned version is acceptable: another cached version would ship a native
+  # library that does not match the managed SkiaSharp assembly.
+  source_lib="$nuget_root/$native_package/$skia_version/runtimes/$native_rid/native/$native_lib"
+  [[ -n "$skia_version" && -f "$source_lib" ]] || {
+    echo "native AOT publish is missing $native_lib and it was not found in $nuget_root/$native_package/${skia_version:-<no $pin_name pin>}" >&2
     exit 1
   }
   cp -- "$source_lib" "$publish_dir/$native_lib"
