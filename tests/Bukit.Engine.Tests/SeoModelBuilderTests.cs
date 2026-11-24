@@ -485,6 +485,45 @@ public sealed class SeoModelBuilderTests
         Assert.Equal("ja", model.Alternates[1].Hreflang);
     }
 
+    private static readonly SeoAlternateModel[] TwoLanguageAlternates =
+    [
+        new("x-default", "https://example.com/a/"),
+        new("en", "https://example.com/a/"),
+        new("zh", "https://example.com/zh/a/")
+    ];
+
+    [Theory]
+    [InlineData(null, 3)]
+    [InlineData("noindex", 0)]
+    [InlineData("none", 0)]
+    public void BuildForContent_NoindexPage_HasNoHreflangAlternates(string? robots, int expectedAlternates)
+    {
+        var fields = new Dictionary<string, object> { ["type"] = "page" };
+        if (robots is not null)
+        {
+            fields["robots"] = robots;
+        }
+
+        var item = ContentDocument.Create("p1", "A", "a", DateTimeOffset.UtcNow, null, ContentFieldReader.ToFieldMap(fields));
+        var route = new RouteInfo("/a/", "a/index.html", "pages/page.html");
+
+        var model = SeoModelBuilder.BuildForContent(CreateConfig(), "/", item, route, TwoLanguageAlternates);
+
+        Assert.Equal(expectedAlternates, model.Alternates.Count);
+    }
+
+    [Theory]
+    [InlineData(false, 3)]
+    [InlineData(true, 0)]
+    public void BuildForList_NoindexWhenEmpty_HasNoHreflangAlternates(bool forceNoindexWhenEmpty, int expectedAlternates)
+    {
+        var page = new PageInfo { Title = "News", Url = "/news/", Content = string.Empty };
+
+        var model = SeoModelBuilder.BuildForList(CreateConfig(), "/", page, TwoLanguageAlternates, forceNoindexWhenEmpty: forceNoindexWhenEmpty);
+
+        Assert.Equal(expectedAlternates, model.Alternates.Count);
+    }
+
     [Fact]
     public void BuildForList_CreatesListSeoModel()
     {

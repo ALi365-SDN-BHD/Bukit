@@ -80,6 +80,64 @@ public sealed class SiteEngineHelperExtendedTests
         Assert.NotNull(result);
     }
 
+    private static ContentDocument TranslatedDocument(string language, string collection, bool noindex = false)
+    {
+        var fields = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["collection"] = collection,
+            ["language"] = language,
+            ["i18nKey"] = "about"
+        };
+        if (noindex)
+        {
+            fields["noindex"] = true;
+        }
+
+        return ContentDocument.Create($"{language}-about", $"About {language}", $"about-{language}", new DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeSpan.Zero), null, ContentFieldReader.ToFieldMap(fields));
+    }
+
+    private static AppConfig AlternatesConfig(bool noindexWhenEmpty = false) => new()
+    {
+        Site = new SiteConfig
+        {
+            Name = "test",
+            Title = "Test",
+            BaseUrl = "/",
+            Url = "https://example.com",
+            Collections = new Dictionary<string, CollectionConfig>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["page"] = new() { Permalink = "/{slug}/", Template = "pages/page.html" },
+                ["news"] = new() { Permalink = "/news/{slug}/", Template = "pages/page.html", ListRoute = "/news/", ListTemplate = "pages/list.html", NoindexWhenEmpty = noindexWhenEmpty }
+            }
+        },
+        Content = TestContent.Markdown()
+    };
+
+    [Theory]
+    [InlineData(false, 3)]
+    [InlineData(true, 0)]
+    public void BuildSeoAlternates_NoindexTranslation_IsNotOfferedAsAlternate(bool zhNoindex, int expectedAlternates)
+    {
+        ContentDocument[] documents = [TranslatedDocument("en", "page"), TranslatedDocument("zh", "page", zhNoindex)];
+
+        var result = SeoAlternatesService.BuildSeoAlternates(AlternatesConfig(), documents, ["en", "zh"], "en", "/");
+
+        Assert.Equal(expectedAlternates, result.TryGetValue("i18n:about", out var alternates) ? alternates.Count : 0);
+    }
+
+    [Theory]
+    [InlineData(false, true)]
+    [InlineData(true, false)]
+    public void BuildSeoAlternates_EmptyNoindexList_IsNotOfferedAsAlternate(bool noindexWhenEmpty, bool listHasAlternates)
+    {
+        // Only English has news, so the Chinese news list is empty.
+        ContentDocument[] documents = [TranslatedDocument("en", "news"), TranslatedDocument("zh", "page")];
+
+        var result = SeoAlternatesService.BuildSeoAlternates(AlternatesConfig(noindexWhenEmpty), documents, ["en", "zh"], "en", "/");
+
+        Assert.Equal(listHasAlternates, result.ContainsKey("route:/news/"));
+    }
+
     [Fact]
     public void BuildSeoAlternates_WithFilteredListPagination_UsesRouteGraphRoutes()
     {
