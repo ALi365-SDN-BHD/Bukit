@@ -99,7 +99,7 @@ internal sealed class CloudBaseContentSource : IContentProvider
                 isData ? string.Empty : GetString(row, _options.BodyField) ?? string.Empty));
         }
 
-        await ResolveFilesAsync(drafts, client, isData, cancellationToken).ConfigureAwait(false);
+        var imageUrls = await ResolveFilesAsync(drafts, client, isData, cancellationToken).ConfigureAwait(false);
 
         var documents = new List<RawContentDocument>(drafts.Count);
         var bodies = new Dictionary<string, string>(StringComparer.Ordinal);
@@ -127,10 +127,12 @@ internal sealed class CloudBaseContentSource : IContentProvider
         }
 
         _logger?.Info($"event=cloudbase.stats table={_options.Table} count={documents.Count}");
-        return new RawContentLoadResult(documents, new CloudBaseBodyStore(bodies));
+        return new RawContentLoadResult(
+            documents,
+            new CloudBaseBodyStore(bodies, imageUrls, _options.DefaultImageUrl));
     }
 
-    private async Task ResolveFilesAsync(
+    private async Task<IReadOnlyDictionary<string, string>> ResolveFilesAsync(
         List<Draft> drafts,
         CloudBaseClient client,
         bool isData,
@@ -142,7 +144,7 @@ internal sealed class CloudBaseContentSource : IContentProvider
                  draft.Markdown.Contains("cloud://", StringComparison.OrdinalIgnoreCase) ||
                  draft.Fields.Values.Any(field => ContainsCloudReference(field.Value)))))
         {
-            return;
+            return new Dictionary<string, string>(StringComparer.Ordinal);
         }
 
         var resolver = new CloudBaseFileResolver(
@@ -190,7 +192,6 @@ internal sealed class CloudBaseContentSource : IContentProvider
                 }
             }
 
-            draft.Markdown = resolver.RewriteMarkdown(draft.Markdown);
         }
 
         if (resolver.ResolveFailures > 0)
@@ -204,6 +205,8 @@ internal sealed class CloudBaseContentSource : IContentProvider
             _logger?.Warn(
                 $"event=cloudbase.unsupported_file_reference code={DiagnosticCodeFormatter.Format(DiagnosticCode.CloudBaseUnsupportedFileReference)} count={resolver.UnsupportedReferences}");
         }
+
+        return resolver.BuildBodyUrlMap();
     }
 
     private static bool ContainsCloudReference(object? value)

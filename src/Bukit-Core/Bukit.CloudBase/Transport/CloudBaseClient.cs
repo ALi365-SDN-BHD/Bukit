@@ -220,11 +220,37 @@ internal sealed class CloudBaseClient : IDisposable
                 throw new CloudBaseApiException(CloudBaseErrorKind.ResponseInvalid);
             }
 
+            var positions = new Dictionary<string, int>(StringComparer.Ordinal);
+            foreach (var (index, name) in batch)
+            {
+                positions[name] = index;
+            }
+
+            var seenPaths = new HashSet<string>(StringComparer.Ordinal);
             var itemIndex = 0;
             foreach (var item in document.RootElement.EnumerateArray())
             {
-                var (resultIndex, name) = batch[itemIndex++];
-                results[resultIndex] = ParseSignedObject(name, bucket, item);
+                var path = GetString(item, "path");
+                int resultIndex;
+                string resultName;
+                if (path is null)
+                {
+                    (resultIndex, resultName) = batch[itemIndex];
+                }
+                else if (positions.TryGetValue(path, out var matched) && seenPaths.Add(path))
+                {
+                    resultIndex = matched;
+                    resultName = path;
+                }
+                else
+                {
+                    // A path we did not request, or a duplicate: positional mapping would
+                    // hand one object another object's URL.
+                    throw new CloudBaseApiException(CloudBaseErrorKind.ResponseInvalid);
+                }
+
+                itemIndex++;
+                results[resultIndex] = ParseSignedObject(resultName, bucket, item);
             }
         }
 
@@ -284,6 +310,7 @@ internal sealed class CloudBaseClient : IDisposable
         }
 
         return string.Equals(uri.Scheme, Uri.UriSchemeHttps, StringComparison.Ordinal) &&
+            uri.IsDefaultPort &&
             string.Equals(uri.Host, _options.GatewayHost, StringComparison.OrdinalIgnoreCase) &&
             uri.AbsolutePath.StartsWith($"{CloudBaseEndpoints.SignPrefix}{bucket}/", StringComparison.Ordinal);
     }

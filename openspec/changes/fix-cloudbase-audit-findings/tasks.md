@@ -16,12 +16,12 @@
 
 ## B. Parsing correctness
 
-- [ ] B1 Parse the Markdown body; collect image `cloud://` URLs from `LinkInline`; keep a URL map.
-- [ ] B2 Render through the map; leave fenced/inline code and raw HTML untouched; non-image
+- [x] B1 Parse the Markdown body; collect image `cloud://` URLs from `LinkInline`; keep a URL map.
+- [x] B2 Render through the map; leave fenced/inline code and raw HTML untouched; non-image
       `cloud://` links and failed images keep the placeholder/degradation rules.
-- [ ] B3 Map sign results by `path`; mismatch becomes a per-item failure.
-- [ ] B4 Require HTTPS and the default port in signed-link validation.
-- [ ] B5 Tests: code fence/inline code examples unchanged; reordered sign response maps by path;
+- [x] B3 Map sign results by `path`; mismatch becomes a per-item failure.
+- [x] B4 Require HTTPS and the default port in signed-link validation.
+- [x] B5 Tests: code fence/inline code examples unchanged; reordered sign response maps by path;
       non-default port rejected.
 
 ## C. Alignment and cleanup

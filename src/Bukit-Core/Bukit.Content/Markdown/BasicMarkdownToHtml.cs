@@ -33,6 +33,12 @@ internal static class BasicMarkdownToHtml
         => Convert(markdown, untrustedLinks: false);
 
     public static string Convert(string markdown, bool untrustedLinks)
+        => Convert(markdown, untrustedLinks, imageUrlResolver: null);
+
+    internal static string Convert(
+        string markdown,
+        bool untrustedLinks,
+        Func<string, string?>? imageUrlResolver)
     {
         if (string.IsNullOrWhiteSpace(markdown))
         {
@@ -46,6 +52,11 @@ internal static class BasicMarkdownToHtml
             var document = global::Markdig.Markdown.Parse(normalized, Pipeline);
             foreach (var link in document.Descendants<LinkInline>())
             {
+                if (link.IsImage && imageUrlResolver is not null)
+                {
+                    link.Url = imageUrlResolver(link.Url ?? string.Empty);
+                }
+
                 link.Url = link.IsImage
                     ? CloudBaseUrlPolicy.SanitizeMedia(link.Url)
                     : CloudBaseUrlPolicy.SanitizeLink(link.Url);
@@ -66,6 +77,12 @@ internal static class BasicMarkdownToHtml
         html = html.TrimEnd('\r', '\n');
 
         return StandaloneImageParagraphRegex.Replace(html, "${image}");
+    }
+
+    internal static global::Markdig.Syntax.MarkdownDocument ParseDocument(string markdown)
+    {
+        var normalized = NormalizeStandaloneImageBlocks(markdown.Replace("\r\n", "\n"));
+        return global::Markdig.Markdown.Parse(normalized, Pipeline);
     }
 
     public static IReadOnlyList<TableOfContentsEntry> ExtractTableOfContents(string markdown)
