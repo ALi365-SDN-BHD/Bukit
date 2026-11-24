@@ -27,5 +27,4 @@ internal sealed record CloudBaseContentSourceOptions
     public int SignExpiresSeconds { get; init; } = 3600;
     public int MaxRps { get; init; } = 5;
     public int MaxRetries { get; init; } = 3;
-    public int MaxResponseBytes { get; init; } = 8 * 1024 * 1024;
 }

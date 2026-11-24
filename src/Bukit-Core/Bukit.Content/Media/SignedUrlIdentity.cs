@@ -76,7 +76,7 @@ internal static class SignedUrlIdentity
 
         if (IsCloudBaseGateway(uri) || IsCloudBaseStorageHost(uri.Host))
         {
-            removed.Add("token");
+            removed.Add(CloudBaseEndpoints.SignedUrlTokenParameter);
         }
 
         if (removed.Count == 0 || !names.Any(removed.Contains))

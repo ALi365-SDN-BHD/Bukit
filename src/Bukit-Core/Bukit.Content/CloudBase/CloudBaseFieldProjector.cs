@@ -10,13 +10,6 @@ namespace Bukit.Content.CloudBase;
 /// </summary>
 internal static class CloudBaseFieldProjector
 {
-    internal static Dictionary<string, ContentField> Project(
-        JsonElement row,
-        string policyMode,
-        IReadOnlyList<string>? allowedFields,
-        string idField)
-        => ProjectWithSet(row, policyMode, BuildAllowedSet(policyMode, allowedFields), idField);
-
     internal static HashSet<string>? BuildAllowedSet(string policyMode, IReadOnlyList<string>? allowedFields)
     {
         var mode = (policyMode ?? "whitelist").Trim().ToLowerInvariant();

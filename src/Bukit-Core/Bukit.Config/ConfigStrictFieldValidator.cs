@@ -353,19 +353,24 @@ internal static class ConfigStrictFieldValidator
         }
     }
 
-    private static void RequireIntegerIfPresent(YamlMappingNode node, string key, string path)
+    private static void RequireIntegerIfPresent(
+        YamlMappingNode node,
+        string key,
+        string path,
+        DiagnosticCode code = DiagnosticCode.ConfigInvalidValue)
     {
         if (!node.Children.TryGetValue(new YamlScalarNode(key), out var child))
         {
             return;
         }
 
-        if (child is YamlScalarNode scalar && int.TryParse(scalar.Value, out _))
+        if (child is YamlScalarNode scalar &&
+            int.TryParse(scalar.Value, NumberStyles.Integer, CultureInfo.InvariantCulture, out _))
         {
             return;
         }
 
-        throw new ConfigException($"{path} must be an integer.", DiagnosticCode.ConfigInvalidValue);
+        throw new ConfigException($"{path} must be an integer.", code);
     }
 
     private static void ValidateSeo(YamlMappingNode seo)
@@ -474,14 +479,7 @@ internal static class ConfigStrictFieldValidator
 
         foreach (var name in new[] { "pageSize", "maxItems", "signExpiresSeconds", "maxRps", "maxRetries" })
         {
-            if (cloudBase.Children.TryGetValue(new YamlScalarNode(name), out var child) &&
-                (child is not YamlScalarNode scalar ||
-                 !int.TryParse(scalar.Value, NumberStyles.Integer, CultureInfo.InvariantCulture, out _)))
-            {
-                throw new ConfigException(
-                    $"{path}.{name} must be an integer.",
-                    DiagnosticCode.CloudBaseConfigInvalid);
-            }
+            RequireIntegerIfPresent(cloudBase, name, $"{path}.{name}", DiagnosticCode.CloudBaseConfigInvalid);
         }
     }
 
