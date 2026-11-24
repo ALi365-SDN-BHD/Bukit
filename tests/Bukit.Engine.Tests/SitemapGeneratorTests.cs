@@ -37,6 +37,25 @@ public sealed class SitemapGeneratorTests
     }
 
     [Fact]
+    public void GenerateAbsoluteWithAlternates_PercentEncodesLocAndHrefThenEscapesXml()
+    {
+        var outDir = Path.Combine(Path.GetTempPath(), "bukit-tests", Guid.NewGuid().ToString("N"), "dist");
+        Directory.CreateDirectory(outDir);
+
+        SitemapGenerator.GenerateAbsoluteWithAlternates(outDir,
+        [
+            new SitemapGenerator.UrlEntry(
+                "https://example.com/新闻/?a=1&b=2",
+                null,
+                [new SitemapGenerator.Alternate("en", "https://example.com/en/新闻/")])
+        ]);
+
+        var sitemap = File.ReadAllText(Path.Combine(outDir, "sitemap.xml"));
+        Assert.Contains("<loc>https://example.com/%E6%96%B0%E9%97%BB/?a=1&amp;b=2</loc>", sitemap, StringComparison.Ordinal);
+        Assert.Contains("href=\"https://example.com/en/%E6%96%B0%E9%97%BB/\"", sitemap, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void Generate_EmptyRoutes_ProducesEmptyUrlset()
     {
         var root = Path.Combine(Path.GetTempPath(), "bukit-tests", Guid.NewGuid().ToString("N"));

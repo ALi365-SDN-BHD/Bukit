@@ -54,6 +54,10 @@ Exclude one document with front matter `feedexclude: true`.
 
 - Lists indexable routes with `loc` and `lastmod` (plus `xhtml:link` hreflang
   alternates in multilingual sites).
+- `loc` and `xhtml:link` `href` percent-encode, as UTF-8 per RFC 3986, the
+  non-ASCII and other characters outside the URI set after the host (`/新闻/`
+  becomes `/%E6%96%B0%E9%97%BB/`); the host is kept as written in `site.url`.
+  HTML canonical and hreflang tags are unchanged.
 - Excluded: noindex pages, front matter `sitemapexclude: true`, collection or list
   route sitemap exclusions, canonicals out of scope or duplicated (logged as
   `event=sitemap.canonical_out_of_scope` / `sitemap.canonical_duplicate`).

@@ -552,6 +552,45 @@ public sealed class PublishAuditReportWriterTests : IDisposable
         Assert.Equal(mismatch, report.Issues.Any(x => x.Code == "publish.jsonld_date_mismatch" && x.Route == "/post/"));
     }
 
+    [Theory]
+    [InlineData(true, "https://example.com/%E6%96%B0%E9%97%BB/")]
+    [InlineData(false, "https://example.com/%E6%96%B0%E9%97%BB/")]
+    [InlineData(true, "https://example.com/新闻/")]
+    [InlineData(false, "https://example.com/新闻/")]
+    public void Build_SitemapLoc_MatchesNonAsciiCanonicalEncodedOrNot(bool indexable, string loc)
+    {
+        WriteOutput("新闻/index.html", """
+            <!doctype html>
+            <html>
+            <head><title>Post</title><link rel="canonical" href="https://example.com/新闻/" /></head>
+            <body><main><article><h1>Post</h1><p>Body content.</p></article></main></body>
+            </html>
+            """);
+        WriteOutput("sitemap.xml", $$"""
+            <?xml version="1.0" encoding="UTF-8"?>
+            <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+              <url>
+                <loc>{{loc}}</loc>
+              </url>
+            </urlset>
+            """);
+        var entry = Entry("/新闻/", "新闻/index.html", "https://example.com/新闻/") with
+        {
+            Robots = indexable ? null : "noindex",
+            Indexable = indexable
+        };
+        var index = new Dictionary<string, SeoIndexEntry>(StringComparer.OrdinalIgnoreCase) { ["新闻/index.html"] = entry };
+        var models = new Dictionary<string, SeoModel>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["新闻/index.html"] = Model("Post", "https://example.com/新闻/")
+        };
+
+        var report = SeoAuditReportWriter.Build(Config(), _outputDir, index, models, ContentGraph());
+
+        Assert.DoesNotContain(report.Issues, x => x.Code == "seo.sitemap_missing_url");
+        Assert.Equal(!indexable, report.Issues.Any(x => x.Code == "seo.noindex_in_sitemap" && x.Route == "/新闻/"));
+    }
+
     [Fact]
     public void Build_ReportsTrustGraphCompletenessGaps()
     {
