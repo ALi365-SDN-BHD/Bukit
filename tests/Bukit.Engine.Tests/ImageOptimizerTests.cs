@@ -1,5 +1,6 @@
 using System.Buffers.Binary;
 using Bukit.Config;
+using Bukit.Engine.Plugins.BuiltIn.ImageProcessing;
 using Bukit.Shared;
 using SkiaSharp;
 using Xunit;
@@ -317,6 +318,27 @@ public sealed class ImageOptimizerTests
                 _ => new[] { SKColors.Red, SKColors.Lime, SKColors.Blue, SKColors.Yellow }
             };
             AssertCorners(result, expected);
+        }
+        finally { Directory.Delete(root, true); }
+    }
+
+    [Theory]
+    [InlineData(SKEncodedOrigin.TopLeft, 32, 16)]
+    [InlineData(SKEncodedOrigin.RightTop, 16, 32)]
+    public void TryReadImageSize_ReturnsDisplayedSizeAfterOrientation(SKEncodedOrigin origin, int width, int height)
+    {
+        var root = CreateRoot();
+        Directory.CreateDirectory(root);
+        try
+        {
+            using var image = new SKBitmap(32, 16);
+            image.Erase(SKColors.Red);
+            using var encoded = image.Encode(SKEncodedImageFormat.Jpeg, 90);
+            var input = Path.Combine(root, "oriented.jpg");
+            File.WriteAllBytes(input, WithJpegOrientation(encoded.ToArray(), origin));
+
+            Assert.True(ImageVariantGenerator.TryReadImageSize(input, out var actualWidth, out var actualHeight));
+            Assert.Equal((width, height), (actualWidth, actualHeight));
         }
         finally { Directory.Delete(root, true); }
     }

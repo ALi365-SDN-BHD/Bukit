@@ -8,7 +8,7 @@ using static Bukit.Engine.Plugins.BuiltIn.ImageProcessing.ImageVariantOwnership;
 namespace Bukit.Engine.Plugins.BuiltIn.ImageProcessing;
 
 /// <summary>
-/// Adds srcset/decoding attributes to media images and wraps generated WebP
+/// Adds srcset, decoding, width/height and loading attributes to media images and wraps generated WebP
 /// variants in picture elements.
 /// </summary>
 internal sealed partial class ResponsiveImageHtmlTransform(
@@ -94,6 +94,9 @@ internal sealed partial class ResponsiveImageHtmlTransform(
             return $"<picture>{source}{fallbackTag}</picture>";
         });
     }
+
+    private static bool HasAttribute(MatchCollection attributes, string name)
+        => attributes.Any(attribute => attribute.Groups["name"].Value.Equals(name, StringComparison.OrdinalIgnoreCase));
 
     private static string? GetAttributeValue(MatchCollection attributes, string name)
     {
@@ -186,14 +189,14 @@ internal sealed partial class ResponsiveImageHtmlTransform(
             srcMatch.Groups["single"].Success ? srcMatch.Groups["single"].Value :
             srcMatch.Groups["unquoted"].Value);
         if (!TryResolveMediaSource(sourceUrl, out var sourceFile) ||
-            !TryGetImageWidth(sourceFile, logger, out var sourceWidth))
+            !TryGetImageSize(sourceFile, logger, out var sourceWidth, out var sourceHeight))
         {
             return tag;
         }
 
         var attributes = string.Empty;
         var applicableSizes = ImageVariantPlan.GeneratedWidths(_sizes, sourceWidth).ToArray();
-        if (applicableSizes.Length > 0 && !parsedAttributes.Any(attribute => attribute.Groups["name"].Value.Equals("srcset", StringComparison.OrdinalIgnoreCase)))
+        if (applicableSizes.Length > 0 && !HasAttribute(parsedAttributes, "srcset"))
         {
             var candidates = applicableSizes
                 .Select(size => $"{BuildVariantUrl(sourceUrl, size)} {size}w")
@@ -204,9 +207,20 @@ internal sealed partial class ResponsiveImageHtmlTransform(
                 attributes += $" {GeneratedSrcsetMarker}=\"\"";
             }
         }
-        if (!parsedAttributes.Any(attribute => attribute.Groups["name"].Value.Equals("decoding", StringComparison.OrdinalIgnoreCase)))
+        if (!HasAttribute(parsedAttributes, "decoding"))
         {
             attributes += " decoding=\"async\"";
+        }
+
+        // Author dimensions win; adding only the missing one could distort the aspect ratio.
+        if (!HasAttribute(parsedAttributes, "width") && !HasAttribute(parsedAttributes, "height"))
+        {
+            attributes += $" width=\"{sourceWidth}\" height=\"{sourceHeight}\"";
+        }
+
+        if (!HasAttribute(parsedAttributes, "loading"))
+        {
+            attributes += " loading=\"lazy\"";
         }
 
         if (attributes.Length == 0)

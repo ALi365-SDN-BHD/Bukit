@@ -24,33 +24,38 @@ internal sealed class ImageVariantGenerator
         [.. (sizes ?? DefaultSizes).Where(size => size > 0).Distinct().Order()];
 
     internal static bool TryGetImageWidth(string path, ILogger logger, out int width)
+        => TryGetImageSize(path, logger, out width, out _);
+
+    internal static bool TryGetImageSize(string path, ILogger logger, out int width, out int height)
     {
         try
         {
-            return TryReadImageWidth(path, out width);
+            return TryReadImageSize(path, out width, out height);
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidDataException or NotSupportedException)
         {
             width = 0;
+            height = 0;
             logger.Warn($"event=image_processing.skip file={Path.GetFileName(path)} reason=invalid_source");
             return false;
         }
     }
 
     /// <summary>
-    /// Reads the display width (after EXIF orientation) from the image header only.
-    /// Shared by variant planning and the incremental fingerprint so both agree.
+    /// Reads the display width and height (after EXIF orientation) from the image header only.
+    /// Shared by variant planning, the HTML transform and the incremental fingerprint so all agree.
     /// </summary>
-    internal static bool TryReadImageWidth(string path, out int width)
+    internal static bool TryReadImageSize(string path, out int width, out int height)
     {
         width = 0;
+        height = 0;
         using var codec = SKCodec.Create(path);
         if (codec is null) return false;
         // Resizing keeps only the first frame, so animated WebP stays as uploaded.
         if (codec.EncodedFormat == SKEncodedImageFormat.Webp && codec.FrameCount > 1) return false;
-        var origin = ImageOptimizer.GetEncodedOrigin(path, codec);
-        width = origin >= SKEncodedOrigin.LeftTop ? codec.Info.Height : codec.Info.Width;
-        return width > 0;
+        var rotated = ImageOptimizer.GetEncodedOrigin(path, codec) >= SKEncodedOrigin.LeftTop;
+        (width, height) = rotated ? (codec.Info.Height, codec.Info.Width) : (codec.Info.Width, codec.Info.Height);
+        return width > 0 && height > 0;
     }
 
     internal async Task<bool> GenerateResizedVariantAsync(

@@ -1,3 +1,4 @@
+using System.Text.RegularExpressions;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
@@ -592,7 +593,7 @@ public sealed class ImageProcessingPluginTests
             {
                 Assert.Equal(2, codec.FrameCount);
             }
-            Assert.False(ImageVariantGenerator.TryReadImageWidth(source, out _));
+            Assert.False(ImageVariantGenerator.TryReadImageSize(source, out _, out _));
             var (plugin, context, transformed) = TransformWithWebp(outDir, assetsDir, "<img src=\"/assets/loop.webp\" alt=\"\">");
 
             await plugin.AfterBuildAsync(context);
@@ -993,6 +994,41 @@ public sealed class ImageProcessingPluginTests
             Assert.Contains("srcset=\"/assets/uploads/photo-480w.jpg 480w, /assets/uploads/photo-768w.jpg 768w, /assets/uploads/photo.jpg 1000w\"", html, StringComparison.Ordinal);
             Assert.Contains("decoding=\"async\"", html, StringComparison.Ordinal);
             Assert.DoesNotContain("1200w", html, StringComparison.Ordinal);
+        }
+        finally
+        {
+            if (Directory.Exists(outDir)) Directory.Delete(outDir, true);
+        }
+    }
+
+    [Theory]
+    [InlineData("<img src=\"/assets/uploads/photo.jpg\" alt=\"a\">", "width=\"1000\" height=\"8\"", "loading=\"lazy\"", 2)]
+    [InlineData("<img src=\"/assets/uploads/photo.jpg\" width=\"50\" loading=\"eager\">", "width=\"50\"", "loading=\"eager\"", 1)]
+    [InlineData("<img src=\"/assets/uploads/photo.jpg\" HEIGHT=\"4\" Loading=\"auto\">", "HEIGHT=\"4\"", "Loading=\"auto\"", 1)]
+    public void HtmlTransform_AddsDimensionsAndLazyLoadingOnlyWhenTheAuthorDidNot(string input, string dimensions, string loading, int dimensionAttributes)
+    {
+        var outDir = GetTempDir();
+        try
+        {
+            var mediaDir = Path.Combine(outDir, "media");
+            Directory.CreateDirectory(mediaDir);
+            WriteValidImage(Path.Combine(mediaDir, "photo.jpg"), "source", width: 1000);
+            var context = CreateContext(outDir);
+            context.Set(BuildDataKeys.MediaDownloadDir, mediaDir);
+            var plugin = new ImageProcessingPlugin(CreateConfig(
+                new ImageOptimizationConfig { Enabled = true, Sizes = new[] { 480 } }));
+            var transform = plugin.CreateHtmlTransform(new HtmlTransformPluginContext(
+                context,
+                BuildExecutionMode.Production));
+
+            var html = transform.Transform(
+                new HtmlTransformContext("/", "index.html", HtmlDocumentKind.Content, BuildExecutionMode.Production, context.Logger),
+                input);
+
+            Assert.Contains(dimensions, html, StringComparison.Ordinal);
+            Assert.Contains(loading, html, StringComparison.Ordinal);
+            Assert.Equal(dimensionAttributes, Regex.Matches(html, @"\s(?:width|height)=", RegexOptions.IgnoreCase).Count);
+            Assert.Single(Regex.Matches(html, @"\sloading=", RegexOptions.IgnoreCase));
         }
         finally
         {

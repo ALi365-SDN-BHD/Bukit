@@ -26,18 +26,33 @@ public sealed class ImageSourceFingerprintTests
     }
 
     [Fact]
-    public void Compute_IgnoresContentChangeThatKeepsWidth()
+    public void Compute_IgnoresContentChangeThatKeepsSize()
     {
-        // Page markup only depends on the width; the plugin regenerates variant files itself.
+        // Page markup only depends on the size; the plugin regenerates variant files itself.
         using var site = new TempSite();
         var image = Path.Combine(site.Root, "media", "photo.png");
         WritePng(image, 1200, 10, SKColors.Red);
         var first = site.Compute();
 
-        WritePng(image, 1200, 20, SKColors.Blue);
+        WritePng(image, 1200, 10, SKColors.Blue);
         var second = site.Compute();
 
         Assert.Equal(first, second);
+    }
+
+    [Fact]
+    public void Compute_ChangesWhenMediaImageHeightChanges()
+    {
+        // The img height attribute comes from the image, so pages must re-render.
+        using var site = new TempSite();
+        var image = Path.Combine(site.Root, "media", "photo.png");
+        WritePng(image, 1200, 10);
+        var first = site.Compute();
+
+        WritePng(image, 1200, 20);
+        var second = site.Compute();
+
+        Assert.NotEqual(first, second);
     }
 
     [Fact]

@@ -6,11 +6,12 @@ namespace Bukit.Engine.Incremental;
 
 /// <summary>
 /// Fingerprints what the responsive-image plugin writes into HTML. Page markup only
-/// depends on each source image's path and display width (which decides the variant
-/// set and srcset). Variant files are regenerated from fresh content by the plugin on
-/// every build, so a content change that keeps the width does not need page re-renders.
-/// Widths come from the image header, so this stays cheap for large media libraries.
-/// shortcut: custom templates that depend on height, format or bytes must rebuild with
+/// depends on each source image's path and display size (the width decides the variant
+/// set and srcset; width and height become the img dimensions). Variant files are
+/// regenerated from fresh content by the plugin on every build, so a content change that
+/// keeps the size does not need page re-renders. Sizes come from the image header, so
+/// this stays cheap for large media libraries.
+/// shortcut: custom templates that depend on format or bytes must rebuild with
 /// --clean after replacing an image; revisit if Core starts exposing those properties.
 /// </summary>
 internal static class ImageSourceFingerprint
@@ -84,18 +85,18 @@ internal static class ImageSourceFingerprint
                     FullPath: candidate,
                     Relative: Path.GetRelativePath(fullPath, candidate).Replace('\\', '/')))
                 .OrderBy(entry => entry.Relative, StringComparer.Ordinal)
-                .Select(entry => $"{name}:{entry.Relative}:{ReadWidth(entry.FullPath, logger)}"));
+                .Select(entry => $"{name}:{entry.Relative}:{ReadSize(entry.FullPath, logger)}"));
         }
 
         return HashUtil.Sha256Hex(string.Join('\n', entries));
     }
 
-    private static string ReadWidth(string path, ILogger logger)
+    private static string ReadSize(string path, ILogger logger)
     {
         try
         {
-            return ImageVariantGenerator.TryReadImageWidth(path, out var width)
-                ? width.ToString(System.Globalization.CultureInfo.InvariantCulture)
+            return ImageVariantGenerator.TryReadImageSize(path, out var width, out var height)
+                ? string.Create(System.Globalization.CultureInfo.InvariantCulture, $"{width}x{height}")
                 : "invalid";
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidDataException or NotSupportedException)
