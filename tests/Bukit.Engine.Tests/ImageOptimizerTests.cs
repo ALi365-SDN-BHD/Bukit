@@ -10,6 +10,10 @@ namespace Bukit.Engine.Tests;
 
 public sealed class ImageOptimizerTests
 {
+    // Two full 2x1 RGBA frames: red for 100 ms, blue for 200 ms, infinite loop.
+    internal static readonly byte[] AnimatedPng = Convert.FromBase64String(
+        "iVBORw0KGgoAAAANSUhEUgAAAAIAAAABCAYAAAD0In+KAAAACGFjVEwAAAACAAAAAPONk3AAAAAaZmNUTAAAAAAAAAACAAAAAQAAAAAAAAAAAAEACgAA+Sm2eQAAAA5JREFUeJxj+M/A8B+EARH3A/3jxfXvAAAAGmZjVEwAAAABAAAAAgAAAAEAAAAAAAAAAAACAAoAACX6Jn0AAAASZmRBVAAAAAJ4nGNgYPj/H4QBDfsD/a6UELEAAAAASUVORK5CYII=");
+
     [Fact]
     public async Task OptimizeIfEnabled_GeneratesValidatedWebpWithoutExternalTools()
     {
@@ -266,8 +270,7 @@ public sealed class ImageOptimizerTests
         Directory.CreateDirectory(root);
         try
         {
-            // Two full 2x1 RGBA frames: red for 100 ms, blue for 200 ms, infinite loop.
-            var bytes = Convert.FromBase64String("iVBORw0KGgoAAAANSUhEUgAAAAIAAAABCAYAAAD0In+KAAAACGFjVEwAAAACAAAAAPONk3AAAAAaZmNUTAAAAAAAAAACAAAAAQAAAAAAAAAAAAEACgAA+Sm2eQAAAA5JREFUeJxj+M/A8B+EARH3A/3jxfXvAAAAGmZjVEwAAAABAAAAAgAAAAEAAAAAAAAAAAACAAoAACX6Jn0AAAASZmRBVAAAAAJ4nGNgYPj/H4QBDfsD/a6UELEAAAAASUVORK5CYII=");
+            var bytes = AnimatedPng;
             var input = Path.Combine(root, "animated.png");
             var output = Path.Combine(root, "variant." + format.ToString().ToLowerInvariant());
             File.WriteAllBytes(input, bytes);
@@ -318,6 +321,21 @@ public sealed class ImageOptimizerTests
                 _ => new[] { SKColors.Red, SKColors.Lime, SKColors.Blue, SKColors.Yellow }
             };
             AssertCorners(result, expected);
+        }
+        finally { Directory.Delete(root, true); }
+    }
+
+    [Fact]
+    public void TryGetImageSize_AnimatedPng_IsNotResizable()
+    {
+        var root = CreateRoot();
+        Directory.CreateDirectory(root);
+        try
+        {
+            var input = Path.Combine(root, "animated.png");
+            File.WriteAllBytes(input, AnimatedPng);
+
+            Assert.False(ImageVariantGenerator.TryGetImageSize(input, new ConsoleLogger(LogLevel.Error), out _, out _));
         }
         finally { Directory.Delete(root, true); }
     }

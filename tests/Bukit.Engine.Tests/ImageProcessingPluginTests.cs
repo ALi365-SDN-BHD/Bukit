@@ -1037,6 +1037,46 @@ public sealed class ImageProcessingPluginTests
     }
 
     [Fact]
+    public async Task AfterBuild_AnimatedPng_IsLeftAsUploadedWithoutVariantsOrFailure()
+    {
+        var outDir = GetTempDir();
+        try
+        {
+            var assetsDir = Path.Combine(outDir, "assets");
+            Directory.CreateDirectory(assetsDir);
+            var source = Path.Combine(assetsDir, "animated.png");
+            File.WriteAllBytes(source, ImageOptimizerTests.AnimatedPng);
+            var logger = new ResizeWarningLogger(new ConsoleLogger(LogLevel.Error));
+            var context = new BuildContext
+            {
+                RootDir = outDir,
+                OutputDir = outDir,
+                LayoutsDir = outDir,
+                BaseUrl = "/",
+                RoutedDocuments = [],
+                Logger = logger
+            };
+
+            await new ImageProcessingPlugin(CreateConfig(new ImageOptimizationConfig
+            {
+                Enabled = true,
+                Formats = ["webp"],
+                Sizes = [1]
+            })).AfterBuildAsync(context);
+
+            Assert.Equal(ImageOptimizerTests.AnimatedPng, File.ReadAllBytes(source));
+            Assert.Equal(["animated.png"], Directory.GetFiles(assetsDir).Select(Path.GetFileName));
+            // Planning skips it, so no encoder ever rejects the animation.
+            Assert.Contains(logger.Warnings, warning => warning.Contains("file=animated.png", StringComparison.Ordinal));
+            Assert.DoesNotContain(logger.Warnings, warning => warning.Contains(".error", StringComparison.Ordinal));
+        }
+        finally
+        {
+            if (Directory.Exists(outDir)) Directory.Delete(outDir, true);
+        }
+    }
+
+    [Fact]
     public async Task AfterBuild_OnlyProcessesImageExtensions()
     {
         var outDir = GetTempDir();
