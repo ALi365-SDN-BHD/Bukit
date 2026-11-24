@@ -316,15 +316,17 @@ internal sealed partial class MiniProgramDatasetBuilder
         }
 
         var absolute = _urls.Absolute(text, pageUrl ?? _urls.SiteRoot);
-        if (!MiniProgramUrls.IsHttp(absolute, out _))
-        {
-            throw Invalid(dataset, recordId, field, $"is not an http(s) URL: {text}");
-        }
 
-        // A signed link expires and leaks its signature, for a file link as much as for an image.
+        // A signed link expires and leaks its signature, for a file link as much as for an image;
+        // checked first so a cloud:// reference gets this message rather than the http one.
         if (MiniProgramJson.IsSignedUrl(absolute))
         {
             throw Invalid(dataset, recordId, field, $"signed URL was not localized: {MiniProgramJson.RedactQuery(absolute)} (images are downloaded only under content.media.fieldKeys keys, at any depth, when content.media.downloadToLocal is on and the host is allowed)");
+        }
+
+        if (!MiniProgramUrls.IsHttp(absolute, out _))
+        {
+            throw Invalid(dataset, recordId, field, $"is not an http(s) URL: {text}");
         }
 
         return absolute;

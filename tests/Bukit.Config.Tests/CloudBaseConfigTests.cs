@@ -170,6 +170,52 @@ public sealed class CloudBaseConfigTests
         Assert.Contains("extraField", ex.Message, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public void Load_StrayMarkdownSectionOnCloudBaseSource_Fails()
+    {
+        var ex = Fails(
+            """
+            envId: prod-abc
+            table: articles
+            bodyField: content
+            """,
+            sourceExtras: "      markdown:\n        dir: content\n");
+        AssertCloudBaseError(ex);
+        Assert.Contains("content.sources[0].markdown is not used by a 'cloudbase' source", ex.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Load_StrayCloudBaseSectionOnNotionSource_Fails()
+    {
+        var path = Path.Combine(Path.GetTempPath(), $"bukit-cloudbase-config-{Guid.NewGuid():N}.yaml");
+        File.WriteAllText(path, """
+            site:
+              name: myblog
+              title: My Blog
+            content:
+              sources:
+                - type: notion
+                  name: posts
+                  notion:
+                    databaseId: 0123456789abcdef0123456789abcdef
+                  cloudbase:
+                    envId: prod-abc
+            """);
+
+        ConfigException ex;
+        try
+        {
+            ex = Assert.Throws<ConfigException>(() => ConfigValidator.Validate(ConfigLoader.Load(path)));
+        }
+        finally
+        {
+            File.Delete(path);
+        }
+
+        Assert.Equal(DiagnosticCode.ConfigInvalidValue, ex.Code);
+        Assert.Contains("content.sources[0].cloudbase is not used by a 'notion' source", ex.Message, StringComparison.Ordinal);
+    }
+
     [Theory]
     [InlineData("kind", "model")]
     [InlineData("model", "article")]

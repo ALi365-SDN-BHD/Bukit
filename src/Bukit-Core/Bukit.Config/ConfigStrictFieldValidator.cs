@@ -422,6 +422,7 @@ internal static class ConfigStrictFieldValidator
                     ? DiagnosticCode.CloudBaseConfigInvalid
                     : DiagnosticCode.ConfigInvalidValue;
                 RequireOnly(sourceMap, Set("type", "name", "mode", "collection", "addToCollections", "markdown", "notion", "cloudbase", "dataIndex"), path, sourceCode);
+                RequireMatchingProviderSection(sourceMap, sourceType, path, sourceCode);
                 if (Map(sourceMap, "markdown") is { } markdown) RequireOnly(markdown, Set("dir", "defaultType", "maxItems", "includePaths", "includeGlobs"), $"{path}.markdown");
                 if (Map(sourceMap, "notion") is { } notion) ValidateNotion(notion, $"{path}.notion");
                 if (Map(sourceMap, "cloudbase") is { } cloudbase) ValidateCloudBase(cloudbase, $"{path}.cloudbase");
@@ -452,6 +453,31 @@ internal static class ConfigStrictFieldValidator
             RequireOnly(routeMetadata, Set(
                 "source", "routeField", "titleField", "summaryField", "seoTitleField",
                 "seoDescriptionField", "requiredRoutes"), "content.routeMetadata");
+        }
+    }
+
+    private static readonly string[] ProviderSections = ["markdown", "notion", "cloudbase"];
+
+    /// <summary>
+    /// A provider section that does not match the source type would be silently ignored, so it is
+    /// rejected (for example a leftover <c>cloudbase:</c> block under <c>type: notion</c>).
+    /// </summary>
+    private static void RequireMatchingProviderSection(YamlMappingNode sourceMap, string? sourceType, string path, DiagnosticCode code)
+    {
+        if (sourceType is null || !ProviderSections.Contains(sourceType, StringComparer.OrdinalIgnoreCase))
+        {
+            return;
+        }
+
+        foreach (var section in ProviderSections)
+        {
+            if (!section.Equals(sourceType, StringComparison.OrdinalIgnoreCase) &&
+                sourceMap.Children.ContainsKey(new YamlScalarNode(section)))
+            {
+                throw new ConfigException(
+                    $"{path}.{section} is not used by a '{sourceType}' source; remove it or set type: {section}.",
+                    code);
+            }
         }
     }
 

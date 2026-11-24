@@ -20,7 +20,9 @@ path when a required field is missing, a value is out of range, an unknown field
 and `collectionName` keys are unknown fields. A credential field written in YAML SHALL fail
 validation; the credential SHALL come only from the `CLOUDBASE_PUBLISHABLE_KEY` environment
 variable or `--secrets-stdin`. The configuration types SHALL be internal and SHALL NOT add public
-API.
+API. A `markdown`, `notion` or `cloudbase` section on a source whose `type` is a different one of
+those three SHALL fail validation naming the section path, with `CloudBaseConfigInvalid` when the
+source type is `cloudbase` and `ConfigInvalidValue` otherwise, instead of being ignored.
 
 #### Scenario: Valid source
 - **WHEN** a site declares a `cloudbase` source with `envId: prod-abc`, `table: articles` and `bodyField: content`
@@ -41,6 +43,10 @@ API.
 #### Scenario: File fields without a bucket
 - **WHEN** `fileFields: [cover]` is configured without `storageBucket`
 - **THEN** validation fails with `CloudBaseConfigInvalid` naming `cloudbase.storageBucket`
+
+#### Scenario: Provider section that does not match the type
+- **WHEN** a source has `type: notion`, a `notion` section and a leftover `cloudbase` section
+- **THEN** `config check` fails naming `content.sources[0].cloudbase`
 
 ### Requirement: File fields require guaranteed local media download
 When `fileFields` is non-empty, configuration validation SHALL fail with `CloudBaseConfigInvalid`
@@ -99,11 +105,25 @@ Field projection SHALL default to `whitelist` with an empty allowed list. The co
 including `all`; configuration MAY add columns to this list and SHALL NOT remove any. The `idField`
 value SHALL be used only as an internal source identifier; it SHALL NOT be projected in `all` mode
 and SHALL appear in public fields only when listed explicitly in `allowed`, in which case `doctor`
-SHALL warn. Timestamp fields SHALL accept ISO-8601 strings and epoch numbers.
+SHALL warn. Timestamp fields SHALL accept ISO-8601 strings and epoch numbers. In `content` mode a row whose
+`slugField` is blank SHALL take its slug from the slugified title; only when the title yields no
+slug SHALL the `idField` value be used as the slug, and a row whose `titleField` is blank SHALL use
+its slug as the title. Each load that falls back this way SHALL log one warning with the number of
+rows whose slug came from the id and the number of rows without a title. A slug derived from the
+title can repeat; two rows with the same derived slug SHALL fail the build as a route conflict. In
+`data` mode a blank slug or title SHALL fall back to the id without a warning.
 
 #### Scenario: All mode still strips personal fields
 - **WHEN** `fieldPolicy: { mode: all }` is configured and a row carries `user_id` and `created_by`
 - **THEN** neither field appears in any public output
+
+#### Scenario: Missing slug derived from the title
+- **WHEN** a row has `title` "Hello World" and a blank `slug`
+- **THEN** its slug is `hello-world` and the row id does not appear in its route
+
+#### Scenario: Missing title and slug fall back to the id with a warning
+- **WHEN** a row has a blank `title` and a blank `slug`
+- **THEN** the id is used as its slug and title, and the load logs a warning counting that row
 
 #### Scenario: Row id not projected by default
 - **WHEN** `fieldPolicy: { mode: all }` is configured
@@ -147,7 +167,9 @@ or storage CDN signed form SHALL go through existing media localization. Downloa
 SHALL NOT send the credential. Signed links SHALL be downloaded locally within
 the same build. A `cloud://` reference in any other position SHALL NOT be resolved: a non-image body
 link SHALL be rendered as plain text, and a public field outside `fileFields` whose value contains
-`cloud://` SHALL be dropped, both with the warning `CloudBaseUnsupportedFileReference`. A failed
+`cloud://` SHALL be dropped, both with the warning `CloudBaseUnsupportedFileReference`. A
+`fileFields` value that is not a string (an array or object column) SHALL NOT be sent to signing:
+it SHALL be replaced with the media placeholder and counted in the same warning. A failed
 resolution (a per-item error in a batch response, a failed sign request, a signed link with the
 wrong scheme, host or path, a compat reference whose environment or bucket does not match, or an
 invalid object name) SHALL report `CloudBaseFileResolveFailed`, identify the failing entry by a hash of the row id and

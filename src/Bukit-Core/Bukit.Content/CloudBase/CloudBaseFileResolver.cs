@@ -196,37 +196,7 @@ internal sealed class CloudBaseFileResolver
     }
 
     private bool TryParseCloudReference(string value, out string objectName)
-    {
-        objectName = string.Empty;
-        var rest = value["cloud://".Length..];
-        var dot = rest.IndexOf('.', StringComparison.Ordinal);
-        if (dot <= 0)
-        {
-            return false;
-        }
-
-        var envId = rest[..dot];
-        var slash = rest.IndexOf('/', dot + 1);
-        if (slash < 0)
-        {
-            return false;
-        }
-
-        var bucket = rest[(dot + 1)..slash];
-        var path = rest[(slash + 1)..];
-
-        // An empty bucket never matches, even when storageBucket is unset (no fileFields).
-        if (bucket.Length == 0 ||
-            !envId.Equals(_envId, StringComparison.Ordinal) ||
-            !bucket.Equals(_bucket, StringComparison.Ordinal) ||
-            !CloudBaseEndpoints.IsValidObjectName(path))
-        {
-            return false;
-        }
-
-        objectName = path;
-        return true;
-    }
+        => CloudBaseEndpoints.TryParseCloudReference(value, _envId, _bucket, out objectName);
 
     private void AddPending(string objectName, string entry)
     {

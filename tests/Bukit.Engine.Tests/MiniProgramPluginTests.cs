@@ -839,6 +839,18 @@ public sealed class MiniProgramPluginTests : IDisposable
     }
 
     [Theory]
+    [InlineData("""<p><img src="cloud://env-x.media/a.png" alt="a"></p>""")]
+    [InlineData("""<p><a href="cloud://env-x.media/a.pdf">PDF</a></p>""")]
+    public async Task CloudBaseCompatReferenceInBody_Fails(string body)
+    {
+        var ex = await Assert.ThrowsAsync<BukitException>(() => RunAsync(Config(), [Article("a1", "First", body: body)], []));
+
+        Assert.Equal(DiagnosticCode.SchemaValidationFailed, ex.Code);
+        Assert.Contains("field 'body' signed URL was not localized", ex.Message, StringComparison.Ordinal);
+        Assert.DoesNotContain("env-x", ex.Message, StringComparison.Ordinal);
+    }
+
+    [Theory]
     [InlineData("""<p><a href="https://prod-files-secure.s3.us-west-2.amazonaws.com/a.pdf?X-Amz-Signature=abc">PDF</a></p>""")]
     [InlineData("""<video src="https://prod-files-secure.s3.us-west-2.amazonaws.com/v.mp4?X-Amz-Signature=abc"></video>""")]
     public async Task SignedBodyLinksAndEmbeds_Fail(string body)

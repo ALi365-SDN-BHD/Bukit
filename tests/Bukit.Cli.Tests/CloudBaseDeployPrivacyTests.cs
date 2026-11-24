@@ -148,6 +148,17 @@ public sealed class CloudBaseDeployPrivacyTests : IDisposable
     }
 
     [Fact]
+    public void Validate_MalformedJson_WordingFollowsCloudBaseSource()
+    {
+        Write("data.json", """{"title":""");
+
+        Assert.Contains(Validate(), error => error.Contains("unable to complete the Notion provenance privacy scan", StringComparison.Ordinal));
+        Assert.Contains(
+            DeploymentPrivacyValidator.Validate(_output, _staged, ["env-abc"]),
+            error => error.Contains("unable to complete the content provenance privacy scan", StringComparison.Ordinal));
+    }
+
+    [Fact]
     public void Validate_MalformedJsonWithCloudReference_Fails()
     {
         Write("data.json", """{"image":"cloud://env-abc.media/a.png""");
