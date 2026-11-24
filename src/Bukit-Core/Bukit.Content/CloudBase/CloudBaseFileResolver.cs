@@ -12,6 +12,9 @@ namespace Bukit.Content.CloudBase;
 /// </summary>
 internal sealed class CloudBaseFileResolver
 {
+    private const string ReferenceMismatch = "reference-mismatch";
+    private const string InvalidObjectName = "invalid-object-name";
+
     private readonly CloudBaseClient _client;
     private readonly string _envId;
     private readonly string _bucket;
@@ -20,6 +23,8 @@ internal sealed class CloudBaseFileResolver
     private readonly Dictionary<string, string?> _resolved = new(StringComparer.Ordinal);
     private readonly Dictionary<string, string> _bodyObjects = new(StringComparer.Ordinal);
     private readonly List<string> _pending = [];
+    private readonly Dictionary<string, List<string>> _entriesByObject = new(StringComparer.Ordinal);
+    private readonly List<string> _failures = [];
 
     internal CloudBaseFileResolver(
         CloudBaseClient client,
@@ -35,14 +40,18 @@ internal sealed class CloudBaseFileResolver
         _expiresSeconds = expiresSeconds;
     }
 
-    internal int ResolveFailures { get; private set; }
+    /// <summary>One line per failed entry: <c>{documentId}/{field or body}: {reason}</c>.</summary>
+    internal IReadOnlyList<string> Failures => _failures;
 
     internal int UnsupportedReferences { get; private set; }
 
     internal string Placeholder => _placeholder;
 
-    /// <summary>A fileFields value is an object name or a matching cloud:// reference.</summary>
-    internal bool TryAddFieldValue(string? value, out string objectName)
+    /// <summary>
+    /// A fileFields value is an object name or a matching cloud:// reference. <paramref name="entry"/>
+    /// names the position (<c>{documentId}/{field}</c>) for failure diagnostics.
+    /// </summary>
+    internal bool TryAddFieldValue(string? value, string entry, out string objectName)
     {
         objectName = string.Empty;
         if (string.IsNullOrWhiteSpace(value))
@@ -54,30 +63,30 @@ internal sealed class CloudBaseFileResolver
         {
             if (!TryParseCloudReference(value, out var parsed))
             {
-                ResolveFailures++;
+                Fail(entry, ReferenceMismatch);
                 return false;
             }
 
             objectName = parsed;
-            AddPending(objectName);
+            AddPending(objectName, entry);
             return true;
         }
 
         if (!IsValidObjectName(value))
         {
-            ResolveFailures++;
+            Fail(entry, InvalidObjectName);
             return false;
         }
 
         objectName = value;
-        AddPending(objectName);
+        AddPending(objectName, entry);
         return true;
     }
 
     internal string Resolve(string objectName)
         => _resolved.TryGetValue(objectName, out var url) && url is not null ? url : _placeholder;
 
-    internal void CollectMarkdownReferences(string markdown)
+    internal void CollectMarkdownReferences(string markdown, string entry)
     {
         if (string.IsNullOrWhiteSpace(markdown))
         {
@@ -102,11 +111,11 @@ internal sealed class CloudBaseFileResolver
             if (TryParseCloudReference(url, out var objectName))
             {
                 _bodyObjects[url] = objectName;
-                AddPending(objectName);
+                AddPending(objectName, entry);
             }
             else
             {
-                ResolveFailures++;
+                Fail(entry, ReferenceMismatch);
             }
         }
 
@@ -141,12 +150,21 @@ internal sealed class CloudBaseFileResolver
         IReadOnlyList<Bukit.CloudBase.Models.CloudBaseSignedObject> results;
         try
         {
-            results = await _client.SignObjectsAsync(_bucket, [.. _pending.Distinct(StringComparer.Ordinal)], _expiresSeconds, cancellationToken)
+            results = await _client.SignObjectsAsync(_bucket, _pending, _expiresSeconds, cancellationToken)
                 .ConfigureAwait(false);
         }
-        catch (CloudBaseApiException)
+        catch (CloudBaseApiException ex)
         {
-            ResolveFailures += _pending.Count;
+            // A whole-request failure (often 401/403 from a missing storage SELECT policy) names
+            // its kind and status so the cause is visible, not just a placeholder count.
+            var reason = ex.StatusCode is { } status
+                ? $"sign-request-failed {ex.Kind} {status}"
+                : $"sign-request-failed {ex.Kind}";
+            foreach (var objectName in _pending)
+            {
+                FailObject(objectName, reason);
+            }
+
             return;
         }
 
@@ -154,10 +172,26 @@ internal sealed class CloudBaseFileResolver
         {
             if (result.Url is null)
             {
-                ResolveFailures++;
+                FailObject(result.ObjectName, DescribeItemError(result.Error));
             }
 
             _resolved[result.ObjectName] = result.Url;
+        }
+    }
+
+    /// <summary>Keeps transport-defined reasons; gateway free text is reduced to a fixed word.</summary>
+    private static string DescribeItemError(string? error)
+        => error is InvalidObjectName or "invalid-signed-url" or CloudBaseClient.SignMismatchError
+            ? error
+            : "object-unavailable";
+
+    private void Fail(string entry, string reason) => _failures.Add($"{entry}: {reason}");
+
+    private void FailObject(string objectName, string reason)
+    {
+        foreach (var entry in _entriesByObject[objectName])
+        {
+            Fail(entry, reason);
         }
     }
 
@@ -194,12 +228,18 @@ internal sealed class CloudBaseFileResolver
         return true;
     }
 
-    private void AddPending(string objectName)
+    private void AddPending(string objectName, string entry)
     {
         if (!_resolved.ContainsKey(objectName))
         {
             _pending.Add(objectName);
             _resolved[objectName] = null;
+            _entriesByObject[objectName] = [];
+        }
+
+        if (!_entriesByObject[objectName].Contains(entry, StringComparer.Ordinal))
+        {
+            _entriesByObject[objectName].Add(entry);
         }
     }
 

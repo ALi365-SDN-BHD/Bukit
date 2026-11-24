@@ -1,3 +1,4 @@
+using System.Buffers;
 using System.Text.RegularExpressions;
 using Bukit.Config;
 using Bukit.Engine.Abstractions.Content;
@@ -6,6 +7,9 @@ namespace Bukit.Engine;
 
 internal static partial class PublicOutputPrivacyCheck
 {
+    private static readonly SearchValues<char> s_hostNameChars =
+        SearchValues.Create("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-.");
+    private static readonly SearchValues<char> s_hexDigits = SearchValues.Create("0123456789abcdefABCDEF");
     private static readonly HashSet<string> s_textExtensions = new(StringComparer.OrdinalIgnoreCase)
     {
         ".css", ".csv", ".htm", ".html", ".js", ".json", ".jsonld", ".md", ".mjs",
@@ -138,6 +142,48 @@ internal static partial class PublicOutputPrivacyCheck
             sensitiveTokens.Add(cloudBase.EnvId + ".storage.tcloudbase.com");
             sensitiveTokens.Add(".storage.tcloudbase.com");
         }
+    }
+
+    /// <summary>
+    /// Finds <paramref name="token"/> in <paramref name="text"/>, ignoring case. A host-name token
+    /// (only letters, digits, <c>-</c> and <c>.</c>, such as <c>prod-1.api.tcloudbasegateway.com</c>)
+    /// matches only at a host-label boundary, so another environment's host (<c>xprod-1.api…</c>)
+    /// is not a match; a percent (<c>%2F</c>) or backslash (<c>\x2F</c>, <c>\u002F</c>) escape before
+    /// it counts as a boundary. Any other token (such as <c>cloud://</c>) matches anywhere.
+    /// </summary>
+    internal static bool ContainsHostToken(string text, string token)
+    {
+        if (token.Length == 0)
+        {
+            return false;
+        }
+
+        if (!char.IsAsciiLetterOrDigit(token[0]) || token.AsSpan().ContainsAnyExcept(s_hostNameChars))
+        {
+            return text.Contains(token, StringComparison.OrdinalIgnoreCase);
+        }
+
+        for (var index = text.IndexOf(token, StringComparison.OrdinalIgnoreCase);
+             index >= 0;
+             index = text.IndexOf(token, index + 1, StringComparison.OrdinalIgnoreCase))
+        {
+            if (index == 0 || !IsHostLabelChar(text[index - 1]) || FollowsEscape(text, index))
+            {
+                return true;
+            }
+        }
+
+        return false;
+
+        static bool IsHostLabelChar(char c) => char.IsAsciiLetterOrDigit(c) || c == '-';
+
+        static bool FollowsEscape(string text, int index)
+            => (index >= 3 && text[index - 3] == '%' && IsHex(text, index - 2, 2)) ||
+               (index >= 4 && text[index - 4] == '\\' && text[index - 3] is 'x' or 'X' && IsHex(text, index - 2, 2)) ||
+               (index >= 6 && text[index - 6] == '\\' && text[index - 5] is 'u' or 'U' && IsHex(text, index - 4, 4));
+
+        static bool IsHex(string text, int start, int length)
+            => !text.AsSpan(start, length).ContainsAnyExcept(s_hexDigits);
     }
 
     private static void AddIdentifierTokens(HashSet<string> tokens, string? value)
@@ -425,7 +471,7 @@ internal static partial class PublicOutputPrivacyCheck
 
             foreach (var token in _otherTokens)
             {
-                if (value.Contains(token, StringComparison.OrdinalIgnoreCase))
+                if (ContainsHostToken(value, token))
                 {
                     return true;
                 }

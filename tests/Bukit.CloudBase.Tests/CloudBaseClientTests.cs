@@ -407,6 +407,50 @@ public sealed class CloudBaseClientTests
         Assert.Contains(500, delays);
     }
 
+    [Theory]
+    [InlineData("5", 5000)]
+    [InlineData("3600", 30000)]
+    public async Task Retry_On429_HonorsRetryAfterSecondsWithCap(string retryAfter, int expectedDelay)
+    {
+        var (client, handler, delays) = Create();
+        using var _client = client;
+        handler.Enqueue(_ =>
+        {
+            var response = new HttpResponseMessage(HttpStatusCode.TooManyRequests)
+            {
+                Content = new StringContent("""{"code":"RATE"}""", Encoding.UTF8, "application/json")
+            };
+            response.Headers.TryAddWithoutValidation("Retry-After", retryAfter);
+            return Task.FromResult(response);
+        });
+        handler.Enqueue(JsonArrayOne);
+
+        await client.QueryAsync(Query());
+
+        Assert.Equal(expectedDelay, delays[0]);
+    }
+
+    [Fact]
+    public async Task Retry_On503_HonorsRetryAfterDate()
+    {
+        var (client, handler, delays) = Create();
+        using var _client = client;
+        handler.Enqueue(_ =>
+        {
+            var response = new HttpResponseMessage(HttpStatusCode.ServiceUnavailable)
+            {
+                Content = new StringContent("""{"code":"BUSY"}""", Encoding.UTF8, "application/json")
+            };
+            response.Headers.RetryAfter = new System.Net.Http.Headers.RetryConditionHeaderValue(DateTimeOffset.UnixEpoch.AddSeconds(2));
+            return Task.FromResult(response);
+        });
+        handler.Enqueue(JsonArrayOne);
+
+        await client.QueryAsync(Query());
+
+        Assert.Equal(2000, delays[0]);
+    }
+
     [Fact]
     public async Task Retry_Exhausted_ThrowsRequestFailed()
     {

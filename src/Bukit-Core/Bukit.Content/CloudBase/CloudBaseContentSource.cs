@@ -12,6 +12,7 @@ internal sealed class CloudBaseContentSource : IContentProvider
     // DateTimeOffset.MinValue / MaxValue as Unix time.
     private const long MinUnixSeconds = -62_135_596_800;
     private const long MaxUnixMilliseconds = 253_402_300_799_999;
+    private const int MaxLoggedFailures = 10;
 
     private readonly CloudBaseContentSourceOptions _options;
     private readonly ILogger? _logger;
@@ -200,7 +201,7 @@ internal sealed class CloudBaseContentSource : IContentProvider
                 if (draft.Fields.TryGetValue(fileField, out var field) &&
                     field.Value?.ToString() is { } value)
                 {
-                    if (resolver.TryAddFieldValue(value, out var objectName))
+                    if (resolver.TryAddFieldValue(value, LogEntry(draft.Id, fileField), out var objectName))
                     {
                         draft.FileObjects[fileField] = objectName;
                     }
@@ -211,7 +212,7 @@ internal sealed class CloudBaseContentSource : IContentProvider
                 }
             }
 
-            resolver.CollectMarkdownReferences(draft.Markdown);
+            resolver.CollectMarkdownReferences(draft.Markdown, LogEntry(draft.Id, "body"));
         }
 
         await resolver.SignAsync(cancellationToken).ConfigureAwait(false);
@@ -223,10 +224,16 @@ internal sealed class CloudBaseContentSource : IContentProvider
             }
         }
 
-        if (resolver.ResolveFailures > 0)
+        // Name the failing entries (deduplicated, capped) so the cause is findable without the object names.
+        var failures = resolver.Failures.Distinct(StringComparer.Ordinal).ToArray();
+        if (failures.Length > 0)
         {
+            var shown = string.Join("; ", failures.Take(MaxLoggedFailures));
+            var more = failures.Length > MaxLoggedFailures
+                ? $" (+{failures.Length - MaxLoggedFailures} more)"
+                : string.Empty;
             _logger?.Warn(
-                $"event=cloudbase.file_resolve_failed code={DiagnosticCodeFormatter.Format(DiagnosticCode.CloudBaseFileResolveFailed)} count={resolver.ResolveFailures}");
+                $"event=cloudbase.file_resolve_failed code={DiagnosticCodeFormatter.Format(DiagnosticCode.CloudBaseFileResolveFailed)} count={failures.Length} entries=\"{shown}{more}\"");
         }
 
         WarnUnsupported(resolver.UnsupportedReferences + StripCloudReferenceFields(drafts));
@@ -256,6 +263,22 @@ internal sealed class CloudBaseContentSource : IContentProvider
 
         return dropped;
     }
+
+    /// <summary>Row ids come from the database: quotes and control characters are replaced so a log line stays one key=value record.</summary>
+    private static string LogEntry(string id, string field)
+        => string.Create(id.Length + 1 + field.Length, (id, field), static (span, state) =>
+        {
+            state.id.AsSpan().CopyTo(span);
+            span[state.id.Length] = '/';
+            state.field.AsSpan().CopyTo(span[(state.id.Length + 1)..]);
+            foreach (ref var c in span)
+            {
+                if (c == '"' || c == ';' || char.IsControl(c))
+                {
+                    c = '_';
+                }
+            }
+        });
 
     private void WarnUnsupported(int count)
     {

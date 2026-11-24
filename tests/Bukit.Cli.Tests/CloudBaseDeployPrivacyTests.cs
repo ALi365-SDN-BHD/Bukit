@@ -66,6 +66,8 @@ public sealed class CloudBaseDeployPrivacyTests : IDisposable
     [Theory]
     [InlineData("""<a href="https://env-abc.api.tcloudbasegateway.com/v1/storages/object/sign/media/a.png?token=x">x</a>""")]
     [InlineData("""<img src="https://env-abc.storage.tcloudbase.com/media/a.png?token=x">""")]
+    [InlineData("""<a href="http://env-abc.api.intl.tcloudbasegateway.com/v1/storages/object/sign/media/a.png?token=x">x</a>""")]
+    [InlineData("""<img src="//env-abc.storage.tcloudbase.com/media/a.png?x=1&token=x">""")]
     public void Validate_SignedCloudBaseLink_FailsAnywhere(string content)
     {
         Write("guide.md", content);
@@ -107,6 +109,24 @@ public sealed class CloudBaseDeployPrivacyTests : IDisposable
         Write("index.html", """<a href="https://prod-10.api.tcloudbasegateway.com/x">x</a>""");
 
         Assert.Empty(DeploymentPrivacyValidator.Validate(_output, _staged, ["prod-1"]));
+    }
+
+    [Fact]
+    public void Validate_OtherEnvironmentHostSharingSuffix_Passes()
+    {
+        Write("index.html", """<a href="https://xprod-1.api.tcloudbasegateway.com/x">x</a>""");
+
+        Assert.Empty(DeploymentPrivacyValidator.Validate(_output, _staged, ["prod-1"]));
+    }
+
+    [Theory]
+    [InlineData("""<img src="/img?u=https%3A%2F%2Fprod-1.storage.tcloudbase.com%2Fa.png">""")]
+    [InlineData("""<img src="/img?u=https%3A%2F%2Fprod-1.api.tcloudbasegateway.com%2Fx">""")]
+    public void Validate_PercentEncodedConfiguredHost_Fails(string content)
+    {
+        Write("index.html", content);
+
+        Assert.NotEmpty(DeploymentPrivacyValidator.Validate(_output, _staged, ["prod-1"]));
     }
 
     [Fact]

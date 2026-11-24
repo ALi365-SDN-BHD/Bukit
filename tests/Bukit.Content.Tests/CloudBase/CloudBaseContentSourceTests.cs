@@ -230,6 +230,72 @@ public sealed class CloudBaseContentSourceTests
         Assert.Equal("/ph.jpg", document.CustomFields!["cover"].Value);
     }
 
+    [Fact]
+    public async Task LoadRawAsync_SignRequestForbidden_LogsEntryAndStatus()
+    {
+        var api = new FakeCloudBaseApi { SignStatus = HttpStatusCode.Forbidden };
+        api.Pages[0] = """[{"id":"a1","title":"A","slug":"a","cover":"posts/a.png","content":"x"}]""";
+        api.Total = 1;
+        var messages = new List<string>();
+        var source = Create(api, options => options with
+        {
+            FileFields = ["cover"],
+            StorageBucket = "media",
+            DefaultImageUrl = "/ph.jpg"
+        }, new ListLogger(messages));
+
+        var document = Assert.Single((await source.LoadRawAsync()).Documents);
+
+        Assert.Equal("/ph.jpg", document.CustomFields!["cover"].Value);
+        Assert.Contains(messages, message =>
+            message.Contains("event=cloudbase.file_resolve_failed", StringComparison.Ordinal) &&
+            message.Contains("count=1", StringComparison.Ordinal) &&
+            message.Contains("entries=\"a1/cover: sign-request-failed Forbidden 403\"", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task LoadRawAsync_ItemSignError_LogsEveryReferencingEntry()
+    {
+        var api = new FakeCloudBaseApi { SignError = "denied" };
+        api.Pages[0] = """[{"id":"a1","title":"A","slug":"a","cover":"posts/a.png","content":"x"},{"id":"a2","title":"B","slug":"b","cover":"posts/a.png","content":"y"}]""";
+        api.Total = 2;
+        var messages = new List<string>();
+        var source = Create(api, options => options with
+        {
+            FileFields = ["cover"],
+            StorageBucket = "media",
+            DefaultImageUrl = "/ph.jpg"
+        }, new ListLogger(messages));
+
+        await source.LoadRawAsync();
+
+        var warning = Assert.Single(messages, message => message.Contains("file_resolve_failed", StringComparison.Ordinal));
+        Assert.Contains("count=2", warning, StringComparison.Ordinal);
+        Assert.Contains("a1/cover: object-unavailable", warning, StringComparison.Ordinal);
+        Assert.Contains("a2/cover: object-unavailable", warning, StringComparison.Ordinal);
+        Assert.DoesNotContain("posts/a.png", warning, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task LoadRawAsync_RepeatedFailures_AreLoggedOnceWithEscapedId()
+    {
+        var api = new FakeCloudBaseApi();
+        api.Pages[0] = """[{"id":"a\"1;x","title":"A","slug":"a","content":"![a](cloud://other-env.media/a.png) ![b](cloud://other-env.media/b.png)"}]""";
+        api.Total = 1;
+        var messages = new List<string>();
+        var source = Create(api, options => options with
+        {
+            StorageBucket = "media",
+            DefaultImageUrl = "/ph.jpg"
+        }, new ListLogger(messages));
+
+        await source.LoadRawAsync();
+
+        var warning = Assert.Single(messages, message => message.Contains("file_resolve_failed", StringComparison.Ordinal));
+        Assert.Contains("count=1", warning, StringComparison.Ordinal);
+        Assert.Contains("entries=\"a_1_x/body: reference-mismatch\"", warning, StringComparison.Ordinal);
+    }
+
     [Theory]
     [InlineData("cloud://other-env.media/posts/a.png")]
     [InlineData("posts/../a.png")]
@@ -458,7 +524,8 @@ public sealed class CloudBaseContentSourceTests
 
     private static CloudBaseContentSource Create(
         FakeCloudBaseApi api,
-        Func<CloudBaseContentSourceOptions, CloudBaseContentSourceOptions> configure)
+        Func<CloudBaseContentSourceOptions, CloudBaseContentSourceOptions> configure,
+        ILogger? logger = null)
     {
         var options = configure(new CloudBaseContentSourceOptions
         {
@@ -469,7 +536,7 @@ public sealed class CloudBaseContentSourceTests
         });
         return new CloudBaseContentSource(
             options,
-            logger: null,
+            logger,
             () => new Bukit.CloudBase.Transport.CloudBaseClient(
                 new Bukit.CloudBase.Transport.CloudBaseClientOptions
                 {
@@ -482,6 +549,14 @@ public sealed class CloudBaseContentSourceTests
                 api));
     }
 
+    private sealed class ListLogger(List<string> messages) : ILogger
+    {
+        public void Debug(string message) => messages.Add(message);
+        public void Info(string message) => messages.Add(message);
+        public void Warn(string message) => messages.Add(message);
+        public void Error(string message) => messages.Add(message);
+    }
+
     private sealed class FakeCloudBaseApi : HttpMessageHandler
     {
         public Dictionary<int, string> Pages { get; } = new();
@@ -489,6 +564,7 @@ public sealed class CloudBaseContentSourceTests
         public int Total { get; set; } = 3;
         public bool Unauthorized { get; set; }
         public string? SignError { get; set; }
+        public HttpStatusCode? SignStatus { get; set; }
         public bool RejectSelect { get; set; }
 
         protected override async Task<HttpResponseMessage> SendAsync(
@@ -499,6 +575,14 @@ public sealed class CloudBaseContentSourceTests
             if (request.Method == HttpMethod.Post &&
                 request.RequestUri!.AbsolutePath == "/v1/storages/object/sign/media")
             {
+                if (SignStatus is { } signStatus)
+                {
+                    return new HttpResponseMessage(signStatus)
+                    {
+                        Content = new StringContent("""{"code":"DENIED"}""", Encoding.UTF8, "application/json")
+                    };
+                }
+
                 var body = await request.Content!.ReadAsStringAsync(cancellationToken);
                 using var payload = System.Text.Json.JsonDocument.Parse(body);
                 var items = payload.RootElement.GetProperty("paths").EnumerateArray()
