@@ -7,13 +7,14 @@ unset BUKIT_REPRO_ROUNDS BUKIT_REPRO_REFERENCE
 scratch="$(mktemp -d "${TMPDIR:-/tmp}/bukit-build-repro-self-test.XXXXXX")"
 trap 'rm -rf -- "$scratch"' EXIT
 
+export NUGET_PACKAGES="$scratch/fake-nuget"; mkdir -p "$NUGET_PACKAGES/skiasharp.nativeassets.linux.nodependencies/1.0.0/runtimes/linux-x64/native"; printf 'native\n' > "$NUGET_PACKAGES/skiasharp.nativeassets.linux.nodependencies/1.0.0/runtimes/linux-x64/native/libSkiaSharp.so"
+
 fake_bin="$scratch/bin"
 mkdir -p "$fake_bin"
 
 cat > "$fake_bin/dotnet" <<'FAKE_DOTNET'
 #!/usr/bin/env bash
 set -euo pipefail
-
 state="${FAKE_BUILD_STATE:?}"
 count=0
 if [[ -f "$state" ]]; then
@@ -21,7 +22,6 @@ if [[ -f "$state" ]]; then
 fi
 count=$((count + 1))
 printf '%s\n' "$count" > "$state"
-
 output=""
 source_revision=""
 while [[ $# -gt 0 ]]; do
@@ -43,7 +43,6 @@ done
 [[ -n "$source_revision" ]] || { echo "fake dotnet: missing SourceRevisionId" >&2; exit 72; }
 printf '%s|%s|%s\n' "$GITHUB_SHA" "$SOURCE_DATE_EPOCH" "$source_revision" \
   >> "${FAKE_BUILD_ENV_LOG:?}"
-
 mkdir -p "$output/assets"
 printf 'asset\n' > "$output/assets/data.txt"
 if [[ "${FAKE_BUILD_MODE:?}" == "drift" && "$count" -eq "${FAKE_DRIFT_AT:-2}" ]]; then
@@ -127,7 +126,7 @@ done
 reference="$scratch/reference"
 mkdir -p "$reference/assets"
 printf 'asset\n' > "$reference/assets/data.txt"
-printf 'stable\n' > "$reference/bukit"
+printf 'stable\n' > "$reference/bukit"; printf 'native\n' > "$reference/libSkiaSharp.so"
 chmod +x "$reference/bukit"
 rm -f -- "$FAKE_BUILD_ENV_LOG"
 GITHUB_OUTPUT="$scratch/step-output" BUKIT_REPRO_REFERENCE="$reference" \
@@ -169,7 +168,7 @@ for missing in "$scratch/absent" ''; do
     exit 1
   }
 done
-printf 'stable\n' > "$reference/bukit"
+printf 'stable\n' > "$reference/bukit"; printf 'native\n' > "$reference/libSkiaSharp.so"
 (cd "$scratch" && BUKIT_REPRO_REFERENCE=reference bash "$OLDPWD/scripts/build/build-repro.sh" \
   1.2.3 linux-x64 Release >"$scratch/relative.stdout" 2>"$scratch/relative.stderr")
 

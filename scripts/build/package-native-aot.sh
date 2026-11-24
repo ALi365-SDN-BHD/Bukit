@@ -132,6 +132,37 @@ exe="$publish_dir/bukit"
   exit 1
 }
 
+# SkiaSharp native assets are runtime dependencies of media localization and can be
+# missing from publish output (observed once). Restore the pinned package version from the
+# NuGet cache so the archive is self-contained; fail loudly when it cannot be found.
+# shortcut: assumes the SkiaSharp.NativeAssets.* package layout; revisit if SkiaSharp changes packaging.
+native_lib=""
+native_package=""
+native_rid=""
+case "$rid" in
+  osx-arm64|osx-x64) native_lib="libSkiaSharp.dylib"; native_package="skiasharp.nativeassets.macos"; native_rid="osx" ;;
+  linux-x64|linux-arm64) native_lib="libSkiaSharp.so"; native_package="skiasharp.nativeassets.linux.nodependencies"; native_rid="$rid" ;;
+  win-x64|win-arm64) native_lib="libSkiaSharp.dll"; native_package="skiasharp.nativeassets.win32"; native_rid="$rid" ;;
+esac
+if [[ -n "$native_lib" && ! -f "$publish_dir/$native_lib" ]]; then
+  nuget_root="${NUGET_PACKAGES:-$HOME/.nuget/packages}"
+  skia_version="$(sed -n 's/.*<PackageVersion Include="SkiaSharp" Version="\([^"]*\)".*/\1/p' Directory.Packages.props | head -n 1)"
+  source_lib=""
+  if [[ -n "$skia_version" && -f "$nuget_root/$native_package/$skia_version/runtimes/$native_rid/native/$native_lib" ]]; then
+    source_lib="$nuget_root/$native_package/$skia_version/runtimes/$native_rid/native/$native_lib"
+  else
+    # Fallback for an unusual cache layout: newest path by version sort.
+    source_lib="$(find "$nuget_root/$native_package" -path "*/runtimes/$native_rid/native/$native_lib" -print 2>/dev/null | sort -V | tail -n 1 || true)"
+  fi
+  [[ -n "$source_lib" ]] || {
+    echo "native AOT publish is missing $native_lib and it was not found in $nuget_root/$native_package" >&2
+    exit 1
+  }
+  cp -- "$source_lib" "$publish_dir/$native_lib"
+  touch -t 202001010000 "$publish_dir/$native_lib"
+  echo "restored $native_lib from $source_lib" >&2
+fi
+
 if [[ "$rid" == win-* ]]; then
   archive_for_pwsh="$(native_path "$pending_archive")"
 

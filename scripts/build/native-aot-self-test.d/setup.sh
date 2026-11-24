@@ -94,3 +94,14 @@ FAKE_TAR
 chmod +x "$fake_bin/dotnet" "$fake_bin/pwsh" "$fake_bin/tar"
 export PATH="$fake_bin:$PATH"
 export FAKE_DOTNET_ARGS="$scratch/dotnet.args"
+
+create_fake_nuget() {
+  export NUGET_PACKAGES="$1/fake-nuget"
+  local root="$NUGET_PACKAGES"
+  mkdir -p "$root/skiasharp.nativeassets.linux.nodependencies/1.0.0/runtimes/linux-x64/native"
+  printf 'native\n' > "$root/skiasharp.nativeassets.linux.nodependencies/1.0.0/runtimes/linux-x64/native/libSkiaSharp.so"
+  mkdir -p "$root/skiasharp.nativeassets.win32/1.0.0/runtimes/win-x64/native"
+  printf 'native\n' > "$root/skiasharp.nativeassets.win32/1.0.0/runtimes/win-x64/native/libSkiaSharp.dll"
+  mkdir -p "$root/skiasharp.nativeassets.macos/1.0.0/runtimes/osx/native"
+  printf 'native\n' > "$root/skiasharp.nativeassets.macos/1.0.0/runtimes/osx/native/libSkiaSharp.dylib"
+}
