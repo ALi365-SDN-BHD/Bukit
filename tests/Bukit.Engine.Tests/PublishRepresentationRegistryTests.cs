@@ -79,6 +79,31 @@ public sealed class PublishRepresentationRegistryTests
         Assert.Equal(["Bukit"], entry.Entities);
     }
 
+    [Theory]
+    [InlineData("/", "/post/", "/content/post/index.html.json")]
+    [InlineData("/en", "/en/post/", "/en/content/post/index.html.json")]
+    public void BuildAgentManifestEntries_PageRepresentationsUseTheBaseUrl(string baseUrl, string pageUrl, string jsonUrl)
+    {
+        var document = ContentDocument.Create("post", "Post", "post", DateTimeOffset.Parse("2026-07-13T00:00:00Z"), "<p>body</p>",
+            ContentFieldReader.ToFieldMap(new Dictionary<string, object> { ["language"] = "en", ["collection"] = "post" }));
+        var route = new RouteInfo("/post/", "post/index.html", "post.html");
+        var context = new PublishProjectionContext(
+            new AppConfig { Site = new SiteConfig { Name = "test", Title = "Test" }, Content = TestContent.Markdown() },
+            Path.GetTempPath(),
+            new CanonicalContentGraph([document.Record], [], [], []),
+            new Dictionary<string, SeoIndexEntry>(StringComparer.OrdinalIgnoreCase),
+            new Dictionary<string, SeoModel>(StringComparer.OrdinalIgnoreCase),
+            [new RoutedContentDocument(document, route)],
+            BaseUrl: baseUrl);
+
+        var entry = Assert.Single(DefaultContentProjectionWriter.BuildAgentManifestEntries(context));
+
+        Assert.Equal("/post/", entry.Route);
+        Assert.Equal(pageUrl, Assert.Single(entry.Representations, x => x.Kind == "html").Url);
+        Assert.Equal(pageUrl, Assert.Single(entry.Representations, x => x.Kind == "semantic-html").Url);
+        Assert.Equal(jsonUrl, Assert.Single(entry.Representations, x => x.Kind == "json").Url);
+    }
+
     [Fact]
     public void DocumentKinds_ReturnsCanonicalDocumentRepresentations()
     {
