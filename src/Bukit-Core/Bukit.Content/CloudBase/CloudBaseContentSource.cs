@@ -9,6 +9,10 @@ namespace Bukit.Content.CloudBase;
 
 internal sealed class CloudBaseContentSource : IContentProvider
 {
+    // DateTimeOffset.MinValue / MaxValue as Unix time.
+    private const long MinUnixSeconds = -62_135_596_800;
+    private const long MaxUnixMilliseconds = 253_402_300_799_999;
+
     private readonly CloudBaseContentSourceOptions _options;
     private readonly ILogger? _logger;
     private readonly Func<CloudBaseClient>? _clientFactory;
@@ -37,20 +41,7 @@ internal sealed class CloudBaseContentSource : IContentProvider
         CloudBaseQueryResult page;
         try
         {
-            page = await client.QueryAsync(
-                new CloudBaseQueryRequest
-                {
-                    Table = _options.Table,
-                    Select = BuildSelectList(),
-                    IdField = _options.IdField,
-                    PageSize = _options.PageSize,
-                    MaxItems = _options.MaxItems,
-                    FilterField = _options.FilterField,
-                    FilterValue = _options.FilterValue,
-                    SortField = _options.SortField,
-                    SortDirection = _options.SortDirection
-                },
-                cancellationToken).ConfigureAwait(false);
+            page = await QueryRowsAsync(client, cancellationToken).ConfigureAwait(false);
         }
         catch (CloudBaseApiException ex)
         {
@@ -62,6 +53,7 @@ internal sealed class CloudBaseContentSource : IContentProvider
         var isData = string.Equals(_options.Mode, "data", StringComparison.OrdinalIgnoreCase);
         var allowedSet = CloudBaseFieldProjector.BuildAllowedSet(_options.FieldPolicyMode, _options.AllowedFields);
         var drafts = new List<Draft>(page.Rows.Count);
+        var seenIds = new HashSet<string>(StringComparer.Ordinal);
         foreach (var row in page.Rows)
         {
             cancellationToken.ThrowIfCancellationRequested();
@@ -70,6 +62,13 @@ internal sealed class CloudBaseContentSource : IContentProvider
             {
                 throw new ContentException(
                     $"CloudBase row is missing the configured idField '{_options.IdField}'.",
+                    DiagnosticCode.CloudBaseResponseInvalid);
+            }
+
+            if (!seenIds.Add(id))
+            {
+                throw new ContentException(
+                    $"CloudBase returned more than one row with the same idField '{_options.IdField}' value; idField must be unique.",
                     DiagnosticCode.CloudBaseResponseInvalid);
             }
 
@@ -134,17 +133,56 @@ internal sealed class CloudBaseContentSource : IContentProvider
             new CloudBaseBodyStore(bodies, imageUrls, _options.DefaultImageUrl));
     }
 
+    /// <summary>
+    /// In whitelist mode the query asks only for the mapped, file and allowed columns. The mapped
+    /// columns have defaults (slug, publish_at, updated_at) a table may not have, and PostgREST
+    /// rejects a select naming a missing column with 400, so on 400 the query is repeated once
+    /// without select; the projector still drops every column outside the whitelist.
+    /// </summary>
+    private async Task<CloudBaseQueryResult> QueryRowsAsync(
+        CloudBaseClient client,
+        CancellationToken cancellationToken)
+    {
+        var request = new CloudBaseQueryRequest
+        {
+            Table = _options.Table,
+            Select = BuildSelectList(),
+            IdField = _options.IdField,
+            PageSize = _options.PageSize,
+            MaxItems = _options.MaxItems,
+            FilterField = _options.FilterField,
+            FilterValue = _options.FilterValue,
+            SortField = _options.SortField,
+            SortDirection = _options.SortDirection
+        };
+        try
+        {
+            return await client.QueryAsync(request, cancellationToken).ConfigureAwait(false);
+        }
+        catch (CloudBaseApiException ex) when (ex.StatusCode == 400 && request.Select is not null)
+        {
+            _logger?.Info($"event=cloudbase.select_fallback table={_options.Table}");
+            return await client.QueryAsync(request with { Select = null }, cancellationToken).ConfigureAwait(false);
+        }
+    }
+
     private async Task<IReadOnlyDictionary<string, string>> ResolveFilesAsync(
         List<Draft> drafts,
         CloudBaseClient client,
         bool isData,
         CancellationToken cancellationToken)
     {
-        if (isData ||
-            (_options.FileFields.Count == 0 &&
-             !drafts.Any(draft =>
-                 draft.Markdown.Contains("cloud://", StringComparison.OrdinalIgnoreCase) ||
-                 draft.Fields.Values.Any(field => ContainsCloudReference(field.Value)))))
+        if (isData)
+        {
+            // Data mode resolves no file references (it has no fileFields), so any field holding cloud:// is dropped.
+            WarnUnsupported(StripCloudReferenceFields(drafts));
+            return new Dictionary<string, string>(StringComparer.Ordinal);
+        }
+
+        if (_options.FileFields.Count == 0 &&
+            !drafts.Any(draft =>
+                draft.Markdown.Contains("cloud://", StringComparison.OrdinalIgnoreCase) ||
+                draft.Fields.Values.Any(field => ContainsCloudReference(field.Value))))
         {
             return new Dictionary<string, string>(StringComparer.Ordinal);
         }
@@ -183,17 +221,6 @@ internal sealed class CloudBaseContentSource : IContentProvider
             {
                 draft.Fields[fileField] = new ContentField("text", resolver.Resolve(objectName));
             }
-
-            foreach (var name in draft.Fields.Keys.Where(name =>
-                !_options.FileFields.Contains(name, StringComparer.OrdinalIgnoreCase)).ToArray())
-            {
-                if (ContainsCloudReference(draft.Fields[name].Value))
-                {
-                    draft.Fields.Remove(name);
-                    resolver.MarkUnsupported();
-                }
-            }
-
         }
 
         if (resolver.ResolveFailures > 0)
@@ -202,13 +229,41 @@ internal sealed class CloudBaseContentSource : IContentProvider
                 $"event=cloudbase.file_resolve_failed code={DiagnosticCodeFormatter.Format(DiagnosticCode.CloudBaseFileResolveFailed)} count={resolver.ResolveFailures}");
         }
 
-        if (resolver.UnsupportedReferences > 0)
+        WarnUnsupported(resolver.UnsupportedReferences + StripCloudReferenceFields(drafts));
+        return resolver.BuildBodyUrlMap();
+    }
+
+    /// <summary>Drops public fields outside fileFields whose value contains cloud://; returns the count.</summary>
+    private int StripCloudReferenceFields(List<Draft> drafts)
+    {
+        var dropped = 0;
+        foreach (var draft in drafts)
         {
-            _logger?.Warn(
-                $"event=cloudbase.unsupported_file_reference code={DiagnosticCodeFormatter.Format(DiagnosticCode.CloudBaseUnsupportedFileReference)} count={resolver.UnsupportedReferences}");
+            foreach (var name in draft.Fields.Keys.ToArray())
+            {
+                if (_options.FileFields.Contains(name, StringComparer.OrdinalIgnoreCase))
+                {
+                    continue;
+                }
+
+                if (ContainsCloudReference(draft.Fields[name].Value))
+                {
+                    draft.Fields.Remove(name);
+                    dropped++;
+                }
+            }
         }
 
-        return resolver.BuildBodyUrlMap();
+        return dropped;
+    }
+
+    private void WarnUnsupported(int count)
+    {
+        if (count > 0)
+        {
+            _logger?.Warn(
+                $"event=cloudbase.unsupported_file_reference code={DiagnosticCodeFormatter.Format(DiagnosticCode.CloudBaseUnsupportedFileReference)} count={count}");
+        }
     }
 
     private static bool ContainsCloudReference(object? value)
@@ -324,9 +379,10 @@ internal sealed class CloudBaseContentSource : IContentProvider
 
         if (value.ValueKind == JsonValueKind.Number && value.TryGetInt64(out var epoch))
         {
+            // Out-of-range values (microseconds, sentinels) are treated as missing, not fatal.
             return epoch >= 100_000_000_000
-                ? DateTimeOffset.FromUnixTimeMilliseconds(epoch)
-                : DateTimeOffset.FromUnixTimeSeconds(epoch);
+                ? epoch <= MaxUnixMilliseconds ? DateTimeOffset.FromUnixTimeMilliseconds(epoch) : null
+                : epoch >= MinUnixSeconds ? DateTimeOffset.FromUnixTimeSeconds(epoch) : null;
         }
 
         return null;

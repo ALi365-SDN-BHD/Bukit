@@ -50,7 +50,8 @@ internal static class BasicMarkdownToHtml
         if (untrustedLinks)
         {
             var document = global::Markdig.Markdown.Parse(normalized, Pipeline);
-            foreach (var link in document.Descendants<LinkInline>())
+            // Snapshot the nodes first: unwrapping and removing below mutate the tree.
+            foreach (var link in document.Descendants<LinkInline>().ToList())
             {
                 if (link.IsImage && imageUrlResolver is not null)
                 {
@@ -60,11 +61,21 @@ internal static class BasicMarkdownToHtml
                 link.Url = link.IsImage
                     ? CloudBaseUrlPolicy.SanitizeMedia(link.Url)
                     : CloudBaseUrlPolicy.SanitizeLink(link.Url);
+
+                // A refused link (cloud://, unsafe scheme) is kept as its text, not as <a href="">.
+                if (!link.IsImage && link.Url.Length == 0)
+                {
+                    UnwrapLink(link);
+                }
             }
 
-            foreach (var autolink in document.Descendants<AutolinkInline>())
+            foreach (var autolink in document.Descendants<AutolinkInline>().ToList())
             {
                 autolink.Url = CloudBaseUrlPolicy.SanitizeLink(autolink.Url);
+                if (autolink.Url.Length == 0)
+                {
+                    autolink.Remove();
+                }
             }
 
             html = document.ToHtml(Pipeline);
@@ -77,6 +88,20 @@ internal static class BasicMarkdownToHtml
         html = html.TrimEnd('\r', '\n');
 
         return StandaloneImageParagraphRegex.Replace(html, "${image}");
+    }
+
+    private static void UnwrapLink(LinkInline link)
+    {
+        var child = link.FirstChild;
+        while (child is not null)
+        {
+            var next = child.NextSibling;
+            child.Remove();
+            link.InsertBefore(child);
+            child = next;
+        }
+
+        link.Remove();
     }
 
     internal static global::Markdig.Syntax.MarkdownDocument ParseDocument(string markdown)

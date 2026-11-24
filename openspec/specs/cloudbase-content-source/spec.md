@@ -67,8 +67,10 @@ fail with `CloudBaseMediaLocalizationRequired`.
 
 ### Requirement: Rows are read completely, filtered, sorted and bounded
 The source SHALL read the configured table or view through the PostgREST read interface, page by
-page with `limit` and `offset`, requesting the exact total count, and SHALL stop when a page holds
-fewer rows than the page size or the offset reaches the total. Every request SHALL carry the
+page with `limit` and `offset`, requesting the exact total count. When the total is known it SHALL
+stop when the offset reaches the total or a page is empty, so that a gateway row cap below the page
+size does not truncate the result; without a total it SHALL stop when a page holds fewer rows than
+the page size. Every request SHALL carry the
 configured single-field equality filter as a URL-encoded `eq.` condition, and an order that ends
 with the unique `idField` ascending as a tiebreak so that paging is stable. The source SHALL stop
 at `maxItems` rows when it is set. Responses that exceed the size limit, do not match the expected

@@ -83,6 +83,28 @@ public sealed class CloudBaseFieldProjectorTests
         Assert.Equal(["x", "y"], Assert.IsAssignableFrom<IEnumerable<string>>(fields["tags"].Value));
     }
 
+    [Theory]
+    [InlineData("9007199254740993", 9007199254740993L)]
+    [InlineData("1790000000000000001", 1790000000000000001L)]
+    public void Project_BigIntegers_KeepEveryDigit(string json, long expected)
+    {
+        var row = JsonDocument.Parse($$"""{"author_id": {{json}}}""").RootElement;
+
+        var fields = CloudBaseFieldProjector.Project(row, "whitelist", ["author_id"], "id");
+
+        Assert.Equal(expected, Assert.IsType<long>(fields["author_id"].Value));
+    }
+
+    [Fact]
+    public void Project_Fractions_StayDouble()
+    {
+        var row = JsonDocument.Parse("""{"price": 19.99}""").RootElement;
+
+        var fields = CloudBaseFieldProjector.Project(row, "whitelist", ["price"], "id");
+
+        Assert.Equal(19.99, Assert.IsType<double>(fields["price"].Value));
+    }
+
     [Fact]
     public void Project_NonObjectRow_ReturnsEmpty()
     {

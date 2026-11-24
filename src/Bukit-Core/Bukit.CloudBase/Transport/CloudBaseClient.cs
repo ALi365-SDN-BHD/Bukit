@@ -16,6 +16,7 @@ internal sealed class CloudBaseClient : IDisposable
     private const int ErrorBodyBytes = 8 * 1024;
     private const int BackoffBaseMs = 500;
     private const int BackoffMaxMs = 8_000;
+    internal const string SignMismatchError = "sign-mismatch";
 
     private readonly CloudBaseClientOptions _options;
     private readonly HttpClient _httpClient;
@@ -40,7 +41,9 @@ internal sealed class CloudBaseClient : IDisposable
             ? new HttpClient(handler, disposeHandler: true)
             : new HttpClient();
         client.BaseAddress = options.GatewayOrigin;
-        client.Timeout = TimeSpan.FromMilliseconds(int.MaxValue);
+
+        // Each attempt carries its own deadline (CloudBaseClientOptions.RequestTimeout).
+        client.Timeout = Timeout.InfiniteTimeSpan;
         return client;
     }
 
@@ -86,22 +89,23 @@ internal sealed class CloudBaseClient : IDisposable
         return new HttpClient(handler, disposeHandler: true)
         {
             BaseAddress = options.GatewayOrigin,
-            Timeout = TimeSpan.FromMilliseconds(int.MaxValue)
+            Timeout = Timeout.InfiniteTimeSpan
         };
     }
 
     internal async Task<int?> HeadCountAsync(string table, CancellationToken cancellationToken = default)
     {
         EnsureIdentifier(table);
-        using var response = await SendWithRetryAsync(
+        var response = await SendWithRetryAsync(
             () =>
             {
                 var request = new HttpRequestMessage(HttpMethod.Head, $"{CloudBaseEndpoints.RestPrefix}{table}");
                 request.Headers.TryAddWithoutValidation("Prefer", "count=exact");
                 return request;
             },
+            ErrorBodyBytes,
             cancellationToken).ConfigureAwait(false);
-        return ParseContentRange(response);
+        return ParseContentRange(response.ContentRange);
     }
 
     internal async Task<CloudBaseQueryResult> QueryAsync(
@@ -136,16 +140,17 @@ internal sealed class CloudBaseClient : IDisposable
                 break;
             }
 
-            using var response = await SendWithRetryAsync(
+            var response = await SendWithRetryAsync(
                 () => new HttpRequestMessage(HttpMethod.Get, BuildQueryUri(query, limit, offset)),
+                _options.MaxResponseBytes,
                 cancellationToken).ConfigureAwait(false);
-            using var document = await ReadJsonAsync(response, cancellationToken).ConfigureAwait(false);
+            using var document = ParseJson(response.Body);
             if (document.RootElement.ValueKind != JsonValueKind.Array)
             {
                 throw new CloudBaseApiException(CloudBaseErrorKind.ResponseInvalid);
             }
 
-            total ??= ParseContentRange(response);
+            total ??= ParseContentRange(response.ContentRange);
             var pageRows = 0;
             foreach (var row in document.RootElement.EnumerateArray())
             {
@@ -154,12 +159,14 @@ internal sealed class CloudBaseClient : IDisposable
             }
 
             offset += pageRows;
-            if (pageRows < limit)
+            if (pageRows == 0)
             {
                 break;
             }
 
-            if (total is { } totalCount && offset >= totalCount)
+            // With a known total, a short page may only mean the gateway caps rows per
+            // response, so keep paging until the total is reached or a page comes back empty.
+            if (total is { } totalCount ? offset >= totalCount : pageRows < limit)
             {
                 break;
             }
@@ -207,54 +214,85 @@ internal sealed class CloudBaseClient : IDisposable
                 expiresIn,
                 [.. batch.Select(item => item.Name)]);
             var body = JsonSerializer.Serialize(payload, CloudBaseJsonContext.Default.CloudBaseSignRequestPayload);
-            using var response = await SendWithRetryAsync(
+            var response = await SendWithRetryAsync(
                 () => new HttpRequestMessage(HttpMethod.Post, $"{CloudBaseEndpoints.SignPrefix}{bucket}")
                 {
                     Content = new StringContent(body, Encoding.UTF8, "application/json")
                 },
+                _options.MaxResponseBytes,
                 cancellationToken).ConfigureAwait(false);
-            using var document = await ReadJsonAsync(response, cancellationToken).ConfigureAwait(false);
-            if (document.RootElement.ValueKind != JsonValueKind.Array ||
-                document.RootElement.GetArrayLength() != batch.Length)
+            using var document = ParseJson(response.Body);
+            if (document.RootElement.ValueKind != JsonValueKind.Array)
             {
                 throw new CloudBaseApiException(CloudBaseErrorKind.ResponseInvalid);
             }
 
-            var positions = new Dictionary<string, int>(StringComparer.Ordinal);
-            foreach (var (index, name) in batch)
-            {
-                positions[name] = index;
-            }
-
-            var seenPaths = new HashSet<string>(StringComparer.Ordinal);
-            var itemIndex = 0;
-            foreach (var item in document.RootElement.EnumerateArray())
-            {
-                var path = GetString(item, "path");
-                int resultIndex;
-                string resultName;
-                if (path is null)
-                {
-                    (resultIndex, resultName) = batch[itemIndex];
-                }
-                else if (positions.TryGetValue(path, out var matched) && seenPaths.Add(path))
-                {
-                    resultIndex = matched;
-                    resultName = path;
-                }
-                else
-                {
-                    // A path we did not request, or a duplicate: positional mapping would
-                    // hand one object another object's URL.
-                    throw new CloudBaseApiException(CloudBaseErrorKind.ResponseInvalid);
-                }
-
-                itemIndex++;
-                results[resultIndex] = ParseSignedObject(resultName, bucket, item);
-            }
+            MapSignedBatch(document.RootElement, batch, bucket, results);
         }
 
         return results;
+    }
+
+    /// <summary>
+    /// Maps one sign response onto its batch by <c>path</c>. An item the gateway answered
+    /// ambiguously (an unknown or repeated path, or no usable answer at all) fails on its own
+    /// with <see cref="SignMismatchError"/>; the rest of the batch keeps its URLs.
+    /// </summary>
+    private void MapSignedBatch(
+        JsonElement items,
+        (int Index, string Name)[] batch,
+        string bucket,
+        CloudBaseSignedObject[] results)
+    {
+        // The first slot of each requested name; repeated names share its answer.
+        var slotsByName = new Dictionary<string, int>(StringComparer.Ordinal);
+        for (var slot = 0; slot < batch.Length; slot++)
+        {
+            slotsByName.TryAdd(batch[slot].Name, slot);
+        }
+
+        // A path-less item can only be trusted positionally when the response lines up.
+        var positional = items.GetArrayLength() == batch.Length;
+        var answers = new CloudBaseSignedObject?[batch.Length];
+        var conflicted = new bool[batch.Length];
+        var itemIndex = 0;
+        foreach (var item in items.EnumerateArray())
+        {
+            var path = GetString(item, "path");
+            int slot;
+            if (path is null)
+            {
+                slot = positional ? itemIndex : -1;
+            }
+            else if (!slotsByName.TryGetValue(path, out slot))
+            {
+                slot = -1;
+            }
+
+            itemIndex++;
+            if (slot < 0)
+            {
+                continue;
+            }
+
+            if (answers[slot] is not null)
+            {
+                // Two answers for one object: trusting either could attach another object's URL.
+                conflicted[slot] = true;
+                continue;
+            }
+
+            answers[slot] = ParseSignedObject(batch[slot].Name, bucket, item);
+        }
+
+        for (var slot = 0; slot < batch.Length; slot++)
+        {
+            var (index, name) = batch[slot];
+            var first = slotsByName[name];
+            results[index] = answers[first] is { } answer && !conflicted[first]
+                ? answer
+                : new CloudBaseSignedObject(name, null, SignMismatchError);
+        }
     }
 
     public void Dispose()
@@ -269,7 +307,7 @@ internal sealed class CloudBaseClient : IDisposable
     {
         if (item.ValueKind != JsonValueKind.Object)
         {
-            throw new CloudBaseApiException(CloudBaseErrorKind.ResponseInvalid);
+            return new CloudBaseSignedObject(name, null, SignMismatchError);
         }
 
         if (item.TryGetProperty("error", out var error) &&
@@ -316,7 +354,9 @@ internal sealed class CloudBaseClient : IDisposable
     }
 
     private static string? GetString(JsonElement item, string propertyName)
-        => item.TryGetProperty(propertyName, out var value) && value.ValueKind == JsonValueKind.String
+        => item.ValueKind == JsonValueKind.Object &&
+            item.TryGetProperty(propertyName, out var value) &&
+            value.ValueKind == JsonValueKind.String
             ? value.GetString()
             : null;
 
@@ -383,15 +423,19 @@ internal sealed class CloudBaseClient : IDisposable
         return builder.ToString();
     }
 
-    private static int? ParseContentRange(HttpResponseMessage response)
+    private static string? GetContentRange(HttpResponseMessage response)
+        => response.Content.Headers.TryGetValues("Content-Range", out var values) ||
+            response.Headers.TryGetValues("Content-Range", out values)
+                ? values.FirstOrDefault() ?? string.Empty
+                : null;
+
+    private static int? ParseContentRange(string? header)
     {
-        if (!response.Content.Headers.TryGetValues("Content-Range", out var values) &&
-            !response.Headers.TryGetValues("Content-Range", out values))
+        if (header is null)
         {
             return null;
         }
 
-        var header = values.FirstOrDefault();
         if (string.IsNullOrWhiteSpace(header) || !header.Contains('/', StringComparison.Ordinal))
         {
             throw new CloudBaseApiException(CloudBaseErrorKind.ResponseInvalid);
@@ -406,8 +450,14 @@ internal sealed class CloudBaseClient : IDisposable
         return total;
     }
 
-    private async Task<HttpResponseMessage> SendWithRetryAsync(
+    /// <summary>
+    /// Sends a request and reads its whole body inside one retry loop, so a stalled gateway
+    /// (per-attempt deadline) or a connection dropped mid-body is retried and then mapped to
+    /// <see cref="CloudBaseErrorKind.RequestFailed"/> like any other transport failure.
+    /// </summary>
+    private async Task<BufferedResponse> SendWithRetryAsync(
         Func<HttpRequestMessage> requestFactory,
+        int maxBodyBytes,
         CancellationToken cancellationToken)
     {
         for (var attempt = 0; ; attempt++)
@@ -420,52 +470,43 @@ internal sealed class CloudBaseClient : IDisposable
                 request.Headers.TryAddWithoutValidation("Prefer", "count=exact");
             }
 
-            HttpResponseMessage response;
+            using var deadline = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+            deadline.CancelAfter(_options.RequestTimeout);
             try
             {
-                response = await _httpClient
-                    .SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cancellationToken)
+                using var response = await _httpClient
+                    .SendAsync(request, HttpCompletionOption.ResponseHeadersRead, deadline.Token)
                     .ConfigureAwait(false);
+                var retryable = response.StatusCode == HttpStatusCode.TooManyRequests ||
+                    (int)response.StatusCode >= 500;
+                if (!retryable || attempt >= _options.MaxRetries)
+                {
+                    if (!response.IsSuccessStatusCode)
+                    {
+                        throw await CreateApiExceptionAsync(response, deadline.Token).ConfigureAwait(false);
+                    }
+
+                    // A HEAD response has no body, whatever Content-Length it declares.
+                    var body = request.Method == HttpMethod.Head
+                        ? []
+                        : await ReadLimitedBytesAsync(response.Content, maxBodyBytes, deadline.Token)
+                            .ConfigureAwait(false);
+                    return new BufferedResponse(body, GetContentRange(response));
+                }
             }
-            catch (HttpRequestException ex)
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                throw;
+            }
+            catch (Exception ex) when (ex is HttpRequestException or IOException or OperationCanceledException)
             {
                 if (attempt >= _options.MaxRetries)
                 {
                     throw new CloudBaseApiException(CloudBaseErrorKind.RequestFailed, inner: ex);
                 }
-
-                await DelayBackoffAsync(attempt, cancellationToken).ConfigureAwait(false);
-                continue;
-            }
-            catch (OperationCanceledException ex) when (!cancellationToken.IsCancellationRequested)
-            {
-                if (attempt >= _options.MaxRetries)
-                {
-                    throw new CloudBaseApiException(CloudBaseErrorKind.RequestFailed, inner: ex);
-                }
-
-                await DelayBackoffAsync(attempt, cancellationToken).ConfigureAwait(false);
-                continue;
             }
 
-            var retryable = response.StatusCode == HttpStatusCode.TooManyRequests ||
-                (int)response.StatusCode >= 500;
-            if (retryable && attempt < _options.MaxRetries)
-            {
-                response.Dispose();
-                await DelayBackoffAsync(attempt, cancellationToken).ConfigureAwait(false);
-                continue;
-            }
-
-            if (!response.IsSuccessStatusCode)
-            {
-                using (response)
-                {
-                    throw await CreateApiExceptionAsync(response, cancellationToken).ConfigureAwait(false);
-                }
-            }
-
-            return response;
+            await DelayBackoffAsync(attempt, cancellationToken).ConfigureAwait(false);
         }
     }
 
@@ -533,22 +574,15 @@ internal sealed class CloudBaseClient : IDisposable
                     ? code.GetString()
                     : null;
         }
-        catch (CloudBaseApiException)
+        catch (Exception ex) when (ex is CloudBaseApiException or JsonException or IOException or HttpRequestException)
         {
-            return null;
-        }
-        catch (JsonException)
-        {
+            // The status code already decides the error kind; the provider code is best effort.
             return null;
         }
     }
 
-    private async Task<JsonDocument> ReadJsonAsync(
-        HttpResponseMessage response,
-        CancellationToken cancellationToken)
+    private static JsonDocument ParseJson(byte[] bytes)
     {
-        var bytes = await ReadLimitedBytesAsync(response.Content, _options.MaxResponseBytes, cancellationToken)
-            .ConfigureAwait(false);
         try
         {
             return JsonDocument.Parse(bytes);
@@ -585,4 +619,6 @@ internal sealed class CloudBaseClient : IDisposable
 
         return buffer.ToArray();
     }
+
+    private readonly record struct BufferedResponse(byte[] Body, string? ContentRange);
 }

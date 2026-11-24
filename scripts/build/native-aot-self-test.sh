@@ -81,6 +81,8 @@ if NUGET_PACKAGES="$empty_nuget_root" bash scripts/build/package-native-aot.sh  
 fi
 grep -F 'native AOT publish is missing libSkiaSharp.so' "$scratch/missing-native.stderr" >/dev/null
 
+check_unpinned_native_asset_fails "$scratch"
+
 for rid in linux-x64 linux-arm64 osx-arm64 osx-x64 win-x64; do
   for state in missing empty nonexec; do
     [[ "$rid:$state" != win-x64:nonexec ]] || continue

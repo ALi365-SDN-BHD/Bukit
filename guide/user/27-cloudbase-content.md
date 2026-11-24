@@ -69,7 +69,7 @@ RLS filters silently: when `doctor` sees a reachable table with a total count of
 
 ## Image and file fields
 
-A `fileFields` value is an object name in `storageBucket` (such as `posts/a.png`) or a `cloud://<envId>.<bucket>/<path>` compatible reference. The build signs batches of up to 500 objects and substitutes the signed links for media localization. In the body only image positions with `cloud://` are rewritten; links to non-images are reduced to their text (autolinks are removed), and in `mode: content` any other public field whose value contains `cloud://` is dropped with `BKT-0C0B`. `mode: data` does not rewrite file references.
+A `fileFields` value is an object name in `storageBucket` (such as `posts/a.png`) or a `cloud://<envId>.<bucket>/<path>` compatible reference. The build signs batches of up to 500 objects and substitutes the signed links for media localization. In the body only image positions with `cloud://` are rewritten; links to non-images are reduced to their text (autolinks are removed), and any other public field whose value contains `cloud://` is dropped with `BKT-0C0B`. `mode: data` does not rewrite file references, so in data mode every field containing `cloud://` is dropped.
 
 When `fileFields` is non-empty, all five conditions must hold (D8):
 

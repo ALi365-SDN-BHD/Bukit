@@ -74,6 +74,11 @@ internal static class CloudBaseFieldProjector
             case JsonValueKind.String:
                 field = new ContentField("text", value.GetString());
                 return true;
+            // Integers first: a bigint id above 2^53 must not be rounded through double.
+            // Other numbers stay double, the type content schema validation accepts.
+            case JsonValueKind.Number when value.TryGetInt64(out var integer):
+                field = new ContentField("number", integer);
+                return true;
             case JsonValueKind.Number when value.TryGetDouble(out var number):
                 field = new ContentField("number", number);
                 return true;

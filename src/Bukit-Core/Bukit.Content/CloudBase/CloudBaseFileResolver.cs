@@ -41,8 +41,6 @@ internal sealed class CloudBaseFileResolver
 
     internal string Placeholder => _placeholder;
 
-    internal void MarkUnsupported() => UnsupportedReferences++;
-
     /// <summary>A fileFields value is an object name or a matching cloud:// reference.</summary>
     internal bool TryAddFieldValue(string? value, out string objectName)
     {
@@ -182,7 +180,10 @@ internal sealed class CloudBaseFileResolver
 
         var bucket = rest[(dot + 1)..slash];
         var path = rest[(slash + 1)..];
-        if (!envId.Equals(_envId, StringComparison.Ordinal) ||
+
+        // An empty bucket never matches, even when storageBucket is unset (no fileFields).
+        if (bucket.Length == 0 ||
+            !envId.Equals(_envId, StringComparison.Ordinal) ||
             !bucket.Equals(_bucket, StringComparison.Ordinal) ||
             !IsValidObjectName(path))
         {

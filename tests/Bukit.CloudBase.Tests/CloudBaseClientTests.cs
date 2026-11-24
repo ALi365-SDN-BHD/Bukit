@@ -89,6 +89,7 @@ public sealed class CloudBaseClientTests
         var (client, handler, _) = Create();
         using var _client = client;
         handler.Enqueue(JsonArrayOne, contentRange: header);
+        handler.Enqueue("[]");
 
         var result = await client.QueryAsync(Query());
 
@@ -148,6 +149,37 @@ public sealed class CloudBaseClientTests
 
         Assert.Single(handler.Requests);
         Assert.Equal(2, result.Rows.Count);
+    }
+
+    [Fact]
+    public async Task Query_ShortPageBelowKnownTotal_KeepsPaging()
+    {
+        // A gateway row cap smaller than pageSize must not truncate the result silently.
+        var (client, handler, _) = Create();
+        using var _client = client;
+        handler.Enqueue("""[{"id":1},{"id":2}]""", contentRange: "0-1/5");
+        handler.Enqueue("""[{"id":3},{"id":4}]""", contentRange: "2-3/5");
+        handler.Enqueue("""[{"id":5}]""", contentRange: "4-4/5");
+
+        var result = await client.QueryAsync(Query() with { PageSize = 10 });
+
+        Assert.Equal(3, handler.Requests.Count);
+        Assert.Equal(5, result.Rows.Count);
+        Assert.Contains("offset=2", Uri.UnescapeDataString(handler.Requests[1].Uri.Query), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task Query_EmptyPageBelowKnownTotal_Stops()
+    {
+        var (client, handler, _) = Create();
+        using var _client = client;
+        handler.Enqueue("""[{"id":1}]""", contentRange: "0-0/3");
+        handler.Enqueue("[]");
+
+        var result = await client.QueryAsync(Query() with { PageSize = 10 });
+
+        Assert.Equal(2, handler.Requests.Count);
+        Assert.Single(result.Rows);
     }
 
     [Fact]
@@ -253,16 +285,58 @@ public sealed class CloudBaseClientTests
     }
 
     [Fact]
-    public async Task Sign_UnknownPath_ThrowsResponseInvalid()
+    public async Task Sign_UnknownPath_FailsOnlyThatItem()
     {
         var (client, handler, _) = Create();
         using var _client = client;
-        handler.Enqueue("""[{"path":"other.jpg","signedURL":"/v1/storages/object/sign/media/other.jpg?token=x"}]""");
+        handler.Enqueue("""
+            [
+              {"path":"a.jpg","signedURL":"/v1/storages/object/sign/media/a.jpg?token=x"},
+              {"path":"other.jpg","signedURL":"/v1/storages/object/sign/media/other.jpg?token=x"}
+            ]
+            """);
 
-        var ex = await Assert.ThrowsAsync<CloudBaseApiException>(() =>
-            client.SignObjectsAsync("media", ["a.jpg"], 600));
+        var result = await client.SignObjectsAsync("media", ["a.jpg", "b.jpg"], 600);
 
-        Assert.Equal(CloudBaseErrorKind.ResponseInvalid, ex.Kind);
+        Assert.Contains("/a.jpg?", result[0].Url, StringComparison.Ordinal);
+        Assert.Null(result[1].Url);
+        Assert.Equal(CloudBaseClient.SignMismatchError, result[1].Error);
+        Assert.Equal("b.jpg", result[1].ObjectName);
+    }
+
+    [Fact]
+    public async Task Sign_DuplicateAnswer_FailsThatItemOnly()
+    {
+        var (client, handler, _) = Create();
+        using var _client = client;
+        handler.Enqueue("""
+            [
+              {"path":null,"signedURL":"/v1/storages/object/sign/media/a.jpg?token=x"},
+              {"path":"a.jpg","signedURL":"/v1/storages/object/sign/media/a.jpg?token=y"}
+            ]
+            """);
+
+        var result = await client.SignObjectsAsync("media", ["a.jpg", "b.jpg"], 600);
+
+        Assert.All(result, item => Assert.NotNull(item));
+        Assert.Equal(CloudBaseClient.SignMismatchError, result[0].Error);
+        Assert.Equal(CloudBaseClient.SignMismatchError, result[1].Error);
+        Assert.Equal("b.jpg", result[1].ObjectName);
+    }
+
+    [Fact]
+    public async Task Sign_LaterBatchMismatch_KeepsEarlierBatches()
+    {
+        var (client, handler, _) = Create();
+        using var _client = client;
+        handler.Enqueue(BuildSignResponse(500));
+        handler.Enqueue("""[{"path":"elsewhere.jpg","signedURL":"/v1/storages/object/sign/media/elsewhere.jpg?token=x"}]""");
+        var names = Enumerable.Range(0, 501).Select(index => $"p/{index}.jpg").ToArray();
+
+        var result = await client.SignObjectsAsync("media", names, 600);
+
+        Assert.All(result.Take(500), item => Assert.NotNull(item.Url));
+        Assert.Null(result[500].Url);
     }
 
     [Fact]
@@ -346,6 +420,67 @@ public sealed class CloudBaseClientTests
 
         Assert.Equal(CloudBaseErrorKind.RequestFailed, ex.Kind);
         Assert.Equal(3, handler.Requests.Count);
+    }
+
+    [Fact]
+    public async Task Retry_BodyReadFailure_ThenSucceeds()
+    {
+        var (client, handler, _) = Create();
+        using var _client = client;
+        handler.EnqueueBrokenBody();
+        handler.Enqueue(JsonArrayOne);
+
+        var result = await client.QueryAsync(Query());
+
+        Assert.Equal(2, handler.Requests.Count);
+        Assert.Single(result.Rows);
+    }
+
+    [Fact]
+    public async Task Retry_BodyReadFailureExhausted_ThrowsRequestFailed()
+    {
+        var (client, handler, _) = Create(maxRetries: 1);
+        using var _client = client;
+        handler.EnqueueBrokenBody();
+        handler.EnqueueBrokenBody();
+
+        var ex = await Assert.ThrowsAsync<CloudBaseApiException>(() => client.QueryAsync(Query()));
+
+        Assert.Equal(CloudBaseErrorKind.RequestFailed, ex.Kind);
+        Assert.IsAssignableFrom<IOException>(ex.InnerException);
+    }
+
+    [Fact]
+    public async Task Timeout_StalledGateway_ThrowsRequestFailed()
+    {
+        var (client, handler, _) = Create(maxRetries: 1, requestTimeout: TimeSpan.FromMilliseconds(50));
+        using var _client = client;
+        handler.EnqueueStall();
+        handler.EnqueueStall();
+
+        var ex = await Assert.ThrowsAsync<CloudBaseApiException>(() => client.QueryAsync(Query()));
+
+        Assert.Equal(CloudBaseErrorKind.RequestFailed, ex.Kind);
+        Assert.Equal(2, handler.Requests.Count);
+    }
+
+    [Fact]
+    public async Task Timeout_CallerCancellation_IsNotRetried()
+    {
+        var (client, handler, _) = Create();
+        using var _client = client;
+        handler.EnqueueStall();
+        using var cancellation = new CancellationTokenSource(TimeSpan.FromMilliseconds(50));
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => client.QueryAsync(Query(), cancellation.Token));
+        Assert.Single(handler.Requests);
+    }
+
+    [Fact]
+    public void Options_NonPositiveTimeout_Throws()
+    {
+        var options = Options() with { RequestTimeout = TimeSpan.Zero };
+        Assert.Throws<ArgumentOutOfRangeException>(() => _ = new CloudBaseClient(options, new StubHandler()));
     }
 
     [Theory]
@@ -454,12 +589,19 @@ public sealed class CloudBaseClientTests
         string region = "cn",
         int maxRps = 1000,
         int maxRetries = 3,
-        int maxResponseBytes = 8 * 1024 * 1024)
+        int maxResponseBytes = 8 * 1024 * 1024,
+        TimeSpan? requestTimeout = null)
     {
         var handler = new StubHandler();
         var delays = new List<int>();
+        var options = Options(envId, region, maxRps, maxRetries, maxResponseBytes);
+        if (requestTimeout is { } timeout)
+        {
+            options = options with { RequestTimeout = timeout };
+        }
+
         var client = new CloudBaseClient(
-            Options(envId, region, maxRps, maxRetries, maxResponseBytes),
+            options,
             handler,
             (milliseconds, _) =>
             {
@@ -503,12 +645,39 @@ internal sealed record CapturedRequest(
 
 internal sealed class StubHandler : HttpMessageHandler
 {
-    private readonly Queue<(HttpStatusCode Status, string Body, string? ContentRange)> _responses = new();
+    private readonly Queue<Func<CancellationToken, Task<HttpResponseMessage>>> _responses = new();
 
     internal List<CapturedRequest> Requests { get; } = [];
 
     internal void Enqueue(string body, HttpStatusCode status = HttpStatusCode.OK, string? contentRange = null)
-        => _responses.Enqueue((status, body, contentRange));
+        => _responses.Enqueue(_ =>
+        {
+            var response = new HttpResponseMessage(status)
+            {
+                Content = new StringContent(body, Encoding.UTF8, "application/json")
+            };
+            if (contentRange is not null)
+            {
+                response.Content.Headers.TryAddWithoutValidation("Content-Range", contentRange);
+            }
+
+            return Task.FromResult(response);
+        });
+
+    /// <summary>200 headers, then the connection drops while the body streams.</summary>
+    internal void EnqueueBrokenBody()
+        => _responses.Enqueue(_ => Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
+        {
+            Content = new StreamContent(new BrokenStream())
+        }));
+
+    /// <summary>The gateway accepts the request and never answers.</summary>
+    internal void EnqueueStall()
+        => _responses.Enqueue(async cancellationToken =>
+        {
+            await Task.Delay(Timeout.Infinite, cancellationToken);
+            throw new InvalidOperationException("unreachable");
+        });
 
     protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
     {
@@ -526,16 +695,35 @@ internal sealed class StubHandler : HttpMessageHandler
             throw new InvalidOperationException("No stubbed response left.");
         }
 
-        var (status, content, contentRange) = _responses.Dequeue();
-        var response = new HttpResponseMessage(status)
+        return await _responses.Dequeue()(cancellationToken);
+    }
+
+    private sealed class BrokenStream : Stream
+    {
+        public override bool CanRead => true;
+        public override bool CanSeek => false;
+        public override bool CanWrite => false;
+        public override long Length => throw new NotSupportedException();
+        public override long Position
         {
-            Content = new StringContent(content, Encoding.UTF8, "application/json")
-        };
-        if (contentRange is not null)
-        {
-            response.Content.Headers.TryAddWithoutValidation("Content-Range", contentRange);
+            get => throw new NotSupportedException();
+            set => throw new NotSupportedException();
         }
 
-        return response;
+        public override int Read(byte[] buffer, int offset, int count)
+            => throw new IOException("connection reset");
+
+        public override ValueTask<int> ReadAsync(Memory<byte> buffer, CancellationToken cancellationToken = default)
+            => ValueTask.FromException<int>(new IOException("connection reset"));
+
+        public override void Flush()
+        {
+        }
+
+        public override long Seek(long offset, SeekOrigin origin) => throw new NotSupportedException();
+
+        public override void SetLength(long value) => throw new NotSupportedException();
+
+        public override void Write(byte[] buffer, int offset, int count) => throw new NotSupportedException();
     }
 }

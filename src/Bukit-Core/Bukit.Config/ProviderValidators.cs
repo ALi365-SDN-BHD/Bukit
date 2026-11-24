@@ -5,13 +5,13 @@ namespace Bukit.Config;
 
 internal static partial class ProviderValidators
 {
-    [GeneratedRegex("^[A-Za-z_][A-Za-z0-9_]{0,62}$", RegexOptions.CultureInvariant)]
+    [GeneratedRegex("^[A-Za-z_][A-Za-z0-9_]{0,62}\\z", RegexOptions.CultureInvariant)]
     private static partial Regex CloudBaseIdentifierRegex();
 
-    [GeneratedRegex("^[a-z0-9][a-z0-9-]{0,62}$", RegexOptions.CultureInvariant)]
+    [GeneratedRegex("^[a-z0-9][a-z0-9-]{0,62}\\z", RegexOptions.CultureInvariant)]
     private static partial Regex CloudBaseEnvIdRegex();
 
-    [GeneratedRegex("^[a-z0-9][a-z0-9._-]{0,62}$", RegexOptions.CultureInvariant)]
+    [GeneratedRegex("^[a-z0-9][a-z0-9._-]{0,62}\\z", RegexOptions.CultureInvariant)]
     private static partial Regex CloudBaseBucketRegex();
 
     internal static void ValidateCloudBase(
@@ -78,10 +78,20 @@ internal static partial class ProviderValidators
             throw CloudBaseInvalid($"{pathPrefix}.filter requires non-empty field and value.");
         }
 
+        if (cloudBase.Filter is { } validFilter && !CloudBaseIdentifierRegex().IsMatch(validFilter.Field))
+        {
+            throw CloudBaseInvalid($"{pathPrefix}.filter.field must match ^[A-Za-z_][A-Za-z0-9_]{{0,62}}$.");
+        }
+
         if (cloudBase.Sort is { } sort &&
             (string.IsNullOrWhiteSpace(sort.Field) || sort.Direction is not ("asc" or "desc")))
         {
             throw CloudBaseInvalid($"{pathPrefix}.sort requires a field and direction asc or desc.");
+        }
+
+        if (cloudBase.Sort is { } validSort && !CloudBaseIdentifierRegex().IsMatch(validSort.Field))
+        {
+            throw CloudBaseInvalid($"{pathPrefix}.sort.field must match ^[A-Za-z_][A-Za-z0-9_]{{0,62}}$.");
         }
 
         if (cloudBase.MaxRps is <= 0)
