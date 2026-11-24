@@ -167,11 +167,10 @@ internal static class SemanticHtmlAuditRules
                     }
 
                     var jsonDate = ReadString(node, "datePublished") ?? ReadString(node, "dateModified");
-                    var expectedDate = document.ContentRecord?.Lifecycle.PublishedAt.Date;
+                    var publishedAt = document.ContentRecord?.Lifecycle.PublishedAt;
                     if (!string.IsNullOrWhiteSpace(jsonDate) &&
-                        expectedDate is not null &&
-                        TryParseDate(jsonDate, out var parsedDate) &&
-                        parsedDate != expectedDate.Value)
+                        publishedAt is not null &&
+                        DatesDiffer(jsonDate, publishedAt.Value))
                     {
                         issues.Add(Warning("publish.jsonld_date_mismatch", document.RouteUrl, "JSON-LD date does not match canonical publish date."));
                     }
@@ -278,22 +277,18 @@ internal static class SemanticHtmlAuditRules
         return null;
     }
 
-    private static bool TryParseDate(string value, out DateTime date)
+    // A date-time is compared with the publish instant on the calendar of its own offset, so the same
+    // instant written in the site time zone matches; a bare date is compared with the publish date.
+    private static bool DatesDiffer(string value, DateTimeOffset publishedAt)
     {
         if (DateTimeOffset.TryParse(value, out var offset))
         {
-            date = offset.Date;
-            return true;
+            return value.Contains('T', StringComparison.Ordinal)
+                ? offset.Date != publishedAt.ToOffset(offset.Offset).Date
+                : offset.Date != publishedAt.Date;
         }
 
-        if (DateTime.TryParse(value, out var parsed))
-        {
-            date = parsed.Date;
-            return true;
-        }
-
-        date = default;
-        return false;
+        return DateTime.TryParse(value, out var parsed) && parsed.Date != publishedAt.Date;
     }
 
     private static bool RequiresVisibleTime(PublishDocument document)

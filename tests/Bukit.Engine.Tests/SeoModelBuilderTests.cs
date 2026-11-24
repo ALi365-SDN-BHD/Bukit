@@ -1,3 +1,4 @@
+using System.Globalization;
 using Bukit.Config;
 using Bukit.Content;
 using Bukit.Engine.Abstractions.Content;
@@ -254,6 +255,34 @@ public sealed class SeoModelBuilderTests
                           type.GetString() == "BlogPosting");
         Assert.Equal("ms-MY", articleJson.RootElement.GetProperty("inLanguage").GetString());
         Assert.Equal("canonical-tag", articleJson.RootElement.GetProperty("keywords")[0].GetString());
+    }
+
+    [Fact]
+    public void BuildForContent_JsonLd_DatesUseSiteTimeZoneAtSecondPrecisionAndNodesNameLanguage()
+    {
+        var config = CreateConfig() with { Site = CreateConfig().Site with { Language = "en", Timezone = "Asia/Kuala_Lumpur" } };
+        var item = ContentDocument.Create(
+            id: "p1",
+            title: "Dated",
+            slug: "dated",
+            publishAt: DateTimeOffset.Parse("2026-06-05T10:00:00.1234567Z", CultureInfo.InvariantCulture),
+            contentHtml: null,
+            fields: new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["type"] = new("text", "post"),
+                ["update_time"] = new("text", "2026-06-06T23:30:45.5+00:00"),
+                ["language"] = new("text", "ms-MY")
+            });
+        var route = new RouteInfo("/posts/dated/", "posts/dated/index.html", "pages/post.html");
+
+        var model = SeoModelBuilder.BuildForContent(config, "/", item, route);
+
+        var nodes = model.JsonLd.Select(static json => JsonDocument.Parse(json).RootElement).ToArray();
+        JsonElement Node(string type) => nodes.Single(node => node.GetProperty("@type").GetString() == type);
+        Assert.Equal("2026-06-05T18:00:00+08:00", Node("BlogPosting").GetProperty("datePublished").GetString());
+        Assert.Equal("2026-06-07T07:30:45+08:00", Node("BlogPosting").GetProperty("dateModified").GetString());
+        Assert.Equal("en", Node("WebSite").GetProperty("inLanguage").GetString());
+        Assert.Equal("ms-MY", Node("WebPage").GetProperty("inLanguage").GetString());
     }
 
     [Fact]

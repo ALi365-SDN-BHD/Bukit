@@ -209,6 +209,11 @@ Bukit emits JSON-LD through JSON serialization rather than template string conca
 - `BreadcrumbList` for every non-home route, using only real strict ancestors
 - `BlogPosting` for post content
 
+`WebSite` names `site.language` in `inLanguage`; `WebPage`/`CollectionPage` and
+article nodes name the page's language, falling back to `site.language`.
+`datePublished`, `dateModified` and `dateReviewed` are written at second
+precision in `site.timezone`, for example `2026-06-05T18:00:00+08:00`.
+
 Migration note: existing sites that relied only on the historical default
 `searchAction: true` now emit no SearchAction. Add `site.search.route` only after
 the site has a complete, final HTML search page at that route. Bukit does not

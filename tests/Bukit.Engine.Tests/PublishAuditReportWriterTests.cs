@@ -523,6 +523,35 @@ public sealed class PublishAuditReportWriterTests : IDisposable
         Assert.Contains(report.Issues, x => x.Code == "publish.jsonld_date_mismatch" && x.Route == "/post/");
     }
 
+    [Theory]
+    [InlineData("2026-06-04T19:00:00-05:00", false)]
+    [InlineData("2026-06-05T08:00:00+08:00", false)]
+    [InlineData("2026-06-04T08:00:00+08:00", true)]
+    public void Build_JsonLdDateTime_ComparesThePublishInstantInItsOwnOffset(string datePublished, bool mismatch)
+    {
+        WriteOutput("post/index.html", """
+            <!doctype html>
+            <html>
+            <head><title>Post</title><link rel="canonical" href="https://example.com/post/" /></head>
+            <body><main><article><h1>Visible Post</h1><p>Visible page text.</p></article></main></body>
+            </html>
+            """);
+        var index = new Dictionary<string, SeoIndexEntry>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["post/index.html"] = Entry("/post/", "post/index.html", "https://example.com/post/")
+        };
+        var models = new Dictionary<string, SeoModel>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["post/index.html"] = Model("Visible Post", "https://example.com/post/", $$"""
+                {"@context":"https://schema.org","@type":"Article","headline":"Visible Post","datePublished":"{{datePublished}}"}
+                """)
+        };
+
+        var report = SeoAuditReportWriter.Build(Config(), _outputDir, index, models, ContentGraph());
+
+        Assert.Equal(mismatch, report.Issues.Any(x => x.Code == "publish.jsonld_date_mismatch" && x.Route == "/post/"));
+    }
+
     [Fact]
     public void Build_ReportsTrustGraphCompletenessGaps()
     {

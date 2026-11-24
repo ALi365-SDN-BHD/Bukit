@@ -1,6 +1,8 @@
+using System.Globalization;
 using System.Text.Json;
 using Bukit.Config;
 using Bukit.Engine.Abstractions.Content;
+using Bukit.Engine.Primitives;
 using Bukit.Rendering;
 
 namespace Bukit.Engine;
@@ -28,6 +30,7 @@ internal static class SeoJsonLdBuilder
         SharedAssetScope? sharedAssets = null)
     {
         var result = new List<string>();
+        var timeZone = TimeZoneResolver.ResolveOrUtc(config.Site.Timezone);
         var siteHome = SeoModelBuilder.BuildAbsoluteUrl(config.Site.Url, baseUrl, "/");
         var website = new Dictionary<string, object?>
         {
@@ -36,6 +39,7 @@ internal static class SeoJsonLdBuilder
             ["name"] = config.Site.Title,
             ["url"] = siteHome
         };
+        AddLanguage(website, config.Site.Language);
 
         if (searchAction is not null)
         {
@@ -66,7 +70,7 @@ internal static class SeoJsonLdBuilder
 
         if (config.Site.Seo.Schema.WebPage)
         {
-            result.Add(ToJson(new Dictionary<string, object?>
+            var webPage = new Dictionary<string, object?>
             {
                 ["@context"] = "https://schema.org",
                 ["@type"] = isCollectionPage && config.Site.Seo.Schema.CollectionPage ? "CollectionPage" : "WebPage",
@@ -79,7 +83,9 @@ internal static class SeoJsonLdBuilder
                     ["name"] = config.Site.Title,
                     ["url"] = siteHome
                 }
-            }));
+            };
+            AddLanguage(webPage, ContentLanguage(record, config.Site.Language));
+            result.Add(ToJson(webPage));
         }
 
         if (breadcrumb is not null)
@@ -114,7 +120,7 @@ internal static class SeoJsonLdBuilder
                     !string.IsNullOrWhiteSpace(item.Question) && !string.IsNullOrWhiteSpace(item.Answer)).ToArray();
                 if (validItems is { Length: > 0 })
                 {
-                    BuildFaqPageJsonLd(result, contentTitle, description, canonical, image, document, validItems);
+                    BuildFaqPageJsonLd(result, contentTitle, description, canonical, image, document, validItems, timeZone);
                     geoAuthorMergedIntoArticle = effectiveAuthors.UsesAuthorRelation;
                 }
             }
@@ -124,7 +130,7 @@ internal static class SeoJsonLdBuilder
                     !string.IsNullOrWhiteSpace(step.Name) && !string.IsNullOrWhiteSpace(step.Text)).ToArray();
                 if (validSteps is { Length: > 0 })
                 {
-                    BuildHowToJsonLd(result, contentTitle, description, canonical, image, document, validSteps);
+                    BuildHowToJsonLd(result, contentTitle, description, canonical, image, document, validSteps, timeZone);
                     geoAuthorMergedIntoArticle = effectiveAuthors.UsesAuthorRelation;
                 }
             }
@@ -145,7 +151,8 @@ internal static class SeoJsonLdBuilder
                     effectiveAuthors,
                     config.Site.Url,
                     baseUrl,
-                    sharedAssets);
+                    sharedAssets,
+                    timeZone);
             }
         }
 
@@ -182,6 +189,22 @@ internal static class SeoJsonLdBuilder
         return result;
     }
 
+    // Second precision in the site time zone: schema.org dates need no fractional seconds.
+    private static string FormatDate(DateTimeOffset value, TimeZoneInfo timeZone)
+        => TimeZoneInfo.ConvertTime(value, timeZone).ToString("yyyy-MM-dd'T'HH:mm:sszzz", CultureInfo.InvariantCulture);
+
+    private static string? ContentLanguage(ContentRecord? record, string? siteLanguage)
+        => ContentLanguageFallback.Resolve(record?.Presentation.Language, siteLanguage);
+
+    private static void AddLanguage(Dictionary<string, object?> node, string? language)
+    {
+        if (!string.IsNullOrWhiteSpace(language) &&
+            !string.Equals(language, ContentLanguageFallback.Undetermined, StringComparison.OrdinalIgnoreCase))
+        {
+            node["inLanguage"] = language;
+        }
+    }
+
     private static bool BuildArticleJsonLd(
         List<string> result,
         string schemaType,
@@ -197,7 +220,8 @@ internal static class SeoJsonLdBuilder
         ResolvedSeoAuthors resolvedAuthors,
         string? siteUrl,
         string baseUrl,
-        SharedAssetScope? sharedAssets)
+        SharedAssetScope? sharedAssets,
+        TimeZoneInfo timeZone)
     {
         var article = new Dictionary<string, object?>
         {
@@ -206,7 +230,7 @@ internal static class SeoJsonLdBuilder
             ["headline"] = title,
             ["description"] = description,
             ["url"] = canonical,
-            ["datePublished"] = document.Record.Lifecycle.PublishedAt.ToString("O")
+            ["datePublished"] = FormatDate(document.Record.Lifecycle.PublishedAt, timeZone)
         };
         if (!string.IsNullOrWhiteSpace(image))
         {
@@ -216,12 +240,12 @@ internal static class SeoJsonLdBuilder
         if (document.Record.Lifecycle.UpdatedAt is { } updated ||
             SeoModelBuilder.TryGetUpdateTime(document, out updated))
         {
-            article["dateModified"] = updated.ToString("O");
+            article["dateModified"] = FormatDate(updated, timeZone);
         }
 
         if (geo.DateReviewed.HasValue)
         {
-            article["dateReviewed"] = geo.DateReviewed.Value.ToString("O");
+            article["dateReviewed"] = FormatDate(geo.DateReviewed.Value, timeZone);
         }
 
         if (!string.IsNullOrWhiteSpace(geo.About))
@@ -229,14 +253,7 @@ internal static class SeoJsonLdBuilder
             article["about"] = geo.About;
         }
 
-        var contentLanguage = string.IsNullOrWhiteSpace(record?.Presentation.Language) ||
-                              string.Equals(record?.Presentation.Language, "und", StringComparison.OrdinalIgnoreCase)
-            ? language
-            : record!.Presentation.Language;
-        if (!string.IsNullOrWhiteSpace(contentLanguage))
-        {
-            article["inLanguage"] = contentLanguage;
-        }
+        AddLanguage(article, ContentLanguage(record, language));
 
         if (organizationNode is not null && IsArticleFamilyType(schemaType))
         {
@@ -516,7 +533,8 @@ internal static class SeoJsonLdBuilder
         string canonical,
         string? image,
         ContentDocument document,
-        IReadOnlyList<GeoFaqModel> faqItems)
+        IReadOnlyList<GeoFaqModel> faqItems,
+        TimeZoneInfo timeZone)
     {
         var mainEntity = new List<Dictionary<string, object?>>();
         foreach (var faq in faqItems)
@@ -540,7 +558,7 @@ internal static class SeoJsonLdBuilder
             ["headline"] = title,
             ["description"] = description,
             ["url"] = canonical,
-            ["datePublished"] = document.Record.Lifecycle.PublishedAt.ToString("O"),
+            ["datePublished"] = FormatDate(document.Record.Lifecycle.PublishedAt, timeZone),
             ["mainEntity"] = mainEntity
         };
 
@@ -559,7 +577,8 @@ internal static class SeoJsonLdBuilder
         string canonical,
         string? image,
         ContentDocument document,
-        GeoHowToStepModel[] steps)
+        GeoHowToStepModel[] steps,
+        TimeZoneInfo timeZone)
     {
         var stepList = new List<Dictionary<string, object?>>();
         for (var i = 0; i < steps.Length; i++)
@@ -593,7 +612,7 @@ internal static class SeoJsonLdBuilder
             ["name"] = title,
             ["description"] = description ?? title,
             ["url"] = canonical,
-            ["datePublished"] = document.Record.Lifecycle.PublishedAt.ToString("O"),
+            ["datePublished"] = FormatDate(document.Record.Lifecycle.PublishedAt, timeZone),
             ["step"] = stepList
         };
 
