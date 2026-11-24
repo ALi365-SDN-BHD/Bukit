@@ -133,6 +133,64 @@ public sealed class CloudBaseBuildPrivacyTests : IDisposable
     }
 
     [Fact]
+    public void Evaluate_NotionOnlyEscapedMarker_KeepsNotionWording()
+    {
+        File.WriteAllText(Path.Combine(_root, "data.json"), """{"source":"not\u0069on"}""");
+
+        var result = PublicOutputPrivacyCheck.Evaluate(NotionOnlyConfig(), _root, []);
+
+        var error = Assert.Single(result.Errors);
+        Assert.Contains("contains internal Notion provenance", error, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Evaluate_NotionOnlyMalformedJson_KeepsNotionWording()
+    {
+        File.WriteAllText(Path.Combine(_root, "data.json"), """{"source":""");
+
+        var result = PublicOutputPrivacyCheck.Evaluate(NotionOnlyConfig(), _root, []);
+
+        var error = Assert.Single(result.Errors);
+        Assert.Contains("unable to complete the Notion provenance privacy scan", error, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Evaluate_CloudBaseSiteMalformedJson_UsesContentWording()
+    {
+        File.WriteAllText(Path.Combine(_root, "data.json"), """{"source":""");
+
+        var result = PublicOutputPrivacyCheck.Evaluate(Config(), _root, []);
+
+        Assert.Contains(result.Errors, error => error.Contains("unable to complete the content provenance privacy scan", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void Evaluate_CloudBaseSiteEscapedJsonLeak_NamesCloudBase()
+    {
+        File.WriteAllText(Path.Combine(_root, "data.json"), """{"image":"\u0063loud://env-abc.media/a.png"}""");
+
+        var result = PublicOutputPrivacyCheck.Evaluate(Config(), _root, []);
+
+        Assert.Contains(result.Errors, error => error.Contains("internal CloudBase provenance", StringComparison.Ordinal));
+    }
+
+    private static AppConfig NotionOnlyConfig()
+        => new()
+        {
+            Site = new SiteConfig { Name = "site", Title = "Site" },
+            Content = ContentConfigFactory.FromSources(
+            [
+                new ContentSourceConfig
+                {
+                    Type = "notion",
+                    Name = "page",
+                    Collection = "page",
+                    Notion = new NotionConfig { DatabaseId = "0123456789abcdef0123456789abcdef" }
+                }
+            ])
+        };
+
+    [Fact]
     public void Evaluate_NoCloudBaseSource_IsNotApplicable()
     {
         var config = Config() with

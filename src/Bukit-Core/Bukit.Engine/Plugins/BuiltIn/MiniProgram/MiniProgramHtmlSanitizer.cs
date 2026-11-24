@@ -177,14 +177,16 @@ internal sealed class MiniProgramHtmlSanitizer : IDisposable
                 }
 
                 var absolute = _urls.Absolute(src, pageUrl);
-                if (!MiniProgramUrls.IsHttp(absolute, out _))
-                {
-                    return;
-                }
 
+                // Checked before the http filter so a cloud:// reference fails instead of vanishing.
                 if (MiniProgramJson.IsSignedUrl(absolute))
                 {
                     throw new MiniProgramSignedUrlException(absolute);
+                }
+
+                if (!MiniProgramUrls.IsHttp(absolute, out _))
+                {
+                    return;
                 }
 
                 attributes.Add(("src", absolute));
@@ -415,13 +417,15 @@ internal sealed class MiniProgramHtmlSanitizer : IDisposable
         }
 
         var absolute = _urls.Absolute(trimmed, pageUrl);
-        if (!MiniProgramUrls.IsHttp(absolute, out _))
+
+        // A signed link (a Notion file attachment, an uploaded video, a cloud:// reference) expires or
+        // leaks storage details; check it before the http filter so it fails instead of vanishing.
+        if (MiniProgramJson.IsSignedUrl(absolute))
         {
-            return null;
+            throw new MiniProgramSignedUrlException(absolute);
         }
 
-        // A signed link (a Notion file attachment, an uploaded video) expires and leaks its signature.
-        return MiniProgramJson.IsSignedUrl(absolute) ? throw new MiniProgramSignedUrlException(absolute) : absolute;
+        return MiniProgramUrls.IsHttp(absolute, out _) ? absolute : null;
     }
 
     private static void AddInteger(IElement element, string name, List<(string Name, string Value)> attributes)

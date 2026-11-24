@@ -38,6 +38,12 @@ internal static class MiniProgramJson
     /// <summary>Drops the query string so diagnostics never print signature or credential parameters.</summary>
     internal static string RedactQuery(string url)
     {
+        // A cloud:// reference names the environment, bucket and object: show only the scheme.
+        if (url.StartsWith("cloud://", StringComparison.OrdinalIgnoreCase))
+        {
+            return "cloud://… (move it to a CloudBase fileFields column or a body image)";
+        }
+
         var index = url.IndexOf('?', StringComparison.Ordinal);
         return index < 0 ? url : url[..index] + "?…";
     }

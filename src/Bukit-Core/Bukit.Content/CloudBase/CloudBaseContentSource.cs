@@ -57,6 +57,8 @@ internal sealed class CloudBaseContentSource : IContentProvider
         var allowedSet = CloudBaseFieldProjector.BuildAllowedSet(_options.FieldPolicyMode, _options.AllowedFields);
         var drafts = new List<Draft>(page.Rows.Count);
         var seenIds = new HashSet<string>(StringComparer.Ordinal);
+        var slugFromId = 0;
+        var untitled = 0;
         foreach (var row in page.Rows)
         {
             cancellationToken.ThrowIfCancellationRequested();
@@ -75,32 +77,16 @@ internal sealed class CloudBaseContentSource : IContentProvider
                     DiagnosticCode.CloudBaseResponseInvalid);
             }
 
-            var fields = CloudBaseFieldProjector.ProjectWithSet(
-                row,
-                _options.FieldPolicyMode,
-                allowedSet,
-                _options.IdField);
-            fields["source"] = new ContentField("text", "cloudbase");
-            if (ParseDate(row, _options.UpdatedAtField) is { } updatedAt)
-            {
-                fields["last_edited_time"] = new ContentField("date", updatedAt);
-            }
+            var (draft, slugFromIdRow, untitledRow) = BuildDraft(row, id, allowedSet, isData);
+            slugFromId += slugFromIdRow ? 1 : 0;
+            untitled += untitledRow ? 1 : 0;
+            drafts.Add(draft);
+        }
 
-            foreach (var fileField in _options.FileFields)
-            {
-                if (GetString(row, fileField) is { } fileValue)
-                {
-                    fields[fileField] = new ContentField("text", fileValue);
-                }
-            }
-
-            drafts.Add(new Draft(
-                id,
-                GetNonBlank(row, _options.TitleField) ?? id,
-                GetNonBlank(row, _options.SlugField) ?? id,
-                ParseDate(row, _options.PublishAtField),
-                fields,
-                isData ? string.Empty : GetString(row, _options.BodyField) ?? string.Empty));
+        if (slugFromId > 0 || untitled > 0)
+        {
+            _logger?.Warn(
+                $"event=cloudbase.missing_title_or_slug table={_options.Table} slugFromId={slugFromId} untitled={untitled}");
         }
 
         var imageUrls = await ResolveFilesAsync(drafts, client, isData, cancellationToken).ConfigureAwait(false);
@@ -196,21 +182,31 @@ internal sealed class CloudBaseContentSource : IContentProvider
             _options.StorageBucket ?? string.Empty,
             _options.DefaultImageUrl,
             _options.SignExpiresSeconds);
+        var nonStringFileValues = 0;
         foreach (var draft in drafts)
         {
             foreach (var fileField in _options.FileFields)
             {
-                if (draft.Fields.TryGetValue(fileField, out var field) &&
-                    field.Value?.ToString() is { } value)
+                // A non-string file value is never sent to signing: it becomes the placeholder.
+                if (draft.NonStringFileFields.Contains(fileField))
                 {
-                    if (resolver.TryAddFieldValue(value, LogEntry(draft.Id, fileField), out var objectName))
-                    {
-                        draft.FileObjects[fileField] = objectName;
-                    }
-                    else
-                    {
-                        draft.Fields[fileField] = new ContentField("text", resolver.Placeholder);
-                    }
+                    draft.Fields[fileField] = new ContentField("text", resolver.Placeholder);
+                    nonStringFileValues++;
+                    continue;
+                }
+
+                if (!draft.Fields.TryGetValue(fileField, out var field) || field.Value is not string value)
+                {
+                    continue;
+                }
+
+                if (resolver.TryAddFieldValue(value, LogEntry(draft.Id, fileField), out var objectName))
+                {
+                    draft.FileObjects[fileField] = objectName;
+                }
+                else
+                {
+                    draft.Fields[fileField] = new ContentField("text", resolver.Placeholder);
                 }
             }
 
@@ -238,7 +234,7 @@ internal sealed class CloudBaseContentSource : IContentProvider
                 $"event=cloudbase.file_resolve_failed code={DiagnosticCodeFormatter.Format(DiagnosticCode.CloudBaseFileResolveFailed)} count={failures.Length} entries=\"{shown}{more}\"");
         }
 
-        WarnUnsupported(resolver.UnsupportedReferences + StripCloudReferenceFields(drafts));
+        WarnUnsupported(resolver.UnsupportedReferences + nonStringFileValues + StripCloudReferenceFields(drafts));
         return resolver.BuildBodyUrlMap();
     }
 
@@ -306,6 +302,7 @@ internal sealed class CloudBaseContentSource : IContentProvider
         internal Dictionary<string, ContentField> Fields { get; } = fields;
         internal string Markdown { get; } = markdown;
         internal Dictionary<string, string> FileObjects { get; } = new(StringComparer.OrdinalIgnoreCase);
+        internal HashSet<string> NonStringFileFields { get; } = new(StringComparer.OrdinalIgnoreCase);
     }
 
     private IReadOnlyList<string>? BuildSelectList()
@@ -357,6 +354,68 @@ internal sealed class CloudBaseContentSource : IContentProvider
             value.ValueKind == JsonValueKind.String
                 ? value.GetString()
                 : null;
+
+    /// <summary>Projects one row into a draft; reports whether its slug came from the id and whether it had no title.</summary>
+    private (Draft Draft, bool SlugFromId, bool Untitled) BuildDraft(
+        JsonElement row,
+        string id,
+        IReadOnlySet<string>? allowedSet,
+        bool isData)
+    {
+        var fields = CloudBaseFieldProjector.ProjectWithSet(
+            row,
+            _options.FieldPolicyMode,
+            allowedSet,
+            _options.IdField);
+        fields["source"] = new ContentField("text", "cloudbase");
+        if (ParseDate(row, _options.UpdatedAtField) is { } updatedAt)
+        {
+            fields["last_edited_time"] = new ContentField("date", updatedAt);
+        }
+
+        // A file field holds one object name. Any other present value (array, object, number) is
+        // recorded here, from the raw row, because projection may drop it before resolution.
+        List<string>? nonStringFileFields = null;
+        foreach (var fileField in _options.FileFields)
+        {
+            if (GetString(row, fileField) is { } fileValue)
+            {
+                fields[fileField] = new ContentField("text", fileValue);
+            }
+            else if (row.TryGetProperty(fileField, out var raw) &&
+                     raw.ValueKind is not (JsonValueKind.Null or JsonValueKind.Undefined))
+            {
+                (nonStringFileFields ??= []).Add(fileField);
+            }
+        }
+
+        var title = GetNonBlank(row, _options.TitleField);
+        var slug = GetNonBlank(row, _options.SlugField);
+        var slugFromId = false;
+        if (!isData)
+        {
+            // The id is internal: derive a missing slug from the title, and use the id only as a last resort.
+            slug ??= NonEmpty(SlugHelper.Slugify(title ?? string.Empty));
+            slugFromId = slug is null;
+        }
+
+        slug ??= id;
+        var draft = new Draft(
+            id,
+            title ?? (isData ? id : slug),
+            slug,
+            ParseDate(row, _options.PublishAtField),
+            fields,
+            isData ? string.Empty : GetString(row, _options.BodyField) ?? string.Empty);
+        if (nonStringFileFields is not null)
+        {
+            draft.NonStringFileFields.UnionWith(nonStringFileFields);
+        }
+
+        return (draft, slugFromId, !isData && title is null);
+    }
+
+    private static string? NonEmpty(string value) => value.Length == 0 ? null : value;
 
     private static string? GetNonBlank(JsonElement row, string field)
     {

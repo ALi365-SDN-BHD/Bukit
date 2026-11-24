@@ -106,7 +106,7 @@ internal static class DoctorCloudBaseChecker
                     !string.IsNullOrWhiteSpace(element.GetString()));
                 if (sampledField is not null)
                 {
-                    errors += await CheckStorageAsync(client, sampledField, bucket, sample).ConfigureAwait(false);
+                    errors += await CheckStorageAsync(client, cloudBase.EnvId, sampledField, bucket, sample).ConfigureAwait(false);
                 }
             }
         }
@@ -135,6 +135,7 @@ internal static class DoctorCloudBaseChecker
 
     private static async Task<int> CheckStorageAsync(
         CloudBaseClient client,
+        string envId,
         string field,
         string bucket,
         JsonElement sample)
@@ -145,13 +146,13 @@ internal static class DoctorCloudBaseChecker
             return 0;
         }
 
+        // Same rule as build: a cloud:// reference must name this environment and bucket.
         var objectName = value.StartsWith("cloud://", StringComparison.OrdinalIgnoreCase)
-            ? value["cloud://".Length..] is var rest && rest.Contains('/')
-                ? rest[(rest.IndexOf('/') + 1)..]
-                : null
-            : value;
-        if (string.IsNullOrWhiteSpace(objectName))
+            ? CloudBaseEndpoints.TryParseCloudReference(value, envId, bucket, out var parsed) ? parsed : null
+            : CloudBaseEndpoints.IsValidObjectName(value) ? value : null;
+        if (objectName is null)
         {
+            Console.WriteLine($"⚠ [{Code(DiagnosticCode.CloudBaseFileResolveFailed)}] CloudBase sample field '{field}' holds a file reference that build cannot resolve (environment, bucket or object name mismatch); build will use the media placeholder");
             return 0;
         }
 

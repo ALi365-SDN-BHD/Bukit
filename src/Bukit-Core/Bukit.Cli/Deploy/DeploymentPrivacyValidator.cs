@@ -80,7 +80,8 @@ internal static partial class DeploymentPrivacyValidator
             }
             else if (contentScan == FilePrivacyScan.Incomplete)
             {
-                errors.Add($"BKT-DEPLOY-PRIVACY-0001: unable to complete the content provenance privacy scan for staged public output at '{RedactPath(relativePath, sensitiveTokens)}' because the JSON is malformed, too deep, or contains invalid Unicode; rebuild after fixing it.");
+                var scanLabel = PublicOutputPrivacyCheck.IncompleteScanLabel(cloudBaseEnvIds is { Count: > 0 });
+                errors.Add($"BKT-DEPLOY-PRIVACY-0001: unable to complete the {scanLabel} privacy scan for staged public output at '{RedactPath(relativePath, sensitiveTokens)}' because the JSON is malformed, too deep, or contains invalid Unicode; rebuild after fixing it.");
             }
         }
 

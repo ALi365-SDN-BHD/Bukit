@@ -35,6 +35,8 @@ content:
         maxRetries: 3
 ```
 
+In `content` mode a row with a blank `slugField` takes its slug from the slugified title (two rows with the same derived slug fail the build as a route conflict); only when the title is blank too is the row id used, and a blank title falls back to the slug. The build logs one `event=cloudbase.missing_title_or_slug` warning per load that counts these rows. A source may carry only the section that matches its `type`: for example a leftover `cloudbase:` block under `type: notion` fails `config check`.
+
 `table` is the CloudBase table or view; `collection` is the Bukit content collection. `fieldPolicy` `mode` defaults to `whitelist`: `allowed` filters ordinary custom columns only. Explicit mappings (`titleField`, `slugField`, `publishAtField`, `updatedAtField`, `bodyField`) and `fileFields` are published regardless of `allowed`. `all` still drops `user_id`, `owner`, `created_by`, `updated_by` and `_openid`, and `idField` is not published by `all` unless it is explicitly listed in `allowed`.
 
 Character sets: `envId` matches `^[a-z0-9][a-z0-9-]{0,62}$`; `table` and `idField` match `^[A-Za-z_][A-Za-z0-9_]{0,62}$`; `storageBucket` matches `^[a-z0-9][a-z0-9._-]{0,62}$`; object names must not be empty, start with `/`, or contain `//` or `..` segments.
@@ -69,7 +71,7 @@ RLS filters silently: when `doctor` sees a reachable table with a total count of
 
 ## Image and file fields
 
-A `fileFields` value is an object name in `storageBucket` (such as `posts/a.png`) or a `cloud://<envId>.<bucket>/<path>` compatible reference. The build signs batches of up to 500 objects and substitutes the signed links for media localization. In the body only image positions with `cloud://` are rewritten; links to non-images are reduced to their text (autolinks are removed), and any other public field whose value contains `cloud://` is dropped with `BKT-0C0B`. `mode: data` does not rewrite file references, so in data mode every field containing `cloud://` is dropped.
+A `fileFields` value is an object name in `storageBucket` (such as `posts/a.png`) or a `cloud://<envId>.<bucket>/<path>` compatible reference. Any other value (an array, an object or a number) is never signed: it becomes the media placeholder and is counted in `BKT-0C0B`. The build signs batches of up to 500 objects and substitutes the signed links for media localization. In the body only image positions with `cloud://` are rewritten; links to non-images are reduced to their text (autolinks are removed), and any other public field whose value contains `cloud://` is dropped with `BKT-0C0B`. `mode: data` does not rewrite file references, so in data mode every field containing `cloud://` is dropped.
 
 When `fileFields` is non-empty, all five conditions must hold (D8):
 

@@ -76,6 +76,8 @@ internal static partial class PublicOutputPrivacyCheck
         var cloudBaseMatcher = NotionIdentifierMatcher.From(cloudBaseTokens);
         var redactionTokens = allTokens;
 
+        var scanLabel = IncompleteScanLabel(cloudBaseTokens.Count > 0);
+
         var errors = new List<string>();
         var reportDirectories = BuildReportPaths.ReportDirectories(config.Site);
         var options = new EnumerationOptions
@@ -106,7 +108,7 @@ internal static partial class PublicOutputPrivacyCheck
             else if (contentScan.Status == FilePrivacyScan.Incomplete)
             {
                 // Do not claim a confirmed leak; the scan could not prove the output clean.
-                errors.Add($"BKT-BUILD-SECURITY-PRIVACY-0001: unable to complete the content provenance privacy scan for public output at '{RedactPath(relativePath, redactionTokens)}' because the JSON is malformed, too deep, or contains invalid Unicode.");
+                errors.Add($"BKT-BUILD-SECURITY-PRIVACY-0001: unable to complete the {scanLabel} privacy scan for public output at '{RedactPath(relativePath, redactionTokens)}' because the JSON is malformed, too deep, or contains invalid Unicode.");
             }
         }
 
@@ -258,7 +260,9 @@ internal static partial class PublicOutputPrivacyCheck
                     source |= PrivacySource.Notion;
                 }
 
-                if (ScanJson(json, cloudBaseMatcher) == JsonPrivacyScan.Leak)
+                // The provider-marker check inside ScanJson ignores the token set, so an empty
+                // CloudBase matcher would report Notion markers as CloudBase too.
+                if (!cloudBaseMatcher.IsEmpty && ScanJson(json, cloudBaseMatcher) == JsonPrivacyScan.Leak)
                 {
                     source |= PrivacySource.CloudBase;
                 }
@@ -292,6 +296,10 @@ internal static partial class PublicOutputPrivacyCheck
 
         return source;
     }
+
+    /// <summary>Without a CloudBase source the wording stays the original Notion wording (report contract).</summary>
+    internal static string IncompleteScanLabel(bool hasCloudBaseSource)
+        => hasCloudBaseSource ? "content provenance" : "Notion provenance";
 
     private static string ProvenanceLabel(PrivacySource source)
         => source switch
@@ -435,6 +443,8 @@ internal static partial class PublicOutputPrivacyCheck
             _compactIds = compactIds;
             _otherTokens = otherTokens;
         }
+
+        internal bool IsEmpty => _compactIds.Count == 0 && _otherTokens.Length == 0;
 
         internal static NotionIdentifierMatcher From(IReadOnlySet<string> tokens)
         {

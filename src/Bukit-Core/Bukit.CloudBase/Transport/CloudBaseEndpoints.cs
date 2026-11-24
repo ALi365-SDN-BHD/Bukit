@@ -22,6 +22,46 @@ internal static partial class CloudBaseEndpoints
     internal static string StorageCdnHost(string envId)
         => envId + StorageSuffix;
 
+    /// <summary>
+    /// Parses <c>cloud://{envId}.{bucket}/{objectName}</c>. Only a reference to the given environment and
+    /// bucket (ordinal match, non-empty bucket) with a valid object name resolves; build and doctor share
+    /// this rule so doctor cannot pass a reference that build would reject.
+    /// </summary>
+    internal static bool TryParseCloudReference(string value, string envId, string? bucket, out string objectName)
+    {
+        objectName = string.Empty;
+        if (!value.StartsWith("cloud://", StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        var rest = value.AsSpan("cloud://".Length);
+        var dot = rest.IndexOf('.');
+        if (dot <= 0)
+        {
+            return false;
+        }
+
+        var slash = rest[(dot + 1)..].IndexOf('/');
+        if (slash < 0)
+        {
+            return false;
+        }
+
+        var referenceBucket = rest.Slice(dot + 1, slash);
+        var path = rest[(dot + 1 + slash + 1)..].ToString();
+        if (referenceBucket.IsEmpty ||
+            !rest[..dot].Equals(envId, StringComparison.Ordinal) ||
+            !referenceBucket.Equals(bucket, StringComparison.Ordinal) ||
+            !IsValidObjectName(path))
+        {
+            return false;
+        }
+
+        objectName = path;
+        return true;
+    }
+
     /// <summary>A storage object name: non-blank, relative, with no empty or <c>..</c> segment.</summary>
     internal static bool IsValidObjectName([System.Diagnostics.CodeAnalysis.NotNullWhen(true)] string? name)
     {

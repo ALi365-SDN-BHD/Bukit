@@ -127,17 +127,68 @@ public sealed class CloudBaseContentSourceTests
     }
 
     [Fact]
-    public async Task LoadRawAsync_BlankSlug_FallsBackToId()
+    public async Task LoadRawAsync_BlankSlug_IsDerivedFromTitle()
+    {
+        var api = new FakeCloudBaseApi();
+        api.Pages[0] = """[{"id":"a1","title":"Hello World","slug":"   ","content":"x"}]""";
+        api.Total = 1;
+        var messages = new List<string>();
+        var source = Create(api, options => options, new ListLogger(messages));
+
+        var document = Assert.Single((await source.LoadRawAsync()).Documents);
+
+        Assert.Equal("Hello World", document.Title);
+        Assert.Equal("hello-world", document.Slug);
+        Assert.DoesNotContain(messages, message => message.Contains("missing_title_or_slug", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task LoadRawAsync_BlankTitleAndSlug_FallsBackToIdWithWarning()
     {
         var api = new FakeCloudBaseApi();
         api.Pages[0] = """[{"id":"a1","title":"  ","slug":"   ","content":"x"}]""";
         api.Total = 1;
-        var source = Create(api, options => options);
+        var messages = new List<string>();
+        var source = Create(api, options => options, new ListLogger(messages));
 
         var document = Assert.Single((await source.LoadRawAsync()).Documents);
 
         Assert.Equal("a1", document.Title);
         Assert.Equal("a1", document.Slug);
+        Assert.Contains(messages, message =>
+            message.Contains("event=cloudbase.missing_title_or_slug", StringComparison.Ordinal) &&
+            message.Contains("slugFromId=1", StringComparison.Ordinal) &&
+            message.Contains("untitled=1", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task LoadRawAsync_DataMode_KeepsIdFallbackWithoutWarning()
+    {
+        var api = new FakeCloudBaseApi();
+        api.Pages[0] = """[{"id":"m1","title":"Team Member"}]""";
+        api.Total = 1;
+        var messages = new List<string>();
+        var source = Create(api, options => options with { Mode = "data" }, new ListLogger(messages));
+
+        var document = Assert.Single((await source.LoadRawAsync()).Documents);
+
+        Assert.Equal("m1", document.Slug);
+        Assert.Equal("Team Member", document.Title);
+        Assert.DoesNotContain(messages, message => message.Contains("missing_title_or_slug", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task LoadRawAsync_BlankTitle_UsesSlug()
+    {
+        var api = new FakeCloudBaseApi();
+        api.Pages[0] = """[{"id":"a1","title":null,"slug":"my-post","content":"x"}]""";
+        api.Total = 1;
+        var source = Create(api, options => options);
+
+        var document = Assert.Single((await source.LoadRawAsync()).Documents);
+
+        Assert.Equal("my-post", document.Title);
+        Assert.Equal("my-post", document.Slug);
     }
 
     [Fact]
@@ -228,6 +279,36 @@ public sealed class CloudBaseContentSourceTests
         var document = Assert.Single((await source.LoadRawAsync()).Documents);
 
         Assert.Equal("/ph.jpg", document.CustomFields!["cover"].Value);
+    }
+
+    [Theory]
+    [InlineData("all", """["posts/a.png","posts/b.png"]""")]
+    [InlineData("whitelist", """["posts/a.png"]""")]
+    [InlineData("whitelist", "[]")]
+    [InlineData("whitelist", """{"fileID":"cloud://env-abc.media/a.png"}""")]
+    [InlineData("all", "42")]
+    public async Task LoadRawAsync_NonStringFileField_UsesPlaceholderWithoutSigning(string mode, string gallery)
+    {
+        var api = new FakeCloudBaseApi();
+        api.Pages[0] = $$"""[{"id":"a1","title":"A","slug":"a","gallery":{{gallery}},"content":"x"}]""";
+        api.Total = 1;
+        var messages = new List<string>();
+        var source = Create(api, options => options with
+        {
+            FieldPolicyMode = mode,
+            FileFields = ["gallery"],
+            StorageBucket = "media",
+            DefaultImageUrl = "/ph.jpg"
+        }, new ListLogger(messages));
+
+        var document = Assert.Single((await source.LoadRawAsync()).Documents);
+
+        Assert.Equal("/ph.jpg", document.CustomFields!["gallery"].Value);
+        Assert.DoesNotContain(api.Requests, uri => uri.AbsolutePath.StartsWith("/v1/storages/", StringComparison.Ordinal));
+        Assert.Contains(messages, message =>
+            message.Contains("event=cloudbase.unsupported_file_reference", StringComparison.Ordinal) &&
+            message.Contains("count=1", StringComparison.Ordinal));
+        Assert.DoesNotContain(messages, message => message.Contains("file_resolve_failed", StringComparison.Ordinal));
     }
 
     [Fact]

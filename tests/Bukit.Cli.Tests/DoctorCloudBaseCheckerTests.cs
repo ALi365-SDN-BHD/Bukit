@@ -112,6 +112,55 @@ public sealed class DoctorCloudBaseCheckerTests
         Assert.Contains("BKT-0C08", writer.ToString());
     }
 
+    [Theory]
+    [InlineData("cloud://env-old.media/posts/a.png")]
+    [InlineData("cloud://env-abc.Media/posts/a.png")]
+    [InlineData("cloud://env-abc.media/../a.png")]
+    public async Task StorageReferenceBuildWouldReject_WarnsWithoutSigning(string cover)
+    {
+        var output = await RunWithCover(cover);
+
+        Assert.Contains("BKT-0C08", output);
+        Assert.Contains("build cannot resolve", output, StringComparison.Ordinal);
+        Assert.DoesNotContain("signing failed", output, StringComparison.Ordinal);
+        Assert.DoesNotContain("env-old", output, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task StorageReferenceToConfiguredBucket_IsSigned()
+    {
+        var output = await RunWithCover("cloud://env-abc.media/posts/a.png");
+
+        Assert.DoesNotContain("build cannot resolve", output, StringComparison.Ordinal);
+        Assert.Contains("signing failed", output, StringComparison.Ordinal);
+    }
+
+    private static async Task<string> RunWithCover(string cover)
+    {
+        var writer = new StringWriter();
+        var previous = Console.Out;
+        var original = Environment.GetEnvironmentVariable("CLOUDBASE_PUBLISHABLE_KEY");
+        try
+        {
+            Environment.SetEnvironmentVariable("CLOUDBASE_PUBLISHABLE_KEY", Jwt("""{"role":"anon"}"""));
+            Console.SetOut(writer);
+            var api = new FakeApi
+            {
+                Total = 1,
+                Row = $$"""{"id":1,"title":"t","slug":"s","publish_at":"2026-01-01T00:00:00Z","updated_at":"2026-01-02T00:00:00Z","content":"body","cover":"{{cover}}"}"""
+            };
+            var cloudBase = CloudBase() with { FileFields = ["cover"], StorageBucket = "media" };
+            await DoctorCloudBaseChecker.CheckAsync(cloudBase, () => Client(api));
+        }
+        finally
+        {
+            Console.SetOut(previous);
+            Environment.SetEnvironmentVariable("CLOUDBASE_PUBLISHABLE_KEY", original);
+        }
+
+        return writer.ToString();
+    }
+
     [Fact]
     public async Task Forbidden_ReportsAuthFailed()
     {
