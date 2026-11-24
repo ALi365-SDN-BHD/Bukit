@@ -88,7 +88,9 @@ Any rewrite failure (invalid object name, `cloud://` env or bucket mismatch, per
 - image fields only, no other file fields;
 - no caching (`cacheMode` accepts `off` only);
 - `filter` supports a single equality `{ field, value }`, no `op`; `sort` is one field with `asc`/`desc`, and paging always appends `idField` ascending;
-- no incremental fingerprints; every build reads the table (bounded by `maxItems`).
+- no incremental fingerprints; every build reads the table (bounded by `maxItems`). The build
+  keeps every row and body in memory, so set `maxItems` to a practical bound for large tables
+  (a few thousand rows is fine; very large `text` bodies multiply memory use).
 
 ## Troubleshooting
 

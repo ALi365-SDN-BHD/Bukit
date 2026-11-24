@@ -2480,11 +2480,12 @@
         "openspec/changes/archive/*-fix-cloudbase-audit-findings/**",
         "openspec/changes/fix-cloudbase-audit-findings",
         "openspec/changes/add-cloudbase-content-source",
-        "openspec/changes/archive/2026-11-23-add-cloudbase-content-source"
+        "openspec/changes/archive/2026-11-23-add-cloudbase-content-source",
+        "openspec/changes/archive/2026-11-24-fix-cloudbase-audit-findings",
+        "openspec/changes/archive/2026-11-24-fix-cloudbase-audit-findings/**"
       ],
       "specialtyTests": [
-        "openspec validate cloudbase-content-source --type spec --strict --no-interactive",
-        "openspec validate fix-cloudbase-audit-findings --type change --strict --no-interactive"
+        "openspec validate cloudbase-content-source --type spec --strict --no-interactive"
       ],
       "resource": "static-parallel",
       "publicContract": false,

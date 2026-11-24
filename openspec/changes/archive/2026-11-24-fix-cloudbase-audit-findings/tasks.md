@@ -36,9 +36,9 @@
 
 ## D. Docs and packaging
 
-- [ ] D1 User doc recommends `maxItems` for large tables.
-- [ ] D2 AOT restore stamp uses `TZ=UTC`.
-- [ ] D3 Verify all batches: closure, specialty tests, gates, one review per batch; archive this
+- [x] D1 User doc recommends `maxItems` for large tables.
+- [x] D2 AOT restore stamp uses `TZ=UTC`.
+- [x] D3 Verify all batches: closure, specialty tests, gates, one review per batch; archive this
       change and update the archived spec.
 
 ## Verification
