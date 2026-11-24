@@ -139,7 +139,7 @@ public static class DeployCommand
             TokenEnv = tokenEnv,
             Repo = targetRepo,
             RepoSource = repoSource,
-            CloudBaseEnvId = ResolveCloudBaseEnvId(config),
+            CloudBaseEnvIds = ResolveCloudBaseEnvIds(config),
             KeepHistory = deployConfig.KeepHistory,
             Force = force,
             Logger = logger
@@ -158,10 +158,12 @@ public static class DeployCommand
         return 1;
     }
 
-    private static string? ResolveCloudBaseEnvId(AppConfig config)
+    private static IReadOnlyList<string> ResolveCloudBaseEnvIds(AppConfig config)
         => config.Content.Sources?
-            .FirstOrDefault(source => string.Equals(source.Type, "cloudbase", StringComparison.OrdinalIgnoreCase))?
-            .CloudBase?.EnvId;
+            .Where(source => source.CloudBase is not null)
+            .Select(source => source.CloudBase!.EnvId)
+            .Where(envId => !string.IsNullOrWhiteSpace(envId))
+            .ToArray() ?? [];
 
     // Validates --token-env and --repo and resolves the target. Returns the first validation error, or null.
     private static string? ResolveDeployTarget(

@@ -2474,10 +2474,17 @@
         "openspec/changes/archive/*-add-cloudbase-content-source/**",
         "openspec/specs/cloudbase-content-source/spec.md",
         "docs/plans/2026-11-23-cloudbase-content-source-implementation-design.zh-CN.md",
-        "docs/plans/2026-11-23-cloudbase-content-source-task-plan.zh-CN.md"
+        "docs/plans/2026-11-23-cloudbase-content-source-task-plan.zh-CN.md",
+        "openspec/changes/fix-cloudbase-audit-findings/*",
+        "openspec/changes/fix-cloudbase-audit-findings/**",
+        "openspec/changes/archive/*-fix-cloudbase-audit-findings/**",
+        "openspec/changes/fix-cloudbase-audit-findings",
+        "openspec/changes/add-cloudbase-content-source",
+        "openspec/changes/archive/2026-11-23-add-cloudbase-content-source"
       ],
       "specialtyTests": [
-        "openspec validate cloudbase-content-source --type spec --strict --no-interactive"
+        "openspec validate cloudbase-content-source --type spec --strict --no-interactive",
+        "openspec validate fix-cloudbase-audit-findings --type change --strict --no-interactive"
       ],
       "resource": "static-parallel",
       "publicContract": false,

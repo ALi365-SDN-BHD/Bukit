@@ -63,7 +63,9 @@ internal static partial class CloudBaseDeployUrlScanner
         }
         catch (JsonException)
         {
-            return false;
+            // The caller only reaches this point after seeing "cloud://" in the text.
+            // A file we cannot parse must not be reported clean.
+            return true;
         }
     }
 

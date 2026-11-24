@@ -26,7 +26,6 @@ public sealed class CloudBaseBuildPrivacyTests : IDisposable
     [InlineData("https://env-abc.api.tcloudbasegateway.com/v1/storages/object/sign/media/a.png?token=x")]
     [InlineData("https://env-abc.storage.tcloudbase.com/media/a.png?token=x")]
     [InlineData("https://other-env.storage.tcloudbase.com/b/a.pdf")]
-    [InlineData("env-abc")]
     public void Evaluate_CloudBaseIdentifierInPublicOutput_Fails(string text)
     {
         File.WriteAllText(Path.Combine(_root, "index.html"), $"<p>{text}</p>");
@@ -35,6 +34,29 @@ public sealed class CloudBaseBuildPrivacyTests : IDisposable
 
         Assert.Equal("failed", result.Status);
         Assert.NotEmpty(result.Errors);
+    }
+
+    [Fact]
+    public void Evaluate_CloudBaseLeak_NamesCloudBase()
+    {
+        File.WriteAllText(Path.Combine(_root, "index.html"), "<p>cloud://env-abc.media/a.png</p>");
+
+        var result = PublicOutputPrivacyCheck.Evaluate(Config(), _root, []);
+
+        Assert.Contains(result.Errors, error => error.Contains("CloudBase provenance", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void Evaluate_BareEnvIdInTextAndPath_Passes()
+    {
+        var config = ConfigFor("blog");
+        var output = Path.Combine(_root, "blog");
+        Directory.CreateDirectory(output);
+        File.WriteAllText(Path.Combine(output, "index.html"), "<p>blog test results</p>");
+
+        var result = PublicOutputPrivacyCheck.Evaluate(config, _root, []);
+
+        Assert.Equal("passed", result.Status);
     }
 
     [Fact]
@@ -74,6 +96,27 @@ public sealed class CloudBaseBuildPrivacyTests : IDisposable
 
         Assert.Equal("not_applicable", PublicOutputPrivacyCheck.Evaluate(config, _root, []).Status);
     }
+
+    private static AppConfig ConfigFor(string envId)
+        => new()
+        {
+            Site = new SiteConfig { Name = "site", Title = "Site" },
+            Content = ContentConfigFactory.FromSources(
+            [
+                new ContentSourceConfig
+                {
+                    Type = "cloudbase",
+                    Name = "page",
+                    Collection = "page",
+                    CloudBase = new CloudBaseConfig
+                    {
+                        EnvId = envId,
+                        Table = "articles",
+                        BodyField = "content"
+                    }
+                }
+            ])
+        };
 
     private static AppConfig Config()
         => new()

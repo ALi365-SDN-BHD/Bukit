@@ -21,7 +21,7 @@ public sealed record DeployContext
     // Internal on purpose: deploy.repo / --repo is a CLI-resolved target, not a new public provider contract.
     internal string? Repo { get; init; }
     internal string? RepoSource { get; init; }
-    internal string? CloudBaseEnvId { get; init; }
+    internal IReadOnlyList<string>? CloudBaseEnvIds { get; init; }
     public bool KeepHistory { get; init; }
     public bool Force { get; init; }
     public required ILogger Logger { get; init; }
