@@ -7,7 +7,9 @@ internal static partial class SeoAuditReportWriter
     internal static bool IsAbsoluteHttpUrl(string value)
         => MachineReadabilityTrustAuditBuilder.IsAbsoluteHttpUrl(value);
 
-    private static string BuildMergedKey(string language, string key) => language + "/" + key;
+    // Merged keys are the merged output path, matching the merged route's OutputPath.
+    private static string BuildMergedKey(string language, string key, IReadOnlyDictionary<string, string> outputPrefixes)
+        => BuildPathUtils.NormalizeRelPath(CombineOutputPath(language, key, outputPrefixes));
 
     private static string CombineBaseUrl(string baseUrl, string routeUrl)
     {

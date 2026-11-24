@@ -8,7 +8,7 @@ internal sealed class AssetsReportWriter : IBuildReportWriter
 
     public void Write(BuildReportWriterContext context)
     {
-        var assets = AssetsReportInventory.Create(context.OutputDir);
+        var assets = AssetsReportInventory.Create(context.OutputDir, context.Config.Site);
         using var stream = File.Create(Path.Combine(context.ReportDir, "assets.json"));
         using var writer = new Utf8JsonWriter(stream, new JsonWriterOptions { Indented = true });
         writer.WriteStartObject();

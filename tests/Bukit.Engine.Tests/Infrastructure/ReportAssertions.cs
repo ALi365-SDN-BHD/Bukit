@@ -154,12 +154,15 @@ internal static class ReportAssertions
             Assert.Empty(security.RootElement.GetProperty("errors").EnumerateArray());
         });
 
+        // Report directories (the root .bukit/ and each configured language's <lang>/.bukit/) are not public files.
+        bool InReportDirectory(string path) => path.StartsWith(".bukit/", StringComparison.Ordinal) ||
+            languages.Any(language => path.StartsWith(language + "/.bukit/", StringComparison.Ordinal));
         using var assets = Report("assets");
-        var assetPaths = all.Keys.Where(path => !path.StartsWith(".bukit/", StringComparison.Ordinal) && path is not ".bukit-output-marker" and not ".bukit-build-state.json");
+        var assetPaths = all.Keys.Where(path => !InReportDirectory(path) && path is not ".bukit-output-marker" and not ".bukit-build-state.json");
         Check("assets", () => Files(assets.RootElement, "assets", assetPaths, path => all[path]));
         using var release = Report("release-bundle-checksums");
         // A pre-existing marker is present during reporting; a new marker is written afterward.
-        Check("release-bundle-checksums", () => Files(release.RootElement, "files", all.Keys.Where(path => !path.StartsWith(".bukit/", StringComparison.Ordinal) && path != ".bukit-build-state.json" && (priorOutputMarker || path != ".bukit-output-marker")),
+        Check("release-bundle-checksums", () => Files(release.RootElement, "files", all.Keys.Where(path => !InReportDirectory(path) && path != ".bukit-build-state.json" && (priorOutputMarker || path != ".bukit-output-marker")),
             path => all[path], "fileCount", "bundleHash"));
         using var artifacts = Report("artifact-manifest");
         var artifactPaths = expectedReports.Where(path => path.StartsWith(".bukit/", StringComparison.Ordinal))

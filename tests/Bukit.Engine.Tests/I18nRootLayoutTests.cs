@@ -1078,14 +1078,19 @@ public sealed class I18nRootLayoutTests
             File.WriteAllText(Path.Combine(rootOutput, "index.html"), "root");
             File.WriteAllText(Path.Combine(prefixedOutput, "en", "index.html"), "prefixed");
 
-            Assert.DoesNotContain(AssetsReportInventory.Create(rootOutput),
-                entry => entry.Path.Contains(".bukit", StringComparison.Ordinal));
-            Assert.Contains(AssetsReportInventory.Create(prefixedOutput),
-                entry => entry.Path == "en/.bukit/analytics-report.json");
-            Assert.DoesNotContain(ReleaseBundleInventory.Create(Path.Combine(rootOutput, ".bukit"), rootOutput),
-                entry => entry.Path.Contains(".bukit", StringComparison.Ordinal));
-            Assert.Contains(ReleaseBundleInventory.Create(Path.Combine(prefixedOutput, ".bukit"), prefixedOutput),
-                entry => entry.Path == "en/.bukit/analytics-report.json");
+            var site = ConfigForAlternates().Site;
+            foreach (var output in new[] { rootOutput, prefixedOutput })
+            {
+                Assert.DoesNotContain(AssetsReportInventory.Create(output, site),
+                    entry => entry.Path.Contains(".bukit", StringComparison.Ordinal));
+                Assert.DoesNotContain(ReleaseBundleInventory.Create(Path.Combine(output, ".bukit"), output, site),
+                    entry => entry.Path.Contains(".bukit", StringComparison.Ordinal));
+            }
+
+            // Only configured languages own a report directory below the root.
+            Directory.CreateDirectory(Path.Combine(prefixedOutput, "fr", ".bukit"));
+            File.WriteAllText(Path.Combine(prefixedOutput, "fr", ".bukit", "public.json"), "{}");
+            Assert.Contains(AssetsReportInventory.Create(prefixedOutput, site), entry => entry.Path == "fr/.bukit/public.json");
 
             var databaseId = "0123456789abcdef0123456789abcdef";
             var content = TestContent.Markdown() with
@@ -1099,10 +1104,15 @@ public sealed class I18nRootLayoutTests
                     }
                 ]
             };
-            var config = new AppConfig { Site = ConfigForAlternates().Site, Content = content };
-            var privacy = PublicOutputPrivacyCheck.Evaluate(config, rootOutput, []);
-            Assert.Equal("passed", privacy.Status);
-            Assert.Empty(privacy.Errors);
+            var config = new AppConfig { Site = site, Content = content };
+            File.WriteAllText(Path.Combine(rootOutput, ".bukit", "variants", "en", "seo-report.json"), databaseId);
+            File.WriteAllText(Path.Combine(prefixedOutput, "en", ".bukit", "seo-report.json"), databaseId);
+            foreach (var output in new[] { rootOutput, prefixedOutput })
+            {
+                var privacy = PublicOutputPrivacyCheck.Evaluate(config, output, []);
+                Assert.Equal("passed", privacy.Status);
+                Assert.Empty(privacy.Errors);
+            }
         }
         finally
         {

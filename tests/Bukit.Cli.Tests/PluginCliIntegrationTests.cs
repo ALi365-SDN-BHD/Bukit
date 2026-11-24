@@ -105,10 +105,14 @@ public sealed class PluginCliIntegrationTests : IDisposable
                 permissions:
                   network: false
             """);
+        string lockPath = Path.Combine(_tempDir, ".bukit", "plugins.lock.yaml");
+        const string existingLock = "version: 1\nresolved:\n  broken:\n    source: plugins/missing\n";
+        File.WriteAllText(lockPath, existingLock);
 
         var result = await InvokeEntryPointAsync(["plugin", "list"]);
 
         Assert.Equal(0, result.ExitCode);
+        Assert.Equal(existingLock, File.ReadAllText(lockPath));
         Assert.Contains("echo@1.0.0 enabled=true", result.StdOut, StringComparison.Ordinal);
         Assert.Contains("broken@error enabled=true", result.StdOut, StringComparison.Ordinal);
         Assert.Contains("status=error", result.StdOut, StringComparison.Ordinal);

@@ -57,12 +57,12 @@ internal static partial class SeoAuditReportWriter
         {
             foreach (var (key, document) in SearchIndexDocuments.BuildDocumentMap(result.RoutedDocuments.Concat(result.DerivedDocuments)))
             {
-                documentsByOutputPath[BuildMergedKey(result.Language, key)] = document;
+                documentsByOutputPath[BuildMergedKey(result.Language, key, outputPrefixes)] = document;
             }
 
             foreach (var (key, entry) in result.SeoIndex)
             {
-                var mergedKey = BuildMergedKey(result.Language, key);
+                var mergedKey = BuildMergedKey(result.Language, key, outputPrefixes);
                 seoIndex[mergedKey] = entry with
                 {
                     Route = new RouteInfo(
@@ -74,7 +74,7 @@ internal static partial class SeoAuditReportWriter
 
             foreach (var (key, model) in result.SeoModels)
             {
-                seoModels[BuildMergedKey(result.Language, key)] = model;
+                seoModels[BuildMergedKey(result.Language, key, outputPrefixes)] = model;
             }
 
             records.AddRange((result.ContentGraph ?? CanonicalContentGraph.Empty).Records);

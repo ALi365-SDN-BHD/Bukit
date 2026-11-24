@@ -77,7 +77,9 @@ internal static class I18nRootProjectionCoordinator
                 writerContext.OutputDir,
                 InventoryRepresentation(writerContext.Config, representation),
                 writerContext.Results,
-                writerContext.PublishedUrls.GetValueOrDefault(representation.Kind)));
+                writerContext.PublishedUrls.GetValueOrDefault(representation.Kind),
+                LanguagePath(writerContext.Config, representation),
+                IsIndexMode(writerContext.Config, representation)));
     }
 
     private static PublishProjectionResult Project(
@@ -89,7 +91,8 @@ internal static class I18nRootProjectionCoordinator
         return new PublishProjectionResult(
             representation,
             I18nRootProjectionInventory.BuildOutputs(context.OutputDir, InventoryRepresentation(context.Config, representation),
-                context.Results, context.PublishedUrls.GetValueOrDefault(representation.Kind)));
+                context.Results, context.PublishedUrls.GetValueOrDefault(representation.Kind),
+                LanguagePath(context.Config, representation), IsIndexMode(context.Config, representation)));
     }
 
     private static PublishRepresentation InventoryRepresentation(AppConfig config, PublishRepresentation representation)
@@ -103,6 +106,38 @@ internal static class I18nRootProjectionCoordinator
                 _ => representation.Path
             }
         };
+
+    // Unless a root writer merges them, each language writes its own search index, sitemap and feeds
+    // under its output prefix (the root files are then that language's copy, a search index index or a
+    // sitemap index), so each language's routes are checked against its own file.
+    private static Func<string, string>? LanguagePath(AppConfig config, PublishRepresentation representation)
+    {
+        var site = config.Site;
+        var layout = I18nOutputLayout.For(site);
+        string Prefixed(string language, string path)
+            => I18nOutputLayout.CombineRelative(layout.RelativeOutputPrefix(language), path.TrimStart('/', '\\'));
+
+        return representation.Kind switch
+        {
+            "search" when SiteModeResolver.ResolveSearchMode(site) is "split" or "index"
+                => language => Prefixed(language, layout.SearchRelativePath(language)),
+            "sitemap" when SitemapMode(site) is "split" or "index"
+                => language => Prefixed(language, layout.SitemapRelativePath(language)),
+            "feed" or "atom" or "jsonfeed" when SiteModeResolver.ResolveFeedMode(site) == "split"
+                => language => Prefixed(language, InventoryRepresentation(config, representation).Path),
+            _ => null
+        };
+    }
+
+    private static bool IsIndexMode(AppConfig config, PublishRepresentation representation)
+        => representation.Kind switch
+        {
+            "search" => SiteModeResolver.ResolveSearchMode(config.Site) == "index",
+            "sitemap" => SitemapMode(config.Site) == "index",
+            _ => false
+        };
+
+    private static string SitemapMode(SiteConfig site) => (site.SitemapMode ?? "split").Trim().ToLowerInvariant();
 
     private static I18nRootProjectionWriterContext ToWriterContext(
         PublishProjectionContext context,

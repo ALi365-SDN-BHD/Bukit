@@ -38,7 +38,7 @@ internal sealed record I18nMergedVariantState(
             entities.AddRange((result.ContentGraph ?? CanonicalContentGraph.Empty).Entities);
             foreach (var (key, model) in result.SeoModels)
             {
-                seoModels[BuildMergedKey(result.Language, key)] = model;
+                seoModels[BuildMergedKey(result, key, layout)] = model;
             }
         }
 
@@ -68,7 +68,7 @@ internal sealed record I18nMergedVariantState(
         {
             foreach (var (key, entry) in result.SeoIndex)
             {
-                seoIndex[BuildMergedKey(result.Language, key)] = entry with
+                seoIndex[BuildMergedKey(result, key, layout)] = entry with
                 {
                     Route = MergeRoute(result, entry.Route, layout)
                 };
@@ -98,7 +98,10 @@ internal sealed record I18nMergedVariantState(
         return document.Id + "\n" + language;
     }
 
-    private static string BuildMergedKey(string language, string key) => language + "/" + key;
+    // Keys follow the merged output path, the same rule as MergeRoute: consumers look entries up
+    // by the merged route's output path, and a root language has no output prefix.
+    private static string BuildMergedKey(BuildVariantResult result, string key, I18nOutputLayout layout)
+        => BuildPathUtils.NormalizeRelPath(I18nOutputLayout.CombineRelative(layout.RelativeOutputPrefix(result.Language), key));
 
     private sealed class MergedVariantContentBodyStore : IContentBodyStore
     {

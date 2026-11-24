@@ -103,6 +103,29 @@ public sealed class I18nRegressionTests : IDisposable
         Assert.Contains("zh summary", text, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public void MergedLlms_KeepsRootLanguageEntries()
+    {
+        var chinese = Document("zh-page", "zh");
+        var english = Document("en-page", "en");
+        var config = Config();
+        var state = I18nMergedVariantState.Create([Variant("zh", chinese), Variant("en", english)], RootLayout("zh", "en"));
+
+        Assert.Contains("zh-page/index.html", state.SeoIndex.Keys);
+        Assert.Contains("en/en-page/index.html", state.SeoIndex.Keys);
+        LlmsTxtPlugin.WriteLlmsTxt(config, _root, "/", state.RoutedDocuments, [], state.SeoIndex, state.SeoModels,
+            config.Site.Seo.Geo);
+        LlmsTxtPlugin.WriteLlmsFullTxt(config, _root, "/", state.RoutedDocuments, [], state.ContentGraph,
+            state.SeoIndex, state.BodyStore);
+
+        foreach (var file in new[] { "llms.txt", "llms-full.txt" })
+        {
+            var text = File.ReadAllText(Path.Combine(_root, file));
+            Assert.Contains("/docs/zh/zh-page/", text, StringComparison.Ordinal);
+            Assert.Contains("/docs/en/en-page/", text, StringComparison.Ordinal);
+        }
+    }
+
     [Theory]
     [InlineData("search", "search.json", "[{\"url\":\"/docs/en/a/b/\",\"content\":\"/docs/en/a/\"}]")]
     [InlineData("sitemap", "sitemap.xml", "<urlset><url><loc>https://example.com/docs/en/a/b/</loc></url></urlset>")]
@@ -117,6 +140,61 @@ public sealed class I18nRegressionTests : IDisposable
         var outputs = I18nRootProjectionInventory.BuildOutputs(_root, new PublishRepresentation(kind, path, true), [variant]);
         Assert.False(Assert.Single(outputs, output => output.Url == "/docs/en/a/").Exists);
         Assert.True(Assert.Single(outputs, output => output.Url == "/docs/en/a/b/").Exists);
+    }
+
+    [Theory]
+    [InlineData("search", "search.json", "split", "search.json", "en/search.json")]
+    [InlineData("search", "search.json", "index", "search.json", "en/search.json")]
+    [InlineData("sitemap", "sitemap.xml", "split", "sitemap.xml", "en/sitemap.xml")]
+    [InlineData("sitemap", "sitemap.xml", "index", "zh/sitemap.xml", "en/sitemap.xml")]
+    [InlineData("feed", "rss.xml", "split", "rss.xml", "en/rss.xml")]
+    [InlineData("atom", "feed/atom.xml", "split", "feed/atom.xml", "en/feed/atom.xml")]
+    public void RootInventory_PerLanguageArtifactsAreReadPerLanguage(
+        string kind, string representationPath, string mode, string zhPath, string enPath)
+    {
+        WriteArtifact(kind, zhPath, "https://example.com/docs/zh/zh-page/");
+        WriteArtifact(kind, enPath, "https://example.com/docs/en/en-page/");
+        var baseConfig = Config();
+        var site = baseConfig.Site with { Languages = ["zh", "en"], DefaultLanguage = "zh", DefaultLanguageInSubdir = false };
+        site = kind switch
+        {
+            "search" => site with { Search = site.Search with { Mode = mode } },
+            "sitemap" => site with { SitemapMode = mode },
+            _ => site with { Feed = site.Feed with { Mode = mode } }
+        };
+        var context = new PublishProjectionContext(
+            Config: baseConfig with { Site = site },
+            OutputDir: _root,
+            ContentGraph: CanonicalContentGraph.Empty,
+            SeoIndex: new Dictionary<string, SeoIndexEntry>(),
+            SeoModels: new Dictionary<string, Bukit.Rendering.SeoModel>(),
+            RoutedDocuments: [],
+            BaseUrl: "/",
+            VariantResults: [Variant("zh", Document("zh-page", "zh")), Variant("en", Document("en-page", "en"))]);
+
+        var outputs = I18nRootProjectionCoordinator.Project(context, new PublishRepresentation(kind, representationPath, true)).Outputs;
+
+        var zh = Assert.Single(outputs, output => output.Url == "/docs/zh/zh-page/");
+        var en = Assert.Single(outputs, output => output.Url == "/docs/en/en-page/");
+        Assert.True(zh.Exists);
+        Assert.True(en.Exists);
+        // Index modes report the root index that leads to each language's file; split modes report that file.
+        var rootPath = kind == "search" && mode == "index" ? "search.index.json" : representationPath;
+        Assert.Equal(mode == "index" ? rootPath : zhPath, zh.Path);
+        Assert.Equal(mode == "index" ? rootPath : enPath, en.Path);
+    }
+
+    private void WriteArtifact(string kind, string relativePath, string url)
+    {
+        var path = Path.Combine(_root, relativePath);
+        Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+        File.WriteAllText(path, kind switch
+        {
+            "search" => $"[{{\"url\":\"{url}\"}}]",
+            "sitemap" => $"<urlset><url><loc>{url}</loc></url></urlset>",
+            "feed" => $"<rss><channel><item><link>{url}</link></item></channel></rss>",
+            _ => $"<feed xmlns='http://www.w3.org/2005/Atom'><entry><link href='{url}'/></entry></feed>"
+        });
     }
 
     [Fact]
@@ -406,6 +484,10 @@ public sealed class I18nRegressionTests : IDisposable
     private static I18nOutputLayout PrefixedLayout(params string[] languages) => I18nOutputLayout.Create(
         new SiteConfig { Name = "prefixed", Title = "Prefixed", Languages = languages, DefaultLanguage = languages[0] },
         languages, "/", defaultLanguageInSubdir: true);
+
+    private static I18nOutputLayout RootLayout(params string[] languages) => I18nOutputLayout.Create(
+        new SiteConfig { Name = "root", Title = "Root", Languages = languages, DefaultLanguage = languages[0] },
+        languages, "/", defaultLanguageInSubdir: false);
 
     private static readonly IReadOnlyDictionary<string, string> LanguagePrefixes =
         new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase) { ["en"] = "en", ["zh"] = "zh" };
