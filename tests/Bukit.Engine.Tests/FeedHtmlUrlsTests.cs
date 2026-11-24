@@ -31,7 +31,34 @@ public sealed class FeedHtmlUrlsTests
 
         Assert.Equal(
             "<pre><code>&lt;img src='/logo.png'&gt;</code></pre>" +
-            "<img alt=\"x src='/y'\" src=\"https://example.com/z.png\"> <img srcset=\"data:image/png;base64,/9j/AA 1x, /a.png 2x\">",
+            "<img alt=\"x src='/y'\" src=\"https://example.com/z.png\"> <img srcset=\"data:image/png;base64,/9j/AA 1x, https://example.com/a.png 2x\">",
+            result);
+    }
+
+    [Theory]
+    [InlineData("https://cdn.test/crop,/photo.png 1x, /a.png 2x", "https://cdn.test/crop,/photo.png 1x, https://example.com/a.png 2x")]
+    [InlineData("/a.png,/b.png 2x", "https://example.com/a.png,/b.png 2x")]
+    [InlineData(" /a.png 1x , ,/b.png 2x,", " https://example.com/a.png 1x , ,https://example.com/b.png 2x,")]
+    [InlineData("/w.png 100w, /x.png?crop=1,2 200w", "https://example.com/w.png 100w, https://example.com/x.png?crop=1,2 200w")]
+    public void AbsolutizeRootRelative_SplitsSrcsetCandidatesOnlyOutsideUrls(string srcset, string expected)
+    {
+        var result = FeedHtmlUrls.AbsolutizeRootRelative($"<img srcset=\"{srcset}\">", "https://example.com");
+
+        Assert.Equal($"<img srcset=\"{expected}\">", result);
+    }
+
+    [Fact]
+    public void AbsolutizeRootRelative_LeavesMarkupInCommentsAndRawTextElementsUnchanged()
+    {
+        const string inert = "<textarea><a href=\"/t/\">t</a></textarea><script>var s = '<img src=\"/s.png\">';</script>" +
+            "<!-- <a href=\"/c/\"> --><style>/* <a href=\"/st/\"> */</style><TITLE><a href=\"/ti/\"></TITLE>";
+
+        var result = FeedHtmlUrls.AbsolutizeRootRelative(
+            inert + "<a title=\"<script>\" href=\"/real/\">r</a><textarea><a href=\"/open/\">",
+            "https://example.com");
+
+        Assert.Equal(
+            inert + "<a title=\"<script>\" href=\"https://example.com/real/\">r</a><textarea><a href=\"/open/\">",
             result);
     }
 

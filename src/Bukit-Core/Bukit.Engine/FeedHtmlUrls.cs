@@ -12,8 +12,9 @@ internal static class FeedHtmlUrls
     /// <summary>
     /// Prefixes root-relative link and media URLs (anchor <c>href</c>, image <c>src</c>/<c>data-src</c>,
     /// video <c>poster</c> and <c>srcset</c> candidates) with the origin of <paramref name="siteUrl"/>.
-    /// Attributes are found with <see cref="HtmlMediaReferenceScanner"/>, so text and code samples are
-    /// never rewritten. Absolute, protocol-relative and document-relative URLs are left unchanged, and
+    /// Attributes are found with <see cref="HtmlMediaReferenceScanner"/>, so text is never rewritten, and
+    /// markup inside comments and raw-text elements (<c>script</c>, <c>style</c>, <c>textarea</c>,
+    /// <c>title</c>) is left as written. Absolute, protocol-relative and document-relative URLs are left unchanged, and
     /// the HTML is returned unchanged when the site URL has no usable origin.
     /// </summary>
     internal static string AbsolutizeRootRelative(string html, string siteUrl)
@@ -31,11 +32,23 @@ internal static class FeedHtmlUrls
             return html;
         }
 
+        var inert = InertRanges(html);
         var origin = $"{site.Scheme}://{site.Authority}";
         StringBuilder? sb = null;
         var copied = 0;
+        var range = 0;
         foreach (var reference in references)
         {
+            while (range < inert.Count && inert[range].End <= reference.ValueStart)
+            {
+                range++;
+            }
+
+            if (range < inert.Count && inert[range].Start <= reference.ValueStart)
+            {
+                continue;
+            }
+
             foreach (var offset in RootRelativeOffsets(reference))
             {
                 sb ??= new StringBuilder(html.Length + 64);
@@ -69,29 +82,100 @@ internal static class FeedHtmlUrls
             yield break;
         }
 
-        // A data: URI holds commas (and base64 may start with '/'), so its candidates cannot be split safely.
-        if (value.Contains("data:", StringComparison.OrdinalIgnoreCase))
+        // Split candidates as the HTML srcset parser does: a URL runs to the next whitespace (it may
+        // contain commas), trailing commas on it end the candidate, and descriptors run to the next comma.
+        var index = 0;
+        while (true)
         {
-            yield break;
-        }
-
-        var candidateStart = 0;
-        while (candidateStart <= value.Length)
-        {
-            var urlStart = SkipWhitespace(value, candidateStart);
-            if (IsRootRelative(value, urlStart))
+            while (index < value.Length && (char.IsWhiteSpace(value[index]) || value[index] == ','))
             {
-                yield return urlStart;
+                index++;
             }
 
-            var comma = value.IndexOf(',', candidateStart);
+            if (index >= value.Length)
+            {
+                yield break;
+            }
+
+            if (IsRootRelative(value, index))
+            {
+                yield return index;
+            }
+
+            while (index < value.Length && !char.IsWhiteSpace(value[index]))
+            {
+                index++;
+            }
+
+            if (value[index - 1] == ',')
+            {
+                continue;
+            }
+
+            var comma = value.IndexOf(',', index);
             if (comma < 0)
             {
                 yield break;
             }
 
-            candidateStart = comma + 1;
+            index = comma + 1;
         }
+    }
+
+    /// <summary>
+    /// Ranges, in document order, whose apparent tags are text rather than elements: comments and the
+    /// content of raw-text elements. An unclosed one runs to the end of the HTML.
+    /// </summary>
+    private static List<(int Start, int End)> InertRanges(string html)
+    {
+        var ranges = new List<(int Start, int End)>();
+        var index = html.IndexOf('<');
+        while (index >= 0)
+        {
+            int start, end;
+            if (HtmlHeadScanner.IsCommentStart(html, index))
+            {
+                start = index;
+                end = HtmlHeadScanner.FindCommentEnd(html, index, html.Length);
+            }
+            else if (index + 1 < html.Length && (char.IsAsciiLetter(html[index + 1]) || html[index + 1] == '/'))
+            {
+                var tagEnd = HtmlHeadScanner.FindTagEnd(html, index);
+                if (tagEnd < 0)
+                {
+                    break;
+                }
+
+                var rawText = html[index + 1] is 's' or 'S' or 't' or 'T'
+                    ? HtmlHeadScanner.GetRawTextElementName(html.Substring(index, tagEnd - index + 1))
+                    : null;
+                if (rawText is null)
+                {
+                    index = html.IndexOf('<', tagEnd + 1);
+                    continue;
+                }
+
+                // The start tag's own attributes stay rewritable; only its content is text.
+                start = tagEnd + 1;
+                end = HtmlHeadScanner.FindClosingElementEnd(html, start, html.Length, rawText);
+            }
+            else
+            {
+                index = html.IndexOf('<', index + 1);
+                continue;
+            }
+
+            if (end < 0)
+            {
+                ranges.Add((start, html.Length));
+                break;
+            }
+
+            ranges.Add((start, end));
+            index = html.IndexOf('<', end);
+        }
+
+        return ranges;
     }
 
     private static int SkipWhitespace(string value, int index)

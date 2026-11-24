@@ -2,7 +2,7 @@ using System.Buffers;
 using System.Globalization;
 using System.Text;
 
-namespace Bukit.Engine;
+namespace Bukit.Engine.Feeds;
 
 /// <summary>
 /// RFC 3986 form of a sitemap URL. Characters outside the URI character set (non-ASCII, space,

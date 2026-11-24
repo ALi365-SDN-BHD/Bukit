@@ -1,6 +1,7 @@
 using System.Text;
 using Bukit.Routing;
 using Bukit.Engine.Abstractions.Routing;
+using Bukit.Engine.Feeds;
 namespace Bukit.Engine;
 
 internal static class SitemapGenerator
