@@ -90,6 +90,7 @@ public sealed class PluginCliLoader
             return new PluginCliLoadResult(descriptors, records);
         }
 
+        bool anyPluginFailed = false;
         foreach ((string pluginId, PluginConfigEntry entry) in config.Plugins)
         {
             try
@@ -99,10 +100,13 @@ public sealed class PluginCliLoader
             catch (Exception ex) when (toleratePluginFailures && ex is not OperationCanceledException)
             {
                 records.Add(CreateErrorRecord(pluginId, entry, rid, ex));
+                anyPluginFailed = true;
             }
         }
 
-        if (lockEntries.Count > 0)
+        // The lock is rewritten from the plugins that loaded, so a failed plugin would lose its entry.
+        // Keep the existing lock until every configured plugin loads again.
+        if (lockEntries.Count > 0 && !anyPluginFailed)
         {
             await _lockFileWriter.WriteAsync(projectRoot, lockEntries, cancellationToken);
         }
