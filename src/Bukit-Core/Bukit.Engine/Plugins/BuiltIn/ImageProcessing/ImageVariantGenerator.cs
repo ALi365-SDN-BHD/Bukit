@@ -17,6 +17,7 @@ internal sealed class ImageVariantGenerator
     private readonly ImageContentValidator _imageValidator = new();
 
     internal const int MaxVariantFailures = 5;
+    internal const string SkiaSharpResizeIdentity = "skiasharp-orientation-v2";
     internal static readonly int[] DefaultSizes = [480, 768, 1200];
 
     internal static IReadOnlyList<int> NormalizeSizes(IReadOnlyList<int>? sizes) =>
@@ -45,6 +46,8 @@ internal sealed class ImageVariantGenerator
         width = 0;
         using var codec = SKCodec.Create(path);
         if (codec is null) return false;
+        // Resizing keeps only the first frame, so animated WebP stays as uploaded.
+        if (codec.EncodedFormat == SKEncodedImageFormat.Webp && codec.FrameCount > 1) return false;
         var origin = ImageOptimizer.GetEncodedOrigin(path, codec);
         width = origin >= SKEncodedOrigin.LeftTop ? codec.Info.Height : codec.Info.Width;
         return width > 0;
@@ -65,6 +68,12 @@ internal sealed class ImageVariantGenerator
         CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
+        if (tool is not null && ImageVariantPlan.IsWebpSource(imageFile))
+        {
+            // The external tool is not guaranteed to have a WebP delegate.
+            tool = null;
+            toolIdentity = SkiaSharpResizeIdentity;
+        }
         var ext = Path.GetExtension(imageFile);
         var sizedFile = ImageVariantPlan.VariantFileName(imageFile, size, ext);
         var freshnessFile = sizedFile + FreshnessSuffix;
@@ -172,7 +181,7 @@ internal sealed class ImageVariantGenerator
                         temporarySizedFile = Path.Combine(
                             Path.GetDirectoryName(sizedFile)!,
                             $".{Path.GetFileNameWithoutExtension(sizedFile)}.bukit-{Guid.NewGuid():N}{ext}");
-                        toolIdentity = "skiasharp-orientation-v2";
+                        toolIdentity = SkiaSharpResizeIdentity;
                         await ResizeWithSkiaSharpAsync(imageFile, temporarySizedFile, size, quality, cancellationToken);
                         result = (0, string.Empty);
                     }
@@ -246,9 +255,15 @@ internal sealed class ImageVariantGenerator
         int quality,
         CancellationToken cancellationToken)
     {
-        var format = Path.GetExtension(destination).Equals(".png", StringComparison.OrdinalIgnoreCase)
-            ? SKEncodedImageFormat.Png : SKEncodedImageFormat.Jpeg;
-        return ImageOptimizer.EncodeAsync(source, destination, width, quality, format, cancellationToken);
+        var format = Path.GetExtension(destination).ToLowerInvariant() switch
+        {
+            ".png" => SKEncodedImageFormat.Png,
+            ".webp" => SKEncodedImageFormat.Webp,
+            _ => SKEncodedImageFormat.Jpeg
+        };
+        // Resizing a WebP source keeps it WebP; animated WebP never reaches this point.
+        return ImageOptimizer.EncodeAsync(source, destination, width, quality, format, cancellationToken,
+            allowStaticWebpSource: format == SKEncodedImageFormat.Webp);
     }
 
     internal async Task<Dictionary<string, string>> GenerateWebpVariantsAsync(

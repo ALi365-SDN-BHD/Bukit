@@ -262,7 +262,7 @@ internal sealed partial class ResponsiveImageHtmlTransform(
             relative.Replace('/', Path.DirectorySeparatorChar)));
         if (!IsWithinDirectory(mediaDownloadDir!, candidate) ||
             !File.Exists(candidate) ||
-            Path.GetExtension(candidate).ToLowerInvariant() is not (".jpg" or ".jpeg" or ".png"))
+            !ImageVariantPlan.IsResizableSource(candidate))
         {
             return false;
         }

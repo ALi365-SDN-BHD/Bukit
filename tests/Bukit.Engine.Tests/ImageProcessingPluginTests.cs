@@ -8,6 +8,7 @@ using Bukit.Engine.Abstractions.Content;
 using Bukit.Engine.Abstractions.Plugins;
 using Bukit.Engine.Plugins;
 using Bukit.Engine.Plugins.BuiltIn;
+using Bukit.Engine.Plugins.BuiltIn.ImageProcessing;
 using Bukit.Routing;
 using Bukit.Engine.Abstractions.Routing;
 using Bukit.Shared;
@@ -513,6 +514,231 @@ public sealed class ImageProcessingPluginTests
         {
             if (Directory.Exists(outDir)) Directory.Delete(outDir, true);
         }
+    }
+
+    [Fact]
+    public async Task AfterBuild_WebpSourceGetsWebpVariantsWithoutPicture()
+    {
+        var outDir = GetTempDir();
+        try
+        {
+            var assetsDir = Path.Combine(outDir, "assets");
+            Directory.CreateDirectory(assetsDir);
+            WriteImage(Path.Combine(assetsDir, "photo.webp"), 1000, 8, SKEncodedImageFormat.Webp);
+            var (plugin, context, transformed) = TransformWithWebp(outDir, assetsDir, "<img src=\"/assets/photo.webp\" alt=\"\">");
+
+            await plugin.AfterBuildAsync(context);
+
+            var variant = Path.Combine(assetsDir, "photo-480w.webp");
+            using (var codec = SKCodec.Create(variant))
+            {
+                Assert.Equal(SKEncodedImageFormat.Webp, codec.EncodedFormat);
+                Assert.Equal(480, codec.Info.Width);
+            }
+            Assert.False(File.Exists(Path.Combine(assetsDir, "photo-1000w.webp")));
+            Assert.False(File.Exists(Path.Combine(assetsDir, "photo-1200w.webp")));
+            var freshness = JsonNode.Parse(File.ReadAllText(variant + ".bukit-freshness.json"))!.AsObject();
+            Assert.Equal(".webp", freshness["format"]!.GetValue<string>());
+            Assert.Equal("assets/photo.webp", freshness["sourcePath"]!.GetValue<string>());
+
+            var html = File.ReadAllText(Path.Combine(outDir, "index.html"));
+            Assert.Contains("srcset=\"/assets/photo-480w.webp 480w, /assets/photo.webp 1000w\"", html, StringComparison.Ordinal);
+            Assert.DoesNotContain("<picture>", html, StringComparison.Ordinal);
+            Assert.DoesNotContain("data-bukit-generated-srcset", html, StringComparison.Ordinal);
+            var outputs = Assert.IsType<HashSet<PluginOutputTrackingInfo>>(context.Get(BuildDataKeys.PluginOutputs));
+            Assert.Contains(outputs, output => output.Path == "assets/photo-480w.webp");
+        }
+        finally
+        {
+            if (Directory.Exists(outDir)) Directory.Delete(outDir, true);
+        }
+    }
+
+    [Fact]
+    public async Task AfterBuild_WebpSourceBesideSameStemPngIsLeftAlone()
+    {
+        var outDir = GetTempDir();
+        try
+        {
+            var assetsDir = Path.Combine(outDir, "assets");
+            Directory.CreateDirectory(assetsDir);
+            WriteImage(Path.Combine(assetsDir, "photo.png"), 1000, 8, SKEncodedImageFormat.Png);
+            WriteImage(Path.Combine(assetsDir, "photo.webp"), 1000, 8, SKEncodedImageFormat.Webp);
+            var (plugin, context, transformed) = TransformWithWebp(outDir, assetsDir, "<img src=\"/assets/photo.webp\" alt=\"\">");
+
+            await plugin.AfterBuildAsync(context);
+
+            Assert.DoesNotContain("srcset", transformed, StringComparison.Ordinal);
+            var freshness = JsonNode.Parse(File.ReadAllText(Path.Combine(assetsDir, "photo-480w.webp.bukit-freshness.json")))!.AsObject();
+            Assert.Equal("assets/photo.png", freshness["sourcePath"]!.GetValue<string>());
+        }
+        finally
+        {
+            if (Directory.Exists(outDir)) Directory.Delete(outDir, true);
+        }
+    }
+
+    [Fact]
+    public async Task AfterBuild_AnimatedWebpIsLeftAsUploaded()
+    {
+        var outDir = GetTempDir();
+        try
+        {
+            var assetsDir = Path.Combine(outDir, "assets");
+            Directory.CreateDirectory(assetsDir);
+            var source = Path.Combine(assetsDir, "loop.webp");
+            WriteAnimatedWebp(source, 1000, 8);
+            using (var codec = SKCodec.Create(source))
+            {
+                Assert.Equal(2, codec.FrameCount);
+            }
+            Assert.False(ImageVariantGenerator.TryReadImageWidth(source, out _));
+            var (plugin, context, transformed) = TransformWithWebp(outDir, assetsDir, "<img src=\"/assets/loop.webp\" alt=\"\">");
+
+            await plugin.AfterBuildAsync(context);
+
+            Assert.DoesNotContain("srcset", transformed, StringComparison.Ordinal);
+            Assert.Equal(["loop.webp"], Directory.GetFiles(assetsDir).Select(Path.GetFileName));
+        }
+        finally
+        {
+            if (Directory.Exists(outDir)) Directory.Delete(outDir, true);
+        }
+    }
+
+    [Fact]
+    public async Task AfterBuild_VariantShapedWebpNameIsNotASource()
+    {
+        var outDir = GetTempDir();
+        try
+        {
+            var assetsDir = Path.Combine(outDir, "assets");
+            Directory.CreateDirectory(assetsDir);
+            var source = Path.Combine(assetsDir, "hero-1600w.webp");
+            WriteImage(source, 1000, 8, SKEncodedImageFormat.Webp);
+            Assert.False(ImageVariantPlan.IsResizableSource(source));
+            var (plugin, context, transformed) = TransformWithWebp(outDir, assetsDir, "<img src=\"/assets/hero-1600w.webp\" alt=\"\">");
+
+            await plugin.AfterBuildAsync(context);
+
+            Assert.DoesNotContain("srcset", transformed, StringComparison.Ordinal);
+            Assert.Equal(["hero-1600w.webp"], Directory.GetFiles(assetsDir).Select(Path.GetFileName));
+        }
+        finally
+        {
+            if (Directory.Exists(outDir)) Directory.Delete(outDir, true);
+        }
+    }
+
+    [Theory]
+    [InlineData("photo.JPG")]
+    [InlineData("photo.Jpeg")]
+    [InlineData("PHOTO.png")]
+    public void IsResizableSource_WebpBesideRasterOfAnyCaseIsSkipped(string rasterName)
+    {
+        var dir = GetTempDir();
+        Directory.CreateDirectory(dir);
+        try
+        {
+            var webp = Path.Combine(dir, "photo.webp");
+            WriteImage(webp, 40, 4, SKEncodedImageFormat.Webp);
+            Assert.True(ImageVariantPlan.IsResizableSource(webp));
+
+            WriteImage(Path.Combine(dir, rasterName), 40, 4, SKEncodedImageFormat.Png);
+
+            Assert.False(ImageVariantPlan.IsResizableSource(webp));
+            Assert.True(ImageVariantPlan.IsResizableSource(Path.Combine(dir, rasterName)));
+        }
+        finally
+        {
+            Directory.Delete(dir, true);
+        }
+    }
+
+    // SkiaSharp cannot encode animated WebP, so wrap one lossless frame twice
+    // in a VP8X/ANIM/ANMF container (RFC 9649).
+    private static void WriteAnimatedWebp(string path, int width, int height)
+    {
+        using var bitmap = new SKBitmap(width, height);
+        bitmap.Erase(SKColors.SteelBlue);
+        using var pixmap = bitmap.PeekPixels();
+        using var encoded = pixmap.Encode(new SKWebpEncoderOptions(SKWebpEncoderCompression.Lossless, 100))!;
+        var still = encoded.ToArray();
+        var vp8l = FindRiffChunk(still, "VP8L");
+
+        static byte[] Chunk(string fourCc, byte[] payload)
+        {
+            var chunk = new List<byte>(System.Text.Encoding.ASCII.GetBytes(fourCc));
+            chunk.AddRange(BitConverter.GetBytes((uint)payload.Length));
+            chunk.AddRange(payload);
+            if (payload.Length % 2 == 1) chunk.Add(0);
+            return [.. chunk];
+        }
+        static byte[] U24(int value) => [(byte)value, (byte)(value >> 8), (byte)(value >> 16)];
+
+        var vp8x = new List<byte> { 0x12, 0, 0, 0 }; // animation + alpha flags
+        vp8x.AddRange(U24(width - 1));
+        vp8x.AddRange(U24(height - 1));
+        var frame = new List<byte>();
+        frame.AddRange(U24(0));
+        frame.AddRange(U24(0));
+        frame.AddRange(U24(width - 1));
+        frame.AddRange(U24(height - 1));
+        frame.AddRange(U24(100));
+        frame.Add(0);
+        frame.AddRange(vp8l);
+        var body = new List<byte>(System.Text.Encoding.ASCII.GetBytes("WEBP"));
+        body.AddRange(Chunk("VP8X", [.. vp8x]));
+        body.AddRange(Chunk("ANIM", [0, 0, 0, 0, 0, 0]));
+        body.AddRange(Chunk("ANMF", [.. frame]));
+        body.AddRange(Chunk("ANMF", [.. frame]));
+        var file = new List<byte>(System.Text.Encoding.ASCII.GetBytes("RIFF"));
+        file.AddRange(BitConverter.GetBytes((uint)body.Count));
+        file.AddRange(body);
+        File.WriteAllBytes(path, [.. file]);
+    }
+
+    private static byte[] FindRiffChunk(byte[] riff, string fourCc)
+    {
+        for (var offset = 12; offset + 8 <= riff.Length;)
+        {
+            var size = (int)BitConverter.ToUInt32(riff, offset + 4);
+            var total = 8 + size + (size % 2);
+            if (System.Text.Encoding.ASCII.GetString(riff, offset, 4) == fourCc)
+            {
+                return riff[offset..(offset + total)];
+            }
+            offset += total;
+        }
+        throw new InvalidDataException($"{fourCc} chunk not found.");
+    }
+
+    private static void WriteImage(string path, int width, int height, SKEncodedImageFormat format)
+    {
+        using var image = new SKBitmap(width, height);
+        image.Erase(SKColors.SteelBlue);
+        using var encoded = image.Encode(format, 90);
+        File.WriteAllBytes(path, encoded.ToArray());
+    }
+
+    private static (ImageProcessingPlugin Plugin, BuildContext Context, string Transformed) TransformWithWebp(
+        string outDir,
+        string assetsDir,
+        string img)
+    {
+        var config = CreateConfig(new ImageOptimizationConfig { Enabled = true, Formats = new[] { "webp" }, Sizes = new[] { 480, 1200 } }) with
+        {
+            Content = TestContent.Markdown() with { Media = new MediaConfig { UrlBase = "/assets" } }
+        };
+        var context = CreateContext(outDir);
+        context.Set(BuildDataKeys.MediaDownloadDir, assetsDir);
+        context.Set(BuildDataKeys.CurrentHtmlOutputs, new[] { "index.html" });
+        var plugin = new ImageProcessingPlugin(config);
+        var transformed = plugin.CreateHtmlTransform(new HtmlTransformPluginContext(context, BuildExecutionMode.Production)).Transform(
+            new HtmlTransformContext("/", "index.html", HtmlDocumentKind.Content, BuildExecutionMode.Production, context.Logger),
+            img);
+        File.WriteAllText(Path.Combine(outDir, "index.html"), $"<html><body>{transformed}</body></html>");
+        return (plugin, context, transformed);
     }
 
     [Theory]
