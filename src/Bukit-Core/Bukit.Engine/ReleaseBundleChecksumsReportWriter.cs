@@ -8,7 +8,7 @@ internal sealed class ReleaseBundleChecksumsReportWriter : IBuildReportWriter
 
     public void Write(BuildReportWriterContext context)
     {
-        var files = ReleaseBundleInventory.Create(context.ReportDir, context.OutputDir);
+        var files = ReleaseBundleInventory.Create(context.ReportDir, context.OutputDir, context.Config.Site);
         using var stream = File.Create(Path.Combine(context.ReportDir, "release-bundle-checksums.json"));
         using var writer = new Utf8JsonWriter(stream, new JsonWriterOptions { Indented = true });
         writer.WriteStartObject();

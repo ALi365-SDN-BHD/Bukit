@@ -67,6 +67,7 @@ internal static partial class PublicOutputPrivacyCheck
         var matcher = NotionIdentifierMatcher.From(sensitiveTokens);
 
         var errors = new List<string>();
+        var reportDirectories = BuildReportPaths.ReportDirectories(config.Site);
         var options = new EnumerationOptions
         {
             RecurseSubdirectories = true,
@@ -77,7 +78,7 @@ internal static partial class PublicOutputPrivacyCheck
         foreach (var path in Directory.EnumerateFiles(outputDir, "*", options))
         {
             var relativePath = NormalizePath(Path.GetRelativePath(outputDir, path));
-            if (IsInternalBuildArtifact(relativePath))
+            if (IsInternalBuildArtifact(relativePath, reportDirectories))
             {
                 continue;
             }
@@ -434,17 +435,10 @@ internal static partial class PublicOutputPrivacyCheck
         return NotionIdentifierRegex().Replace(redacted, "[redacted-notion-id]");
     }
 
-    private static bool IsInternalBuildArtifact(string relativePath)
-    {
-        if (relativePath.Equals(".bukit-build-state.json", StringComparison.OrdinalIgnoreCase) ||
-            relativePath.Equals(".bukit-output-marker", StringComparison.OrdinalIgnoreCase))
-        {
-            return true;
-        }
-
-        return relativePath.Equals(".bukit", StringComparison.OrdinalIgnoreCase) ||
-               relativePath.StartsWith(".bukit/", StringComparison.OrdinalIgnoreCase);
-    }
+    private static bool IsInternalBuildArtifact(string relativePath, IReadOnlyList<string> reportDirectories)
+        => relativePath.Equals(".bukit-build-state.json", StringComparison.OrdinalIgnoreCase) ||
+           relativePath.Equals(".bukit-output-marker", StringComparison.OrdinalIgnoreCase) ||
+           BuildReportPaths.IsInReportDirectory(relativePath, reportDirectories);
 
     private static string NormalizePath(string path)
         => path.Replace(Path.DirectorySeparatorChar, '/').Replace(Path.AltDirectorySeparatorChar, '/');

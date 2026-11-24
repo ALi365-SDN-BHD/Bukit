@@ -6,8 +6,9 @@ namespace Bukit.Engine;
 
 internal static class AssetsReportInventory
 {
-    internal static IReadOnlyList<AssetReportEntry> Create(string outputDir)
+    internal static IReadOnlyList<AssetReportEntry> Create(string outputDir, SiteConfig? site)
     {
+        var reportDirectories = BuildReportPaths.ReportDirectories(site);
         var assets = new List<AssetReportEntry>();
         foreach (var file in SafeFileEnumerator.EnumerateFiles(outputDir)
                      .OrderBy(path => path, StringComparer.OrdinalIgnoreCase))
@@ -18,11 +19,7 @@ internal static class AssetsReportInventory
                 continue;
             }
 
-            var topLevelDirectory = relative.Split('/')[0];
-            if (string.Equals(
-                    topLevelDirectory,
-                    BuildReporter.ReportDirectoryName,
-                    StringComparison.OrdinalIgnoreCase))
+            if (BuildReportPaths.IsInReportDirectory(relative, reportDirectories))
             {
                 continue;
             }
@@ -41,16 +38,18 @@ internal static class AssetsReportInventory
 
 internal static class ReleaseBundleInventory
 {
-    internal static IReadOnlyList<BuildReportFileEntry> Create(string reportDir, string outputDir)
+    internal static IReadOnlyList<BuildReportFileEntry> Create(string reportDir, string outputDir, SiteConfig? site)
     {
         if (!Directory.Exists(outputDir))
         {
             return Array.Empty<BuildReportFileEntry>();
         }
 
+        var reportDirectories = BuildReportPaths.ReportDirectories(site);
         // Recovery state is finalized after reporting and is not release content.
         return SafeFileEnumerator.EnumerateFiles(outputDir)
             .Where(path => !IsUnderReportDirectory(path, reportDir))
+            .Where(path => !BuildReportPaths.IsInReportDirectory(Path.GetRelativePath(outputDir, path), reportDirectories))
             .Where(path => BuildReporter.NormalizePath(Path.GetRelativePath(outputDir, path)) != ".bukit-build-state.json")
             .OrderBy(path => path, StringComparer.OrdinalIgnoreCase)
             .Select(path => BuildReportFileEntryFactory.Create(outputDir, path))
