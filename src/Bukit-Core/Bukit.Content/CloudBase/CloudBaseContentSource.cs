@@ -1,4 +1,6 @@
 using System.Globalization;
+using System.Security.Cryptography;
+using System.Text;
 using System.Text.Json;
 using Bukit.CloudBase.Models;
 using Bukit.CloudBase.Transport;
@@ -264,21 +266,12 @@ internal sealed class CloudBaseContentSource : IContentProvider
         return dropped;
     }
 
-    /// <summary>Row ids come from the database: quotes and control characters are replaced so a log line stays one key=value record.</summary>
-    private static string LogEntry(string id, string field)
-        => string.Create(id.Length + 1 + field.Length, (id, field), static (span, state) =>
-        {
-            state.id.AsSpan().CopyTo(span);
-            span[state.id.Length] = '/';
-            state.field.AsSpan().CopyTo(span[(state.id.Length + 1)..]);
-            foreach (ref var c in span)
-            {
-                if (c == '"' || c == ';' || char.IsControl(c))
-                {
-                    c = '_';
-                }
-            }
-        });
+    /// <summary>
+    /// Names a failing entry by a short hash of the row id (the id itself may be sensitive and
+    /// diagnostics log only its hash) and the configured field name.
+    /// </summary>
+    internal static string LogEntry(string id, string field)
+        => $"row:{Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes(id)), 0, 6)}/{field}";
 
     private void WarnUnsupported(int count)
     {

@@ -150,7 +150,8 @@ link SHALL be rendered as plain text, and a public field outside `fileFields` wh
 `cloud://` SHALL be dropped, both with the warning `CloudBaseUnsupportedFileReference`. A failed
 resolution (a per-item error in a batch response, a failed sign request, a signed link with the
 wrong scheme, host or path, a compat reference whose environment or bucket does not match, or an
-invalid object name) SHALL report `CloudBaseFileResolveFailed`, identify the failing entry, and
+invalid object name) SHALL report `CloudBaseFileResolveFailed`, identify the failing entry by a hash of the row id and
+the field name, and
 replace the field value or body image URL with the configured media placeholder
 (`content.media.defaultImageUrl`); the object name or `cloud://` reference SHALL NOT be kept. Published output SHALL NOT contain
 `cloud://`, the gateway host, the storage CDN host or a signed link.

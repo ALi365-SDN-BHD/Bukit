@@ -250,7 +250,7 @@ public sealed class CloudBaseContentSourceTests
         Assert.Contains(messages, message =>
             message.Contains("event=cloudbase.file_resolve_failed", StringComparison.Ordinal) &&
             message.Contains("count=1", StringComparison.Ordinal) &&
-            message.Contains("entries=\"a1/cover: sign-request-failed Forbidden 403\"", StringComparison.Ordinal));
+            message.Contains($"entries=\"{CloudBaseContentSource.LogEntry("a1", "cover")}: sign-request-failed Forbidden 403\"", StringComparison.Ordinal));
     }
 
     [Fact]
@@ -271,13 +271,13 @@ public sealed class CloudBaseContentSourceTests
 
         var warning = Assert.Single(messages, message => message.Contains("file_resolve_failed", StringComparison.Ordinal));
         Assert.Contains("count=2", warning, StringComparison.Ordinal);
-        Assert.Contains("a1/cover: object-unavailable", warning, StringComparison.Ordinal);
-        Assert.Contains("a2/cover: object-unavailable", warning, StringComparison.Ordinal);
+        Assert.Contains($"{CloudBaseContentSource.LogEntry("a1", "cover")}: object-unavailable", warning, StringComparison.Ordinal);
+        Assert.Contains($"{CloudBaseContentSource.LogEntry("a2", "cover")}: object-unavailable", warning, StringComparison.Ordinal);
         Assert.DoesNotContain("posts/a.png", warning, StringComparison.Ordinal);
     }
 
     [Fact]
-    public async Task LoadRawAsync_RepeatedFailures_AreLoggedOnceWithEscapedId()
+    public async Task LoadRawAsync_RepeatedFailures_AreLoggedOnceWithHashedId()
     {
         var api = new FakeCloudBaseApi();
         api.Pages[0] = """[{"id":"a\"1;x","title":"A","slug":"a","content":"![a](cloud://other-env.media/a.png) ![b](cloud://other-env.media/b.png)"}]""";
@@ -293,7 +293,9 @@ public sealed class CloudBaseContentSourceTests
 
         var warning = Assert.Single(messages, message => message.Contains("file_resolve_failed", StringComparison.Ordinal));
         Assert.Contains("count=1", warning, StringComparison.Ordinal);
-        Assert.Contains("entries=\"a_1_x/body: reference-mismatch\"", warning, StringComparison.Ordinal);
+        Assert.Contains($"entries=\"{CloudBaseContentSource.LogEntry("a\"1;x", "body")}: reference-mismatch\"", warning, StringComparison.Ordinal);
+        Assert.DoesNotContain("a\"1;x", warning, StringComparison.Ordinal);
+        Assert.Matches("row:[0-9a-f]{12}/body", warning);
     }
 
     [Theory]

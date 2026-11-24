@@ -148,8 +148,8 @@ internal static partial class PublicOutputPrivacyCheck
     /// Finds <paramref name="token"/> in <paramref name="text"/>, ignoring case. A host-name token
     /// (only letters, digits, <c>-</c> and <c>.</c>, such as <c>prod-1.api.tcloudbasegateway.com</c>)
     /// matches only at a host-label boundary, so another environment's host (<c>xprod-1.api…</c>)
-    /// is not a match; a percent (<c>%2F</c>) or backslash (<c>\x2F</c>, <c>\u002F</c>) escape before
-    /// it counts as a boundary. Any other token (such as <c>cloud://</c>) matches anywhere.
+    /// is not a match; a percent (<c>%2F</c>) or backslash (<c>\n</c>, <c>\x2F</c>, <c>\u002F</c>) escape
+    /// before it counts as a boundary. Any other token (such as <c>cloud://</c>) matches anywhere.
     /// </summary>
     internal static bool ContainsHostToken(string text, string token)
     {
@@ -178,7 +178,8 @@ internal static partial class PublicOutputPrivacyCheck
         static bool IsHostLabelChar(char c) => char.IsAsciiLetterOrDigit(c) || c == '-';
 
         static bool FollowsEscape(string text, int index)
-            => (index >= 3 && text[index - 3] == '%' && IsHex(text, index - 2, 2)) ||
+            => (index >= 2 && text[index - 2] == '\\' && text[index - 1] is 'n' or 'r' or 't' or 'b' or 'f') ||
+               (index >= 3 && text[index - 3] == '%' && IsHex(text, index - 2, 2)) ||
                (index >= 4 && text[index - 4] == '\\' && text[index - 3] is 'x' or 'X' && IsHex(text, index - 2, 2)) ||
                (index >= 6 && text[index - 6] == '\\' && text[index - 5] is 'u' or 'U' && IsHex(text, index - 4, 4));
 

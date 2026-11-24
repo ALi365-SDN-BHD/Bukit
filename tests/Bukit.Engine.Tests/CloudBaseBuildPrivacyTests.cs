@@ -82,6 +82,7 @@ public sealed class CloudBaseBuildPrivacyTests : IDisposable
     [Theory]
     [InlineData(@"<script type=""application/ld+json"">{""articleBody"":""para\ncloud://env-abc.media/a.png""}</script>")]
     [InlineData("""<img src="/img?url=https%3A%2F%2Fprod-1.api.tcloudbasegateway.com%2Fx">""")]
+    [InlineData(@"<script type=""application/ld+json"">{""articleBody"":""See\nprod-1.api.tcloudbasegateway.com""}</script>")]
     public void Evaluate_EscapedCloudBaseReferenceInHtml_Fails(string html)
     {
         File.WriteAllText(Path.Combine(_root, "index.html"), html);
@@ -100,6 +101,8 @@ public sealed class CloudBaseBuildPrivacyTests : IDisposable
     [InlineData(@"https:\x2F\x2Fprod-1.storage.tcloudbase.com", "prod-1.storage.tcloudbase.com", true)]
     [InlineData(@"https:\u002F\u002Fprod-1.storage.tcloudbase.com", "prod-1.storage.tcloudbase.com", true)]
     [InlineData(@"para\ncloud://env.media/a.png", "cloud://", true)]
+    [InlineData(@"See\nprod-1.storage.tcloudbase.com", "prod-1.storage.tcloudbase.com", true)]
+    [InlineData(@"See\tprod-1.storage.tcloudbase.com", "prod-1.storage.tcloudbase.com", true)]
     public void ContainsHostToken_MatchesAtLabelBoundary(string text, string token, bool expected)
     {
         Assert.Equal(expected, PublicOutputPrivacyCheck.ContainsHostToken(text, token));
