@@ -238,7 +238,10 @@ page. `site.seo.schema.breadcrumbHome: true` starts every list with the home pag
 (its title, or `site.title` when there is no home route). `breadcrumbParent` names
 a taxonomy kind: content listed on one of its term pages gets that term's first
 page as parent, so `/2596/` in category "news" becomes Home › news › post. The
-document's own term order wins; otherwise the first term page listing it. Term
+term page follows the URL ancestors, so `/business/2596/` becomes Home ›
+business › news › post; a term page that is itself a URL ancestor appears once,
+in URL order. The document's own term order wins; otherwise the first term page
+listing it. Term
 names follow `content.routeMetadata` titles. Both are off by default. A
 `breadcrumbParent` that is not a configured taxonomy kind (or `tags`/`categories`
 without `taxonomy.kinds`) fails validation. With either option on, incremental

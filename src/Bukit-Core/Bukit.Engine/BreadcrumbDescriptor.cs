@@ -103,21 +103,24 @@ internal static class BreadcrumbDescriptorResolver
                 items.Add(ToItem(config, baseUrl, home));
             }
 
-            if (parents.TryGetValue(key, out var parentKey) && entries.TryGetValue(parentKey, out var taxonomyParent))
-            {
-                items.Add(ToItem(config, baseUrl, taxonomyParent));
-            }
-
+            var parentKey = parents.GetValueOrDefault(key);
+            var parentIsAncestor = false;
             var segments = key.Trim('/').Split('/', StringSplitOptions.RemoveEmptyEntries);
             var ancestor = string.Empty;
             for (var index = 0; index < segments.Length - 1; index++)
             {
                 ancestor += "/" + segments[index];
-                if (!string.Equals(ancestor, parentKey, StringComparison.OrdinalIgnoreCase) &&
-                    entries.TryGetValue(ancestor, out var parent))
+                if (entries.TryGetValue(ancestor, out var parent))
                 {
+                    parentIsAncestor |= string.Equals(ancestor, parentKey, StringComparison.OrdinalIgnoreCase);
                     items.Add(ToItem(config, baseUrl, parent));
                 }
+            }
+
+            // The taxonomy parent sits between the URL ancestors and the page, unless it is one of them.
+            if (!parentIsAncestor && parentKey is not null && entries.TryGetValue(parentKey, out var taxonomyParent))
+            {
+                items.Add(ToItem(config, baseUrl, taxonomyParent));
             }
 
             items.Add(ToItem(config, baseUrl, current));
