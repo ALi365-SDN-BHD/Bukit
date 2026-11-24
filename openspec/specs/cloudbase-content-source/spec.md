@@ -165,7 +165,8 @@ used only when it is `https`, its host equals the environment's gateway host and
 be used, so that only one host has to be validated. Body https links already written in the gateway
 or storage CDN signed form SHALL go through existing media localization. Downloading a signed link
 SHALL NOT send the credential. Signed links SHALL be downloaded locally within
-the same build. A `cloud://` reference in any other position SHALL NOT be resolved: a non-image body
+the same build. A body reference SHALL be recognised after Markdown decoding, so a `cloud://` scheme
+written with entity or backslash escapes is resolved like the literal form. A `cloud://` reference in any other position SHALL NOT be resolved: a non-image body
 link SHALL be rendered as plain text, and a public field outside `fileFields` whose value contains
 `cloud://` SHALL be dropped, both with the warning `CloudBaseUnsupportedFileReference`. A
 `fileFields` value that is not a string (an array or object column) SHALL NOT be sent to signing:
@@ -215,11 +216,11 @@ The build-time public output privacy check SHALL fail when public output contain
 identifier: the gateway host `{envId}.api.tcloudbasegateway.com` or
 `{envId}.api.intl.tcloudbasegateway.com`, the storage CDN host `{envId}.storage.tcloudbase.com` (hosts matched at a host-label boundary,
 so `xprod-1.api.tcloudbasegateway.com` is not a match for envId `prod-1`), a `cloud://` compat reference, a URL on the PG storage signed-download path carrying a
-`token` parameter, or any other `*.storage.tcloudbase.com` URL. It SHALL NOT fail for a bare
+`token` parameter (JSON-escaped slashes, an explicit port, and `\u0026` or an HTML entity such as `&amp;` or `&#38;` (possibly JSON-escaped) before `token` allowed), or any other `*.storage.tcloudbase.com` URL. It SHALL NOT fail for a bare
 envId in ordinary text or in an output file path. The deployment privacy validator reads no
 configuration and applies to every site, so it SHALL detect only (a) signed links anywhere in
 the text of any scanned text file: a gateway-host URL on the signed path with a `token`
-parameter, or a storage CDN host URL with a `token` parameter, in any `//` URL form (`https`, `http`, protocol-relative or another scheme, with JSON-escaped `\/` slashes, an explicit port, or `\u0026` / `&amp;` before `token` allowed); and (b) `cloud://` in URL
+parameter, or a storage CDN host URL with a `token` parameter, in any `//` URL form (`https`, `http`, protocol-relative or another scheme, with JSON-escaped `\/` slashes, an explicit port, or `\u0026` or an HTML entity such as `&amp;` or `&#38;` (possibly JSON-escaped) before `token` allowed); and (b) `cloud://` in URL
 positions. URL positions are quoted or unquoted URL attribute values of any tag in HTML-like
 files (`src`, `href`, each `srcset` candidate, `poster`, `data-src`, `action`, `formaction`,
 `cite`, `data`, `xlink:href`, `url`, and `content` on `<meta>`) and CSS `url(...)` arguments in

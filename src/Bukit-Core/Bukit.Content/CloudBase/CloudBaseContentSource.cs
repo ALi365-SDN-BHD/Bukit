@@ -170,7 +170,7 @@ internal sealed class CloudBaseContentSource : IContentProvider
 
         if (_options.FileFields.Count == 0 &&
             !drafts.Any(draft =>
-                draft.Markdown.Contains("cloud://", StringComparison.OrdinalIgnoreCase) ||
+                CloudBaseFileResolver.MayHoldCloudReference(draft.Markdown) ||
                 draft.Fields.Values.Any(field => ContainsCloudReference(field.Value))))
         {
             return new Dictionary<string, string>(StringComparer.Ordinal);

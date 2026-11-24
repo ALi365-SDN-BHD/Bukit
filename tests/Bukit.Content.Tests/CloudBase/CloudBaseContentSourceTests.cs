@@ -400,14 +400,23 @@ public sealed class CloudBaseContentSourceTests
     }
 
     [Theory]
-    [InlineData("![a](cloud&#58;//env-abc.media/posts/a.png)")]
-    [InlineData("![a](cloud\\://env-abc.media/posts/a.png)")]
-    public async Task LoadRawAsync_EscapedBodyCloudImage_IsSigned(string body)
+    [InlineData("![a](cloud&#58;//env-abc.media/posts/a.png)", true)]
+    [InlineData("![a](cloud\\://env-abc.media/posts/a.png)", true)]
+    [InlineData("![a](cloud&#58;//env-abc.media/posts/a.png)", false)]
+    [InlineData("![a](cloud\\:\\/\\/env-abc.media/posts/a.png)", false)]
+    [InlineData("![a](cloud&colon;&sol;&sol;env-abc.media/posts/a.png)", false)]
+    [InlineData("![a](&#99;loud://env-abc.media/posts/a.png)", false)]
+    public async Task LoadRawAsync_EscapedBodyCloudImage_IsSigned(string body, bool withFileFields)
     {
         var api = new FakeCloudBaseApi();
         api.Pages[0] = $$"""[{"id":"a1","title":"A","slug":"a","content":{{System.Text.Json.JsonSerializer.Serialize(body)}}}]""";
         api.Total = 1;
-        var source = Create(api, options => options with { FileFields = ["cover"], StorageBucket = "media", DefaultImageUrl = "/ph.jpg" });
+        var source = Create(api, options => options with
+        {
+            FileFields = withFileFields ? ["cover"] : [],
+            StorageBucket = "media",
+            DefaultImageUrl = "/ph.jpg"
+        });
 
         var result = await source.LoadRawAsync();
 
@@ -415,6 +424,19 @@ public sealed class CloudBaseContentSourceTests
         var html = (await result.BodyStore.GetAsync(document)).Html;
         Assert.Contains("https://env-abc.api.tcloudbasegateway.com/v1/storages/object/sign/media/posts/a.png?token=x", html, StringComparison.Ordinal);
         Assert.DoesNotContain("cloud://", html, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Theory]
+    [InlineData("plain text: no links", false)]
+    [InlineData("Tom &amp; Jerry & friends", false)]
+    [InlineData("see cloud://env-abc.media/a.png", true)]
+    [InlineData("CLOUD\\:\\/\\/x", true)]
+    [InlineData("cloud&#58;//x", true)]
+    [InlineData("cloud&COLON;//x", true)]
+    [InlineData("", false)]
+    public void MayHoldCloudReference_MatchesDecodableSchemes(string markdown, bool expected)
+    {
+        Assert.Equal(expected, CloudBaseFileResolver.MayHoldCloudReference(markdown));
     }
 
     [Fact]

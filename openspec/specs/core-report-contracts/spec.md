@@ -125,7 +125,9 @@ SHALL treat any `cloud://` compat reference, the configured environment's gatewa
 host (`{envId}.storage.tcloudbase.com`), matched at a host-label boundary so that another
 environment whose id ends with the configured envId does not match, any other storage CDN host URL
 (`*.storage.tcloudbase.com`), and any URL whose path starts with the PG storage signed-download
-prefix `/v1/storages/object/sign/` and carries a `token` parameter in public output as a leak, and
+prefix `/v1/storages/object/sign/` and carries a `token` parameter (JSON-escaped slashes, an explicit
+port, and `\u0026` or an HTML entity such as `&amp;` or `&#38;` (possibly JSON-escaped) before `token` allowed; the URL ends at a raw or escaped quote, angle
+bracket or whitespace) in public output as a leak, and
 SHALL map it to the existing `publicOutputPrivacy=failed` result. A bare envId in ordinary text or
 in an output file path SHALL NOT be treated as a leak. The deployment-side `DeploymentPrivacyValidator` reads no configuration and
 applies to every site, so it SHALL detect by fixed pattern only (a) `cloud://` in URL positions
@@ -134,7 +136,7 @@ tag in HTML-like files, `url(...)` arguments in CSS files after removing quotes,
 string values, each starting with `cloud://` after trimming; text nodes, code blocks and other text
 files are not checked for `cloud://` at deploy time) and (b) signed links anywhere in the text of any
 scanned text file: a gateway-host URL on the signed path with a `token` parameter, or a storage CDN host
-URL with a `token` parameter, in any `//` URL form (`https`, `http`, protocol-relative or another scheme, with JSON-escaped `\/` slashes, an explicit port, or `\u0026` / `&amp;` before `token` allowed); a gateway or CDN host URL without `token` SHALL NOT be treated as a
+URL with a `token` parameter, in any `//` URL form (`https`, `http`, protocol-relative or another scheme, with JSON-escaped `\/` slashes, an explicit port, or `\u0026` or an HTML entity such as `&amp;` or `&#38;` (possibly JSON-escaped) before `token` allowed); a gateway or CDN host URL without `token` SHALL NOT be treated as a
 leak, so sites without a CloudBase source keep their privacy results. It SHALL work without reading configuration, and SHALL detect the envId only when the deploy command reads it
 from `site.yaml` and passes it in. The report schemas, the `.bukit/publish-audit-report.json`
 contract, the existing error codes and the Notion applicability rules MUST NOT change. Diagnostics

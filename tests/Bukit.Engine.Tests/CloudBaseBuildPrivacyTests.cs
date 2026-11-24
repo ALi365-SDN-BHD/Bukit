@@ -132,6 +132,34 @@ public sealed class CloudBaseBuildPrivacyTests : IDisposable
         Assert.Equal("failed", result.Status);
     }
 
+    [Theory]
+    [InlineData("data.json", """{"u":"https:\/\/cdn.example.com\/v1\/storages\/object\/sign\/a.png?x=1\u0026token=x"}""")]
+    [InlineData("index.html", """<img src="/v1/storages/object/sign/a.png?x=1&amp;token=x">""")]
+    [InlineData("index.html", """<img src="https://env-x.storage.tcloudbase.com:443/a.png?token=x">""")]
+    [InlineData("index.html", """<img src="/v1/storages/object/sign/a.png?x=1&#x26;token=x">""")]
+    [InlineData("feed.json", """{"content_html":"\u003Cimg src=\u0022/v1/storages/object/sign/a.png?x=1\u0026amp;token=x\u0022\u003E"}""")]
+    public void Evaluate_EscapedSignedLink_Fails(string file, string content)
+    {
+        File.WriteAllText(Path.Combine(_root, file), content);
+
+        var result = PublicOutputPrivacyCheck.Evaluate(NotionOnlyConfig(), _root, []);
+
+        Assert.Equal("failed", result.Status);
+    }
+
+    [Theory]
+    [InlineData("""{"h":"\u003Cimg src=\u0022/v1/storages/object/sign/a.png\u0022\u003E\u0026token=x"}""")]
+    [InlineData("""{"h":"<img src=\"/v1/storages/object/sign/a.png\">&token=x"}""")]
+    [InlineData("""{"h":"/v1/storages/object/sign/a.png\n?token=x"}""")]
+    public void Evaluate_TokenOutsideEscapedSignedPath_Passes(string json)
+    {
+        File.WriteAllText(Path.Combine(_root, "data.json"), json);
+
+        var result = PublicOutputPrivacyCheck.Evaluate(NotionOnlyConfig(), _root, []);
+
+        Assert.Equal("passed", result.Status);
+    }
+
     [Fact]
     public void Evaluate_NotionOnlyEscapedMarker_KeepsNotionWording()
     {
