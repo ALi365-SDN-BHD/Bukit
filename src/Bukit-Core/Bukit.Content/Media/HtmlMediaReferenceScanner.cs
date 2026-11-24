@@ -169,14 +169,15 @@ internal static class HtmlMediaReferenceScanner
     private static bool IsCollectedUrlAttribute(ReadOnlySpan<char> name)
         => CollectedUrlAttributes.Contains(name.ToString());
 
-    private static void CollectUrlValueIfRequested(List<string>? urlValues, ReadOnlySpan<char> name, string value)
+    /// <summary>Materializes the value only when URL values are being collected for this attribute.</summary>
+    private static void CollectUrlValueIfRequested(List<string>? urlValues, ReadOnlySpan<char> name, ReadOnlySpan<char> value)
     {
         if (urlValues is null || !IsCollectedUrlAttribute(name))
         {
             return;
         }
 
-        CollectUrlValue(name, value, urlValues);
+        CollectUrlValue(name, value.ToString(), urlValues);
     }
 
     private static void CollectUrlValue(ReadOnlySpan<char> name, string value, List<string> values)
@@ -296,10 +297,7 @@ internal static class HtmlMediaReferenceScanner
                     i++;
                 }
 
-                CollectUrlValueIfRequested(
-                    urlValues,
-                    attributeName,
-                    html.AsSpan(unquotedStart, i - unquotedStart).ToString());
+                CollectUrlValueIfRequested(urlValues, attributeName, html.AsSpan(unquotedStart, i - unquotedStart));
 
                 continue;
             }
@@ -320,7 +318,7 @@ internal static class HtmlMediaReferenceScanner
             var valueLength = i - valueStart;
             i++; // consume closing quote.
 
-            CollectUrlValueIfRequested(urlValues, attributeName, html.Substring(valueStart, valueLength));
+            CollectUrlValueIfRequested(urlValues, attributeName, html.AsSpan(valueStart, valueLength));
 
             if (TryClassify(tagName, attributeName, html, valueStart, valueLength, includeAllAnchorHrefs, out var kind))
             {

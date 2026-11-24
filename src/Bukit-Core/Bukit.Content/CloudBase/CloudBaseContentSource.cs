@@ -304,7 +304,7 @@ internal sealed class CloudBaseContentSource : IContentProvider
         internal string Slug { get; } = slug;
         internal DateTimeOffset? PublishedAt { get; } = publishedAt;
         internal Dictionary<string, ContentField> Fields { get; } = fields;
-        internal string Markdown { get; set; } = markdown;
+        internal string Markdown { get; } = markdown;
         internal Dictionary<string, string> FileObjects { get; } = new(StringComparer.OrdinalIgnoreCase);
     }
 
@@ -348,8 +348,7 @@ internal sealed class CloudBaseContentSource : IContentProvider
                 Region = _options.Region,
                 PublishableKey = _options.PublishableKey,
                 MaxRps = _options.MaxRps,
-                MaxRetries = _options.MaxRetries,
-                MaxResponseBytes = _options.MaxResponseBytes
+                MaxRetries = _options.MaxRetries
             });
 
     private static string? GetString(JsonElement row, string field)

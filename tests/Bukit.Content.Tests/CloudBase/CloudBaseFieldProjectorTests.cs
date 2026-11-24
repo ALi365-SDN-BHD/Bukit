@@ -28,7 +28,7 @@ public sealed class CloudBaseFieldProjectorTests
     [Fact]
     public void Project_Whitelist_KeepsOnlyAllowedFields()
     {
-        var fields = CloudBaseFieldProjector.Project(Row, "whitelist", ["title", "tags"], "id");
+        var fields = Project(Row, "whitelist", ["title", "tags"], "id");
 
         Assert.Equal(["tags", "title"], fields.Keys.Order(StringComparer.Ordinal));
         Assert.Equal("text", fields["title"].Type);
@@ -38,7 +38,7 @@ public sealed class CloudBaseFieldProjectorTests
     [Fact]
     public void Project_Whitelist_StillDropsHardExcludedFields()
     {
-        var fields = CloudBaseFieldProjector.Project(
+        var fields = Project(
             Row,
             "whitelist",
             ["user_id", "owner", "created_by", "updated_by", "_openid", "title"],
@@ -50,7 +50,7 @@ public sealed class CloudBaseFieldProjectorTests
     [Fact]
     public void Project_All_DropsHardExcludedAndIdField()
     {
-        var fields = CloudBaseFieldProjector.Project(Row, "all", null, "id");
+        var fields = Project(Row, "all", null, "id");
 
         Assert.DoesNotContain("id", fields.Keys);
         Assert.DoesNotContain("user_id", fields.Keys);
@@ -67,7 +67,7 @@ public sealed class CloudBaseFieldProjectorTests
     [Fact]
     public void Project_All_KeepsIdFieldOnlyWhenExplicitlyAllowed()
     {
-        var fields = CloudBaseFieldProjector.Project(Row, "all", ["id"], "id");
+        var fields = Project(Row, "all", ["id"], "id");
 
         Assert.Contains("id", fields.Keys);
         Assert.DoesNotContain("_openid", fields.Keys);
@@ -76,7 +76,7 @@ public sealed class CloudBaseFieldProjectorTests
     [Fact]
     public void Project_ConvertsJsonTypes()
     {
-        var fields = CloudBaseFieldProjector.Project(Row, "all", null, "id");
+        var fields = Project(Row, "all", null, "id");
 
         Assert.Equal("number", fields["views"].Type);
         Assert.Equal("check", fields["featured"].Type);
@@ -90,7 +90,7 @@ public sealed class CloudBaseFieldProjectorTests
     {
         var row = JsonDocument.Parse($$"""{"author_id": {{json}}}""").RootElement;
 
-        var fields = CloudBaseFieldProjector.Project(row, "whitelist", ["author_id"], "id");
+        var fields = Project(row, "whitelist", ["author_id"], "id");
 
         Assert.Equal(expected, Assert.IsType<long>(fields["author_id"].Value));
     }
@@ -100,7 +100,7 @@ public sealed class CloudBaseFieldProjectorTests
     {
         var row = JsonDocument.Parse("""{"price": 19.99}""").RootElement;
 
-        var fields = CloudBaseFieldProjector.Project(row, "whitelist", ["price"], "id");
+        var fields = Project(row, "whitelist", ["price"], "id");
 
         Assert.Equal(19.99, Assert.IsType<double>(fields["price"].Value));
     }
@@ -108,8 +108,19 @@ public sealed class CloudBaseFieldProjectorTests
     [Fact]
     public void Project_NonObjectRow_ReturnsEmpty()
     {
-        var fields = CloudBaseFieldProjector.Project(JsonDocument.Parse("[1,2]").RootElement, "all", null, "id");
+        var fields = Project(JsonDocument.Parse("[1,2]").RootElement, "all", null, "id");
 
         Assert.Empty(fields);
     }
+
+    private static Dictionary<string, ContentField> Project(
+        JsonElement row,
+        string policyMode,
+        IReadOnlyList<string>? allowedFields,
+        string idField)
+        => CloudBaseFieldProjector.ProjectWithSet(
+            row,
+            policyMode,
+            CloudBaseFieldProjector.BuildAllowedSet(policyMode, allowedFields),
+            idField);
 }

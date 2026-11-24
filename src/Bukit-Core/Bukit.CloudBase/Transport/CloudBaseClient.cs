@@ -199,7 +199,7 @@ internal sealed class CloudBaseClient : IDisposable
         for (var index = 0; index < objectNames.Count; index++)
         {
             var name = objectNames[index];
-            if (IsValidObjectName(name))
+            if (CloudBaseEndpoints.IsValidObjectName(name))
             {
                 pending.Add((index, name));
             }
@@ -360,24 +360,6 @@ internal sealed class CloudBaseClient : IDisposable
             value.ValueKind == JsonValueKind.String
             ? value.GetString()
             : null;
-
-    private static bool IsValidObjectName(string? name)
-    {
-        if (string.IsNullOrWhiteSpace(name) || name.StartsWith('/') || name.Contains("//", StringComparison.Ordinal))
-        {
-            return false;
-        }
-
-        foreach (var segment in name.Split('/'))
-        {
-            if (segment == "..")
-            {
-                return false;
-            }
-        }
-
-        return true;
-    }
 
     private static void EnsureIdentifier(string value)
     {

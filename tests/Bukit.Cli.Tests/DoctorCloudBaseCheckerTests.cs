@@ -12,6 +12,15 @@ namespace Bukit.Cli.Tests;
 public sealed class DoctorCloudBaseCheckerTests
 {
     [Fact]
+    public void MapKind_MatchesBuildErrorMapperForEveryKind()
+    {
+        foreach (var kind in Enum.GetValues<CloudBaseErrorKind>())
+        {
+            Assert.Equal(Bukit.Content.CloudBase.CloudBaseErrorMapper.Map(kind), DoctorCloudBaseChecker.MapKind(kind));
+        }
+    }
+
+    [Fact]
     public async Task ServiceRoleKey_WarnsAdminCredential()
     {
         var output = await Run(

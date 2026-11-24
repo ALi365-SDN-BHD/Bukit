@@ -72,7 +72,7 @@ internal sealed class CloudBaseFileResolver
             return true;
         }
 
-        if (!IsValidObjectName(value))
+        if (!CloudBaseEndpoints.IsValidObjectName(value))
         {
             Fail(entry, InvalidObjectName);
             return false;
@@ -219,7 +219,7 @@ internal sealed class CloudBaseFileResolver
         if (bucket.Length == 0 ||
             !envId.Equals(_envId, StringComparison.Ordinal) ||
             !bucket.Equals(_bucket, StringComparison.Ordinal) ||
-            !IsValidObjectName(path))
+            !CloudBaseEndpoints.IsValidObjectName(path))
         {
             return false;
         }
@@ -241,15 +241,5 @@ internal sealed class CloudBaseFileResolver
         {
             _entriesByObject[objectName].Add(entry);
         }
-    }
-
-    private static bool IsValidObjectName(string name)
-    {
-        if (string.IsNullOrWhiteSpace(name) || name.StartsWith('/') || name.Contains("//", StringComparison.Ordinal))
-        {
-            return false;
-        }
-
-        return !name.Split('/').Any(segment => segment == "..");
     }
 }

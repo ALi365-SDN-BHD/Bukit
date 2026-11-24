@@ -249,7 +249,8 @@ internal static partial class PublicOutputPrivacyCheck
             extension.Equals(".jsonld", StringComparison.OrdinalIgnoreCase))
         {
             var json = File.ReadAllText(path);
-            if (ScanJson(json, matcher) == JsonPrivacyScan.Leak)
+            var scan = ScanJson(json, matcher);
+            if (scan == JsonPrivacyScan.Leak)
             {
                 var source = PrivacySource.None;
                 if (ScanJson(json, notionMatcher) == JsonPrivacyScan.Leak)
@@ -265,7 +266,7 @@ internal static partial class PublicOutputPrivacyCheck
                 return new FileScanResult(FilePrivacyScan.Leak, source);
             }
 
-            return ScanJson(json, matcher) == JsonPrivacyScan.Incomplete
+            return scan == JsonPrivacyScan.Incomplete
                 ? new FileScanResult(FilePrivacyScan.Incomplete, PrivacySource.None)
                 : new FileScanResult(FilePrivacyScan.Clean, PrivacySource.None);
         }

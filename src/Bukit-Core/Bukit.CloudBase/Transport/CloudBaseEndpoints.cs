@@ -22,6 +22,25 @@ internal static partial class CloudBaseEndpoints
     internal static string StorageCdnHost(string envId)
         => envId + StorageSuffix;
 
+    /// <summary>A storage object name: non-blank, relative, with no empty or <c>..</c> segment.</summary>
+    internal static bool IsValidObjectName([System.Diagnostics.CodeAnalysis.NotNullWhen(true)] string? name)
+    {
+        if (string.IsNullOrWhiteSpace(name) || name.StartsWith('/') || name.Contains("//", StringComparison.Ordinal))
+        {
+            return false;
+        }
+
+        foreach (var segment in name.Split('/'))
+        {
+            if (segment == "..")
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
     [GeneratedRegex("^[a-z0-9][a-z0-9-]{0,62}\\z", RegexOptions.CultureInvariant)]
     internal static partial Regex EnvIdPattern();
 

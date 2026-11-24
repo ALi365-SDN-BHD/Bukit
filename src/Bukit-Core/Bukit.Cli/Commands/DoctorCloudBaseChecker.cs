@@ -16,14 +16,14 @@ internal static class DoctorCloudBaseChecker
         var key = SecretStore.Get("CLOUDBASE_PUBLISHABLE_KEY");
         if (string.IsNullOrWhiteSpace(key))
         {
-            Console.WriteLine("✖ [BKT-0C02] CLOUDBASE_PUBLISHABLE_KEY is not set");
+            Console.WriteLine($"✖ [{Code(DiagnosticCode.CloudBaseCredentialMissing)}] CLOUDBASE_PUBLISHABLE_KEY is not set");
             return 1;
         }
 
         var role = CloudBaseCredentials.DecodeRole(key);
         if (role.IsAdminRisk)
         {
-            Console.WriteLine("⚠ [BKT-0C0A] CloudBase credential looks like an admin key (service_role or an unreadable role)");
+            Console.WriteLine($"⚠ [{Code(DiagnosticCode.CloudBaseAdminCredentialInUse)}] CloudBase credential looks like an admin key (service_role or an unreadable role)");
         }
 
         if (cloudBase.FieldPolicy.Allowed?.Contains(cloudBase.IdField, StringComparer.OrdinalIgnoreCase) == true)
@@ -86,7 +86,7 @@ internal static class DoctorCloudBaseChecker
                       ? idValue.GetString()
                       : idValue.GetRawText())))
             {
-                Console.WriteLine($"✖ [BKT-0C07] CloudBase sample row has no usable idField '{cloudBase.IdField}'");
+                Console.WriteLine($"✖ [{Code(DiagnosticCode.CloudBaseResponseInvalid)}] CloudBase sample row has no usable idField '{cloudBase.IdField}'");
                 errors++;
             }
 
@@ -160,13 +160,13 @@ internal static class DoctorCloudBaseChecker
             var results = await client.SignObjectsAsync(bucket, [objectName], 60).ConfigureAwait(false);
             if (results.Count != 1 || results[0].Url is null)
             {
-                Console.WriteLine($"✖ [BKT-0C08] CloudBase storage signing failed for field '{field}'");
+                Console.WriteLine($"✖ [{Code(DiagnosticCode.CloudBaseFileResolveFailed)}] CloudBase storage signing failed for field '{field}'");
                 return 1;
             }
         }
         catch (CloudBaseApiException)
         {
-            Console.WriteLine($"✖ [BKT-0C08] CloudBase storage signing failed for bucket '{bucket}'");
+            Console.WriteLine($"✖ [{Code(DiagnosticCode.CloudBaseFileResolveFailed)}] CloudBase storage signing failed for bucket '{bucket}'");
             return 1;
         }
 
@@ -188,7 +188,16 @@ internal static class DoctorCloudBaseChecker
 
     private static string Describe(CloudBaseApiException ex, string table)
     {
-        var code = ex.Kind switch
+        var status = ex.StatusCode is { } value ? $" (HTTP {value})" : string.Empty;
+        return $"✖ [{Code(MapKind(ex.Kind))}] CloudBase table '{table}' check failed: {ex.Kind}{status}";
+    }
+
+    /// <summary>
+    /// Must equal the build's <c>CloudBaseErrorMapper.Map</c>; the CLI may not reference Bukit.Content,
+    /// so a test pins the two maps together.
+    /// </summary>
+    internal static DiagnosticCode MapKind(CloudBaseErrorKind kind)
+        => kind switch
         {
             CloudBaseErrorKind.Unauthorized or CloudBaseErrorKind.Forbidden => DiagnosticCode.CloudBaseAuthFailed,
             CloudBaseErrorKind.NotFound => DiagnosticCode.CloudBaseNotFound,
@@ -196,7 +205,6 @@ internal static class DoctorCloudBaseChecker
             CloudBaseErrorKind.ResponseInvalid => DiagnosticCode.CloudBaseResponseInvalid,
             _ => DiagnosticCode.CloudBaseRequestFailed
         };
-        var status = ex.StatusCode is { } value ? $" (HTTP {value})" : string.Empty;
-        return $"✖ [{DiagnosticCodeFormatter.Format(code)}] CloudBase table '{table}' check failed: {ex.Kind}{status}";
-    }
+
+    private static string Code(DiagnosticCode code) => DiagnosticCodeFormatter.Format(code);
 }

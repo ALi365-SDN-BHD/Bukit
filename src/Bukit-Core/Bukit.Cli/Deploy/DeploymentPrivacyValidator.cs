@@ -213,7 +213,7 @@ internal static partial class DeploymentPrivacyValidator
             // Host forms match at a label boundary only: prod-1 must not match xprod-1's host.
             if (PublicOutputPrivacyCheck.ContainsHostToken(text, envId + CloudBaseEndpoints.GatewaySuffix) ||
                 PublicOutputPrivacyCheck.ContainsHostToken(text, envId + CloudBaseEndpoints.IntlGatewaySuffix) ||
-                PublicOutputPrivacyCheck.ContainsHostToken(text, envId + CloudBaseEndpoints.StorageSuffix) ||
+                PublicOutputPrivacyCheck.ContainsHostToken(text, CloudBaseEndpoints.StorageCdnHost(envId)) ||
                 text.Contains($"cloud://{envId}.", StringComparison.OrdinalIgnoreCase))
             {
                 return true;
