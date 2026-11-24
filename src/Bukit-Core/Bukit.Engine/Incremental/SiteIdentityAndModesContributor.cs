@@ -20,6 +20,8 @@ internal sealed class SiteIdentityAndModesContributor : IRenderDependencyContrib
 
         writer.AppendLabeledCanonicalValue("site.language", site.Language);
         writer.AppendLabeledCanonicalValue("site.url", site.Url);
+        // JSON-LD dates and article meta times are written in the site time zone.
+        writer.AppendLabeledCanonicalValue("site.timezone", site.Timezone);
         writer.AppendLabeledCanonicalValue("site.buildYear", context.SiteModel.BuildYear);
         // A single-language site hashes its language through site.language only, so writing
         // languages: [en] for a site that had language: en (or adding defaultLanguage: en) keeps

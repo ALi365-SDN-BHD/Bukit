@@ -213,8 +213,9 @@ Bukit emits JSON-LD through JSON serialization rather than template string conca
 article nodes name the page's language, falling back to `site.language`.
 `datePublished`, `dateModified` and `dateReviewed` are written at second
 precision in `site.timezone`, for example `2026-06-05T18:00:00+08:00`, and so
-are the `article:published_time` and `article:modified_time` meta tags. Sitemap
-`<lastmod>` is the date in `site.timezone` (UTC when it is unset).
+are the `article:published_time` and `article:modified_time` meta tags and the
+`page.seo.article.published_time`/`modified_time` template values. Sitemap
+`<lastmod>` is the date in `site.timezone` (default `Asia/Shanghai`).
 
 Migration note: existing sites that relied only on the historical default
 `searchAction: true` now emit no SearchAction. Add `site.search.route` only after

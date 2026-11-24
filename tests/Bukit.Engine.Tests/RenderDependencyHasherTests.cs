@@ -360,7 +360,7 @@ public sealed class RenderDependencyHasherTests
     public void Compute_BaseConfiguration_MatchesGoldenHash()
     {
         Assert.Equal(
-            "072b8260e4850cf21f27c2ea29f8432f07c1ce39a5b21a9e41995f963b5bfb62",
+            "07d324bab788a7bcb8ae13a437bacd44c3908b284a59629545fad2156f95a7f1",
             RenderDependencyHasher.Compute(CreateBaseConfig(), s_emptySiteModel));
     }
 
@@ -370,7 +370,7 @@ public sealed class RenderDependencyHasherTests
         // Golden hash for the canonical framed/type-tagged render dependency encoding
         // (base hash combined with every shared collection fingerprint).
         Assert.Equal(
-            "d9f47c9860b96333821b3a2094ff62ce516ae1c06851f9d8981568c0ebf868ef",
+            "e1dcaf6e24bb883f332dae44ee22da728b0bcaf8bea9139e7d4fb8cee60b518f",
             RenderDependencyHasher.Compute(
                 CreateRepresentativeGoldenConfig(),
                 CreateRepresentativeGoldenSiteModel(),
@@ -888,6 +888,17 @@ public sealed class RenderDependencyHasherTests
         var hash2 = RenderDependencyHasher.Compute(config2, s_emptySiteModel);
 
         Assert.NotEqual(hash1, hash2);
+    }
+
+    [Fact]
+    public void Compute_DifferentTimezone_ProducesDifferentHash()
+    {
+        var config1 = CreateBaseConfig() with { Site = CreateBaseConfig().Site with { Timezone = "UTC" } };
+        var config2 = CreateBaseConfig() with { Site = CreateBaseConfig().Site with { Timezone = "Asia/Kuala_Lumpur" } };
+
+        Assert.NotEqual(
+            RenderDependencyHasher.Compute(config1, s_emptySiteModel),
+            RenderDependencyHasher.Compute(config2, s_emptySiteModel));
     }
 
     [Fact]

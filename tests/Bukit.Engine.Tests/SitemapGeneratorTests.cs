@@ -169,12 +169,19 @@ public sealed class SitemapGeneratorTests
             ? TimeZoneInfo.CreateCustomTimeZone("test", TimeSpan.FromHours(hours), "test", "test")
             : null;
 
-        SitemapGenerator.GenerateAbsolute(
-            outDir,
-            [("https://example.com/", new DateTimeOffset(2024, 6, 30, 20, 0, 0, TimeSpan.Zero))],
-            timeZone);
+        try
+        {
+            SitemapGenerator.GenerateAbsolute(
+                outDir,
+                [("https://example.com/", new DateTimeOffset(2024, 6, 30, 20, 0, 0, TimeSpan.Zero))],
+                timeZone);
 
-        Assert.Contains($"<lastmod>{expected}</lastmod>", File.ReadAllText(Path.Combine(outDir, "sitemap.xml")), StringComparison.Ordinal);
+            Assert.Contains($"<lastmod>{expected}</lastmod>", File.ReadAllText(Path.Combine(outDir, "sitemap.xml")), StringComparison.Ordinal);
+        }
+        finally
+        {
+            Directory.Delete(outDir, recursive: true);
+        }
     }
 
     [Fact]

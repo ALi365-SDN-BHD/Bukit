@@ -191,7 +191,7 @@ internal static class SeoJsonLdBuilder
 
     // Second precision in the site time zone: schema.org dates need no fractional seconds.
     private static string FormatDate(DateTimeOffset value, TimeZoneInfo timeZone)
-        => TimeZoneInfo.ConvertTime(value, timeZone).ToString("yyyy-MM-dd'T'HH:mm:sszzz", CultureInfo.InvariantCulture);
+        => SeoDateFormat.Format(TimeZoneInfo.ConvertTime(value, timeZone));
 
     private static string? ContentLanguage(ContentRecord? record, string? siteLanguage)
         => ContentLanguageFallback.Resolve(record?.Presentation.Language, siteLanguage);

@@ -65,8 +65,8 @@ internal static class ScribanSeoModelMapper
     private static ScriptObject ToScriptObject(SeoArticleModel model)
     {
         var obj = new ScriptObject();
-        obj.SetValue("published_time", model.PublishedTime?.ToString("O"), readOnly: true);
-        obj.SetValue("modified_time", model.ModifiedTime?.ToString("O"), readOnly: true);
+        obj.SetValue("published_time", model.PublishedTime is { } published ? SeoDateFormat.Format(published) : null, readOnly: true);
+        obj.SetValue("modified_time", model.ModifiedTime is { } modified ? SeoDateFormat.Format(modified) : null, readOnly: true);
         obj.SetValue("author", model.Author, readOnly: true);
         obj.SetValue("author_type", model.AuthorType, readOnly: true);
 

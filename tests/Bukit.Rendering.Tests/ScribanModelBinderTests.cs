@@ -589,8 +589,8 @@ public sealed class ScribanModelBinderTests
         var seo = Assert.IsType<ScriptObject>(page["seo"]);
         var article = Assert.IsType<ScriptObject>(seo["article"]);
 
-        Assert.Equal("2025-05-15T10:00:00.0000000+00:00", article["published_time"]);
-        Assert.Equal("2025-05-15T11:30:00.0000000+00:00", article["modified_time"]);
+        Assert.Equal("2025-05-15T10:00:00+00:00", article["published_time"]);
+        Assert.Equal("2025-05-15T11:30:00+00:00", article["modified_time"]);
         Assert.Equal("John Doe", article["author"]);
         Assert.Equal("Organization", article["author_type"]);
 

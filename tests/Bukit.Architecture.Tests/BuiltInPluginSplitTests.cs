@@ -86,9 +86,10 @@ public sealed class BuiltInPluginSplitTests
     [InlineData("ImageProcessing/ImageVariantOwnership.cs")]
     [InlineData("ImageProcessing/ImageVariantPlan.cs")]
     [InlineData("ImageProcessing/ResponsiveImageHtmlTransform.cs")]
+    [InlineData("../../../Bukit.Engine.Assets/ImageOptimizer.cs")]
     public void ImageProcessing_NeverStartsAnExternalProcess(string relativePath)
     {
-        // Resizing is SkiaSharp-only; no external image tool may be probed or run.
+        // Resizing and asset optimization are SkiaSharp-only; no external image tool may be probed or run.
         var identifiers = Source(relativePath).DescendantNodes().OfType<IdentifierNameSyntax>()
             .Select(identifier => identifier.Identifier.ValueText).ToHashSet(StringComparer.Ordinal);
         Assert.DoesNotContain("ExternalToolProcessRunner", identifiers);
