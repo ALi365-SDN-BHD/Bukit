@@ -22,6 +22,8 @@ Semua perubahan penting kepada Bukit akan didokumenkan dalam fail ini.
 
 - **Dimensi imej dan pemuatan malas**: dengan `theme.images.enabled`, imej media yang saiznya dapat dibaca oleh Bukit mendapat `width` dan `height` daripada saiz paparannya (selepas orientasi EXIF) apabila tiada kedua-duanya, dan setiap imej media pada halaman kecuali yang pertama mendapat `loading="lazy"` apabila tiada atribut `loading`, jadi imej pertama (selalunya imej terbesar di bahagian atas halaman) tetap dimuatkan serta-merta; nilai yang ditulis pengarang tidak pernah diubah. Binaan tokokan memaparkan semula halaman apabila ketinggian imej media berubah, dan binaan tokokan pertama selepas naik taraf memaparkan semula semua halaman. Lihat [04 site.yaml Config](guide/user/04-site-yaml-config.md).
 
+- **Saiz semula imej tanpa ImageMagick**: saiz semula imej responsif tidak lagi menggunakan ImageMagick (`magick` atau `convert`), walaupun ia dipasang, dan sentiasa menggunakan pengekod SkiaSharp terbina dalam, jadi tiada alat imej luaran diperlukan. Varian saiz semula yang dibuat oleh ImageMagick dijana semula sekali pada binaan seterusnya. Lihat [04 site.yaml Config](guide/user/04-site-yaml-config.md).
+
 - **Halaman carian tanpa BOM**: `bukit-search.html` ditulis sebagai UTF-8 tanpa tanda susunan bait (BOM).
 
 ## [2.2.8] - 2026-11-23

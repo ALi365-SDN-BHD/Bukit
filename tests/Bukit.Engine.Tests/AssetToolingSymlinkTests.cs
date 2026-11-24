@@ -37,35 +37,12 @@ public sealed class AssetToolingSymlinkTests
     [Fact]
     public async Task ImageProcessingPlugin_DoesNotIndexImagesThroughDirectorySymlink()
     {
-        if (OperatingSystem.IsWindows())
-        {
-            throw SkipException.ForSkip("This probe uses a temporary Unix executable to isolate image tool discovery.");
-        }
-
         var root = CreateFixture(out var assetsDir, out var externalDir);
-        var originalPath = Environment.GetEnvironmentVariable("PATH");
         try
         {
             WriteValidImage(Path.Combine(assetsDir, "local.jpg"), "local");
             File.WriteAllText(Path.Combine(externalDir, "secret.jpg"), "secret");
             CreateDirectorySymlinkOrSkip(Path.Combine(assetsDir, "linked-external"), externalDir);
-            var toolDir = Path.Combine(root, "tools");
-            Directory.CreateDirectory(toolDir);
-            var validImage = Path.Combine(toolDir, "valid.jpg");
-            WriteValidImage(validImage, "resized");
-            var toolPath = Path.Combine(toolDir, "magick");
-            File.WriteAllText(toolPath, $"""
-                #!/bin/sh
-                if [ "$1" = "--version" ]; then exit 0; fi
-                for last in "$@"; do :; done
-                cp '{EscapeSingleQuoted(validImage)}' "$last"
-                """);
-            File.SetUnixFileMode(
-                toolPath,
-                UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
-            Environment.SetEnvironmentVariable(
-                "PATH",
-                string.IsNullOrEmpty(originalPath) ? toolDir : toolDir + Path.PathSeparator + originalPath);
             var config = new AppConfig
             {
                 Site = new SiteConfig { Name = "test", Title = "Test" },
@@ -93,7 +70,6 @@ public sealed class AssetToolingSymlinkTests
         }
         finally
         {
-            Environment.SetEnvironmentVariable("PATH", originalPath);
             Directory.Delete(root, recursive: true);
         }
     }
@@ -113,8 +89,6 @@ public sealed class AssetToolingSymlinkTests
         using var data = image.Encode(SKEncodedImageFormat.Jpeg, 90);
         File.WriteAllBytes(path, data.ToArray());
     }
-
-    private static string EscapeSingleQuoted(string value) => value.Replace("'", "'\\''", StringComparison.Ordinal);
 
     private static string CreateFixture(out string assetsDir, out string externalDir)
     {

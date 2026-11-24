@@ -1,5 +1,3 @@
-using System.Diagnostics;
-using Bukit.Content.Media;
 using Bukit.Engine.Abstractions.Plugins;
 using Bukit.Shared;
 using SkiaSharp;
@@ -9,13 +7,11 @@ using static Bukit.Engine.Plugins.BuiltIn.ImageProcessing.ImageVariantOwnership;
 namespace Bukit.Engine.Plugins.BuiltIn.ImageProcessing;
 
 /// <summary>
-/// Produces resized (external tool or SkiaSharp) and WebP variants with
-/// atomic writes and freshness records.
+/// Produces resized and WebP variants with SkiaSharp, using atomic writes and
+/// freshness records. No external image tool is ever invoked.
 /// </summary>
-internal sealed class ImageVariantGenerator
+internal static class ImageVariantGenerator
 {
-    private readonly ImageContentValidator _imageValidator = new();
-
     internal const int MaxVariantFailures = 5;
     internal const string SkiaSharpResizeIdentity = "skiasharp-orientation-v2";
     internal static readonly int[] DefaultSizes = [480, 768, 1200];
@@ -58,27 +54,19 @@ internal sealed class ImageVariantGenerator
         return width > 0 && height > 0;
     }
 
-    internal async Task<bool> GenerateResizedVariantAsync(
+    internal static async Task GenerateResizedVariantAsync(
         BuildContext context,
         string imageFile,
         FileInfo sourceInfo,
         string sourceSha256,
         int size,
         int quality,
-        string? tool,
-        string toolIdentity,
         HashSet<PluginOutputTrackingInfo> priorPluginOutputs,
         HashSet<PluginOutputTrackingInfo> generatedOutputs,
         ICollection<string> failures,
         CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        if (tool is not null && ImageVariantPlan.IsWebpSource(imageFile))
-        {
-            // The external tool is not guaranteed to have a WebP delegate.
-            tool = null;
-            toolIdentity = SkiaSharpResizeIdentity;
-        }
         var ext = Path.GetExtension(imageFile);
         var sizedFile = ImageVariantPlan.VariantFileName(imageFile, size, ext);
         var freshnessFile = sizedFile + FreshnessSuffix;
@@ -100,11 +88,11 @@ internal sealed class ImageVariantGenerator
 
         // Skip if variant exists and freshness matches current inputs
         if (variantExists && hasOwnedFreshness &&
-            existingFreshness.Matches(sourceInfo, sourceSha256, quality, size, ext, toolIdentity))
+            existingFreshness.Matches(sourceInfo, sourceSha256, quality, size, ext, SkiaSharpResizeIdentity))
         {
             AddTrackedOutput(context, generatedOutputs, sizedFile);
             AddTrackedOutput(context, generatedOutputs, freshnessFile);
-            return false;
+            return;
         }
 
         // A filename only excludes recursive input discovery. Existing bytes or
@@ -120,7 +108,7 @@ internal sealed class ImageVariantGenerator
                 failures.Add($"{GetRelativeIdentity(context.OutputDir, sizedFile)} (blocked by unowned {Path.GetFileName(freshnessFile)}; remove it)");
             }
 
-            return false;
+            return;
         }
 
         // Once freshness no longer matches, the prior managed output is
@@ -132,114 +120,48 @@ internal sealed class ImageVariantGenerator
             TryDelete(freshnessFile);
         }
 
-        var timedOut = false;
+        var temporarySizedFile = Path.Combine(
+            Path.GetDirectoryName(sizedFile)!,
+            $".{Path.GetFileNameWithoutExtension(sizedFile)}.bukit-{Guid.NewGuid():N}{ext}");
+        var temporaryFreshnessFile = freshnessFile + $".bukit-{Guid.NewGuid():N}.tmp";
         try
         {
-            var temporarySizedFile = Path.Combine(
-                Path.GetDirectoryName(sizedFile)!,
-                $".{Path.GetFileNameWithoutExtension(sizedFile)}.bukit-{Guid.NewGuid():N}{ext}");
-            var externalTemporaryFile = temporarySizedFile;
-            var temporaryFreshnessFile = freshnessFile + $".bukit-{Guid.NewGuid():N}.tmp";
+            await ResizeWithSkiaSharpAsync(
+                imageFile,
+                temporarySizedFile,
+                size,
+                quality,
+                cancellationToken);
+            var variantInfo = new FileInfo(temporarySizedFile);
+            var variantSha256 = await ComputeSha256Async(temporarySizedFile, cancellationToken);
+            WriteFreshness(temporaryFreshnessFile, new VariantFreshness(
+                SchemaVersion: FreshnessSchemaVersion,
+                Owner: FreshnessOwner,
+                SourcePath: GetRelativeIdentity(context.OutputDir, imageFile),
+                VariantPath: GetRelativeIdentity(context.OutputDir, sizedFile),
+                SourceSize: sourceInfo.Length,
+                SourceMtime: sourceInfo.LastWriteTimeUtc.Ticks,
+                SourceSha256: sourceSha256,
+                VariantLength: variantInfo.Length,
+                VariantSha256: variantSha256,
+                Quality: quality,
+                Size: size,
+                Format: ext.ToLowerInvariant(),
+                Tool: SkiaSharpResizeIdentity));
+            File.Move(temporarySizedFile, sizedFile, overwrite: false);
             try
             {
-                (int ExitCode, string StandardError) result;
-                if (tool is null)
-                {
-                    await ResizeWithSkiaSharpAsync(
-                        imageFile,
-                        temporarySizedFile,
-                        size,
-                        quality,
-                        cancellationToken);
-                    result = (0, string.Empty);
-                }
-                else
-                {
-                    var startInfo = new ProcessStartInfo
-                    {
-                        FileName = tool,
-                        RedirectStandardOutput = true,
-                        RedirectStandardError = true,
-                        UseShellExecute = false,
-                        CreateNoWindow = true
-                    };
-                    startInfo.ArgumentList.Add(imageFile);
-                    startInfo.ArgumentList.Add("-auto-orient");
-                    startInfo.ArgumentList.Add("-resize");
-                    startInfo.ArgumentList.Add($"{size}x");
-                    startInfo.ArgumentList.Add("-quality");
-                    startInfo.ArgumentList.Add(quality.ToString());
-                    startInfo.ArgumentList.Add(temporarySizedFile);
-                    try
-                    {
-                        var externalResult = await ExternalToolProcessRunner.RunAsync(
-                            startInfo,
-                            TimeSpan.FromSeconds(10),
-                            context.Logger,
-                            cancellationToken);
-                        result = (externalResult.ExitCode, externalResult.StandardError);
-                    }
-                    catch (TimeoutException ex)
-                    {
-                        timedOut = true;
-                        context.Logger.Warn($"event=image_processing.fallback tool=skiasharp reason={ex.Message}");
-                        temporarySizedFile = Path.Combine(
-                            Path.GetDirectoryName(sizedFile)!,
-                            $".{Path.GetFileNameWithoutExtension(sizedFile)}.bukit-{Guid.NewGuid():N}{ext}");
-                        toolIdentity = SkiaSharpResizeIdentity;
-                        await ResizeWithSkiaSharpAsync(imageFile, temporarySizedFile, size, quality, cancellationToken);
-                        result = (0, string.Empty);
-                    }
-                }
-                if (result.ExitCode == 0 && File.Exists(temporarySizedFile) &&
-                    await _imageValidator.ValidateAsync(
-                        temporarySizedFile,
-                        MimeTypeForExtension(ext),
-                        cancellationToken))
-                {
-                    var variantInfo = new FileInfo(temporarySizedFile);
-                    var variantSha256 = await ComputeSha256Async(temporarySizedFile, cancellationToken);
-                    WriteFreshness(temporaryFreshnessFile, new VariantFreshness(
-                        SchemaVersion: FreshnessSchemaVersion,
-                        Owner: FreshnessOwner,
-                        SourcePath: GetRelativeIdentity(context.OutputDir, imageFile),
-                        VariantPath: GetRelativeIdentity(context.OutputDir, sizedFile),
-                        SourceSize: sourceInfo.Length,
-                        SourceMtime: sourceInfo.LastWriteTimeUtc.Ticks,
-                        SourceSha256: sourceSha256,
-                        VariantLength: variantInfo.Length,
-                        VariantSha256: variantSha256,
-                        Quality: quality,
-                        Size: size,
-                        Format: ext.ToLowerInvariant(),
-                        Tool: toolIdentity));
-                    File.Move(temporarySizedFile, sizedFile, overwrite: false);
-                    try
-                    {
-                        File.Move(temporaryFreshnessFile, freshnessFile, overwrite: false);
-                    }
-                    catch
-                    {
-                        TryDelete(sizedFile);
-                        throw;
-                    }
-
-                    AddTrackedOutput(context, generatedOutputs, sizedFile);
-                    AddTrackedOutput(context, generatedOutputs, freshnessFile);
-                    context.Logger.Info($"event=image_resize.ok file={Path.GetFileName(sizedFile)}");
-                }
-                else
-                {
-                    context.Logger.Warn($"event=image_resize.error file={Path.GetFileName(imageFile)} reason={result.StandardError}");
-                    failures.Add(GetRelativeIdentity(context.OutputDir, sizedFile));
-                }
+                File.Move(temporaryFreshnessFile, freshnessFile, overwrite: false);
             }
-            finally
+            catch
             {
-                TryDelete(temporarySizedFile);
-                TryDelete(externalTemporaryFile);
-                TryDelete(temporaryFreshnessFile);
+                TryDelete(sizedFile);
+                throw;
             }
+
+            AddTrackedOutput(context, generatedOutputs, sizedFile);
+            AddTrackedOutput(context, generatedOutputs, freshnessFile);
+            context.Logger.Info($"event=image_resize.ok file={Path.GetFileName(sizedFile)}");
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
@@ -250,7 +172,11 @@ internal sealed class ImageVariantGenerator
             context.Logger.Warn($"event=image_resize.error file={Path.GetFileName(imageFile)} reason={ex.Message}");
             failures.Add(GetRelativeIdentity(context.OutputDir, sizedFile));
         }
-        return timedOut;
+        finally
+        {
+            TryDelete(temporarySizedFile);
+            TryDelete(temporaryFreshnessFile);
+        }
     }
 
     internal static Task ResizeWithSkiaSharpAsync(
@@ -271,7 +197,7 @@ internal sealed class ImageVariantGenerator
             allowStaticWebpSource: format == SKEncodedImageFormat.Webp);
     }
 
-    internal async Task<Dictionary<string, string>> GenerateWebpVariantsAsync(
+    internal static async Task<Dictionary<string, string>> GenerateWebpVariantsAsync(
         BuildContext context,
         IReadOnlyList<string> imageFiles,
         IReadOnlyDictionary<string, int> sourceWidths,
@@ -341,7 +267,7 @@ internal sealed class ImageVariantGenerator
         return srcsets;
     }
 
-    private async Task<bool> GenerateOwnedWebpVariantAsync(
+    private static async Task<bool> GenerateOwnedWebpVariantAsync(
         BuildContext context,
         string sourceFile,
         FileInfo sourceInfo,
@@ -447,50 +373,4 @@ internal sealed class ImageVariantGenerator
             TryDelete(temporaryFreshness);
         }
     }
-
-    internal static async Task<string?> FindResizeToolAsync(
-        ILogger logger,
-        CancellationToken cancellationToken = default)
-    {
-        foreach (var name in new[] { "magick", "convert" })
-        {
-            try
-            {
-                var result = await ExternalToolProcessRunner.RunAsync(new ProcessStartInfo
-                {
-                    FileName = name,
-                    Arguments = "--version",
-                    RedirectStandardOutput = true,
-                    RedirectStandardError = true,
-                    UseShellExecute = false,
-                    CreateNoWindow = true
-                }, TimeSpan.FromSeconds(3), logger, cancellationToken);
-                if (result.ExitCode == 0)
-                {
-                    return name;
-                }
-            }
-            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
-            {
-                throw;
-            }
-            catch (Exception ex)
-            {
-                logger.Warn($"event=image_processing.tool.probe.failed tool={name} reason={ex.Message}");
-            }
-        }
-
-        return null;
-    }
-
-    internal static string MimeTypeForExtension(string extension) => extension.ToLowerInvariant() switch
-    {
-        ".jpg" or ".jpeg" => "image/jpeg",
-        ".png" => "image/png",
-        ".gif" => "image/gif",
-        ".webp" => "image/webp",
-        ".bmp" => "image/bmp",
-        ".tif" or ".tiff" => "image/tiff",
-        _ => "application/octet-stream"
-    };
 }

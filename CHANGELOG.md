@@ -22,6 +22,8 @@ All notable changes to Bukit will be documented in this file.
 
 - **Image dimensions and lazy loading**: with `theme.images.enabled`, a media image whose size Bukit reads gets `width` and `height` from its displayed size (after EXIF orientation) when it has neither, and every media image on a page but the first gets `loading="lazy"` when it has no `loading` attribute, so the first (often the largest above-the-fold image) still loads immediately; author-written values are never changed. Incremental builds re-render pages when a media image's height changes, and the first incremental build after upgrading re-renders every page. See [04 site.yaml Config](guide/user/04-site-yaml-config.md).
 
+- **Image resizing without ImageMagick**: responsive image resizing no longer uses ImageMagick (`magick` or `convert`), even when it is installed, and always uses the built-in SkiaSharp encoder, so no external image tool is needed. Resized variants made by ImageMagick are regenerated once on the next build. See [04 site.yaml Config](guide/user/04-site-yaml-config.md).
+
 - **Search page without BOM**: `bukit-search.html` is written as UTF-8 without a byte order mark.
 
 ## [2.2.8] - 2026-11-23

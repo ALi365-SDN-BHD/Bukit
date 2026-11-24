@@ -43,43 +43,40 @@ public sealed class ImageProcessingPluginTests
     }
 
     [Fact]
-    public async Task AfterBuild_ExternalCopyPreservesExactFreshnessBytesSrcsetAndTracking()
+    public async Task AfterBuild_ResizePreservesExactFreshnessBytesSrcsetAndTracking()
     {
-        RequireUnix();
         var outDir = GetTempDir();
-        var originalPath = Environment.GetEnvironmentVariable("PATH");
         try
         {
             var assetsDir = Path.Combine(outDir, "assets", "nested");
-            var toolDir = Path.Combine(outDir, "tools");
             Directory.CreateDirectory(assetsDir);
-            Directory.CreateDirectory(toolDir);
             var source = Path.Combine(assetsDir, "photo&one.jpg");
             WriteValidImage(source, "contract", width: 1000);
             File.SetLastWriteTimeUtc(source, new DateTime(2020, 1, 2, 3, 4, 5, DateTimeKind.Utc));
-            WriteTool(toolDir, "magick", """
-                if [ "$1" = "--version" ]; then exit 0; fi
-                for last in "$@"; do :; done
-                /bin/cp "$1" "$last"
-                """);
-            Environment.SetEnvironmentVariable("PATH", toolDir);
             var context = CreateContext(outDir);
 
             await new ImageProcessingPlugin(CreateConfig(new ImageOptimizationConfig
             {
-                Enabled = true, Formats = [], Sizes = [768, 0, 480, 768, -1, 1200, 1000], Quality = 73
+                Enabled = true,
+                Formats = [],
+                Sizes = [768, 0, 480, 768, -1, 1200, 1000],
+                Quality = 73
             })).AfterBuildAsync(context);
 
-            var sourceBytes = File.ReadAllBytes(source);
-            var hash = Convert.ToHexString(SHA256.HashData(sourceBytes));
+            var sourceHash = Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(source)));
             var info = new FileInfo(source);
             var expectedOutputs = new HashSet<PluginOutputTrackingInfo>();
             foreach (var size in new[] { 480, 768 })
             {
                 var relative = $"assets/nested/photo&one-{size}w.jpg";
                 var variant = Path.Combine(outDir, relative);
-                Assert.Equal(sourceBytes, File.ReadAllBytes(variant));
-                var expected = $$"""{"schemaVersion":1,"owner":"bukit:image-processing","sourcePath":"assets/nested/photo\u0026one.jpg","variantPath":"assets/nested/photo\u0026one-{{size}}w.jpg","sourceSize":{{info.Length}},"sourceMtime":{{info.LastWriteTimeUtc.Ticks}},"sourceSha256":"{{hash}}","variantLength":{{sourceBytes.LongLength}},"variantSha256":"{{hash}}","quality":73,"size":{{size}},"format":".jpg","tool":"magick-auto-orient-v1"}""";
+                var variantBytes = File.ReadAllBytes(variant);
+                using (var codec = SKCodec.Create(variant))
+                {
+                    Assert.Equal(size, codec.Info.Width);
+                }
+                var variantHash = Convert.ToHexString(SHA256.HashData(variantBytes));
+                var expected = $$"""{"schemaVersion":1,"owner":"bukit:image-processing","sourcePath":"assets/nested/photo\u0026one.jpg","variantPath":"assets/nested/photo\u0026one-{{size}}w.jpg","sourceSize":{{info.Length}},"sourceMtime":{{info.LastWriteTimeUtc.Ticks}},"sourceSha256":"{{sourceHash}}","variantLength":{{variantBytes.LongLength}},"variantSha256":"{{variantHash}}","quality":73,"size":{{size}},"format":".jpg","tool":"skiasharp-orientation-v2"}""";
                 Assert.Equal(Encoding.UTF8.GetBytes(expected), File.ReadAllBytes(variant + ".bukit-freshness.json"));
                 expectedOutputs.Add(new("image-processing", "after-build", relative));
                 expectedOutputs.Add(new("image-processing", "after-build", relative + ".bukit-freshness.json"));
@@ -98,7 +95,6 @@ public sealed class ImageProcessingPluginTests
         }
         finally
         {
-            Environment.SetEnvironmentVariable("PATH", originalPath);
             if (Directory.Exists(outDir)) Directory.Delete(outDir, true);
         }
     }
@@ -106,11 +102,9 @@ public sealed class ImageProcessingPluginTests
     [Theory]
     [InlineData(LogLevel.Warn)]
     [InlineData(LogLevel.Error)]
-    public async Task AfterBuild_ExternalFailureUsesCountedCallerJsonLoggerBeforeFiltering(LogLevel level)
+    public async Task AfterBuild_ResizeFailureUsesCountedCallerJsonLoggerBeforeFiltering(LogLevel level)
     {
-        RequireUnix();
         var outDir = GetTempDir();
-        var originalPath = Environment.GetEnvironmentVariable("PATH");
         var originalOut = Console.Out;
         var originalError = Console.Error;
         using var stdout = new StringWriter();
@@ -120,30 +114,27 @@ public sealed class ImageProcessingPluginTests
         try
         {
             var assetsDir = Path.Combine(outDir, "assets");
-            var toolDir = Path.Combine(outDir, "tools");
             Directory.CreateDirectory(assetsDir);
-            Directory.CreateDirectory(toolDir);
-            WriteValidImage(Path.Combine(assetsDir, "photo.jpg"), "failure");
-            WriteTool(toolDir, "magick", """
-                if [ "$1" = "--version" ]; then exit 0; fi
-                printf 'resize rejected' >&2
-                exit 7
-                """);
-            Environment.SetEnvironmentVariable("PATH", toolDir);
+            WriteUndecodableImage(Path.Combine(assetsDir, "photo.jpg"), "failure");
             Console.SetOut(stdout);
             Console.SetError(stderr);
             var context = new BuildContext
             {
-                RootDir = outDir, OutputDir = outDir, LayoutsDir = outDir, BaseUrl = "/",
-                RoutedDocuments = [], Logger = logger
+                RootDir = outDir,
+                OutputDir = outDir,
+                LayoutsDir = outDir,
+                BaseUrl = "/",
+                RoutedDocuments = [],
+                Logger = logger
             };
 
             var failure = await Assert.ThrowsAsync<InvalidOperationException>(() => new ImageProcessingPlugin(CreateConfig(new ImageOptimizationConfig
-                { Enabled = true, Formats = [], Sizes = [480] })).AfterBuildAsync(context));
+            { Enabled = true, Formats = [], Sizes = [480] })).AfterBuildAsync(context));
             Assert.Contains("assets/photo-480w.jpg", failure.Message, StringComparison.Ordinal);
             Assert.Contains("pluginFailMode", failure.Message, StringComparison.Ordinal);
+            Assert.DoesNotContain("image tool", failure.Message, StringComparison.Ordinal);
 
-            const string expected = "event=image_resize.error file=photo.jpg reason=resize rejected";
+            const string expected = "event=image_resize.error file=photo.jpg reason=Source pixels could not be fully decoded.";
             Assert.Equal(expected, Assert.Single(sink.Warnings));
             Assert.Equal(1, logger.WarningCount);
             Assert.Equal(0, logger.ErrorCount);
@@ -164,7 +155,6 @@ public sealed class ImageProcessingPluginTests
         {
             Console.SetOut(originalOut);
             Console.SetError(originalError);
-            Environment.SetEnvironmentVariable("PATH", originalPath);
             if (Directory.Exists(outDir)) Directory.Delete(outDir, true);
         }
     }
@@ -233,7 +223,7 @@ public sealed class ImageProcessingPluginTests
     }
 
     [Fact]
-    public async Task AfterBuild_NoImageTool_LogsWarningGracefully()
+    public async Task AfterBuild_SmallSourceDoesNotThrow()
     {
         var outDir = GetTempDir();
         try
@@ -263,18 +253,14 @@ public sealed class ImageProcessingPluginTests
     }
 
     [Fact]
-    public async Task AfterBuild_NoImageTool_UsesSkiaSharpAndDoesNotUpscale()
+    public async Task AfterBuild_UsesSkiaSharpAndDoesNotUpscale()
     {
         var outDir = GetTempDir();
-        var originalPath = Environment.GetEnvironmentVariable("PATH");
         try
         {
             var assetsDir = Path.Combine(outDir, "assets");
-            var noToolDir = Path.Combine(outDir, "no-tools");
             Directory.CreateDirectory(assetsDir);
-            Directory.CreateDirectory(noToolDir);
             WriteValidImage(Path.Combine(assetsDir, "photo.jpg"), "source", width: 1000);
-            Environment.SetEnvironmentVariable("PATH", noToolDir);
 
             await new ImageProcessingPlugin(CreateConfig(
                     new ImageOptimizationConfig { Enabled = true, Sizes = new[] { 480, 1200 } }))
@@ -287,6 +273,49 @@ public sealed class ImageProcessingPluginTests
         }
         finally
         {
+            if (Directory.Exists(outDir)) Directory.Delete(outDir, true);
+        }
+    }
+
+    [Fact]
+    public async Task AfterBuild_ResizeNeverProbesOrInvokesImageToolsOnPath()
+    {
+        RequireUnix();
+        var outDir = GetTempDir();
+        var originalPath = Environment.GetEnvironmentVariable("PATH");
+        try
+        {
+            var assetsDir = Path.Combine(outDir, "assets");
+            var toolDir = Path.Combine(outDir, "tools");
+            Directory.CreateDirectory(assetsDir);
+            Directory.CreateDirectory(toolDir);
+            var marker = Path.Combine(outDir, "invoked.txt");
+            string[] tools = ["magick", "convert"];
+            foreach (var tool in tools)
+            {
+                WriteTool(toolDir, tool, $"""
+                    printf '{tool} ' >> '{EscapeSingleQuoted(marker)}'
+                    exit 0
+                    """);
+            }
+            WriteValidImage(Path.Combine(assetsDir, "photo.jpg"), "source", width: 1000);
+            Environment.SetEnvironmentVariable("PATH", PrependPath(toolDir, originalPath));
+
+            await new ImageProcessingPlugin(CreateConfig(new ImageOptimizationConfig
+            { Enabled = true, Formats = ["webp"], Sizes = [480] })).AfterBuildAsync(CreateContext(outDir));
+
+            Assert.False(File.Exists(marker));
+            var variant = Path.Combine(assetsDir, "photo-480w.jpg");
+            using (var codec = SKCodec.Create(variant))
+            {
+                Assert.Equal(480, codec.Info.Width);
+            }
+            Assert.Equal(
+                ImageVariantGenerator.SkiaSharpResizeIdentity,
+                JsonNode.Parse(File.ReadAllText(variant + ".bukit-freshness.json"))!["tool"]!.GetValue<string>());
+        }
+        finally
+        {
             Environment.SetEnvironmentVariable("PATH", originalPath);
             if (Directory.Exists(outDir)) Directory.Delete(outDir, true);
         }
@@ -296,12 +325,10 @@ public sealed class ImageProcessingPluginTests
     public async Task AfterBuild_OrientedSource_UsesDisplayedWidthForCandidates()
     {
         var outDir = GetTempDir();
-        var originalPath = Environment.GetEnvironmentVariable("PATH");
         try
         {
             var assetsDir = Path.Combine(outDir, "assets");
             Directory.CreateDirectory(assetsDir);
-            Environment.SetEnvironmentVariable("PATH", outDir);
             File.WriteAllBytes(Path.Combine(assetsDir, "portrait.jpg"), ImageOptimizerTests.CreateOrientedJpeg(SKEncodedOrigin.RightTop));
             var config = CreateConfig(new ImageOptimizationConfig { Enabled = true, Formats = new[] { "webp" }, Sizes = new[] { 20, 60 } });
 
@@ -316,7 +343,6 @@ public sealed class ImageProcessingPluginTests
         }
         finally
         {
-            Environment.SetEnvironmentVariable("PATH", originalPath);
             if (Directory.Exists(outDir)) Directory.Delete(outDir, true);
         }
     }
@@ -325,12 +351,10 @@ public sealed class ImageProcessingPluginTests
     public async Task AfterBuild_PngExifUsesDisplayedWidthAndRejectsMalformedPlanning()
     {
         var outDir = GetTempDir();
-        var originalPath = Environment.GetEnvironmentVariable("PATH");
         try
         {
             var assetsDir = Path.Combine(outDir, "assets");
             Directory.CreateDirectory(assetsDir);
-            Environment.SetEnvironmentVariable("PATH", outDir);
             File.WriteAllBytes(Path.Combine(assetsDir, "portrait.png"), ImageOptimizerTests.CreateOrientedPng(SKEncodedOrigin.RightTop, true));
             File.WriteAllBytes(Path.Combine(assetsDir, "bad.png"), ImageOptimizerTests.CreateOrientedPng(SKEncodedOrigin.RightTop, false, "ifd-offset"));
             var config = CreateConfig(new ImageOptimizationConfig { Enabled = true, Formats = new[] { "webp" }, Sizes = new[] { 20, 60, 100 } });
@@ -350,83 +374,52 @@ public sealed class ImageProcessingPluginTests
         }
         finally
         {
-            Environment.SetEnvironmentVariable("PATH", originalPath);
             if (Directory.Exists(outDir)) Directory.Delete(outDir, true);
         }
     }
 
-    [Theory]
-    [InlineData("magick")]
-    [InlineData("convert")]
-    public async Task AfterBuild_ExternalResizeAutoOrientsBeforeDisplayedWidthResize(string tool)
+    [Fact]
+    public async Task AfterBuild_ResizeAutoOrientsBeforeDisplayedWidthResize()
     {
-        RequireUnix();
         var outDir = GetTempDir();
-        var originalPath = Environment.GetEnvironmentVariable("PATH");
         try
         {
             var assetsDir = Path.Combine(outDir, "assets");
-            var toolDir = Path.Combine(outDir, "tools");
             Directory.CreateDirectory(assetsDir);
-            Directory.CreateDirectory(toolDir);
             File.WriteAllBytes(Path.Combine(assetsDir, "portrait.jpg"), ImageOptimizerTests.CreateOrientedJpeg(SKEncodedOrigin.RightTop, 40, 80));
-            var expected = Path.Combine(toolDir, "expected.jpg");
-            using (var image = new SKBitmap(60, 30))
-            using (var data = image.Encode(SKEncodedImageFormat.Jpeg, 90)) File.WriteAllBytes(expected, data.ToArray());
-            var args = Path.Combine(toolDir, "args.txt");
-            WriteTool(toolDir, tool, $"""
-                if [ "$1" = "--version" ]; then exit 0; fi
-                printf '%s\n' "$@" > '{EscapeSingleQuoted(args)}'
-                [ "$2" = "-auto-orient" ] && [ "$3" = "-resize" ] && [ "$4" = "60x" ] || exit 9
-                for last in "$@"; do :; done
-                /bin/cp '{EscapeSingleQuoted(expected)}' "$last"
-                """);
-            Environment.SetEnvironmentVariable("PATH", toolDir);
 
             await new ImageProcessingPlugin(CreateConfig(new ImageOptimizationConfig
-                { Enabled = true, Formats = Array.Empty<string>(), Sizes = new[] { 60, 100 } })).AfterBuildAsync(CreateContext(outDir));
+            { Enabled = true, Formats = [], Sizes = [60, 100] })).AfterBuildAsync(CreateContext(outDir));
 
-            var arguments = File.ReadAllLines(args);
-            Assert.Equal(new[] { "-auto-orient", "-resize", "60x", "-quality" }, arguments[1..5]);
             using var output = SKBitmap.Decode(Path.Combine(assetsDir, "portrait-60w.jpg"));
             Assert.Equal((60, 30), (output.Width, output.Height));
             Assert.False(File.Exists(Path.Combine(assetsDir, "portrait-100w.jpg")));
         }
         finally
         {
-            Environment.SetEnvironmentVariable("PATH", originalPath);
             if (Directory.Exists(outDir)) Directory.Delete(outDir, true);
         }
     }
 
     [Theory]
+    [InlineData("magick-auto-orient-v1")]
+    [InlineData("convert-auto-orient-v1")]
     [InlineData("magick")]
-    [InlineData("convert")]
-    public async Task AfterBuild_ExternalResizeRebuildsLegacyOrientationOwnership(string tool)
+    public async Task AfterBuild_ResizeRebuildsVariantsRecordedByAnotherTool(string previousTool)
     {
-        RequireUnix();
         var outDir = GetTempDir();
-        var originalPath = Environment.GetEnvironmentVariable("PATH");
         try
         {
             var assetsDir = Path.Combine(outDir, "assets");
-            var toolDir = Path.Combine(outDir, "tools");
             Directory.CreateDirectory(assetsDir);
-            Directory.CreateDirectory(toolDir);
             File.WriteAllBytes(Path.Combine(assetsDir, "portrait.jpg"), ImageOptimizerTests.CreateOrientedJpeg(SKEncodedOrigin.RightTop, 40, 80));
-            WriteTool(toolDir, tool, """
-                if [ "$1" = "--version" ]; then exit 0; fi
-                for last in "$@"; do :; done
-                /bin/cp "$1" "$last"
-                """);
-            Environment.SetEnvironmentVariable("PATH", toolDir);
-            var config = CreateConfig(new ImageOptimizationConfig { Enabled = true, Formats = Array.Empty<string>(), Sizes = new[] { 20 } });
+            var config = CreateConfig(new ImageOptimizationConfig { Enabled = true, Formats = [], Sizes = [20] });
             var first = CreateContext(outDir);
             await new ImageProcessingPlugin(config).AfterBuildAsync(first);
             var variant = Path.Combine(assetsDir, "portrait-20w.jpg");
             var sidecar = variant + ".bukit-freshness.json";
             var freshness = JsonNode.Parse(File.ReadAllText(sidecar))!.AsObject();
-            freshness["tool"] = tool;
+            freshness["tool"] = previousTool;
             File.WriteAllText(sidecar, freshness.ToJsonString());
             var oldTimestamp = new DateTime(2000, 1, 1, 0, 0, 0, DateTimeKind.Utc);
             File.SetLastWriteTimeUtc(variant, oldTimestamp);
@@ -436,11 +429,12 @@ public sealed class ImageProcessingPluginTests
             await new ImageProcessingPlugin(config).AfterBuildAsync(second);
 
             Assert.True(File.GetLastWriteTimeUtc(variant) > oldTimestamp);
-            Assert.NotEqual(tool, JsonNode.Parse(File.ReadAllText(sidecar))!["tool"]!.GetValue<string>());
+            Assert.Equal(
+                ImageVariantGenerator.SkiaSharpResizeIdentity,
+                JsonNode.Parse(File.ReadAllText(sidecar))!["tool"]!.GetValue<string>());
         }
         finally
         {
-            Environment.SetEnvironmentVariable("PATH", originalPath);
             if (Directory.Exists(outDir)) Directory.Delete(outDir, true);
         }
     }
@@ -748,14 +742,10 @@ public sealed class ImageProcessingPluginTests
     public async Task AfterBuild_PreviousEncoderIdentity_RebuildsOwnedWebpAndFallback(bool previousSkia)
     {
         var outDir = GetTempDir();
-        var originalPath = Environment.GetEnvironmentVariable("PATH");
         try
         {
             var assetsDir = Path.Combine(outDir, "assets");
-            var noTools = Path.Combine(outDir, "no-tools");
             Directory.CreateDirectory(assetsDir);
-            Directory.CreateDirectory(noTools);
-            Environment.SetEnvironmentVariable("PATH", noTools);
             WriteValidImage(Path.Combine(assetsDir, "photo.jpg"), "source", width: 700);
             var config = CreateConfig(new ImageOptimizationConfig { Enabled = true, Formats = new[] { "webp" }, Sizes = new[] { 480 } });
             var first = CreateContext(outDir);
@@ -785,7 +775,6 @@ public sealed class ImageProcessingPluginTests
         }
         finally
         {
-            Environment.SetEnvironmentVariable("PATH", originalPath);
             if (Directory.Exists(outDir)) Directory.Delete(outDir, true);
         }
     }
@@ -1112,149 +1101,85 @@ public sealed class ImageProcessingPluginTests
     }
 
     [Fact]
-    public async Task AfterBuildAsync_CancellationKillsChildAndRemovesPartialOutput()
+    public async Task AfterBuildAsync_CancellationStopsResizingWithoutTrackingOrTemporaryOutput()
     {
-        RequireUnix();
         var outDir = GetTempDir();
-        var originalPath = Environment.GetEnvironmentVariable("PATH");
-        var originalMarker = Environment.GetEnvironmentVariable("BUKIT_IMAGE_TEST_MARKER");
         try
         {
             var assetsDir = Path.Combine(outDir, "assets");
-            var toolDir = Path.Combine(outDir, "tools");
             Directory.CreateDirectory(assetsDir);
-            Directory.CreateDirectory(toolDir);
             WriteValidImage(Path.Combine(assetsDir, "test.jpg"), "fake-jpeg");
-            var marker = Path.Combine(outDir, "late-marker");
-            WriteTool(toolDir, "magick", """
-                if [ "$1" = "--version" ]; then exit 0; fi
-                for last in "$@"; do :; done
-                printf partial > "$last"
-                ( sleep 1; printf late > "$BUKIT_IMAGE_TEST_MARKER" ) &
-                sleep 5
-                """);
-            Environment.SetEnvironmentVariable("PATH", PrependPath(toolDir, originalPath));
-            Environment.SetEnvironmentVariable("BUKIT_IMAGE_TEST_MARKER", marker);
-            var context = CreateContext(outDir);
-            var plugin = new ImageProcessingPlugin(CreateConfig(
-                new ImageOptimizationConfig { Enabled = true, Sizes = new[] { 480 } }));
             using var cancellation = new CancellationTokenSource();
-            var buildTask = plugin.AfterBuildAsync(context, cancellation.Token);
-            await WaitUntilAsync(
-                () => Directory.EnumerateFiles(assetsDir, ".test-480w.bukit-*.jpg").Any(),
-                TimeSpan.FromSeconds(2));
-            cancellation.Cancel();
+            var context = new BuildContext
+            {
+                RootDir = outDir,
+                OutputDir = outDir,
+                LayoutsDir = outDir,
+                BaseUrl = "/",
+                RoutedDocuments = [],
+                Logger = new CancelOnFirstResizeLogger(cancellation)
+            };
+            var plugin = new ImageProcessingPlugin(CreateConfig(
+                new ImageOptimizationConfig { Enabled = true, Formats = [], Sizes = [480, 768] }));
 
             var exception = await Assert.ThrowsAnyAsync<OperationCanceledException>(() =>
-                buildTask);
-            Assert.Equal(cancellation.Token, exception.CancellationToken);
+                plugin.AfterBuildAsync(context, cancellation.Token));
 
-            await Task.Delay(1200);
-            Assert.False(File.Exists(Path.Combine(assetsDir, "test-480w.jpg")));
-            Assert.False(File.Exists(marker));
-            Assert.False(File.Exists(Path.Combine(assetsDir, "test-480w.jpg.bukit-freshness.json")));
+            Assert.Equal(cancellation.Token, exception.CancellationToken);
+            Assert.False(File.Exists(Path.Combine(assetsDir, "test-768w.jpg")));
+            Assert.False(File.Exists(Path.Combine(assetsDir, "test-768w.jpg.bukit-freshness.json")));
             Assert.False(context.TryGet(BuildDataKeys.PluginOutputs, out _));
             Assert.False(context.TryGet(BuildDataKeys.ImageSrcsets, out _));
-            Assert.Empty(Directory.GetFiles(assetsDir, ".test-480w.bukit-*.jpg"));
-            Assert.Empty(Directory.GetFiles(assetsDir, "test-480w.jpg.bukit-freshness.json.bukit-*.tmp"));
+            Assert.Empty(Directory.GetFiles(assetsDir, ".test-*.bukit-*.jpg"));
+            Assert.Empty(Directory.GetFiles(assetsDir, "*.bukit-freshness.json.bukit-*.tmp"));
         }
         finally
         {
-            Environment.SetEnvironmentVariable("PATH", originalPath);
-            Environment.SetEnvironmentVariable("BUKIT_IMAGE_TEST_MARKER", originalMarker);
             if (Directory.Exists(outDir)) Directory.Delete(outDir, true);
         }
     }
 
-    [Theory]
-    [InlineData("strict")]
-    [InlineData("warn")]
-    public async Task AfterBuildAsync_ResizeTimeoutFallsBackForAllRemainingImages(string mode)
+    private sealed class CancelOnFirstResizeLogger(CancellationTokenSource cancellation) : ILogger
     {
-        RequireUnix();
-        var outDir = GetTempDir();
-        var originalPath = Environment.GetEnvironmentVariable("PATH");
-        try
+        public void Debug(string message) { }
+        public void Info(string message)
         {
-            var assetsDir = Path.Combine(outDir, "assets");
-            var toolDir = Path.Combine(outDir, "tools");
-            Directory.CreateDirectory(assetsDir);
-            Directory.CreateDirectory(toolDir);
-            var source = Path.Combine(assetsDir, "photo.jpg");
-            WriteValidImage(source, "timeout");
-            WriteValidImage(Path.Combine(assetsDir, "second.jpg"), "second");
-            var originalBytes = File.ReadAllBytes(source);
-            var marker = Path.Combine(outDir, "resize-started");
-            WriteTool(toolDir, "magick", $"""
-                if [ "$1" = "--version" ]; then exit 0; fi
-                for last in "$@"; do :; done
-                printf partial > "$last"
-                printf x >> '{EscapeSingleQuoted(marker)}'
-                /bin/sleep 30
-                """);
-            Environment.SetEnvironmentVariable("PATH", toolDir);
-            var logger = new ResizeWarningLogger(new ConsoleLogger(LogLevel.Error));
-            var context = new BuildContext
+            if (message.StartsWith("event=image_resize.ok", StringComparison.Ordinal))
             {
-                RootDir = outDir, OutputDir = outDir, LayoutsDir = outDir, BaseUrl = "/",
-                RoutedDocuments = [], Logger = logger
-            };
-
-            var config = CreateConfig(new ImageOptimizationConfig { Enabled = true, Formats = [], Sizes = [480] });
-            config = config with { Site = config.Site with { PluginFailMode = mode } };
-            await new ImageProcessingPlugin(config).AfterBuildAsync(context);
-
-            Assert.Equal("x", File.ReadAllText(marker));
-            var warning = Assert.Single(logger.Warnings);
-            Assert.Contains("timed out after 10000ms.", warning, StringComparison.Ordinal);
-            Assert.Equal(originalBytes, File.ReadAllBytes(source));
-            foreach (var name in new[] { "photo", "second" })
-            {
-                var variant = Path.Combine(assetsDir, $"{name}-480w.jpg");
-                Assert.True(File.Exists(variant));
-                Assert.Equal("skiasharp-orientation-v2", JsonNode.Parse(File.ReadAllText(variant + ".bukit-freshness.json"))!["tool"]!.GetValue<string>());
+                cancellation.Cancel();
             }
-            Assert.True(context.TryGet(BuildDataKeys.PluginOutputs, out _));
-            Assert.True(context.TryGet(BuildDataKeys.ImageSrcsets, out _));
-            Assert.Empty(Directory.GetFiles(assetsDir, ".photo-480w.bukit-*.jpg"));
-            Assert.Empty(Directory.GetFiles(assetsDir, "photo-480w.jpg.bukit-freshness.json.bukit-*.tmp"));
         }
-        finally
-        {
-            Environment.SetEnvironmentVariable("PATH", originalPath);
-            if (Directory.Exists(outDir)) Directory.Delete(outDir, true);
-        }
+        public void Warn(string message) { }
+        public void Error(string message) => Assert.Fail("Unexpected Error: " + message);
     }
 
     [Fact]
     public async Task AfterBuildAsync_WarnModeAttemptsAllVariantsAfterFailures()
     {
-        RequireUnix();
         var outDir = GetTempDir();
-        var originalPath = Environment.GetEnvironmentVariable("PATH");
         try
         {
             var assets = Path.Combine(outDir, "assets");
-            var tools = Path.Combine(outDir, "tools");
-            var counter = Path.Combine(outDir, "calls.txt");
             Directory.CreateDirectory(assets);
-            Directory.CreateDirectory(tools);
-            for (var i = 0; i < 8; i++) WriteValidImage(Path.Combine(assets, $"photo{i}.jpg"), $"failure-{i}");
-            WriteTool(tools, "magick", $"""
-                if [ "$1" = "--version" ]; then exit 0; fi
-                printf x >> '{EscapeSingleQuoted(counter)}'
-                exit 7
-                """);
-            Environment.SetEnvironmentVariable("PATH", tools);
+            for (var i = 0; i < 8; i++) WriteUndecodableImage(Path.Combine(assets, $"photo{i}.jpg"), $"failure-{i}");
+            var logger = new ResizeWarningLogger(new ConsoleLogger(LogLevel.Error));
+            var context = new BuildContext
+            {
+                RootDir = outDir,
+                OutputDir = outDir,
+                LayoutsDir = outDir,
+                BaseUrl = "/",
+                RoutedDocuments = [],
+                Logger = logger
+            };
             var config = CreateConfig(new ImageOptimizationConfig { Enabled = true, Formats = [], Sizes = [480] });
             config = config with { Site = config.Site with { PluginFailMode = "warn" } };
 
-            await Assert.ThrowsAsync<InvalidOperationException>(() => new ImageProcessingPlugin(config).AfterBuildAsync(CreateContext(outDir)));
-            Assert.Equal(8, File.ReadAllText(counter).Length);
+            await Assert.ThrowsAsync<InvalidOperationException>(() => new ImageProcessingPlugin(config).AfterBuildAsync(context));
+            Assert.Equal(8, logger.Warnings.Count(warning => warning.StartsWith("event=image_resize.error", StringComparison.Ordinal)));
         }
         finally
         {
-            Environment.SetEnvironmentVariable("PATH", originalPath);
             if (Directory.Exists(outDir)) Directory.Delete(outDir, true);
         }
     }
@@ -1262,40 +1187,36 @@ public sealed class ImageProcessingPluginTests
     [Fact]
     public async Task AfterBuildAsync_StopsAfterVariantFailureBudget()
     {
-        RequireUnix();
         var outDir = GetTempDir();
-        var originalPath = Environment.GetEnvironmentVariable("PATH");
         try
         {
             var assetsDir = Path.Combine(outDir, "assets");
-            var toolDir = Path.Combine(outDir, "tools");
-            var counter = Path.Combine(outDir, "calls.txt");
             Directory.CreateDirectory(assetsDir);
-            Directory.CreateDirectory(toolDir);
             for (var i = 0; i < 8; i++)
             {
-                WriteValidImage(Path.Combine(assetsDir, $"photo{i}.jpg"), $"failure-{i}");
+                WriteUndecodableImage(Path.Combine(assetsDir, $"photo{i}.jpg"), $"failure-{i}");
             }
 
-            WriteTool(toolDir, "magick", $"""
-                if [ "$1" = "--version" ]; then exit 0; fi
-                printf x >> '{EscapeSingleQuoted(counter)}'
-                exit 7
-                """);
-            Environment.SetEnvironmentVariable("PATH", toolDir);
-            var context = CreateContext(outDir);
+            var logger = new ResizeWarningLogger(new ConsoleLogger(LogLevel.Error));
+            var context = new BuildContext
+            {
+                RootDir = outDir,
+                OutputDir = outDir,
+                LayoutsDir = outDir,
+                BaseUrl = "/",
+                RoutedDocuments = [],
+                Logger = logger
+            };
 
             var error = await Assert.ThrowsAsync<InvalidOperationException>(() => new ImageProcessingPlugin(CreateConfig(
                     new ImageOptimizationConfig { Enabled = true, Formats = [], Sizes = [480] }))
                 .AfterBuildAsync(context));
 
-            var calls = File.Exists(counter) ? File.ReadAllText(counter).Length : 0;
-            Assert.InRange(calls, 1, 5);
+            Assert.Equal(5, logger.Warnings.Count(warning => warning.StartsWith("event=image_resize.error", StringComparison.Ordinal)));
             Assert.Contains("at least 5", error.Message, StringComparison.Ordinal);
         }
         finally
         {
-            Environment.SetEnvironmentVariable("PATH", originalPath);
             if (Directory.Exists(outDir)) Directory.Delete(outDir, true);
         }
     }
@@ -1303,23 +1224,13 @@ public sealed class ImageProcessingPluginTests
     [Fact]
     public async Task AfterBuildAsync_DoesNotProcessGeneratedSizedImageAsSource()
     {
-        RequireUnix();
         var outDir = GetTempDir();
-        var originalPath = Environment.GetEnvironmentVariable("PATH");
         try
         {
             var assetsDir = Path.Combine(outDir, "assets");
-            var toolDir = Path.Combine(outDir, "tools");
             Directory.CreateDirectory(assetsDir);
-            Directory.CreateDirectory(toolDir);
             WriteValidImage(Path.Combine(assetsDir, "photo.jpg"), "original");
             File.WriteAllText(Path.Combine(assetsDir, "photo-480w.jpg"), "existing-sized");
-            WriteTool(toolDir, "magick", """
-                if [ "$1" = "--version" ]; then exit 0; fi
-                for last in "$@"; do :; done
-                printf resized > "$last"
-                """);
-            Environment.SetEnvironmentVariable("PATH", PrependPath(toolDir, originalPath));
 
             await new ImageProcessingPlugin(CreateConfig(
                     new ImageOptimizationConfig { Enabled = true, Sizes = new[] { 480 } }))
@@ -1329,7 +1240,6 @@ public sealed class ImageProcessingPluginTests
         }
         finally
         {
-            Environment.SetEnvironmentVariable("PATH", originalPath);
             if (Directory.Exists(outDir)) Directory.Delete(outDir, true);
         }
     }
@@ -1337,25 +1247,14 @@ public sealed class ImageProcessingPluginTests
     [Fact]
     public async Task AfterBuildAsync_WhenOnlyOneResizeSucceeds_ProjectsOnlyExistingVariant()
     {
-        RequireUnix();
         var outDir = GetTempDir();
-        var originalPath = Environment.GetEnvironmentVariable("PATH");
         try
         {
             var assetsDir = Path.Combine(outDir, "assets");
-            var toolDir = Path.Combine(outDir, "tools");
             Directory.CreateDirectory(assetsDir);
-            Directory.CreateDirectory(toolDir);
             WriteValidImage(Path.Combine(assetsDir, "photo.jpg"), "original");
-            var validImage = Path.Combine(toolDir, "valid.jpg");
-            WriteValidImage(validImage, "resized");
-            WriteTool(toolDir, "magick", $"""
-                if [ "$1" = "--version" ]; then exit 0; fi
-                case "$*" in *-768w*) exit 1;; esac
-                for last in "$@"; do :; done
-                cp '{EscapeSingleQuoted(validImage)}' "$last"
-                """);
-            Environment.SetEnvironmentVariable("PATH", PrependPath(toolDir, originalPath));
+            // An unowned sidecar blocks the 768w variant, so only 480w can be produced.
+            File.WriteAllText(Path.Combine(assetsDir, "photo-768w.jpg.bukit-freshness.json"), "{}");
             var context = CreateContext(outDir);
 
             await Assert.ThrowsAsync<InvalidOperationException>(() => new ImageProcessingPlugin(CreateConfig(
@@ -1371,7 +1270,6 @@ public sealed class ImageProcessingPluginTests
         }
         finally
         {
-            Environment.SetEnvironmentVariable("PATH", originalPath);
             if (Directory.Exists(outDir)) Directory.Delete(outDir, true);
         }
     }
@@ -1379,21 +1277,12 @@ public sealed class ImageProcessingPluginTests
     [Fact]
     public async Task AfterBuildAsync_WhenNoResizeSucceeds_OmitsImageSrcsetProjection()
     {
-        RequireUnix();
         var outDir = GetTempDir();
-        var originalPath = Environment.GetEnvironmentVariable("PATH");
         try
         {
             var assetsDir = Path.Combine(outDir, "assets");
-            var toolDir = Path.Combine(outDir, "tools");
             Directory.CreateDirectory(assetsDir);
-            Directory.CreateDirectory(toolDir);
-            WriteValidImage(Path.Combine(assetsDir, "photo.jpg"), "original");
-            WriteTool(toolDir, "magick", """
-                if [ "$1" = "--version" ]; then exit 0; fi
-                exit 1
-                """);
-            Environment.SetEnvironmentVariable("PATH", PrependPath(toolDir, originalPath));
+            WriteUndecodableImage(Path.Combine(assetsDir, "photo.jpg"), "original");
             var context = CreateContext(outDir);
 
             await Assert.ThrowsAsync<InvalidOperationException>(() => new ImageProcessingPlugin(CreateConfig(
@@ -1404,7 +1293,6 @@ public sealed class ImageProcessingPluginTests
         }
         finally
         {
-            Environment.SetEnvironmentVariable("PATH", originalPath);
             if (Directory.Exists(outDir)) Directory.Delete(outDir, true);
         }
     }
@@ -1412,21 +1300,11 @@ public sealed class ImageProcessingPluginTests
     [Fact]
     public async Task AfterBuildAsync_SourceImageChanged_RegeneratesVariant()
     {
-        RequireUnix();
         var outDir = GetTempDir();
-        var originalPath = Environment.GetEnvironmentVariable("PATH");
         try
         {
             var assetsDir = Path.Combine(outDir, "assets");
-            var toolDir = Path.Combine(outDir, "tools");
             Directory.CreateDirectory(assetsDir);
-            Directory.CreateDirectory(toolDir);
-            WriteTool(toolDir, "magick", """
-                if [ "$1" = "--version" ]; then exit 0; fi
-                for last in "$@"; do :; done
-                cat "$1" > "$last"
-                """);
-            Environment.SetEnvironmentVariable("PATH", PrependPath(toolDir, originalPath));
 
             // Round 1: create source and generate variant
             var sourceFile = Path.Combine(assetsDir, "photo.jpg");
@@ -1451,7 +1329,6 @@ public sealed class ImageProcessingPluginTests
         }
         finally
         {
-            Environment.SetEnvironmentVariable("PATH", originalPath);
             if (Directory.Exists(outDir)) Directory.Delete(outDir, true);
         }
     }
@@ -1459,23 +1336,13 @@ public sealed class ImageProcessingPluginTests
     [Fact]
     public async Task AfterBuildAsync_StaleVariantRebuildFails_RemovesVariantAndProjection()
     {
-        RequireUnix();
         var outDir = GetTempDir();
-        var originalPath = Environment.GetEnvironmentVariable("PATH");
         try
         {
             var assetsDir = Path.Combine(outDir, "assets");
-            var toolDir = Path.Combine(outDir, "tools");
             Directory.CreateDirectory(assetsDir);
-            Directory.CreateDirectory(toolDir);
             var sourceFile = Path.Combine(assetsDir, "photo.jpg");
             WriteValidImage(sourceFile, "original");
-            WriteTool(toolDir, "magick", """
-                if [ "$1" = "--version" ]; then exit 0; fi
-                for last in "$@"; do :; done
-                cp "$1" "$last"
-                """);
-            Environment.SetEnvironmentVariable("PATH", PrependPath(toolDir, originalPath));
             var config = CreateConfig(
                 new ImageOptimizationConfig { Enabled = true, Sizes = new[] { 480 } });
 
@@ -1485,11 +1352,7 @@ public sealed class ImageProcessingPluginTests
             Assert.True(File.Exists(variantFile));
             Assert.True(File.Exists(freshnessFile));
 
-            WriteValidImage(sourceFile, "changed");
-            WriteTool(toolDir, "magick", """
-                if [ "$1" = "--version" ]; then exit 0; fi
-                exit 1
-                """);
+            WriteUndecodableImage(sourceFile, "changed");
             var secondContext = CreateContextWithPriorImageOwnership(outDir, variantFile);
 
             await Assert.ThrowsAsync<InvalidOperationException>(() => new ImageProcessingPlugin(config).AfterBuildAsync(secondContext));
@@ -1500,7 +1363,6 @@ public sealed class ImageProcessingPluginTests
         }
         finally
         {
-            Environment.SetEnvironmentVariable("PATH", originalPath);
             if (Directory.Exists(outDir)) Directory.Delete(outDir, true);
         }
     }
@@ -1508,21 +1370,11 @@ public sealed class ImageProcessingPluginTests
     [Fact]
     public async Task AfterBuildAsync_SourceHashChangedWithSameSizeAndMtime_RegeneratesVariant()
     {
-        RequireUnix();
         var outDir = GetTempDir();
-        var originalPath = Environment.GetEnvironmentVariable("PATH");
         try
         {
             var assetsDir = Path.Combine(outDir, "assets");
-            var toolDir = Path.Combine(outDir, "tools");
             Directory.CreateDirectory(assetsDir);
-            Directory.CreateDirectory(toolDir);
-            WriteTool(toolDir, "magick", """
-                if [ "$1" = "--version" ]; then exit 0; fi
-                for last in "$@"; do :; done
-                cat "$1" > "$last"
-                """);
-            Environment.SetEnvironmentVariable("PATH", PrependPath(toolDir, originalPath));
             var sourceFile = Path.Combine(assetsDir, "photo.jpg");
             WriteValidImage(sourceFile, "same-metadata");
             await File.AppendAllTextAsync(sourceFile, "A");
@@ -1533,21 +1385,28 @@ public sealed class ImageProcessingPluginTests
                 .AfterBuildAsync(CreateContext(outDir));
 
             var variantFile = Path.Combine(assetsDir, "photo-480w.jpg");
-            var firstVariant = await File.ReadAllBytesAsync(variantFile);
+            var sidecar = variantFile + ".bukit-freshness.json";
+            var firstSourceHash = JsonNode.Parse(await File.ReadAllTextAsync(sidecar))!["sourceSha256"]!.GetValue<string>();
             var sourceBytes = await File.ReadAllBytesAsync(sourceFile);
             sourceBytes[^1] = (byte)'B';
             await File.WriteAllBytesAsync(sourceFile, sourceBytes);
             File.SetLastWriteTimeUtc(sourceFile, sourceTimestamp);
+            var oldTimestamp = new DateTime(2000, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+            File.SetLastWriteTimeUtc(variantFile, oldTimestamp);
 
             await new ImageProcessingPlugin(CreateConfig(
                     new ImageOptimizationConfig { Enabled = true, Sizes = new[] { 480 } }))
                 .AfterBuildAsync(CreateContextWithPriorImageOwnership(outDir, variantFile));
 
-            Assert.NotEqual(firstVariant, await File.ReadAllBytesAsync(variantFile));
+            // The trailing byte does not change decoded pixels, so prove the
+            // rebuild through the rewritten variant and its freshness record.
+            var secondSourceHash = JsonNode.Parse(await File.ReadAllTextAsync(sidecar))!["sourceSha256"]!.GetValue<string>();
+            Assert.NotEqual(firstSourceHash, secondSourceHash);
+            Assert.Equal(Convert.ToHexString(SHA256.HashData(sourceBytes)), secondSourceHash);
+            Assert.True(File.GetLastWriteTimeUtc(variantFile) > oldTimestamp);
         }
         finally
         {
-            Environment.SetEnvironmentVariable("PATH", originalPath);
             if (Directory.Exists(outDir)) Directory.Delete(outDir, true);
         }
     }
@@ -1555,24 +1414,12 @@ public sealed class ImageProcessingPluginTests
     [Fact]
     public async Task AfterBuildAsync_TracksVariantAndFreshnessSidecarAsOwnedOutputs()
     {
-        RequireUnix();
         var outDir = GetTempDir();
-        var originalPath = Environment.GetEnvironmentVariable("PATH");
         try
         {
             var assetsDir = Path.Combine(outDir, "assets");
-            var toolDir = Path.Combine(outDir, "tools");
             Directory.CreateDirectory(assetsDir);
-            Directory.CreateDirectory(toolDir);
-            var validImage = Path.Combine(toolDir, "valid.jpg");
-            WriteValidImage(validImage, "tracked");
             WriteValidImage(Path.Combine(assetsDir, "photo.jpg"), "source");
-            WriteTool(toolDir, "magick", $"""
-                if [ "$1" = "--version" ]; then exit 0; fi
-                for last in "$@"; do :; done
-                cp '{EscapeSingleQuoted(validImage)}' "$last"
-                """);
-            Environment.SetEnvironmentVariable("PATH", PrependPath(toolDir, originalPath));
             var context = CreateContext(outDir);
 
             await new ImageProcessingPlugin(CreateConfig(
@@ -1585,7 +1432,6 @@ public sealed class ImageProcessingPluginTests
         }
         finally
         {
-            Environment.SetEnvironmentVariable("PATH", originalPath);
             if (Directory.Exists(outDir)) Directory.Delete(outDir, true);
         }
     }
@@ -1593,23 +1439,11 @@ public sealed class ImageProcessingPluginTests
     [Fact]
     public async Task AfterBuildAsync_SizeConfigReduced_DeletesStaleVariants()
     {
-        RequireUnix();
         var outDir = GetTempDir();
-        var originalPath = Environment.GetEnvironmentVariable("PATH");
         try
         {
             var assetsDir = Path.Combine(outDir, "assets");
-            var toolDir = Path.Combine(outDir, "tools");
             Directory.CreateDirectory(assetsDir);
-            Directory.CreateDirectory(toolDir);
-            var validImage = Path.Combine(toolDir, "valid.jpg");
-            WriteValidImage(validImage, "resized");
-            WriteTool(toolDir, "magick", $"""
-                if [ "$1" = "--version" ]; then exit 0; fi
-                for last in "$@"; do :; done
-                cp '{EscapeSingleQuoted(validImage)}' "$last"
-                """);
-            Environment.SetEnvironmentVariable("PATH", PrependPath(toolDir, originalPath));
 
             // Round 1: generate with sizes [480, 768]
             WriteValidImage(Path.Combine(assetsDir, "photo.jpg"), "original");
@@ -1634,7 +1468,6 @@ public sealed class ImageProcessingPluginTests
         }
         finally
         {
-            Environment.SetEnvironmentVariable("PATH", originalPath);
             if (Directory.Exists(outDir)) Directory.Delete(outDir, true);
         }
     }
@@ -1642,15 +1475,11 @@ public sealed class ImageProcessingPluginTests
     [Fact]
     public async Task AfterBuildAsync_CurrentSizeUserLookalikeWithoutOwnership_IsNeverOverwritten()
     {
-        RequireUnix();
         var outDir = GetTempDir();
-        var originalPath = Environment.GetEnvironmentVariable("PATH");
         try
         {
             var assetsDir = Path.Combine(outDir, "assets");
-            var toolDir = Path.Combine(outDir, "tools");
             Directory.CreateDirectory(assetsDir);
-            Directory.CreateDirectory(toolDir);
             WriteValidImage(Path.Combine(assetsDir, "photo.jpg"), "source");
             var userOwnedVariant = Path.Combine(assetsDir, "photo-300w.jpg");
             WriteValidImage(userOwnedVariant, "user-owned");
@@ -1660,14 +1489,6 @@ public sealed class ImageProcessingPluginTests
                 { "owner": "user", "size": 300, "format": ".jpg" }
                 """;
             await File.WriteAllTextAsync(userOwnedSidecar, userOwnedSidecarContent);
-            var generatedImage = Path.Combine(toolDir, "generated.jpg");
-            WriteValidImage(generatedImage, "generated");
-            WriteTool(toolDir, "magick", $"""
-                if [ "$1" = "--version" ]; then exit 0; fi
-                for last in "$@"; do :; done
-                cp '{EscapeSingleQuoted(generatedImage)}' "$last"
-                """);
-            Environment.SetEnvironmentVariable("PATH", PrependPath(toolDir, originalPath));
             var context = CreateContext(outDir);
 
             await new ImageProcessingPlugin(CreateConfig(
@@ -1682,7 +1503,6 @@ public sealed class ImageProcessingPluginTests
         }
         finally
         {
-            Environment.SetEnvironmentVariable("PATH", originalPath);
             if (Directory.Exists(outDir)) Directory.Delete(outDir, true);
         }
     }
@@ -1690,27 +1510,15 @@ public sealed class ImageProcessingPluginTests
     [Fact]
     public async Task AfterBuildAsync_HistoricalSizeUserLookalikeWithoutOwnership_IsNeverDeleted()
     {
-        RequireUnix();
         var outDir = GetTempDir();
-        var originalPath = Environment.GetEnvironmentVariable("PATH");
         try
         {
             var assetsDir = Path.Combine(outDir, "assets");
-            var toolDir = Path.Combine(outDir, "tools");
             Directory.CreateDirectory(assetsDir);
-            Directory.CreateDirectory(toolDir);
             WriteValidImage(Path.Combine(assetsDir, "photo.jpg"), "source");
             var userOwnedVariant = Path.Combine(assetsDir, "photo-300w.jpg");
             WriteValidImage(userOwnedVariant, "user-owned");
             var userOwnedBytes = await File.ReadAllBytesAsync(userOwnedVariant);
-            var generatedImage = Path.Combine(toolDir, "generated.jpg");
-            WriteValidImage(generatedImage, "generated");
-            WriteTool(toolDir, "magick", $"""
-                if [ "$1" = "--version" ]; then exit 0; fi
-                for last in "$@"; do :; done
-                cp '{EscapeSingleQuoted(generatedImage)}' "$last"
-                """);
-            Environment.SetEnvironmentVariable("PATH", PrependPath(toolDir, originalPath));
 
             await new ImageProcessingPlugin(CreateConfig(
                     new ImageOptimizationConfig { Enabled = true, Sizes = new[] { 480 } }))
@@ -1721,57 +1529,6 @@ public sealed class ImageProcessingPluginTests
         }
         finally
         {
-            Environment.SetEnvironmentVariable("PATH", originalPath);
-            if (Directory.Exists(outDir)) Directory.Delete(outDir, true);
-        }
-    }
-
-    [Fact]
-    public async Task AfterBuildAsync_NoResizeTool_CleansOwnedStaleHistoricalVariant()
-    {
-        RequireUnix();
-        var outDir = GetTempDir();
-        var originalPath = Environment.GetEnvironmentVariable("PATH");
-        try
-        {
-            var assetsDir = Path.Combine(outDir, "assets");
-            var toolDir = Path.Combine(outDir, "tools");
-            var noToolDir = Path.Combine(outDir, "no-tools");
-            Directory.CreateDirectory(assetsDir);
-            Directory.CreateDirectory(toolDir);
-            Directory.CreateDirectory(noToolDir);
-            WriteValidImage(Path.Combine(assetsDir, "photo.jpg"), "source");
-            var generatedImage = Path.Combine(toolDir, "generated.jpg");
-            WriteValidImage(generatedImage, "generated");
-            WriteTool(toolDir, "magick", $"""
-                if [ "$1" = "--version" ]; then exit 0; fi
-                for last in "$@"; do :; done
-                cp '{EscapeSingleQuoted(generatedImage)}' "$last"
-                """);
-            Environment.SetEnvironmentVariable("PATH", PrependPath(toolDir, originalPath));
-
-            await new ImageProcessingPlugin(CreateConfig(
-                    new ImageOptimizationConfig { Enabled = true, Sizes = new[] { 480, 768 } }))
-                .AfterBuildAsync(CreateContext(outDir));
-
-            var retained = Path.Combine(assetsDir, "photo-480w.jpg");
-            var stale = Path.Combine(assetsDir, "photo-768w.jpg");
-            Assert.True(File.Exists(retained));
-            Assert.True(File.Exists(stale));
-            Assert.True(File.Exists(stale + ".bukit-freshness.json"));
-            Environment.SetEnvironmentVariable("PATH", noToolDir);
-
-            await new ImageProcessingPlugin(CreateConfig(
-                    new ImageOptimizationConfig { Enabled = true, Sizes = new[] { 480 } }))
-                .AfterBuildAsync(CreateContextWithPriorImageOwnership(outDir, retained, stale));
-
-            Assert.True(File.Exists(retained));
-            Assert.False(File.Exists(stale));
-            Assert.False(File.Exists(stale + ".bukit-freshness.json"));
-        }
-        finally
-        {
-            Environment.SetEnvironmentVariable("PATH", originalPath);
             if (Directory.Exists(outDir)) Directory.Delete(outDir, true);
         }
     }
@@ -1779,21 +1536,15 @@ public sealed class ImageProcessingPluginTests
     [Fact]
     public async Task AfterBuildAsync_CopiedValidSidecarAcrossDirectories_DoesNotAuthorizeProjection()
     {
-        RequireUnix();
         var outDir = GetTempDir();
-        var originalPath = Environment.GetEnvironmentVariable("PATH");
         try
         {
             var ownedDir = Path.Combine(outDir, "assets", "owned");
             var copiedDir = Path.Combine(outDir, "assets", "copied");
-            var toolDir = Path.Combine(outDir, "tools");
             Directory.CreateDirectory(ownedDir);
             Directory.CreateDirectory(copiedDir);
-            Directory.CreateDirectory(toolDir);
             var ownedSource = Path.Combine(ownedDir, "photo.jpg");
             WriteValidImage(ownedSource, "same-source");
-            WriteCopyTool(toolDir);
-            Environment.SetEnvironmentVariable("PATH", PrependPath(toolDir, originalPath));
             var config = CreateConfig(
                 new ImageOptimizationConfig { Enabled = true, Sizes = new[] { 300 } });
 
@@ -1822,7 +1573,6 @@ public sealed class ImageProcessingPluginTests
         }
         finally
         {
-            Environment.SetEnvironmentVariable("PATH", originalPath);
             if (Directory.Exists(outDir)) Directory.Delete(outDir, true);
         }
     }
@@ -1830,18 +1580,12 @@ public sealed class ImageProcessingPluginTests
     [Fact]
     public async Task AfterBuildAsync_CurrentManagedPathWithUserReplacedBytes_IsNotProjectedOrOverwritten()
     {
-        RequireUnix();
         var outDir = GetTempDir();
-        var originalPath = Environment.GetEnvironmentVariable("PATH");
         try
         {
             var assetsDir = Path.Combine(outDir, "assets");
-            var toolDir = Path.Combine(outDir, "tools");
             Directory.CreateDirectory(assetsDir);
-            Directory.CreateDirectory(toolDir);
             WriteValidImage(Path.Combine(assetsDir, "photo.jpg"), "source");
-            WriteCopyTool(toolDir);
-            Environment.SetEnvironmentVariable("PATH", PrependPath(toolDir, originalPath));
             var config = CreateConfig(
                 new ImageOptimizationConfig { Enabled = true, Sizes = new[] { 300 } });
 
@@ -1864,7 +1608,6 @@ public sealed class ImageProcessingPluginTests
         }
         finally
         {
-            Environment.SetEnvironmentVariable("PATH", originalPath);
             if (Directory.Exists(outDir)) Directory.Delete(outDir, true);
         }
     }
@@ -1872,18 +1615,12 @@ public sealed class ImageProcessingPluginTests
     [Fact]
     public async Task AfterBuildAsync_HistoricalManagedPathWithUserReplacedBytes_IsNotDeleted()
     {
-        RequireUnix();
         var outDir = GetTempDir();
-        var originalPath = Environment.GetEnvironmentVariable("PATH");
         try
         {
             var assetsDir = Path.Combine(outDir, "assets");
-            var toolDir = Path.Combine(outDir, "tools");
             Directory.CreateDirectory(assetsDir);
-            Directory.CreateDirectory(toolDir);
             WriteValidImage(Path.Combine(assetsDir, "photo.jpg"), "source");
-            WriteCopyTool(toolDir);
-            Environment.SetEnvironmentVariable("PATH", PrependPath(toolDir, originalPath));
 
             await new ImageProcessingPlugin(CreateConfig(
                     new ImageOptimizationConfig { Enabled = true, Sizes = new[] { 300 } }))
@@ -1905,29 +1642,20 @@ public sealed class ImageProcessingPluginTests
         }
         finally
         {
-            Environment.SetEnvironmentVariable("PATH", originalPath);
             if (Directory.Exists(outDir)) Directory.Delete(outDir, true);
         }
     }
 
     [Fact]
-    public async Task AfterBuildAsync_SourceRenamedWithoutResizeTool_ReplacesOwnedOrphan()
+    public async Task AfterBuildAsync_SourceRenamed_ReplacesOwnedOrphan()
     {
-        RequireUnix();
         var outDir = GetTempDir();
-        var originalPath = Environment.GetEnvironmentVariable("PATH");
         try
         {
             var assetsDir = Path.Combine(outDir, "assets");
-            var toolDir = Path.Combine(outDir, "tools");
-            var noToolDir = Path.Combine(outDir, "no-tools");
             Directory.CreateDirectory(assetsDir);
-            Directory.CreateDirectory(toolDir);
-            Directory.CreateDirectory(noToolDir);
             var source = Path.Combine(assetsDir, "photo.jpg");
             WriteValidImage(source, "source");
-            WriteCopyTool(toolDir);
-            Environment.SetEnvironmentVariable("PATH", PrependPath(toolDir, originalPath));
             var config = CreateConfig(
                 new ImageOptimizationConfig { Enabled = true, Sizes = new[] { 480 } });
 
@@ -1936,7 +1664,6 @@ public sealed class ImageProcessingPluginTests
             var variant = Path.Combine(assetsDir, "photo-480w.jpg");
             var sidecar = variant + ".bukit-freshness.json";
             File.Move(source, Path.Combine(assetsDir, "renamed.jpg"));
-            Environment.SetEnvironmentVariable("PATH", noToolDir);
             var context = CreateContextWithPriorImageOwnership(outDir, variant);
 
             await new ImageProcessingPlugin(config).AfterBuildAsync(context);
@@ -1949,29 +1676,20 @@ public sealed class ImageProcessingPluginTests
         }
         finally
         {
-            Environment.SetEnvironmentVariable("PATH", originalPath);
             if (Directory.Exists(outDir)) Directory.Delete(outDir, true);
         }
     }
 
     [Fact]
-    public async Task AfterBuildAsync_SourceRemovedWithoutResizeTool_RemovesOwnedOrphan()
+    public async Task AfterBuildAsync_SourceRemoved_RemovesOwnedOrphan()
     {
-        RequireUnix();
         var outDir = GetTempDir();
-        var originalPath = Environment.GetEnvironmentVariable("PATH");
         try
         {
             var assetsDir = Path.Combine(outDir, "assets");
-            var toolDir = Path.Combine(outDir, "tools");
-            var noToolDir = Path.Combine(outDir, "no-tools");
             Directory.CreateDirectory(assetsDir);
-            Directory.CreateDirectory(toolDir);
-            Directory.CreateDirectory(noToolDir);
             var source = Path.Combine(assetsDir, "photo.jpg");
             WriteValidImage(source, "source");
-            WriteCopyTool(toolDir);
-            Environment.SetEnvironmentVariable("PATH", PrependPath(toolDir, originalPath));
             var config = CreateConfig(
                 new ImageOptimizationConfig { Enabled = true, Sizes = new[] { 480 } });
 
@@ -1980,7 +1698,6 @@ public sealed class ImageProcessingPluginTests
             var variant = Path.Combine(assetsDir, "photo-480w.jpg");
             var sidecar = variant + ".bukit-freshness.json";
             File.Delete(source);
-            Environment.SetEnvironmentVariable("PATH", noToolDir);
             var context = CreateContextWithPriorImageOwnership(outDir, variant);
 
             await new ImageProcessingPlugin(config).AfterBuildAsync(context);
@@ -1992,7 +1709,6 @@ public sealed class ImageProcessingPluginTests
         }
         finally
         {
-            Environment.SetEnvironmentVariable("PATH", originalPath);
             if (Directory.Exists(outDir)) Directory.Delete(outDir, true);
         }
     }
@@ -2000,18 +1716,12 @@ public sealed class ImageProcessingPluginTests
     [Fact]
     public async Task AfterBuildAsync_CurrentFullyRecomputedSpoofWithoutPriorManifest_IsNotProjected()
     {
-        RequireUnix();
         var outDir = GetTempDir();
-        var originalPath = Environment.GetEnvironmentVariable("PATH");
         try
         {
             var assetsDir = Path.Combine(outDir, "assets");
-            var toolDir = Path.Combine(outDir, "tools");
             Directory.CreateDirectory(assetsDir);
-            Directory.CreateDirectory(toolDir);
             WriteValidImage(Path.Combine(assetsDir, "photo.jpg"), "source");
-            WriteCopyTool(toolDir);
-            Environment.SetEnvironmentVariable("PATH", PrependPath(toolDir, originalPath));
             var config = CreateConfig(
                 new ImageOptimizationConfig { Enabled = true, Sizes = new[] { 300 } });
 
@@ -2035,7 +1745,6 @@ public sealed class ImageProcessingPluginTests
         }
         finally
         {
-            Environment.SetEnvironmentVariable("PATH", originalPath);
             if (Directory.Exists(outDir)) Directory.Delete(outDir, true);
         }
     }
@@ -2043,18 +1752,12 @@ public sealed class ImageProcessingPluginTests
     [Fact]
     public async Task AfterBuildAsync_HistoricalFullyRecomputedSpoofWithoutPriorManifest_IsNotDeleted()
     {
-        RequireUnix();
         var outDir = GetTempDir();
-        var originalPath = Environment.GetEnvironmentVariable("PATH");
         try
         {
             var assetsDir = Path.Combine(outDir, "assets");
-            var toolDir = Path.Combine(outDir, "tools");
             Directory.CreateDirectory(assetsDir);
-            Directory.CreateDirectory(toolDir);
             WriteValidImage(Path.Combine(assetsDir, "photo.jpg"), "source");
-            WriteCopyTool(toolDir);
-            Environment.SetEnvironmentVariable("PATH", PrependPath(toolDir, originalPath));
 
             await new ImageProcessingPlugin(CreateConfig(
                     new ImageOptimizationConfig { Enabled = true, Sizes = new[] { 300 } }))
@@ -2076,7 +1779,6 @@ public sealed class ImageProcessingPluginTests
         }
         finally
         {
-            Environment.SetEnvironmentVariable("PATH", originalPath);
             if (Directory.Exists(outDir)) Directory.Delete(outDir, true);
         }
     }
@@ -2084,21 +1786,13 @@ public sealed class ImageProcessingPluginTests
     [Fact]
     public async Task AfterBuildAsync_OrphanFullyRecomputedSpoofWithoutPriorManifest_IsNotDeleted()
     {
-        RequireUnix();
         var outDir = GetTempDir();
-        var originalPath = Environment.GetEnvironmentVariable("PATH");
         try
         {
             var assetsDir = Path.Combine(outDir, "assets");
-            var toolDir = Path.Combine(outDir, "tools");
-            var noToolDir = Path.Combine(outDir, "no-tools");
             Directory.CreateDirectory(assetsDir);
-            Directory.CreateDirectory(toolDir);
-            Directory.CreateDirectory(noToolDir);
             var source = Path.Combine(assetsDir, "photo.jpg");
             WriteValidImage(source, "source");
-            WriteCopyTool(toolDir);
-            Environment.SetEnvironmentVariable("PATH", PrependPath(toolDir, originalPath));
             var config = CreateConfig(
                 new ImageOptimizationConfig { Enabled = true, Sizes = new[] { 300 } });
 
@@ -2111,7 +1805,6 @@ public sealed class ImageProcessingPluginTests
             var spoofBytes = await File.ReadAllBytesAsync(variant);
             var spoofSidecar = await File.ReadAllBytesAsync(sidecar);
             File.Delete(source);
-            Environment.SetEnvironmentVariable("PATH", noToolDir);
 
             await new ImageProcessingPlugin(config).AfterBuildAsync(CreateContext(outDir));
 
@@ -2120,7 +1813,6 @@ public sealed class ImageProcessingPluginTests
         }
         finally
         {
-            Environment.SetEnvironmentVariable("PATH", originalPath);
             if (Directory.Exists(outDir)) Directory.Delete(outDir, true);
         }
     }
@@ -2128,20 +1820,14 @@ public sealed class ImageProcessingPluginTests
     [Fact]
     public async Task Process_UserOwnedWidthSuffixSource_IsNotSkipped()
     {
-        RequireUnix();
         var outDir = GetTempDir();
-        var originalPath = Environment.GetEnvironmentVariable("PATH");
         try
         {
             var assetsDir = Path.Combine(outDir, "assets");
-            var toolDir = Path.Combine(outDir, "tools");
             Directory.CreateDirectory(assetsDir);
-            Directory.CreateDirectory(toolDir);
             // User source whose filename happens to look like a generated variant.
             // Without ownership proof it must be treated as an ordinary input.
             WriteValidImage(Path.Combine(assetsDir, "banner-480w.jpg"), "user-owned");
-            WriteCopyTool(toolDir);
-            Environment.SetEnvironmentVariable("PATH", PrependPath(toolDir, originalPath));
 
             await new ImageProcessingPlugin(CreateConfig(
                     new ImageOptimizationConfig { Enabled = true, Sizes = new[] { 480 } }))
@@ -2151,30 +1837,19 @@ public sealed class ImageProcessingPluginTests
         }
         finally
         {
-            Environment.SetEnvironmentVariable("PATH", originalPath);
             if (Directory.Exists(outDir)) Directory.Delete(outDir, true);
         }
     }
 
     [Fact]
-    public async Task Resize_InvalidTempOutput_IsNotTrackedOrPublished()
+    public async Task Resize_UndecodableSource_IsNotTrackedOrPublished()
     {
-        RequireUnix();
         var outDir = GetTempDir();
-        var originalPath = Environment.GetEnvironmentVariable("PATH");
         try
         {
             var assetsDir = Path.Combine(outDir, "assets");
-            var toolDir = Path.Combine(outDir, "tools");
             Directory.CreateDirectory(assetsDir);
-            Directory.CreateDirectory(toolDir);
-            WriteValidImage(Path.Combine(assetsDir, "hero.jpg"), "hero");
-            WriteTool(toolDir, "magick", """
-                if [ "$1" = "--version" ]; then exit 0; fi
-                for last in "$@"; do :; done
-                printf not-an-image > "$last"
-                """);
-            Environment.SetEnvironmentVariable("PATH", PrependPath(toolDir, originalPath));
+            WriteUndecodableImage(Path.Combine(assetsDir, "hero.jpg"), "hero");
             var context = CreateContext(outDir);
 
             await Assert.ThrowsAsync<InvalidOperationException>(() => new ImageProcessingPlugin(CreateConfig(
@@ -2184,10 +1859,12 @@ public sealed class ImageProcessingPluginTests
             Assert.False(File.Exists(Path.Combine(assetsDir, "hero-480w.jpg")));
             Assert.False(File.Exists(Path.Combine(assetsDir, "hero-480w.jpg.bukit-freshness.json")));
             Assert.False(context.TryGet(BuildDataKeys.ImageSrcsets, out _));
+            Assert.False(context.TryGet(BuildDataKeys.PluginOutputs, out _));
+            Assert.Empty(Directory.GetFiles(assetsDir, ".hero-480w.bukit-*.jpg"));
+            Assert.Empty(Directory.GetFiles(assetsDir, "hero-480w.jpg.bukit-freshness.json.bukit-*.tmp"));
         }
         finally
         {
-            Environment.SetEnvironmentVariable("PATH", originalPath);
             if (Directory.Exists(outDir)) Directory.Delete(outDir, true);
         }
     }
@@ -2525,16 +2202,22 @@ public sealed class ImageProcessingPluginTests
         File.WriteAllBytes(path, encoded.ToArray());
     }
 
+    // Keeps every header segment (so planning reads the width) but cuts the
+    // scan data in half, so SkiaSharp cannot fully decode the pixels.
+    private static void WriteUndecodableImage(string path, string seed, int width = 1600)
+    {
+        WriteValidImage(path, seed, width);
+        var bytes = File.ReadAllBytes(path);
+        var startOfScan = bytes.AsSpan().IndexOf((ReadOnlySpan<byte>)[0xFF, 0xDA]);
+        Assert.True(startOfScan > 0);
+        var scanData = startOfScan + 2 + (bytes[startOfScan + 2] << 8 | bytes[startOfScan + 3]);
+        File.WriteAllBytes(path, bytes[..(scanData + (bytes.Length - scanData) / 2)]);
+    }
+
     private static string EscapeSingleQuoted(string value) => value.Replace("'", "'\\''", StringComparison.Ordinal);
 
     private static int CountOccurrences(string value, string needle) =>
         value.Split(needle, StringSplitOptions.None).Length - 1;
-
-    private static void WriteCopyTool(string toolDir) => WriteTool(toolDir, "magick", """
-        if [ "$1" = "--version" ]; then exit 0; fi
-        for last in "$@"; do :; done
-        cp "$1" "$last"
-        """);
 
     private static void RewriteVariantIdentity(string sidecar, string variant)
     {
@@ -2596,26 +2279,12 @@ public sealed class ImageProcessingPluginTests
     {
         if (OperatingSystem.IsWindows())
         {
-            throw SkipException.ForSkip("This process-tree probe uses temporary Unix executables.");
+            throw SkipException.ForSkip("This PATH probe uses temporary Unix executables.");
         }
     }
 
     private static string PrependPath(string directory, string? originalPath) =>
         string.IsNullOrEmpty(originalPath) ? directory : directory + Path.PathSeparator + originalPath;
-
-    private static async Task WaitUntilAsync(Func<bool> condition, TimeSpan timeout)
-    {
-        var deadline = DateTime.UtcNow + timeout;
-        while (!condition())
-        {
-            if (DateTime.UtcNow >= deadline)
-            {
-                throw new TimeoutException("Timed out waiting for the fake image tool to create its partial output.");
-            }
-
-            await Task.Delay(20);
-        }
-    }
 
     private static AppConfig CreateConfig(ImageOptimizationConfig images) => new()
     {

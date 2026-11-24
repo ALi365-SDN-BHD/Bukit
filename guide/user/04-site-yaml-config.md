@@ -549,8 +549,11 @@ same way JPEG/PNG images get original-format ones, but no `<picture>` (the
 source is already WebP). A WebP file is left as uploaded when it is animated,
 when its name already ends in `-<width>w.webp`, or when a JPEG/PNG with the same
 name sits beside it, compared without regard to case (their WebP candidates
-would share file names). WebP sources
-are always resized with SkiaSharp, even when ImageMagick is on PATH.
+would share file names).
+
+Resizing always uses the built-in SkiaSharp encoder for every source format. No
+external image tool is used or needed, and Bukit ignores ImageMagick (`magick` or
+`convert`) even when it is on PATH.
 
 Image validation uses SkiaSharp for JPEG/PNG/GIF/WebP/BMP and TiffLibrary for
 standard TIFF pages. TIFF validation does not add TIFF optimization.
@@ -559,16 +562,15 @@ WeChat conversion also rejects animated GIF/WebP rather than producing a still
 image; supported JPEG/PNG files within the upload limit retain their original bytes.
 Built-in conversion preserves display orientation, including PNG eXIf, and normalizes colors to sRGB;
 responsive candidate widths follow the displayed image dimensions.
-External image tools apply orientation before resizing; older owned candidates are regenerated.
-Native Skia assets are included for macOS, Windows, and Linux; no image tool installation
-is needed for built-in WebP generation.
+Owned variants recorded with an older encoder identity, including ones an earlier
+Bukit made with ImageMagick, are regenerated once.
+Native Skia assets are included for macOS, Windows, and Linux, so resizing and WebP
+generation need no image tool installation.
 
 Pages reference every planned variant, so a variant that fails to generate fails the build
 under the default `site.pluginFailMode: strict`; the previous published output stays in place.
 With `warn`, the build continues and those `srcset` candidates may return 404 until the next
-successful build. If an external resize tool times out, Bukit retries the current image
-and processes the remaining variants with built-in SkiaSharp. Each language worker
-detects timeouts independently. Other failures stop after 5 variants in strict mode;
+successful build. Failures stop after 5 variants in strict mode;
 warn mode attempts every variant. A variant blocked by a leftover
 `*.bukit-freshness.json` file that Bukit does not own counts as a failure; delete that
 file so the variant can be generated. Existing variant files Bukit does not own are kept.
