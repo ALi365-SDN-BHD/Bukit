@@ -562,7 +562,19 @@ internal static partial class PublicOutputPrivacyCheck
     [GeneratedRegex("(?i)\"(?:source|sourceKey)\"\\s*:\\s*\"notion\"", RegexOptions.CultureInvariant)]
     private static partial Regex JsonProviderMarkerRegex();
 
-    [GeneratedRegex(@"(?i)(?:/v1/storages/object/sign/[^\s""'<>]*[?&]token=|\.storage\.tcloudbase\.com/[^\s""'<>]*[?&]token=)", RegexOptions.CultureInvariant)]
+    /// <summary>
+    /// The rest of a signed CloudBase URL after its path prefix, up to a <c>token</c> parameter.
+    /// The URL ends at whitespace, a quote or an angle bracket, raw or escaped (<c>\"</c>,
+    /// <c>\u0022</c>, <c>\u003C</c>, a control escape), so a <c>token</c> outside it does not
+    /// count; <c>\/</c> and other escapes continue it. The <c>&amp;</c> before <c>token</c> may
+    /// be written <c>\u0026</c> or as an HTML entity, itself possibly JSON-escaped
+    /// (<c>\u0026amp;</c>, as JSON Feed <c>content_html</c> writes it). Shared with the deploy-side
+    /// validator.
+    /// </summary>
+    internal const string SignedUrlTokenTail =
+        @"(?:[^\s""'<>\\]|\\(?![""'nrtbf]|u00(?:[01][0-9a-f]|2[027]|3[ce])))*(?:[?&]|\\u0026|(?:&|\\u0026)(?:amp|#0*38|#x0*26);)token=";
+
+    [GeneratedRegex(@"(?i)(?:\\?/v1\\?/storages\\?/object\\?/sign\\?/|\.storage\.tcloudbase\.com(?::\d{1,5})?\\?/)" + SignedUrlTokenTail, RegexOptions.CultureInvariant)]
     private static partial Regex CloudBaseSignedLinkRegex();
 
     [GeneratedRegex("(?im)^\\s*(?:[-*]\\s*)?(?:source|sourceKey)\\s*:\\s*[\"']?notion[\"']?\\s*$", RegexOptions.CultureInvariant)]

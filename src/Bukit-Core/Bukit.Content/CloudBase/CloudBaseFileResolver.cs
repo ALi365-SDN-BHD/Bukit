@@ -1,3 +1,4 @@
+using System.Text.RegularExpressions;
 using Markdig.Syntax;
 using Markdig.Syntax.Inlines;
 using Bukit.CloudBase.Transport;
@@ -10,7 +11,7 @@ namespace Bukit.Content.CloudBase;
 /// nodes. Body references are collected from the parsed Markdown, so code fences, inline code and
 /// raw HTML are never rewritten (D17).
 /// </summary>
-internal sealed class CloudBaseFileResolver
+internal sealed partial class CloudBaseFileResolver
 {
     private const string ReferenceMismatch = "reference-mismatch";
     private const string InvalidObjectName = "invalid-object-name";
@@ -86,12 +87,19 @@ internal sealed class CloudBaseFileResolver
     internal string Resolve(string objectName)
         => _resolved.TryGetValue(objectName, out var url) && url is not null ? url : _placeholder;
 
+    /// <summary>
+    /// Whether a Markdown body can hold a <c>cloud://</c> link once Markdig decodes it. Markdig
+    /// decodes entities and backslash escapes in link destinations, so the scheme may be written
+    /// with <c>\:</c> or <c>\/</c> escapes or with numeric, <c>&amp;colon;</c> or <c>&amp;sol;</c>
+    /// entities (ASCII letters have no named entities). A body that matches none of these forms
+    /// holds no reference, so it needs no parse.
+    /// </summary>
+    internal static bool MayHoldCloudReference(string markdown)
+        => !string.IsNullOrWhiteSpace(markdown) && EncodedCloudSchemeRegex().IsMatch(markdown);
+
     internal void CollectMarkdownReferences(string markdown, string entry)
     {
-        // Markdig decodes entities and backslash escapes in link destinations, so cloud&#58;// and
-        // cloud\:// resolve to cloud://. A decoded scheme needs a literal ':' or an entity that starts
-        // with '&'; a body with neither holds no reference to sign, so skip the parse.
-        if (string.IsNullOrWhiteSpace(markdown) || markdown.AsSpan().IndexOfAny(':', '&') < 0)
+        if (!MayHoldCloudReference(markdown))
         {
             return;
         }
@@ -215,4 +223,7 @@ internal sealed class CloudBaseFileResolver
             _entriesByObject[objectName].Add(entry);
         }
     }
+
+    [GeneratedRegex(@"(?i)cloud\\?:\\?/\\?/|&(?:#|colon;|sol;)", RegexOptions.CultureInvariant)]
+    private static partial Regex EncodedCloudSchemeRegex();
 }

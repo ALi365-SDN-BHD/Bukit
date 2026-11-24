@@ -74,6 +74,7 @@ public sealed class CloudBaseDeployPrivacyTests : IDisposable
     [InlineData("""<img src="https://env-abc.storage.tcloudbase.com/media/a.png?x=1&amp;token=x">""")]
     [InlineData("""<img src="https://env-abc.storage.tcloudbase.com/media/a.png?x=1&#38;token=x">""")]
     [InlineData("""{"u":"https:\/\/env-abc.storage.tcloudbase.com\/media\/caf\u00e9.png?x=1\u0026token=x"}""")]
+    [InlineData("""{"content_html":"\u003Cimg src=\u0022https://env-abc.storage.tcloudbase.com/a.png?x=1\u0026amp;token=x\u0022\u003E"}""")]
     public void Validate_SignedCloudBaseLink_FailsAnywhere(string content)
     {
         Write("guide.md", content);
