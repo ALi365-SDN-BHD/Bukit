@@ -8,8 +8,8 @@ using static Bukit.Engine.Plugins.BuiltIn.ImageProcessing.ImageVariantOwnership;
 namespace Bukit.Engine.Plugins.BuiltIn.ImageProcessing;
 
 /// <summary>
-/// Adds srcset, decoding, width/height and loading attributes to media images and wraps generated WebP
-/// variants in picture elements.
+/// Adds srcset, decoding, width/height and loading attributes to media images (every media image but a
+/// page's first is made lazy) and wraps generated WebP variants in picture elements.
 /// </summary>
 internal sealed partial class ResponsiveImageHtmlTransform(
     AppConfig config,
@@ -45,10 +45,19 @@ internal sealed partial class ResponsiveImageHtmlTransform(
             return html;
         }
 
+        // The first media image is often the largest above-the-fold element, so it is not made lazy.
+        var seenMediaImage = false;
         return HtmlElementRegex().Replace(html, match =>
-            match.Value.StartsWith("<img", StringComparison.OrdinalIgnoreCase)
-                ? RewriteImageTag(match.Value)
-                : match.Value);
+        {
+            if (!match.Value.StartsWith("<img", StringComparison.OrdinalIgnoreCase))
+            {
+                return match.Value;
+            }
+
+            var rewritten = RewriteImageTag(match.Value, lazy: seenMediaImage, out var isMediaImage);
+            seenMediaImage |= isMediaImage;
+            return rewritten;
+        });
     }
 
     internal static string RewriteWebpPictures(
@@ -174,8 +183,9 @@ internal sealed partial class ResponsiveImageHtmlTransform(
         return true;
     }
 
-    private string RewriteImageTag(string tag)
+    private string RewriteImageTag(string tag, bool lazy, out bool isMediaImage)
     {
+        isMediaImage = false;
         var parsedAttributes = AttributeRegex().Matches(tag[4..^1]);
         var srcMatch = parsedAttributes.FirstOrDefault(attribute =>
             attribute.Groups["name"].Value.Equals("src", StringComparison.OrdinalIgnoreCase));
@@ -194,6 +204,7 @@ internal sealed partial class ResponsiveImageHtmlTransform(
             return tag;
         }
 
+        isMediaImage = true;
         var attributes = string.Empty;
         var applicableSizes = ImageVariantPlan.GeneratedWidths(_sizes, sourceWidth).ToArray();
         if (applicableSizes.Length > 0 && !HasAttribute(parsedAttributes, "srcset"))
@@ -218,7 +229,7 @@ internal sealed partial class ResponsiveImageHtmlTransform(
             attributes += $" width=\"{sourceWidth}\" height=\"{sourceHeight}\"";
         }
 
-        if (!HasAttribute(parsedAttributes, "loading"))
+        if (lazy && !HasAttribute(parsedAttributes, "loading"))
         {
             attributes += " loading=\"lazy\"";
         }

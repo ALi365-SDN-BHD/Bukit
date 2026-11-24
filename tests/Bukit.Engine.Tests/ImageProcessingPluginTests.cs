@@ -1005,7 +1005,7 @@ public sealed class ImageProcessingPluginTests
     [InlineData("<img src=\"/assets/uploads/photo.jpg\" alt=\"a\">", "width=\"1000\" height=\"8\"", "loading=\"lazy\"", 2)]
     [InlineData("<img src=\"/assets/uploads/photo.jpg\" width=\"50\" loading=\"eager\">", "width=\"50\"", "loading=\"eager\"", 1)]
     [InlineData("<img src=\"/assets/uploads/photo.jpg\" HEIGHT=\"4\" Loading=\"auto\">", "HEIGHT=\"4\"", "Loading=\"auto\"", 1)]
-    public void HtmlTransform_AddsDimensionsAndLazyLoadingOnlyWhenTheAuthorDidNot(string input, string dimensions, string loading, int dimensionAttributes)
+    public void HtmlTransform_AddsDimensionsAndLazyLoadingOnlyWhenTheAuthorDidNot_ExceptOnTheFirstImage(string input, string dimensions, string loading, int dimensionAttributes)
     {
         var outDir = GetTempDir();
         try
@@ -1021,13 +1021,18 @@ public sealed class ImageProcessingPluginTests
                 context,
                 BuildExecutionMode.Production));
 
+            // The page's first media image stays eager, so the case under test comes second.
+            const string first = "<img src=\"/assets/uploads/photo.jpg\" alt=\"first\">";
             var html = transform.Transform(
                 new HtmlTransformContext("/", "index.html", HtmlDocumentKind.Content, BuildExecutionMode.Production, context.Logger),
-                input);
+                first + input);
 
-            Assert.Contains(dimensions, html, StringComparison.Ordinal);
-            Assert.Contains(loading, html, StringComparison.Ordinal);
-            Assert.Equal(dimensionAttributes, Regex.Matches(html, @"\s(?:width|height)=", RegexOptions.IgnoreCase).Count);
+            var firstEnd = html.IndexOf('>', StringComparison.Ordinal) + 1;
+            Assert.Contains("width=\"1000\" height=\"8\"", html[..firstEnd], StringComparison.Ordinal);
+            Assert.DoesNotContain("loading=", html[..firstEnd], StringComparison.OrdinalIgnoreCase);
+            Assert.Contains(dimensions, html[firstEnd..], StringComparison.Ordinal);
+            Assert.Contains(loading, html[firstEnd..], StringComparison.Ordinal);
+            Assert.Equal(dimensionAttributes + 2, Regex.Matches(html, @"\s(?:width|height)=", RegexOptions.IgnoreCase).Count);
             Assert.Single(Regex.Matches(html, @"\sloading=", RegexOptions.IgnoreCase));
         }
         finally

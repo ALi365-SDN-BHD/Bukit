@@ -536,12 +536,13 @@ external, data, SVG, or GIF images are not rewritten.
 
 A media image (under `content.media.urlBase`) whose size Bukit can read also
 gets `width` and `height` from the displayed size (after EXIF orientation) when
-it has neither, and `loading="lazy"` when it has no `loading` attribute. Set
-`loading="eager"` on an above-the-fold image, such as a hero cover, to keep it
-loading immediately; author-written `width`, `height`, and `loading` are never
-changed. Incremental builds re-render pages when a media image's width or height
-changes, and the first incremental build after upgrading re-renders pages with
-media images.
+it has neither. Every media image on a page except the first also gets
+`loading="lazy"` when it has no `loading` attribute; the first, often the
+largest above-the-fold image, loads immediately. Set `loading="lazy"` on it to
+defer it anyway, or `loading="eager"` on a later image to load that one
+immediately; author-written `width`, `height`, and `loading` are never changed.
+Incremental builds re-render pages when a media image's width or height changes,
+and the first incremental build after upgrading re-renders every page.
 
 Local static WebP images get resized WebP candidates and an `img` `srcset` the
 same way JPEG/PNG images get original-format ones, but no `<picture>` (the

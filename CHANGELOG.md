@@ -20,7 +20,7 @@ All notable changes to Bukit will be documented in this file.
 
 - **Percent-encoded sitemap URLs**: sitemap `<loc>` and `xhtml:link` `href` values percent-encode, as UTF-8 per RFC 3986, non-ASCII and other non-URI characters after the host (`/新闻/` → `/%E6%96%B0%E9%97%BB/`). HTML canonical and hreflang tags are unchanged. The publish audit still finds noindex pages with non-ASCII URLs in the sitemap.
 
-- **Image dimensions and lazy loading**: with `theme.images.enabled`, a media image whose size Bukit reads gets `width` and `height` from its displayed size (after EXIF orientation) when it has neither, and `loading="lazy"` when it has no `loading` attribute; author-written values are never changed. Set `loading="eager"` on above-the-fold images such as hero covers. Incremental builds re-render pages when a media image's height changes, and the first incremental build after upgrading re-renders pages with media images. See [04 site.yaml Config](guide/user/04-site-yaml-config.md).
+- **Image dimensions and lazy loading**: with `theme.images.enabled`, a media image whose size Bukit reads gets `width` and `height` from its displayed size (after EXIF orientation) when it has neither, and every media image on a page but the first gets `loading="lazy"` when it has no `loading` attribute, so the first (often the largest above-the-fold image) still loads immediately; author-written values are never changed. Incremental builds re-render pages when a media image's height changes, and the first incremental build after upgrading re-renders every page. See [04 site.yaml Config](guide/user/04-site-yaml-config.md).
 
 - **Search page without BOM**: `bukit-search.html` is written as UTF-8 without a byte order mark.
 
