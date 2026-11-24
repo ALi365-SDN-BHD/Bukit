@@ -477,6 +477,38 @@ public sealed class CloudBaseClientTests
     }
 
     [Fact]
+    public async Task Cancellation_SurfacingAsBodyReadErrorOnLastAttempt_IsReportedAsCancellation()
+    {
+        var (client, handler, _) = Create(maxRetries: 0);
+        using var _client = client;
+        using var cancellation = new CancellationTokenSource();
+        // HttpClient already maps a cancelled SendAsync; the body read is where the gap was.
+        handler.Enqueue(_ => Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
+        {
+            Content = new StreamContent(new StubHandler.BrokenStream(cancellation.Cancel))
+        }));
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => client.QueryAsync(Query(), cancellation.Token));
+    }
+
+    [Fact]
+    public async Task Timeout_WhileReadingErrorBody_KeepsStatusKindAndDoesNotRetry()
+    {
+        var (client, handler, _) = Create(requestTimeout: TimeSpan.FromMilliseconds(50));
+        using var _client = client;
+        handler.Enqueue(_ => Task.FromResult(new HttpResponseMessage(HttpStatusCode.Unauthorized)
+        {
+            Content = new StreamContent(new StubHandler.StallingStream())
+        }));
+
+        var ex = await Assert.ThrowsAsync<CloudBaseApiException>(() => client.QueryAsync(Query()));
+
+        Assert.Equal(CloudBaseErrorKind.Unauthorized, ex.Kind);
+        Assert.Null(ex.ProviderCode);
+        Assert.Single(handler.Requests);
+    }
+
+    [Fact]
     public void Options_NonPositiveTimeout_Throws()
     {
         var options = Options() with { RequestTimeout = TimeSpan.Zero };
@@ -664,6 +696,9 @@ internal sealed class StubHandler : HttpMessageHandler
             return Task.FromResult(response);
         });
 
+    internal void Enqueue(Func<CancellationToken, Task<HttpResponseMessage>> respond)
+        => _responses.Enqueue(respond);
+
     /// <summary>200 headers, then the connection drops while the body streams.</summary>
     internal void EnqueueBrokenBody()
         => _responses.Enqueue(_ => Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
@@ -698,7 +733,39 @@ internal sealed class StubHandler : HttpMessageHandler
         return await _responses.Dequeue()(cancellationToken);
     }
 
-    private sealed class BrokenStream : Stream
+    internal sealed class StallingStream : Stream
+    {
+        public override bool CanRead => true;
+        public override bool CanSeek => false;
+        public override bool CanWrite => false;
+        public override long Length => throw new NotSupportedException();
+        public override long Position
+        {
+            get => throw new NotSupportedException();
+            set => throw new NotSupportedException();
+        }
+
+        public override int Read(byte[] buffer, int offset, int count) => throw new NotSupportedException();
+
+        public override async ValueTask<int> ReadAsync(Memory<byte> buffer, CancellationToken cancellationToken = default)
+        {
+            await Task.Delay(Timeout.Infinite, cancellationToken);
+            return 0;
+        }
+
+        public override void Flush()
+        {
+        }
+
+        public override long Seek(long offset, SeekOrigin origin) => throw new NotSupportedException();
+
+        public override void SetLength(long value) => throw new NotSupportedException();
+
+        public override void Write(byte[] buffer, int offset, int count) => throw new NotSupportedException();
+    }
+
+    /// <summary>A body stream that drops the connection, optionally after running a callback.</summary>
+    internal sealed class BrokenStream(Action? beforeFailure = null) : Stream
     {
         public override bool CanRead => true;
         public override bool CanSeek => false;
@@ -714,7 +781,10 @@ internal sealed class StubHandler : HttpMessageHandler
             => throw new IOException("connection reset");
 
         public override ValueTask<int> ReadAsync(Memory<byte> buffer, CancellationToken cancellationToken = default)
-            => ValueTask.FromException<int>(new IOException("connection reset"));
+        {
+            beforeFailure?.Invoke();
+            return ValueTask.FromException<int>(new IOException("connection reset"));
+        }
 
         public override void Flush()
         {

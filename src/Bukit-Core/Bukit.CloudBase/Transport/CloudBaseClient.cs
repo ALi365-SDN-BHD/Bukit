@@ -483,7 +483,8 @@ internal sealed class CloudBaseClient : IDisposable
                 {
                     if (!response.IsSuccessStatusCode)
                     {
-                        throw await CreateApiExceptionAsync(response, deadline.Token).ConfigureAwait(false);
+                        throw await CreateApiExceptionAsync(response, deadline.Token, cancellationToken)
+                            .ConfigureAwait(false);
                     }
 
                     // A HEAD response has no body, whatever Content-Length it declares.
@@ -500,6 +501,8 @@ internal sealed class CloudBaseClient : IDisposable
             }
             catch (Exception ex) when (ex is HttpRequestException or IOException or OperationCanceledException)
             {
+                // A cancelled caller can surface as a transport error; report the cancellation, not a failure.
+                cancellationToken.ThrowIfCancellationRequested();
                 if (attempt >= _options.MaxRetries)
                 {
                     throw new CloudBaseApiException(CloudBaseErrorKind.RequestFailed, inner: ex);
@@ -538,11 +541,14 @@ internal sealed class CloudBaseClient : IDisposable
         return _delayAsync(delayMs, cancellationToken);
     }
 
-    private async Task<CloudBaseApiException> CreateApiExceptionAsync(
+    /// <param name="readToken">The attempt deadline, which bounds reading the error body.</param>
+    /// <param name="callerToken">The caller's token; only its cancellation is propagated.</param>
+    private static async Task<CloudBaseApiException> CreateApiExceptionAsync(
         HttpResponseMessage response,
-        CancellationToken cancellationToken)
+        CancellationToken readToken,
+        CancellationToken callerToken)
     {
-        var code = await ReadErrorCodeAsync(response, cancellationToken).ConfigureAwait(false);
+        var code = await ReadErrorCodeAsync(response, readToken, callerToken).ConfigureAwait(false);
         var kind = (int)response.StatusCode switch
         {
             401 => CloudBaseErrorKind.Unauthorized,
@@ -556,11 +562,12 @@ internal sealed class CloudBaseClient : IDisposable
 
     private static async Task<string?> ReadErrorCodeAsync(
         HttpResponseMessage response,
-        CancellationToken cancellationToken)
+        CancellationToken readToken,
+        CancellationToken callerToken)
     {
         try
         {
-            var bytes = await ReadLimitedBytesAsync(response.Content, ErrorBodyBytes, cancellationToken)
+            var bytes = await ReadLimitedBytesAsync(response.Content, ErrorBodyBytes, readToken)
                 .ConfigureAwait(false);
             if (bytes.Length == 0)
             {
@@ -574,9 +581,12 @@ internal sealed class CloudBaseClient : IDisposable
                     ? code.GetString()
                     : null;
         }
-        catch (Exception ex) when (ex is CloudBaseApiException or JsonException or IOException or HttpRequestException)
+        catch (Exception ex) when (
+            ex is CloudBaseApiException or JsonException or IOException or HttpRequestException ||
+            (ex is OperationCanceledException && !callerToken.IsCancellationRequested))
         {
-            // The status code already decides the error kind; the provider code is best effort.
+            // The status code already decides the error kind; the provider code is best effort,
+            // so a deadline hit while reading it must not turn a 401 into a retried failure.
             return null;
         }
     }
