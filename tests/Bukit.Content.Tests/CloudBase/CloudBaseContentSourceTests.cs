@@ -48,6 +48,44 @@ public sealed class CloudBaseContentSourceTests
     }
 
     [Fact]
+    public async Task LoadRawAsync_Whitelist_SelectsOnlyConfiguredColumns()
+    {
+        var api = new FakeCloudBaseApi();
+        api.Pages[0] = """[{"id":"a1","title":"A","slug":"a","content":"x","tags":["t"],"user_id":"u"}]""";
+        api.Total = 1;
+        var source = Create(api, options => options with
+        {
+            FieldPolicyMode = "whitelist",
+            AllowedFields = ["tags"]
+        });
+
+        await source.LoadRawAsync();
+
+        var query = Uri.UnescapeDataString(api.Requests[0].Query);
+        var parts = query.Split('&');
+        var select = parts.FirstOrDefault(part => part.TrimStart('?').StartsWith("select=", StringComparison.Ordinal));
+        Assert.True(select is not null, query);
+        Assert.Contains("id", select, StringComparison.Ordinal);
+        Assert.Contains("title", select, StringComparison.Ordinal);
+        Assert.Contains("content", select, StringComparison.Ordinal);
+        Assert.Contains("tags", select, StringComparison.Ordinal);
+        Assert.DoesNotContain("user_id", select, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task LoadRawAsync_AllMode_DoesNotSendSelect()
+    {
+        var api = new FakeCloudBaseApi();
+        api.Pages[0] = """[{"id":"a1","title":"A","slug":"a","content":"x"}]""";
+        api.Total = 1;
+        var source = Create(api, options => options with { FieldPolicyMode = "all" });
+
+        await source.LoadRawAsync();
+
+        Assert.DoesNotContain("select=", Uri.UnescapeDataString(api.Requests[0].Query), StringComparison.Ordinal);
+    }
+
+    [Fact]
     public async Task LoadRawAsync_MaxItems_StopsPaging()
     {
         var api = new FakeCloudBaseApi();

@@ -7,6 +7,5 @@ internal enum CloudBaseErrorKind
     NotFound,
     RateLimited,
     RequestFailed,
-    ResponseInvalid,
-    InvalidRequest
+    ResponseInvalid
 }

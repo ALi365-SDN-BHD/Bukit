@@ -41,6 +41,7 @@ internal sealed class CloudBaseContentSource : IContentProvider
                 new CloudBaseQueryRequest
                 {
                     Table = _options.Table,
+                    Select = BuildSelectList(),
                     IdField = _options.IdField,
                     PageSize = _options.PageSize,
                     MaxItems = _options.MaxItems,
@@ -59,6 +60,7 @@ internal sealed class CloudBaseContentSource : IContentProvider
         }
 
         var isData = string.Equals(_options.Mode, "data", StringComparison.OrdinalIgnoreCase);
+        var allowedSet = CloudBaseFieldProjector.BuildAllowedSet(_options.FieldPolicyMode, _options.AllowedFields);
         var drafts = new List<Draft>(page.Rows.Count);
         foreach (var row in page.Rows)
         {
@@ -71,10 +73,10 @@ internal sealed class CloudBaseContentSource : IContentProvider
                     DiagnosticCode.CloudBaseResponseInvalid);
             }
 
-            var fields = CloudBaseFieldProjector.Project(
+            var fields = CloudBaseFieldProjector.ProjectWithSet(
                 row,
                 _options.FieldPolicyMode,
-                _options.AllowedFields,
+                allowedSet,
                 _options.IdField);
             fields["source"] = new ContentField("text", "cloudbase");
             if (ParseDate(row, _options.UpdatedAtField) is { } updatedAt)
@@ -233,6 +235,34 @@ internal sealed class CloudBaseContentSource : IContentProvider
         internal Dictionary<string, ContentField> Fields { get; } = fields;
         internal string Markdown { get; set; } = markdown;
         internal Dictionary<string, string> FileObjects { get; } = new(StringComparer.OrdinalIgnoreCase);
+    }
+
+    private IReadOnlyList<string>? BuildSelectList()
+    {
+        if (!string.Equals(_options.FieldPolicyMode, "whitelist", StringComparison.OrdinalIgnoreCase))
+        {
+            return null;
+        }
+
+        var columns = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        {
+            _options.IdField,
+            _options.TitleField,
+            _options.SlugField,
+            _options.PublishAtField,
+            _options.UpdatedAtField
+        };
+        if (!string.IsNullOrWhiteSpace(_options.BodyField))
+        {
+            columns.Add(_options.BodyField);
+        }
+
+        foreach (var field in _options.FileFields.Concat(_options.AllowedFields ?? []))
+        {
+            columns.Add(field);
+        }
+
+        return [.. columns];
     }
 
     [System.Diagnostics.CodeAnalysis.SuppressMessage(

@@ -14,7 +14,6 @@ public sealed class CloudBaseErrorMapperTests
     [InlineData("RateLimited", DiagnosticCode.CloudBaseRateLimited)]
     [InlineData("RequestFailed", DiagnosticCode.CloudBaseRequestFailed)]
     [InlineData("ResponseInvalid", DiagnosticCode.CloudBaseResponseInvalid)]
-    [InlineData("InvalidRequest", DiagnosticCode.CloudBaseConfigInvalid)]
     public void Map_ReturnsExpectedDiagnosticCode(string kind, DiagnosticCode expected)
         => Assert.Equal(expected, CloudBaseErrorMapper.Map(Enum.Parse<CloudBaseErrorKind>(kind)));
 }

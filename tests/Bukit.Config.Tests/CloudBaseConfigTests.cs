@@ -653,6 +653,19 @@ public sealed class CloudBaseConfigTests
         Assert.Contains("bodyField", ex.Message, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public void Load_NonIntegerPageSize_FailsWithCloudBaseCodeAndPath()
+    {
+        var ex = Fails("""
+            envId: prod-abc
+            table: articles
+            bodyField: content
+            pageSize: abc
+            """);
+        AssertCloudBaseError(ex);
+        Assert.Contains("content.sources[0].cloudbase.pageSize", ex.Message, StringComparison.Ordinal);
+    }
+
     private static void AssertCloudBaseError(ConfigException ex)
         => Assert.Equal(DiagnosticCode.CloudBaseConfigInvalid, ex.Code);
 

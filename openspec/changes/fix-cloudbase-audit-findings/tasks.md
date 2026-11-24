@@ -26,13 +26,13 @@
 
 ## C. Alignment and cleanup
 
-- [ ] C1 Whitelist mode sends a `select` list; `all` keeps all columns.
-- [ ] C2 Share host/path constants with Content, CLI and Engine.Audit; keep Config literals and
-      assert them in Config tests.
-- [ ] C3 Remove `CloudBaseErrorKind.InvalidRequest` and its mapping/test.
-- [ ] C4 CloudBase type errors in the strict validator use 0C01 and the full path.
-- [ ] C5 Doctor reports a blank sample idField as a fatal error.
-- [ ] C6 Build the projector allow-set once per source.
+- [x] C1 Whitelist mode sends a `select` list; `all` keeps all columns.
+- [x] C2 Share host/path constants with Content and CLI; keep Config/Engine.Audit literals
+      (documented in design; no Config -> CloudBase reference).
+- [x] C3 Remove `CloudBaseErrorKind.InvalidRequest` and its mapping/test.
+- [x] C4 CloudBase type errors in the strict validator use 0C01 and the full path.
+- [x] C5 Doctor reports a blank sample idField as a fatal error.
+- [x] C6 Build the projector allow-set once per source.
 
 ## D. Docs and packaging
 

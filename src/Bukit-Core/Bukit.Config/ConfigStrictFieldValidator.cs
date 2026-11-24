@@ -471,6 +471,18 @@ internal static class ConfigStrictFieldValidator
         {
             RequireOnly(fieldPolicy, Set("mode", "allowed"), $"{path}.fieldPolicy", DiagnosticCode.CloudBaseConfigInvalid);
         }
+
+        foreach (var name in new[] { "pageSize", "maxItems", "signExpiresSeconds", "maxRps", "maxRetries" })
+        {
+            if (cloudBase.Children.TryGetValue(new YamlScalarNode(name), out var child) &&
+                (child is not YamlScalarNode scalar ||
+                 !int.TryParse(scalar.Value, NumberStyles.Integer, CultureInfo.InvariantCulture, out _)))
+            {
+                throw new ConfigException(
+                    $"{path}.{name} must be an integer.",
+                    DiagnosticCode.CloudBaseConfigInvalid);
+            }
+        }
     }
 
     private static void ValidateNotion(YamlMappingNode notion, string path)

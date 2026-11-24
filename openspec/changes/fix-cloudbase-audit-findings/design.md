@@ -60,10 +60,11 @@ projector.
 
 ## Constants
 
-Keep transport constants in `CloudBaseEndpoints`. `Bukit.Content` and `Bukit.Cli` already
-reference `Bukit.CloudBase`; `Bukit.Engine.Audit` gets one friend entry. `Bukit.Config` keeps
-literal hosts (it cannot reference the transport without inverting the layer); a Config test
-asserts they equal `CloudBaseEndpoints`. No `Config -> CloudBase` project reference.
+Keep transport host/path constants in `CloudBaseEndpoints`. `Bukit.Content` and `Bukit.Cli`
+already reference `Bukit.CloudBase`, so they use the constants. `Bukit.Config` and
+`Bukit.Engine.Audit` keep literal hosts: Config cannot reference the transport without inverting
+the layer, and Engine.Audit has no transport reference. No `Config -> CloudBase` project
+reference and no new friend entries; the remaining literals are documented here.
 
 ## Error mapping / validation
 

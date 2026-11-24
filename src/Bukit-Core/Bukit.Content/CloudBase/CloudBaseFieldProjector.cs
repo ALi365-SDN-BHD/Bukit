@@ -15,12 +15,24 @@ internal static class CloudBaseFieldProjector
         string policyMode,
         IReadOnlyList<string>? allowedFields,
         string idField)
+        => ProjectWithSet(row, policyMode, BuildAllowedSet(policyMode, allowedFields), idField);
+
+    internal static HashSet<string>? BuildAllowedSet(string policyMode, IReadOnlyList<string>? allowedFields)
+    {
+        var mode = (policyMode ?? "whitelist").Trim().ToLowerInvariant();
+        return mode == "all"
+            ? allowedFields is null ? null : new HashSet<string>(allowedFields, StringComparer.OrdinalIgnoreCase)
+            : new HashSet<string>(allowedFields ?? [], StringComparer.OrdinalIgnoreCase);
+    }
+
+    internal static Dictionary<string, ContentField> ProjectWithSet(
+        JsonElement row,
+        string policyMode,
+        IReadOnlySet<string>? allowed,
+        string idField)
     {
         var fields = new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase);
         var mode = (policyMode ?? "whitelist").Trim().ToLowerInvariant();
-        HashSet<string>? allowed = mode == "all"
-            ? allowedFields is null ? null : new HashSet<string>(allowedFields, StringComparer.OrdinalIgnoreCase)
-            : new HashSet<string>(allowedFields ?? [], StringComparer.OrdinalIgnoreCase);
 
         if (row.ValueKind != JsonValueKind.Object)
         {

@@ -1,5 +1,6 @@
 using System.Text.Json;
 using System.Text.RegularExpressions;
+using Bukit.CloudBase.Transport;
 using Bukit.Engine;
 
 namespace Bukit.Cli.Deploy;
@@ -210,9 +211,9 @@ internal static partial class DeploymentPrivacyValidator
                 continue;
             }
 
-            if (text.Contains($"{envId}.api.tcloudbasegateway.com", StringComparison.OrdinalIgnoreCase) ||
-                text.Contains($"{envId}.api.intl.tcloudbasegateway.com", StringComparison.OrdinalIgnoreCase) ||
-                text.Contains($"{envId}.storage.tcloudbase.com", StringComparison.OrdinalIgnoreCase) ||
+            if (text.Contains(envId + CloudBaseEndpoints.GatewaySuffix, StringComparison.OrdinalIgnoreCase) ||
+                text.Contains(envId + CloudBaseEndpoints.IntlGatewaySuffix, StringComparison.OrdinalIgnoreCase) ||
+                text.Contains(envId + CloudBaseEndpoints.StorageSuffix, StringComparison.OrdinalIgnoreCase) ||
                 text.Contains($"cloud://{envId}.", StringComparison.OrdinalIgnoreCase))
             {
                 return true;
