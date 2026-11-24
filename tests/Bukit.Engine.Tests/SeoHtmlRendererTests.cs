@@ -112,6 +112,29 @@ public sealed class SeoHtmlRendererTests
     }
 
     [Fact]
+    public void RenderHead_WritesOpenGraphLocaleAlternatesFromHreflang()
+    {
+        var seo = new SeoModel
+        {
+            Title = "Page",
+            Canonical = "https://example.com/en/",
+            Og = new SeoOpenGraphModel { Locale = "en_US" },
+            Alternates =
+            [
+                new SeoAlternateModel("x-default", "https://example.com/en/"),
+                new SeoAlternateModel("en", "https://example.com/en/"),
+                new SeoAlternateModel("zh-CN", "https://example.com/zh-CN/")
+            ]
+        };
+
+        var head = SeoHtmlRenderer.RenderHead(seo);
+
+        Assert.Contains("<meta property=\"og:locale\" content=\"en_US\" />", head, StringComparison.Ordinal);
+        Assert.Contains("<meta property=\"og:locale:alternate\" content=\"zh_CN\" />", head, StringComparison.Ordinal);
+        Assert.Single(head.Split('\n'), line => line.Contains("og:locale:alternate", StringComparison.Ordinal));
+    }
+
+    [Fact]
     public void InjectIntoHead_WhenHeadMissing_DoesNotCreateDocumentStructure()
     {
         var html = "<!doctype html><html><body>ok</body></html>";

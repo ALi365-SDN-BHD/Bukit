@@ -48,9 +48,15 @@ internal sealed class I18nRootFeedWriter : II18nRootProjectionWriter
                     continue;
                 }
 
-                postCandidates.Add((
-                    I18nRootProjectionPath.CombineBaseUrl(result.BaseUrl, seo.Route.Url),
-                    RssGenerator.ToPost(document, seo.Canonical, result.BodyStore, tieBreak, seo.Route.Url)));
+                var post = RssGenerator.ToPost(document, seo.Canonical, result.BodyStore, tieBreak, seo.Route.Url);
+                if (format == "rss")
+                {
+                    // An undeclared page belongs to the variant that built it, so the merged RSS channel
+                    // sees every language it mixes and omits <language> instead of naming one of them.
+                    post = post with { Language = ContentLanguageFallback.Resolve(post.Language, result.Language) };
+                }
+
+                postCandidates.Add((I18nRootProjectionPath.CombineBaseUrl(result.BaseUrl, seo.Route.Url), post));
             }
         }
 
@@ -62,12 +68,14 @@ internal sealed class I18nRootFeedWriter : II18nRootProjectionWriter
         switch (format)
         {
             case "rss":
+                // Item HTML gets absolute root-relative URLs, as in the per-language feeds; only the
+                // posts the feed keeps are rewritten.
                 RssGenerator.GenerateMerged(
                     context.OutputDir,
                     siteUrl,
                     context.RootBaseUrl,
                     context.Config.Site.Title,
-                    posts,
+                    FeedHtmlUrls.AbsolutizeContent(RssGenerator.SelectWindow(posts, limit), siteUrl),
                     limit,
                     context.Config.Site.Description);
                 break;

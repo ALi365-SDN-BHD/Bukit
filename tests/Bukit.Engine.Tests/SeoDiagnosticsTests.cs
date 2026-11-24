@@ -57,81 +57,23 @@ public sealed class SeoDiagnosticsTests
             warning.Contains("blog/post/", StringComparison.Ordinal));
     }
 
-    [Fact]
-    public void AnalyzeIndex_WarnMode_ReportsBareOpenGraphLocale()
+    [Theory]
+    [InlineData("warn", "xx", true)]
+    [InlineData("warn", "en", false)]
+    [InlineData("warn", "en-GB", false)]
+    [InlineData("strict", "xx", true)]
+    public void AnalyzeIndex_ReportsSiteLanguageWithoutOpenGraphLocale_AsWarningOnly(string diagnostics, string language, bool reported)
     {
-        var config = ConfigWithDiagnostics("warn");
+        var baseConfig = ConfigWithDiagnostics(diagnostics);
+        var config = baseConfig with { Site = baseConfig.Site with { Language = language } };
         var logger = new TestLogger();
-        var index = new Dictionary<string, SeoIndexEntry>(StringComparer.OrdinalIgnoreCase)
-        {
-            ["a/index.html"] = Entry("/a/", "a/index.html", "https://example.com/a/")
-        };
-        var models = new Dictionary<string, SeoModel>(StringComparer.OrdinalIgnoreCase)
-        {
-            ["a/index.html"] = new()
-            {
-                Title = "A",
-                Canonical = "https://example.com/a/",
-                Og = new SeoOpenGraphModel { Locale = "en" }
-            }
-        };
 
-        SeoDiagnostics.AnalyzeIndex(config, index, models, logger);
+        SeoDiagnostics.AnalyzeIndex(config, new Dictionary<string, SeoIndexEntry>(), new Dictionary<string, SeoModel>(), logger);
 
-        Assert.Contains(logger.Warnings, warning =>
+        Assert.Equal(reported, logger.Warnings.Any(warning =>
             warning.Contains("seo.og_locale_region_missing", StringComparison.Ordinal) &&
-            warning.Contains("locale=en", StringComparison.Ordinal));
-    }
-
-    [Fact]
-    public void AnalyzeIndex_StrictMode_BareOpenGraphLocale_WarnsWithoutThrowing()
-    {
-        var config = ConfigWithDiagnostics("strict");
-        var logger = new TestLogger();
-        var index = new Dictionary<string, SeoIndexEntry>(StringComparer.OrdinalIgnoreCase)
-        {
-            ["a/index.html"] = Entry("/a/", "a/index.html", "https://example.com/a/")
-        };
-        var models = new Dictionary<string, SeoModel>(StringComparer.OrdinalIgnoreCase)
-        {
-            ["a/index.html"] = new()
-            {
-                Title = "A",
-                Canonical = "https://example.com/a/",
-                Og = new SeoOpenGraphModel { Locale = "en" }
-            }
-        };
-
-        SeoDiagnostics.AnalyzeIndex(config, index, models, logger);
-
-        Assert.Contains(logger.Warnings, warning =>
-            warning.Contains("seo.og_locale_region_missing", StringComparison.Ordinal));
+            warning.Contains($"locale={language}", StringComparison.Ordinal)));
         Assert.Empty(logger.Errors);
-    }
-
-    [Fact]
-    public void AnalyzeIndex_WarnMode_DoesNotReportRegionalOpenGraphLocale()
-    {
-        var config = ConfigWithDiagnostics("warn");
-        var logger = new TestLogger();
-        var index = new Dictionary<string, SeoIndexEntry>(StringComparer.OrdinalIgnoreCase)
-        {
-            ["a/index.html"] = Entry("/a/", "a/index.html", "https://example.com/a/")
-        };
-        var models = new Dictionary<string, SeoModel>(StringComparer.OrdinalIgnoreCase)
-        {
-            ["a/index.html"] = new()
-            {
-                Title = "A",
-                Canonical = "https://example.com/a/",
-                Og = new SeoOpenGraphModel { Locale = "en_US" }
-            }
-        };
-
-        SeoDiagnostics.AnalyzeIndex(config, index, models, logger);
-
-        Assert.DoesNotContain(logger.Warnings, warning =>
-            warning.Contains("seo.og_locale_region_missing", StringComparison.Ordinal));
     }
 
     [Fact]

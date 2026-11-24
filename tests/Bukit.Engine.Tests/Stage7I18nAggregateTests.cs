@@ -9,6 +9,38 @@ namespace Bukit.Engine.Tests;
 
 public sealed class Stage7I18nAggregateTests
 {
+    [Theory, Trait("Category", "Integration")]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task MergedRootRss_MixingLanguages_OmitsChannelLanguage(bool englishDeclaresLanguage)
+    {
+        using var site = new SiteBuilder("i18n-site");
+        var yaml = File.ReadAllText(site.Sandbox.PathFor("site.yaml"));
+        yaml = yaml.Replace("  sitemapMode: merged", """
+              sitemapMode: merged
+              feed:
+                mode: merged
+                formats: [rss]
+            """, StringComparison.Ordinal);
+        yaml = yaml.Replace("      template: pages/page.html", """
+                  template: pages/page.html
+                  output:
+                    rss: true
+            """, StringComparison.Ordinal);
+        site.Sandbox.Write("site.yaml", yaml);
+        if (!englishDeclaresLanguage)
+        {
+            var english = File.ReadAllText(site.Sandbox.PathFor("content/en/index.md"));
+            site.Sandbox.Write("content/en/index.md", english.Replace("language: en\n", string.Empty, StringComparison.Ordinal));
+        }
+
+        await site.BuildAsync();
+
+        var rss = XDocument.Load(Path.Combine(site.Output, "rss.xml"));
+        Assert.Equal(2, rss.Descendants().Count(node => node.Name.LocalName == "item"));
+        Assert.DoesNotContain(rss.Descendants(), node => node.Name.LocalName == "language");
+    }
+
     [Fact, Trait("Category", "Integration")]
     public async Task RootAggregates_ContainBothLanguages_AndReportsMatchOutput()
     {

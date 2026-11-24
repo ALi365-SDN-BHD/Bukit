@@ -194,7 +194,6 @@ internal sealed class SearchIndexPlugin : IBukitPlugin, IAfterBuildPlugin
         sb.AppendLine(GetSearchJs());
         sb.AppendLine("</script>");
 
-        var uiPath = Path.Combine(outputDir, "bukit-search.html");
-        File.WriteAllText(uiPath, sb.ToString(), Encoding.UTF8);
+        FileWriter.WriteUtf8(outputDir, "bukit-search.html", sb.ToString());
     }
 }

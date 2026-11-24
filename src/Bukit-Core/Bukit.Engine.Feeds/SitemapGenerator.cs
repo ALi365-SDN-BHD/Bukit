@@ -1,6 +1,7 @@
 using System.Text;
 using Bukit.Routing;
 using Bukit.Engine.Abstractions.Routing;
+using Bukit.Engine.Feeds;
 namespace Bukit.Engine;
 
 internal static class SitemapGenerator
@@ -26,7 +27,7 @@ internal static class SitemapGenerator
         {
             var loc = BuildAbsoluteUrl(normalizedSiteUrl, normalizedBaseUrl, route.Url);
             sb.AppendLine("  <url>");
-            sb.AppendLine($"    <loc>{EscapeXml(loc)}</loc>");
+            sb.AppendLine($"    <loc>{Loc(loc)}</loc>");
             AppendLastModified(sb, lastModified);
             sb.AppendLine("  </url>");
         }
@@ -56,7 +57,7 @@ internal static class SitemapGenerator
         foreach (var (absoluteUrl, lastModified) in entries)
         {
             sb.AppendLine("  <url>");
-            sb.AppendLine($"    <loc>{EscapeXml(absoluteUrl)}</loc>");
+            sb.AppendLine($"    <loc>{Loc(absoluteUrl)}</loc>");
             AppendLastModified(sb, lastModified);
             sb.AppendLine("  </url>");
         }
@@ -85,14 +86,14 @@ internal static class SitemapGenerator
         foreach (var entry in entries)
         {
             sb.AppendLine("  <url>");
-            sb.AppendLine($"    <loc>{EscapeXml(entry.AbsoluteUrl)}</loc>");
+            sb.AppendLine($"    <loc>{Loc(entry.AbsoluteUrl)}</loc>");
             AppendLastModified(sb, entry.LastModified);
 
             if (hasAlternates && entry.Alternates is { Count: > 0 } alts)
             {
                 foreach (var a in alts)
                 {
-                    sb.AppendLine($"    <xhtml:link rel=\"alternate\" hreflang=\"{EscapeXml(a.Hreflang)}\" href=\"{EscapeXml(a.Href)}\" />");
+                    sb.AppendLine($"    <xhtml:link rel=\"alternate\" hreflang=\"{EscapeXml(a.Hreflang)}\" href=\"{Loc(a.Href)}\" />");
                 }
             }
 
@@ -112,7 +113,7 @@ internal static class SitemapGenerator
         foreach (var url in sitemapAbsoluteUrls)
         {
             sb.AppendLine("  <sitemap>");
-            sb.AppendLine($"    <loc>{EscapeXml(url)}</loc>");
+            sb.AppendLine($"    <loc>{Loc(url)}</loc>");
             sb.AppendLine("  </sitemap>");
         }
 
@@ -170,6 +171,8 @@ internal static class SitemapGenerator
 
         return trimmed;
     }
+
+    private static string Loc(string url) => EscapeXml(SitemapUri.Encode(url));
 
     private static string EscapeXml(string value)
     {

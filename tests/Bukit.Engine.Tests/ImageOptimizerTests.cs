@@ -1,5 +1,6 @@
 using System.Buffers.Binary;
 using Bukit.Config;
+using Bukit.Engine.Plugins.BuiltIn.ImageProcessing;
 using Bukit.Shared;
 using SkiaSharp;
 using Xunit;
@@ -9,6 +10,10 @@ namespace Bukit.Engine.Tests;
 
 public sealed class ImageOptimizerTests
 {
+    // Two full 2x1 RGBA frames: red for 100 ms, blue for 200 ms, infinite loop.
+    internal static readonly byte[] AnimatedPng = Convert.FromBase64String(
+        "iVBORw0KGgoAAAANSUhEUgAAAAIAAAABCAYAAAD0In+KAAAACGFjVEwAAAACAAAAAPONk3AAAAAaZmNUTAAAAAAAAAACAAAAAQAAAAAAAAAAAAEACgAA+Sm2eQAAAA5JREFUeJxj+M/A8B+EARH3A/3jxfXvAAAAGmZjVEwAAAABAAAAAgAAAAEAAAAAAAAAAAACAAoAACX6Jn0AAAASZmRBVAAAAAJ4nGNgYPj/H4QBDfsD/a6UELEAAAAASUVORK5CYII=");
+
     [Fact]
     public async Task OptimizeIfEnabled_GeneratesValidatedWebpWithoutExternalTools()
     {
@@ -265,8 +270,7 @@ public sealed class ImageOptimizerTests
         Directory.CreateDirectory(root);
         try
         {
-            // Two full 2x1 RGBA frames: red for 100 ms, blue for 200 ms, infinite loop.
-            var bytes = Convert.FromBase64String("iVBORw0KGgoAAAANSUhEUgAAAAIAAAABCAYAAAD0In+KAAAACGFjVEwAAAACAAAAAPONk3AAAAAaZmNUTAAAAAAAAAACAAAAAQAAAAAAAAAAAAEACgAA+Sm2eQAAAA5JREFUeJxj+M/A8B+EARH3A/3jxfXvAAAAGmZjVEwAAAABAAAAAgAAAAEAAAAAAAAAAAACAAoAACX6Jn0AAAASZmRBVAAAAAJ4nGNgYPj/H4QBDfsD/a6UELEAAAAASUVORK5CYII=");
+            var bytes = AnimatedPng;
             var input = Path.Combine(root, "animated.png");
             var output = Path.Combine(root, "variant." + format.ToString().ToLowerInvariant());
             File.WriteAllBytes(input, bytes);
@@ -317,6 +321,42 @@ public sealed class ImageOptimizerTests
                 _ => new[] { SKColors.Red, SKColors.Lime, SKColors.Blue, SKColors.Yellow }
             };
             AssertCorners(result, expected);
+        }
+        finally { Directory.Delete(root, true); }
+    }
+
+    [Fact]
+    public void TryGetImageSize_AnimatedPng_IsNotResizable()
+    {
+        var root = CreateRoot();
+        Directory.CreateDirectory(root);
+        try
+        {
+            var input = Path.Combine(root, "animated.png");
+            File.WriteAllBytes(input, AnimatedPng);
+
+            Assert.False(ImageVariantGenerator.TryGetImageSize(input, new ConsoleLogger(LogLevel.Error), out _, out _));
+        }
+        finally { Directory.Delete(root, true); }
+    }
+
+    [Theory]
+    [InlineData(SKEncodedOrigin.TopLeft, 32, 16)]
+    [InlineData(SKEncodedOrigin.RightTop, 16, 32)]
+    public void TryReadImageSize_ReturnsDisplayedSizeAfterOrientation(SKEncodedOrigin origin, int width, int height)
+    {
+        var root = CreateRoot();
+        Directory.CreateDirectory(root);
+        try
+        {
+            using var image = new SKBitmap(32, 16);
+            image.Erase(SKColors.Red);
+            using var encoded = image.Encode(SKEncodedImageFormat.Jpeg, 90);
+            var input = Path.Combine(root, "oriented.jpg");
+            File.WriteAllBytes(input, WithJpegOrientation(encoded.ToArray(), origin));
+
+            Assert.True(ImageVariantGenerator.TryReadImageSize(input, out var actualWidth, out var actualHeight));
+            Assert.Equal((width, height), (actualWidth, actualHeight));
         }
         finally { Directory.Delete(root, true); }
     }

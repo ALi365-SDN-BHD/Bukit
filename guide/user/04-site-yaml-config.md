@@ -534,6 +534,15 @@ WebP candidates for local JPEG/PNG content images. Final HTML uses one
 IDs, and other attributes remain the fallback. Existing `picture` markup and
 external, data, SVG, or GIF images are not rewritten.
 
+A media image (under `content.media.urlBase`) whose size Bukit can read also
+gets `width` and `height` from the displayed size (after EXIF orientation) when
+it has neither, and `loading="lazy"` when it has no `loading` attribute. Set
+`loading="eager"` on an above-the-fold image, such as a hero cover, to keep it
+loading immediately; author-written `width`, `height`, and `loading` are never
+changed. Incremental builds re-render pages when a media image's width or height
+changes, and the first incremental build after upgrading re-renders pages with
+media images.
+
 Local static WebP images get resized WebP candidates and an `img` `srcset` the
 same way JPEG/PNG images get original-format ones, but no `<picture>` (the
 source is already WebP). A WebP file is left as uploaded when it is animated,

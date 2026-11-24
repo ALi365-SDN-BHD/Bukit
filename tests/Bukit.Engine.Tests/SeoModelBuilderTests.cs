@@ -1,3 +1,4 @@
+using System.Globalization;
 using Bukit.Config;
 using Bukit.Content;
 using Bukit.Engine.Abstractions.Content;
@@ -257,6 +258,34 @@ public sealed class SeoModelBuilderTests
     }
 
     [Fact]
+    public void BuildForContent_JsonLd_DatesUseSiteTimeZoneAtSecondPrecisionAndNodesNameLanguage()
+    {
+        var config = CreateConfig() with { Site = CreateConfig().Site with { Language = "en", Timezone = "Asia/Kuala_Lumpur" } };
+        var item = ContentDocument.Create(
+            id: "p1",
+            title: "Dated",
+            slug: "dated",
+            publishAt: DateTimeOffset.Parse("2026-06-05T10:00:00.1234567Z", CultureInfo.InvariantCulture),
+            contentHtml: null,
+            fields: new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["type"] = new("text", "post"),
+                ["update_time"] = new("text", "2026-06-06T23:30:45.5+00:00"),
+                ["language"] = new("text", "ms-MY")
+            });
+        var route = new RouteInfo("/posts/dated/", "posts/dated/index.html", "pages/post.html");
+
+        var model = SeoModelBuilder.BuildForContent(config, "/", item, route);
+
+        var nodes = model.JsonLd.Select(static json => JsonDocument.Parse(json).RootElement).ToArray();
+        JsonElement Node(string type) => nodes.Single(node => node.GetProperty("@type").GetString() == type);
+        Assert.Equal("2026-06-05T18:00:00+08:00", Node("BlogPosting").GetProperty("datePublished").GetString());
+        Assert.Equal("2026-06-07T07:30:45+08:00", Node("BlogPosting").GetProperty("dateModified").GetString());
+        Assert.Equal("en", Node("WebSite").GetProperty("inLanguage").GetString());
+        Assert.Equal("ms-MY", Node("WebPage").GetProperty("inLanguage").GetString());
+    }
+
+    [Fact]
     public void BuildForContent_OrganizationAuthor_UsesCanonicalTypeWithoutStandaloneOrganization()
     {
         var config = CreateConfig();
@@ -483,6 +512,45 @@ public sealed class SeoModelBuilderTests
         Assert.Equal(2, model.Alternates.Count);
         Assert.Equal("en", model.Alternates[0].Hreflang);
         Assert.Equal("ja", model.Alternates[1].Hreflang);
+    }
+
+    private static readonly SeoAlternateModel[] TwoLanguageAlternates =
+    [
+        new("x-default", "https://example.com/a/"),
+        new("en", "https://example.com/a/"),
+        new("zh", "https://example.com/zh/a/")
+    ];
+
+    [Theory]
+    [InlineData(null, 3)]
+    [InlineData("noindex", 0)]
+    [InlineData("none", 0)]
+    public void BuildForContent_NoindexPage_HasNoHreflangAlternates(string? robots, int expectedAlternates)
+    {
+        var fields = new Dictionary<string, object> { ["type"] = "page" };
+        if (robots is not null)
+        {
+            fields["robots"] = robots;
+        }
+
+        var item = ContentDocument.Create("p1", "A", "a", DateTimeOffset.UtcNow, null, ContentFieldReader.ToFieldMap(fields));
+        var route = new RouteInfo("/a/", "a/index.html", "pages/page.html");
+
+        var model = SeoModelBuilder.BuildForContent(CreateConfig(), "/", item, route, TwoLanguageAlternates);
+
+        Assert.Equal(expectedAlternates, model.Alternates.Count);
+    }
+
+    [Theory]
+    [InlineData(false, 3)]
+    [InlineData(true, 0)]
+    public void BuildForList_NoindexWhenEmpty_HasNoHreflangAlternates(bool forceNoindexWhenEmpty, int expectedAlternates)
+    {
+        var page = new PageInfo { Title = "News", Url = "/news/", Content = string.Empty };
+
+        var model = SeoModelBuilder.BuildForList(CreateConfig(), "/", page, TwoLanguageAlternates, forceNoindexWhenEmpty: forceNoindexWhenEmpty);
+
+        Assert.Equal(expectedAlternates, model.Alternates.Count);
     }
 
     [Fact]
@@ -1380,7 +1448,7 @@ public sealed class SeoModelBuilderTests
     }
 
     [Fact]
-    public void BuildForContent_KeepsBareLanguageAsOpenGraphLocale()
+    public void BuildForContent_GivesBareLanguageItsDefaultOpenGraphRegion()
     {
         var config = CreateConfig();
         config = config with { Site = config.Site with { Language = "en" } };
@@ -1395,6 +1463,6 @@ public sealed class SeoModelBuilderTests
 
         var model = SeoModelBuilder.BuildForContent(config, "/", item, route);
 
-        Assert.Equal("en", model.Og.Locale);
+        Assert.Equal("en_US", model.Og.Locale);
     }
 }

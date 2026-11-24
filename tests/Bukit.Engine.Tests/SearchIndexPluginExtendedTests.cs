@@ -97,6 +97,32 @@ public sealed class SearchIndexPluginExtendedTests
     }
 
     [Fact]
+    public void WriteSearchUi_WritesUtf8WithoutBom()
+    {
+        var tempDir = Path.Combine(Path.GetTempPath(), "bukit_search_ui_" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(tempDir);
+
+        try
+        {
+            SearchIndexPlugin.WriteSearchUi(
+                new AppConfig
+                {
+                    Site = new SiteConfig { Name = "test", Title = "Test Site", Search = new SearchDetailConfig() },
+                    Content = TestContent.Markdown()
+                },
+                tempDir,
+                "/");
+
+            var bytes = File.ReadAllBytes(Path.Combine(tempDir, "bukit-search.html"));
+            Assert.Equal((byte)'<', bytes[0]);
+        }
+        finally
+        {
+            Directory.Delete(tempDir, recursive: true);
+        }
+    }
+
+    [Fact]
     public void WriteSearchUi_EncodesTheIndexUrlAttribute()
     {
         var searchUi = RenderSearchUi(new SearchDetailConfig(), "/a\"b&c");

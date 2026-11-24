@@ -46,7 +46,8 @@ internal static class SeoAlternatesService
                 .Select(i => new RoutedContentDocument(i, RouteGenerator.Generate(i, config.Site.OutputPathEncoding, config.Site.Permalinks, collectionRules)))
                 .ToList();
 
-            foreach (var routed in variantRouted)
+            // Only indexable pages are offered as alternates; a noindex page lists none either.
+            foreach (var routed in variantRouted.Where(x => SeoIndexBuilder.IsIndexableIgnoringExpiry(x.Document, SeoModelBuilder.BuildRobots(x.Document))))
             {
                 AddAlternate(grouped, SeoModelBuilder.BuildAlternateKey(routed.Document, routed.Route), language, SeoModelBuilder.BuildAbsoluteUrl(config.Site.Url, baseUrl, routed.Route.Url));
             }
@@ -67,7 +68,7 @@ internal static class SeoAlternatesService
                 variantContentDocuments,
                 variantRouted,
                 listRouteGraph);
-            foreach (var route in listRouteGraph.Routes)
+            foreach (var route in listRouteGraph.Routes.Where(x => !CollectionIndexabilityPolicy.ShouldNoIndex(config, x.Kind, x.Collection, x.TotalItems)))
             {
                 AddAlternate(grouped, SeoModelBuilder.BuildListAlternateKey(route.ToRouteInfo()), language, SeoModelBuilder.BuildAbsoluteUrl(config.Site.Url, baseUrl, route.CanonicalUrl));
             }

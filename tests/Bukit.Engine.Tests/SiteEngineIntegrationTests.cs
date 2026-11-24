@@ -2572,9 +2572,9 @@ public sealed partial class SiteEngineIntegrationTests
             AssertBreadcrumbItemsResolveToHtmlFiles(Path.Combine(root, "dist"), breadcrumb);
 
             var sitemap = File.ReadAllText(Path.Combine(root, "dist", "sitemap.xml"));
-            Assert.Contains("<loc>https://example.com/insights/category/市场观察/</loc>", sitemap, StringComparison.Ordinal);
-            Assert.Contains("<loc>https://example.com/insights/category/市场观察/page/2/</loc>", sitemap, StringComparison.Ordinal);
-            Assert.DoesNotContain("https://example.com/category/市场观察/", sitemap, StringComparison.Ordinal);
+            Assert.Contains("<loc>https://example.com/insights/category/%E5%B8%82%E5%9C%BA%E8%A7%82%E5%AF%9F/</loc>", sitemap, StringComparison.Ordinal);
+            Assert.Contains("<loc>https://example.com/insights/category/%E5%B8%82%E5%9C%BA%E8%A7%82%E5%AF%9F/page/2/</loc>", sitemap, StringComparison.Ordinal);
+            Assert.DoesNotContain("https://example.com/category/%E5%B8%82%E5%9C%BA%E8%A7%82%E5%AF%9F/", sitemap, StringComparison.Ordinal);
             Assert.Empty(logger.Errors);
         }
         finally

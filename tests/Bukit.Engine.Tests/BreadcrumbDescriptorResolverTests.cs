@@ -221,6 +221,31 @@ public sealed class BreadcrumbDescriptorResolverTests
     }
 
     [Fact]
+    public void Resolve_BreadcrumbParent_ComesAfterUrlAncestors()
+    {
+        var config = Config(schema => schema with { BreadcrumbHome = true, BreadcrumbParent = "categories" });
+        var graph = ListRouteGraph.Create(
+        [
+            TermRoute("新闻", "news", "最新動態", "/categories/news/", 1, ["/business/2596/", "/categories/news/2597/"])
+        ]);
+        var catalog = BreadcrumbDescriptorResolver.Resolve(
+            config,
+            "/",
+            [
+                Routed("business", "商务资讯", "/business/"),
+                Routed("p1", "文章一", "/business/2596/", ["新闻"]),
+                Routed("p2", "文章二", "/categories/news/2597/", ["新闻"])
+            ],
+            graph,
+            staticEntries: null,
+            routeMetadata: null);
+
+        Assert.Equal(["站点", "商务资讯", "最新動態", "文章一"], catalog.Find("/business/2596/")!.Items.Select(item => item.Name));
+        // A taxonomy parent that is also a URL ancestor appears once, in URL order.
+        Assert.Equal(["站点", "最新動態", "文章二"], catalog.Find("/categories/news/2597/")!.Items.Select(item => item.Name));
+    }
+
+    [Fact]
     public void Resolve_BreadcrumbParentForOtherKind_LeavesContentUnchanged()
     {
         var config = Config(schema => schema with { BreadcrumbParent = "tags" });

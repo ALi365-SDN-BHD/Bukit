@@ -36,14 +36,11 @@ internal static partial class SeoDiagnostics
             Report(config, logger, $"seo.canonical_duplicate_index canonical={group.Key} routes={string.Join(",", group.Select(x => x.Route.Url))}");
         }
 
-        foreach (var locale in models.Values
-                     .Select(model => model.Og.Locale)
-                     .Where(locale => !string.IsNullOrWhiteSpace(locale) && !locale.Contains('_'))
-                     .Distinct(StringComparer.OrdinalIgnoreCase)
-                     .Order(StringComparer.Ordinal))
+        // A configured language with no Open Graph locale leaves og:locale out of the built pages.
+        // It is a hint, not a strict-mode failure.
+        if (!string.IsNullOrWhiteSpace(config.Site.Language) && OpenGraphLocale.From(config.Site.Language).Length == 0)
         {
-            // A bare locale is a hint, not a strict-mode failure.
-            logger.Warn($"seo.og_locale_region_missing locale={locale} hint=add-a-region-subtag");
+            logger.Warn($"seo.og_locale_region_missing locale={config.Site.Language.Trim()} hint=add-a-region-subtag");
         }
 
         foreach (var entry in index.Values)

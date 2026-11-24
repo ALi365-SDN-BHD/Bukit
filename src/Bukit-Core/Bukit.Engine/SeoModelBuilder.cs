@@ -32,7 +32,7 @@ internal static class SeoModelBuilder
             baseUrl,
             route.Url,
             FirstTextField(fields, "canonical"));
-        var robots = BuildRobots(fields, document.Publish);
+        var robots = BuildRobots(document);
         var resolvedImage = SeoImageResolver.ResolveForContent(config, baseUrl, document, sharedAssets);
         var image = resolvedImage.Url;
 
@@ -88,7 +88,7 @@ internal static class SeoModelBuilder
                 Image = image,
                 Type = isArticle ? "article" : "website",
                 SiteName = config.Site.Title,
-                Locale = NormalizeOpenGraphLocale(config.Site.Language)
+                Locale = OpenGraphLocale.From(config.Site.Language)
             },
             Twitter = new SeoTwitterModel
             {
@@ -107,7 +107,7 @@ internal static class SeoModelBuilder
                 AuthorType = isArticle ? resolvedAuthor.Primary?.SchemaType : null,
                 Tags = isArticle ? tags : Array.Empty<string>()
             },
-            Alternates = alternates ?? Array.Empty<SeoAlternateModel>(),
+            Alternates = IndexableAlternates(document, robots, alternates),
             JsonLd = jsonLd,
             SchemaType = schemaType,
             FaqItems = geo.FaqItems,
@@ -183,7 +183,7 @@ internal static class SeoModelBuilder
                 Image = image,
                 Type = "website",
                 SiteName = config.Site.Title,
-                Locale = NormalizeOpenGraphLocale(config.Site.Language)
+                Locale = OpenGraphLocale.From(config.Site.Language)
             },
             Twitter = new SeoTwitterModel
             {
@@ -193,7 +193,7 @@ internal static class SeoModelBuilder
                 Image = image,
                 Site = config.Site.Seo.TwitterSite
             },
-            Alternates = alternates ?? Array.Empty<SeoAlternateModel>(),
+            Alternates = !forceNoindexWhenEmpty && alternates is not null ? alternates : [],
             JsonLd = SeoJsonLdBuilder.BuildJsonLd(config, baseUrl, title, description, canonical, image, canonicalUrl, document: null, itemListFields: page.Fields, isPost: false, isCollectionPage: page.Url != "/", geo: SeoGeoMetaParser.ParsedGeoMeta.Empty, schemaType: null, record: null, resolvedAuthors: null, searchAction, breadcrumb, sharedAssets)
         };
     }
@@ -254,11 +254,6 @@ internal static class SeoModelBuilder
         return BuildAbsoluteUrl(siteUrl, baseUrl, value);
     }
 
-    internal static string NormalizeOpenGraphLocale(string? language)
-        => string.IsNullOrWhiteSpace(language)
-            ? string.Empty
-            : language.Trim().Replace('-', '_');
-
     private static bool IsAlreadyPrefixed(string value, string baseUrl)
     {
         var normalized = NormalizeBaseUrl(baseUrl);
@@ -278,6 +273,18 @@ internal static class SeoModelBuilder
     }
 
     internal static string BuildListAlternateKey(RouteInfo route) => $"route:{route.Url}";
+
+    // A page search engines must not index lists no hreflang alternates (they would point
+    // indexable pages at it or offer it as a translation).
+    private static IReadOnlyList<SeoAlternateModel> IndexableAlternates(
+        ContentDocument document,
+        string? robots,
+        IReadOnlyList<SeoAlternateModel>? alternates)
+        => alternates is not null && SeoIndexBuilder.IsIndexableIgnoringExpiry(document, robots) ? alternates : [];
+
+    /// <summary>The robots directives of a content page, from its robots field and publish policy.</summary>
+    internal static string? BuildRobots(ContentDocument document)
+        => BuildRobots(document.CustomFields, document.Publish);
 
     private static string? BuildRobots(
         IReadOnlyDictionary<string, ContentField>? fields,

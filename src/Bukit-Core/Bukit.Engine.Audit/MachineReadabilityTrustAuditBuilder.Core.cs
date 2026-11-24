@@ -172,7 +172,8 @@ internal static partial class MachineReadabilityTrustAuditBuilder
                 seoIssues.Add(Warning("seo.sitemap_missing_url", entry.Route.Url, $"Indexable route is missing from sitemap: {entry.Canonical}."));
             }
 
-            if (!entry.Indexable && sitemapText is not null && inclusion.OutputContains(sitemapText, PublishOutputInclusion.SitemapLocNeedle(entry.Canonical)))
+            if (!entry.Indexable && sitemapText is not null &&
+                (inclusion.OutputContains(sitemapText, PublishOutputInclusion.SitemapLocNeedle(entry.Canonical)) || isInSitemap(entry.Canonical)))
             {
                 seoIssues.Add(Error("seo.noindex_in_sitemap", entry.Route.Url, $"Noindex route appears in sitemap: {entry.Canonical}."));
             }

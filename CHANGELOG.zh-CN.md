@@ -8,6 +8,22 @@ Bukit 所有重要变更都将记录在此文件中。
 
 - **WebP 图片生成响应式变体**：启用 `theme.images.enabled` 时，本地静态 WebP 图片（例如从 Notion 或微信下载的封面和正文图片）会按配置中小于原图宽度的档位生成缩小的 WebP 变体，`img` 也会加上 `srcset`，与 JPEG/PNG 一致，但不包 `<picture>`。动图 WebP、文件名已是 `-<宽度>w.webp` 形式的文件、以及旁边有同名 JPEG/PNG 的 WebP 保持原样。WebP 源图始终用 SkiaSharp 缩放。含 WebP 媒体的站点会多出变体文件及其 freshness 记录，相关 `img` 多出 `srcset` 和 `decoding="async"`；升级后第一次增量构建会重新渲染页面，因为图片指纹现在包含 WebP 文件。见 [04 site.yaml 配置](guide/user/04-site-yaml-config.md)。
 
+- **RSS 频道语言与条目绝对网址**：`rss.xml` 和集合 RSS 在所有条目声明同一种语言时写出 `<language>`（忽略空值和 `und`，所以混合语言的合并 feed 不写）；`content:encoded` 里根相对的 `src`、`href`、`srcset` 会按 `site.url` 转成绝对网址。多语言根目录合并 feed 中，没有声明语言的条目使用所属语言版本的语言。
+
+- **合法的 Open Graph locale**：`og:locale` 现在输出合法的 Open Graph locale。带地区的语言直接转换（`zh-CN` → `zh_CN`），常见的无地区代码补默认地区（`en` → `en_US`，`pt` → `pt_BR`），未知的无地区代码不输出该标签。页面还会按 hreflang 交替链接输出 `og:locale:alternate`。`site.language` 没有对应的 Open Graph locale 时警告 `seo.og_locale_region_missing`（即使 `strict` 也只是警告）。见 [SEO](docs/seo.md)。
+
+- **noindex 页面不再输出 hreflang**：noindex 页面不再输出 hreflang 交替链接（也不输出 `og:locale:alternate`）；可索引页面、sitemap 的 `xhtml:link` 和 `page.seo.alternates` 也不再列出 noindex 的翻译页或开启 `noindexWhenEmpty` 的空列表页。
+
+- **面包屑分类上级排在网址祖先之后**：开启 `site.seo.schema.breadcrumbParent` 时，BreadcrumbList 改为「首页 › 网址祖先 › 分类页 › 当前页」，不再把分类页放在网址祖先前面；分类页本身就是网址祖先时只出现一次。见 [11 I18n And SEO](guide/user/11-i18n-seo.md)。
+
+- **JSON-LD 语言与日期**：`WebSite` JSON-LD 用 `inLanguage` 写出 `site.language`，`WebPage`/`CollectionPage` 写出页面语言。`datePublished`、`dateModified`、`dateReviewed` 改为按 `site.timezone` 输出、精确到秒（如 `2026-06-05T18:00:00+08:00`），不再使用往返格式。发布审计的 `publish.jsonld_date_mismatch` 按 JSON-LD 日期自带的时区比较发布时间所在的日期，同一时刻不再误报。
+
+- **sitemap 网址百分号编码**：sitemap 的 `<loc>` 和 `xhtml:link` 的 `href` 会按 RFC 3986 把主机之后的非 ASCII 字符和其他不允许出现在 URI 中的字符编码为 UTF-8 百分号形式（`/新闻/` → `/%E6%96%B0%E9%97%BB/`）。HTML 的 canonical 和 hreflang 标签不变。发布审计仍能查出出现在 sitemap 中的非 ASCII 网址 noindex 页面。
+
+- **图片尺寸与延迟加载**：启用 `theme.images.enabled` 时，Bukit 能读取尺寸的媒体图片在没有 `width` 和 `height` 时会按显示尺寸（经 EXIF 方向校正）补上这两项，没有 `loading` 属性时补 `loading="lazy"`；作者写的值一律不改。首屏图片（如头图封面）请设置 `loading="eager"`。媒体图片高度变化时增量构建会重新渲染相关页面；升级后的第一次增量构建会重新渲染含媒体图片的页面。见 [04 site.yaml Config](guide/user/04-site-yaml-config.md)。
+
+- **搜索页不再带 BOM**：`bukit-search.html` 以不带字节顺序标记（BOM）的 UTF-8 写出。
+
 ## [2.2.8] - 2026-11-23
 
 - **数据索引支持对象值**：`content.sources[].dataIndex` 的行新增值类型 `object`（一个映射）和 `object[]`（映射列表），模板可以读 `site.data_index.<源>.<scope>.<key>.<字段>`，声明了 `object` 的小程序 `dataIndex` 数据集也能拿到真正的对象。Markdown 行用 YAML 写值；Notion 行用 JSON 文本写值（解析不用反射，Native AOT 二进制可用）。布尔值和数字保留类型，所以 `if info.open` 遇到 `false` 为假，`info.days > 3` 按数字比较：Notion JSON 保留原有类型（JSON 字符串如 `"5"` 仍是文本）；Markdown 标量为 `true`/`false`（YAML 核心写法）时视为布尔值，写成 JSON 数字形式时视为数字，`0123`、`+60`、`yes` 等其他文本保持文本，在 Markdown 里加引号也不能让 `"5"` 保持文本。64 位范围内的整数存为整数，其他数字存为保留原始位数的小数（`12.50`），所以同样的值无论来自哪个源，构建出的模型和增量哈希都相同，小程序 `dataIndex` 数据集也会输出 JSON 布尔值和数字。键按序数排序且不能为空白，嵌套最多 8 层（每个映射或列表算一层），给 `object[]` 单个映射时视为只有一项的列表（与小程序 `object[]` 字段一致），超出 double 范围的数字、无效 JSON、重复键或形状不对都会导致构建失败，报错写明源、内容 id 和 `scope.key`。空的对象值是空映射或空列表；只含空值的映射或列表，`requiredKeys` 也视其为空。**行为变化**：`text`、`multiline`、`email`、`phone`、`url` 行如果值是 YAML 映射或列表，以前会静默构建并输出 .NET 类型名（`System.Collections.Generic.Dictionary...`），现在会构建失败；这些文本行里的数字和日期改为按固定区域格式化，不再随构建机器的区域设置变化。见 [07 多源数据](guide/user/07-multi-source-data.md#object-values)。

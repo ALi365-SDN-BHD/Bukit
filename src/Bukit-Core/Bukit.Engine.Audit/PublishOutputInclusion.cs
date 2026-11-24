@@ -1,4 +1,5 @@
 using Bukit.Engine.Abstractions.Plugins;
+using Bukit.Engine.Feeds;
 using Bukit.Engine.Primitives;
 
 namespace Bukit.Engine.Audit;
@@ -25,7 +26,7 @@ internal sealed class PublishOutputInclusion
         _projections = BuildProjections(projectionResults);
     }
 
-    internal static string SitemapLocNeedle(string canonical) => $"<loc>{canonical}</loc>";
+    internal static string SitemapLocNeedle(string canonical) => $"<loc>{SitemapUri.Encode(canonical)}</loc>";
 
     /// <summary>
     /// Same result as <c>outputText.Contains(needle, StringComparison.OrdinalIgnoreCase)</c> for

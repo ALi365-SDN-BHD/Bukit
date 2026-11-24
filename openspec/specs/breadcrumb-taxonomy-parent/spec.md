@@ -24,6 +24,10 @@ A blank value, or one that is not a taxonomy kind, SHALL fail validation.
 - **WHEN** `breadcrumbParent` is `categories` and post `/2596/` is listed under category "news"
 - **THEN** its BreadcrumbList is news › post (Home › news › post with `breadcrumbHome`)
 
+#### Scenario: Nested post URL in a category
+- **WHEN** `breadcrumbParent` is `categories` and post `/business/2596/` is listed under category "news"
+- **THEN** its BreadcrumbList is business › news › post: the term page follows the URL ancestors
+
 #### Scenario: Unset
 - **WHEN** neither option is configured
 - **THEN** BreadcrumbList output and incremental hashes are unchanged
