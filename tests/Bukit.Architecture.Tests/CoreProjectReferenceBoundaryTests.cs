@@ -16,8 +16,12 @@ public sealed class CoreProjectReferenceBoundaryTests
         string[] projects = Directory
             .EnumerateFiles(coreRoot, "*.csproj", SearchOption.AllDirectories)
             .ToArray();
-        // Plan §2 fixes the Core source-project count at 18; a count change must be reviewed with this guard.
-        Assert.Equal(18, projects.Length);
+        // Plan §2 fixes the Core source-project count at 19; a count change must be reviewed with this guard.
+        Assert.Equal(19, projects.Length);
+
+        var cloudBaseProject = projects.Single(project =>
+            Path.GetFileName(project).Equals("Bukit.CloudBase.csproj", StringComparison.Ordinal));
+        Assert.Empty(XDocument.Load(cloudBaseProject).Descendants("ProjectReference"));
 
         string[] offenders = projects
             .SelectMany(project => XDocument.Load(project)

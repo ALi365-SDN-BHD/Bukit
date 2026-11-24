@@ -21,6 +21,7 @@ public sealed class ConfigSchemaNestedContractTests
     private static readonly IReadOnlyDictionary<string, string[]> PathParameterSeeds = new Dictionary<string, string[]>(StringComparer.Ordinal)
     {
         ["ValidateNotion.path"] = ["content/sources[]/notion"],
+        ["ValidateCloudBase.path"] = ["content/sources[]/cloudbase"],
         ["ValidateFieldDefinitions.path"] = ["content/modelSchema/customFields", "content/modelSchema/fieldScopes/*"],
         ["ValidateReference.path"] =
         [
@@ -83,11 +84,15 @@ public sealed class ConfigSchemaNestedContractTests
         new("site/collections/*/filteredLists[]", "field", "operator", "value", "values", "listRoute", "title", "description", "listTemplate", "pageSize", "urlPattern", "emptyBehavior"),
         new("site/menus/*[]", "identifier", "name", "url", "weight", "children"),
         new("site/plugins/*", "enabled", "options"),
-        new("content/sources[]", "type", "name", "mode", "collection", "addToCollections", "markdown", "notion", "dataIndex"),
+        new("content/sources[]", "type", "name", "mode", "collection", "addToCollections", "markdown", "notion", "cloudbase", "dataIndex"),
         new("content/sources[]/markdown", "dir", "defaultType", "maxItems", "includePaths", "includeGlobs"),
         new("content/sources[]/notion", "databaseId", "pageSize", "maxItems", "renderContent", "renderConcurrency", "maxRps", "maxRetries", "fieldPolicy", "filterProperty", "filterType", "filterValue", "sortProperty", "sortDirection", "includeSlugs", "includeSlugProperty", "cacheMode", "cacheDir", "propertyMap"),
         new("content/sources[]/notion/fieldPolicy", "mode", "allowed"),
         new("content/sources[]/notion/propertyMap", "Title", "Slug", "Type", "PublishAt", "Language", "I18nKey", "Summary", "Collection", "SeoTitle", "SeoDescription", "SeoImage", "Canonical", "OriginalUrl", "References", "EntitiesJson", "Cover", "CoverAlt", "CoverCaption"),
+        new("content/sources[]/cloudbase", "envId", "region", "table", "idField", "pageSize", "maxItems", "filter", "sort", "titleField", "slugField", "publishAtField", "updatedAtField", "bodyField", "bodyFormat", "fieldPolicy", "fileFields", "storageBucket", "signExpiresSeconds", "cacheMode", "maxRps", "maxRetries"),
+        new("content/sources[]/cloudbase/filter", "field", "value"),
+        new("content/sources[]/cloudbase/sort", "field", "direction"),
+        new("content/sources[]/cloudbase/fieldPolicy", "mode", "allowed"),
         new("content/sources[]/dataIndex", "scopeField", "keyField", "valueField", "valueTypeField", "requiredKeys"),
         new("content/media", "downloadToLocal", "downloadDir", "urlBase", "defaultImageUrl", "fieldKeys", "maxConcurrency", "maxRetries", "timeoutMs", "maxFileSizeBytes", "blockPrivateNetworks", "retryBaseDelayMs", "onFailure", "downloadHosts", "skipHosts"),
         new("content/modelSchema", "contentTypes", "statuses", "reviewStatuses", "syncStatuses", "canonicalMappings", "customFields", "fieldScopes", "entityMappings", "relationMappings", "media", "rejectUnknownRawKeys", "requireSummary", "requireAuthor", "requireOrganization", "requireUpdatedAt", "requireProvenance", "requireReviewedAt", "requireMediaAlt", "requireMediaDescription", "requireMediaLicense", "requireEntityIds", "requireRelationTargets"),
@@ -151,6 +156,11 @@ public sealed class ConfigSchemaNestedContractTests
             ("content/sources[]/notion", "maxRps", 1, null),
             ("content/sources[]/notion", "maxRetries", 0, null),
             ("content/sources[]/markdown", "maxItems", 1, null),
+            ("content/sources[]/cloudbase", "pageSize", 1, 1000),
+            ("content/sources[]/cloudbase", "maxItems", 1, null),
+            ("content/sources[]/cloudbase", "signExpiresSeconds", 60, 3600),
+            ("content/sources[]/cloudbase", "maxRps", 1, null),
+            ("content/sources[]/cloudbase", "maxRetries", 0, null),
             ("taxonomy", "pageSize", 1, null)
         };
 
@@ -376,7 +386,7 @@ public sealed class ConfigSchemaNestedContractTests
         var failures = new List<string>();
         var declarations = MethodDeclarations(source);
 
-        foreach (var method in new[] { "ValidateNotion", "ValidateFieldDefinitions", "ValidateMenuItems" })
+        foreach (var method in new[] { "ValidateNotion", "ValidateCloudBase", "ValidateFieldDefinitions", "ValidateMenuItems" })
         {
             var actual = FindCallSitePaths(source, declarations, method);
             var expected = PathParameterSeeds[$"{method}.path"];

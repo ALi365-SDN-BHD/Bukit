@@ -81,6 +81,123 @@ internal static class HtmlMediaReferenceScanner
         return (IReadOnlyList<HtmlMediaReference>?)references ?? Array.Empty<HtmlMediaReference>();
     }
 
+    /// <summary>
+    /// Read-only deploy scan: every URL-bearing attribute value (quoted or unquoted), each srcset
+    /// candidate, and raw style attribute values. Reuses the same tag and attribute tokenizer as
+    /// <see cref="Find"/>; text nodes are never returned.
+    /// </summary>
+    internal static IReadOnlyList<string> EnumerateUrlAttributeValues(string html)
+    {
+        if (string.IsNullOrEmpty(html))
+        {
+            return [];
+        }
+
+        var values = new List<string>();
+        var span = html.AsSpan();
+        var length = html.Length;
+        var i = 0;
+        while (i < length)
+        {
+            var found = FindNextOpeningTag(html, span, ref i, out var nameEnd, out var tagEnd, out var tagName);
+            if (found < 0)
+            {
+                break;
+            }
+
+            if (found == 0)
+            {
+                continue;
+            }
+
+            if (html.AsSpan(nameEnd, tagEnd - nameEnd).IndexOf('=') >= 0)
+            {
+                List<HtmlMediaReference>? unused = null;
+                ScanAttributes(html, nameEnd, tagEnd, tagName, includeAllAnchorHrefs: false, ref unused, values);
+            }
+
+            i = tagEnd + 1;
+        }
+
+        return values;
+    }
+
+    /// <returns>-1 when no further tag starts, 0 when a '&lt;' was skipped, 1 when a tag was found.</returns>
+    private static int FindNextOpeningTag(
+        string html,
+        ReadOnlySpan<char> span,
+        ref int i,
+        out int nameEnd,
+        out int tagEnd,
+        out ReadOnlySpan<char> tagName)
+    {
+        nameEnd = 0;
+        tagEnd = 0;
+        tagName = default;
+        var length = html.Length;
+        var nextLt = span.Slice(i).IndexOf('<');
+        if (nextLt < 0)
+        {
+            return -1;
+        }
+
+        i += nextLt;
+        var tagStart = i + 1;
+        if (tagStart >= length || !IsTagNameStart(html[tagStart]))
+        {
+            i++;
+            return 0;
+        }
+
+        nameEnd = tagStart;
+        while (nameEnd < length && IsTagNameChar(html[nameEnd]))
+        {
+            nameEnd++;
+        }
+
+        tagName = html.AsSpan(tagStart, nameEnd - tagStart);
+        tagEnd = FindTagEnd(html, nameEnd);
+        return tagEnd >= 0 ? 1 : -1;
+    }
+
+    private static readonly HashSet<string> CollectedUrlAttributes = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "src", "href", "poster", "data-src", "action", "formaction", "cite", "data", "url",
+        "xlink:href", "content", "srcset", "style"
+    };
+
+    private static bool IsCollectedUrlAttribute(ReadOnlySpan<char> name)
+        => CollectedUrlAttributes.Contains(name.ToString());
+
+    private static void CollectUrlValueIfRequested(List<string>? urlValues, ReadOnlySpan<char> name, string value)
+    {
+        if (urlValues is null || !IsCollectedUrlAttribute(name))
+        {
+            return;
+        }
+
+        CollectUrlValue(name, value, urlValues);
+    }
+
+    private static void CollectUrlValue(ReadOnlySpan<char> name, string value, List<string> values)
+    {
+        if (name.Equals("srcset", StringComparison.OrdinalIgnoreCase))
+        {
+            foreach (var candidate in value.Split(','))
+            {
+                var url = candidate.Trim().Split(' ', 2)[0];
+                if (url.Length > 0)
+                {
+                    values.Add(url);
+                }
+            }
+
+            return;
+        }
+
+        values.Add(value);
+    }
+
     private static int FindTagEnd(string html, int from)
     {
         var length = html.Length;
@@ -118,7 +235,8 @@ internal static class HtmlMediaReferenceScanner
         int tagEnd,
         ReadOnlySpan<char> tagName,
         bool includeAllAnchorHrefs,
-        ref List<HtmlMediaReference>? references)
+        ref List<HtmlMediaReference>? references,
+        List<string>? urlValues = null)
     {
         var i = attrsStart;
         while (i < tagEnd)
@@ -167,15 +285,22 @@ internal static class HtmlMediaReferenceScanner
 
             if (i >= tagEnd) return;
 
-            // Parse value. Only quoted values are supported (matching the original regex).
+            // Parse value. Quoted values classify media references; the URL-attribute collector
+            // additionally records unquoted values (D11 needs them only in the deploy scan).
             var quote = html[i];
             if (quote != '"' && quote != '\'')
             {
-                // Unquoted value — skip to next whitespace or end of tag.
+                var unquotedStart = i;
                 while (i < tagEnd && !IsAsciiWhitespace(html[i]))
                 {
                     i++;
                 }
+
+                CollectUrlValueIfRequested(
+                    urlValues,
+                    attributeName,
+                    html.AsSpan(unquotedStart, i - unquotedStart).ToString());
+
                 continue;
             }
 
@@ -194,6 +319,8 @@ internal static class HtmlMediaReferenceScanner
 
             var valueLength = i - valueStart;
             i++; // consume closing quote.
+
+            CollectUrlValueIfRequested(urlValues, attributeName, html.Substring(valueStart, valueLength));
 
             if (TryClassify(tagName, attributeName, html, valueStart, valueLength, includeAllAnchorHrefs, out var kind))
             {

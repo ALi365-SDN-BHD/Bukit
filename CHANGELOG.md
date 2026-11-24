@@ -4,6 +4,8 @@ All notable changes to Bukit will be documented in this file.
 
 ## [Unreleased]
 
+- **CloudBase content source**: `content.sources[].type: cloudbase` reads a CloudBase PG-mode table or view through PostgREST, projects fields with hard-excluded personal columns, renders Markdown with the untrusted-link policy, signs `fileFields` objects and body `cloud://` images, and falls back to `content.media.defaultImageUrl` on file-resolution failures. The build privacy check rejects envId, `cloud://`, gateway/storage hosts and signed links; the deploy check rejects token-bearing signed links, `cloud://` in URL positions, and envId when configured. `doctor` checks the credential role, table reachability, RLS-empty results and storage signing. See [27 CloudBase Content](guide/user/27-cloudbase-content.md).
+
 - **Responsive variants for WebP images**: with `theme.images.enabled`, local static WebP images (for example covers and body images downloaded from Notion or WeChat) now get resized WebP candidates at the configured widths below their own width, and their `img` gets a `srcset`, as JPEG/PNG images already did. They are not wrapped in `<picture>`. Animated WebP, files whose name already ends in `-<width>w.webp`, and WebP files beside a JPEG/PNG of the same name are left as uploaded. WebP sources are always resized with SkiaSharp. Sites with WebP media gain the variant files and their freshness sidecars, the affected `img` tags gain `srcset` and `decoding="async"`, and the first incremental build after upgrading re-renders pages because the image fingerprint now includes WebP files. See [04 site.yaml Config](guide/user/04-site-yaml-config.md).
 
 ## [2.2.8] - 2026-11-23

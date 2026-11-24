@@ -9,6 +9,10 @@
       "project": "src/Bukit-Core/Bukit.Cli.Shared/Bukit.Cli.Shared.csproj"
     },
     {
+      "assembly": "Bukit.CloudBase",
+      "project": "src/Bukit-Core/Bukit.CloudBase/Bukit.CloudBase.csproj"
+    },
+    {
       "assembly": "Bukit.Config",
       "project": "src/Bukit-Core/Bukit.Config/Bukit.Config.csproj"
     },
@@ -7515,6 +7519,17 @@
         "public const Bukit.Shared.DiagnosticCode BuildCleanRefused = Bukit.Shared.DiagnosticCode.BuildCleanRefused [value=1539]",
         "public const Bukit.Shared.DiagnosticCode BuildOutputNoMarker = Bukit.Shared.DiagnosticCode.BuildOutputNoMarker [value=1538]",
         "public const Bukit.Shared.DiagnosticCode BuildOutputUnsafe = Bukit.Shared.DiagnosticCode.BuildOutputUnsafe [value=1537]",
+        "public const Bukit.Shared.DiagnosticCode CloudBaseAdminCredentialInUse = Bukit.Shared.DiagnosticCode.CloudBaseAdminCredentialInUse [value=3082]",
+        "public const Bukit.Shared.DiagnosticCode CloudBaseAuthFailed = Bukit.Shared.DiagnosticCode.CloudBaseAuthFailed [value=3075]",
+        "public const Bukit.Shared.DiagnosticCode CloudBaseConfigInvalid = Bukit.Shared.DiagnosticCode.CloudBaseConfigInvalid [value=3073]",
+        "public const Bukit.Shared.DiagnosticCode CloudBaseCredentialMissing = Bukit.Shared.DiagnosticCode.CloudBaseCredentialMissing [value=3074]",
+        "public const Bukit.Shared.DiagnosticCode CloudBaseFileResolveFailed = Bukit.Shared.DiagnosticCode.CloudBaseFileResolveFailed [value=3080]",
+        "public const Bukit.Shared.DiagnosticCode CloudBaseMediaLocalizationRequired = Bukit.Shared.DiagnosticCode.CloudBaseMediaLocalizationRequired [value=3081]",
+        "public const Bukit.Shared.DiagnosticCode CloudBaseNotFound = Bukit.Shared.DiagnosticCode.CloudBaseNotFound [value=3076]",
+        "public const Bukit.Shared.DiagnosticCode CloudBaseRateLimited = Bukit.Shared.DiagnosticCode.CloudBaseRateLimited [value=3077]",
+        "public const Bukit.Shared.DiagnosticCode CloudBaseRequestFailed = Bukit.Shared.DiagnosticCode.CloudBaseRequestFailed [value=3078]",
+        "public const Bukit.Shared.DiagnosticCode CloudBaseResponseInvalid = Bukit.Shared.DiagnosticCode.CloudBaseResponseInvalid [value=3079]",
+        "public const Bukit.Shared.DiagnosticCode CloudBaseUnsupportedFileReference = Bukit.Shared.DiagnosticCode.CloudBaseUnsupportedFileReference [value=3083]",
         "public const Bukit.Shared.DiagnosticCode ConfigDeprecatedField = Bukit.Shared.DiagnosticCode.ConfigDeprecatedField [value=5]",
         "public const Bukit.Shared.DiagnosticCode ConfigInvalidValue = Bukit.Shared.DiagnosticCode.ConfigInvalidValue [value=2]",
         "public const Bukit.Shared.DiagnosticCode ConfigPathTraversal = Bukit.Shared.DiagnosticCode.ConfigPathTraversal [value=4]",

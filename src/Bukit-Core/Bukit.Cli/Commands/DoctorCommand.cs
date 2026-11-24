@@ -420,6 +420,23 @@ public static class DoctorCommand
             }
         }
 
+        var cloudBaseSources = config.Content.Sources?
+            .Where(source => source.CloudBase is not null)
+            .ToArray() ?? [];
+        if (cloudBaseSources.Length > 0)
+        {
+            var cloudBaseErrors = 0;
+            foreach (var source in cloudBaseSources)
+            {
+                cloudBaseErrors += await DoctorCloudBaseChecker.CheckAsync(source.CloudBase!).ConfigureAwait(false);
+            }
+
+            if (cloudBaseErrors > 0)
+            {
+                return 1;
+            }
+        }
+
         IReadOnlyList<Bukit.Engine.Abstractions.Content.RoutedContentDocument> routedDocuments;
         try
         {

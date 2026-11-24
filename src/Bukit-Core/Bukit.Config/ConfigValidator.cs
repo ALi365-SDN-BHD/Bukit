@@ -85,6 +85,19 @@ public static class ConfigValidator
                     continue;
                 }
 
+                if (source.Type.Equals("cloudbase", StringComparison.OrdinalIgnoreCase))
+                {
+                    if (source.CloudBase is null)
+                    {
+                        throw new ConfigException(
+                            "content.sources[].cloudbase is required when type is cloudbase.",
+                            DiagnosticCode.CloudBaseConfigInvalid);
+                    }
+
+                    ProviderValidators.ValidateCloudBase(source.CloudBase, $"{sourcePath}.cloudbase", mode, config.Content.Media);
+                    continue;
+                }
+
                 if (source.Type.Equals("markdown", StringComparison.OrdinalIgnoreCase))
                 {
                     if (source.Markdown is null)

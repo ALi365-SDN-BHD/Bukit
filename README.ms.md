@@ -37,7 +37,7 @@ Bukit bukan platform SaaS, backend CMS penuh, pembina halaman visual, atau pengg
 ## Keupayaan Core 2.0
 
 - **Native AOT CLI**: permulaan pantas, memori rendah, dan edaran binari tunggal untuk Linux, macOS, dan Windows.
-- **Sumber kandungan**: provider langsung Core hanyalah Markdown dan Notion.
+- **Sumber kandungan**: provider langsung Core ialah Markdown, Notion dan CloudBase (jadual/paparan PostgreSQL).
 - **Nota-sebagai-CMS**: Obsidian dan aplikasi nota lain disokong melalui eksport serasi Markdown. Integrasi langsung Feishu, Yuque, dan pangkalan pengetahuan lain ialah kerja masa depan.
 - **Templat Scriban**: layout, partial, snippet, halaman koleksi, penomboran, taksonomi, dan output berbilang bahasa.
 - **Tema filesystem**: direktori tempatan `themes/<name>/` dengan layouts, assets, static files, dan manifest `theme.yaml` yang diwajibkan.
@@ -209,7 +209,7 @@ Labs skills berada di [`guide/labs-skills`](guide/labs-skills/README.md). Ia ber
 
 - arahan CLI yang disenaraikan dalam [Arahan Core CLI](#arahan-core-cli)
 - kontrak konfigurasi `content.sources[]`
-- provider Markdown dan Notion
+- provider Markdown, Notion dan CloudBase
 - eksport nota serasi Markdown melalui provider Markdown
 - `content.media`
 - penghalaan koleksi
@@ -241,7 +241,7 @@ Labs skills berada di [`guide/labs-skills`](guide/labs-skills/README.md). Ia ber
 | Keutamaan | Status |
 |---|---|
 | Binaan deterministik, keselamatan, kebenaran kontrak, audit | Laluan 2 - aktif |
-| Penerbitan dalaman Markdown/Notion | Laluan 2 - aktif |
+| Penerbitan dalaman Markdown/Notion/CloudBase | Laluan 2 - aktif |
 | Laman perusahaan sedia ada dan deploy terkawal | Laluan 3 - keutamaan |
 | Kebolehpercayaan, kebolehcerapan, pemudahan penyelenggaraan | Laluan 3 - keutamaan |
 | Pengembangan SSG umum dan integrasi meluas | Bukan objektif semasa |

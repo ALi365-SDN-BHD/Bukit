@@ -79,7 +79,7 @@ for platform in ["Linux", "Darwin", "MINGW64_NT-10.0", "MSYS_NT-10.0", "CYGWIN_N
     env = dict(os.environ, PATH=str(bin_dir) + os.pathsep + os.environ["PATH"], BUKIT_TEST_UNAME=platform)
     output = subprocess.check_output(["bash", "scripts/checks/coverage/list-core-projects.sh"], env=env, text=True)
     rows = dict(line.split("\t") for line in output.splitlines())
-    assert len(rows) == 13, rows
+    assert len(rows) == 14, rows
     cli_filter = rows.pop("tests/Bukit.Cli.Tests/Bukit.Cli.Tests.csproj")
     assert all(not value for value in rows.values()), rows
     if platform in ("Linux", "Darwin"):

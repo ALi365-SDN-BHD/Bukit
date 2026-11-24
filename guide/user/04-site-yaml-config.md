@@ -12,7 +12,7 @@ settings above the separator and remove it.
 | Section | Required | Purpose |
 |---|---:|---|
 | `site` | yes | Site identity, route rules, SEO/GEO, plugins, feed, sitemap detail, search, related content, and menus. |
-| `content` | yes | Markdown/Notion source list, media localization, and optional content model schema. |
+| `content` | yes | Markdown/Notion/CloudBase source list, media localization, and optional content model schema. |
 | `build` | no | Output directory, cleaning, draft mode, report behavior, fingerprinting, and language concurrency. |
 | `theme` | no | Local theme path, template roots, params, shortcodes, components, SCSS, image optimization, and component validation. |
 | `taxonomy` | no | Taxonomy kinds, output mode, page size, pin fields, and term injection. |
@@ -229,7 +229,7 @@ indexable false, and feeds keep emitting eligible content items.
 
 | Field | Default | Notes |
 |---|---|---|
-| `content.sources[].type` | required | Provider identifier: `markdown` or `notion`. It is unrelated to document metadata `type`. |
+| `content.sources[].type` | required | Provider identifier: `markdown`, `notion`, or `cloudbase`. It is unrelated to document metadata `type`. |
 | `content.sources[].name` | none | Unique source key when set; used by data modules. |
 | `content.sources[].mode` | `content` | `content` or `data`. |
 | `content.sources[].collection` | none | Required ownership for `mode: content` unless each item supplies a collection. A source value overrides item collection without changing item type. |
@@ -258,6 +258,7 @@ indexable false, and feeds keep emitting eligible content items.
 | `content.sources[].notion.cacheMode` | `off` | `off`, `readwrite`, or `readonly`. |
 | `content.sources[].notion.cacheDir` | none | Non-empty cache directory when set. |
 | `content.sources[].notion.propertyMap` | none | Uses `Title`, `Slug`, `Type`, `PublishAt`, `Language`, `I18nKey`, `Summary`, `Collection`, `SeoTitle`, `SeoDescription`, `SeoImage`, `Canonical`, `OriginalUrl`, `References`, `EntitiesJson`, `Cover`, `CoverAlt`, and `CoverCaption`. See [Notion Content](06-notion-content.md#canonical-source-entity-and-cover-mapping) for property types and structured values. |
+| `content.sources[].cloudbase` | required when `type: cloudbase` | Reads a CloudBase PG table or view; see [27 CloudBase Content](27-cloudbase-content.md). Key fields: `envId`, `region` (`cn`/`intl`), `table`, `idField`, `pageSize`, `bodyField`, `bodyFormat`, `fieldPolicy`, `fileFields`, `storageBucket`, `signExpiresSeconds`, `cacheMode`. |
 | `content.sources[].dataIndex.scopeField` | `scope` | Scope field for a `mode: data` scalar index. |
 | `content.sources[].dataIndex.keyField` | `key` | Key field for a `mode: data` scalar index. |
 | `content.sources[].dataIndex.valueField` | `value` | Scalar value field. |
@@ -384,6 +385,8 @@ downloaded again:
 | Google Cloud Storage V4 | `X-Goog-Signature` | `X-Goog-Algorithm`, `X-Goog-Credential`, `X-Goog-Date`, `X-Goog-Expires`, `X-Goog-SignedHeaders`, `X-Goog-Signature` |
 | AWS SigV2, GCS V2, CloudFront | `Signature` together with `AWSAccessKeyId`, `GoogleAccessId` or `Key-Pair-Id` | `Signature`, `Expires`, `Policy`, `AWSAccessKeyId`, `GoogleAccessId`, `Key-Pair-Id` |
 | Notion file proxy | host notion.so, *.notion.so or *.notion.site | `expirationTimestamp`, `signature` |
+| CloudBase gateway | host `*.api.tcloudbasegateway.com` or `*.api.intl.tcloudbasegateway.com` with path `/v1/storages/object/sign/` | `token` |
+| CloudBase storage CDN | host `*.storage.tcloudbase.com` | `token` |
 
 Parameter names match case-insensitively. All other parameters, such as S3
 `versionId` or image sizes, still select different files, and the download

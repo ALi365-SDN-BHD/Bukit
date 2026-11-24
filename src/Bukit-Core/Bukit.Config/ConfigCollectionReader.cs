@@ -536,6 +536,20 @@ internal static class ConfigCollectionReader
             };
         }
 
+        if (type.Equals("cloudbase", StringComparison.OrdinalIgnoreCase))
+        {
+            return new ContentSourceConfig
+            {
+                Type = "cloudbase",
+                Name = name,
+                Mode = mode,
+                Collection = collection,
+                AddToCollections = addToCollections,
+                CloudBase = SiteDefaultsApplier.ReadCloudBaseConfigFrom(sourceNode),
+                DataIndex = dataIndex
+            };
+        }
+
         return new ContentSourceConfig
         {
             Type = type,

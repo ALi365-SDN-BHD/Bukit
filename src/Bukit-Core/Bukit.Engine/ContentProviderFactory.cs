@@ -1,5 +1,6 @@
 using Bukit.Config;
 using Bukit.Content;
+using Bukit.Content.CloudBase;
 using Bukit.Engine.Abstractions.Content;
 using Bukit.Content.Media;
 using Bukit.Content.Markdown;
@@ -53,6 +54,17 @@ internal static class ContentProviderFactory
 
                     var renderContent = notion.RenderContent ?? mode != "data";
                     providers.Add((key, mode, s.Collection, s.AddToCollections, CreateNotionProvider(rootDir, notion, isCi, renderContent: renderContent, logger: logger, autoSummary: config.Site.AutoSummary, autoSummaryMaxLength: config.Site.AutoSummaryMaxLength)));
+                    continue;
+                }
+
+                if (type.Equals("cloudbase", StringComparison.OrdinalIgnoreCase))
+                {
+                    var cloudBase = s.CloudBase ??
+                        throw new ConfigException(
+                            "content.sources[].cloudbase is required when type is cloudbase.",
+                            DiagnosticCode.CloudBaseConfigInvalid);
+
+                    providers.Add((key, mode, s.Collection, s.AddToCollections, CreateCloudBaseProvider(config, cloudBase, mode, rootDir, logger)));
                     continue;
                 }
 
@@ -110,6 +122,61 @@ internal static class ContentProviderFactory
                 ownedLocalizer?.Dispose();
             }
         }
+    }
+
+    private static CloudBaseContentSource CreateCloudBaseProvider(
+        AppConfig config,
+        CloudBaseConfig cloudBase,
+        string mode,
+        string rootDir,
+        ILogger logger)
+    {
+        var publishableKey = SecretStore.Get("CLOUDBASE_PUBLISHABLE_KEY");
+        if (string.IsNullOrWhiteSpace(publishableKey))
+        {
+            throw new ConfigException(
+                "CLOUDBASE_PUBLISHABLE_KEY is required for cloudbase provider and must come from environment variables.",
+                DiagnosticCode.CloudBaseCredentialMissing);
+        }
+
+        if (cloudBase.FileFields.Count > 0 &&
+            MediaPlaceholderProbe.FindMissing(config, rootDir, logger) is { } missing)
+        {
+            throw new ConfigException(
+                $"cloudbase.fileFields requires the media placeholder image '{missing}' to exist.",
+                DiagnosticCode.CloudBaseConfigInvalid);
+        }
+
+        return new CloudBaseContentSource(
+            new CloudBaseContentSourceOptions
+            {
+                EnvId = cloudBase.EnvId,
+                Region = cloudBase.Region,
+                Table = cloudBase.Table,
+                IdField = cloudBase.IdField,
+                PageSize = cloudBase.PageSize,
+                MaxItems = cloudBase.MaxItems,
+                FilterField = cloudBase.Filter?.Field,
+                FilterValue = cloudBase.Filter?.Value,
+                SortField = cloudBase.Sort?.Field,
+                SortDirection = cloudBase.Sort?.Direction ?? "asc",
+                TitleField = cloudBase.TitleField,
+                SlugField = cloudBase.SlugField,
+                PublishAtField = cloudBase.PublishAtField,
+                UpdatedAtField = cloudBase.UpdatedAtField,
+                BodyField = cloudBase.BodyField,
+                Mode = mode,
+                FieldPolicyMode = cloudBase.FieldPolicy.Mode,
+                AllowedFields = cloudBase.FieldPolicy.Allowed,
+                PublishableKey = publishableKey,
+                StorageBucket = cloudBase.StorageBucket,
+                FileFields = cloudBase.FileFields,
+                DefaultImageUrl = config.Content.Media.DefaultImageUrl,
+                SignExpiresSeconds = cloudBase.SignExpiresSeconds,
+                MaxRps = cloudBase.MaxRps is > 0 ? cloudBase.MaxRps.Value : 5,
+                MaxRetries = cloudBase.MaxRetries ?? 3
+            },
+            logger: logger);
     }
 
     private static NotionContentSource CreateNotionProvider(string rootDir, NotionConfig notion, bool isCi, bool renderContent, ILogger logger, bool autoSummary = false, int autoSummaryMaxLength = 200)

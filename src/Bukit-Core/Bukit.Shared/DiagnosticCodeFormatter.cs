@@ -73,6 +73,18 @@ public static class DiagnosticCodeFormatter
             DiagnosticCode.NotionPinInvalid => "Notion pin: the pin file is invalid",
             DiagnosticCode.NotionPinSourceMissing => "Notion pin: a Notion source is not in the pin file",
 
+            DiagnosticCode.CloudBaseConfigInvalid => "CloudBase: the content source configuration is invalid",
+            DiagnosticCode.CloudBaseCredentialMissing => "CloudBase: the required credential is missing",
+            DiagnosticCode.CloudBaseAuthFailed => "CloudBase: authentication failed (HTTP 401 or 403)",
+            DiagnosticCode.CloudBaseNotFound => "CloudBase: the environment, table, or view was not found (HTTP 404)",
+            DiagnosticCode.CloudBaseRateLimited => "CloudBase: rate limited after retries (HTTP 429)",
+            DiagnosticCode.CloudBaseRequestFailed => "CloudBase: the request failed",
+            DiagnosticCode.CloudBaseResponseInvalid => "CloudBase: the response is invalid or too large",
+            DiagnosticCode.CloudBaseFileResolveFailed => "CloudBase: a file object could not be resolved",
+            DiagnosticCode.CloudBaseMediaLocalizationRequired => "CloudBase: media localization excludes the gateway or storage host",
+            DiagnosticCode.CloudBaseAdminCredentialInUse => "CloudBase: the credential looks like an admin key (service_role or an unreadable role)",
+            DiagnosticCode.CloudBaseUnsupportedFileReference => "CloudBase: an unsupported cloud:// file reference was dropped or degraded",
+
             _ => $"Diagnostic code: {Format(code)}"
         };
     }

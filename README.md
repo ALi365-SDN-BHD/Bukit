@@ -36,7 +36,7 @@ Bukit is not a SaaS platform, a full CMS backend, a visual page builder, or a re
 ## Core 2.0 Capabilities
 
 - **Native AOT CLI**: fast startup, low memory, single-binary distribution for Linux, macOS, and Windows.
-- **Content sources**: direct Core providers are Markdown and Notion.
+- **Content sources**: direct Core providers are Markdown, Notion, and CloudBase (PostgreSQL tables/views).
 - **Notes-as-CMS**: Obsidian and other notes apps are supported through Markdown-compatible exports. Feishu, Yuque, and other direct knowledge-base integrations are future work.
 - **Scriban templates**: layouts, partials, snippets, collection pages, pagination, taxonomy, and multilingual output.
 - **Filesystem themes**: local `themes/<name>/` directories with layouts, assets, static files, and a required `theme.yaml` manifest.
@@ -208,7 +208,7 @@ Labs skills live under [`guide/labs-skills`](guide/labs-skills/README.md). They 
 
 - CLI commands listed in [Core CLI Commands](#core-cli-commands)
 - `content.sources[]` config contract
-- Markdown and Notion providers
+- Markdown, Notion, and CloudBase providers
 - Markdown-compatible notes exports through the Markdown provider
 - `content.media`
 - collection routing
@@ -240,7 +240,7 @@ Labs skills live under [`guide/labs-skills`](guide/labs-skills/README.md). They 
 | Priority | Status |
 |---|---|
 | Deterministic build, safety, contract truth, audits | Route 2 - active |
-| Markdown/Notion internal publishing | Route 2 - active |
+| Markdown/Notion/CloudBase internal publishing | Route 2 - active |
 | Existing enterprise sites and controlled deployment | Route 3 - priority |
 | Reliability, observability, maintenance simplification | Route 3 - priority |
 | General SSG expansion and broad integrations | Not a current objective |

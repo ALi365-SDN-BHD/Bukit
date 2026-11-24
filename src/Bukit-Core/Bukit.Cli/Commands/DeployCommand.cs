@@ -139,6 +139,7 @@ public static class DeployCommand
             TokenEnv = tokenEnv,
             Repo = targetRepo,
             RepoSource = repoSource,
+            CloudBaseEnvId = ResolveCloudBaseEnvId(config),
             KeepHistory = deployConfig.KeepHistory,
             Force = force,
             Logger = logger
@@ -156,6 +157,11 @@ public static class DeployCommand
         logger.Error($"Deployment failed: {result.Error}");
         return 1;
     }
+
+    private static string? ResolveCloudBaseEnvId(AppConfig config)
+        => config.Content.Sources?
+            .FirstOrDefault(source => string.Equals(source.Type, "cloudbase", StringComparison.OrdinalIgnoreCase))?
+            .CloudBase?.EnvId;
 
     // Validates --token-env and --repo and resolves the target. Returns the first validation error, or null.
     private static string? ResolveDeployTarget(

@@ -115,9 +115,12 @@ any list, detail catalog or detail file.
 Image- and URL-typed fields and `src` and `href` attributes in bodies SHALL be absolute http(s)
 URLs under the site URL or the original external host. When a written image- or URL-typed field, or a body image, link or embed,
 still carries an expiring signature (`X-Amz-Signature`, `X-Amz-Credential`, `Signature` or
-`Expires` query parameter), the build SHALL fail with `SchemaValidationFailed` naming
-the dataset, record id and field. Links to pages that have mini-program detail records SHALL carry
-`data-bukit-id` with the target id.
+`Expires` query parameter), is a CloudBase PG storage signed link (a host matching
+`*.api.tcloudbasegateway.com` or `*.api.intl.tcloudbasegateway.com` with a path that starts with
+`/v1/storages/object/sign/`, or a host matching `*.storage.tcloudbase.com` with a `token` query
+parameter), or is a CloudBase `cloud://` reference, the build SHALL fail with
+`SchemaValidationFailed` naming the dataset, record id and field. Links to pages that have
+mini-program detail records SHALL carry `data-bukit-id` with the target id.
 
 #### Scenario: Localized Notion cover
 - **WHEN** an article's `cover` is a Notion file that image localization downloaded to `/assets/media/…`
@@ -134,6 +137,18 @@ the dataset, record id and field. Links to pages that have mini-program detail r
 #### Scenario: Internal link
 - **WHEN** an article body links to another article in the same `collection` dataset
 - **THEN** the link has an absolute `href` and a `data-bukit-id` equal to the target article's id
+
+#### Scenario: Unlocalized CloudBase signed link
+- **WHEN** a `records` dataset backed by a `cloudbase` source has an `image` field whose value is still `https://env-abc.api.tcloudbasegateway.com/v1/storages/object/sign/media/a.png?token=…`
+- **THEN** the build fails with `SchemaValidationFailed` naming that dataset, record and field
+
+#### Scenario: Unlocalized CloudBase CDN signed link
+- **WHEN** a `records` dataset has an `image` field whose value is still `https://env-abc.storage.tcloudbase.com/media/a.png?token=…`
+- **THEN** the build fails with `SchemaValidationFailed` naming that dataset, record and field
+
+#### Scenario: CloudBase compat reference in a body
+- **WHEN** a detail `body` still contains an image or link whose URL is `cloud://env-abc.media/a.png`
+- **THEN** the build fails with `SchemaValidationFailed` naming that dataset, record and field
 
 ### Requirement: Bodies use a mini-program safe HTML subset
 Detail and module `body` fields SHALL contain only the allowed tags and attributes defined by the

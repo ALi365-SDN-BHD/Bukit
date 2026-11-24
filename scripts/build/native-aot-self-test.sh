@@ -9,6 +9,8 @@ trap 'rm -rf -- "$scratch"' EXIT
 
 source scripts/build/native-aot-self-test.d/setup.sh
 
+create_fake_nuget "$scratch"
+
 output_root="$scratch/it's-safe"
 stale="$output_root/publish/linux-x64/stale.txt"
 mkdir -p "$(dirname "$stale")"
@@ -68,6 +70,16 @@ if FAKE_DOTNET_EMPTY=1 bash scripts/build/package-native-aot.sh \
   exit 1
 fi
 grep -F 'release CLI is missing or empty:' "$scratch/empty-publish.stderr" >/dev/null
+
+# A missing native asset must fail loudly, not produce an archive.
+missing_native_root="$scratch/missing-native"
+empty_nuget_root="$scratch/empty-nuget"
+mkdir -p "$missing_native_root" "$empty_nuget_root"
+if NUGET_PACKAGES="$empty_nuget_root" bash scripts/build/package-native-aot.sh   1.2.3 linux-x64 "$missing_native_root" Release   >"$scratch/missing-native.stdout" 2>"$scratch/missing-native.stderr"; then
+  echo "native-aot self-test: missing native asset unexpectedly succeeded" >&2
+  exit 1
+fi
+grep -F 'native AOT publish is missing libSkiaSharp.so' "$scratch/missing-native.stderr" >/dev/null
 
 for rid in linux-x64 linux-arm64 osx-arm64 osx-x64 win-x64; do
   for state in missing empty nonexec; do
@@ -138,7 +150,7 @@ python3 - "$windows_archive" <<'PY'
 import sys, zipfile
 with zipfile.ZipFile(sys.argv[1]) as archive:
     assert archive.testzip() is None
-    assert archive.namelist() == ['bukit.exe'], archive.namelist()
+    assert sorted(archive.namelist()) == ['bukit.exe', 'libSkiaSharp.dll'], archive.namelist()
     assert archive.read('bukit.exe') == b'native\n'
 PY
 

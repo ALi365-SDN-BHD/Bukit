@@ -21,7 +21,10 @@ internal static partial class PublicOutputPrivacyCheck
         var notionSources = config.Content.Sources?
             .Where(source => string.Equals(source.Type, "notion", StringComparison.OrdinalIgnoreCase) || source.Notion is not null)
             .ToArray() ?? [];
-        if (notionSources.Length == 0 && notionRecords.Count == 0)
+        var cloudBaseSources = config.Content.Sources?
+            .Where(source => string.Equals(source.Type, "cloudbase", StringComparison.OrdinalIgnoreCase) || source.CloudBase is not null)
+            .ToArray() ?? [];
+        if (notionSources.Length == 0 && notionRecords.Count == 0 && cloudBaseSources.Length == 0)
         {
             return new PublicOutputPrivacyCheckResult("not_applicable", []);
         }
@@ -31,6 +34,8 @@ internal static partial class PublicOutputPrivacyCheck
         {
             AddIdentifierTokens(sensitiveTokens, source.Notion?.DatabaseId);
         }
+
+        AddCloudBaseTokens(sensitiveTokens, cloudBaseSources);
 
         foreach (var record in notionRecords)
         {
@@ -111,6 +116,28 @@ internal static partial class PublicOutputPrivacyCheck
         return records;
     }
 
+    private static void AddCloudBaseTokens(HashSet<string> sensitiveTokens, IReadOnlyList<ContentSourceConfig> sources)
+    {
+        foreach (var source in sources)
+        {
+            var cloudBase = source.CloudBase;
+            AddIdentifierTokens(sensitiveTokens, cloudBase?.EnvId);
+            if (string.IsNullOrWhiteSpace(cloudBase?.EnvId))
+            {
+                continue;
+            }
+
+            sensitiveTokens.Add(cloudBase.EnvId);
+            sensitiveTokens.Add("cloud://");
+            var suffix = cloudBase.Region == "intl" ? ".api.intl.tcloudbasegateway.com" : ".api.tcloudbasegateway.com";
+            sensitiveTokens.Add(cloudBase.EnvId + suffix);
+            sensitiveTokens.Add(cloudBase.EnvId + ".storage.tcloudbase.com");
+            sensitiveTokens.Add(".api.tcloudbasegateway.com");
+            sensitiveTokens.Add(".api.intl.tcloudbasegateway.com");
+            sensitiveTokens.Add(".storage.tcloudbase.com");
+        }
+    }
+
     private static void AddIdentifierTokens(HashSet<string> tokens, string? value)
     {
         if (string.IsNullOrWhiteSpace(value))
@@ -154,6 +181,11 @@ internal static partial class PublicOutputPrivacyCheck
             }
 
             if (LineProviderMarkerRegex().IsMatch(line) || JsonProviderMarkerRegex().IsMatch(line))
+            {
+                return FilePrivacyScan.Leak;
+            }
+
+            if (CloudBaseSignedLinkRegex().IsMatch(line))
             {
                 return FilePrivacyScan.Leak;
             }
@@ -422,6 +454,9 @@ internal static partial class PublicOutputPrivacyCheck
 
     [GeneratedRegex("(?i)\"(?:source|sourceKey)\"\\s*:\\s*\"notion\"", RegexOptions.CultureInvariant)]
     private static partial Regex JsonProviderMarkerRegex();
+
+    [GeneratedRegex(@"(?i)(?:/v1/storages/object/sign/[^\s""'<>]*[?&]token=|\.storage\.tcloudbase\.com/[^\s""'<>]*[?&]token=)", RegexOptions.CultureInvariant)]
+    private static partial Regex CloudBaseSignedLinkRegex();
 
     [GeneratedRegex("(?im)^\\s*(?:[-*]\\s*)?(?:source|sourceKey)\\s*:\\s*[\"']?notion[\"']?\\s*$", RegexOptions.CultureInvariant)]
     private static partial Regex LineProviderMarkerRegex();

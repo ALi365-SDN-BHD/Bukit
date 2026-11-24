@@ -19,7 +19,8 @@ static site to `dist/` plus audit reports in `dist/.bukit/`.
    Labs skills only when the user explicitly asks for them.
 3. Every `site.yaml` key must exist: unknown keys fail. Check a key in `bukit-config`
    or `bukit config schema` before writing it.
-4. Never put secrets in `site.yaml`. Notion uses `NOTION_TOKEN`; deploy uses
+4. Never put secrets in `site.yaml`. Notion uses `NOTION_TOKEN`; CloudBase uses
+`CLOUDBASE_PUBLISHABLE_KEY`; deploy uses
    `GITHUB_TOKEN` or `--token-env`.
 5. Verify with commands, not assumptions: `bukit config check`, `bukit doctor`,
    `bukit build`, and the audits.

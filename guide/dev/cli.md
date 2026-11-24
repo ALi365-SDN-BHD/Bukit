@@ -73,6 +73,7 @@ minor line is BukitJalil's decision.
 | `--secrets-stdin` JSON, exit 2, no echo; deploy reads `--token-env` from it first | `SecretsStdinCliTests`; `GitHubPagesDeployProviderTests.DeployAsync_CustomTokenEnv_ResolvedFromSecretsStdinBeforeEnvironment` |
 | Offline snapshot 0B10/0B11; build 2 / check 1 / doctor 1 | `ProgramEntryPointTests.Main_BuildSnapshotError_WritesBktCodeAndExitTwo` (build 2); `NotionOfflineSnapshotCommandTests.ChangedDatabaseId_FailsConfigCheckDoctorAndBuildOffline` (check/doctor 1); `NotionOfflineSnapshotCommandTests.OptionMisuse_IsAnArgumentError` (doctor 1) |
 | Notion `BKT-0Bxx` codes and line-start output, including 0B18/0B19 | `NotionOfflineSnapshotCommandTests.Pin_MissingSourceOrInvalidFile_FailsWithItsCode`; `DiagnosticCodeFormatterTests` |
+| CloudBase `BKT-0Cxx` codes (`0C01`–`0C0B`) | `DiagnosticCodeFormatterTests` |
 | `event=content.source.loaded source=<name> count=<n>` in JSON `msg` | `BukitJalilContractTests.Build_JsonLog_EmitsContentSourceLoadedLinePerSource` |
 | `.bukit/seo-report.json` and `.bukit/geo-report.json` consumer fields | `BukitJalilContractTests.Build_SeoAndGeoReportsMatchConsumerSchema` |
 | `publish audit --dir` and `.bukit/publish-audit-report.json` `documents`/`issues` | `BukitJalilContractTests.PublishAudit_RealBuild_ReportMatchesDeployConsumerShape` |
@@ -103,6 +104,7 @@ minor line is BukitJalil's decision.
 | `--secrets-stdin` JSON, exit 2, no echo; deploy reads `--token-env` from it first | `SecretsStdinCliTests`; `GitHubPagesDeployProviderTests.DeployAsync_CustomTokenEnv_ResolvedFromSecretsStdinBeforeEnvironment` |
 | Offline snapshot 0B10/0B11; build 2 / check 1 / doctor 1 | `ProgramEntryPointTests.Main_BuildSnapshotError_WritesBktCodeAndExitTwo` (build 2); `NotionOfflineSnapshotCommandTests.ChangedDatabaseId_FailsConfigCheckDoctorAndBuildOffline` (check/doctor 1); `NotionOfflineSnapshotCommandTests.OptionMisuse_IsAnArgumentError` (doctor 1) |
 | Notion `BKT-0Bxx` codes and line-start output, including 0B18/0B19 | `NotionOfflineSnapshotCommandTests.Pin_MissingSourceOrInvalidFile_FailsWithItsCode`; `DiagnosticCodeFormatterTests` |
+| CloudBase `BKT-0Cxx` codes (`0C01`–`0C0B`) | `DiagnosticCodeFormatterTests` |
 | `event=content.source.loaded source=<name> count=<n>` in JSON `msg` | `BukitJalilContractTests.Build_JsonLog_EmitsContentSourceLoadedLinePerSource` |
 | `.bukit/seo-report.json` and `.bukit/geo-report.json` consumer fields | `BukitJalilContractTests.Build_SeoAndGeoReportsMatchConsumerSchema` |
 | `publish audit --dir` and `.bukit/publish-audit-report.json` `documents`/`issues` | `BukitJalilContractTests.PublishAudit_RealBuild_ReportMatchesDeployConsumerShape` |

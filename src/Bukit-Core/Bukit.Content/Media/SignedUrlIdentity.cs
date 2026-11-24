@@ -29,6 +29,8 @@ internal static class SignedUrlIdentity
 
     private static readonly string[] NotionParameters = ["expirationTimestamp", "signature"];
 
+    private const string CloudBaseSignPath = "/v1/storages/object/sign/";
+
     /// <summary>The escaped request target (no fragment), as sent on the wire.</summary>
     internal static string RequestTarget(Uri uri)
         => uri.GetComponents(UriComponents.HttpRequestUrl, UriFormat.UriEscaped);
@@ -70,6 +72,11 @@ internal static class SignedUrlIdentity
         if (IsNotionHost(uri.Host))
         {
             removed.UnionWith(NotionParameters);
+        }
+
+        if (IsCloudBaseGateway(uri) || IsCloudBaseStorageHost(uri.Host))
+        {
+            removed.Add("token");
         }
 
         if (removed.Count == 0 || !names.Any(removed.Contains))
@@ -194,4 +201,12 @@ internal static class SignedUrlIdentity
         => host.Equals("notion.so", StringComparison.OrdinalIgnoreCase) ||
            host.EndsWith(".notion.so", StringComparison.OrdinalIgnoreCase) ||
            host.EndsWith(".notion.site", StringComparison.OrdinalIgnoreCase);
+
+    private static bool IsCloudBaseGateway(Uri uri)
+        => (uri.Host.EndsWith(".api.tcloudbasegateway.com", StringComparison.OrdinalIgnoreCase) ||
+            uri.Host.EndsWith(".api.intl.tcloudbasegateway.com", StringComparison.OrdinalIgnoreCase)) &&
+           uri.AbsolutePath.StartsWith(CloudBaseSignPath, StringComparison.Ordinal);
+
+    private static bool IsCloudBaseStorageHost(string host)
+        => host.EndsWith(".storage.tcloudbase.com", StringComparison.OrdinalIgnoreCase);
 }

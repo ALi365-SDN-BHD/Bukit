@@ -175,7 +175,7 @@ public sealed partial class GitHubPagesDeployProvider : IDeployProvider
                 await File.WriteAllTextAsync(cnamePath, cname, ct);
             }
 
-            var privacyErrors = DeploymentPrivacyValidator.Validate(context.OutputDir, checkoutDir);
+            var privacyErrors = DeploymentPrivacyValidator.Validate(context.OutputDir, checkoutDir, context.CloudBaseEnvId);
             if (privacyErrors.Count > 0)
             {
                 return new DeployResult

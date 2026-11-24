@@ -13,9 +13,10 @@ internal static partial class PublicContentProjectionPolicy
             return routeUrl;
         }
 
-        if (IsNotionRecord(record) &&
-            (ContainsNotionIdentifier(candidate) ||
-             string.Equals(candidate, record.Identity.Id, StringComparison.OrdinalIgnoreCase)))
+        if ((IsNotionRecord(record) &&
+             (ContainsNotionIdentifier(candidate) ||
+              string.Equals(candidate, record.Identity.Id, StringComparison.OrdinalIgnoreCase))) ||
+            (IsCloudBaseRecord(record) && ContainsCloudBaseIdentifier(candidate)))
         {
             return routeUrl;
         }
@@ -25,6 +26,24 @@ internal static partial class PublicContentProjectionPolicy
 
     internal static IReadOnlyList<EntityRecord> SanitizeEntities(ContentRecord record)
     {
+        if (IsCloudBaseRecord(record))
+        {
+            return
+            [
+                .. record.Entities
+                    .Where(entity => !ContainsCloudBaseIdentifier(entity.Name) &&
+                                     !ContainsCloudBaseIdentifier(entity.Url))
+                    .Select(entity => entity with
+                    {
+                        Id = SanitizeCloudBaseValue(entity.Id),
+                        Url = SanitizeCloudBaseValue(entity.Url),
+                        SameAs = entity.SameAs is null
+                            ? null
+                            : [.. entity.SameAs.Where(value => !ContainsCloudBaseIdentifier(value))]
+                    })
+            ];
+        }
+
         if (!IsNotionRecord(record))
         {
             return record.Entities;
@@ -45,6 +64,16 @@ internal static partial class PublicContentProjectionPolicy
 
     internal static IReadOnlyList<ContentRelation> SanitizeRelations(ContentRecord record)
     {
+        if (IsCloudBaseRecord(record))
+        {
+            return
+            [
+                .. record.Relations
+                    .Where(relation => !ContainsCloudBaseIdentifier(relation.Target))
+                    .Select(relation => relation with { TargetId = SanitizeCloudBaseValue(relation.TargetId) })
+            ];
+        }
+
         if (!IsNotionRecord(record))
         {
             return record.Relations;
@@ -64,6 +93,19 @@ internal static partial class PublicContentProjectionPolicy
 
     private static bool IsNotionRecord(ContentRecord record)
         => string.Equals(record.Provenance.Source, "notion", StringComparison.OrdinalIgnoreCase);
+
+    private static bool IsCloudBaseRecord(ContentRecord record)
+        => string.Equals(record.Provenance.Source, "cloudbase", StringComparison.OrdinalIgnoreCase);
+
+    internal static bool ContainsCloudBaseIdentifier(string? value)
+        => !string.IsNullOrWhiteSpace(value) &&
+           (value.Contains("cloud://", StringComparison.OrdinalIgnoreCase) ||
+            value.Contains(".api.tcloudbasegateway.com", StringComparison.OrdinalIgnoreCase) ||
+            value.Contains(".api.intl.tcloudbasegateway.com", StringComparison.OrdinalIgnoreCase) ||
+            value.Contains(".storage.tcloudbase.com", StringComparison.OrdinalIgnoreCase));
+
+    private static string? SanitizeCloudBaseValue(string? value)
+        => ContainsCloudBaseIdentifier(value) ? null : value;
 
     private static string? SanitizeOptionalValue(string? value)
         => ContainsNotionIdentifier(value) ? null : value;

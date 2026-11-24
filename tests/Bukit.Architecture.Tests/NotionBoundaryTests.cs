@@ -123,7 +123,7 @@ public sealed class NotionBoundaryTests
             .ToArray();
 
         Assert.Equal(
-            ["Bukit.Config", "Bukit.Engine.Abstractions", "Bukit.Notion", "Bukit.Shared"],
+            ["Bukit.CloudBase", "Bukit.Config", "Bukit.Engine.Abstractions", "Bukit.Notion", "Bukit.Shared"],
             references);
     }
 
@@ -212,20 +212,25 @@ public sealed class NotionBoundaryTests
         var repoRoot = FindRepoRoot();
         var coreRoot = Path.Combine(repoRoot, "src", "Bukit-Core");
         var notionRoot = Path.Combine(coreRoot, "Bukit.Notion") + Path.DirectorySeparatorChar;
-        var forbidden = new[]
-        {
-            "api.notion.com/v1",
-            "\"Notion-Version\"",
-            "AuthenticationHeaderValue(\"Bearer\"",
-            ".Headers.Authorization"
-        };
+        // CloudBase owns its own gateway transport, so the generic Bearer/Authorization tokens are allowed
+        // in CloudBaseClient only. Notion-specific tokens must still never appear in CloudBase.
+        var cloudBaseClient = Path.Combine(coreRoot, "Bukit.CloudBase", "Transport", "CloudBaseClient.cs");
+        var notionOnlyForbidden = new[] { "api.notion.com/v1", "\"Notion-Version\"" };
+        var bearerForbidden = new[] { "AuthenticationHeaderValue(\"Bearer\"", ".Headers.Authorization" };
 
         var violations = Directory.EnumerateFiles(coreRoot, "*.cs", SearchOption.AllDirectories)
             .Where(path => !path.StartsWith(notionRoot, StringComparison.Ordinal))
             .Where(path => !IsBuildOutput(path))
-            .SelectMany(path => forbidden
-                .Where(token => File.ReadAllText(path).Contains(token, StringComparison.Ordinal))
-                .Select(token => $"{Path.GetRelativePath(repoRoot, path)}: {token}"))
+            .SelectMany(path =>
+            {
+                var text = File.ReadAllText(path);
+                var tokens = path.Equals(cloudBaseClient, StringComparison.Ordinal)
+                    ? notionOnlyForbidden
+                    : [.. notionOnlyForbidden, .. bearerForbidden];
+                return tokens
+                    .Where(token => text.Contains(token, StringComparison.Ordinal))
+                    .Select(token => $"{Path.GetRelativePath(repoRoot, path)}: {token}");
+            })
             .Order(StringComparer.Ordinal)
             .ToArray();
 

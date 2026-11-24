@@ -15,7 +15,8 @@ public sealed class ConfigContractDriftTests
     private static readonly IReadOnlyDictionary<string, string> ShortConfigPathPrefixes = new Dictionary<string, string>(StringComparer.Ordinal)
     {
         ["markdown"] = "content.sources[].markdown",
-        ["notion"] = "content.sources[].notion"
+        ["notion"] = "content.sources[].notion",
+        ["cloudbase"] = "content.sources[].cloudbase"
     };
 
     private static readonly IReadOnlySet<string> NonSiteYamlReferencePrefixes = new HashSet<string>(StringComparer.Ordinal)
@@ -158,7 +159,7 @@ public sealed class ConfigContractDriftTests
         var strictFields = strictFieldName is null
             ? new HashSet<string>(StringComparer.Ordinal)
             {
-                "type", "name", "mode", "collection", "addToCollections", "markdown", "notion", "dataIndex"
+                "type", "name", "mode", "collection", "addToCollections", "markdown", "notion", "cloudbase", "dataIndex"
             }
             : GetStrictFieldSet(strictFieldName);
 
