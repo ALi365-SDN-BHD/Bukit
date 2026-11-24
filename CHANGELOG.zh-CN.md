@@ -16,11 +16,13 @@ Bukit 所有重要变更都将记录在此文件中。
 
 - **面包屑分类上级排在网址祖先之后**：开启 `site.seo.schema.breadcrumbParent` 时，BreadcrumbList 改为「首页 › 网址祖先 › 分类页 › 当前页」，不再把分类页放在网址祖先前面；分类页本身就是网址祖先时只出现一次。见 [11 I18n And SEO](guide/user/11-i18n-seo.md)。
 
-- **JSON-LD 语言与日期**：`WebSite` JSON-LD 用 `inLanguage` 写出 `site.language`，`WebPage`/`CollectionPage` 写出页面语言。`datePublished`、`dateModified`、`dateReviewed` 改为按 `site.timezone` 输出、精确到秒（如 `2026-06-05T18:00:00+08:00`），不再使用往返格式。发布审计的 `publish.jsonld_date_mismatch` 按 JSON-LD 日期自带的时区比较发布时间所在的日期，同一时刻不再误报。
+- **JSON-LD 语言与日期**：`WebSite` JSON-LD 用 `inLanguage` 写出 `site.language`，`WebPage`/`CollectionPage` 写出页面语言。`datePublished`、`dateModified`、`dateReviewed` 改为按 `site.timezone` 输出、精确到秒（如 `2026-06-05T18:00:00+08:00`），不再使用往返格式；`article:published_time`、`article:modified_time` meta 标签以及模板值 `page.seo.article.published_time`/`modified_time` 同样如此，sitemap 的 `<lastmod>` 也改为 `site.timezone` 下的日期。发布审计的 `publish.jsonld_date_mismatch` 按 JSON-LD 日期自带的时区比较发布时间所在的日期，同一时刻不再误报。
 
 - **sitemap 网址百分号编码**：sitemap 的 `<loc>` 和 `xhtml:link` 的 `href` 会按 RFC 3986 把主机之后的非 ASCII 字符和其他不允许出现在 URI 中的字符编码为 UTF-8 百分号形式（`/新闻/` → `/%E6%96%B0%E9%97%BB/`）。HTML 的 canonical 和 hreflang 标签不变。发布审计仍能查出出现在 sitemap 中的非 ASCII 网址 noindex 页面。
 
-- **图片尺寸与延迟加载**：启用 `theme.images.enabled` 时，Bukit 能读取尺寸的媒体图片在没有 `width` 和 `height` 时会按显示尺寸（经 EXIF 方向校正）补上这两项，没有 `loading` 属性时补 `loading="lazy"`；作者写的值一律不改。首屏图片（如头图封面）请设置 `loading="eager"`。媒体图片高度变化时增量构建会重新渲染相关页面；升级后的第一次增量构建会重新渲染含媒体图片的页面。见 [04 site.yaml Config](guide/user/04-site-yaml-config.md)。
+- **图片尺寸与延迟加载**：启用 `theme.images.enabled` 时，Bukit 能读取尺寸的媒体图片在没有 `width` 和 `height` 时会按显示尺寸（经 EXIF 方向校正）补上这两项，页面上除第一张以外的媒体图片在没有 `loading` 属性时补 `loading="lazy"`，第一张（通常是首屏最大的图片）仍立即加载；作者写的值一律不改。媒体图片高度变化时增量构建会重新渲染相关页面；升级后的第一次增量构建会重新渲染所有页面。见 [04 site.yaml Config](guide/user/04-site-yaml-config.md)。
+
+- **不再使用 ImageMagick**：响应式图片缩放和 AVIF 资源转换都不再调用 ImageMagick（`magick` 或 `convert`），即使已安装也不调用；AVIF 照旧跳过（`image_avif.skip`），但不再白跑一次转换；缩放一律使用内置的 SkiaSharp 编码器，无需任何外部图片工具。此前由 ImageMagick 生成的缩放变体会在下次构建时重新生成一次。见 [04 site.yaml Config](guide/user/04-site-yaml-config.md)。
 
 - **搜索页不再带 BOM**：`bukit-search.html` 以不带字节顺序标记（BOM）的 UTF-8 写出。
 

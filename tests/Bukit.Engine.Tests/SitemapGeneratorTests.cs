@@ -157,6 +157,33 @@ public sealed class SitemapGeneratorTests
         Assert.Contains("<lastmod>2024-07-02</lastmod>", sitemap, StringComparison.Ordinal);
     }
 
+    [Theory]
+    [InlineData(null, "2024-06-30")]
+    [InlineData(8, "2024-07-01")]
+    [InlineData(-8, "2024-06-30")]
+    public void GenerateAbsolute_LastModUsesTheSiteTimeZoneDate(int? offsetHours, string expected)
+    {
+        var outDir = Path.Combine(Path.GetTempPath(), "bukit-tests", Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(outDir);
+        var timeZone = offsetHours is { } hours
+            ? TimeZoneInfo.CreateCustomTimeZone("test", TimeSpan.FromHours(hours), "test", "test")
+            : null;
+
+        try
+        {
+            SitemapGenerator.GenerateAbsolute(
+                outDir,
+                [("https://example.com/", new DateTimeOffset(2024, 6, 30, 20, 0, 0, TimeSpan.Zero))],
+                timeZone);
+
+            Assert.Contains($"<lastmod>{expected}</lastmod>", File.ReadAllText(Path.Combine(outDir, "sitemap.xml")), StringComparison.Ordinal);
+        }
+        finally
+        {
+            Directory.Delete(outDir, recursive: true);
+        }
+    }
+
     [Fact]
     public void GenerateAbsoluteWithAlternates_HasXmlnsXhtml()
     {

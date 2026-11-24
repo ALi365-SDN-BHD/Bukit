@@ -147,12 +147,12 @@ internal static partial class SeoHtmlRenderer
 
         if (seo.Article.PublishedTime is { } published)
         {
-            WriteMetaProperty(sb, "article:published_time", published.ToString("O"));
+            WriteMetaProperty(sb, "article:published_time", SeoDateFormat.Format(published));
         }
 
         if (seo.Article.ModifiedTime is { } modified)
         {
-            WriteMetaProperty(sb, "article:modified_time", modified.ToString("O"));
+            WriteMetaProperty(sb, "article:modified_time", SeoDateFormat.Format(modified));
         }
 
         WriteMetaProperty(sb, "article:author", seo.Article.Author);

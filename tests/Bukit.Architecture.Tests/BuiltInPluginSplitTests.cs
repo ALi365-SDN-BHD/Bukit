@@ -2,7 +2,6 @@ using System.Reflection;
 using Bukit.Config;
 using Bukit.Engine;
 using Bukit.Engine.Abstractions.Plugins;
-using Bukit.Shared;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Xunit;
@@ -80,29 +79,24 @@ public sealed class BuiltInPluginSplitTests
         Assert.NotNull(Helper("DataFilesPlugin").GetField("_openDataFile", BindingFlags.Instance | BindingFlags.NonPublic));
     }
 
-    [Fact]
-    public void ImageExternalCalls_KeepTheRequiredCallerLogger()
+    [Theory]
+    [InlineData("ImageProcessingPlugin.cs")]
+    [InlineData("ImageProcessing/ImageVariantFreshness.cs")]
+    [InlineData("ImageProcessing/ImageVariantGenerator.cs")]
+    [InlineData("ImageProcessing/ImageVariantOwnership.cs")]
+    [InlineData("ImageProcessing/ImageVariantPlan.cs")]
+    [InlineData("ImageProcessing/ResponsiveImageHtmlTransform.cs")]
+    [InlineData("../../../Bukit.Engine.Assets/ImageOptimizer.cs")]
+    public void ImageProcessing_NeverStartsAnExternalProcess(string relativePath)
     {
-        var generator = Helper("ImageVariantGenerator");
-        var discovery = generator.GetMethod("FindResizeToolAsync", BindingFlags.Static | BindingFlags.NonPublic);
-        Assert.NotNull(discovery);
-        var parameter = discovery.GetParameters()[0];
-        Assert.Equal(typeof(ILogger), parameter.ParameterType);
-        Assert.False(parameter.IsOptional);
-        Assert.False(parameter.HasDefaultValue);
-        Assert.Equal(NullabilityState.NotNull, new NullabilityInfoContext().Create(parameter).ReadState);
-
-        var source = Source("ImageProcessing/ImageVariantGenerator.cs");
-        var calls = source.DescendantNodes().OfType<InvocationExpressionSyntax>()
-            .Where(call => call.Expression.ToString() == "ExternalToolProcessRunner.RunAsync").ToArray();
-        Assert.Equal(2, calls.Length);
-        Assert.All(calls, call => Assert.Equal(4, call.ArgumentList.Arguments.Count));
-        Assert.Equal(new[] { "context.Logger", "logger" }, calls.Select(call => call.ArgumentList.Arguments[2].Expression.ToString()));
-        var plugin = Source("ImageProcessingPlugin.cs");
-        var discoveryCall = Assert.Single(plugin.DescendantNodes().OfType<InvocationExpressionSyntax>(),
-            call => call.Expression.ToString().EndsWith("FindResizeToolAsync", StringComparison.Ordinal));
-        Assert.Equal("context.Logger", discoveryCall.ArgumentList.Arguments[0].Expression.ToString());
-        Assert.Equal(2, discoveryCall.ArgumentList.Arguments.Count);
+        // Resizing and asset optimization are SkiaSharp-only; no external image tool may be probed or run.
+        var identifiers = Source(relativePath).DescendantNodes().OfType<IdentifierNameSyntax>()
+            .Select(identifier => identifier.Identifier.ValueText).ToHashSet(StringComparer.Ordinal);
+        Assert.DoesNotContain("ExternalToolProcessRunner", identifiers);
+        Assert.DoesNotContain("ProcessStartInfo", identifiers);
+        Assert.DoesNotContain("Process", identifiers);
+        Assert.Null(Helper("ImageVariantGenerator").GetMethod(
+            "FindResizeToolAsync", BindingFlags.Static | BindingFlags.NonPublic));
     }
 
     private static Type Helper(string name)

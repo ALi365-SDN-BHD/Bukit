@@ -134,7 +134,7 @@ visible summary.
 
 Bukit builds a `SeoIndex` per final route, including content pages, derived pages, homepage, taxonomy pages, pagination pages, and collection/list pages. It uses that index as the policy source for sitemap, RSS, search index outputs, HTML SEO models, and diagnostics. A page with `robots: noindex` or `robots: none` is excluded from those outputs even if the theme forgets to render a robots meta tag.
 
-Canonical URLs are generated from `site.url + site.baseUrl + route.url` with normalized slashes. An explicit content `canonical` may be an absolute HTTP(S) URL or a root-relative path beginning with `/`. Root-relative paths resolve against `site.url + site.baseUrl`; a path that already starts with `baseUrl` is not prefixed twice, and a protocol-relative value resolves to HTTPS. Other relative forms are preserved and reported as `seo.canonical_relative`. Absolute off-site URLs remain unchanged. Open Graph locale values use underscore separators (`zh-CN` becomes `zh_CN`). A bare language gets its usual region for common languages (`en` becomes `en_US`, `zh` becomes `zh_CN`, `ms` becomes `ms_MY`; `zh-Hant` becomes `zh_TW`); any other bare language omits `og:locale` and is reported as `seo.og_locale_region_missing` (always a warning, including with `diagnostics: strict`) so a region can be added. Pages with `hreflang` alternates also list the other languages as `og:locale:alternate`. i18n alternate relationships become HTML `hreflang` links when related pages exist.
+Canonical URLs are generated from `site.url + site.baseUrl + route.url` with normalized slashes. An explicit content `canonical` may be an absolute HTTP(S) URL or a root-relative path beginning with `/`. Root-relative paths resolve against `site.url + site.baseUrl`; a path that already starts with `baseUrl` is not prefixed twice, and a protocol-relative value resolves to HTTPS. Other relative forms are preserved and reported as `seo.canonical_relative`. Absolute off-site URLs remain unchanged. Open Graph locale values use underscore separators (`zh-CN` becomes `zh_CN`). A bare language gets its usual region for common languages (`en` becomes `en_US`, `zh` becomes `zh_CN`, `ms` becomes `ms_MY`; `zh-Hant` becomes `zh_TW`); any other bare language omits `og:locale` and is reported as `seo.og_locale_region_missing` (always a warning, including with `diagnostics: strict`) so a region can be added. Pages with `hreflang` alternates also list the other languages as `og:locale:alternate`. i18n alternate relationships become HTML `hreflang` links when related pages exist. A noindex page emits no `hreflang` links (nor `og:locale:alternate`), and noindex translations, including empty lists made noindex by `noindexWhenEmpty` or `minimumItems`, are left out of other pages' `hreflang` links, the sitemap's `xhtml:link` entries, and `page.seo.alternates`.
 
 When GEO is enabled and `renderMode` is `inject`, indexable content pages also get `<link rel="alternate" type="text/markdown">` and `type="application/json"` links to their `content/<output path>.md` and `.json` versions, and `llms.txt` links `agent-manifest.json` in its `## Optional` section. See `guide/user/17-geo.md`.
 
@@ -212,7 +212,10 @@ Bukit emits JSON-LD through JSON serialization rather than template string conca
 `WebSite` names `site.language` in `inLanguage`; `WebPage`/`CollectionPage` and
 article nodes name the page's language, falling back to `site.language`.
 `datePublished`, `dateModified` and `dateReviewed` are written at second
-precision in `site.timezone`, for example `2026-06-05T18:00:00+08:00`.
+precision in `site.timezone`, for example `2026-06-05T18:00:00+08:00`, and so
+are the `article:published_time` and `article:modified_time` meta tags and the
+`page.seo.article.published_time`/`modified_time` template values. Sitemap
+`<lastmod>` is the date in `site.timezone` (default `Asia/Shanghai`).
 
 Migration note: existing sites that relied only on the historical default
 `searchAction: true` now emit no SearchAction. Add `site.search.route` only after

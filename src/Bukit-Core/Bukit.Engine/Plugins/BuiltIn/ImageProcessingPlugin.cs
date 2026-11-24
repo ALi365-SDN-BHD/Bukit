@@ -16,7 +16,6 @@ namespace Bukit.Engine.Plugins.BuiltIn;
 internal sealed class ImageProcessingPlugin : IBukitPlugin, IAfterBuildAsyncPlugin, IHtmlTransformPlugin
 {
     private readonly AppConfig _config;
-    private readonly ImageVariantGenerator _generator = new();
 
     internal ImageProcessingPlugin(AppConfig config)
     {
@@ -83,17 +82,6 @@ internal sealed class ImageProcessingPlugin : IBukitPlugin, IAfterBuildAsyncPlug
             priorPluginOutputs,
             cancellationToken);
 
-        string? tool = null;
-        if (resizePlans.Count > 0)
-        {
-            tool = await FindResizeToolAsync(context.Logger, cancellationToken);
-            if (tool is null)
-            {
-                context.Logger.Info("event=image_processing.fallback tool=skiasharp");
-            }
-        }
-        var toolIdentity = tool is null ? SkiaSharpResizeIdentity : $"{tool}-auto-orient-v1";
-
         // HTML srcset is planned from source widths, so every planned variant is
         // referenced by pages. Collect failures and fail the plugin after the run
         // instead of publishing pages that point at missing files.
@@ -105,8 +93,6 @@ internal sealed class ImageProcessingPlugin : IBukitPlugin, IAfterBuildAsyncPlug
             context,
             resizePlans,
             quality,
-            tool,
-            toolIdentity,
             priorPluginOutputs,
             generatedOutputs,
             sourceHashes,
@@ -116,7 +102,7 @@ internal sealed class ImageProcessingPlugin : IBukitPlugin, IAfterBuildAsyncPlug
 
         if (webpEnabled)
         {
-            var webpSrcsets = await _generator.GenerateWebpVariantsAsync(
+            var webpSrcsets = await GenerateWebpVariantsAsync(
                 context,
                 [.. imageFiles.Where(file => !ImageVariantPlan.IsWebpSource(file))],
                 sourceWidths,
@@ -165,7 +151,7 @@ internal sealed class ImageProcessingPlugin : IBukitPlugin, IAfterBuildAsyncPlug
         throw new InvalidOperationException(
             $"Image variant generation failed for {count} file(s): {sample}{more}. " +
             "Pages reference these variants, so publishing would serve broken images. " +
-            "Fix the image tool or source files, or set site.pluginFailMode: warn to publish anyway.");
+            "Fix the source files, or set site.pluginFailMode: warn to publish anyway.");
     }
 
     private static (Dictionary<string, IReadOnlyList<int>> ResizePlans, Dictionary<string, int> SourceWidths) PlanResizes(
@@ -213,12 +199,10 @@ internal sealed class ImageProcessingPlugin : IBukitPlugin, IAfterBuildAsyncPlug
         return (resizePlans, sourceWidths);
     }
 
-    private async Task GenerateResizedVariantsAsync(
+    private static async Task GenerateResizedVariantsAsync(
         BuildContext context,
         IReadOnlyDictionary<string, IReadOnlyList<int>> resizePlans,
         int quality,
-        string? tool,
-        string toolIdentity,
         HashSet<PluginOutputTrackingInfo> priorPluginOutputs,
         HashSet<PluginOutputTrackingInfo> generatedOutputs,
         Dictionary<string, string> sourceHashes,
@@ -244,24 +228,17 @@ internal sealed class ImageProcessingPlugin : IBukitPlugin, IAfterBuildAsyncPlug
                     break;
                 }
 
-                var timedOut = await _generator.GenerateResizedVariantAsync(
+                await GenerateResizedVariantAsync(
                     context,
                     imageFile,
                     sourceInfo,
                     sourceSha256,
                     size,
                     quality,
-                    tool,
-                    toolIdentity,
                     priorPluginOutputs,
                     generatedOutputs,
                     failures,
                     cancellationToken);
-                if (timedOut)
-                {
-                    tool = null;
-                    toolIdentity = SkiaSharpResizeIdentity;
-                }
             }
         }
     }

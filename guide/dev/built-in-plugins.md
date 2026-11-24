@@ -49,10 +49,13 @@ Built-in Engine and WeChat conversion apply display orientation and normalize
 profiled colors to sRGB. WeChat preserves PNG alpha and unassociated RGB colors
 when size limits require JPEG fallback.
 PNG eXIf orientation is read with bounded metadata/CRC checks in either byte order.
-External resizing applies `-auto-orient` before `-resize`. Updated encoder/tool
-identities regenerate older owned variants under these orientation semantics.
+Original-format resizing always uses SkiaSharp and never starts an external
+process; ImageMagick is not used even when it is on PATH. Updated encoder
+identities, including the former ImageMagick identities, regenerate older owned
+variants once under these orientation semantics.
 SkiaSharp supplies macOS/Windows native assets; the Linux NoDependencies native
-package is included by both Content and WeChat. WebP generation needs no PATH tool.
+package is included by both Content and WeChat. Resizing and WebP generation need
+no PATH tool.
 
 ## Data Files
 

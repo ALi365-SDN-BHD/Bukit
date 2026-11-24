@@ -101,8 +101,8 @@ internal static class SeoModelBuilder
             },
             Article = new SeoArticleModel
             {
-                PublishedTime = isArticle ? record.Lifecycle.PublishedAt : null,
-                ModifiedTime = isArticle ? updated : null,
+                PublishedTime = isArticle ? InSiteTimeZone(record.Lifecycle.PublishedAt, config) : null,
+                ModifiedTime = isArticle ? InSiteTimeZone(updated, config) : null,
                 Author = isArticle ? resolvedAuthor.Primary?.Name ?? resolvedAuthor.TextByline : null,
                 AuthorType = isArticle ? resolvedAuthor.Primary?.SchemaType : null,
                 Tags = isArticle ? tags : Array.Empty<string>()
@@ -273,6 +273,10 @@ internal static class SeoModelBuilder
     }
 
     internal static string BuildListAlternateKey(RouteInfo route) => $"route:{route.Url}";
+
+    // Article times use the site's time zone, as JSON-LD dates do (same instant, local offset).
+    private static DateTimeOffset? InSiteTimeZone(DateTimeOffset? value, AppConfig config)
+        => value is { } instant ? TimeZoneInfo.ConvertTime(instant, TimeZoneResolver.ResolveOrUtc(config.Site.Timezone)) : null;
 
     // A page search engines must not index lists no hreflang alternates (they would point
     // indexable pages at it or offer it as a translation).

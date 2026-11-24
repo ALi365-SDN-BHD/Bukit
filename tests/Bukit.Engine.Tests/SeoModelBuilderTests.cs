@@ -258,7 +258,7 @@ public sealed class SeoModelBuilderTests
     }
 
     [Fact]
-    public void BuildForContent_JsonLd_DatesUseSiteTimeZoneAtSecondPrecisionAndNodesNameLanguage()
+    public void BuildForContent_JsonLdAndArticleMeta_DatesUseSiteTimeZoneAtSecondPrecisionAndNodesNameLanguage()
     {
         var config = CreateConfig() with { Site = CreateConfig().Site with { Language = "en", Timezone = "Asia/Kuala_Lumpur" } };
         var item = ContentDocument.Create(
@@ -283,6 +283,8 @@ public sealed class SeoModelBuilderTests
         Assert.Equal("2026-06-07T07:30:45+08:00", Node("BlogPosting").GetProperty("dateModified").GetString());
         Assert.Equal("en", Node("WebSite").GetProperty("inLanguage").GetString());
         Assert.Equal("ms-MY", Node("WebPage").GetProperty("inLanguage").GetString());
+        var head = SeoHtmlRenderer.RenderHead(model);
+        Assert.Contains("property=\"article:published_time\" content=\"2026-06-05T18:00:00+08:00\"", head, StringComparison.Ordinal);
     }
 
     [Fact]

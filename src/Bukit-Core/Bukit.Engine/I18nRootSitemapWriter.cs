@@ -1,3 +1,4 @@
+using Bukit.Config;
 using Bukit.Engine.Plugins.BuiltIn;
 using Bukit.Shared;
 
@@ -88,7 +89,10 @@ internal sealed class I18nRootSitemapWriter : II18nRootProjectionWriter
             }
         }
 
-        SitemapGenerator.GenerateAbsoluteWithAlternates(context.OutputDir, entries);
+        SitemapGenerator.GenerateAbsoluteWithAlternates(
+            context.OutputDir,
+            entries,
+            TimeZoneResolver.ResolveOrUtc(context.Config.Site.Timezone));
     }
 
     private static IReadOnlyList<SitemapGenerator.Alternate>? BuildAlternates(
