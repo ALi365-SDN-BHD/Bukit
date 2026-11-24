@@ -151,7 +151,7 @@ public sealed class ImageOptimizerTests
     }
 
     [Fact]
-    public async Task OptimizeIfEnabled_AvifDoesNotProbeOrInvokeCwebp()
+    public async Task OptimizeIfEnabled_AvifDoesNotProbeOrInvokeAnyConverter()
     {
         RequireUnix();
         var root = CreateRoot();
@@ -172,6 +172,15 @@ public sealed class ImageOptimizerTests
                 for last in "$@"; do :; done
                 printf converted > "$last"
                 """);
+            foreach (var tool in new[] { "magick", "convert" })
+            {
+                WriteTool(toolDir, tool, """
+                    printf '%s\n' "$*" >> "$BUKIT_IMAGE_TOOL_LOG"
+                    for last in "$@"; do :; done
+                    printf converted > "$last"
+                    """);
+            }
+
             Environment.SetEnvironmentVariable("PATH", toolDir);
             Environment.SetEnvironmentVariable("BUKIT_IMAGE_TOOL_LOG", logPath);
 
