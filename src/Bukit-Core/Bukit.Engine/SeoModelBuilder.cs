@@ -88,7 +88,7 @@ internal static class SeoModelBuilder
                 Image = image,
                 Type = isArticle ? "article" : "website",
                 SiteName = config.Site.Title,
-                Locale = NormalizeOpenGraphLocale(config.Site.Language)
+                Locale = OpenGraphLocale.From(config.Site.Language)
             },
             Twitter = new SeoTwitterModel
             {
@@ -183,7 +183,7 @@ internal static class SeoModelBuilder
                 Image = image,
                 Type = "website",
                 SiteName = config.Site.Title,
-                Locale = NormalizeOpenGraphLocale(config.Site.Language)
+                Locale = OpenGraphLocale.From(config.Site.Language)
             },
             Twitter = new SeoTwitterModel
             {
@@ -253,11 +253,6 @@ internal static class SeoModelBuilder
 
         return BuildAbsoluteUrl(siteUrl, baseUrl, value);
     }
-
-    internal static string NormalizeOpenGraphLocale(string? language)
-        => string.IsNullOrWhiteSpace(language)
-            ? string.Empty
-            : language.Trim().Replace('-', '_');
 
     private static bool IsAlreadyPrefixed(string value, string baseUrl)
     {

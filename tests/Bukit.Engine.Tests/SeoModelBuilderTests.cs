@@ -1380,7 +1380,7 @@ public sealed class SeoModelBuilderTests
     }
 
     [Fact]
-    public void BuildForContent_KeepsBareLanguageAsOpenGraphLocale()
+    public void BuildForContent_GivesBareLanguageItsDefaultOpenGraphRegion()
     {
         var config = CreateConfig();
         config = config with { Site = config.Site with { Language = "en" } };
@@ -1395,6 +1395,6 @@ public sealed class SeoModelBuilderTests
 
         var model = SeoModelBuilder.BuildForContent(config, "/", item, route);
 
-        Assert.Equal("en", model.Og.Locale);
+        Assert.Equal("en_US", model.Og.Locale);
     }
 }

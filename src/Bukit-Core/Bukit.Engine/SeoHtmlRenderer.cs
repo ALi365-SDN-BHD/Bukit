@@ -140,6 +140,10 @@ internal static partial class SeoHtmlRenderer
         WriteMetaProperty(sb, "og:image", seo.Og.Image);
         WriteMetaProperty(sb, "og:site_name", seo.Og.SiteName);
         WriteMetaProperty(sb, "og:locale", seo.Og.Locale);
+        foreach (var alternateLocale in OpenGraphLocale.Alternates(seo.Og.Locale, seo.Alternates))
+        {
+            WriteMetaProperty(sb, "og:locale:alternate", alternateLocale);
+        }
 
         if (seo.Article.PublishedTime is { } published)
         {
