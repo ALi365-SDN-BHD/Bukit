@@ -56,6 +56,8 @@ internal static partial class CloudBaseDeployUrlScanner
 
     private static bool ContainsInJson(string json)
     {
+        // The caller only reaches this point after seeing "cloud://" in the text, so a file that
+        // cannot be parsed or decoded must not be reported clean.
         try
         {
             using var document = JsonDocument.Parse(json);
@@ -63,8 +65,6 @@ internal static partial class CloudBaseDeployUrlScanner
         }
         catch (JsonException)
         {
-            // The caller only reaches this point after seeing "cloud://" in the text.
-            // A file we cannot parse must not be reported clean.
             return true;
         }
     }
@@ -94,7 +94,15 @@ internal static partial class CloudBaseDeployUrlScanner
 
                 return false;
             case JsonValueKind.String:
-                return StartsWithCloud(element.GetString() ?? string.Empty);
+                try
+                {
+                    return StartsWithCloud(element.GetString() ?? string.Empty);
+                }
+                catch (InvalidOperationException)
+                {
+                    // A lone surrogate escape cannot be decoded; treat the value as unscanned.
+                    return true;
+                }
             default:
                 return false;
         }

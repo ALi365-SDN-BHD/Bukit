@@ -399,6 +399,24 @@ public sealed class CloudBaseContentSourceTests
         Assert.Equal("/ph.jpg", document.CustomFields!["cover"].Value);
     }
 
+    [Theory]
+    [InlineData("![a](cloud&#58;//env-abc.media/posts/a.png)")]
+    [InlineData("![a](cloud\\://env-abc.media/posts/a.png)")]
+    public async Task LoadRawAsync_EscapedBodyCloudImage_IsSigned(string body)
+    {
+        var api = new FakeCloudBaseApi();
+        api.Pages[0] = $$"""[{"id":"a1","title":"A","slug":"a","content":{{System.Text.Json.JsonSerializer.Serialize(body)}}}]""";
+        api.Total = 1;
+        var source = Create(api, options => options with { FileFields = ["cover"], StorageBucket = "media", DefaultImageUrl = "/ph.jpg" });
+
+        var result = await source.LoadRawAsync();
+
+        var document = Assert.Single(result.Documents);
+        var html = (await result.BodyStore.GetAsync(document)).Html;
+        Assert.Contains("https://env-abc.api.tcloudbasegateway.com/v1/storages/object/sign/media/posts/a.png?token=x", html, StringComparison.Ordinal);
+        Assert.DoesNotContain("cloud://", html, StringComparison.OrdinalIgnoreCase);
+    }
+
     [Fact]
     public async Task LoadRawAsync_InvalidBodyCloudImage_UsesPlaceholder()
     {

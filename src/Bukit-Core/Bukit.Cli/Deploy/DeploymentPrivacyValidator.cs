@@ -65,10 +65,13 @@ internal static partial class DeploymentPrivacyValidator
                     notionLeak = true;
                 }
 
+                // JSON that cannot be fully decoded is reported as an incomplete scan (below) rather
+                // than as a confirmed cloud:// leak; either way the deploy fails.
                 cloudBaseLeak =
                     HostSignedUrlRegex().IsMatch(text) ||
                     ContainsCloudBaseIdentifier(text, cloudBaseEnvIds) ||
-                    CloudBaseDeployUrlScanner.ContainsCloudReference(text, Path.GetExtension(path));
+                    (contentScan != FilePrivacyScan.Incomplete &&
+                     CloudBaseDeployUrlScanner.ContainsCloudReference(text, Path.GetExtension(path)));
             }
 
             if (notionLeak || contentScan == FilePrivacyScan.Leak || cloudBaseLeak)
@@ -238,9 +241,13 @@ internal static partial class DeploymentPrivacyValidator
 
     /// <summary>
     /// A gateway-host URL on the signed path, or a storage CDN host URL, with a <c>token</c>
-    /// parameter, in any <c>//</c> URL form (https, http, protocol-relative or another scheme).
+    /// parameter, in any <c>//</c> URL form (https, http, protocol-relative or another scheme). Slashes
+    /// may be JSON-escaped (<c>\/</c>), the host may carry a port, and the <c>&amp;</c> before
+    /// <c>token</c> may be written <c>\u0026</c> or as an HTML entity (<c>&amp;amp;</c>, <c>&amp;#38;</c>).
+    /// The URL ends at whitespace, a quote or an angle bracket, raw or JSON-escaped, so a
+    /// <c>token</c> outside the URL does not count.
     /// </summary>
-    [GeneratedRegex(@"(?i)//[a-z0-9.-]+\.(?:api(?:\.intl)?\.tcloudbasegateway\.com/v1/storages/object/sign/|storage\.tcloudbase\.com/)[^\s""'<>]*[?&]token=", RegexOptions.CultureInvariant)]
+    [GeneratedRegex(@"(?i)(?:\\?/){2}[a-z0-9.-]+\.(?:api(?:\.intl)?\.tcloudbasegateway\.com(?::\d{1,5})?\\?/v1\\?/storages\\?/object\\?/sign\\?/|storage\.tcloudbase\.com(?::\d{1,5})?\\?/)(?:[^\s""'<>\\]|\\/|\\u(?!0022|0027|003[ce])[0-9a-f]{4})*(?:[?&]|\\u0026|&(?:amp|#0*38|#x0*26);)token=", RegexOptions.CultureInvariant)]
     private static partial Regex HostSignedUrlRegex();
 
     private sealed record DeploymentIdentityTokens(bool ReportValid, HashSet<string> Tokens);

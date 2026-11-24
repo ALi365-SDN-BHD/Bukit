@@ -245,4 +245,14 @@ public sealed class CloudBaseBuildPrivacyTests : IDisposable
                 }
             ])
         };
+
+    [Theory]
+    [InlineData("""{"summary":"\ud83d","note":"cloud://docs"}""", true)]
+    [InlineData("""{"image":"cloud://env-abc.media/a.png""", true)]
+    [InlineData("""{"summary":"\ud83d","note":"see cloud://docs"}""", true)]
+    [InlineData("""{"summary":"ok","note":"see cloud://docs"}""", false)]
+    public void DeployUrlScanner_UndecodableJson_IsNotReportedClean(string json, bool expected)
+    {
+        Assert.Equal(expected, CloudBaseDeployUrlScanner.ContainsCloudReference(json, ".json"));
+    }
 }
