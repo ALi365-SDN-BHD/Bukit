@@ -65,6 +65,27 @@ public sealed record SiteConfig
     public RelatedConfig Related { get; init; } = new();
     public IReadOnlyDictionary<string, IReadOnlyList<MenuConfig>>? Menus { get; init; }
     public SharedAssetsConfig SharedAssets { get; init; } = new();
+    /// <summary>Per-language site identity, keyed by a <see cref="Languages"/> entry; applied to that language's build.</summary>
+    // JsonInclude: the i18n worktree protocol sends the config to language workers and hashes it.
+    [System.Text.Json.Serialization.JsonInclude]
+    internal IReadOnlyDictionary<string, SiteLanguageIdentityConfig>? I18n { get; init; }
+}
+
+/// <summary>Values that replace the top-level site identity in one language's build.</summary>
+internal sealed record SiteLanguageIdentityConfig
+{
+    public string? Title { get; init; }
+    public string? Description { get; init; }
+    /// <summary>Fields that replace the matching <c>site.seo.organization</c> fields; unset fields keep theirs.</summary>
+    public SiteLanguageOrganizationConfig? Organization { get; init; }
+}
+
+internal sealed record SiteLanguageOrganizationConfig
+{
+    public string? Name { get; init; }
+    public string? Url { get; init; }
+    public string? Logo { get; init; }
+    public IReadOnlyList<string>? SameAs { get; init; }
 }
 
 public sealed record SharedAssetsConfig
@@ -91,6 +112,21 @@ public sealed record SeoConfig
     public SeoRobotsTxtConfig RobotsTxt { get; init; } = new();
     public SeoSchemaConfig Schema { get; init; } = new();
     public SeoGeoConfig Geo { get; init; } = new();
+    /// <summary>Author profiles keyed (case-insensitively) by author name or <c>authoredBy</c> id.</summary>
+    // JsonInclude: the i18n worktree protocol sends the config to language workers and hashes it.
+    [System.Text.Json.Serialization.JsonInclude]
+    internal IReadOnlyDictionary<string, SeoAuthorProfileConfig>? Authors { get; init; }
+}
+
+/// <summary>A <c>site.seo.authors</c> entry: the structured-data profile of one author.</summary>
+internal sealed record SeoAuthorProfileConfig
+{
+    /// <summary>Display name for an <c>authoredBy</c> id; a text author keeps its own byline.</summary>
+    public string? Name { get; init; }
+    public string? Type { get; init; }
+    public string? Url { get; init; }
+    public string? Image { get; init; }
+    public IReadOnlyList<string> SameAs { get; init; } = [];
 }
 
 public sealed record SeoOrganizationConfig
@@ -167,6 +203,10 @@ public sealed record SeoSchemaConfig
     public bool BreadcrumbHome { get; init; }
     /// <summary>Taxonomy kind whose first term page becomes the breadcrumb parent of content pages.</summary>
     public string? BreadcrumbParent { get; init; }
+    /// <summary>Schema type of article pages that set none; defaults to BlogPosting.</summary>
+    // JsonInclude: the i18n worktree protocol sends the config to language workers and hashes it.
+    [System.Text.Json.Serialization.JsonInclude]
+    internal string? ArticleType { get; init; }
 }
 
 public sealed record SeoGeoConfig
@@ -202,6 +242,10 @@ public sealed record CollectionConfig
     public CollectionPaginationConfig Pagination { get; init; } = new();
     public CollectionOutputConfig Output { get; init; } = new();
     public IReadOnlyList<FilteredListConfig>? FilteredLists { get; init; }
+    /// <summary>From <c>seo.articleType</c>: overrides <see cref="SeoSchemaConfig.ArticleType"/> for this collection's articles.</summary>
+    // JsonInclude: the i18n worktree protocol sends the config to language workers and hashes it.
+    [System.Text.Json.Serialization.JsonInclude]
+    internal string? ArticleType { get; init; }
 }
 
 public sealed record CollectionIndexPolicyConfig
@@ -227,6 +271,7 @@ public sealed record PaginationGlobalConfig
 public sealed record CollectionOutputConfig
 {
     public bool Rss { get; init; } = true;
+    public bool? Feed { get; init; }
     public bool Sitemap { get; init; } = true;
     public bool Archive { get; init; }
     public string? FeedPath { get; init; }
@@ -589,6 +634,31 @@ public sealed record ImageOptimizationConfig
     public IReadOnlyList<string> Formats { get; init; } = new[] { "webp" };
     public IReadOnlyList<int> Sizes { get; init; } = new[] { 480, 768, 1200 };
     public int Quality { get; init; } = 80;
+    /// <summary>
+    /// CSS <c>sizes</c> value added beside a generated srcset when the author set none; lazy images
+    /// get <c>auto, </c> in front. Unset adds nothing.
+    /// </summary>
+    // JsonInclude: the i18n worktree protocol sends the config to language workers and hashes it.
+    [System.Text.Json.Serialization.JsonInclude]
+    internal string? SizesAttribute { get; init; }
+    /// <summary>
+    /// <c>none</c> drops the resized original-format variants (and the fallback img srcset) of JPEG/PNG
+    /// media images when WebP is generated; <c>all</c> (default) keeps them for browsers without WebP.
+    /// </summary>
+    // JsonInclude: the i18n worktree protocol sends the config to language workers and hashes it.
+    [System.Text.Json.Serialization.JsonInclude]
+    internal string FallbackVariants { get; init; } = ImageFallbackVariants.All;
+
+    /// <summary>True when JPEG/PNG media images get only WebP variants.</summary>
+    internal bool WebpOnlyVariants
+        => FallbackVariants == ImageFallbackVariants.None &&
+           Formats.Any(format => string.Equals(format, "webp", StringComparison.OrdinalIgnoreCase));
+}
+
+internal static class ImageFallbackVariants
+{
+    internal const string All = "all";
+    internal const string None = "none";
 }
 
 public sealed record TaxonomyConfig

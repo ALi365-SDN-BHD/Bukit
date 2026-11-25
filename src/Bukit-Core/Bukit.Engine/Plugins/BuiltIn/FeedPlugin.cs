@@ -103,7 +103,7 @@ internal sealed class FeedPlugin : IBukitPlugin, IAfterBuildPlugin
 
         foreach (var (key, cfg) in collections)
         {
-            if (!cfg.Output.Rss)
+            if (!CollectionFeedPolicy.WritesOwnFeed(collections, cfg))
             {
                 continue;
             }

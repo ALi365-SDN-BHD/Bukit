@@ -2272,6 +2272,133 @@ public sealed partial class SiteEngineIntegrationTests
     }
 
     [Fact]
+    public async Task BuildAsync_TermI18nKey_PairsLocalizedTermPagesAcrossLanguages()
+    {
+        var root = Path.Combine(Path.GetTempPath(), "bukit-term-i18n-test", Guid.NewGuid().ToString("N"));
+
+        try
+        {
+            Directory.CreateDirectory(root);
+            Directory.CreateDirectory(Path.Combine(root, "content"));
+            Directory.CreateDirectory(Path.Combine(root, "layouts", "layouts"));
+            Directory.CreateDirectory(Path.Combine(root, "layouts", "pages"));
+
+            File.WriteAllText(Path.Combine(root, "site.yaml"), """
+                site:
+                  name: i18n-seo
+                  title: I18n SEO
+                  url: https://example.com
+                  baseUrl: /
+                  languages: [en-US, ms-MY]
+                  defaultLanguage: en-US
+                  defaultLanguageInSubdir: true
+                  sitemapMode: merged
+                  collections:
+                    page:
+                      permalink: /pages/{slug}/
+                      template: pages/page.html
+                  seo:
+                    renderMode: inject
+                    diagnostics: strict
+                content:
+                  sources:
+                    - type: markdown
+                      name: page
+                      collection: page
+                      markdown:
+                        dir: content
+                  media:
+                    downloadToLocal: false
+                taxonomy:
+                  kinds:
+                    - key: tags
+                      kind: tags
+                      routePrefix: /topics/tags
+                build:
+                  output: dist
+                theme:
+                  layouts: layouts
+                """);
+            File.WriteAllText(Path.Combine(root, "content", "hello.en.md"), """
+                ---
+                type: page
+                collection: page
+                markdown:
+                  dir: content
+                title: Hello
+                slug: hello
+                language: en-US
+                i18nKey: hello
+                tags: [shared]
+                ---
+                # Hello
+                """);
+            File.WriteAllText(Path.Combine(root, "content", "hello.ms.md"), """
+                ---
+                type: page
+                collection: page
+                markdown:
+                  dir: content
+                title: Helo
+                slug: helo
+                language: ms-MY
+                i18nKey: hello
+                tags: [kongsi]
+                ---
+                # Helo
+                """);
+            File.WriteAllText(Path.Combine(root, "content", "solo.en.md"), """
+                ---
+                type: page
+                collection: page
+                markdown:
+                  dir: content
+                title: Solo
+                slug: solo
+                language: en-US
+                ---
+                # Solo
+                """);
+
+            foreach (var (slug, key) in new[] { ("shared", "shared-topic"), ("kongsi", "shared-topic") })
+            {
+                Directory.CreateDirectory(Path.Combine(root, "content", "_taxonomy", "tags", slug));
+                File.WriteAllText(Path.Combine(root, "content", "_taxonomy", "tags", slug, "_index.md"), $"---\ni18nKey: {key}\n---\n");
+            }
+
+            File.WriteAllText(Path.Combine(root, "layouts", "layouts", "base.html"), """
+                <!DOCTYPE html><html><head><title>{{ page.title }}</title></head><body>{{ content }}</body></html>
+                """);
+            File.WriteAllText(Path.Combine(root, "layouts", "pages", "page.html"), "{% layout \"layouts/base.html\" %}\n{{ page.content }}");
+            File.WriteAllText(Path.Combine(root, "layouts", "pages", "index.html"), "{% layout \"layouts/base.html\" %}\nIndex");
+            File.WriteAllText(Path.Combine(root, "layouts", "pages", "list.html"), "{% layout \"layouts/base.html\" %}\nList");
+            File.WriteAllText(Path.Combine(root, "layouts", "pages", "taxonomy-index.html"), "{% layout \"layouts/base.html\" %}\n{{ page.content }}");
+            File.WriteAllText(Path.Combine(root, "layouts", "pages", "taxonomy-term.html"), "{% layout \"layouts/base.html\" %}\n{{ page.content }}");
+
+            var config = ConfigLoader.Load(Path.Combine(root, "site.yaml"));
+            var logger = new TestLogger();
+            var engine = new SiteEngine(logger);
+            WriteTestThemeTemplates(root);
+            await engine.BuildAsync(config, root, new ConfigOverrides(), CancellationToken.None);
+
+            var enTag = File.ReadAllText(Path.Combine(root, "dist", "en-US", "topics", "tags", "shared", "index.html"));
+            Assert.Contains("hreflang=\"x-default\" href=\"https://example.com/en-US/topics/tags/shared/\"", enTag, StringComparison.Ordinal);
+            Assert.Contains("hreflang=\"ms-MY\" href=\"https://example.com/ms-MY/topics/tags/kongsi/\"", enTag, StringComparison.Ordinal);
+            var msTag = File.ReadAllText(Path.Combine(root, "dist", "ms-MY", "topics", "tags", "kongsi", "index.html"));
+            Assert.Contains("hreflang=\"en-US\" href=\"https://example.com/en-US/topics/tags/shared/\"", msTag, StringComparison.Ordinal);
+            Assert.Contains("hreflang=\"ms-MY\" href=\"https://example.com/ms-MY/topics/tags/kongsi/\"", msTag, StringComparison.Ordinal);
+
+            var sitemap = File.ReadAllText(Path.Combine(root, "dist", "sitemap.xml"));
+            Assert.Contains("hreflang=\"ms-MY\" href=\"https://example.com/ms-MY/topics/tags/kongsi/\"", sitemap, StringComparison.Ordinal);
+            Assert.Empty(logger.Errors);
+        }
+        finally
+        {
+            CleanupDir(root);
+        }
+    }
+
+    [Fact]
     public async Task BuildAsync_TaxonomyKindRoutePrefix_RendersBusinessPath()
     {
         var root = Path.Combine(Path.GetTempPath(), "bukit-taxonomy-route-prefix-test", Guid.NewGuid().ToString("N"));

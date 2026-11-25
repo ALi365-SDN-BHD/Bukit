@@ -63,7 +63,10 @@ a second language keeps the default-language URLs. With `true`, every language
 including the default builds into `dist/<lang>/` with base `<baseUrl>/<lang>`; sites
 that relied on the old prefixed default must set it to keep their URLs. In both layouts the
 root holds the aggregate files (sitemap, feeds, search index, `llms.txt`,
-`robots.txt`, `agent-manifest.json`).
+`robots.txt`, `agent-manifest.json`). Crawlers read only the host-root `robots.txt`, so no
+language directory gets its own copy. Each language keeps its own `404.html` (copied from
+its static directory): hosts that serve the nearest `404.html` up the path, such as
+Cloudflare Pages, show a localized error page; GitHub Pages uses only the root one.
 
 `defaultLanguageRedirect: true` (the default) writes a noindex redirect page so the
 home URL never 404s on static hosting: `dist/index.html` → `/<defaultLang>/` for the
@@ -141,7 +144,18 @@ site:
 
 Built when `site.url` is set and at least two languages share a group. `x-default`
 points to the default language. In SEO `inject` mode Core writes the links and removes
-theme-written ones; templates can read `page.seo.alternates`.
+theme-written ones; templates can read `page.seo.alternates`. Pages pair by `i18nKey`,
+else by URL. Localized term slugs pair through an `i18nKey` in
+`content/_taxonomy/<kind>/<slug>/_index.md` front matter (or on a `sourceKey: tags|categories`
+data document), matched by kind, key and page.
+
+## Site identity per language
+
+`site.i18n.<lang>` replaces `title`, `description` and `organization` (`name`, `url`,
+`logo`, `sameAs`; merged field by field over `site.seo.organization`) in that language's
+build: `<title>` suffix, `og:site_name`, JSON-LD, its feeds and `llms.txt`, `site.title`.
+The key must be a `site.languages` entry written the same way; needs 2+ languages. Root
+merged feed and root `llms.txt` keep the top-level values.
 
 ## UI strings
 

@@ -36,14 +36,11 @@ internal static class HtmlTextProjection
         return text.ToString().ReplaceLineEndings(" ").Trim();
     }
 
-    internal static string Sanitize(string html)
-    {
-        if (!html.Contains('<')) return html;
-        using var document = Parse(html);
-        return document.DocumentElement.InnerHtml;
-    }
-
-    private static IDocument Parse(string html)
+    /// <summary>
+    /// Parses body HTML with hidden content (script, style, template) replaced, raw-text elements turned
+    /// into literal text and href removed from anchors that were never explicitly closed. The caller disposes it.
+    /// </summary>
+    internal static IDocument Parse(string html)
     {
         var scriptEnds = new Dictionary<int, int>();
         var scripts = new List<(int Start, int Body)>();

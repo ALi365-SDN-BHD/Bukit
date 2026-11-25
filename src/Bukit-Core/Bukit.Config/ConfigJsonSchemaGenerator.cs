@@ -81,7 +81,8 @@ public static class ConfigJsonSchemaGenerator
             ("search", SearchDetailSchema()),
             ("related", RelatedSchema()),
             ("menus", MenusSchema()),
-            ("sharedAssets", SharedAssetsSchema()));
+            ("sharedAssets", SharedAssetsSchema()),
+            ("i18n", Obj(("type", "object"), ("additionalProperties", SiteLanguageIdentitySchema()))));
         return schema;
     }
 
@@ -194,7 +195,13 @@ public static class ConfigJsonSchemaGenerator
             ("organization", SeoOrganizationSchema()),
             ("robotsTxt", SeoRobotsTxtSchema()),
             ("schema", SeoSchemaDetailSchema()),
-            ("geo", SeoGeoSchema()))));
+            ("geo", SeoGeoSchema()),
+            ("authors", Obj(("type", "object"), ("additionalProperties", Obj(("type", "object"), ("properties", Obj(
+                ("name", Obj(("type", "string"), ("minLength", 1))),
+                ("type", CaseInsensitiveEnumSchema("Person", "Organization")),
+                ("url", Obj(("type", "string"), ("minLength", 1))),
+                ("image", StringSchema()),
+                ("sameAs", StringArraySchema()))))))))));
 
     private static JsonObject SeoRobotsTxtSchema()
         => Obj(("type", "object"), ("properties", Obj(
@@ -210,7 +217,11 @@ public static class ConfigJsonSchemaGenerator
             ("collectionPage", BoolSchema()),
             ("searchAction", BoolSchema()),
             ("breadcrumbHome", BoolSchema()),
-            ("breadcrumbParent", Obj(("type", "string"), ("minLength", 1))))));
+            ("breadcrumbParent", Obj(("type", "string"), ("minLength", 1))),
+            ("articleType", ArticleTypeSchema()))));
+
+    private static JsonObject ArticleTypeSchema()
+        => Obj(("type", "string"), ("pattern", "^(BlogPosting|[A-Za-z]*Article)$"));
 
     private static JsonObject SeoOrganizationSchema()
         => Obj(("type", "object"), ("properties", Obj(
@@ -421,6 +432,16 @@ public static class ConfigJsonSchemaGenerator
             ("enabled", BoolSchema(false)),
             ("paths", StringArraySchema()))));
 
+    private static JsonObject SiteLanguageIdentitySchema()
+        => Obj(("type", "object"), ("properties", Obj(
+            ("title", Obj(("type", "string"), ("minLength", 1))),
+            ("description", StringSchema()),
+            ("organization", Obj(("type", "object"), ("properties", Obj(
+                ("name", StringSchema()),
+                ("url", StringSchema()),
+                ("logo", StringSchema()),
+                ("sameAs", StringArraySchema()))))))));
+
     private static JsonObject MenusSchema()
         => Obj(
             ("type", "object"),
@@ -459,7 +480,9 @@ public static class ConfigJsonSchemaGenerator
             ("enabled", BoolSchema()),
             ("formats", StringArraySchema()),
             ("sizes", Obj(("type", "array"), ("items", IntSchema(1)))),
-            ("quality", IntSchema(0)))));
+            ("quality", IntSchema(0)),
+            ("sizesAttribute", Obj(("type", "string"), ("minLength", 1), ("pattern", "^\\s*(?![Aa][Uu][Tt][Oo])\\S"))),
+            ("fallbackVariants", EnumSchema("all", "none")))));
 
     private static JsonObject MediaSchema()
         => Obj(("type", "object"), ("properties", Obj(
@@ -599,7 +622,8 @@ public static class ConfigJsonSchemaGenerator
             ("indexPolicy", CollectionIndexPolicySchema()),
             ("pagination", CollectionPaginationSchema()),
             ("output", CollectionOutputSchema()),
-            ("filteredLists", Obj(("type", "array"), ("items", CollectionFilteredListItemSchema()))));
+            ("filteredLists", Obj(("type", "array"), ("items", CollectionFilteredListItemSchema()))),
+            ("seo", Obj(("type", "object"), ("properties", Obj(("articleType", ArticleTypeSchema()))))));
         return schema;
     }
 
@@ -618,6 +642,7 @@ public static class ConfigJsonSchemaGenerator
     private static JsonObject CollectionOutputSchema()
         => Obj(("type", "object"), ("properties", Obj(
             ("rss", BoolSchema()),
+            ("feed", BoolSchema()),
             ("sitemap", BoolSchema()),
             ("archive", BoolSchema()),
             ("feedPath", StringSchema()),

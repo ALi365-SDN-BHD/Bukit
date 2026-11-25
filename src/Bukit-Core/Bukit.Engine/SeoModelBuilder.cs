@@ -42,7 +42,9 @@ internal static class SeoModelBuilder
                         || IsTruthyField(fields, "seo_article")
                         || IsArticleContentType(record.Identity.ContentType)
                         || IsArticleContentType(record.Classification.Type);
-        schemaType = isArticle && string.IsNullOrWhiteSpace(schemaType) ? "BlogPosting" : schemaType;
+        schemaType = isArticle && string.IsNullOrWhiteSpace(schemaType)
+            ? DefaultArticleType(config.Site, record.Classification.Collection)
+            : schemaType;
         var isStructuredContent = isArticle || IsStructuredContentSchemaType(schemaType);
         var isCollectionPage = !isStructuredContent && IsCollectionLikePage(fields);
         var updated = record.Lifecycle.UpdatedAt;
@@ -274,6 +276,15 @@ internal static class SeoModelBuilder
 
     internal static string BuildListAlternateKey(RouteInfo route) => $"route:{route.Url}";
 
+    /// <summary>
+    /// A term page whose term declares an <c>i18nKey</c> pairs with the same kind, key and page in every language,
+    /// whatever its localized slug; any other list page pairs by URL.
+    /// </summary>
+    internal static string BuildListAlternateKey(ListRoutePlan route)
+        => route.TaxonomyContext is { IsIndex: false, I18nKey: { Length: > 0 } key } taxonomy
+            ? route.PageNumber > 1 ? $"taxonomy:{taxonomy.Kind}:{key}:{route.PageNumber}" : $"taxonomy:{taxonomy.Kind}:{key}"
+            : BuildListAlternateKey(route.ToRouteInfo());
+
     // Article times use the site's time zone, as JSON-LD dates do (same instant, local offset).
     private static DateTimeOffset? InSiteTimeZone(DateTimeOffset? value, AppConfig config)
         => value is { } instant ? TimeZoneInfo.ConvertTime(instant, TimeZoneResolver.ResolveOrUtc(config.Site.Timezone)) : null;
@@ -386,10 +397,10 @@ internal static class SeoModelBuilder
            ?? FirstTextField(fields, "schema_type")
            ?? FirstTextField(fields, "seo_schema_type");
 
-    internal static bool IsArticleSchemaType(string? schemaType)
-        => schemaType is not null &&
-           (schemaType.EndsWith("Article", StringComparison.OrdinalIgnoreCase) ||
-            string.Equals(schemaType, "BlogPosting", StringComparison.OrdinalIgnoreCase));
+    internal static bool IsArticleSchemaType(string? schemaType) => SeoArticleConfig.IsArticleType(schemaType);
+
+    private static string DefaultArticleType(SiteConfig site, string collection)
+        => SeoArticleConfig.ResolveArticleType(site, collection);
 
     private static bool IsArticleContentType(string? contentType)
         => string.Equals(contentType, "article", StringComparison.OrdinalIgnoreCase) ||

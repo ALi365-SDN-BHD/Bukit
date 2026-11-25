@@ -45,6 +45,27 @@ public sealed class I18nSharedAssetsTests
     }
 
     [Fact]
+    public async Task SharingEnabled_SharesASingleFilePathEntry()
+    {
+        using var site = CreateSite();
+        site.Sandbox.Write("static/favicon.ico", "icon");
+        site.Sandbox.Write("layouts/layouts/base.html", """
+            {{ asset_base_url = site.asset_base_url }}
+            {{ if asset_base_url == "/" }}{{ asset_base_url = "" }}{{ end }}
+            <!DOCTYPE html>
+            <html lang="{{ site.language }}"><head><link rel="icon" href="{{ asset_base_url }}/favicon.ico" /></head>
+            <body>{{ content }}</body></html>
+            """);
+        WriteSite(site, enabled: true, clean: true, paths: "[assets/, favicon.ico]");
+        await site.BuildAsync(clean: true);
+
+        Assert.True(File.Exists(Path.Combine(site.Output, "favicon.ico")));
+        Assert.False(File.Exists(Path.Combine(site.Output, "zh-CN", "favicon.ico")));
+        Assert.Contains("href=\"/favicon.ico\"", ReadFirstHtml(site.Output, "zh-CN"), StringComparison.Ordinal);
+        Assert.False(File.Exists(Path.Combine(site.Output, "zh-CN", "assets", "style.css")));
+    }
+
+    [Fact]
     public async Task SharingEnabled_GeneratesThemeTokensOnceAtRoot()
     {
         using var site = CreateSite();

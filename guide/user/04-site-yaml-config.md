@@ -47,6 +47,7 @@ content:
 | `site.title` | required | Human-facing site title. |
 | `site.url` | none | Absolute site URL for canonical URLs, feeds, sitemap, robots, and deploy output. |
 | `site.description` | none | Default description used by templates and SEO models. |
+| `site.i18n.<lang>` | none | Multilingual sites only. Per-language site identity: `title`, `description` and `organization` (`name`, `url`, `logo`, `sameAs`) replace the top-level `site.title`, `site.description` and matching `site.seo.organization` fields in that language's build. Unset fields keep the top-level value, and the organization type always stays the top-level one. `<lang>` must be a `site.languages` entry, written the same way; a blank `title`, an unknown key, or a single-language site fails validation. Root merged outputs (merged feed, root `llms.txt`) keep the top-level identity. See [11 i18n and SEO](11-i18n-seo.md#per-language-site-identity). |
 | `site.baseUrl` | `/` | Base path for generated URLs. CLI `--base-url` can override it. |
 | `site.languages` | `[zh-CN]` | The only language setting (the old `language` key was removed). Letters and digits in hyphen-separated subtags, such as `en` or `zh-CN` (not `en_US`). One entry builds a single-language site at the output root; two or more build language variants, each with its own code. Templates read the current language as `{{ site.language }}`. |
 | `site.defaultLanguage` | first `site.languages` entry | Default language of a multilingual site; must be one of `site.languages`. With one entry it must be that entry or omitted. |
@@ -103,6 +104,7 @@ content:
 | `site.seo.twitterSite` | none | Twitter/X site handle. |
 | `site.seo.defaultAuthor` | none | Author name for SEO output when a page has no author relation, no `author` field, and no GEO author. |
 | `site.seo.defaultAuthorType` | `Person` | `Person` or `Organization` (case-insensitive); requires `defaultAuthor`. |
+| `site.seo.authors` | none | Author profiles keyed by author name or `authoredBy` id (case-insensitive). Each entry accepts `name`, `type` (`Person` or `Organization`), `url`, `image`, and `sameAs`; see [11 i18n and SEO](11-i18n-seo.md). |
 | `site.seo.organization.type` | `Organization` | `Organization` or `NewsMediaOrganization`; invalid values fail configuration validation. |
 | `site.seo.organization.name` | none | Organization schema name. |
 | `site.seo.organization.url` | none | Absolute HTTP(S) URL or root-relative URL resolved against `site.url`; only an absolute HTTP(S) result is emitted. |
@@ -114,6 +116,7 @@ content:
 | `site.seo.schema.collectionPage` | `true` | Emits CollectionPage JSON-LD. |
 | `site.seo.schema.breadcrumbHome` | `false` | Starts every BreadcrumbList JSON-LD with the home page. |
 | `site.seo.schema.breadcrumbParent` | none | Taxonomy kind (for example `categories`) whose first term page becomes the breadcrumb parent of content listed under it. |
+| `site.seo.schema.articleType` | `BlogPosting` | Schema type of article pages that set none: `BlogPosting` or a schema.org Article type such as `Article`, `NewsArticle`, or `TechArticle`, in exact case. |
 | `site.seo.schema.searchAction` | `true` | Allows SearchAction JSON-LD only when `site.search.route` is also declared and exists in the final HTML route inventory. |
 | `site.seo.geo.enabled` | `true` | Enables GEO report data. |
 | `site.seo.geo.llmsTxt` | `true` | Writes `llms.txt` when build output is indexable. |
@@ -181,6 +184,7 @@ SearchAction and does not perform the final-route check.
 | `site.collections.<name>.listDescription` | none | List page description. |
 | `site.collections.<name>.listTemplate` | none | List route template. |
 | `site.collections.<name>.schemaFailMode` | none | `off`, `warn`, or `strict`. |
+| `site.collections.<name>.seo.articleType` | none | Overrides `site.seo.schema.articleType` for this collection's articles. |
 | `site.collections.<name>.noindexWhenEmpty` | `false` | When true, an empty list route uses `noindex,follow` and is excluded from sitemap, search, `llms.txt`, and `llms-full.txt`. |
 | `site.collections.<name>.indexPolicy.minimumItems` | `0` | Minimum content threshold; must be an integer >= 0. |
 | `site.collections.<name>.indexPolicy.belowMinimum` | `index` | `index` or `noindex-follow`. |
@@ -188,7 +192,8 @@ SearchAction and does not perform the final-route check.
 | `site.collections.<name>.pagination.pageSize` | `10` | Positive page size. |
 | `site.collections.<name>.pagination.urlPattern` | `page/:num/` | Relative pattern with `:num`, `{num}`, or `{page}`. |
 | `site.collections.<name>.pagination.firstPageUsesListRoute` | `true` | First page reuses `listRoute`. |
-| `site.collections.<name>.output.rss` | `true` | Includes collection feed output. |
+| `site.collections.<name>.output.rss` | `true` | Includes the collection's posts in the site feed. |
+| `site.collections.<name>.output.feed` | unset | Writes the collection's own feed under `feedPath` (default `<site.feed.path>/<name>/`). Unset means `true` only when two or more collections have `output.rss: true`, so a single-collection site does not repeat its site feed; set `true` or `false` to choose explicitly. |
 | `site.collections.<name>.output.sitemap` | `true` | Includes collection items in sitemap output. |
 | `site.collections.<name>.output.archive` | `false` | Enables archive routes. |
 | `site.collections.<name>.output.feedPath` | none | Collection feed path. |
@@ -523,8 +528,10 @@ always starts with one clean build and rebuilds incrementally after that.
 | `theme.scss.outputDir` | `assets` | SCSS output directory. |
 | `theme.images.enabled` | `false` | Enables responsive original-format variants and requested next-generation formats. |
 | `theme.images.formats` | `webp` | Case-insensitive output formats. WebP uses the Core-bundled SkiaSharp encoder and needs no PATH tool. `[]` disables next-generation generation and projection without deleting already owned WebP. AVIF remains fail-closed until Core has an approved encoder and full decoder validation path. |
-| `theme.images.sizes` | `480`, `768`, `1200` | Positive widths below the source width; images are never upscaled. |
+| `theme.images.sizes` | `480`, `768`, `1200` | Positive widths below the source width; images are never upscaled. Resized original-format variants are generated for media images only; WebP candidates use these widths for every local JPEG/PNG image. |
 | `theme.images.quality` | `80` | WebP/JPEG quality setting, clamped to `1..100` by the built-in WebP encoder. |
+| `theme.images.sizesAttribute` | none | CSS `sizes` value (for example `(max-width: 768px) 100vw, 768px`) added beside a generated media `srcset` that has no author `sizes`; lazy images get `auto, ` in front. Must not itself start with `auto`. |
+| `theme.images.fallbackVariants` | `all` | `all` or `none`. With WebP in `formats`, `none` skips resized original-format variants of JPEG/PNG media images; the fallback `img` keeps only its original `src`. Without WebP it has no effect. |
 | `theme.componentValidation` | `off` | `off`, `warn`, or `strict`. |
 
 When WebP is enabled, Bukit emits validated full-width and configured smaller
@@ -534,6 +541,13 @@ WebP candidates for local JPEG/PNG content images. Final HTML uses one
 IDs, and other attributes remain the fallback. Existing `picture` markup and
 external, data, SVG, or GIF images are not rewritten.
 
+Only media images (under `content.media.urlBase`) get an original-format
+`srcset`, so Bukit generates resized original-format variants (for example
+`photo-480w.jpg`) for media images only. Theme and static images elsewhere under
+`assets/` keep their single original file and, when WebP is enabled, still get
+their WebP candidates and `<picture>`. Resized variants an earlier build made for
+those images are deleted on the next build.
+
 A media image (under `content.media.urlBase`) whose size Bukit can read also
 gets `width` and `height` from the displayed size (after EXIF orientation) when
 it has neither. Every media image on a page except the first also gets
@@ -541,11 +555,30 @@ it has neither. Every media image on a page except the first also gets
 largest above-the-fold image, loads immediately. Set `loading="lazy"` on it to
 defer it anyway, or `loading="eager"` on a later image to load that one
 immediately; author-written `width`, `height`, and `loading` are never changed.
+
+A generated `srcset` without `sizes` makes the browser assume the image fills the
+viewport (`100vw`), so it downloads a wider candidate than a narrow column needs.
+Set `theme.images.sizesAttribute` to the layout width of content images, for
+example `(max-width: 768px) 100vw, 768px`. Lazy images then get
+`sizes="auto, <value>"`, so the browser uses the laid-out width and falls back to
+the value; an eager image (the first one, or one marked `loading="eager"`) gets
+the plain value, since the spec allows `auto` only on lazy images. The value also
+reaches the WebP `<source>`. Images whose author wrote `sizes` or `srcset` are
+left alone. Unset, Bukit adds no `sizes`.
+
+With WebP on, every JPEG/PNG media image gets resized WebP candidates and, by
+default, resized original-format ones for the fallback `img` `srcset`.
+`theme.images.fallbackVariants: none` skips the original-format variants: the
+`<picture>` keeps its WebP `<source>` (with the `sizes` value), and the fallback
+`img` keeps only its original `src`, so a browser without WebP support downloads
+the full original. Every current browser supports WebP, so this mainly saves
+output size and build time. Variants an earlier build made are deleted on the
+next build.
 Incremental builds re-render pages when a media image's width or height changes,
 and the first incremental build after upgrading re-renders every page.
 
-Local static WebP images get resized WebP candidates and an `img` `srcset` the
-same way JPEG/PNG images get original-format ones, but no `<picture>` (the
+Static WebP media images get resized WebP candidates and an `img` `srcset` the
+same way JPEG/PNG media images get original-format ones, but no `<picture>` (the
 source is already WebP). A WebP file is left as uploaded when it is animated,
 when its name already ends in `-<width>w.webp`, or when a JPEG/PNG with the same
 name sits beside it, compared without regard to case (their WebP candidates

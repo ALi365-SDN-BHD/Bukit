@@ -364,6 +364,12 @@ internal static class ImageMetadataReader
             issues.Add(Warning($"{codePrefix}_mime_invalid", routeUrl, $"Image MIME is not an image type: {metadata.MimeType}."));
         }
 
+        // WhatsApp, WeChat and older LinkedIn crawlers show no preview for a WebP share image.
+        if (metadata.MimeType.Equals("image/webp", StringComparison.OrdinalIgnoreCase))
+        {
+            issues.Add(Warning($"{codePrefix}_webp", routeUrl, $"Some social platforms show no preview for WebP images; use JPEG or PNG: {image}."));
+        }
+
         if (metadata.Width < 300 || metadata.Height < 157)
         {
             issues.Add(Warning($"{codePrefix}_too_small", routeUrl, $"Image dimensions are small for social/search previews: {metadata.Width}x{metadata.Height}."));

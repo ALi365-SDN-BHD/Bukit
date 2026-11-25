@@ -26,6 +26,32 @@ Bukit 所有重要变更都将记录在此文件中。
 
 - **搜索页不再带 BOM**：`bukit-search.html` 以不带字节顺序标记（BOM）的 UTF-8 写出。
 
+- **更小的 PNG 图片变体**：启用 `theme.images.enabled` 时，没有透明像素的 PNG 源图（包括像素全部不透明的 RGBA 文件）缩放后的变体改为写出 RGB PNG 而非 RGBA，不再携带无用的透明通道；带透明度的源图仍为 RGBA。文件名、网址和 HTML 不变。已有变体会在下次构建时重新生成一次。
+
+- **缩放变体只为媒体图片生成**：启用 `theme.images.enabled` 时，原格式缩放变体（例如 `logo-480w.png`）只为 `content.media.urlBase` 下的媒体图片生成，因为只有媒体图片会得到原格式 `srcset`。`assets/` 下其他位置的主题图片和静态图片不再生成这些没有引用的文件；启用 WebP 时它们仍会得到 WebP 候选和 `<picture>`，此前构建为它们生成的缩放变体会在下次构建时删除。见 [04 site.yaml Config](guide/user/04-site-yaml-config.md)。
+
+- **结构化的 Markdown 正文**：每个 `content/<page>.md` 内容表示和 `llms-full.txt` 的正文保留标题（降两级，`<h1>` 为 `###`，最低到 `######`，始终低于投影自身的标题和分节）、段落、换行、嵌套列表、引用块、分隔线（`* * *`，不会与 `llms-full.txt` 的 `---` 文档分隔符相同）和代码块（围栏代码块，内容原样保留，围栏长于代码中任何连续反引号），不再挤成一行。链接仍是 Markdown 链接，图片仍不输出，script、style、template 和注释内容仍被丢弃。`search.json` 的内容不变。发布审计现在只读取 `.md` 文件的元数据头部（到 `## Entities` 或 `## Body` 为止），因此正文中 `- Source: ...` 这样的列表项不再触发 `publish.representation_markdown_mismatch`。
+
+- **Agent manifest 1.1：真实发布日期与列表路由**：`agent-manifest.json` 的 `schemaVersion` 改为 `1.1`。**`publishedAt` 含义改变**：现在它是发布日期，最后编辑时间改放在新增的可选字段 `updatedAt`（仅当记录有编辑时间时出现）；此前只要有编辑时间，`publishedAt` 就写编辑时间。`generatedAt` 仍是最新变更时间（最新的 `updatedAt`；记录没有 `updatedAt` 时用其 `publishedAt`）。新增可选的 `lists` 数组，列出 sitemap 收录的首页、集合列表和分类路由（`route`、`language`、`kind`、`lastModified`，以及与 documents 相同 `{kind, url}` 形式、带页面网址的 `representations`）；同一 manifest 中 `lists` 的路由与 `documents` 的路由采用相同的路由空间；没有 `site.url` 时 `lists` 为空。多语言站点的根合并 manifest 包含所有语言的列表。`docs/schemas/agent-manifest.v1.schema.json` 保留原 `$id`，同时接受 `1.0` 和 `1.1`；`wechat-sync` 可读取任意 `1.x` 版本。见 [10 Built-In Outputs](guide/user/10-built-in-outputs.md)。
+
+- **集合 feed 不再重复唯一的站点 feed；RSS 作者改用 `dc:creator`**：新增 `site.collections.<name>.output.feed`，决定集合是否输出自己的 feed；`output.rss` 现在只表示把该集合纳入站点 feed。`output.feed` 不设置时，只有两个及以上集合设了 `output.rss: true` 才为 `true`。**只有一个 RSS 集合的站点不再输出 `<feed.path>/<name>/rss.xml`**（以及对应的 Atom 和 JSON 文件），因为它与 `/rss.xml` 完全相同；需要保留时设 `output.feed: true`。RSS 条目的作者改为带 Dublin Core 命名空间的 `<dc:creator>`，不再使用 `<author>`，因为 RSS 2.0 中 `<author>` 只能填电子邮件地址。
+
+- **Markdown 头部补充日期、作者和原文来源**：每个 `content/<page>.md` 的头部在 `- Canonical:` 之后新增 `- Published:`、`- Updated:`（仅在设置时）、`- Author:` 和 `- Original Source:`，与 JSON 投影一致。日期使用 `site.timezone`，格式与 `article:published_time` 相同；`Original Source` 是公开的原文 URL，绝不是私有的 `source` 来源信息；这些值中的换行会替换为空格，无法伪造其他头部行。
+
+- **按语言设置站点标识**：新增 `site.i18n.<lang>`，多语言站点可以为某一语言设置 `title`、`description` 和 `organization`（`name`、`url`、`logo`、`sameAs`）。该语言的构建会把它们用于 `<title>` 后缀、`og:site_name`、默认描述、JSON-LD 的 `WebSite` 和 `Organization`、该语言的 feed 与 `llms.txt`，以及模板中的 `site.title`；organization 字段逐项覆盖 `site.seo.organization`。根目录的合并输出保留顶层标识。语言键必须是 `site.languages` 中的条目，且至少需要两种语言。
+
+- **本地化的分类词条页可跨语言配对**：分类词条可在 `content/_taxonomy/<kind>/<slug>/_index.md` 的 front matter 中，或在 `sourceKey: tags|categories` 数据文档上声明 `i18nKey`。种类、键和页码都相同的词条页现在会在 hreflang 和 sitemap alternates 中互相列出，因此 `/tags/马来西亚/` 和 `/en/tags/malaysia/` 可以配对；没有键时仍按 URL 配对。同一语言中同一种类的两个词条共用一个键时，记录 `taxonomy.term.i18n_key_duplicate`，并退回按 URL 配对。
+
+- **语言目录下不再生成 robots.txt**：多语言构建不再在非根语言目录（如 `zh-CN/robots.txt`）中写入 `robots.txt`，因为爬虫只读取主机根目录下的这个文件，而根目录写入器已经在那里生成了站点的 robots 文件。各语言的本地化 `404.html` 保留不变，现已写入文档；另有测试确认 `site.sharedAssets.paths` 中的单个文件条目（如 `favicon.ico`）可以共享。
+
+- **文章 schema 默认类型与作者资料**：`site.seo.schema.articleType` 和 `site.collections.<name>.seo.articleType` 为未声明类型的文章页设置 JSON-LD 类型（优先级：页面、集合、站点，最后是 `BlogPosting`）。`site.seo.authors` 把作者名或 `authoredBy` id 映射到作者资料（`name`、`type`、`url`、`image`、`sameAs`），这样文本署名、GEO 作者和默认作者都能带上作者 URL；Markdown 中的 `authoredBy: <id>` 只要有对应条目，就不再中断构建。
+
+- **为生成的 srcset 添加 `sizes`**：`theme.images.sizesAttribute`（默认不设置）会在 Bukit 为媒体图片生成的 `srcset` 旁加上 CSS `sizes` 值，浏览器就不会再默认按 `100vw` 下载过大的候选图。懒加载图片得到 `sizes="auto, <值>"`，首张立即加载的图片得到原值。作者手写的 `sizes` 保持不变，该值也会传到 WebP 的 `<source>`。
+
+- **og:image 尺寸与 WebP 警告**：社交分享图是本站文件时，Bukit 会写出 `og:image:width`、`og:image:height` 和 `og:image:type`（主题和入门主题也可通过 `page.seo.og.image_width`、`image_height`、`image_type` 读取），让平台在下载图片之前就能排好预览。分享图为 WebP 时会给出 `seo.og_image_webp` 警告，因为部分平台不显示 WebP 预览。
+
+- **仅生成 WebP 图片变体**：生成 WebP 时，`theme.images.fallbackVariants: none`（默认 `all`）会跳过 JPEG/PNG 媒体图片的原格式缩放变体。`<picture>` 保留 WebP 候选图，回退用的 `<img>` 只保留原始 `src`。不需要为不支持 WebP 的浏览器提供 srcset 的站点，可以借此减小输出体积、缩短构建时间。
+
 ## [2.2.8] - 2026-11-23
 
 - **数据索引支持对象值**：`content.sources[].dataIndex` 的行新增值类型 `object`（一个映射）和 `object[]`（映射列表），模板可以读 `site.data_index.<源>.<scope>.<key>.<字段>`，声明了 `object` 的小程序 `dataIndex` 数据集也能拿到真正的对象。Markdown 行用 YAML 写值；Notion 行用 JSON 文本写值（解析不用反射，Native AOT 二进制可用）。布尔值和数字保留类型，所以 `if info.open` 遇到 `false` 为假，`info.days > 3` 按数字比较：Notion JSON 保留原有类型（JSON 字符串如 `"5"` 仍是文本）；Markdown 标量为 `true`/`false`（YAML 核心写法）时视为布尔值，写成 JSON 数字形式时视为数字，`0123`、`+60`、`yes` 等其他文本保持文本，在 Markdown 里加引号也不能让 `"5"` 保持文本。64 位范围内的整数存为整数，其他数字存为保留原始位数的小数（`12.50`），所以同样的值无论来自哪个源，构建出的模型和增量哈希都相同，小程序 `dataIndex` 数据集也会输出 JSON 布尔值和数字。键按序数排序且不能为空白，嵌套最多 8 层（每个映射或列表算一层），给 `object[]` 单个映射时视为只有一项的列表（与小程序 `object[]` 字段一致），超出 double 范围的数字、无效 JSON、重复键或形状不对都会导致构建失败，报错写明源、内容 id 和 `scope.key`。空的对象值是空映射或空列表；只含空值的映射或列表，`requiredKeys` 也视其为空。**行为变化**：`text`、`multiline`、`email`、`phone`、`url` 行如果值是 YAML 映射或列表，以前会静默构建并输出 .NET 类型名（`System.Collections.Generic.Dictionary...`），现在会构建失败；这些文本行里的数字和日期改为按固定区域格式化，不再随构建机器的区域设置变化。见 [07 多源数据](guide/user/07-multi-source-data.md#object-values)。

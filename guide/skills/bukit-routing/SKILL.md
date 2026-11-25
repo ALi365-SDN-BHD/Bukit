@@ -47,9 +47,10 @@ Other collection keys:
   noindex-follow}`; declaring both fails.
 - `schemaFailMode: off|warn|strict` overrides `build.schemaFailMode` for documents in
   this collection (`bukit-content-model`).
-- `output.rss: true` (the default), `output.feedTitle:` / `output.feedDescription:`
-  (default `site.title` / `site.description`) configure the collection feed
-  (`bukit-outputs`).
+- `output.rss: true` (the default) puts the collection in the site feed; `output.feed:`
+  (unset: on only with 2+ `rss` collections), `output.feedTitle:` /
+  `output.feedDescription:` (default `site.title` / `site.description`) configure the
+  collection's own feed (`bukit-outputs`).
 
 Placeholders (case-insensitive): `{slug}`, `{title}` (slugified), `{year}`, `{month}`,
 `{day}` (from `publishAt`, UTC), `{type}`, `{collection}`. Unknown placeholders stay in

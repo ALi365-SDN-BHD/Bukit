@@ -187,7 +187,7 @@ internal static class SemanticHtmlAuditRules
     {
         foreach (var type in ReadTypes(node))
         {
-            if (type is "Article" or "BlogPosting" or "NewsArticle" or "WebPage" or "CollectionPage" or "AboutPage" or "ContactPage" or "FAQPage" or "HowTo")
+            if (type is "WebPage" or "CollectionPage" or "AboutPage" or "ContactPage" or "FAQPage" or "HowTo" || SeoSchemaValidator.IsArticleType(type))
             {
                 return true;
             }

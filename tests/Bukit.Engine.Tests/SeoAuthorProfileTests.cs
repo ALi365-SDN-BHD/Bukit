@@ -351,6 +351,99 @@ public sealed class SeoAuthorProfileTests
         Assert.Null(model.Article.Author);
     }
 
+    [Fact]
+    public void BuildForContent_TextAuthorWithConfiguredProfile_GetsUrlImageAndSameAs()
+    {
+        var model = Build(
+            CreateDocument(("author", new ContentField("text", "Aisha Tan"))),
+            AuthorsConfig(("aisha tan", new SeoAuthorProfileConfig
+            {
+                Url = "/about/aisha/",
+                Image = "/images/aisha.jpg",
+                SameAs = ["https://social.example/aisha"]
+            })));
+
+        using var article = Article(model.JsonLd);
+        var author = article.RootElement.GetProperty("author");
+        Assert.Equal("Aisha Tan", author.GetProperty("name").GetString());
+        Assert.Equal("Person", author.GetProperty("@type").GetString());
+        Assert.Equal("https://example.com/about/aisha/", author.GetProperty("url").GetString());
+        Assert.Equal("https://example.com/images/aisha.jpg", author.GetProperty("image").GetString());
+        Assert.Equal("https://social.example/aisha", author.GetProperty("sameAs")[0].GetString());
+    }
+
+    [Fact]
+    public void BuildForContent_UnresolvedAuthoredById_TakesConfiguredProfile()
+    {
+        var model = Build(
+            CreateDocument(("authoredby", Profiles(Profile("newsroom", null, null, null)))),
+            AuthorsConfig(("newsroom", new SeoAuthorProfileConfig
+            {
+                Name = "The Newsroom",
+                Type = "organization",
+                Url = "https://news.example/about"
+            })));
+
+        using var article = Article(model.JsonLd);
+        var author = article.RootElement.GetProperty("author");
+        Assert.Equal("The Newsroom", author.GetProperty("name").GetString());
+        Assert.Equal("Organization", author.GetProperty("@type").GetString());
+        Assert.Equal("https://news.example/about", author.GetProperty("url").GetString());
+        Assert.Equal("The Newsroom", model.Article.Author);
+    }
+
+    [Fact]
+    public void BuildForContent_ResolvedRelationWithConfiguredUrl_ReplacesTheAuthorsPath()
+    {
+        var model = Build(
+            CreateDocument(("authoredby", Profiles(Profile("author-1", "Aisha Tan", "aisha-tan", "Person")))),
+            AuthorsConfig(("author-1", new SeoAuthorProfileConfig { Url = "/team/aisha/" })));
+
+        using var article = Article(model.JsonLd);
+        Assert.Equal("https://example.com/team/aisha/", article.RootElement.GetProperty("author").GetProperty("url").GetString());
+    }
+
+    [Fact]
+    public void BuildForContent_SiteDefaultAuthorWithConfiguredProfile_GetsUrl()
+    {
+        var config = DefaultAuthorConfig("Example Press", null);
+        config = config with
+        {
+            Site = config.Site with
+            {
+                Seo = config.Site.Seo with
+                {
+                    Authors = new Dictionary<string, SeoAuthorProfileConfig>(StringComparer.OrdinalIgnoreCase)
+                    {
+                        ["Example Press"] = new() { Type = "Organization", Url = "/about/" }
+                    }
+                }
+            }
+        };
+
+        var model = Build(CreateDocument(), config);
+
+        using var article = Article(model.JsonLd);
+        var author = article.RootElement.GetProperty("author");
+        Assert.Equal("Organization", author.GetProperty("@type").GetString());
+        Assert.Equal("https://example.com/about/", author.GetProperty("url").GetString());
+    }
+
+    private static AppConfig AuthorsConfig(params (string Key, SeoAuthorProfileConfig Profile)[] authors)
+    {
+        var config = CreateConfig();
+        return config with
+        {
+            Site = config.Site with
+            {
+                Seo = config.Site.Seo with
+                {
+                    Authors = authors.ToDictionary(x => x.Key, x => x.Profile, StringComparer.OrdinalIgnoreCase)
+                }
+            }
+        };
+    }
+
     private static AppConfig DefaultAuthorConfig(string author, string? type)
     {
         var config = CreateConfig();

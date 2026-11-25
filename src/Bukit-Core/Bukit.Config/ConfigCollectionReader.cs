@@ -50,7 +50,10 @@ internal static class ConfigCollectionReader
             IndexPolicy = ReadCollectionIndexPolicy(collectionName, collectionNode),
             Pagination = ReadCollectionPagination(paginationNode),
             Output = ReadCollectionOutput(outputNode),
-            FilteredLists = ReadFilteredLists(collectionNode)
+            FilteredLists = ReadFilteredLists(collectionNode),
+            ArticleType = ConfigYamlHelpers.GetOptionalMapping(collectionNode, "seo", $"site.collections.{collectionName}") is { } seoNode
+                ? ConfigYamlHelpers.GetOptionalString(seoNode, "articleType")
+                : null
         };
     }
 
@@ -105,6 +108,7 @@ internal static class ConfigCollectionReader
         => new()
         {
             Rss = outputNode is null ? true : ConfigYamlHelpers.GetOptionalBool(outputNode, "rss") ?? true,
+            Feed = outputNode is null ? null : ConfigYamlHelpers.GetOptionalBool(outputNode, "feed"),
             Sitemap = outputNode is null ? true : ConfigYamlHelpers.GetOptionalBool(outputNode, "sitemap") ?? true,
             Archive = outputNode is not null && (ConfigYamlHelpers.GetOptionalBool(outputNode, "archive") ?? false),
             FeedPath = outputNode is null ? null : ConfigYamlHelpers.GetOptionalString(outputNode, "feedPath"),

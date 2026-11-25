@@ -15,6 +15,8 @@ internal static class ImageOptimizer
         typeof(SKCodec).Assembly.GetName().Version?.ToString() ??
         "unknown");
 
+    private const int PngZLibLevel = 6;
+
     internal static async Task OptimizeIfEnabled(string assetsDir, ImageOptimizationConfig? config, ILogger logger, CancellationToken cancellationToken = default)
     {
         if (config is not { Enabled: true })
@@ -117,7 +119,10 @@ internal static class ImageOptimizer
             var origin = GetEncodedOrigin(inputFile, codec, cancellationToken);
             var frames = Math.Max(codec.FrameCount, 1);
             using var srgb = SKColorSpace.CreateSrgb();
-            var info = new SKImageInfo(codec.Info.Width, codec.Info.Height, SKColorType.Rgba8888, SKAlphaType.Premul, srgb);
+            // Opaque sources (RGB PNG, JPEG) stay opaque so the PNG encoder writes colour type 2 rather
+            // than RGBA; orientation and resizing reuse this info and keep the alpha type.
+            var alphaType = codec.Info.AlphaType == SKAlphaType.Opaque ? SKAlphaType.Opaque : SKAlphaType.Premul;
+            var info = new SKImageInfo(codec.Info.Width, codec.Info.Height, SKColorType.Rgba8888, alphaType, srgb);
             if (frames > ImageContentValidator.MaxFrameCount || info.Width <= 0 || info.Height <= 0 ||
                 checked((long)info.Width * info.Height * frames) > ImageContentValidator.MaxTotalDecodedPixels)
             {
@@ -125,27 +130,18 @@ internal static class ImageOptimizer
             }
 
             using var image = new SKBitmap(info);
-            // Decode frame zero last so the output retains the original first frame.
-            for (var frame = frames - 1; frame >= 0; frame--)
-            {
-                cancellationToken.ThrowIfCancellationRequested();
-                var result = codec.GetPixels(info, image.GetPixels(), new SKCodecOptions(frame));
-                cancellationToken.ThrowIfCancellationRequested();
-                if (result != SKCodecResult.Success)
-                {
-                    throw new InvalidDataException("Source pixels could not be fully decoded.");
-                }
-            }
-
-            using var oriented = ApplyOrientation(image, origin);
-            var displayed = oriented ?? image;
+            DecodeFrames(codec, image, frames, cancellationToken);
+            using var opaqueView = CreateOpaqueView(image);
+            var decoded = opaqueView ?? image;
+            using var oriented = ApplyOrientation(decoded, origin);
+            var displayed = oriented ?? decoded;
             using var resized = width is { } targetWidth && targetWidth < displayed.Width
                 ? displayed.Resize(displayed.Info.WithSize(targetWidth, Math.Max(1, (int)Math.Round((double)displayed.Height * targetWidth / displayed.Width))),
                     new SKSamplingOptions(SKCubicResampler.Mitchell))
                     ?? throw new InvalidDataException("Image resize failed.")
                 : null;
             cancellationToken.ThrowIfCancellationRequested();
-            using var encoded = (resized ?? displayed).Encode(format, Math.Clamp(quality, 1, 100))
+            using var encoded = Encode(resized ?? displayed, format, quality)
                 ?? throw new InvalidDataException("Image encoding failed.");
             cancellationToken.ThrowIfCancellationRequested();
             await using (var output = File.Create(outputFile))
@@ -171,6 +167,61 @@ internal static class ImageOptimizer
             TryDelete(outputFile);
             throw;
         }
+    }
+
+    private static void DecodeFrames(SKCodec codec, SKBitmap image, int frames, CancellationToken cancellationToken)
+    {
+        // Decode frame zero last so the output retains the original first frame.
+        for (var frame = frames - 1; frame >= 0; frame--)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            var result = codec.GetPixels(image.Info, image.GetPixels(), new SKCodecOptions(frame));
+            cancellationToken.ThrowIfCancellationRequested();
+            if (result != SKCodecResult.Success)
+            {
+                throw new InvalidDataException("Source pixels could not be fully decoded.");
+            }
+        }
+    }
+
+    // Most uploaded PNGs are RGBA files whose pixels are all opaque. Decoding already touched every pixel, so
+    // this scan is cheap. With every alpha at 255 the premultiplied bytes equal the unpremultiplied ones, so the
+    // view reinterprets the same buffer as opaque without changing any colour value.
+    private static SKBitmap? CreateOpaqueView(SKBitmap image)
+    {
+        if (image.AlphaType == SKAlphaType.Opaque)
+        {
+            return null;
+        }
+
+        using (var pixmap = image.PeekPixels() ?? throw new InvalidDataException("Image pixels are unavailable."))
+        {
+            if (!pixmap.ComputeIsOpaque())
+            {
+                return null;
+            }
+        }
+
+        var view = new SKBitmap();
+        if (!view.InstallPixels(image.Info.WithAlphaType(SKAlphaType.Opaque), image.GetPixels(), image.RowBytes))
+        {
+            view.Dispose();
+            throw new InvalidDataException("Opaque image view could not be created.");
+        }
+
+        return view;
+    }
+
+    private static SKData? Encode(SKBitmap bitmap, SKEncodedImageFormat format, int quality)
+    {
+        if (format != SKEncodedImageFormat.Png)
+        {
+            return bitmap.Encode(format, Math.Clamp(quality, 1, 100));
+        }
+
+        // PNG ignores quality. Level 9 saved ~5% over 6 on a 1200x630 fixture but took ~11x longer.
+        using var pixmap = bitmap.PeekPixels() ?? throw new InvalidDataException("Image pixels are unavailable.");
+        return pixmap.Encode(new SKPngEncoderOptions(SKPngEncoderFilterFlags.AllFilters, PngZLibLevel));
     }
 
     internal static SKEncodedOrigin GetEncodedOrigin(string path, SKCodec codec, CancellationToken cancellationToken = default)

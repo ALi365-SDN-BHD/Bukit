@@ -84,6 +84,44 @@ public sealed class I18nWorktreeProtocolTests : IDisposable
             I18nWorktreeProtocol.ComputeConfigHash(config with { Content = config.Content with { Sources = [changedSource] } }, new ConfigOverrides()));
     }
 
+    [Fact]
+    public void WorkerConfig_KeepsInternalSiteSeoAndImageSettings()
+    {
+        // These settings are internal, so the worker JSON keeps them only through JsonInclude.
+        var config = new AppConfig
+        {
+            Site = new SiteConfig
+            {
+                Name = "s",
+                Title = "S",
+                I18n = new Dictionary<string, SiteLanguageIdentityConfig> { ["zh-CN"] = new() { Title = "站点" } },
+                Seo = new SeoConfig
+                {
+                    Authors = new Dictionary<string, SeoAuthorProfileConfig> { ["aisha"] = new() { Name = "Aisha", Url = "https://example.test/aisha/" } },
+                    Schema = new SeoSchemaConfig { ArticleType = "Article" }
+                },
+                Collections = new Dictionary<string, CollectionConfig> { ["news"] = new() { Permalink = "/news/{slug}/", ArticleType = "NewsArticle" } }
+            },
+            Content = new ContentConfig(),
+            Theme = new ThemeConfig { Images = new ImageOptimizationConfig { SizesAttribute = "100vw", FallbackVariants = ImageFallbackVariants.None } }
+        };
+
+        var json = JsonSerializer.Serialize(config, I18nWorktreeJsonContext.Default.AppConfig);
+        var restored = JsonSerializer.Deserialize(json, I18nWorktreeJsonContext.Default.AppConfig)!;
+
+        Assert.Equal("站点", restored.Site.I18n!["zh-CN"].Title);
+        Assert.Equal(("Aisha", "https://example.test/aisha/"), (restored.Site.Seo.Authors!["aisha"].Name, restored.Site.Seo.Authors["aisha"].Url));
+        // The restored map is case-sensitive, so a byline in another case must still find its profile.
+        var byline = SeoAuthorResolver.Resolve(null, null, null, restored.Site.Seo with { DefaultAuthor = "AISHA" });
+        Assert.Equal("https://example.test/aisha/", byline.Primary!.Url);
+        Assert.Equal("Article", restored.Site.Seo.Schema.ArticleType);
+        Assert.Equal("NewsArticle", restored.Site.Collections!["news"].ArticleType);
+        Assert.Equal(("100vw", ImageFallbackVariants.None), (restored.Theme.Images!.SizesAttribute, restored.Theme.Images.FallbackVariants));
+        Assert.NotEqual(
+            I18nWorktreeProtocol.ComputeConfigHash(config, new ConfigOverrides()),
+            I18nWorktreeProtocol.ComputeConfigHash(config with { Theme = new ThemeConfig { Images = config.Theme.Images with { SizesAttribute = "50vw" } } }, new ConfigOverrides()));
+    }
+
     private static readonly SiteConfig PrefixedSite = new()
     {
         Name = "prefixed",

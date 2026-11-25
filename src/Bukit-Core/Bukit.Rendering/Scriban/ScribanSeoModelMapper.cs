@@ -44,6 +44,9 @@ internal static class ScribanSeoModelMapper
         obj.SetValue("description", model.Description, readOnly: true);
         obj.SetValue("url", model.Url, readOnly: true);
         obj.SetValue("image", model.Image, readOnly: true);
+        obj.SetValue("image_width", model.ImageWidth, readOnly: true);
+        obj.SetValue("image_height", model.ImageHeight, readOnly: true);
+        obj.SetValue("image_type", model.ImageType, readOnly: true);
         obj.SetValue("type", model.Type, readOnly: true);
         obj.SetValue("site_name", model.SiteName, readOnly: true);
         obj.SetValue("locale", model.Locale, readOnly: true);

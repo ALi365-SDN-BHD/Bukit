@@ -138,6 +138,13 @@ internal static partial class SeoHtmlRenderer
         WriteMetaProperty(sb, "og:url", seo.Og.Url);
         WriteMetaProperty(sb, "og:type", seo.Og.Type);
         WriteMetaProperty(sb, "og:image", seo.Og.Image);
+        if (!string.IsNullOrWhiteSpace(seo.Og.Image))
+        {
+            WriteMetaProperty(sb, "og:image:width", seo.Og.ImageWidth?.ToString(System.Globalization.CultureInfo.InvariantCulture));
+            WriteMetaProperty(sb, "og:image:height", seo.Og.ImageHeight?.ToString(System.Globalization.CultureInfo.InvariantCulture));
+            WriteMetaProperty(sb, "og:image:type", seo.Og.ImageType);
+        }
+
         WriteMetaProperty(sb, "og:site_name", seo.Og.SiteName);
         WriteMetaProperty(sb, "og:locale", seo.Og.Locale);
         foreach (var alternateLocale in OpenGraphLocale.Alternates(seo.Og.Locale, seo.Alternates))

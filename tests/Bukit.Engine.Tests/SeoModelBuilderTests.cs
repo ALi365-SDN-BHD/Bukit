@@ -13,6 +13,28 @@ namespace Bukit.Engine.Tests;
 
 public sealed class SeoModelBuilderTests
 {
+    [Theory]
+    [InlineData("my", 1, "taxonomy:tags:my")]
+    [InlineData("my", 2, "taxonomy:tags:my:2")]
+    [InlineData(null, 1, "route:/tags/malaysia/")]
+    public void BuildListAlternateKey_TermPagesWithAnI18nKeyPairByKindKeyAndPage(string? key, int page, string expected)
+    {
+        var route = new ListRoutePlan
+        {
+            RouteId = "taxonomy:tags:malaysia:" + page,
+            Kind = ListRouteKind.TaxonomyTermPage,
+            Url = "/tags/malaysia/",
+            OutputPath = "tags/malaysia/index.html",
+            Template = "pages/taxonomy-term.html",
+            PageNumber = page,
+            TotalItems = 1,
+            CanonicalUrl = "/tags/malaysia/",
+            TaxonomyContext = new ListRouteTaxonomyContext { Kind = "tags", Slug = "malaysia", I18nKey = key }
+        };
+
+        Assert.Equal(expected, SeoModelBuilder.BuildListAlternateKey(route));
+    }
+
     private static AppConfig CreateConfig(string siteUrl = "https://example.com", string siteTitle = "My Site", string? defaultImage = null)
     {
         return new AppConfig
@@ -1331,6 +1353,43 @@ public sealed class SeoModelBuilderTests
         Assert.Equal("BlogPosting", model.SchemaType);
         Assert.Equal("article", model.Og.Type);
         Assert.Contains(model.JsonLd, json => json.Contains("BlogPosting", StringComparison.Ordinal));
+    }
+
+    [Theory]
+    [InlineData("news", null, "NewsArticle")]
+    [InlineData("posts", null, "Article")]
+    [InlineData("news", "TechArticle", "TechArticle")]
+    public void BuildForContent_ArticleWithoutSchemaType_UsesCollectionThenSiteArticleType(
+        string collection,
+        string? pageType,
+        string expected)
+    {
+        var fields = new Dictionary<string, object> { ["type"] = "post", ["collection"] = collection };
+        if (pageType is not null)
+        {
+            fields["schema_type"] = pageType;
+        }
+
+        var item = ContentDocument.Create("typed", "Typed", "typed", DateTimeOffset.UnixEpoch, null, ContentFieldReader.ToFieldMap(fields));
+        var baseConfig = CreateConfig();
+        var config = baseConfig with
+        {
+            Site = baseConfig.Site with
+            {
+                Seo = baseConfig.Site.Seo with { Schema = baseConfig.Site.Seo.Schema with { ArticleType = "Article" } },
+                Collections = new Dictionary<string, CollectionConfig>
+                {
+                    ["news"] = new() { Permalink = "/news/:slug/", ArticleType = "NewsArticle" },
+                    ["posts"] = new() { Permalink = "/posts/:slug/" }
+                }
+            }
+        };
+
+        var model = SeoModelBuilder.BuildForContent(config, "/", item, new RouteInfo("/typed/", "typed/index.html", "post.html"));
+
+        Assert.Equal(expected, model.SchemaType);
+        Assert.Equal("article", model.Og.Type);
+        Assert.Contains(model.JsonLd, json => json.Contains($"\"{expected}\"", StringComparison.Ordinal));
     }
 
     [Fact]

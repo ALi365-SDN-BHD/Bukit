@@ -32,7 +32,8 @@ internal static partial class SiteDefaultsApplier
             Organization = ReadSeoOrganization(orgNode),
             RobotsTxt = ReadSeoRobotsTxt(robotsTxtNode),
             Schema = ReadSeoSchema(schemaNode),
-            Geo = ReadSeoGeo(geoNode)
+            Geo = ReadSeoGeo(geoNode),
+            Authors = SeoArticleConfig.ReadAuthors(seoNode)
         };
     }
 
@@ -76,7 +77,8 @@ internal static partial class SiteDefaultsApplier
             CollectionPage = schemaNode is null || (ConfigYamlHelpers.GetOptionalBool(schemaNode, "collectionPage") ?? true),
             SearchAction = schemaNode is null || (ConfigYamlHelpers.GetOptionalBool(schemaNode, "searchAction") ?? true),
             BreadcrumbHome = schemaNode is not null && (ConfigYamlHelpers.GetOptionalBool(schemaNode, "breadcrumbHome") ?? false),
-            BreadcrumbParent = schemaNode is null ? null : ConfigYamlHelpers.GetOptionalString(schemaNode, "breadcrumbParent")
+            BreadcrumbParent = schemaNode is null ? null : ConfigYamlHelpers.GetOptionalString(schemaNode, "breadcrumbParent"),
+            ArticleType = schemaNode is null ? null : ConfigYamlHelpers.GetOptionalString(schemaNode, "articleType")
         };
 
     private static SeoGeoConfig ReadSeoGeo(YamlMappingNode? geoNode)
