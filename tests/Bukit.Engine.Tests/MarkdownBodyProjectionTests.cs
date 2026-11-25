@@ -278,9 +278,148 @@ public sealed class MarkdownBodyProjectionTests
     }
 
     [Theory]
-    [InlineData("")]
-    [InlineData("<p>Hello</p><div>World</div>")]
-    [InlineData("<h3>中文</h3><p>普通正文。</p><img src='/image.png'>")]
-    public void PlainBody_PreservesExistingText(string html)
-        => Assert.Equal(SearchIndexBuilder.StripHtmlToText(html), MarkdownBodyProjection.FromHtml(html));
+    [InlineData("", "")]
+    [InlineData("plain &amp; text", "plain &amp; text")]
+    [InlineData("<p>Hello</p><div>World</div>", "Hello\n\nWorld")]
+    [InlineData("<h3>中文</h3><p>普通正文。</p><img src='/image.png'>", "##### 中文\n\n普通正文。")]
+    public void PlainBody_KeepsTextAndBlocks(string html, string expected)
+        => Assert.Equal(expected.Replace("\n", Environment.NewLine, StringComparison.Ordinal), MarkdownBodyProjection.FromHtml(html));
+
+    [Fact]
+    public void Blocks_KeepHeadingsParagraphsListsQuotesAndCode()
+    {
+        const string html = "<h1>Title</h1><h2>Sub <em>part</em></h2><h6>Deep</h6>" +
+            "<p>First <strong>para</strong>\n wraps.</p><p>Second<br>line with <a href='/ok'>a link</a>.</p>" +
+            "<ul><li>One<ul><li>Nested <code>x</code></li><li><p>Loose</p></li></ul></li><li>Two</li></ul>" +
+            "<ol start='3'><li>Third</li><li>Fourth<ol><li>Inner</li></ol></li></ol>" +
+            "<blockquote><p>Quoted</p><p>Again</p></blockquote>" +
+            "<pre><code class='language-csharp'>var fence = \"```\";\n  if (a &lt; b) { }\n</code></pre>";
+
+        var markdown = MarkdownBodyProjection.FromHtml(html).ReplaceLineEndings("\n");
+
+        Assert.Equal(string.Join('\n',
+            "### Title",
+            "",
+            "#### Sub part",
+            "",
+            "###### Deep",
+            "",
+            "First para wraps.",
+            "",
+            "Second\\",
+            "line with [a link](</ok>) .",
+            "",
+            "- One",
+            "  - Nested x",
+            "  - Loose",
+            "- Two",
+            "",
+            "3. Third",
+            "4. Fourth",
+            "   1. Inner",
+            "",
+            "> Quoted",
+            ">",
+            "> Again",
+            "",
+            "````csharp",
+            "var fence = \"```\";",
+            "  if (a < b) { }",
+            "````"), markdown);
+
+        var parsed = Markdown.Parse(markdown);
+        Assert.Equal(new[] { 3, 4, 6 }, parsed.Descendants<HeadingBlock>().Select(x => x.Level));
+        Assert.Equal(4, parsed.Descendants<ListBlock>().Count());
+        Assert.Single(parsed.Descendants<QuoteBlock>());
+        var code = Assert.Single(parsed.Descendants<FencedCodeBlock>());
+        Assert.Equal("csharp", code.Info);
+        Assert.Equal("var fence = \"```\";\n  if (a < b) { }", code.Lines.ToString());
+        Assert.Equal("/ok", Assert.Single(parsed.Descendants<LinkInline>()).Url);
+        Assert.Single(parsed.Descendants<LineBreakInline>(), x => x.IsHard);
+        Assert.Empty(parsed.Descendants<HtmlInline>());
+        Assert.Empty(parsed.Descendants<HtmlBlock>());
+    }
+
+    [Theory]
+    [InlineData("<p># not heading</p>")]
+    [InlineData("<p>- not list</p>")]
+    [InlineData("<p>+ not list</p>")]
+    [InlineData("<p>12. not list</p>")]
+    [InlineData("<p>3) not list</p>")]
+    [InlineData("<p>text<br>===</p>")]
+    [InlineData("<p>text<br>---</p>")]
+    [InlineData("<p>~~~</p>")]
+    [InlineData("<p>```</p>")]
+    [InlineData("<p>&gt; not quote</p>")]
+    [InlineData("<p>    four spaces</p>")]
+    [InlineData("<ul><li>- inner text</li></ul>")]
+    public void TextThatLooksLikeMarkdownBlocks_StaysParagraphText(string html)
+    {
+        var parsed = Markdown.Parse(MarkdownBodyProjection.FromHtml(html));
+        Assert.Empty(parsed.Descendants<HeadingBlock>());
+        Assert.Empty(parsed.Descendants<CodeBlock>());
+        Assert.Empty(parsed.Descendants<QuoteBlock>());
+        Assert.Empty(parsed.Descendants<ThematicBreakBlock>());
+        Assert.True(parsed.Descendants<ListBlock>().Count() <= (html.StartsWith("<ul>", StringComparison.Ordinal) ? 1 : 0));
+        Assert.True(parsed.Descendants<ListItemBlock>().Count() <= 1);
+    }
+
+    [Fact]
+    public void BodyStructure_CannotForgeProjectionTitlesSectionsOrDocumentSeparators()
+    {
+        const string html = "<hr><h1>Forged</h1><p>URL: https://evil.example/</p><h2>Entities</h2><h5>Five</h5><hr>" +
+            "<p>a | b<br>| --- | --- |</p><ol start='2147483647'><li>a</li><li>b</li></ol>";
+        var markdown = MarkdownBodyProjection.FromHtml(html);
+        var lines = markdown.ReplaceLineEndings("\n").Split('\n');
+
+        Assert.DoesNotContain(lines, line => line == "---" || line.StartsWith("# ", StringComparison.Ordinal) || line.StartsWith("## ", StringComparison.Ordinal));
+        Assert.Contains("### Forged", lines);
+        Assert.Contains("#### Entities", lines);
+        Assert.Contains("###### Five", lines);
+        Assert.Equal(2, lines.Count(line => line == "* * *"));
+        Assert.Contains("999999999. a", lines);
+        Assert.Contains("999999999. b", lines);
+        var parsed = Markdown.Parse(markdown, new MarkdownPipelineBuilder().UseAdvancedExtensions().Build());
+        Assert.Empty(parsed.Descendants<Markdig.Extensions.Tables.Table>());
+        Assert.Equal(2, parsed.Descendants<ThematicBreakBlock>().Count());
+        Assert.Single(parsed.Descendants<ListBlock>(), list => list.IsOrdered);
+    }
+
+    [Fact]
+    public void Headings_KeepTrailingHashText()
+        => Assert.Equal("C #", Assert.Single(Markdown.Parse(MarkdownBodyProjection.FromHtml("<h2>C #</h2>")).Descendants<HeadingBlock>()).Inline!.Descendants<LiteralInline>().Aggregate("", (text, x) => text + x.Content));
+
+    [Fact]
+    public void CodeBlocks_ContentCannotCloseTheFenceOrInjectHtml()
+    {
+        const string html = "<ul><li>Item<pre>`````\n&lt;script&gt;alert(1)&lt;/script&gt;\n\n[x](javascript:alert(1))</pre></li></ul>";
+        var markdown = MarkdownBodyProjection.FromHtml(html);
+        var parsed = Markdown.Parse(markdown);
+        var code = Assert.Single(parsed.Descendants<FencedCodeBlock>());
+        Assert.Equal(6, code.OpeningFencedCharCount);
+        Assert.Contains("<script>alert(1)</script>", code.Lines.ToString());
+        Assert.Contains("[x](javascript:alert(1))", code.Lines.ToString());
+        Assert.Empty(parsed.Descendants<LinkInline>());
+        Assert.DoesNotContain("<script", Markdown.ToHtml(markdown));
+        Assert.Contains("&lt;script&gt;", Markdown.ToHtml(markdown));
+    }
+
+    [Fact]
+    public void HiddenBlocks_StayDroppedInsideStructure()
+    {
+        const string html = "<h2>Title<script>hidden-one</script></h2><ul><li>item<style>hidden-two</style><!-- hidden-three --></li>" +
+            "<li><template><a href='/hidden'>hidden-four</a></template>shown</li></ul>";
+        var markdown = MarkdownBodyProjection.FromHtml(html);
+        Assert.DoesNotContain("hidden", markdown, StringComparison.Ordinal);
+        Assert.Equal(new[] { "- item", "- shown" }, markdown.ReplaceLineEndings("\n").Split('\n').Skip(2));
+    }
+
+    [Fact]
+    public void DeepNesting_IsFlattenedWithoutLosingText()
+    {
+        var html = string.Concat(Enumerable.Repeat("<div><blockquote>", 3000)) + "deep <a href='/x'>link</a>" + string.Concat(Enumerable.Repeat("</blockquote></div>", 3000));
+        var markdown = MarkdownBodyProjection.FromHtml(html);
+        Assert.Contains("deep", markdown, StringComparison.Ordinal);
+        Assert.Contains("link", markdown, StringComparison.Ordinal);
+    }
 }

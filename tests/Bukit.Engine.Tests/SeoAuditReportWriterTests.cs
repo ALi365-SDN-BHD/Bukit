@@ -1489,8 +1489,11 @@ public sealed class SeoAuditReportWriterTests : IDisposable
         Assert.True(report.Summary.RepresentationGapCount >= 3);
     }
 
-    [Fact]
-    public void Build_AcceptsPublishSafeEntitiesInNotionJsonProjection()
+    [Theory]
+    [InlineData("")]
+    [InlineData("- Source: notion\n")]
+    [InlineData("\nSummary text.\n- Source: notion\n")]
+    public void Build_AcceptsPublishSafeProjections_AndFlagsOnlyHeaderProvenance(string headerProvenance)
     {
         const string relatedNotionId = "aaaaaaaa-1111-4222-8333-bbbbbbbbbbbb";
         WriteOutput("post/index.html");
@@ -1500,6 +1503,13 @@ public sealed class SeoAuditReportWriterTests : IDisposable
             - Route: /post/
             - Language: en
             - Review Status: approved
+
+            """.Replace("approved\n", "approved\n" + headerProvenance, StringComparison.Ordinal) + """
+
+            ## Body
+
+            - Source: a list item in the body
+            - Route: /wrong/
             """);
         WriteOutput("content/post/index.html.json", """
             {
@@ -1547,6 +1557,8 @@ public sealed class SeoAuditReportWriterTests : IDisposable
         var report = SeoAuditReportWriter.Build(Config(), _outputDir, index, models, new CanonicalContentGraph([record], [], [], []));
 
         Assert.DoesNotContain(report.Issues, issue => issue.Code == "publish.representation_json_mismatch");
+        // Body list items are content, not the metadata header; a header provenance line is still flagged.
+        Assert.Equal(headerProvenance.Length > 0, report.Issues.Any(issue => issue.Code == "publish.representation_markdown_mismatch"));
     }
 
     public void Dispose()

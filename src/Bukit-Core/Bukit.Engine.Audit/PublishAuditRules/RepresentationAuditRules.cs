@@ -106,7 +106,11 @@ internal static class RepresentationAuditRules
             return;
         }
 
-        var markdown = File.ReadAllText(path);
+        var markdown = File.ReadAllText(path).ReplaceLineEndings("\n");
+        // Check only the metadata header, which ends at the writer's first own section:
+        // body lists may legitimately contain "- Source:" text.
+        var section = MarkdownSectionStart(markdown);
+        if (section >= 0) markdown = markdown[..section];
         var route = ReadMarkdownValue(markdown, "- Route:");
         var mismatch = !RouteEquals(route, document) ||
                        (document.Language is not null && !markdown.Contains($"- Language: {document.Language}", StringComparison.Ordinal)) ||
@@ -279,6 +283,13 @@ internal static class RepresentationAuditRules
         }
 
         return "/" + trimmed.Trim('/') + "/";
+    }
+
+    private static int MarkdownSectionStart(string markdown)
+    {
+        var entities = markdown.IndexOf("\n## Entities\n", StringComparison.Ordinal);
+        var body = markdown.IndexOf("\n## Body\n", StringComparison.Ordinal);
+        return entities < 0 || (body >= 0 && body < entities) ? body : entities;
     }
 
     private static string? ReadMarkdownValue(string markdown, string prefix)
