@@ -1,5 +1,6 @@
 using Bukit.Content.CloudBase;
 using Bukit.Engine.Abstractions.Content;
+using Bukit.Engine.ContentLinks;
 using Bukit.Shared;
 
 namespace Bukit.Engine.Stages;
@@ -16,6 +17,7 @@ internal sealed class ContentGraphValidateStage : IContentStage
         var issues = CanonicalContentValidator.Validate(graph, input.Config.Site)
             .Concat(ContentModelSchemaValidator.Validate(graph, schema))
             .Concat(input.Documents.SelectMany(ToSchemaErrors))
+            .Concat(ContentLinkResolver.Validate(input.Config, input.Documents))
             .GroupBy(x => $"{x.SourcePath}:{x.Field}:{x.Code}", StringComparer.OrdinalIgnoreCase)
             .Select(x => x.First())
             .ToArray();

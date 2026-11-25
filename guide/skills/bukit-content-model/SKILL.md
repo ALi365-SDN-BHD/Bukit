@@ -182,6 +182,26 @@ to the row's document title (first `# H1`, else slug). Duplicate routes fail. Th
 is hidden from `site.data`. Rows use `seo_description` by default; page front matter
 uses `seo_desc` (`bukit-seo`). Do not rename one to match the other.
 
+## Content links
+
+`content.links` resolves keys a page stores in a field into a `<field>_links` list of the
+named documents, written next to the field and never over it (`04-site-yaml-config.md`).
+
+```yaml
+content:
+  links:
+    - collection: route                       # pages that hold the keys
+      field: days[].attractions               # or a top-level name such as cities
+      target: { collection: attraction, key: code }   # key defaults to slug
+      select: [image]                         # extra target fields per link
+```
+
+Each link has `key`, `title`, `slug`, `url` (relative to `base_url`; null for a data target), `collection` and the
+selected fields. A nested path also writes a top-level `days_attractions_links` that lists
+each target once. Keys must be text and match within the page's language. Unknown or repeated keys,
+non-text keys and existing output fields are reported under the page collection's
+`schemaFailMode` (`content.link_*` codes).
+
 ## Check
 
 ```bash

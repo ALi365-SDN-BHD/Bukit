@@ -4,6 +4,8 @@ Bukit 所有重要变更都将记录在此文件中。
 
 ## [Unreleased]
 
+- **内容引用字段**：`content.links` 把页面字段里存的键解析成对应的文档。配置 `field: cities` 后，`cities: [penang, kl]` 的页面会在原字段旁多出按原顺序排列的 `cities_links`。每条链接含 `key`、`title`、`slug`、`url`（没有页面的 data 文档为 null）、`collection`，以及 `select` 列出的目标字段。经过结构化字段的嵌套路径（如 `days[].attractions`）会在每个 day 对象里写 `attractions_links`，另在顶层写一个每个目标只出现一次的 `days_attractions_links`。目标按 `slug` 或 `target.key` 指定的字段（文本或整数）匹配，只在页面所属语言内匹配；`url` 与 `page.url` 一样相对于站点 base URL。找不到的键、有多个目标的键、不是文本的键、以及已存在的输出字段，都报告在引用它的页面上，按页面所在集合的 `schemaFailMode` 处理；Bukit 不会覆盖已有字段。目标的标题、URL 或 select 字段变化时，增量构建会重建引用它的页面。暂不支持 media 目标。见 [04 site.yaml 配置](guide/user/04-site-yaml-config.md#content-links)。
+
 - **CloudBase 结构化字段**：CloudBase 的 jsonb 对象、以及含非字符串元素的数组，现在按原结构保留，不再被丢掉，模板可以读 `page.fields.days.value[0].title`，或遍历 `page.fields.months.value` 用 `m == 4` 判断。对象的键按序数排序，JSON 类型保持不变（数字仍是数字；Markdown front matter 的列表元素是字符串，这一点两种源不同；`array.contains 4` 匹配不到这些数字，要用 `==` 比较），一个字段最多嵌套 8 层、JSON 最大 256 KiB。白名单里的列整体公开；硬性剔除的个人字段名同样从嵌套对象的键里删除；不在 `fileFields` 里的列只要嵌套值里出现 `cloud://`，就整列丢掉（`BKT-0C0B`）。超深或超大的列被丢掉，并以 `cloudbase.structured_field_invalid` 按集合的 `schemaFailMode` 处理。字符串数组的行为不变。`fieldPolicy.mode: all` 下这些列会作为新字段出现，开启 `content.modelSchema.rejectUnknownRawKeys` 时需要在模型里声明。内容校验日志对 CloudBase 行只输出行 id 的哈希。见 [27 CloudBase Content](guide/user/27-cloudbase-content.md#structured-fields)。
 
 - **CloudBase 内容源**：`content.sources[].type: cloudbase` 通过 PostgREST 读取 CloudBase PG 模式的表或视图，字段投影硬性剔除个人列，Markdown 正文使用不可信链接模式渲染，`fileFields` 对象和正文 `cloud://` 图片会批量签名，文件换链失败时落到 `content.media.defaultImageUrl`。构建阶段的隐私检查会拦截公开产物里的 envId、`cloud://`、网关/存储主机和签名链接；部署阶段拦截带 `token` 的签名链接、URL 位置的 `cloud://`（以及传入时的 envId）。`doctor` 检查凭据 role、表可达性、RLS 空结果和存储签名。见 [27 CloudBase Content](guide/user/27-cloudbase-content.md)。

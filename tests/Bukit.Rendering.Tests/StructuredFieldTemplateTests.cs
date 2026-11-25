@@ -19,6 +19,10 @@ public sealed class StructuredFieldTemplateTests
             new SortedDictionary<string, object?>(StringComparer.Ordinal)
             {
                 ["attractions"] = new List<object?> { "a1", "a2" },
+                ["attractions_links"] = new List<object?>
+                {
+                    new SortedDictionary<string, object?>(StringComparer.Ordinal) { ["key"] = "a1", ["title"] = "Batu Caves" }
+                },
                 ["free"] = false,
                 ["note"] = null,
                 ["price"] = 12.50m,
@@ -28,7 +32,13 @@ public sealed class StructuredFieldTemplateTests
         ["months"] = new("list", new List<object?> { 3L, 4L, 5L }),
         // Markdown front matter gives list items as text.
         ["md_months"] = new("list", new List<string> { "3", "4", "5" }),
-        ["contact"] = new("list", new SortedDictionary<string, object?>(StringComparer.Ordinal) { ["phone"] = "+60" })
+        ["contact"] = new("list", new SortedDictionary<string, object?>(StringComparer.Ordinal) { ["phone"] = "+60" }),
+        // content.links output: a list of sorted link maps.
+        ["cities_links"] = new("list", new List<object?>
+        {
+            new SortedDictionary<string, object?>(StringComparer.Ordinal) { ["key"] = "kl", ["title"] = "Kuala Lumpur", ["url"] = "/cities/kl/" },
+            new SortedDictionary<string, object?>(StringComparer.Ordinal) { ["key"] = "ipoh", ["title"] = "Ipoh", ["url"] = null }
+        })
     };
 
     [Theory]
@@ -38,6 +48,8 @@ public sealed class StructuredFieldTemplateTests
     [InlineData("{{ for m in page.fields.months.value }}{{ if m == 4 }}April{{ end }}{{ end }}", "April")]
     [InlineData("{{ page.fields.months.value | array.join ',' }}", "3,4,5")]
     [InlineData("{{ for m in page.fields.md_months.value }}{{ if m == \"4\" }}April{{ end }}{{ end }}|{{ page.fields.md_months.value | array.contains \"4\" }}", "April|true")]
+    [InlineData("{{ for city in page.fields.cities_links.value }}<a href=\"{{ city.url }}\">{{ city.title }}</a>{{ end }}", "<a href=\"/cities/kl/\">Kuala Lumpur</a><a href=\"\">Ipoh</a>")]
+    [InlineData("{{ for day in page.fields.days.value }}{{ for a in day.attractions_links }}{{ a.title }}{{ end }}{{ end }}", "Batu Caves")]
     public void Render_StructuredFields(string template, string expected)
         => Assert.Equal(expected, Render(template));
 
