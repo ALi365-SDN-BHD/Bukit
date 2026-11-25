@@ -171,9 +171,9 @@ internal sealed class CloudBaseContentSource : IContentProvider
         bool isData,
         CancellationToken cancellationToken)
     {
-        if (isData)
+        if (isData && _options.FileFields.Count == 0)
         {
-            // Data mode resolves no file references (it has no fileFields), so any field holding cloud:// is dropped.
+            // Without fileFields nothing is resolved, so any field holding cloud:// is dropped.
             WarnUnsupported(StripCloudReferenceFields(drafts));
             return new Dictionary<string, string>(StringComparer.Ordinal);
         }

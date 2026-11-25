@@ -50,7 +50,7 @@ Use `type: cloudbase` for a CloudBase PG-mode table or view: set `cloudbase.envI
 `created_by`, `updated_by` and `_openid`. `fileFields` values are object names or
 `cloud://` references and require `storageBucket`, `content.media.fieldKeys`,
 `downloadToLocal`, `onFailure: placeholder`, and no exclusion of the gateway/storage
-hosts (an empty `downloadHosts` is fine; when set it must include them). Only body images and file fields are rewritten; other `cloud://`
+hosts (an empty `downloadHosts` is fine; when set it must include them); `mode: data` sources support them too. Only body images and file fields are rewritten; other `cloud://`
 values are degraded (`BKT-0C0B`). jsonb objects and non-text arrays stay structured
 (`page.fields.<k>.value`, sorted keys, JSON types kept so numbers stay numbers unlike
 Markdown list items, depth 8, 256 KiB); an allowed column is published whole, nested

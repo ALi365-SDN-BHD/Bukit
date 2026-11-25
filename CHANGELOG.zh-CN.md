@@ -4,6 +4,8 @@ Bukit 所有重要变更都将记录在此文件中。
 
 ## [Unreleased]
 
+- **CloudBase data 模式的文件字段**：`mode: data` 的 CloudBase 源现在可以配置 `fileFields`。文件引用和 content 模式一样签名并下载到本地，图库照片这类数据行也能得到文件名稳定的本地文件；其他含 `cloud://` 的字段仍会被丢弃。媒体前提条件不变（`downloadToLocal`、`fieldKeys`、`onFailure: placeholder` 和 CloudBase 主机）。见 [27 CloudBase 内容源](guide/user/27-cloudbase-content.md)。
+
 - **部分条目不出页面**：`site.collections.<name>.routeWhen: { field, eq }` 只给顶层字段等于该值的条目出页面（文本不区分大小写，也可以是布尔值或整数）。其余条目不进集合列表、feed、sitemap、搜索和任何页面输出，但仍然会加载，`content.links` 照样可以引用它们（链接的 `url` 为 null）。这些条目自己不解析引用，也没有反链列表。见 [04 site.yaml 配置](guide/user/04-site-yaml-config.md#entries-without-a-page)。
 
 - **内容反向索引**：`content.links` 条目可以加 `backref: { name, limit, select }`。每个目标页会列出引用它的内容页：`<name>` 里每条含 `key`（引用页的 slug）、`title`、`slug`、`url`、`collection` 和 `select` 列出的字段，按集合列表顺序排列，同一页只出现一次，最多 `limit` 条（`0` 表示不限）。`<name>_count` 是截断前的总数。目标集合的每个页面都会有这两个字段，没人引用时为空列表和 0；data 目标没有。同一集合里同一个字段被写两次时，加载配置就报错；目标页已有同名字段时保留原值，并按该页所在集合的 `schemaFailMode` 报告。引用页变化时，增量构建会重建目标页。见 [04 site.yaml 配置](guide/user/04-site-yaml-config.md#backrefs)。

@@ -154,11 +154,6 @@ internal static partial class ProviderValidators
             return;
         }
 
-        if (mode == "data")
-        {
-            throw CloudBaseInvalid($"{pathPrefix}.fileFields is not supported when mode is data.");
-        }
-
         foreach (var field in cloudBase.FileFields)
         {
             if (CloudBaseFieldRules.IsHardExcluded(field))

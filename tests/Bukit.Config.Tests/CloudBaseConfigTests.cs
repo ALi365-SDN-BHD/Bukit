@@ -512,17 +512,32 @@ public sealed class CloudBaseConfigTests
     }
 
     [Fact]
-    public void Load_DataModeWithFileFields_Fails()
+    public void Load_DataModeWithFileFields_Passes()
+    {
+        var config = Load("""
+            envId: prod-abc
+            table: gallery
+            fileFields:
+              - photo
+            storageBucket: media
+            """, MediaWithHosts(download: ["prod-abc.api.tcloudbasegateway.com", "prod-abc.storage.tcloudbase.com"]).Replace("- cover", "- photo", StringComparison.Ordinal), mode: "data");
+
+        Assert.Equal(["photo"], Assert.IsType<CloudBaseConfig>(Assert.Single(config.Content.Sources!).CloudBase).FileFields);
+    }
+
+    [Fact]
+    public void Load_DataModeFileFieldsWithoutLocalization_Fails()
     {
         var ex = Fails("""
             envId: prod-abc
-            table: articles
+            table: gallery
             fileFields:
-              - cover
+              - photo
             storageBucket: media
-            """, MediaBlock(downloadToLocal: true, fieldKeys: ["cover"], onFailure: "placeholder"), mode: "data");
+            """, mode: "data");
+
         AssertCloudBaseError(ex);
-        Assert.Contains("fileFields", ex.Message, StringComparison.Ordinal);
+        Assert.Contains("cloudbase.fileFields", ex.Message, StringComparison.Ordinal);
     }
 
     [Fact]

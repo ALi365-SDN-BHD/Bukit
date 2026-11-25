@@ -264,6 +264,30 @@ public sealed class CloudBaseContentSourceTests
     }
 
     [Fact]
+    public async Task LoadRawAsync_DataModeFileFields_AreSignedAndOtherReferencesDropped()
+    {
+        var api = new FakeCloudBaseApi();
+        api.Pages[0] = """[{"id":"p1","title":"Photo","photo":"cloud://env-abc.media/gallery/p1.jpg","other":"cloud://env-abc.media/x.png"}]""";
+        api.Total = 1;
+        var source = Create(api, options => options with
+        {
+            Mode = "data",
+            FileFields = ["photo"],
+            StorageBucket = "media",
+            DefaultImageUrl = "/ph.jpg",
+            FieldPolicyMode = "all"
+        });
+
+        var document = Assert.Single((await source.LoadRawAsync()).Documents);
+
+        Assert.Equal(
+            "https://env-abc.api.tcloudbasegateway.com/v1/storages/object/sign/media/gallery/p1.jpg?token=x",
+            document.CustomFields!["photo"].Value);
+        Assert.DoesNotContain("other", document.CustomFields.Keys);
+        Assert.Null(document.Body.Markdown);
+    }
+
+    [Fact]
     public async Task LoadRawAsync_FileSignError_FallsBackToPlaceholder()
     {
         var api = new FakeCloudBaseApi { SignError = "denied" };
