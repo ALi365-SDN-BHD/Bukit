@@ -34,7 +34,7 @@ internal sealed class RoutePipeline
             documents = I18nOutputMerger.FilterDocumentsByLanguage(documents, currentLang, defaultLang);
         }
 
-        var contentDocuments = documents.Where(i => !ContentFieldReader.IsDataItem(i)).ToList();
+        var contentDocuments = documents.Where(i => CollectionPagePolicy.HasPage(i, config.Site)).ToList();
         var collectionRules = RouteInventoryValidator.BuildCollectionRules(config.Site);
         var routedDocuments = contentDocuments
             .Select(i => new RoutedContentDocument(
@@ -44,10 +44,11 @@ internal sealed class RoutePipeline
             .ToList();
         RouteInventoryValidator.ValidateContentRoutes(routedDocuments);
         // Links need target URLs, so they resolve after routing and before anything reads the pages.
+        // Documents without a page (data, or failing routeWhen) are targets without a URL.
         var linkedDocuments = ContentLinkResolver.Apply(
             config.Content,
             routedDocuments,
-            [.. documents.Where(ContentFieldReader.IsDataItem)]);
+            [.. documents.Where(i => !CollectionPagePolicy.HasPage(i, config.Site))]);
 
         var listRouteGraph = ListRouteGraphBuilder.Build(
             linkedDocuments,

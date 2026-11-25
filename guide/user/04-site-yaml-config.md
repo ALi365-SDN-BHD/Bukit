@@ -185,6 +185,8 @@ SearchAction and does not perform the final-route check.
 | `site.collections.<name>.listTemplate` | none | List route template. |
 | `site.collections.<name>.schemaFailMode` | none | `off`, `warn`, or `strict`. |
 | `site.collections.<name>.seo.articleType` | none | Overrides `site.seo.schema.articleType` for this collection's articles. |
+| `site.collections.<name>.routeWhen.field` | none | Gives a page only to entries whose field passes the test. See [Entries Without A Page](#entries-without-a-page). |
+| `site.collections.<name>.routeWhen.eq` | required with `field` | The value the field must equal. |
 | `site.collections.<name>.noindexWhenEmpty` | `false` | When true, an empty list route uses `noindex,follow` and is excluded from sitemap, search, `llms.txt`, and `llms-full.txt`. |
 | `site.collections.<name>.indexPolicy.minimumItems` | `0` | Minimum content threshold; must be an integer >= 0. |
 | `site.collections.<name>.indexPolicy.belowMinimum` | `index` | `index` or `noindex-follow`. |
@@ -213,6 +215,28 @@ flag remains supported and equals `minimumItems: 1` with `belowMinimum:
 noindex-follow`; declaring both fields on the same collection fails
 configuration validation. Thin list routes stay in the route map with
 indexable false, and feeds keep emitting eligible content items.
+
+### Entries Without A Page
+
+Every entry of a collection gets a page by default. `routeWhen` gives a page only to the entries
+whose field equals a value, so a table can hold 18 cities while only 8 of them get pages:
+
+```yaml
+site:
+  collections:
+    city:
+      permalink: /cities/{slug}/
+      routeWhen: { field: has_page, eq: true }
+```
+
+The field is a top-level content field. Text is compared ignoring case and surrounding spaces, and a
+boolean or whole-number value is compared as `true`, `false` or its digits. An entry without the
+field gets no page.
+
+An entry without a page is left out of collection lists, feeds, the sitemap, search and every other
+page output, like a data document. It is still loaded, so [content links](#content-links) can name
+it: its link has a null `url`. It does not link to other documents itself and gets no
+[backref](#backrefs) list.
 
 ## Filtered Lists
 

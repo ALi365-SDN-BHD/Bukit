@@ -4,6 +4,8 @@ Bukit 所有重要变更都将记录在此文件中。
 
 ## [Unreleased]
 
+- **部分条目不出页面**：`site.collections.<name>.routeWhen: { field, eq }` 只给顶层字段等于该值的条目出页面（文本不区分大小写，也可以是布尔值或整数）。其余条目不进集合列表、feed、sitemap、搜索和任何页面输出，但仍然会加载，`content.links` 照样可以引用它们（链接的 `url` 为 null）。这些条目自己不解析引用，也没有反链列表。见 [04 site.yaml 配置](guide/user/04-site-yaml-config.md#entries-without-a-page)。
+
 - **内容反向索引**：`content.links` 条目可以加 `backref: { name, limit, select }`。每个目标页会列出引用它的内容页：`<name>` 里每条含 `key`（引用页的 slug）、`title`、`slug`、`url`、`collection` 和 `select` 列出的字段，按集合列表顺序排列，同一页只出现一次，最多 `limit` 条（`0` 表示不限）。`<name>_count` 是截断前的总数。目标集合的每个页面都会有这两个字段，没人引用时为空列表和 0；data 目标没有。同一集合里同一个字段被写两次时，加载配置就报错；目标页已有同名字段时保留原值，并按该页所在集合的 `schemaFailMode` 报告。引用页变化时，增量构建会重建目标页。见 [04 site.yaml 配置](guide/user/04-site-yaml-config.md#backrefs)。
 
 - **内容引用字段**：`content.links` 把页面字段里存的键解析成对应的文档。配置 `field: cities` 后，`cities: [penang, kl]` 的页面会在原字段旁多出按原顺序排列的 `cities_links`。每条链接含 `key`、`title`、`slug`、`url`（没有页面的 data 文档为 null）、`collection`，以及 `select` 列出的目标字段。经过结构化字段的嵌套路径（如 `days[].attractions`）会在每个 day 对象里写 `attractions_links`，另在顶层写一个每个目标只出现一次的 `days_attractions_links`。目标按 `slug` 或 `target.key` 指定的字段（文本或整数）匹配，只在页面所属语言内匹配；`url` 与 `page.url` 一样相对于站点 base URL。找不到的键、有多个目标的键、不是文本的键、以及已存在的输出字段，都报告在引用它的页面上，按页面所在集合的 `schemaFailMode` 处理；Bukit 不会覆盖已有字段。目标的标题、URL 或 select 字段变化时，增量构建会重建引用它的页面。暂不支持 media 目标。见 [04 site.yaml 配置](guide/user/04-site-yaml-config.md#content-links)。

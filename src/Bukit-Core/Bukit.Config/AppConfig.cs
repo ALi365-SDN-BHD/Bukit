@@ -246,6 +246,22 @@ public sealed record CollectionConfig
     // JsonInclude: the i18n worktree protocol sends the config to language workers and hashes it.
     [System.Text.Json.Serialization.JsonInclude]
     internal string? ArticleType { get; init; }
+    /// <summary>
+    /// From <c>routeWhen</c>: only entries whose field equals the value get a page; the others stay
+    /// available to content links. Null gives every entry a page.
+    /// </summary>
+    // Internal: configured only through site.yaml, so it does not widen the public API.
+    [System.Text.Json.Serialization.JsonInclude]
+    internal CollectionRouteWhenConfig? RouteWhen { get; init; }
+}
+
+/// <summary>site.collections.*.routeWhen: the field test an entry must pass to get a page.</summary>
+internal sealed record CollectionRouteWhenConfig
+{
+    /// <summary>The top-level content field tested.</summary>
+    public required string Field { get; init; }
+    /// <summary>The value it must equal: text compared case-insensitively, or a boolean or whole number.</summary>
+    public required string Eq { get; init; }
 }
 
 public sealed record CollectionIndexPolicyConfig

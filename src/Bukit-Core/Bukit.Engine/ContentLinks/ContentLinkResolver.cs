@@ -187,7 +187,7 @@ internal static class ContentLinkResolver
         foreach (var view in LanguageViews(config, documents))
         {
             var index = BuildIndex(parsed, view.Select(document => (document, (string?)null)));
-            foreach (var page in view.Where(document => !ContentFieldReader.IsDataItem(document)))
+            foreach (var page in view.Where(document => CollectionPagePolicy.HasPage(document, config.Site)))
             {
                 foreach (var link in LinksFor(parsed, page))
                 {

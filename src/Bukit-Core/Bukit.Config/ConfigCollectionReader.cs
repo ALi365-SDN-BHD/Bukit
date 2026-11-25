@@ -54,7 +54,29 @@ internal static class ConfigCollectionReader
             FilteredLists = ReadFilteredLists(collectionNode),
             ArticleType = ConfigYamlHelpers.GetOptionalMapping(collectionNode, "seo", $"site.collections.{collectionName}") is { } seoNode
                 ? ConfigYamlHelpers.GetOptionalString(seoNode, "articleType")
-                : null
+                : null,
+            RouteWhen = ReadRouteWhen(collectionName, collectionNode)
+        };
+    }
+
+    private static CollectionRouteWhenConfig? ReadRouteWhen(string collectionName, YamlMappingNode collectionNode)
+    {
+        var path = $"site.collections.{collectionName}";
+        if (ConfigYamlHelpers.GetOptionalMapping(collectionNode, "routeWhen", path) is not { } node)
+        {
+            return null;
+        }
+
+        var field = RequiredText(node, "field", $"{path}.routeWhen");
+        if (!ContentLinkPath.IsName(field))
+        {
+            throw new ConfigException($"{path}.routeWhen.field '{field}' is not a valid field name.", DiagnosticCode.ConfigInvalidValue);
+        }
+
+        return new CollectionRouteWhenConfig
+        {
+            Field = field,
+            Eq = RequiredText(node, "eq", $"{path}.routeWhen")
         };
     }
 
@@ -235,11 +257,11 @@ internal static class ConfigCollectionReader
                 ?? throw new ConfigException($"{path}.target is required.", DiagnosticCode.ConfigRequiredFieldMissing);
             links.Add(new ContentLinkConfig
             {
-                Collection = RequiredLinkString(node, "collection", path),
-                Field = RequiredLinkString(node, "field", path),
+                Collection = RequiredText(node, "collection", path),
+                Field = RequiredText(node, "field", path),
                 Target = new ContentLinkTargetConfig
                 {
-                    Collection = RequiredLinkString(target, "collection", $"{path}.target"),
+                    Collection = RequiredText(target, "collection", $"{path}.target"),
                     Key = ConfigYamlHelpers.GetOptionalString(target, "key")?.Trim() ?? "slug"
                 },
                 Select = ConfigYamlHelpers.ReadStringList(node, "select") ?? [],
@@ -261,7 +283,7 @@ internal static class ConfigCollectionReader
         var limit = ConfigYamlHelpers.GetOptionalString(node, "limit");
         return new ContentLinkBackrefConfig
         {
-            Name = RequiredLinkString(node, "name", $"{path}.backref"),
+            Name = RequiredText(node, "name", $"{path}.backref"),
             Limit = limit is null
                 ? 0
                 : int.TryParse(limit, NumberStyles.Integer, CultureInfo.InvariantCulture, out var value)
@@ -271,7 +293,7 @@ internal static class ConfigCollectionReader
         };
     }
 
-    private static string RequiredLinkString(YamlMappingNode node, string key, string path)
+    private static string RequiredText(YamlMappingNode node, string key, string path)
     {
         var value = ConfigYamlHelpers.GetOptionalString(node, key);
         return string.IsNullOrWhiteSpace(value)

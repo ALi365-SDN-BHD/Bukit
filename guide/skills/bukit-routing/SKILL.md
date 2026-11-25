@@ -109,6 +109,10 @@ Pagination (`site.collections.<c>.pagination`): `enabled` (false), `pageSize` (1
 `urlPattern` (`page/:num/`; relative, must contain `:num`, `{num}`, or `{page}`),
 `firstPageUsesListRoute` (true). Page N lives at `<listRoute><urlPattern>`.
 
+Only some entries get pages: `routeWhen: { field: has_page, eq: true }` on a collection gives a page
+only to entries whose top-level field equals the value. The rest leave lists, feeds, sitemap
+and search but stay content link targets with a null `url` (`04-site-yaml-config.md`).
+
 ## Filtered lists
 
 ```yaml

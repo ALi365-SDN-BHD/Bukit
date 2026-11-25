@@ -648,7 +648,18 @@ public static class ConfigJsonSchemaGenerator
             ("pagination", CollectionPaginationSchema()),
             ("output", CollectionOutputSchema()),
             ("filteredLists", Obj(("type", "array"), ("items", CollectionFilteredListItemSchema()))),
-            ("seo", Obj(("type", "object"), ("properties", Obj(("articleType", ArticleTypeSchema()))))));
+            ("seo", Obj(("type", "object"), ("properties", Obj(("articleType", ArticleTypeSchema()))))),
+            ("routeWhen", RouteWhenSchema()));
+        return schema;
+    }
+
+    private static JsonObject RouteWhenSchema()
+    {
+        var schema = Obj(("type", "object"));
+        schema["required"] = Arr("field", "eq");
+        schema["properties"] = Obj(
+            ("field", StringSchema()),
+            ("eq", Obj(("type", Arr("string", "boolean", "integer")))));
         return schema;
     }
 
