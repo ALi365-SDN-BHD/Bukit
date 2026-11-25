@@ -76,7 +76,7 @@ public sealed class ImageProcessingPluginTests
                     Assert.Equal(size, codec.Info.Width);
                 }
                 var variantHash = Convert.ToHexString(SHA256.HashData(variantBytes));
-                var expected = $$"""{"schemaVersion":1,"owner":"bukit:image-processing","sourcePath":"assets/nested/photo\u0026one.jpg","variantPath":"assets/nested/photo\u0026one-{{size}}w.jpg","sourceSize":{{info.Length}},"sourceMtime":{{info.LastWriteTimeUtc.Ticks}},"sourceSha256":"{{sourceHash}}","variantLength":{{variantBytes.LongLength}},"variantSha256":"{{variantHash}}","quality":73,"size":{{size}},"format":".jpg","tool":"skiasharp-orientation-v2"}""";
+                var expected = $$"""{"schemaVersion":1,"owner":"bukit:image-processing","sourcePath":"assets/nested/photo\u0026one.jpg","variantPath":"assets/nested/photo\u0026one-{{size}}w.jpg","sourceSize":{{info.Length}},"sourceMtime":{{info.LastWriteTimeUtc.Ticks}},"sourceSha256":"{{sourceHash}}","variantLength":{{variantBytes.LongLength}},"variantSha256":"{{variantHash}}","quality":73,"size":{{size}},"format":".jpg","tool":"skiasharp-orientation-v3"}""";
                 Assert.Equal(Encoding.UTF8.GetBytes(expected), File.ReadAllBytes(variant + ".bukit-freshness.json"));
                 expectedOutputs.Add(new("image-processing", "after-build", relative));
                 expectedOutputs.Add(new("image-processing", "after-build", relative + ".bukit-freshness.json"));
@@ -769,7 +769,7 @@ public sealed class ImageProcessingPluginTests
             await new ImageProcessingPlugin(config).AfterBuildAsync(second);
 
             Assert.StartsWith("skiasharp-webp-", JsonNode.Parse(File.ReadAllText(webp + ".bukit-freshness.json"))!["tool"]!.GetValue<string>(), StringComparison.Ordinal);
-            Assert.Equal("skiasharp-orientation-v2", JsonNode.Parse(File.ReadAllText(fallback + ".bukit-freshness.json"))!["tool"]!.GetValue<string>());
+            Assert.Equal("skiasharp-orientation-v3", JsonNode.Parse(File.ReadAllText(fallback + ".bukit-freshness.json"))!["tool"]!.GetValue<string>());
             Assert.True(File.GetLastWriteTimeUtc(webp) > oldTimestamp);
             Assert.True(File.GetLastWriteTimeUtc(fallback) > oldTimestamp);
         }
