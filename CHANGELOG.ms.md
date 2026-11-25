@@ -4,6 +4,8 @@ Semua perubahan penting kepada Bukit akan didokumenkan dalam fail ini.
 
 ## [Belum Dikeluarkan]
 
+- **Pemegang tempat medan dalam permalink**: corak permalink koleksi atau `site.permalinks` boleh menggunakan `{fields.<name>}`, iaitu nilai medan teks atau nombor bulat aras atas yang dijadikan slug, contohnya `/malaysia/{fields.city}/attractions/{slug}/`. Halaman yang medannya tiada, kosong atau tidak menghasilkan slug akan menggagalkan binaan dengan `RouteInvalidPattern`; URL pendua gagal sebagai konflik laluan, seperti sebelum ini. Lihat [04 Konfigurasi site.yaml](guide/user/04-site-yaml-config.md#collections).
+
 - **Fail mod data CloudBase**: sumber CloudBase dengan `mode: data` kini menerima `fileFields`. Rujukan failnya ditandatangani dan disetempatkan seperti medan fail mod kandungan, jadi baris data seperti foto galeri mendapat fail setempat dengan nama yang stabil; medan lain yang memuatkan `cloud://` masih digugurkan. Prasyarat media yang sama terpakai (`downloadToLocal`, `fieldKeys`, `onFailure: placeholder` dan hos CloudBase). Lihat [27 Kandungan CloudBase](guide/user/27-cloudbase-content.md).
 
 - **Entri tanpa halaman**: `site.collections.<name>.routeWhen: { field, eq }` memberi halaman hanya kepada entri yang medan aras atasnya sama dengan nilai itu (teks tanpa mengira huruf besar kecil, atau boolean atau nombor bulat). Entri lain tidak dimasukkan dalam senarai koleksi, suapan, peta laman, carian dan semua output halaman, tetapi masih dimuatkan, jadi `content.links` masih boleh menamakannya (`url` pautannya null). Entri itu sendiri tidak memaut ke dokumen lain dan tidak menerima senarai pautan balik. Lihat [04 Konfigurasi site.yaml](guide/user/04-site-yaml-config.md#entries-without-a-page).

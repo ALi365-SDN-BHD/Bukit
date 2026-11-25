@@ -53,8 +53,9 @@ Other collection keys:
   collection's own feed (`bukit-outputs`).
 
 Placeholders (case-insensitive): `{slug}`, `{title}` (slugified), `{year}`, `{month}`,
-`{day}` (from `publishAt`, UTC), `{type}`, `{collection}`. Unknown placeholders stay in
-the URL literally, so check spelling.
+`{day}` (from `publishAt`, UTC), `{type}`, `{collection}`, and `{fields.<name>}` (a top-level
+text or whole-number field, slugified; missing or empty fails the build). Unknown placeholders
+stay in the URL literally, so check spelling.
 
 ```yaml
 ---

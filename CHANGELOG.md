@@ -4,6 +4,8 @@ All notable changes to Bukit will be documented in this file.
 
 ## [Unreleased]
 
+- **Field placeholders in permalinks**: a collection permalink or `site.permalinks` pattern can use `{fields.<name>}`, the slugified value of a top-level text or whole-number field, such as `/malaysia/{fields.city}/attractions/{slug}/`. A page whose field is missing, empty or slugifies to nothing fails the build with `RouteInvalidPattern`; duplicate URLs fail as a route conflict, as before. See [04 site.yaml Config](guide/user/04-site-yaml-config.md#collections).
+
 - **CloudBase data-mode files**: a CloudBase source with `mode: data` now accepts `fileFields`. Its file references are signed and localized like content-mode file fields, so data rows such as gallery photos get local files with stable names; other fields holding `cloud://` are still dropped. The same media preconditions apply (`downloadToLocal`, `fieldKeys`, `onFailure: placeholder` and the CloudBase hosts). See [27 CloudBase Content](guide/user/27-cloudbase-content.md).
 
 - **Entries without a page**: `site.collections.<name>.routeWhen: { field, eq }` gives a page only to the entries whose top-level field equals the value (text ignoring case, or a boolean or whole number). The other entries are left out of collection lists, feeds, the sitemap, search and every page output, but stay loaded, so `content.links` can still name them (their link `url` is null). They do not link to other documents themselves and get no backref list. See [04 site.yaml Config](guide/user/04-site-yaml-config.md#entries-without-a-page).

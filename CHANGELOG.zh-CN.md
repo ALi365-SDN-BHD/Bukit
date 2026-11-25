@@ -4,6 +4,8 @@ Bukit 所有重要变更都将记录在此文件中。
 
 ## [Unreleased]
 
+- **permalink 字段占位符**：集合 permalink 和 `site.permalinks` 可以用 `{fields.<name>}`，取顶层文本或整数字段的值并做 slug 化，例如 `/malaysia/{fields.city}/attractions/{slug}/`。字段缺失、为空或 slug 化后为空的页面会让构建以 `RouteInvalidPattern` 失败；网址重复时照旧报路由冲突。见 [04 site.yaml 配置](guide/user/04-site-yaml-config.md#collections)。
+
 - **CloudBase data 模式的文件字段**：`mode: data` 的 CloudBase 源现在可以配置 `fileFields`。文件引用和 content 模式一样签名并下载到本地，图库照片这类数据行也能得到文件名稳定的本地文件；其他含 `cloud://` 的字段仍会被丢弃。媒体前提条件不变（`downloadToLocal`、`fieldKeys`、`onFailure: placeholder` 和 CloudBase 主机）。见 [27 CloudBase 内容源](guide/user/27-cloudbase-content.md)。
 
 - **部分条目不出页面**：`site.collections.<name>.routeWhen: { field, eq }` 只给顶层字段等于该值的条目出页面（文本不区分大小写，也可以是布尔值或整数）。其余条目不进集合列表、feed、sitemap、搜索和任何页面输出，但仍然会加载，`content.links` 照样可以引用它们（链接的 `url` 为 null）。这些条目自己不解析引用，也没有反链列表。见 [04 site.yaml 配置](guide/user/04-site-yaml-config.md#entries-without-a-page)。

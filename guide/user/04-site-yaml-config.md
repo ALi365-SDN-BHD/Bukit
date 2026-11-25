@@ -177,7 +177,7 @@ SearchAction and does not perform the final-route check.
 
 | Field | Default | Notes |
 |---|---|---|
-| `site.collections.<name>.permalink` | required | Must include `{slug}`. |
+| `site.collections.<name>.permalink` | required | Must include `{slug}`. Other placeholders: `{title}`, `{year}`, `{month}`, `{day}`, `{type}`, `{collection}`, and `{fields.<name>}` for a top-level text or whole-number field, slugified like `{title}`, such as `/malaysia/{fields.city}/attractions/{slug}/`. A page whose field is missing, empty or slugifies to nothing fails the build (`RouteInvalidPattern`), and two pages with the same URL fail as a route conflict. |
 | `site.collections.<name>.template` | none | Content page template. |
 | `site.collections.<name>.listRoute` | none | Collection list route; must start with `/` when set. |
 | `site.collections.<name>.listTitle` | none | List page title. |
