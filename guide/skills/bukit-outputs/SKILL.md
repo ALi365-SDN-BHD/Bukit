@@ -142,7 +142,9 @@ paths; they return a plain 404.
 ## Machine-readable projections
 
 Every routed page also gets `content/<output path>.json` and `.md`, and
-`agent-manifest.json` lists indexable documents with their representations. In SEO
+`agent-manifest.json` lists indexable documents with their representations and dates
+(`publishedAt` = publish date, `updatedAt` = last edit when set), plus a `lists` array of
+the home, collection list and taxonomy routes the sitemap lists. In SEO
 inject mode, indexable content pages get `<link rel="alternate">` tags to their JSON
 and Markdown. `bukit publish audit` checks that these exist (`bukit-publish-deploy`).
 

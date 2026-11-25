@@ -141,11 +141,25 @@ internal sealed class DefaultContentProjectionWriter : IContentProjectionWriter
                     entry,
                     model,
                     context.BaseUrl),
-                record.Lifecycle.UpdatedAt ?? record.Lifecycle.PublishedAt));
+                record.Lifecycle.PublishedAt,
+                record.Lifecycle.UpdatedAt));
         }
 
         return manifestEntries;
     }
+
+    internal static IReadOnlyList<AgentManifestListEntry> BuildAgentManifestListEntries(PublishProjectionContext context)
+        => AgentManifestListEntries.Build(
+            context.Config,
+            context.SeoIndex,
+            context.ListRouteGraph,
+            context.RoutedDocuments.Concat(context.DerivedDocuments),
+            context.OutputDir,
+            context.BaseUrl,
+            context.Config.Site.Language,
+            prefixRoutes: false,
+            AgentManifestListEntries.CreateLocFilter(context.Config, context.BaseUrl),
+            context.Logger);
 
     internal static IReadOnlyList<RepresentationEntry> BuildAgentManifestRepresentationEntries(
         RouteInfo route,
@@ -176,7 +190,8 @@ internal sealed class DefaultContentProjectionWriter : IContentProjectionWriter
         string ReviewStatus,
         IReadOnlyList<string> Entities,
         IReadOnlyList<RepresentationEntry> Representations,
-        DateTimeOffset PublishedAt);
+        DateTimeOffset PublishedAt,
+        [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] DateTimeOffset? UpdatedAt);
 
     internal sealed record RepresentationEntry(string Kind, string Url);
 }
@@ -341,23 +356,31 @@ internal sealed class AgentManifestProjection : IPublishProjection
                 [new PublishRepresentationOutput(Representation.Kind, "/" + Representation.Path, Representation.Path, Exists: false, Indexable: false)]);
         }
 
-        var path = Project(context.OutputDir, DefaultContentProjectionWriter.BuildAgentManifestEntries(context));
+        var path = Project(
+            context.OutputDir,
+            DefaultContentProjectionWriter.BuildAgentManifestEntries(context),
+            DefaultContentProjectionWriter.BuildAgentManifestListEntries(context));
         return new PublishProjectionResult(
             Representation,
             [new PublishRepresentationOutput(Representation.Kind, "/" + Representation.Path, Representation.Path, File.Exists(path), Indexable: false)]);
     }
 
-    internal string Project(string outputDir, IReadOnlyList<DefaultContentProjectionWriter.AgentManifestEntry> entries)
+    internal string Project(
+        string outputDir,
+        IReadOnlyList<DefaultContentProjectionWriter.AgentManifestEntry> entries,
+        IReadOnlyList<AgentManifestListEntry> lists)
     {
+        // generatedAt is the latest change: an edit moves it, as it did before publishedAt held the publish date.
         var generatedAt = entries.Count == 0
             ? DateTimeOffset.UnixEpoch
-            : entries.Max(x => x.PublishedAt);
+            : entries.Max(x => x.UpdatedAt ?? x.PublishedAt);
         var orderedEntries = entries.OrderBy(x => x.Route, StringComparer.OrdinalIgnoreCase).ToArray();
         var manifest = new ContentProjectionAgentManifest(
             Schema: "https://bukit.dev/schemas/agent-manifest.v1.json",
-            SchemaVersion: "1.0",
+            SchemaVersion: "1.1",
             GeneratedAt: generatedAt,
-            Documents: orderedEntries);
+            Documents: orderedEntries,
+            Lists: [.. lists.OrderBy(x => x.Route, StringComparer.OrdinalIgnoreCase)]);
 
         var json = JsonSerializer.Serialize(manifest, ContentProjectionJsonContext.Default.ContentProjectionAgentManifest);
         // No BOM: llms.txt points agents here, and JSON parsers may reject a leading BOM (RFC 8259).
@@ -407,4 +430,5 @@ internal sealed record ContentProjectionAgentManifest(
     string Schema,
     string SchemaVersion,
     DateTimeOffset GeneratedAt,
-    IReadOnlyList<DefaultContentProjectionWriter.AgentManifestEntry> Documents);
+    IReadOnlyList<DefaultContentProjectionWriter.AgentManifestEntry> Documents,
+    IReadOnlyList<AgentManifestListEntry> Lists);

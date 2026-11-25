@@ -238,7 +238,7 @@ Curation changes llms projections only. Sitemap, search, RSS, robots, and
 | `llms.txt` | Compact list of important pages and links. Its `## Optional` section links `agent-manifest.json`. |
 | `llms-full.txt` | Larger full-content file when enabled. |
 | `content/<page output path>.md` and `.json` | Markdown and JSON version of each content page, for example `content/blog/hello/index.html.md`. |
-| `agent-manifest.json` | Machine-readable index of every indexable page with links to its Markdown and JSON versions. Its `language` field is the content-declared language; content without a `language` field reports `und`. |
+| `agent-manifest.json` | Machine-readable index: `documents` lists every indexable content page with links to its HTML, Markdown and JSON versions, its publish date (`publishedAt`) and, when set, its last edit (`updatedAt`); `lists` lists the home, collection list and taxonomy pages the sitemap lists. A document's `language` field is the content-declared language; content without a `language` field reports `und`. See [10 Built-In Outputs](10-built-in-outputs.md#agent-manifest). |
 | `.bukit/geo-report.json` | Audit data for `geo audit`. |
 | publish audit fields | Whether AI-readable representations were generated and included. |
 

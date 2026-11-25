@@ -92,6 +92,16 @@ public sealed class ReportSchemaContractTests
             Assert.Contains(field, error.Message);
         }
 
+        if (id == "agent-manifest")
+        {
+            // Every language has an indexable home route, so lists is populated and strictly typed.
+            Assert.NotEmpty(generated["lists"]!.AsArray());
+            invalid = generated.DeepClone().AsObject();
+            invalid["lists"]![0]!["kind"] = "page";
+            error = Assert.Throws<InvalidDataException>(() => LocalJsonSchema.AssertValid(JsonSerializer.SerializeToElement(invalid), schema.RootElement));
+            Assert.Contains("lists", error.Message);
+        }
+
         var version = record.GetProperty("versionBinding");
         if (version.ValueKind != JsonValueKind.Null)
         {

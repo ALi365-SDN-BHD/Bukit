@@ -6,7 +6,8 @@ namespace Bukit.WechatSyncing;
 public static class WechatSyncInputLoader
 {
     private const string ManifestSchema = "https://bukit.dev/schemas/agent-manifest.v1.json";
-    private const string ManifestSchemaVersion = "1.0";
+    // Minor versions of the v1 manifest only add optional fields, so any 1.<n> reads the same; a new major does not.
+    private const string ManifestSchemaMajorPrefix = "1.";
 
     public static async Task<WechatSyncContext> LoadAsync(
         string rootDir,
@@ -140,10 +141,16 @@ public static class WechatSyncInputLoader
         };
     }
 
+    private static bool IsSupportedSchemaVersion(string? version)
+        => version is not null &&
+           version.StartsWith(ManifestSchemaMajorPrefix, StringComparison.Ordinal) &&
+           version.Length > ManifestSchemaMajorPrefix.Length &&
+           version.AsSpan(ManifestSchemaMajorPrefix.Length).IndexOfAnyExceptInRange('0', '9') < 0;
+
     private static void ValidateManifest(ContentProjectionAgentManifest manifest, string path)
     {
         if (!string.Equals(manifest.Schema, ManifestSchema, StringComparison.Ordinal) ||
-            !string.Equals(manifest.SchemaVersion, ManifestSchemaVersion, StringComparison.Ordinal) ||
+            !IsSupportedSchemaVersion(manifest.SchemaVersion) ||
             manifest.GeneratedAt == default ||
             manifest.Documents is null)
         {

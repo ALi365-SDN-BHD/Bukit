@@ -6,7 +6,7 @@
   "required": ["schema", "schemaVersion", "generatedAt", "documents"],
   "properties": {
     "schema": { "const": "https://bukit.dev/schemas/agent-manifest.v1.json" },
-    "schemaVersion": { "const": "1.0" },
+    "schemaVersion": { "enum": ["1.0", "1.1"] },
     "generatedAt": { "type": "string", "format": "date-time" },
     "documents": {
       "type": "array",
@@ -29,7 +29,31 @@
               "additionalProperties": false
             }
           },
-          "publishedAt": { "type": "string", "format": "date-time" }
+          "publishedAt": { "type": "string", "format": "date-time" },
+          "updatedAt": { "type": "string", "format": "date-time" }
+        },
+        "additionalProperties": false
+      }
+    },
+    "lists": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["route", "language", "kind", "lastModified", "representations"],
+        "properties": {
+          "route": { "type": "string" },
+          "language": { "type": "string" },
+          "kind": { "enum": ["list", "taxonomy", "home"] },
+          "lastModified": { "type": "string", "format": "date-time" },
+          "representations": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": ["kind", "url"],
+              "properties": { "kind": { "enum": ["html"] }, "url": { "type": "string" } },
+              "additionalProperties": false
+            }
+          }
         },
         "additionalProperties": false
       }
