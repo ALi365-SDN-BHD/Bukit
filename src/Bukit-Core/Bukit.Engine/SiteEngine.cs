@@ -345,7 +345,7 @@ public sealed partial class SiteEngine
                 var baseUrl = layout.BaseUrl(lang);
                 var variantConfig = config with
                 {
-                    Site = config.Site with
+                    Site = SiteLanguageIdentity.Apply(config.Site, lang) with
                     {
                         Language = lang,
                         BaseUrl = baseUrl

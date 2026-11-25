@@ -81,7 +81,8 @@ public static class ConfigJsonSchemaGenerator
             ("search", SearchDetailSchema()),
             ("related", RelatedSchema()),
             ("menus", MenusSchema()),
-            ("sharedAssets", SharedAssetsSchema()));
+            ("sharedAssets", SharedAssetsSchema()),
+            ("i18n", Obj(("type", "object"), ("additionalProperties", SiteLanguageIdentitySchema()))));
         return schema;
     }
 
@@ -420,6 +421,16 @@ public static class ConfigJsonSchemaGenerator
         => Obj(("type", "object"), ("properties", Obj(
             ("enabled", BoolSchema(false)),
             ("paths", StringArraySchema()))));
+
+    private static JsonObject SiteLanguageIdentitySchema()
+        => Obj(("type", "object"), ("properties", Obj(
+            ("title", Obj(("type", "string"), ("minLength", 1))),
+            ("description", StringSchema()),
+            ("organization", Obj(("type", "object"), ("properties", Obj(
+                ("name", StringSchema()),
+                ("url", StringSchema()),
+                ("logo", StringSchema()),
+                ("sameAs", StringArraySchema()))))))));
 
     private static JsonObject MenusSchema()
         => Obj(

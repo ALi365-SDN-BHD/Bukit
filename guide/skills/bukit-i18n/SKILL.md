@@ -143,6 +143,14 @@ Built when `site.url` is set and at least two languages share a group. `x-defaul
 points to the default language. In SEO `inject` mode Core writes the links and removes
 theme-written ones; templates can read `page.seo.alternates`.
 
+## Site identity per language
+
+`site.i18n.<lang>` replaces `title`, `description` and `organization` (`name`, `url`,
+`logo`, `sameAs`; merged field by field over `site.seo.organization`) in that language's
+build: `<title>` suffix, `og:site_name`, JSON-LD, its feeds and `llms.txt`, `site.title`.
+The key must be a `site.languages` entry written the same way; needs 2+ languages. Root
+merged feed and root `llms.txt` keep the top-level values.
+
 ## UI strings
 
 There is no `t()` helper or `i18n/` folder. Branch on `{{ site.language }}` or load strings

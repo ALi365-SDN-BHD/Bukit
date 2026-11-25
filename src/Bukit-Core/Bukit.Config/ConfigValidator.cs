@@ -135,6 +135,7 @@ public static class ConfigValidator
 
         ValidateScss(config.Theme.Scss);
         ValidateSharedAssets(config);
+        SiteLanguageIdentity.Validate(config.Site);
 
         var componentValidation = (config.Theme.ComponentValidation ?? "off").Trim().ToLowerInvariant();
         if (componentValidation is not ("off" or "warn" or "strict"))

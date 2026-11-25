@@ -18,6 +18,7 @@ public sealed class ConfigJsonSchemaGeneratorTests
         "$/properties/theme/properties/components",
         "$/properties/theme/properties/components/additionalProperties/properties/props",
         "$/properties/site/properties/menus",
+        "$/properties/site/properties/i18n",
         "$/properties/taxonomy/properties/pinFieldBySource",
         "$/properties/taxonomy/properties/pinOrderFieldBySource",
         "$/properties/miniprogram/properties/datasets/items/properties/types",

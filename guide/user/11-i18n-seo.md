@@ -158,6 +158,39 @@ files whose ownership is unknown. If a backup is missing or output changed, Buki
 stops rather than deleting files. Preserve reported files and inspect them before
 retrying. This is not a power-loss guarantee.
 
+## Per-language site identity
+
+`site.title`, `site.description` and `site.seo.organization` describe the site in every
+language unless `site.i18n.<lang>` replaces them in that language's build:
+
+```yaml
+site:
+  title: Silk Road Notes
+  description: Notes on trade and travel
+  languages: [en, ms]
+  seo:
+    organization:
+      name: Silk Road Media
+      url: https://example.com
+  i18n:
+    ms:
+      title: Nota Jalan Sutera
+      description: Nota tentang perdagangan dan pengembaraan
+      organization:
+        name: Media Jalan Sutera
+```
+
+The `ms` build then uses the Malay values everywhere it reads the site identity: the
+page `<title>` suffix, `og:site_name`, the default description, JSON-LD `WebSite` and
+`Organization`, its own feeds and `llms.txt`, and `site.title` in templates. Organization
+fields merge one by one, so `url`, `logo`, `sameAs` and `type` above stay the top-level
+values. Outputs merged across languages at the output root (`site.feed.mode: merged`,
+the root `llms.txt`) keep the top-level identity.
+
+Only `title`, `description` and `organization` (`name`, `url`, `logo`, `sameAs`) are
+accepted. The language key must be a `site.languages` entry written the same way, and a
+single-language site sets its identity with the top-level keys instead.
+
 ## Shared assets
 
 A root-layout multilingual site can keep one copy of theme assets instead of one per

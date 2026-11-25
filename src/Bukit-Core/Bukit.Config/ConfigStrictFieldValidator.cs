@@ -13,7 +13,7 @@ internal static class ConfigStrictFieldValidator
         "defaultLanguageInSubdir", "defaultLanguageRedirect", "defaultLanguageLegacyRedirects", "sitemapMode",
         "searchIncludeDerived", "pluginFailMode", "deriveConflictPolicy",
         "timezone", "permalinks", "collections", "plugins", "feed",
-        "sitemapDetail", "pagination", "search", "related", "menus", "sharedAssets");
+        "sitemapDetail", "pagination", "search", "related", "menus", "sharedAssets", "i18n");
     private static readonly HashSet<string> ContentKeys = Set("sources", "media", "modelSchema", "routeMetadata", "ordering");
     private static readonly HashSet<string> BuildKeys = Set(
         "output", "clean", "draft", "listPageContentMode", "schemaFailMode", "fingerprintMode",
@@ -119,6 +119,8 @@ internal static class ConfigStrictFieldValidator
             RequireBooleanIfPresent(sharedAssets, "enabled", "site.sharedAssets.enabled");
             _ = Seq(sharedAssets, "paths", "site.sharedAssets.paths");
         }
+
+        if (Map(site, "i18n") is { } i18n) ValidateSiteI18n(i18n);
 
         if (Map(site, "collections") is { } collections)
         {
@@ -615,6 +617,18 @@ internal static class ConfigStrictFieldValidator
         if (Seq(taxonomy, "kinds") is { } kinds)
         {
             ValidateSequenceMappings(kinds, Set("key", "kind", "title", "description", "singularTitlePrefix", "template", "indexTemplate", "termTemplate", "indexEnabled", "hierarchical", "routePrefix"), "taxonomy.kinds");
+        }
+    }
+
+    private static void ValidateSiteI18n(YamlMappingNode i18n)
+    {
+        foreach (var (name, identity) in MappingChildren(i18n, "site.i18n"))
+        {
+            RequireOnly(identity, Set("title", "description", "organization"), $"site.i18n.{name}");
+            if (Map(identity, "organization", $"site.i18n.{name}.organization") is { } organization)
+            {
+                RequireOnly(organization, Set("name", "url", "logo", "sameAs"), $"site.i18n.{name}.organization");
+            }
         }
     }
 

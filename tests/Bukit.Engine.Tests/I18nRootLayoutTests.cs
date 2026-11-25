@@ -31,6 +31,31 @@ public sealed class I18nRootLayoutTests
     }
 
     [Fact]
+    public async Task SiteI18n_ReplacesTheSiteIdentityInThatLanguageOnly()
+    {
+        using var site = RootSite("""
+              description: English site
+              i18n:
+                zh-CN:
+                  title: 中文测试站
+                  description: 中文站点描述
+            """.ReplaceLineEndings("\n") + "\n");
+
+        await new SiteEngine(new ConsoleLogger(LogLevel.Error)).BuildAsync(site.Config, site.Root,
+            new ConfigOverrides { Incremental = false });
+
+        var chinese = File.ReadAllText(Path.Combine(site.Output, "zh-CN", "index.html"));
+        Assert.Contains("og:site_name\" content=\"中文测试站\"", chinese, StringComparison.Ordinal);
+        Assert.DoesNotContain("I18N Test", chinese, StringComparison.Ordinal);
+        Assert.Contains("<title>中文测试站</title>", File.ReadAllText(Path.Combine(site.Output, "zh-CN", "rss.xml")), StringComparison.Ordinal);
+        Assert.Contains("<description>中文站点描述</description>", File.ReadAllText(Path.Combine(site.Output, "zh-CN", "rss.xml")), StringComparison.Ordinal);
+        var english = File.ReadAllText(Path.Combine(site.Output, "index.html"));
+        Assert.Contains("og:site_name\" content=\"I18N Test\"", english, StringComparison.Ordinal);
+        Assert.DoesNotContain("中文测试站", english, StringComparison.Ordinal);
+        Assert.Contains("<title>I18N Test</title>", File.ReadAllText(Path.Combine(site.Output, "rss.xml")), StringComparison.Ordinal);
+    }
+
+    [Fact]
     public async Task DefaultLayout_AddingASecondLanguageKeepsDefaultLanguageUrls()
     {
         // Spec scenario "Adding a second language keeps default-language URLs": defaultLanguageInSubdir is not set.

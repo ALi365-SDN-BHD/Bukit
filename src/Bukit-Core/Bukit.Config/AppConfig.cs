@@ -65,6 +65,25 @@ public sealed record SiteConfig
     public RelatedConfig Related { get; init; } = new();
     public IReadOnlyDictionary<string, IReadOnlyList<MenuConfig>>? Menus { get; init; }
     public SharedAssetsConfig SharedAssets { get; init; } = new();
+    /// <summary>Per-language site identity, keyed by a <see cref="Languages"/> entry; applied to that language's build.</summary>
+    internal IReadOnlyDictionary<string, SiteLanguageIdentityConfig>? I18n { get; init; }
+}
+
+/// <summary>Values that replace the top-level site identity in one language's build.</summary>
+internal sealed record SiteLanguageIdentityConfig
+{
+    public string? Title { get; init; }
+    public string? Description { get; init; }
+    /// <summary>Fields that replace the matching <c>site.seo.organization</c> fields; unset fields keep theirs.</summary>
+    public SiteLanguageOrganizationConfig? Organization { get; init; }
+}
+
+internal sealed record SiteLanguageOrganizationConfig
+{
+    public string? Name { get; init; }
+    public string? Url { get; init; }
+    public string? Logo { get; init; }
+    public IReadOnlyList<string>? SameAs { get; init; }
 }
 
 public sealed record SharedAssetsConfig
