@@ -58,7 +58,7 @@ public sealed class CloudBaseFieldProjectorTests
         Assert.DoesNotContain("created_by", fields.Keys);
         Assert.DoesNotContain("updated_by", fields.Keys);
         Assert.DoesNotContain("_openid", fields.Keys);
-        Assert.DoesNotContain("nested", fields.Keys);
+        Assert.Contains("nested", fields.Keys);
         Assert.Contains("title", fields.Keys);
         Assert.Contains("views", fields.Keys);
         Assert.Contains("featured", fields.Keys);
@@ -112,6 +112,151 @@ public sealed class CloudBaseFieldProjectorTests
 
         Assert.Empty(fields);
     }
+
+    [Fact]
+    public void Project_ObjectArray_KeepsStructureAndJsonTypes()
+    {
+        var row = JsonDocument.Parse("""
+            {"days": [{"title": "Day 1", "text": "Arrive", "attractions": ["a1", "a2"], "nights": 1, "price": 12.50, "free": false, "note": null}]}
+            """).RootElement;
+
+        var fields = Project(row, "whitelist", ["days"], "id");
+
+        Assert.Equal("list", fields["days"].Type);
+        var day = Assert.IsType<SortedDictionary<string, object?>>(Assert.Single(Assert.IsType<List<object?>>(fields["days"].Value)));
+        Assert.Equal(["attractions", "free", "nights", "note", "price", "text", "title"], day.Keys);
+        Assert.Equal(["a1", "a2"], Assert.IsType<List<object?>>(day["attractions"]));
+        Assert.Equal(1L, day["nights"]);
+        Assert.Equal("12.50", Assert.IsType<decimal>(day["price"]).ToString(System.Globalization.CultureInfo.InvariantCulture));
+        Assert.Equal(false, day["free"]);
+        Assert.Null(day["note"]);
+    }
+
+    [Fact]
+    public void Project_NumberArray_KeepsNumbers()
+    {
+        var row = JsonDocument.Parse("""{"months": [3, 4, 5]}""").RootElement;
+
+        var fields = Project(row, "whitelist", ["months"], "id");
+
+        Assert.Equal([3L, 4L, 5L], Assert.IsType<List<object?>>(fields["months"].Value));
+    }
+
+    [Fact]
+    public void Project_Object_HasOrdinalSortedKeys()
+    {
+        var row = JsonDocument.Parse("""{"contact": {"wechat": "w", "Phone": "+60", "email": "e"}}""").RootElement;
+
+        var fields = Project(row, "whitelist", ["contact"], "id");
+
+        var contact = Assert.IsType<SortedDictionary<string, object?>>(fields["contact"].Value);
+        Assert.Equal(["Phone", "email", "wechat"], contact.Keys);
+    }
+
+    [Fact]
+    public void Project_StringArrayWithNulls_StaysTextList()
+    {
+        var row = JsonDocument.Parse("""{"tags": ["x", null, " ", "y"]}""").RootElement;
+
+        var fields = Project(row, "whitelist", ["tags"], "id");
+
+        Assert.Equal(["x", "y"], Assert.IsType<string[]>(fields["tags"].Value));
+    }
+
+    [Theory]
+    [InlineData("[]")]
+    [InlineData("{}")]
+    [InlineData("[null]")]
+    [InlineData("""{"USER_ID": 1, "owner": "o"}""")]
+    public void Project_EmptyContainer_IsAbsent(string json)
+    {
+        var row = JsonDocument.Parse($$"""{"value": {{json}}}""").RootElement;
+
+        Assert.Empty(Project(row, "whitelist", ["value"], "id"));
+    }
+
+    [Fact]
+    public void Project_Nested_DropsHardExcludedKeysAtEveryLevel()
+    {
+        var row = JsonDocument.Parse("""
+            {"info": {"name": "n", "USER_ID": "u", "items": [{"owner": "o", "_openid": "x", "label": "l"}], "meta": {"created_by": "c"}}}
+            """).RootElement;
+
+        var fields = Project(row, "whitelist", ["info"], "id");
+
+        var info = Assert.IsType<SortedDictionary<string, object?>>(fields["info"].Value);
+        Assert.Equal(["items", "meta", "name"], info.Keys);
+        var item = Assert.IsType<SortedDictionary<string, object?>>(Assert.Single(Assert.IsType<List<object?>>(info["items"])));
+        Assert.Equal(["label"], item.Keys);
+        Assert.Empty(Assert.IsType<SortedDictionary<string, object?>>(info["meta"]));
+    }
+
+    [Fact]
+    public void Project_TooDeep_IsRejectedWithPath()
+    {
+        // Nine levels: one object holding eight nested arrays.
+        var row = JsonDocument.Parse("""{"deep": {"a": [[[[[[[[1]]]]]]]]}, "ok": "kept"}""").RootElement;
+        var rejected = new List<(string Field, string Problem)>();
+
+        var fields = CloudBaseFieldProjector.ProjectWithSet(
+            row,
+            "whitelist",
+            CloudBaseFieldProjector.BuildAllowedSet("whitelist", ["deep", "ok"]),
+            "id",
+            rejected);
+
+        Assert.Equal(["ok"], fields.Keys);
+        var (field, problem) = Assert.Single(rejected);
+        Assert.Equal("deep", field);
+        Assert.Contains("maximum nesting depth of 8", problem, StringComparison.Ordinal);
+        Assert.Contains("'a[0][0][0][0][0][0][0]'", problem, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Project_EightLevels_IsAccepted()
+    {
+        var row = JsonDocument.Parse("""{"deep": {"a": [[[[[[[1]]]]]]]}}""").RootElement;
+
+        Assert.Contains("deep", Project(row, "whitelist", ["deep"], "id").Keys);
+    }
+
+    [Fact]
+    public void Project_TooLarge_IsRejectedWithoutValue()
+    {
+        var big = new string('x', CloudBaseFieldProjector.MaxStructuredFieldBytes);
+        var row = JsonDocument.Parse($$$"""{"blob": {"text": "{{{big}}}"}}""").RootElement;
+        var rejected = new List<(string Field, string Problem)>();
+
+        var fields = CloudBaseFieldProjector.ProjectWithSet(
+            row,
+            "whitelist",
+            CloudBaseFieldProjector.BuildAllowedSet("whitelist", ["blob"]),
+            "id",
+            rejected);
+
+        Assert.Empty(fields);
+        var (field, problem) = Assert.Single(rejected);
+        Assert.Equal("blob", field);
+        Assert.Contains("more than the maximum of 262144", problem, StringComparison.Ordinal);
+        Assert.DoesNotContain("xxxx", problem, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Project_Structured_IsStableAcrossKeyOrder()
+    {
+        var first = Project(JsonDocument.Parse("""{"v": {"b": [1, {"y": 2, "x": 1}], "a": 1.10}}""").RootElement, "all", null, "id");
+        var second = Project(JsonDocument.Parse("""{"v": {"a": 1.10, "b": [1, {"x": 1, "y": 2}]}}""").RootElement, "all", null, "id");
+
+        Assert.Equal(Serialize(first["v"].Value), Serialize(second["v"].Value));
+    }
+
+    private static string Serialize(object? value) => value switch
+    {
+        SortedDictionary<string, object?> map => "{" + string.Join(",", map.Select(pair => pair.Key + ":" + Serialize(pair.Value))) + "}",
+        List<object?> list => "[" + string.Join(",", list.Select(Serialize)) + "]",
+        IFormattable formattable => formattable.ToString(null, System.Globalization.CultureInfo.InvariantCulture),
+        _ => value?.ToString() ?? "null"
+    };
 
     private static Dictionary<string, ContentField> Project(
         JsonElement row,
