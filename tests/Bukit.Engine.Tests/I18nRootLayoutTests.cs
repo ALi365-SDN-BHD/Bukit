@@ -1136,6 +1136,16 @@ public sealed class I18nRootLayoutTests
                     entry => entry.Path.Contains(".bukit", StringComparison.Ordinal));
             }
 
+            // Release checksums describe what a deploy publishes: image freshness records are left out.
+            foreach (var output in new[] { rootOutput, prefixedOutput })
+            {
+                File.WriteAllText(Path.Combine(output, "cover-320w.webp"), "webp");
+                File.WriteAllText(Path.Combine(output, "cover-320w.webp.bukit-freshness.json"), "{}");
+                var release = ReleaseBundleInventory.Create(Path.Combine(output, ".bukit"), output, site);
+                Assert.Contains(release, entry => entry.Path == "cover-320w.webp");
+                Assert.DoesNotContain(release, entry => entry.Path.EndsWith(".bukit-freshness.json", StringComparison.Ordinal));
+            }
+
             // Only configured languages own a report directory below the root.
             Directory.CreateDirectory(Path.Combine(prefixedOutput, "fr", ".bukit"));
             File.WriteAllText(Path.Combine(prefixedOutput, "fr", ".bukit", "public.json"), "{}");

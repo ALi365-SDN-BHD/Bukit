@@ -1039,6 +1039,10 @@ public sealed class GitHubPagesDeployProviderTests
             Directory.CreateDirectory(outside);
             File.WriteAllText(Path.Combine(source, "index.html"), "<h1>Hello</h1>");
             File.WriteAllText(Path.Combine(source, "assets", "app.css"), "body{}");
+            File.WriteAllText(Path.Combine(source, "assets", "cover-320w.webp"), "webp");
+            File.WriteAllText(Path.Combine(source, "assets", "cover-320w.webp.bukit-freshness.json"), "{}");
+            Directory.CreateDirectory(Path.Combine(source, "en", ".bukit"));
+            File.WriteAllText(Path.Combine(source, "en", ".bukit", "build-report.json"), "{}");
             File.WriteAllText(Path.Combine(source, ".git", "config"), "[core]");
             File.WriteAllText(Path.Combine(source, ".bukit", "publish-audit-report.json"), "{}");
             File.WriteAllText(Path.Combine(source, ".bukit-build-state.json"), "{}");
@@ -1056,6 +1060,9 @@ public sealed class GitHubPagesDeployProviderTests
 
             Assert.True(File.Exists(Path.Combine(dest, "index.html")));
             Assert.True(File.Exists(Path.Combine(dest, "assets", "app.css")));
+            Assert.True(File.Exists(Path.Combine(dest, "assets", "cover-320w.webp")));
+            Assert.False(File.Exists(Path.Combine(dest, "assets", "cover-320w.webp.bukit-freshness.json")));
+            Assert.False(Directory.Exists(Path.Combine(dest, "en", ".bukit")));
             Assert.True(File.Exists(Path.Combine(dest, ".well-known", "security.txt")));
             Assert.False(Directory.Exists(Path.Combine(dest, ".git")));
             Assert.False(Directory.Exists(Path.Combine(dest, ".bukit")));
@@ -1087,6 +1094,7 @@ public sealed class GitHubPagesDeployProviderTests
             Directory.CreateDirectory(Path.Combine(output, ".bukit"));
             File.WriteAllText(Path.Combine(output, ".bukit", "publish-audit-report.json"), "{\"documents\":[]}");
             File.WriteAllText(Path.Combine(output, ".bukit-output-marker"), "bukit");
+            File.WriteAllText(Path.Combine(output, "cover-320w.webp.bukit-freshness.json"), "{}");
             File.WriteAllText(outside, "outside");
             File.CreateSymbolicLink(Path.Combine(output, "linked.txt"), outside);
 

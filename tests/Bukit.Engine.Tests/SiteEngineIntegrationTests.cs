@@ -356,6 +356,7 @@ public sealed partial class SiteEngineIntegrationTests
             var result = await engine.BuildAsync(config, root, new ConfigOverrides(), CancellationToken.None);
 
             Assert.Equal("dist", result.Project.Output);
+            Assert.Equal(".", result.Project.Root);
             Assert.Equal("sources", result.Project.ContentSource);
             Assert.True(result.Summary.PageCount > 0);
             Assert.Single(result.Variants);

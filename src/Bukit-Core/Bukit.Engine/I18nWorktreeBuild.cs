@@ -413,7 +413,8 @@ public sealed partial class SiteEngine
             schemaErrors,
             generatedFiles,
             warningCount: buildLogger.WarningCount + additionalWarningCount,
-            errorCount: buildLogger.ErrorCount + additionalErrorCount);
+            errorCount: buildLogger.ErrorCount + additionalErrorCount,
+            reportedOutputDir: reportedOutputDir);
         var securityData = reportTimer.Step("security-data", () => BuildReporter.CreateSecurityReportData(config, rootDir, outputDir, variantResults));
         await BuildReporter.WriteIfEnabledAsync(config, rootDir, outputDir, buildResult, variantResults, _logger, securityData, reportTimer, cancellationToken).ConfigureAwait(false);
         reportTimer.Step("security-gate", () => BuildReporter.EnforceSecurityGate(config, securityData, overrides.IsCI, _logger));

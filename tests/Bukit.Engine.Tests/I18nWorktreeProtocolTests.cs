@@ -325,7 +325,10 @@ public sealed class I18nWorktreeProtocolTests : IDisposable
         }
         else
         {
-            await engine.FinalizeI18nWorktreeBuildAsync(prepared, variants, 0, 0, CancellationToken.None);
+            var result = await engine.FinalizeI18nWorktreeBuildAsync(prepared, variants, 0, 0, CancellationToken.None);
+            // The report names the published output relative to the project, not the staging directory.
+            Assert.Equal(".", result.Project.Root);
+            Assert.Equal("dist", result.Project.Output);
         }
 
         var warning = Assert.Single(logger.Warnings, message => message.Contains("event=incremental.signed_links", StringComparison.Ordinal));

@@ -129,6 +129,20 @@ SEO, and publish diagnostics remain traceable. Do not upload or serve `.bukit/`
 as website content. `.bukit-build-state.json` and `.bukit-output-marker` are
 internal build files as well.
 
+The full internal set, which a deployer that uploads the output directory
+itself should leave out, is:
+
+- every `.bukit/` directory: the root one and, on a multilingual site with
+  language subdirectories, `<lang>/.bukit/`;
+- the root `.bukit-build-state.json` and `.bukit-output-marker`;
+- every `*.bukit-freshness.json` file: image variant freshness records written
+  next to resized images (with `theme.images.enabled`).
+
+`bukit deploy` leaves all of them out by default, and release checksums do not
+list them. They stay in the output directory because later commands (`seo
+audit`, `publish audit`, incremental builds, image variant cleanup) read them
+there.
+
 The SEO route map and insights report use hashed route/content keys and do not
 carry raw CMS or Notion IDs or credentials. That SEO-specific output guarantee
 does not mean every `.bukit` artifact lacks trace IDs: `.bukit/` remains
@@ -139,7 +153,10 @@ the offline collector boundary and local observation contract.
 `generatedFiles` array is the sorted, root-relative public output inventory and
 excludes `.bukit/`, state/marker files, and files reachable only through
 directory symlinks. SEO, publish, and security issue totals remain in their own
-reports and are not copied into build health.
+reports and are not copied into build health. Its `project.root` is `.` and
+`project.output` is the output directory relative to the project root (for
+example `dist`; an absolute `build.output` is written relative to the project
+root), so the report carries no absolute local paths.
 
 `security-report.json` includes the `publicOutputPrivacy` check when the build
 uses Notion content. The check scans public text output for known Notion

@@ -4,6 +4,8 @@ Bukit 所有重要变更都将记录在此文件中。
 
 ## [Unreleased]
 
+- **内部文件不再进入部署；build-report 路径可移植**：`bukit deploy`（GitHub Pages）不再把 `*.bukit-freshness.json` 图片新鲜度旁路文件复制到发布分支，发布校验和也不再列出它们；`.bukit/` 目录（包括 `<lang>/.bukit/`）以及根目录的状态与标记文件此前已被排除。`build-report.json` 的 `project.root` 现在写为 `.`，`project.output` 写为相对项目根目录的路径（绝对的 `build.output` 或 worktree 构建的暂存目录不再泄露），不再包含本地绝对路径。这些文件仍保留在输出目录中，供审计和增量构建读取；自行上传输出目录的部署方应排除 [10 内置输出](guide/user/10-built-in-outputs.md#public-and-internal-output-boundary) 中列出的内部文件。
+
 - **分类种类标签按语言设置，派生页带上语言**：`taxonomy.kinds[].i18n.<lang>` 可为某一语言的构建设置种类的 `title`、`description` 和 `singularTitlePrefix`，因此种类标签为中文的站点在英文构建中，词条页标题是 `Tag: Malaysia` 而不是 `标签: Malaysia`，HTML 与 Markdown、JSON 表示一致。未设置的标签沿用种类本身的值；语言键必须是 `site.languages` 中的条目。派生的分类、分页和归档页面现在带有派生它们的构建语言，因此多语言站点中它们的表示、agent manifest 条目和 JSON-LD 写出该语言而不是 `und`；升级后第一次增量构建会重新渲染这些页面。见 [11 I18n And SEO](guide/user/11-i18n-seo.md#taxonomy-metadata-language)。
 
 - **CloudBase 内容源**：`content.sources[].type: cloudbase` 通过 PostgREST 读取 CloudBase PG 模式的表或视图，字段投影硬性剔除个人列，Markdown 正文使用不可信链接模式渲染，`fileFields` 对象和正文 `cloud://` 图片会批量签名，文件换链失败时落到 `content.media.defaultImageUrl`。构建阶段的隐私检查会拦截公开产物里的 envId、`cloud://`、网关/存储主机和签名链接；部署阶段拦截带 `token` 的签名链接、URL 位置的 `cloud://`（以及传入时的 envId）。`doctor` 检查凭据 role、表可达性、RLS 空结果和存储签名。见 [27 CloudBase Content](guide/user/27-cloudbase-content.md)。
