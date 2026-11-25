@@ -140,6 +140,28 @@ public sealed class AgentManifestContractTests
         Assert.Empty(split);
     }
 
+    [Fact]
+    public void ListEntries_MergedScope_ReadsADocumentThatTakesAnotherLanguagesListCanonical()
+    {
+        // The en document claims the zh-CN list canonical but its page is noindex, so the merged sitemap
+        // skips it and keeps the zh-CN list; the shared list canonicals make the manifest read that page too.
+        using var sandbox = new SiteSandbox();
+        sandbox.Write("a-doc/index.html", "<html><head><meta name=\"robots\" content=\"noindex\"></head></html>");
+        var config = Config();
+        const string zhList = "https://example.test/zh-CN/tags/x/";
+        var document = Document("a-doc", null);
+        var enIndex = Index(new SeoIndexEntry(document.Route, zhList, null, true, PublishedAt, "a-doc", "page"));
+        var zhIndex = Index(List("/tags/x/", "taxonomy") with { Canonical = zhList });
+        HashSet<string> shared = [.. AgentManifestListEntries.ListCanonicalKeys(enIndex, [document]), .. AgentManifestListEntries.ListCanonicalKeys(zhIndex, [])];
+        var filter = AgentManifestListEntries.CreateLocFilter(config, "/");
+
+        var en = AgentManifestListEntries.Build(config, enIndex, null, [document], sandbox.Root, "/en", "en", prefixRoutes: true, filter, null, shared);
+        var zh = AgentManifestListEntries.Build(config, zhIndex, null, [], sandbox.Root, "/zh-CN", "zh-CN", prefixRoutes: true, filter, null, shared);
+
+        Assert.Empty(en);
+        Assert.Equal(["/zh-CN/tags/x/"], zh.Select(x => x.Route));
+    }
+
     [Fact, Trait("Category", "Integration")]
     public async Task I18nBuild_VariantManifestsListTheirHomeRelative_AndTheRootManifestListsBothLanguagesPrefixed()
     {

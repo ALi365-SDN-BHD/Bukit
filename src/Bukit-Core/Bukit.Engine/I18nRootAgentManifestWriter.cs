@@ -71,6 +71,12 @@ internal sealed class I18nRootAgentManifestWriter : II18nRootProjectionWriter
     {
         var mergedSitemap = string.Equals((context.Config.Site.SitemapMode ?? "split").Trim(), "merged", StringComparison.OrdinalIgnoreCase);
         var mergedFilter = mergedSitemap ? AgentManifestListEntries.CreateLocFilter(context.Config, context.RootBaseUrl) : null;
+        // One shared filter lets a document take a list canonical of another language, so every language's
+        // list canonicals decide which documents need their rendered page read.
+        HashSet<string>? mergedListCanonicalKeys = mergedFilter is null
+            ? null
+            : [.. context.Results.SelectMany(result => AgentManifestListEntries.ListCanonicalKeys(
+                result.SeoIndex, result.RoutedDocuments.Concat(result.DerivedDocuments)))];
         return [.. context.Results.SelectMany(result => AgentManifestListEntries.Build(
             context.Config,
             result.SeoIndex,
@@ -81,7 +87,8 @@ internal sealed class I18nRootAgentManifestWriter : II18nRootProjectionWriter
             result.Language,
             prefixRoutes: true,
             mergedSitemap ? mergedFilter : AgentManifestListEntries.CreateLocFilter(context.Config, result.BaseUrl),
-            context.Logger))];
+            context.Logger,
+            mergedListCanonicalKeys))];
     }
 
 }

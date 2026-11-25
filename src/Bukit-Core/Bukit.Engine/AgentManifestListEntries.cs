@@ -25,6 +25,11 @@ internal static class AgentManifestListEntries
     /// accepts. Document canonicals go through <paramref name="locFilter"/> too, so a list page whose canonical a
     /// document already took is left out, as in the sitemap.
     /// </summary>
+    /// <param name="sharedListCanonicalKeys">
+    /// Every language's <see cref="ListCanonicalKeys"/> when <paramref name="locFilter"/> is shared across
+    /// languages (a merged sitemap): a document can then take another language's list canonical. Null uses
+    /// this language's list canonicals.
+    /// </param>
     /// <param name="prefixRoutes">
     /// <see langword="true"/> for the root merged manifest, whose routes carry the language base URL; otherwise
     /// routes stay relative to <paramref name="baseUrl"/>, the same as the manifest's documents.
@@ -39,7 +44,8 @@ internal static class AgentManifestListEntries
         string? language,
         bool prefixRoutes,
         SitemapLocFilter? locFilter,
-        ILogger? logger)
+        ILogger? logger,
+        IReadOnlySet<string>? sharedListCanonicalKeys = null)
     {
         ArgumentNullException.ThrowIfNull(config);
         ArgumentNullException.ThrowIfNull(seoIndex);
@@ -50,19 +56,13 @@ internal static class AgentManifestListEntries
         }
 
         IReadOnlyCollection<RoutedContentDocument> documentList = documents as IReadOnlyCollection<RoutedContentDocument> ?? [.. documents];
-        // A list route that shares its output path with a content record is already a document row.
-        var documentPaths = documentList
-            .Select(document => BuildPathUtils.NormalizeRelPath(document.Route.OutputPath))
-            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var documentPaths = DocumentPaths(documentList);
         var documentExclusions = SitemapPlugin.BuildDocumentSitemapExclusions(config, documentList);
         var excludedListPaths = ListRouteSitemapPolicy.BuildExcludedOutputPaths(config, listRouteGraph);
         SeoIndexEntry[] ordered = [.. seoIndex.Values.OrderBy(x => x.Route.Url, StringComparer.OrdinalIgnoreCase)];
         // Only a document that shares a list canonical can change which list routes are kept, so only those
         // documents pay for reading their rendered page.
-        var listCanonicalKeys = ordered
-            .Where(seo => ResolveKind(seo, documentPaths) is not null && !string.IsNullOrWhiteSpace(seo.Canonical))
-            .Select(seo => SitemapLocFilter.CanonicalKey(seo.Canonical))
-            .ToHashSet(StringComparer.Ordinal);
+        var listCanonicalKeys = sharedListCanonicalKeys ?? ListCanonicalKeys(ordered, documentPaths).ToHashSet(StringComparer.Ordinal);
         var sitemapLogger = logger ?? new ConsoleLogger(LogLevel.Error);
         var resolvedLanguage = ContentLanguageFallback.Resolve(language, ContentLanguageFallback.Undetermined)!;
         var entries = new List<AgentManifestListEntry>();
@@ -98,6 +98,23 @@ internal static class AgentManifestListEntries
 
         return entries;
     }
+
+    /// <summary>The canonical keys of the list routes in <paramref name="seoIndex"/>.</summary>
+    internal static IEnumerable<string> ListCanonicalKeys(
+        IReadOnlyDictionary<string, SeoIndexEntry> seoIndex,
+        IEnumerable<RoutedContentDocument> documents)
+        => ListCanonicalKeys(seoIndex.Values, DocumentPaths(documents));
+
+    private static IEnumerable<string> ListCanonicalKeys(IEnumerable<SeoIndexEntry> entries, HashSet<string> documentPaths)
+        => entries
+            .Where(seo => ResolveKind(seo, documentPaths) is not null && !string.IsNullOrWhiteSpace(seo.Canonical))
+            .Select(seo => SitemapLocFilter.CanonicalKey(seo.Canonical));
+
+    // A list route that shares its output path with a content record is already a document row.
+    private static HashSet<string> DocumentPaths(IEnumerable<RoutedContentDocument> documents)
+        => documents
+            .Select(document => BuildPathUtils.NormalizeRelPath(document.Route.OutputPath))
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
 
     private static string? ResolveKind(SeoIndexEntry entry, HashSet<string> documentPaths)
     {

@@ -66,6 +66,8 @@ public sealed record SiteConfig
     public IReadOnlyDictionary<string, IReadOnlyList<MenuConfig>>? Menus { get; init; }
     public SharedAssetsConfig SharedAssets { get; init; } = new();
     /// <summary>Per-language site identity, keyed by a <see cref="Languages"/> entry; applied to that language's build.</summary>
+    // JsonInclude: the i18n worktree protocol sends the config to language workers and hashes it.
+    [System.Text.Json.Serialization.JsonInclude]
     internal IReadOnlyDictionary<string, SiteLanguageIdentityConfig>? I18n { get; init; }
 }
 
@@ -111,6 +113,8 @@ public sealed record SeoConfig
     public SeoSchemaConfig Schema { get; init; } = new();
     public SeoGeoConfig Geo { get; init; } = new();
     /// <summary>Author profiles keyed (case-insensitively) by author name or <c>authoredBy</c> id.</summary>
+    // JsonInclude: the i18n worktree protocol sends the config to language workers and hashes it.
+    [System.Text.Json.Serialization.JsonInclude]
     internal IReadOnlyDictionary<string, SeoAuthorProfileConfig>? Authors { get; init; }
 }
 
@@ -200,6 +204,8 @@ public sealed record SeoSchemaConfig
     /// <summary>Taxonomy kind whose first term page becomes the breadcrumb parent of content pages.</summary>
     public string? BreadcrumbParent { get; init; }
     /// <summary>Schema type of article pages that set none; defaults to BlogPosting.</summary>
+    // JsonInclude: the i18n worktree protocol sends the config to language workers and hashes it.
+    [System.Text.Json.Serialization.JsonInclude]
     internal string? ArticleType { get; init; }
 }
 
@@ -237,6 +243,8 @@ public sealed record CollectionConfig
     public CollectionOutputConfig Output { get; init; } = new();
     public IReadOnlyList<FilteredListConfig>? FilteredLists { get; init; }
     /// <summary>From <c>seo.articleType</c>: overrides <see cref="SeoSchemaConfig.ArticleType"/> for this collection's articles.</summary>
+    // JsonInclude: the i18n worktree protocol sends the config to language workers and hashes it.
+    [System.Text.Json.Serialization.JsonInclude]
     internal string? ArticleType { get; init; }
 }
 
@@ -625,11 +633,15 @@ public sealed record ImageOptimizationConfig
     /// CSS <c>sizes</c> value added beside a generated srcset when the author set none; lazy images
     /// get <c>auto, </c> in front. Unset adds nothing.
     /// </summary>
+    // JsonInclude: the i18n worktree protocol sends the config to language workers and hashes it.
+    [System.Text.Json.Serialization.JsonInclude]
     internal string? SizesAttribute { get; init; }
     /// <summary>
     /// <c>none</c> drops the resized original-format variants (and the fallback img srcset) of JPEG/PNG
     /// media images when WebP is generated; <c>all</c> (default) keeps them for browsers without WebP.
     /// </summary>
+    // JsonInclude: the i18n worktree protocol sends the config to language workers and hashes it.
+    [System.Text.Json.Serialization.JsonInclude]
     internal string FallbackVariants { get; init; } = ImageFallbackVariants.All;
 
     /// <summary>True when JPEG/PNG media images get only WebP variants.</summary>
