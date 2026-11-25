@@ -166,7 +166,9 @@ internal static class DataModuleBuilder
             var raw = ConfiguredContentFieldReader.TryGetField(document.CustomFields, config.ValueField, context, out var valueField)
                 ? valueField.Value
                 : null;
-            var value = ReadIndexValue($"{context} key '{scope}.{key}'", valueType, raw);
+            // CloudBase structured fields are parsed JSON: their strings stay strings.
+            var jsonTyped = string.Equals(document.Source.Provider, "cloudbase", StringComparison.OrdinalIgnoreCase);
+            var value = ReadIndexValue($"{context} key '{scope}.{key}'", valueType, raw, jsonTyped);
 
             var scopes = valuesBySource[sourceName];
             if (!scopes.TryGetValue(scope, out var keys))
@@ -227,11 +229,11 @@ internal static class DataModuleBuilder
     }
 
     /// <param name="context">Names the source, content id and <c>scope.key</c>.</param>
-    private static object ReadIndexValue(string context, string valueType, object? raw)
+    private static object ReadIndexValue(string context, string valueType, object? raw, bool jsonTyped)
     {
         if (valueType is DataIndexObjectValue.ObjectType or DataIndexObjectValue.ObjectArrayType)
         {
-            return DataIndexObjectValue.Read(raw, valueType == DataIndexObjectValue.ObjectArrayType, context);
+            return DataIndexObjectValue.Read(raw, valueType == DataIndexObjectValue.ObjectArrayType, context, jsonTyped);
         }
 
         if (valueType is not ("text" or "multiline" or "email" or "phone" or "url"))
