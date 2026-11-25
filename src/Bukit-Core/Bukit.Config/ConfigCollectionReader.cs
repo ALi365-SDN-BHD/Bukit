@@ -213,6 +213,49 @@ internal static class ConfigCollectionReader
             };
     }
 
+    internal static ContentConfig ApplyContentLinks(ContentConfig content, YamlMappingNode contentNode)
+    {
+        var sequence = ConfigYamlHelpers.GetOptionalSequence(contentNode, "links", "content");
+        if (sequence is null)
+        {
+            return content;
+        }
+
+        var links = new List<ContentLinkConfig>(sequence.Children.Count);
+        for (var index = 0; index < sequence.Children.Count; index++)
+        {
+            var path = $"content.links[{index}]";
+            if (sequence.Children[index] is not YamlMappingNode node)
+            {
+                throw new ConfigException($"{path} must be a mapping.", DiagnosticCode.ConfigInvalidValue);
+            }
+
+            var target = ConfigYamlHelpers.GetOptionalMapping(node, "target")
+                ?? throw new ConfigException($"{path}.target is required.", DiagnosticCode.ConfigRequiredFieldMissing);
+            links.Add(new ContentLinkConfig
+            {
+                Collection = RequiredLinkString(node, "collection", path),
+                Field = RequiredLinkString(node, "field", path),
+                Target = new ContentLinkTargetConfig
+                {
+                    Collection = RequiredLinkString(target, "collection", $"{path}.target"),
+                    Key = ConfigYamlHelpers.GetOptionalString(target, "key")?.Trim() ?? "slug"
+                },
+                Select = ConfigYamlHelpers.ReadStringList(node, "select") ?? []
+            });
+        }
+
+        return content with { Links = links };
+    }
+
+    private static string RequiredLinkString(YamlMappingNode node, string key, string path)
+    {
+        var value = ConfigYamlHelpers.GetOptionalString(node, key);
+        return string.IsNullOrWhiteSpace(value)
+            ? throw new ConfigException($"{path}.{key} is required.", DiagnosticCode.ConfigRequiredFieldMissing)
+            : value.Trim();
+    }
+
     internal static RouteMetadataConfig? ReadRouteMetadata(YamlMappingNode contentNode)
     {
         var node = ConfigYamlHelpers.GetOptionalMapping(contentNode, "routeMetadata");

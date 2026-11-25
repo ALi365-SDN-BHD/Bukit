@@ -38,7 +38,7 @@ theme:
 | Section | Contents | Skill |
 |---|---|---|
 | `site` | Identity, URLs, language, collections, permalinks, SEO, analytics, feeds, search, plugins | below, `bukit-routing`, `bukit-seo`, `bukit-outputs`, `bukit-analytics`, `bukit-i18n` |
-| `content` | `sources`, `media`, `modelSchema`, `routeMetadata`, `ordering` | `bukit-content`, `bukit-content-model` |
+| `content` | `sources`, `media`, `modelSchema`, `routeMetadata`, `ordering`, `links` | `bukit-content`, `bukit-content-model` |
 | `build` | Output and build behavior | below, `bukit-build` |
 | `theme` | Theme name, directories, params, SCSS, images, components | `bukit-theme` |
 | `taxonomy` | Tag/category pages | `bukit-routing` |

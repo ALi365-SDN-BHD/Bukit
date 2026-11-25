@@ -348,6 +348,67 @@ content:
     tieBreakOrder: desc
 ```
 
+## Content Links
+
+`content.links` turns keys that a page stores in a field into the documents they name. A route page
+that stores `cities: [penang, kl]` gets a `cities_links` field listing the Penang and Kuala Lumpur
+documents, in the same order. Bukit writes the list next to the key field and never changes the key
+field itself, so templates, SEO and search can use the links from the page fields.
+
+| Field | Default | Notes |
+|---|---|---|
+| `content.links[].collection` | required | The collection whose pages hold the keys. Only content pages get links; data documents do not. |
+| `content.links[].field` | required | The key field: a field name, or a nested path through structured fields such as `field: days[].attractions`. `name[]` walks every object in a list and `name` enters an object. A path can have at most 8 names. The last name holds one key or a list of keys, and every key must be text. |
+| `content.links[].target.collection` | required | The collection holding the documents the keys name. It can hold pages or data documents (`mode: data`). |
+| `content.links[].target.key` | `slug` | The target field matched against the keys: `slug`, or any text or whole-number content field (a Notion number `101` matches the key `"101"`). Keys are matched case-insensitively. |
+| `content.links[].select` | none | Top-level target fields copied into each link, such as `image` or `summary`. A missing field is null. These names are reserved and cannot be selected: `key`, `title`, `slug`, `url`, `collection`. |
+
+Each link is a map with `key`, `title`, `slug`, `url` and `collection`, plus the `select`ed fields.
+`url` is the target page URL relative to the site base URL, like `page.url`, so prefix it with
+`base_url` as list templates do. It is null when the target is a data document with no page. Links are
+not followed further: a link does not carry the target's own links.
+
+```yaml
+content:
+  links:
+    - collection: route
+      field: cities
+      target: { collection: city }          # key defaults to slug
+    - collection: route
+      field: days[].attractions
+      target: { collection: attraction, key: code }
+      select: [image, summary]
+```
+
+```html
+{{ base_url = site.base_url }}{{ if base_url == "/" }}{{ base_url = "" }}{{ end }}
+{{ for city in page.fields.cities_links.value }}<a href="{{ base_url }}{{ city.url }}">{{ city.title }}</a>{{ end }}
+{{ for day in page.fields.days.value }}
+  {{ for a in day.attractions_links }}{{ a.title }}{{ end }}
+{{ end }}
+```
+
+A nested path writes its links in two places:
+
+- In each object that holds the key field: `attractions_links` sits next to `attractions` inside every day.
+- In one top-level field for the whole page, with each target listed once: `days_attractions_links`. The name joins the path names with `_`. Use it for SEO, Open Graph images or search.
+
+Problems are reported under the page collection's `schemaFailMode` (see
+[Content Model Schema](#content-model-schema)). Problems that are reported:
+
+- A key that no target document of the page's language has (`content.link_target_unresolved`). The link is left out.
+- A key that more than one target document of the page's language has (`content.link_target_duplicate`). The first document wins.
+- A key value that is not text, or a path that does not match the field's shape (`content.link_value_invalid`).
+- An output field that already exists (`content.link_output_conflict`). Bukit never overwrites it.
+
+Links resolve per language, after routing. A page links only to targets built for the same
+language, so an `ms` page does not link to an `en` document. Documents without a language belong to
+the default language, and data documents without a `locale` belong to every language. Validation
+checks each site language the same way, so a key that exists only in another language is
+reported as unknown. When a target's title, URL or
+selected fields change, every page that links to it is rebuilt in incremental builds. Media
+targets are not supported yet.
+
 ## Content Media
 
 | Field | Default | Notes |
