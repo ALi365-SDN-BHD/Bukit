@@ -4,6 +4,8 @@ Bukit 所有重要变更都将记录在此文件中。
 
 ## [Unreleased]
 
+- **分类种类标签按语言设置，派生页带上语言**：`taxonomy.kinds[].i18n.<lang>` 可为某一语言的构建设置种类的 `title`、`description` 和 `singularTitlePrefix`，因此种类标签为中文的站点在英文构建中，词条页标题是 `Tag: Malaysia` 而不是 `标签: Malaysia`，HTML 与 Markdown、JSON 表示一致。未设置的标签沿用种类本身的值；语言键必须是 `site.languages` 中的条目。派生的分类、分页和归档页面现在带有派生它们的构建语言，因此多语言站点中它们的表示、agent manifest 条目和 JSON-LD 写出该语言而不是 `und`；升级后第一次增量构建会重新渲染这些页面。见 [11 I18n And SEO](guide/user/11-i18n-seo.md#taxonomy-metadata-language)。
+
 - **CloudBase 内容源**：`content.sources[].type: cloudbase` 通过 PostgREST 读取 CloudBase PG 模式的表或视图，字段投影硬性剔除个人列，Markdown 正文使用不可信链接模式渲染，`fileFields` 对象和正文 `cloud://` 图片会批量签名，文件换链失败时落到 `content.media.defaultImageUrl`。构建阶段的隐私检查会拦截公开产物里的 envId、`cloud://`、网关/存储主机和签名链接；部署阶段拦截带 `token` 的签名链接、URL 位置的 `cloud://`（以及传入时的 envId）。`doctor` 检查凭据 role、表可达性、RLS 空结果和存储签名。见 [27 CloudBase Content](guide/user/27-cloudbase-content.md)。
 
 - **WebP 图片生成响应式变体**：启用 `theme.images.enabled` 时，本地静态 WebP 图片（例如从 Notion 或微信下载的封面和正文图片）会按配置中小于原图宽度的档位生成缩小的 WebP 变体，`img` 也会加上 `srcset`，与 JPEG/PNG 一致，但不包 `<picture>`。动图 WebP、文件名已是 `-<宽度>w.webp` 形式的文件、以及旁边有同名 JPEG/PNG 的 WebP 保持原样。WebP 源图始终用 SkiaSharp 缩放。含 WebP 媒体的站点会多出变体文件及其 freshness 记录，相关 `img` 多出 `srcset` 和 `decoding="async"`；升级后第一次增量构建会重新渲染页面，因为图片指纹现在包含 WebP 文件。见 [04 site.yaml 配置](guide/user/04-site-yaml-config.md)。

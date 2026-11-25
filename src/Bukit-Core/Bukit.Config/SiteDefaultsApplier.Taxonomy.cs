@@ -80,10 +80,37 @@ internal static partial class SiteDefaultsApplier
                 TermTemplate = ConfigYamlHelpers.GetOptionalString(m, "termTemplate"),
                 IndexEnabled = ConfigYamlHelpers.GetOptionalBool(m, "indexEnabled"),
                 Hierarchical = ConfigYamlHelpers.GetOptionalBool(m, "hierarchical") ?? false,
-                RoutePrefix = ConfigYamlHelpers.GetOptionalString(m, "routePrefix")
+                RoutePrefix = ConfigYamlHelpers.GetOptionalString(m, "routePrefix"),
+                I18n = ReadKindLabels(m, $"taxonomy.kinds[{kinds.Count}].i18n")
             });
         }
 
         return kinds;
+    }
+
+    private static Dictionary<string, TaxonomyKindLabelsConfig>? ReadKindLabels(YamlMappingNode kind, string path)
+    {
+        if (ConfigYamlHelpers.GetOptionalMapping(kind, "i18n") is not { } i18nNode)
+        {
+            return null;
+        }
+
+        var labels = new Dictionary<string, TaxonomyKindLabelsConfig>(StringComparer.Ordinal);
+        foreach (var (key, value) in i18nNode.Children)
+        {
+            if (key is not YamlScalarNode { Value: { Length: > 0 } language } || value is not YamlMappingNode node)
+            {
+                throw new ConfigException($"{path} must map each site language to a mapping.", DiagnosticCode.ConfigInvalidValue);
+            }
+
+            labels[language] = new TaxonomyKindLabelsConfig
+            {
+                Title = ConfigYamlHelpers.GetOptionalString(node, "title"),
+                Description = ConfigYamlHelpers.GetOptionalString(node, "description"),
+                SingularTitlePrefix = ConfigYamlHelpers.GetOptionalString(node, "singularTitlePrefix")
+            };
+        }
+
+        return labels;
     }
 }

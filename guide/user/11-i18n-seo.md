@@ -413,6 +413,33 @@ wording; unsupported languages fall back to English. The built-in Chinese kind
 names are `标签` and `分类`. Custom kinds keep their key when no title is
 configured.
 
+A kind's configured `title`, `description` and `singularTitlePrefix` apply to every
+language. Give a language its own labels with `taxonomy.kinds[].i18n.<lang>`; unset
+labels keep the kind's values:
+
+```yaml
+taxonomy:
+  kinds:
+    - key: tags
+      title: 资讯标签
+      description: 按标签浏览商务资讯。
+      singularTitlePrefix: 标签
+      i18n:
+        en:
+          title: Insight tags
+          description: Browse insights by tag.
+          singularTitlePrefix: Tag
+```
+
+The `en` build then titles a term page `Tag: Malaysia` in its HTML and in its Markdown
+and JSON representations; the Chinese build keeps `标签：Malaysia`. The key must be a
+`site.languages` entry written the same way and needs two or more languages; the labels
+must not be blank.
+
+Derived pages (taxonomy, pagination and archive pages) carry the language of the build
+that derives them, so their JSON and Markdown representations, agent manifest entries and
+JSON-LD name that language instead of `und`.
+
 Term descriptions remain unchanged on page 1. On page 2 and later, Bukit adds
 the current-language page number and visible item range. The effective metadata
 priority is route metadata SEO fields, route metadata visible fields, term

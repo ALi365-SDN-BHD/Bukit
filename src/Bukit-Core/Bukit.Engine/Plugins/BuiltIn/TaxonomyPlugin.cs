@@ -85,7 +85,7 @@ internal sealed class TaxonomyPlugin : IBukitPlugin, IDerivePagesPlugin, IAfterB
         var outputMode = NormalizeOutputMode(_taxonomy.OutputMode);
         var itemFields = NormalizeItemFields(_taxonomy.ItemFields);
         var pageSize = NormalizePageSize(_taxonomy.PageSize);
-        TaxonomyDataWriter.SetTaxonomyData(context, itemFields, _taxonomy, _indexCache);
+        TaxonomyDataWriter.SetTaxonomyData(context, itemFields, _taxonomy, _indexCache, _config.Site.Language);
         if (outputMode == "data")
         {
             return derived;
@@ -114,11 +114,12 @@ internal sealed class TaxonomyPlugin : IBukitPlugin, IDerivePagesPlugin, IAfterB
                 }
 
                 var templates = TaxonomyTemplateResolver.ResolveTemplates(_taxonomy, context.LayoutsDir, kind, context.ResolveTemplateKind, kindConfig);
-                var title = string.IsNullOrWhiteSpace(kindConfig.Title) ? kind : kindConfig.Title.Trim();
-                var description = string.IsNullOrWhiteSpace(kindConfig.Description) ? null : kindConfig.Description.Trim();
-                var singularTitlePrefix = string.IsNullOrWhiteSpace(kindConfig.SingularTitlePrefix)
+                var labels = kindConfig.LabelsFor(_config.Site.Language);
+                var title = string.IsNullOrWhiteSpace(labels.Title) ? kind : labels.Title.Trim();
+                var description = string.IsNullOrWhiteSpace(labels.Description) ? null : labels.Description.Trim();
+                var singularTitlePrefix = string.IsNullOrWhiteSpace(labels.SingularTitlePrefix)
                     ? title
-                    : kindConfig.SingularTitlePrefix.Trim();
+                    : labels.SingularTitlePrefix.Trim();
                 var indexEnabled = kindConfig.IndexEnabled ?? _taxonomy.IndexEnabled;
 
                 derived.AddRange(TaxonomyPageCreator.CreateKind(baseUrlPrefix, kind, kindConfig.RoutePrefix, title, description, singularTitlePrefix, terms, templates.IndexTemplate, templates.TermTemplate, emitContentHtml, pageSize, indexEnabled, kindConfig.Hierarchical, _config.Site.Language, _config.Site.OutputPathEncoding, _taxonomy.EmptyTerms));
@@ -182,7 +183,8 @@ internal sealed class TaxonomyPlugin : IBukitPlugin, IDerivePagesPlugin, IAfterB
                     continue;
                 }
 
-                var title = string.IsNullOrWhiteSpace(kindConfig.Title) ? kind : kindConfig.Title.Trim();
+                var configuredTitle = kindConfig.LabelsFor(_config.Site.Language).Title;
+                var title = string.IsNullOrWhiteSpace(configuredTitle) ? kind : configuredTitle.Trim();
                 kindTerms.Add((key, kind, title, terms, kindConfig.RoutePrefix));
             }
         }

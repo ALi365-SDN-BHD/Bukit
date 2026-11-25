@@ -214,7 +214,8 @@ internal static class TaxonomyPageCreator
             slug: kind,
             publishAt: publishAt,
             body: new ContentBodyRef(Html: html),
-            customFields: fields);
+            customFields: fields,
+            language: language);
 
         return new RoutedContentDocument(document, route, publishAt);
     }
@@ -400,7 +401,8 @@ internal static class TaxonomyPageCreator
             slug: term.Slug,
             publishAt: publishAt,
             body: new ContentBodyRef(Html: html),
-            customFields: fields);
+            customFields: fields,
+            language: language);
 
         return new RoutedContentDocument(document, route, publishAt);
     }

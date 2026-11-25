@@ -54,9 +54,11 @@ internal sealed class TaxonomyContributor : IRenderDependencyContributor
         {
             writer.AppendLabeledCanonicalValue("taxonomy.kind.key", kind.Key);
             writer.AppendLabeledCanonicalValue("taxonomy.kind.kind", kind.Kind);
-            writer.AppendLabeledCanonicalValue("taxonomy.kind.title", kind.Title);
-            writer.AppendLabeledCanonicalValue("taxonomy.kind.description", kind.Description);
-            writer.AppendLabeledCanonicalValue("taxonomy.kind.singularTitlePrefix", kind.SingularTitlePrefix);
+            // The labels of this build's language: a site without taxonomy.kinds[].i18n keeps its hash.
+            var labels = kind.LabelsFor(context.Config.Site.Language);
+            writer.AppendLabeledCanonicalValue("taxonomy.kind.title", labels.Title);
+            writer.AppendLabeledCanonicalValue("taxonomy.kind.description", labels.Description);
+            writer.AppendLabeledCanonicalValue("taxonomy.kind.singularTitlePrefix", labels.SingularTitlePrefix);
             writer.AppendLabeledCanonicalValue("taxonomy.kind.template", kind.Template);
             writer.AppendLabeledCanonicalValue("taxonomy.kind.indexTemplate", kind.IndexTemplate);
             writer.AppendLabeledCanonicalValue("taxonomy.kind.termTemplate", kind.TermTemplate);

@@ -639,6 +639,7 @@ with `--clean` after replacing images.
 | `taxonomy.kinds[].indexEnabled` | inherits global | Per-kind index switch. |
 | `taxonomy.kinds[].hierarchical` | `false` | Builds hierarchy from slash-like terms. |
 | `taxonomy.kinds[].routePrefix` | none | Absolute route prefix. |
+| `taxonomy.kinds[].i18n.<lang>` | none | Multilingual sites only. `title`, `description` and `singularTitlePrefix` for that language's build; unset labels keep the kind's values. `<lang>` must be a `site.languages` entry. See [11 i18n and SEO](11-i18n-seo.md#taxonomy-metadata-language). |
 
 Taxonomy metadata defaults follow the site language (`{{ site.language }}`): languages beginning with
 `zh` use Chinese titles, punctuation, counts, and pagination ranges; other

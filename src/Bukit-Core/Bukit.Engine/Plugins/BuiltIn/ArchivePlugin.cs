@@ -62,12 +62,12 @@ internal sealed class ArchivePlugin : IBukitPlugin, IDerivePagesPlugin, ITemplat
         var derived = new List<RoutedContentDocument>();
         var template = context.ResolveTemplateKind("archive");
 
-        derived.Add(CreateArchiveIndex(prefix, archiveBaseUrl, collectionKey, _config.Site.OutputPathEncoding, byYear, template));
+        derived.Add(CreateArchiveIndex(prefix, archiveBaseUrl, collectionKey, _config.Site.OutputPathEncoding, byYear, template, _config.Site.Language));
 
         foreach (var yearGroup in byYear)
         {
             var yearPosts = yearGroup.ToList();
-            derived.Add(CreateYearPage(prefix, archiveBaseUrl, yearGroup.Key, yearPosts, collectionKey, _config.Site.OutputPathEncoding, template));
+            derived.Add(CreateYearPage(prefix, archiveBaseUrl, yearGroup.Key, yearPosts, collectionKey, _config.Site.OutputPathEncoding, template, _config.Site.Language));
 
             var byMonth = yearPosts
                 .GroupBy(x => x.Document.PublishAt.Month)
@@ -76,7 +76,7 @@ internal sealed class ArchivePlugin : IBukitPlugin, IDerivePagesPlugin, ITemplat
 
             foreach (var monthGroup in byMonth)
             {
-                derived.Add(CreateMonthPage(prefix, archiveBaseUrl, yearGroup.Key, monthGroup.Key, monthGroup.ToList(), collectionKey, _config.Site.OutputPathEncoding, template));
+                derived.Add(CreateMonthPage(prefix, archiveBaseUrl, yearGroup.Key, monthGroup.Key, monthGroup.ToList(), collectionKey, _config.Site.OutputPathEncoding, template, _config.Site.Language));
             }
         }
 
@@ -89,7 +89,8 @@ internal sealed class ArchivePlugin : IBukitPlugin, IDerivePagesPlugin, ITemplat
         string collectionKey,
         string outputPathEncoding,
         IReadOnlyList<IGrouping<int, RoutedContentDocument>> byYear,
-        string template)
+        string template,
+        string? language)
     {
         var sb = new StringBuilder();
         sb.AppendLine("<ul>");
@@ -118,7 +119,8 @@ internal sealed class ArchivePlugin : IBukitPlugin, IDerivePagesPlugin, ITemplat
             "archive",
             publishAt,
             new ContentBodyRef(Html: sb.ToString()),
-            ContentFieldReader.ToFieldMap(meta));
+            ContentFieldReader.ToFieldMap(meta),
+            language: language);
         return new RoutedContentDocument(document, route, publishAt);
     }
 
@@ -129,7 +131,8 @@ internal sealed class ArchivePlugin : IBukitPlugin, IDerivePagesPlugin, ITemplat
         IReadOnlyList<RoutedContentDocument> yearPosts,
         string collectionKey,
         string outputPathEncoding,
-        string template)
+        string template,
+        string? language)
     {
         var byMonth = yearPosts
             .GroupBy(x => x.Document.PublishAt.Month)
@@ -164,7 +167,8 @@ internal sealed class ArchivePlugin : IBukitPlugin, IDerivePagesPlugin, ITemplat
             $"archive-{year}",
             publishAt,
             new ContentBodyRef(Html: sb.ToString()),
-            ContentFieldReader.ToFieldMap(meta));
+            ContentFieldReader.ToFieldMap(meta),
+            language: language);
         return new RoutedContentDocument(document, route, publishAt);
     }
 
@@ -176,7 +180,8 @@ internal sealed class ArchivePlugin : IBukitPlugin, IDerivePagesPlugin, ITemplat
         IReadOnlyList<RoutedContentDocument> monthPosts,
         string collectionKey,
         string outputPathEncoding,
-        string template)
+        string template,
+        string? language)
     {
         var sb = new StringBuilder();
         sb.AppendLine("<ul>");
@@ -210,7 +215,8 @@ internal sealed class ArchivePlugin : IBukitPlugin, IDerivePagesPlugin, ITemplat
             $"archive-{year}-{month:D2}",
             publishAt,
             new ContentBodyRef(Html: sb.ToString()),
-            ContentFieldReader.ToFieldMap(meta));
+            ContentFieldReader.ToFieldMap(meta),
+            language: language);
         return new RoutedContentDocument(document, routeInfo, publishAt);
     }
 

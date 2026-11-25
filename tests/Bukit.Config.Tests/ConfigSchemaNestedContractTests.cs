@@ -31,7 +31,8 @@ public sealed class ConfigSchemaNestedContractTests
             "content/modelSchema/relationMappings[]"
         ],
         ["ValidateMenuItems.path"] = ["site/menus/*"],
-        ["ValidateMiniProgramDataset.path"] = ["miniprogram/datasets[]"]
+        ["ValidateMiniProgramDataset.path"] = ["miniprogram/datasets[]"],
+        ["ValidateTaxonomyKind.path"] = ["taxonomy/kinds[]"]
     };
 
     private static readonly Regex MethodDeclarationRegex = new(
@@ -116,7 +117,8 @@ public sealed class ConfigSchemaNestedContractTests
         new("theme/scss", "enabled", "entryPoint", "outputDir"),
         new("theme/images", "enabled", "formats", "sizes", "quality", "sizesAttribute", "fallbackVariants"),
         new("theme/components/*", "template", "props"),
-        new("taxonomy/kinds[]", "key", "kind", "title", "description", "singularTitlePrefix", "template", "indexTemplate", "termTemplate", "indexEnabled", "hierarchical", "routePrefix"),
+        new("taxonomy/kinds[]", "key", "kind", "title", "description", "singularTitlePrefix", "template", "indexTemplate", "termTemplate", "indexEnabled", "hierarchical", "routePrefix", "i18n"),
+        new("taxonomy/kinds[]/i18n/*", "title", "description", "singularTitlePrefix"),
         new("logging", "level"),
         new("miniprogram", "enabled", "outputDir", "maxListItems", "datasets"),
         new("miniprogram/datasets[]", "name", "kind", "source", "module", "scope", "menu", "taxonomy", "fields", "listFields", "detailFields", "sort", "required", "types"),

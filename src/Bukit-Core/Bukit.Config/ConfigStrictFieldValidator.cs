@@ -595,7 +595,18 @@ internal static class ConfigStrictFieldValidator
         RequireOnly(taxonomy, TaxonomyKeys, "taxonomy");
         if (Seq(taxonomy, "kinds") is { } kinds)
         {
-            ValidateSequenceMappings(kinds, Set("key", "kind", "title", "description", "singularTitlePrefix", "template", "indexTemplate", "termTemplate", "indexEnabled", "hierarchical", "routePrefix"), "taxonomy.kinds");
+            ValidateSequenceMappings(kinds, Set("key", "kind", "title", "description", "singularTitlePrefix", "template", "indexTemplate", "termTemplate", "indexEnabled", "hierarchical", "routePrefix", "i18n"), "taxonomy.kinds", ValidateTaxonomyKind);
+        }
+    }
+
+    private static void ValidateTaxonomyKind(YamlMappingNode kind, string path)
+    {
+        if (Map(kind, "i18n", $"{path}.i18n") is { } i18n)
+        {
+            foreach (var (name, labels) in MappingChildren(i18n, $"{path}.i18n"))
+            {
+                RequireOnly(labels, Set("title", "description", "singularTitlePrefix"), $"{path}.i18n.{name}");
+            }
         }
     }
 

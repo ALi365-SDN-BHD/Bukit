@@ -288,6 +288,50 @@ public sealed class TaxonomyPluginDerivePagesTests
         Assert.Equal("/insights/category/市场观察/", dataTerm["url"]);
     }
 
+    [Theory]
+    [InlineData("en", "Tag: Malaysia", "Insight tags", "Browse insights by tag.")]
+    [InlineData("zh-CN", "标签：Malaysia", "资讯标签", "按标签浏览商务资讯。")]
+    public void DerivePages_KindI18nLabels_AndTheBuildLanguage_NameEachLanguagesPages(
+        string language, string termTitle, string kindTitle, string indexSummary)
+    {
+        var config = new TaxonomyConfig
+        {
+            OutputMode = "pages",
+            IndexEnabled = true,
+            Kinds = new List<TaxonomyKindConfig>
+            {
+                new()
+                {
+                    Key = "tags",
+                    Kind = "tags",
+                    Title = "资讯标签",
+                    Description = "按标签浏览商务资讯。",
+                    SingularTitlePrefix = "标签",
+                    I18n = new Dictionary<string, TaxonomyKindLabelsConfig>
+                    {
+                        ["en"] = new() { Title = "Insight tags", Description = "Browse insights by tag.", SingularTitlePrefix = "Tag" }
+                    }
+                }
+            }
+        };
+        var routed = new List<(ContentDocument Item, RouteInfo Route)>
+        {
+            CreateItem("p1", "Post 1", new DateTimeOffset(2024, 1, 1, 0, 0, 0, TimeSpan.Zero), tags: new[] { "Malaysia" })
+        };
+        var (ctx, appConfig) = CreateContext(routed, taxonomyConfig: config, language: language);
+
+        var derived = new TaxonomyPlugin(appConfig).DerivePages(ctx);
+
+        var term = Assert.Single(derived, x => x.Route.Url == "/tags/malaysia/");
+        Assert.Equal(termTitle, term.Document.Title);
+        var index = Assert.Single(derived, x => x.Route.Url == "/tags/");
+        Assert.Equal(kindTitle, index.Document.Title);
+        Assert.Equal(indexSummary, index.Document.CustomFields!["summary"].Value);
+        Assert.All(derived, page => Assert.Equal(language, page.Document.Record.Presentation.Language));
+        var siteTaxonomy = Assert.IsType<Dictionary<string, object>>(ctx.Get(BuildDataKeys.Taxonomy));
+        Assert.Equal(kindTitle, Assert.IsType<Dictionary<string, object>>(siteTaxonomy["tags"])["title"]);
+    }
+
     [Fact]
     public void DerivePages_TaxonomyKindRoutePrefix_CanBeMergedIntoListRouteGraph()
     {
