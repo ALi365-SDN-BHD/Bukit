@@ -540,7 +540,10 @@ public sealed class ImageProcessingPluginTests
             var html = File.ReadAllText(htmlFile);
             Assert.Contains("<picture><source type=\"image/webp\" srcset=\"/assets/photo-480w.webp 480w, /assets/photo-1000w.webp 1000w\" sizes=\"100vw\">", html, StringComparison.Ordinal);
             Assert.Equal(1, CountOccurrences(html, "srcset="));
-            Assert.Contains("<img src=\"/assets/photo.jpg\" alt=\"a\" sizes=\"100vw\" decoding=\"async\" width=\"1000\" height=\"8\">", html, StringComparison.Ordinal);
+            // sizes without srcset is invalid on an img, so the value lives only on the WebP source.
+            Assert.Contains("<img src=\"/assets/photo.jpg\" alt=\"a\" decoding=\"async\" width=\"1000\" height=\"8\">", html, StringComparison.Ordinal);
+            Assert.Equal(1, CountOccurrences(html, "sizes="));
+            Assert.DoesNotContain("data-bukit-source-sizes", html, StringComparison.Ordinal);
         }
         finally
         {

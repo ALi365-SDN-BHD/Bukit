@@ -12,7 +12,8 @@ internal sealed record SeoStageResult(
     SeoPipelineResult SeoResult,
     IReadOnlyDictionary<string, IReadOnlyList<SeoAlternateModel>> SeoAlternates,
     int MaxDegreeOfParallelism,
-    BreadcrumbDescriptorCatalog? Breadcrumbs = null);
+    BreadcrumbDescriptorCatalog? Breadcrumbs = null,
+    string? SocialImageFingerprint = null);
 
 internal static class VariantSeoStage
 {
@@ -57,7 +58,9 @@ internal static class VariantSeoStage
             breadcrumbs,
             context.BuildStartedAt,
             context.SharedAssets);
-        seoResult = WithSocialImageMetadata(seoResult, context, logger);
+        var socialImages = CreateSocialImageResolver(context, logger);
+        var socialImageFingerprint = socialImages.Fingerprint(seoResult.SeoIndex.Models.Values.Select(model => model.Og.Image));
+        seoResult = WithSocialImageMetadata(seoResult, socialImages);
         pluginContext.SeoIndex = seoResult.SeoIndex.Entries;
         pluginContext.Set(BuildDataKeys.SeoModels, seoResult.SeoIndex.Models);
 
@@ -65,25 +68,29 @@ internal static class VariantSeoStage
             seoResult,
             seoAlternates,
             maxDegreeOfParallelism,
-            breadcrumbs));
+            breadcrumbs,
+            socialImageFingerprint));
     }
 
     // Page SEO models gain og:image width, height and type when the image is a local file.
-    private static SeoPipelineResult WithSocialImageMetadata(SeoPipelineResult result, BuildVariantContext context, ILogger logger)
+    private static SeoImageMetadataResolver CreateSocialImageResolver(BuildVariantContext context, ILogger logger)
+        => new(
+            context.Config.Site.Url,
+            [context.BaseUrl, context.RootBaseUrl, context.Config.Site.BaseUrl],
+            context.Config.Content.Media.UrlBase,
+            // The media cache directory the provider actually downloads into (content.media.downloadDir).
+            ContentProviderFactory.BuildEffectiveMediaConfig(context.Config.Content.Media, context.RootDir, context.MediaDownloadDir).DownloadDir,
+            [context.AssetsDir, context.ParentAssetsDir],
+            [context.StaticDir, context.ParentStaticDir],
+            logger);
+
+    private static SeoPipelineResult WithSocialImageMetadata(SeoPipelineResult result, SeoImageMetadataResolver resolver)
     {
         if (result.SeoBuilder is null && result.ListSeoBuilder is null)
         {
             return result;
         }
 
-        var resolver = new SeoImageMetadataResolver(
-            context.Config.Site.Url,
-            [context.BaseUrl, context.RootBaseUrl, context.Config.Site.BaseUrl],
-            context.Config.Content.Media.UrlBase,
-            context.MediaDownloadDir,
-            [context.AssetsDir, context.ParentAssetsDir],
-            [context.StaticDir, context.ParentStaticDir],
-            logger);
         var seoBuilder = result.SeoBuilder;
         var listSeoBuilder = result.ListSeoBuilder;
         return result with

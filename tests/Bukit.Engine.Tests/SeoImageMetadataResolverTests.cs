@@ -45,6 +45,7 @@ public sealed class SeoImageMetadataResolverTests : IDisposable
     [InlineData("https://example.com/repo/assets/missing.jpg")]
     [InlineData("https://example.com/repo/assets/../../outside.jpg")]
     [InlineData("data:image/png;base64,AAAA")]
+    [InlineData("https://example.com/repo/assets/og%00.jpg")]
     public void Apply_ExternalMissingOrEscapingImage_LeavesTheModelUnchanged(string imageUrl)
     {
         WriteImage(Path.Combine(_root, "outside.jpg"), 1200, 630, SKEncodedImageFormat.Jpeg);
@@ -54,6 +55,21 @@ public sealed class SeoImageMetadataResolverTests : IDisposable
 
         Assert.Null(applied.Og.ImageWidth);
         Assert.Null(applied.Og.ImageType);
+    }
+
+    [Fact]
+    public void Fingerprint_ChangesWhenAShareImageChangesSizeAndIgnoresExternalImages()
+    {
+        var path = Path.Combine(_root, "static", "og.png");
+        WriteImage(path, 1200, 630, SKEncodedImageFormat.Png);
+        string?[] images = ["/repo/og.png", "/repo/og.png", "https://cdn.example.net/x.png", null];
+        var before = CreateResolver().Fingerprint(images);
+
+        WriteImage(path, 1000, 500, SKEncodedImageFormat.Png);
+
+        Assert.NotNull(before);
+        Assert.NotEqual(before, CreateResolver().Fingerprint(images));
+        Assert.Null(CreateResolver().Fingerprint(["https://cdn.example.net/x.png"]));
     }
 
     [Fact]

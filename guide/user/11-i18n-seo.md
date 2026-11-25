@@ -380,8 +380,7 @@ the preview before fetching the image. Themes in `theme` render mode read them a
 `page.seo.og.image_type`. External images get none. A WebP share image warns
 `seo.og_image_webp` (and `seo.twitter_image_webp`), because some platforms, such
 as WhatsApp and WeChat, show no preview for WebP; use JPEG or PNG there.
-Incremental builds re-render pages when a media or `assets/` image changes size;
-after resizing a share image elsewhere in `static/`, rebuild with `--clean`.
+Incremental builds re-render pages when a share image changes size or type.
 
 For collection list routes, `site.collections.<name>.noindexWhenEmpty: true`
 marks an empty result as `noindex,follow`. The same indexability decision

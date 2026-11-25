@@ -1,4 +1,5 @@
 using System.Collections.Concurrent;
+using Bukit.Engine.Incremental;
 using Bukit.Engine.Plugins.BuiltIn.ImageProcessing;
 using Bukit.Rendering;
 using Bukit.Shared;
@@ -55,6 +56,27 @@ internal sealed class SeoImageMetadataResolver
         return _cache.GetOrAdd(image, Resolve) is { } metadata
             ? model with { Og = model.Og with { ImageWidth = metadata.Width, ImageHeight = metadata.Height, ImageType = metadata.Type } }
             : model;
+    }
+
+    /// <summary>
+    /// Hash of every given share image's resolved metadata, or null when none is site-hosted. Pages
+    /// skipped by an incremental build keep their head, so a share image that changes size or type
+    /// must change the render-dependency hash.
+    /// </summary>
+    internal string? Fingerprint(IEnumerable<string?> imageUrls)
+    {
+        var entries = imageUrls
+            .OfType<string>()
+            .Where(url => url.Length > 0)
+            .Distinct(StringComparer.Ordinal)
+            .Select(url => (Url: url, Metadata: _cache.GetOrAdd(url, Resolve)))
+            .Where(entry => entry.Metadata is not null)
+            .Select(entry => string.Create(
+                System.Globalization.CultureInfo.InvariantCulture,
+                $"{entry.Url}={entry.Metadata!.Width}x{entry.Metadata.Height};{entry.Metadata.Type}"))
+            .Order(StringComparer.Ordinal)
+            .ToList();
+        return entries.Count == 0 ? null : HashUtil.Sha256Hex(string.Join('\n', entries));
     }
 
     private ImageMetadata? Resolve(string imageUrl)
@@ -145,6 +167,12 @@ internal sealed class SeoImageMetadataResolver
     // The file below root, or null when the relative path escapes it.
     private static string? Within(string root, string relative)
     {
+        // A decoded URL may carry characters no file name can (such as NUL from %00).
+        if (relative.AsSpan().IndexOfAny(Path.GetInvalidPathChars()) >= 0)
+        {
+            return null;
+        }
+
         var rootFull = Path.GetFullPath(root);
         var candidate = Path.GetFullPath(Path.Combine(rootFull, relative.Replace('/', Path.DirectorySeparatorChar)));
         var prefix = rootFull.EndsWith(Path.DirectorySeparatorChar) ? rootFull : rootFull + Path.DirectorySeparatorChar;

@@ -132,14 +132,11 @@ public sealed class ImageSourceFingerprintTests
     }
 
     [Fact]
-    public void Compute_ReturnsNullOnlyWhenImageProcessingAndSeoAreDisabled()
+    public void Compute_ReturnsNullWhenImageProcessingIsDisabled()
     {
-        using var site = new TempSite(imagesEnabled: false, seoEnabled: false);
-        using var seoSite = new TempSite(imagesEnabled: false);
+        using var site = new TempSite(imagesEnabled: false);
 
         Assert.Null(site.Compute());
-        // SEO writes the share image's dimensions into page heads, so its size still matters.
-        Assert.NotNull(seoSite.Compute());
     }
 
     private static void WritePng(string path, int width, int height, SKColor? color = null)
@@ -156,13 +153,13 @@ public sealed class ImageSourceFingerprintTests
     {
         private readonly AppConfig _config;
 
-        public TempSite(string urlBase = "/assets/uploads", bool imagesEnabled = true, bool seoEnabled = true)
+        public TempSite(string urlBase = "/assets/uploads", bool imagesEnabled = true)
         {
             Root = Path.Combine(Path.GetTempPath(), "bukit-image-fingerprint-" + Guid.NewGuid().ToString("N"));
             Directory.CreateDirectory(Path.Combine(Root, "media"));
             _config = new AppConfig
             {
-                Site = new SiteConfig { Name = "image", Title = "Image", Seo = new SeoConfig { Enabled = seoEnabled } },
+                Site = new SiteConfig { Name = "image", Title = "Image" },
                 Content = TestContent.Markdown() with
                 {
                     Media = new MediaConfig

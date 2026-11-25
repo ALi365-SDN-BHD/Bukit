@@ -49,7 +49,9 @@ internal static class VariantRenderStage
                 siteModel,
                 context.Overrides.ExecutionMode,
                 seoAlternates: seoStage.SeoAlternates,
-                imageSourceFingerprint: imageSourceFingerprint,
+                imageSourceFingerprint: seoStage.SocialImageFingerprint is { } social
+                    ? $"{imageSourceFingerprint}|og:{social}"
+                    : imageSourceFingerprint,
                 pagesFingerprint: () => ComputePagesFingerprint(renderAssetPlan.RenderDocuments, routeMetadata),
                 sharedAssetPrefixes: context.SharedAssets?.CanonicalPrefixes)
             : null;
