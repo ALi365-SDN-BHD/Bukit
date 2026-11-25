@@ -40,9 +40,12 @@ public sealed class AssetToolingSymlinkTests
         var root = CreateFixture(out var assetsDir, out var externalDir);
         try
         {
-            WriteValidImage(Path.Combine(assetsDir, "local.jpg"), "local");
+            // Resized variants are planned for media images only, so scan the media dir.
+            var mediaDir = Path.Combine(assetsDir, "uploads");
+            Directory.CreateDirectory(mediaDir);
+            WriteValidImage(Path.Combine(mediaDir, "local.jpg"), "local");
             File.WriteAllText(Path.Combine(externalDir, "secret.jpg"), "secret");
-            CreateDirectorySymlinkOrSkip(Path.Combine(assetsDir, "linked-external"), externalDir);
+            CreateDirectorySymlinkOrSkip(Path.Combine(mediaDir, "linked-external"), externalDir);
             var config = new AppConfig
             {
                 Site = new SiteConfig { Name = "test", Title = "Test" },
@@ -64,9 +67,10 @@ public sealed class AssetToolingSymlinkTests
 
             await new ImageProcessingPlugin(config).AfterBuildAsync(context);
 
-            var srcsets = Assert.IsType<Dictionary<string, object>>(context.Get(BuildDataKeys.ImageSrcsets));
-            Assert.Contains("local.jpg", srcsets.Keys);
-            Assert.DoesNotContain(srcsets.Keys, key => key.Contains("linked-external", StringComparison.Ordinal));
+            var outputs = Assert.IsType<HashSet<PluginOutputTrackingInfo>>(context.Get(BuildDataKeys.PluginOutputs));
+            Assert.Contains(outputs, output => output.Path == "assets/uploads/local-480w.jpg");
+            Assert.DoesNotContain(outputs, output => output.Path.Contains("linked-external", StringComparison.Ordinal));
+            Assert.Equal(["secret.jpg"], Directory.GetFiles(externalDir).Select(Path.GetFileName));
         }
         finally
         {

@@ -42,9 +42,6 @@ internal static class BuildDataKeys
     /// <summary>Writer and reader: CollectionRouteIndex (per-build cache).</summary>
     internal static readonly BuildDataKey<CollectionRouteIndex> CollectionRouteIndex = new("__collection_route_index");
 
-    /// <summary>Writer: ImageProcessingPlugin. No production reader.</summary>
-    internal static readonly BuildDataKey<Dictionary<string, object>> ImageSrcsets = new("__image_srcsets");
-
     /// <summary>Writer: DataFilesPlugin. Reader: templates as <c>site.data_files</c>.</summary>
     internal static readonly BuildDataKey<Dictionary<string, object>> DataFiles = new("__data_files");
 

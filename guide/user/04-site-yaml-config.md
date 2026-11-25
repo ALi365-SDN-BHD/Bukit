@@ -523,7 +523,7 @@ always starts with one clean build and rebuilds incrementally after that.
 | `theme.scss.outputDir` | `assets` | SCSS output directory. |
 | `theme.images.enabled` | `false` | Enables responsive original-format variants and requested next-generation formats. |
 | `theme.images.formats` | `webp` | Case-insensitive output formats. WebP uses the Core-bundled SkiaSharp encoder and needs no PATH tool. `[]` disables next-generation generation and projection without deleting already owned WebP. AVIF remains fail-closed until Core has an approved encoder and full decoder validation path. |
-| `theme.images.sizes` | `480`, `768`, `1200` | Positive widths below the source width; images are never upscaled. |
+| `theme.images.sizes` | `480`, `768`, `1200` | Positive widths below the source width; images are never upscaled. Resized original-format variants are generated for media images only; WebP candidates use these widths for every local JPEG/PNG image. |
 | `theme.images.quality` | `80` | WebP/JPEG quality setting, clamped to `1..100` by the built-in WebP encoder. |
 | `theme.componentValidation` | `off` | `off`, `warn`, or `strict`. |
 
@@ -533,6 +533,13 @@ WebP candidates for local JPEG/PNG content images. Final HTML uses one
 `src`/`srcset`, `sizes`, accessibility text, dimensions, loading hints, classes,
 IDs, and other attributes remain the fallback. Existing `picture` markup and
 external, data, SVG, or GIF images are not rewritten.
+
+Only media images (under `content.media.urlBase`) get an original-format
+`srcset`, so Bukit generates resized original-format variants (for example
+`photo-480w.jpg`) for media images only. Theme and static images elsewhere under
+`assets/` keep their single original file and, when WebP is enabled, still get
+their WebP candidates and `<picture>`. Resized variants an earlier build made for
+those images are deleted on the next build.
 
 A media image (under `content.media.urlBase`) whose size Bukit can read also
 gets `width` and `height` from the displayed size (after EXIF orientation) when
@@ -544,8 +551,8 @@ immediately; author-written `width`, `height`, and `loading` are never changed.
 Incremental builds re-render pages when a media image's width or height changes,
 and the first incremental build after upgrading re-renders every page.
 
-Local static WebP images get resized WebP candidates and an `img` `srcset` the
-same way JPEG/PNG images get original-format ones, but no `<picture>` (the
+Static WebP media images get resized WebP candidates and an `img` `srcset` the
+same way JPEG/PNG media images get original-format ones, but no `<picture>` (the
 source is already WebP). A WebP file is left as uploaded when it is animated,
 when its name already ends in `-<width>w.webp`, or when a JPEG/PNG with the same
 name sits beside it, compared without regard to case (their WebP candidates
