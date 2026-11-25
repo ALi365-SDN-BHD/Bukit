@@ -136,7 +136,7 @@ internal static class SeoIndexBuilder
                         route.SeoDescription!, ListPageMetadataBuilder.BuildPagination(route), config.Site.Language)
             };
         }
-        var alternateKey = SeoModelBuilder.BuildListAlternateKey(routeInfo);
+        var alternateKey = SeoModelBuilder.BuildListAlternateKey(route);
         var forceNoindexWhenEmpty = CollectionIndexabilityPolicy.ShouldNoIndex(config, route.Kind, route.Collection, route.TotalItems);
         var model = SeoModelBuilder.BuildForList(
             config,

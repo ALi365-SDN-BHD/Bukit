@@ -117,8 +117,45 @@ internal static partial class SiteDefaultsApplier
                 : ConfigYamlHelpers.ReadStringList(imagesNode, "formats") ?? [],
             Sizes = ConfigYamlHelpers.ReadIntList(imagesNode, "sizes", "theme.images")
                 ?? new[] { 480, 768, 1200 },
-            Quality = ConfigYamlHelpers.GetOptionalInt(imagesNode, "quality") ?? 80
+            Quality = ConfigYamlHelpers.GetOptionalInt(imagesNode, "quality") ?? 80,
+            SizesAttribute = ReadSizesAttribute(imagesNode),
+            FallbackVariants = ReadFallbackVariants(imagesNode)
         };
+    }
+
+    private static string ReadFallbackVariants(YamlMappingNode imagesNode)
+    {
+        var value = ConfigYamlHelpers.GetOptionalString(imagesNode, "fallbackVariants", "theme.images")?.Trim();
+        return value switch
+        {
+            null => ImageFallbackVariants.All,
+            ImageFallbackVariants.All or ImageFallbackVariants.None => value,
+            _ => throw new ConfigException("theme.images.fallbackVariants must be all|none.", DiagnosticCode.ConfigInvalidValue)
+        };
+    }
+
+    private static string? ReadSizesAttribute(YamlMappingNode imagesNode)
+    {
+        if (ConfigYamlHelpers.GetOptionalString(imagesNode, "sizesAttribute", "theme.images") is not { } value)
+        {
+            return null;
+        }
+
+        var trimmed = value.Trim();
+        if (trimmed.Length == 0)
+        {
+            throw new ConfigException("theme.images.sizesAttribute must not be blank.", DiagnosticCode.ConfigInvalidValue);
+        }
+
+        // Bukit adds "auto" itself, and only where the spec allows it (lazy images).
+        if (trimmed.StartsWith("auto", StringComparison.OrdinalIgnoreCase))
+        {
+            throw new ConfigException(
+                "theme.images.sizesAttribute must be the layout value without auto (for example \"(max-width: 768px) 100vw, 768px\"); Bukit adds auto to lazy images.",
+                DiagnosticCode.ConfigInvalidValue);
+        }
+
+        return trimmed;
     }
 
     internal static IReadOnlyDictionary<string, object>? ReadThemeParams(YamlMappingNode? themeNode)

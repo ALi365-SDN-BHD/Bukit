@@ -243,6 +243,40 @@ public sealed class WechatSyncInputLoaderTests : IDisposable
         Assert.Empty(context.Routed);
     }
 
+    [Theory]
+    [InlineData("1.1", true)]
+    [InlineData("1.12", true)]
+    [InlineData("2.0", false)]
+    [InlineData("10.0", false)]
+    [InlineData("1", false)]
+    [InlineData("1.", false)]
+    [InlineData("1.x", false)]
+    public async Task LoadAsync_AcceptsAnyV1MinorVersionWithListsAndRejectsOtherMajors(string version, bool accepted)
+    {
+        var outputDir = Path.Combine(_rootDir, "dist");
+        Directory.CreateDirectory(outputDir);
+        File.WriteAllText(Path.Combine(outputDir, "agent-manifest.json"), $$"""
+{
+  "schema": "https://bukit.dev/schemas/agent-manifest.v1.json",
+  "schemaVersion": "{{version}}",
+  "generatedAt": "2026-01-01T00:00:00Z",
+  "documents": [],
+  "lists": [
+    { "route": "/", "language": "zh", "kind": "home", "lastModified": "2026-01-01T00:00:00Z", "representations": [{ "kind": "html", "url": "/" }] }
+  ]
+}
+""");
+
+        if (accepted)
+        {
+            Assert.Empty((await LoadAsync(outputDir)).Routed);
+        }
+        else
+        {
+            await Assert.ThrowsAsync<InvalidDataException>(() => LoadAsync(outputDir));
+        }
+    }
+
     [Fact]
     public async Task LoadAsync_RejectsDefaultManifestSymlinkEscapingOutputDirectory()
     {

@@ -54,11 +54,41 @@ internal sealed class I18nRootAgentManifestWriter : II18nRootProjectionWriter
                     PublicContentProjectionPolicy.SanitizeEntities(record).Select(x => x.Name).ToArray(),
                     DefaultContentProjectionWriter.BuildAgentManifestRepresentationEntries(
                         route with { Url = mergedRoute }, seoEntry, model, result.BaseUrl),
-                    record.Lifecycle.UpdatedAt ?? record.Lifecycle.PublishedAt));
+                    record.Lifecycle.PublishedAt,
+                    record.Lifecycle.UpdatedAt));
             }
         }
 
-        new AgentManifestProjection().Project(context.OutputDir, entries);
+        new AgentManifestProjection().Project(context.OutputDir, entries, BuildLists(context));
+    }
+
+    /// <summary>
+    /// Every language's list routes, prefixed with that language's base URL like the merged documents. A merged
+    /// sitemap filters every language's canonicals under the root scope with one filter, so these lists do too;
+    /// otherwise each language's own sitemap, and so each language's lists, uses its own base URL as the scope.
+    /// </summary>
+    private static AgentManifestListEntry[] BuildLists(I18nRootProjectionWriterContext context)
+    {
+        var mergedSitemap = string.Equals((context.Config.Site.SitemapMode ?? "split").Trim(), "merged", StringComparison.OrdinalIgnoreCase);
+        var mergedFilter = mergedSitemap ? AgentManifestListEntries.CreateLocFilter(context.Config, context.RootBaseUrl) : null;
+        // One shared filter lets a document take a list canonical of another language, so every language's
+        // list canonicals decide which documents need their rendered page read.
+        HashSet<string>? mergedListCanonicalKeys = mergedFilter is null
+            ? null
+            : [.. context.Results.SelectMany(result => AgentManifestListEntries.ListCanonicalKeys(
+                result.SeoIndex, result.RoutedDocuments.Concat(result.DerivedDocuments)))];
+        return [.. context.Results.SelectMany(result => AgentManifestListEntries.Build(
+            context.Config,
+            result.SeoIndex,
+            result.ListRouteGraph,
+            result.RoutedDocuments.Concat(result.DerivedDocuments),
+            result.OutputDir,
+            result.BaseUrl,
+            result.Language,
+            prefixRoutes: true,
+            mergedSitemap ? mergedFilter : AgentManifestListEntries.CreateLocFilter(context.Config, result.BaseUrl),
+            context.Logger,
+            mergedListCanonicalKeys))];
     }
 
 }

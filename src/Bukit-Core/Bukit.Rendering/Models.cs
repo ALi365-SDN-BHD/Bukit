@@ -119,6 +119,12 @@ public sealed record SeoOpenGraphModel
     public string? Description { get; init; }
     public string? Url { get; init; }
     public string? Image { get; init; }
+    /// <summary>Pixel width of a site-hosted <see cref="Image"/>, read from its file.</summary>
+    public int? ImageWidth { get; init; }
+    /// <summary>Pixel height of a site-hosted <see cref="Image"/>, read from its file.</summary>
+    public int? ImageHeight { get; init; }
+    /// <summary>MIME type of a site-hosted <see cref="Image"/>, from its file extension.</summary>
+    public string? ImageType { get; init; }
     public string Type { get; init; } = "website";
     public string? SiteName { get; init; }
     public string? Locale { get; init; }

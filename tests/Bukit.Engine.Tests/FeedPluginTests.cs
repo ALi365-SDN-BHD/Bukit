@@ -126,6 +126,61 @@ public sealed class FeedPluginTests
         }
     }
 
+    [Theory]
+    [InlineData(false, null, false)]
+    [InlineData(true, null, true)]
+    [InlineData(false, true, true)]
+    [InlineData(true, false, false)]
+    public void AfterBuild_WritesCollectionFeedsOnlyWhenTheFeedPolicyAsks(bool secondRssCollection, bool? postsFeed, bool expectPostsFeed)
+    {
+        var tempDir = Path.Combine(Path.GetTempPath(), "bukit_rss_collections_" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(tempDir);
+
+        try
+        {
+            var config = new AppConfig
+            {
+                Site = new SiteConfig
+                {
+                    Name = "test",
+                    Title = "Collections",
+                    Url = "https://example.com",
+                    Collections = new Dictionary<string, CollectionConfig>(StringComparer.OrdinalIgnoreCase)
+                    {
+                        ["posts"] = new() { Permalink = "/posts/{slug}/", Template = "pages/post.html", Output = new() { Feed = postsFeed } },
+                        ["notes"] = new() { Permalink = "/notes/{slug}/", Template = "pages/post.html", Output = new() { Rss = secondRssCollection } }
+                    }
+                },
+                Content = TestContent.Markdown()
+            };
+
+            var context = new BuildContext
+            {
+                RootDir = tempDir,
+                OutputDir = tempDir,
+                BaseUrl = "/",
+                LayoutsDir = tempDir,
+                RoutedDocuments = Array.Empty<RoutedContentDocument>(),
+                BodyStore = NullContentBodyStore.Instance,
+                Logger = new ConsoleLogger(LogLevel.Debug),
+            };
+            context.SeoIndex = new Dictionary<string, SeoIndexEntry>();
+
+            new FeedPlugin(config).AfterBuild(context);
+
+            Assert.True(File.Exists(Path.Combine(tempDir, "rss.xml")));
+            Assert.Equal(expectPostsFeed, File.Exists(Path.Combine(tempDir, "feed", "posts", "rss.xml")));
+            Assert.Equal(secondRssCollection, File.Exists(Path.Combine(tempDir, "feed", "notes", "rss.xml")));
+        }
+        finally
+        {
+            if (Directory.Exists(tempDir))
+            {
+                Directory.Delete(tempDir, true);
+            }
+        }
+    }
+
     [Fact]
     public void AfterBuild_MultiLanguage_ProducesCorrectOutput()
     {

@@ -37,6 +37,25 @@ internal sealed class SeoContributor : IRenderDependencyContributor
             writer.AppendLabeledCanonicalValue("seo.schema.breadcrumbHome", seo.Schema.BreadcrumbHome);
             writer.AppendLabeledCanonicalValue("seo.schema.breadcrumbParent", seo.Schema.BreadcrumbParent);
         }
+        // Appended only when set, so sites without these options keep their existing hash.
+        if (seo.Schema.ArticleType is not null)
+        {
+            writer.AppendLabeledCanonicalValue("seo.schema.articleType", seo.Schema.ArticleType);
+        }
+
+        if (seo.Authors is { } authors)
+        {
+            foreach (var (key, author) in authors.OrderBy(static x => x.Key, StringComparer.OrdinalIgnoreCase))
+            {
+                writer.AppendLabeledCanonicalValue("seo.authors.key", key);
+                writer.AppendLabeledCanonicalValue("seo.authors.name", author.Name);
+                writer.AppendLabeledCanonicalValue("seo.authors.type", author.Type);
+                writer.AppendLabeledCanonicalValue("seo.authors.url", author.Url);
+                writer.AppendLabeledCanonicalValue("seo.authors.image", author.Image);
+                writer.AppendLabeledCanonicalValue("seo.authors.sameAs", author.SameAs);
+            }
+        }
+
         writer.AppendLabeledCanonicalValue("site.search.route", context.Config.Site.Search.Route);
 
         var organization = seo.Organization;

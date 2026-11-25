@@ -1,10 +1,18 @@
 using System.Text.Json;
+using Bukit.Config;
 using Bukit.Engine.Primitives;
 
 namespace Bukit.Engine;
 
 internal static class SeoSchemaValidator
 {
+    /// <summary>JSON-LD article type: BlogPosting or any schema.org *Article type, in exact case.</summary>
+    internal static bool IsArticleType(string? type) => SeoArticleConfig.IsArticleTypeName(type);
+
+    /// <summary>Schema types that mark a route as GEO-enhanced: any article type, FAQ, how-to, person or speakable.</summary>
+    internal static bool IsGeoEnhancedType(string type)
+        => type is "FAQPage" or "HowTo" or "Person" or "SpeakableSpecification" || IsArticleType(type);
+
     internal static bool IsSupportedArticleAuthorType(string? type)
         => type is "Person" or "Organization";
 
@@ -143,10 +151,8 @@ internal static class SeoSchemaValidator
                         ValidateWebSite(node, routeUrl, issues, searchActionExpected);
                     }
                     break;
-                case "BlogPosting":
-                case "Article":
-                case "NewsArticle":
-                    ValidateArticle(node, type, routeUrl, issues);
+                case var articleType when IsArticleType(articleType):
+                    ValidateArticle(node, articleType, routeUrl, issues);
                     break;
                 case "ItemList":
                     ValidateItemList(node, routeUrl, issues);

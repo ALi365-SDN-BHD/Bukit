@@ -74,6 +74,15 @@ class InventoryTests(unittest.TestCase):
             with self.assertRaises(ValueError):
                 check(self.root, self.inventory)
 
+    def test_schema_version_enum_must_contain_the_bound_version(self):
+        self.schema["properties"]["schemaVersion"] = {"enum": ["1.0", "2.0"]}
+        self.write_schema()
+        self.assertEqual((1, 1), check(self.root, self.inventory))
+        self.schema["properties"]["schemaVersion"] = {"enum": ["1.0", "1.1"]}
+        self.write_schema()
+        with self.assertRaisesRegex(ValueError, "Stale schema version"):
+            check(self.root, self.inventory)
+
     def test_pointer_escaping_and_annotations(self):
         vocabulary({"$defs": {"a/b~c": {"type": "integer"}}, "$ref": "#/$defs/a~1b~0c", "examples": [{"notAKeyword": 1}]})
 

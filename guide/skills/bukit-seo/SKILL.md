@@ -40,6 +40,9 @@ site:
       searchAction: true
       breadcrumbHome: false
       breadcrumbParent: categories  # must be a configured taxonomy
+      articleType: BlogPosting      # BlogPosting|Article|NewsArticle|...; collection seo.articleType overrides
+    authors:                        # profiles by author name or authoredBy id (case-insensitive)
+      Aisha: { type: Person, url: /about/aisha/, sameAs: [https://www.linkedin.com/in/aisha/] }
     robotsTxt: { enabled: false }   # see bukit-outputs
     geo: { enabled: true }          # see bukit-geo
 ```
@@ -99,7 +102,7 @@ JSON-LD like Core's (`seo.json_ld_invalid`) and adds its `@type` values to the r
 | `seo_desc` | Meta description (not `seo_description`). Falls back to `summary`, then `site.description`. |
 | `canonical` | Explicit canonical URL. |
 | `robots`, `noindex`, `nofollow` | Robots directives. |
-| `image`, `cover`, `seo_image`, `og_image` | Social image. |
+| `image`, `cover`, `seo_image`, `og_image` | Social image. A site-hosted file also gets `og:image:width/height/type` (`page.seo.og.image_width`, `image_height`, `image_type`). |
 | `schema_type`, `seo_article` | JSON-LD type selection (`Article`, `BlogPosting`, `NewsArticle`, ...). |
 | `twitter_creator` | Twitter creator handle. |
 | `parent_url` | Breadcrumb parent by site path (`/malaysia/routes/`, no base URL); the trail becomes the parent's trail plus this page, recursively, and pages below it in the URL without their own `parent_url` follow that trail. Missing parents, and parents whose trail loops back to the page, warn (`seo.breadcrumb_parent_missing`, `seo.breadcrumb_parent_cycle`) and fall back to URL inference. Not the same as the taxonomy-kind config `breadcrumbParent`. |
@@ -177,7 +180,7 @@ Common issue codes:
 | Severity | Codes |
 |---|---|
 | Error | `seo.title_missing`, `seo.document_title_missing`, `seo.document_title_multiple`, `seo.document_title_empty`, `seo.document_title_mismatch` (inject mode), `seo.inject_canonical_missing`, `seo.canonical_points_to_noindex`, `seo.noindex_in_sitemap`, `seo.json_ld_invalid`, `seo.robots_txt_blocks_indexable` |
-| Warning | `seo.title_too_long`, `seo.document_title_too_long` (display width > 60, CJK counts 2), `seo.description_missing`, `seo.description_too_long` (> 160), `seo.title_duplicate`, `seo.description_duplicate`, `seo.canonical_not_absolute`, `seo.canonical_http`, `seo.json_ld_not_rendered` (theme mode without JSON-LD), `seo.og_image_missing_file`, `seo.og_image_too_small`, `seo.html_head_missing` |
+| Warning | `seo.title_too_long`, `seo.document_title_too_long` (display width > 60, CJK counts 2), `seo.description_missing`, `seo.description_too_long` (> 160), `seo.title_duplicate`, `seo.description_duplicate`, `seo.canonical_not_absolute`, `seo.canonical_http`, `seo.json_ld_not_rendered` (theme mode without JSON-LD), `seo.og_image_missing_file`, `seo.og_image_too_small`, `seo.og_image_webp` (WebP share images get no preview on some platforms), `seo.html_head_missing` |
 
 A missing output file reports only `seo.output_file_missing`. A page without `<head>`
 also reports `seo.html_head_missing` and `seo.document_title_missing`.

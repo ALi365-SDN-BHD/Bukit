@@ -35,12 +35,14 @@
 | `site.seo.titleSeparator` | ` \| ` |
 | `site.seo.defaultAuthor` | none; last SEO author fallback |
 | `site.seo.defaultAuthorType` | `Person`; or `Organization` |
+| `site.seo.authors` | none; author profiles by name or `authoredBy` id |
 | `site.seo.organization.type` | `Organization` |
 | `site.seo.organization.sameAs` | empty array |
 | `site.seo.schema.webPage` | `true` |
 | `site.seo.schema.collectionPage` | `true` |
 | `site.seo.schema.breadcrumbHome` | `false` |
 | `site.seo.schema.breadcrumbParent` | none; taxonomy kind used as breadcrumb parent |
+| `site.seo.schema.articleType` | `BlogPosting`; `site.collections.<name>.seo.articleType` overrides it |
 | `site.seo.schema.searchAction` | `true` |
 | `site.seo.geo.enabled` | `true` |
 | `site.seo.geo.llmsTxt` | `true` |
@@ -79,6 +81,7 @@
 | `site.collections.<name>.pagination.urlPattern` | `page/:num/` |
 | `site.collections.<name>.pagination.firstPageUsesListRoute` | `true` |
 | `site.collections.<name>.output.rss` | `true` |
+| `site.collections.<name>.output.feed` | unset (`true` with 2+ `rss` collections) |
 | `site.collections.<name>.output.sitemap` | `true` |
 | `site.collections.<name>.output.archive` | `false` |
 | `site.collections.<name>.output.archiveDetail.depth` | `monthly` |
@@ -140,6 +143,8 @@
 | `theme.images.formats` | `webp` |
 | `theme.images.sizes` | `480`, `768`, `1200` |
 | `theme.images.quality` | `80` |
+| `theme.images.sizesAttribute` | none; CSS `sizes` for generated srcsets (`auto, ` added on lazy images) |
+| `theme.images.fallbackVariants` | `all`; `none` keeps only WebP variants for JPEG/PNG media images |
 | `theme.componentValidation` | `off` |
 | `taxonomy.outputMode` | `both` |
 | `taxonomy.pageSize` | `10` |

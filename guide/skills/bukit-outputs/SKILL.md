@@ -25,7 +25,7 @@ under `site.seo.diagnostics: strict` that fails the build.
 | `robots.txt` | `site.seo.robotsTxt.enabled: true` and `site.url`, no static `robots.txt` | root |
 | `rss.xml` | `site.url` and `rss` in `site.feed.formats` (default `[rss]`) | root `/rss.xml` |
 | `atom.xml`, `feed.json` | `atom` / `json` in formats and `site.url` | `<site.feed.path>/` (default `feed/`) |
-| Collection feeds | On by default (`output.rss: false` disables); one per enabled format; needs `site.url` | `<output.feedPath or feed.path/<c>>/` |
+| Collection feeds | `output.feed: true`; unset = on only when 2+ collections have `output.rss: true`; one per enabled format; needs `site.url` | `<output.feedPath or feed.path/<c>>/` |
 | `taxonomy.json` | `taxonomy.outputMode` `both` (default) or `data` | root |
 | Term feeds | Same modes; one RSS file per term that has pages (latest 20) | `<kind route>/<term>/feed.xml` (e.g. `tags/tea/feed.xml`) |
 | `llms.txt`, `llms-full.txt` | See `bukit-geo` | root |
@@ -45,9 +45,13 @@ site:
 ```
 
 RSS is always `/rss.xml` at the site root; only Atom and JSON Feed use `site.feed.path`.
-Each collection also gets its own feeds unless `output.rss: false`; set
+`site.collections.<name>.output.rss` (default `true`) puts a collection's posts in the site feed.
+`site.collections.<name>.output.feed` writes the collection's own feeds; left unset it is `true` only
+when two or more collections have `output.rss: true`, so a single-collection site does not repeat its
+site feed. Set
 `site.collections.<name>.output.feedTitle` / `feedDescription` to override `site.title` /
-`site.description`. Multilingual `feed.mode: merged` skips collection feeds.
+`site.description`. Multilingual `feed.mode: merged` skips collection feeds. RSS items carry the
+author as `<dc:creator>` (RSS `<author>` requires an email address).
 Exclude one document with front matter `feedexclude: true`.
 
 ## Sitemap
@@ -141,8 +145,12 @@ paths; they return a plain 404.
 
 ## Machine-readable projections
 
-Every routed page also gets `content/<output path>.json` and `.md`, and
-`agent-manifest.json` lists indexable documents with their representations. In SEO
+Every routed page also gets `content/<output path>.json` and `.md`. The `.md` header
+lists `Route`, `Language`, `Type`, `Review Status`, `Canonical`, then `Published`, `Updated`
+(when set; both in `site.timezone`), `Author` and `Original Source` (the public original URL;
+never the private `source`). `agent-manifest.json` lists indexable documents with their representations and dates
+(`publishedAt` = publish date, `updatedAt` = last edit when set), plus a `lists` array of
+the home, collection list and taxonomy routes the sitemap lists. In SEO
 inject mode, indexable content pages get `<link rel="alternate">` tags to their JSON
 and Markdown. `bukit publish audit` checks that these exist (`bukit-publish-deploy`).
 

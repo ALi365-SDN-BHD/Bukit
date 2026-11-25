@@ -94,6 +94,13 @@ code remains available for legacy aliases such as `/en/about/`. A default-langua
 `static/robots.txt` becomes the site robots file. The name must be exactly
 `robots.txt`: any other casing, such as `Robots.txt`, and any static file that collides
 with another root-owned output fail with `i18n-root-output-conflict` before copying.
+Crawlers read `robots.txt` only at the host root, so Bukit writes one there for a
+multilingual site and none under a language directory.
+
+Each language keeps its own `404.html` when its static directory has one. Hosts that
+serve the nearest `404.html` up the path, such as Cloudflare Pages, then show the
+error page in the visitor's language; hosts that use only the root file, such as
+GitHub Pages, show the default language's page.
 
 ## Language Diagnostics
 
@@ -103,6 +110,7 @@ The build reports these warnings:
 |---|---|
 | `i18n.document.language_unknown` | A page `language` is not in `site.languages`, so the page is dropped. |
 | `i18n.document.i18n_key_duplicate` | Two pages in the same language use the same `i18nKey`; hreflang and merged sitemap alternates can point to only one of them. |
+| `taxonomy.term.i18n_key_duplicate` | Two terms of one kind in the same language use the same `i18nKey`; neither pairs by key, and both fall back to pairing by URL. |
 | `i18n.config.default_language_layout_ignored` | `site.defaultLanguageInSubdir` is `true`, `site.defaultLanguageRedirect` is `false`, or `site.defaultLanguageLegacyRedirects` is `true`, but `site.languages` has fewer than two languages, so the single-language output is unchanged. |
 | `i18n.config.legacy_redirects_ignored` | `site.defaultLanguageLegacyRedirects` is `true` but the default language is still prefixed (`defaultLanguageInSubdir: true`), so there are no old URLs to redirect. |
 | `i18n.config.shared_assets_ignored` | `site.sharedAssets.enabled` is `true` on a single-language root-layout site, so sharing is ignored. |
@@ -157,6 +165,39 @@ builds store them in Git's administrative directory, and Bukit does not delete
 files whose ownership is unknown. If a backup is missing or output changed, Bukit
 stops rather than deleting files. Preserve reported files and inspect them before
 retrying. This is not a power-loss guarantee.
+
+## Per-language site identity
+
+`site.title`, `site.description` and `site.seo.organization` describe the site in every
+language unless `site.i18n.<lang>` replaces them in that language's build:
+
+```yaml
+site:
+  title: Silk Road Notes
+  description: Notes on trade and travel
+  languages: [en, ms]
+  seo:
+    organization:
+      name: Silk Road Media
+      url: https://example.com
+  i18n:
+    ms:
+      title: Nota Jalan Sutera
+      description: Nota tentang perdagangan dan pengembaraan
+      organization:
+        name: Media Jalan Sutera
+```
+
+The `ms` build then uses the Malay values everywhere it reads the site identity: the
+page `<title>` suffix, `og:site_name`, the default description, JSON-LD `WebSite` and
+`Organization`, its own feeds and `llms.txt`, and `site.title` in templates. Organization
+fields merge one by one, so `url`, `logo`, `sameAs` and `type` above stay the top-level
+values. Outputs merged across languages at the output root (`site.feed.mode: merged`,
+the root `llms.txt`) keep the top-level identity.
+
+Only `title`, `description` and `organization` (`name`, `url`, `logo`, `sameAs`) are
+accepted. The language key must be a `site.languages` entry written the same way, and a
+single-language site sets its identity with the top-level keys instead.
 
 ## Shared assets
 
@@ -231,6 +272,14 @@ site:
       searchAction: true
       breadcrumbHome: true
       breadcrumbParent: categories
+      articleType: NewsArticle
+    authors:
+      Aisha:
+        type: Person
+        url: /about/aisha/
+        image: /images/aisha.jpg
+        sameAs:
+          - https://www.linkedin.com/in/aisha/
 ```
 
 BreadcrumbList JSON-LD lists real parent routes by URL path, then the current
@@ -307,6 +356,32 @@ relation, no `author` field, and no GEO author; any of those wins. The type is
 when one person or organization publishes all content without per-page
 bylines. It does not change the content model, feeds, or `llms.txt`.
 
+`site.seo.authors` gives authors a structured-data profile without author pages.
+Keys match an `author` text byline, a GEO author name, `site.seo.defaultAuthor`,
+or an `authoredBy` id, ignoring case. An entry supplies `url`, `image`, `sameAs`
+and, when the page declares none, `type`. A page's own GEO author `url` and
+`sameAs` win over the entry. A Markdown `authoredBy: <id>` that no relation
+resolver expanded takes its whole profile from the matching entry (`name`
+defaults to the key); without an entry it still blocks the build. For a resolved
+`authoredBy` relation the entry's `url` replaces the generated `/authors/<slug>/`
+path, which Bukit does not check exists. Root-relative URLs resolve against the
+site URL.
+
+Article pages that set no schema type (front-matter `schema_type`,
+`seo_schema_type`, or `schemaType` inside the `geo` map) use `site.collections.<name>.seo.articleType`, then
+`site.seo.schema.articleType`, then `BlogPosting`. Both accept `BlogPosting` or a
+schema.org type ending in `Article`, spelled in exact case (`TechArticle`, not `techarticle`).
+
+When the social image is a file of this site (content media, theme `assets/`, or
+a static file), Bukit reads its size and writes `og:image:width`,
+`og:image:height`, and `og:image:type` after `og:image`, so platforms can lay out
+the preview before fetching the image. Themes in `theme` render mode read them as
+`page.seo.og.image_width`, `page.seo.og.image_height`, and
+`page.seo.og.image_type`. External images get none. A WebP share image warns
+`seo.og_image_webp` (and `seo.twitter_image_webp`), because some platforms, such
+as WhatsApp and WeChat, show no preview for WebP; use JPEG or PNG there.
+Incremental builds re-render pages when a share image changes size or type.
+
 For collection list routes, `site.collections.<name>.noindexWhenEmpty: true`
 marks an empty result as `noindex,follow`. The same indexability decision
 removes that empty route from sitemap, search output, `llms.txt`, and
@@ -342,6 +417,23 @@ metadata, taxonomy kind config, then Core localized defaults. The same effective
 SEO description feeds meta, Open Graph, Twitter, and CollectionPage JSON-LD.
 Use an SEO-specific route metadata field only when that value should differ from
 the visible summary.
+
+### Pairing term pages across languages
+
+Term pages pair across languages by URL, so `/tags/malaysia/` and `/ms/tags/malaysia/` are
+alternates, but localized slugs such as `/tags/马来西亚/` and `/en/tags/malaysia/` are not.
+Give each localized term the same `i18nKey` to pair them, either in its metadata file
+`content/_taxonomy/<kind>/<slug>/_index.md`:
+
+```markdown
+---
+i18nKey: malaysia
+---
+```
+
+or as an `i18nKey` field on a `sourceKey: tags` or `sourceKey: categories` data document.
+Term pages with the same kind, key and page number then list each other in hreflang
+and sitemap alternates. Taxonomy index pages still pair by URL.
 
 ## Breadcrumb Route Contract
 

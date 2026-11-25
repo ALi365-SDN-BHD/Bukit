@@ -119,6 +119,34 @@ public sealed partial class SiteEngineIntegrationTests
         finally { CleanupDir(root); }
     }
 
+    [Fact]
+    public async Task BodyProjection_MarkdownOutputsKeepBlocksWhileSearchStaysFlat()
+    {
+        var (root, initial) = CreateMediaSite();
+        var config = initial with
+        {
+            Site = initial.Site with { Seo = new SeoConfig { Geo = new SeoGeoConfig { LlmsFullTxt = true } } },
+            Content = initial.Content with { Media = initial.Content.Media with { DownloadToLocal = false } }
+        };
+        const string html = "<h2>Section</h2><p>First paragraph.</p><p>Second paragraph.</p><ul><li>One</li><li>Two</li></ul><pre><code>code ```</code></pre>";
+        try
+        {
+            await new SiteEngine(new TestLogger(), new ProjectionProviderFactory([MediaDocument("one")], new ProjectionBodyStore(html)), new DefaultSearchIndexBuilder())
+                .BuildAsync(config, root, new ConfigOverrides());
+
+            var output = Path.Combine(root, "dist");
+            const string expected = "#### Section\n\nFirst paragraph.\n\nSecond paragraph.\n\n- One\n- Two\n\n````\ncode ```\n````";
+            Assert.Contains(expected, File.ReadAllText(Path.Combine(output, "content/blog/one/index.html.md")).ReplaceLineEndings("\n"), StringComparison.Ordinal);
+            Assert.Contains(expected, File.ReadAllText(Path.Combine(output, "llms-full.txt")).ReplaceLineEndings("\n"), StringComparison.Ordinal);
+            using var search = JsonDocument.Parse(File.ReadAllText(Path.Combine(output, "search.json")));
+            var searchText = search.RootElement.EnumerateArray().Single(item => item.GetProperty("url").GetString() == "/blog/one/")
+                .GetProperty("content").GetString()!;
+            Assert.Equal(SearchIndexBuilder.StripHtmlToText(html), searchText);
+            Assert.DoesNotContain('\n', searchText);
+        }
+        finally { CleanupDir(root); }
+    }
+
     [Theory]
     [InlineData(false, false)]
     [InlineData(true, false)]

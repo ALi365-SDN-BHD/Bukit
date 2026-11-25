@@ -114,7 +114,7 @@ internal static class RssProjectionWriter
 
         foreach (var (key, collection) in collections)
         {
-            if (!collection.Output.Rss)
+            if (!CollectionFeedPolicy.WritesOwnFeed(collections, collection))
             {
                 continue;
             }

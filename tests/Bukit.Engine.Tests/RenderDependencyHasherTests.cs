@@ -343,6 +343,35 @@ public sealed class RenderDependencyHasherTests
     }
 
     [Fact]
+    public void Compute_ArticleTypeAndAuthorProfilesChangeTheHash()
+    {
+        var config = CreateBaseConfig();
+        var seo = config.Site.Seo;
+        var baseline = RenderDependencyHasher.Compute(config, s_emptySiteModel);
+        var authors = new Dictionary<string, SeoAuthorProfileConfig>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["Aisha"] = new() { Url = "/about/aisha/" }
+        };
+        var withAuthors = config with { Site = config.Site with { Seo = seo with { Authors = authors } } };
+        var authorsHash = RenderDependencyHasher.Compute(withAuthors, s_emptySiteModel);
+        var collections = new Dictionary<string, CollectionConfig> { ["news"] = new() { Permalink = "/news/{slug}/" } };
+        var withCollection = config with { Site = config.Site with { Collections = collections } };
+
+        Assert.NotEqual(baseline, authorsHash);
+        Assert.NotEqual(authorsHash, RenderDependencyHasher.Compute(
+            config with { Site = config.Site with { Seo = seo with { Authors = new Dictionary<string, SeoAuthorProfileConfig> { ["Aisha"] = new() { Url = "/team/aisha/" } } } } },
+            s_emptySiteModel));
+        Assert.NotEqual(baseline, RenderDependencyHasher.Compute(
+            config with { Site = config.Site with { Seo = seo with { Schema = seo.Schema with { ArticleType = "Article" } } } },
+            s_emptySiteModel));
+        Assert.NotEqual(
+            RenderDependencyHasher.Compute(withCollection, s_emptySiteModel),
+            RenderDependencyHasher.Compute(
+                config with { Site = config.Site with { Collections = new Dictionary<string, CollectionConfig> { ["news"] = collections["news"] with { ArticleType = "NewsArticle" } } } },
+                s_emptySiteModel));
+    }
+
+    [Fact]
     public void Compute_TemplateLoopLimit_OnlyNonDefaultValueChangesHash()
     {
         var config = CreateBaseConfig();

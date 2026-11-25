@@ -13,7 +13,7 @@ namespace Bukit.Engine.Plugins.BuiltIn.ImageProcessing;
 internal static class ImageVariantGenerator
 {
     internal const int MaxVariantFailures = 5;
-    internal const string SkiaSharpResizeIdentity = "skiasharp-orientation-v2";
+    internal const string SkiaSharpResizeIdentity = "skiasharp-orientation-v3";
     internal static readonly int[] DefaultSizes = [480, 768, 1200];
 
     internal static IReadOnlyList<int> NormalizeSizes(IReadOnlyList<int>? sizes) =>

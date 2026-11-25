@@ -43,12 +43,12 @@ public sealed class ImageProcessingPluginTests
     }
 
     [Fact]
-    public async Task AfterBuild_ResizePreservesExactFreshnessBytesSrcsetAndTracking()
+    public async Task AfterBuild_ResizePreservesExactFreshnessBytesAndTracking()
     {
         var outDir = GetTempDir();
         try
         {
-            var assetsDir = Path.Combine(outDir, "assets", "nested");
+            var assetsDir = Path.Combine(outDir, "assets", "uploads", "nested");
             Directory.CreateDirectory(assetsDir);
             var source = Path.Combine(assetsDir, "photo&one.jpg");
             WriteValidImage(source, "contract", width: 1000);
@@ -68,7 +68,7 @@ public sealed class ImageProcessingPluginTests
             var expectedOutputs = new HashSet<PluginOutputTrackingInfo>();
             foreach (var size in new[] { 480, 768 })
             {
-                var relative = $"assets/nested/photo&one-{size}w.jpg";
+                var relative = $"assets/uploads/nested/photo&one-{size}w.jpg";
                 var variant = Path.Combine(outDir, relative);
                 var variantBytes = File.ReadAllBytes(variant);
                 using (var codec = SKCodec.Create(variant))
@@ -76,19 +76,12 @@ public sealed class ImageProcessingPluginTests
                     Assert.Equal(size, codec.Info.Width);
                 }
                 var variantHash = Convert.ToHexString(SHA256.HashData(variantBytes));
-                var expected = $$"""{"schemaVersion":1,"owner":"bukit:image-processing","sourcePath":"assets/nested/photo\u0026one.jpg","variantPath":"assets/nested/photo\u0026one-{{size}}w.jpg","sourceSize":{{info.Length}},"sourceMtime":{{info.LastWriteTimeUtc.Ticks}},"sourceSha256":"{{sourceHash}}","variantLength":{{variantBytes.LongLength}},"variantSha256":"{{variantHash}}","quality":73,"size":{{size}},"format":".jpg","tool":"skiasharp-orientation-v2"}""";
+                var expected = $$"""{"schemaVersion":1,"owner":"bukit:image-processing","sourcePath":"assets/uploads/nested/photo\u0026one.jpg","variantPath":"assets/uploads/nested/photo\u0026one-{{size}}w.jpg","sourceSize":{{info.Length}},"sourceMtime":{{info.LastWriteTimeUtc.Ticks}},"sourceSha256":"{{sourceHash}}","variantLength":{{variantBytes.LongLength}},"variantSha256":"{{variantHash}}","quality":73,"size":{{size}},"format":".jpg","tool":"skiasharp-orientation-v3"}""";
                 Assert.Equal(Encoding.UTF8.GetBytes(expected), File.ReadAllBytes(variant + ".bukit-freshness.json"));
                 expectedOutputs.Add(new("image-processing", "after-build", relative));
                 expectedOutputs.Add(new("image-processing", "after-build", relative + ".bukit-freshness.json"));
             }
 
-            var images = Assert.IsType<Dictionary<string, object>>(context.Get(BuildDataKeys.ImageSrcsets));
-            Assert.Equal(["nested/photo&one.jpg"], images.Keys);
-            var image = Assert.IsType<Dictionary<string, object>>(images["nested/photo&one.jpg"]);
-            Assert.Equal(["srcset", "sizes", "url"], image.Keys);
-            Assert.Equal("/assets/nested/photo&one-480w.jpg 480w, /assets/nested/photo&one-768w.jpg 768w", image["srcset"]);
-            Assert.Equal([480, 768], Assert.IsType<int[]>(image["sizes"]));
-            Assert.Equal("/assets/nested/photo&one.jpg", image["url"]);
             var outputs = Assert.IsType<HashSet<PluginOutputTrackingInfo>>(context.Get(BuildDataKeys.PluginOutputs));
             Assert.True(expectedOutputs.SetEquals(outputs));
             Assert.Equal(5, Directory.GetFiles(assetsDir).Length);
@@ -113,7 +106,7 @@ public sealed class ImageProcessingPluginTests
         var logger = new BuildDiagnosticLogger(sink);
         try
         {
-            var assetsDir = Path.Combine(outDir, "assets");
+            var assetsDir = Path.Combine(outDir, "assets", "uploads");
             Directory.CreateDirectory(assetsDir);
             WriteUndecodableImage(Path.Combine(assetsDir, "photo.jpg"), "failure");
             Console.SetOut(stdout);
@@ -130,7 +123,7 @@ public sealed class ImageProcessingPluginTests
 
             var failure = await Assert.ThrowsAsync<InvalidOperationException>(() => new ImageProcessingPlugin(CreateConfig(new ImageOptimizationConfig
             { Enabled = true, Formats = [], Sizes = [480] })).AfterBuildAsync(context));
-            Assert.Contains("assets/photo-480w.jpg", failure.Message, StringComparison.Ordinal);
+            Assert.Contains("assets/uploads/photo-480w.jpg", failure.Message, StringComparison.Ordinal);
             Assert.Contains("pluginFailMode", failure.Message, StringComparison.Ordinal);
             Assert.DoesNotContain("image tool", failure.Message, StringComparison.Ordinal);
 
@@ -147,7 +140,6 @@ public sealed class ImageProcessingPluginTests
                 Assert.Equal("Warn", json.RootElement.GetProperty("level").GetString());
                 Assert.Equal(expected, json.RootElement.GetProperty("msg").GetString());
             }
-            Assert.False(context.TryGet(BuildDataKeys.ImageSrcsets, out _));
             Assert.False(context.TryGet(BuildDataKeys.PluginOutputs, out _));
             Assert.Equal([Path.Combine(assetsDir, "photo.jpg")], Directory.GetFiles(assetsDir));
         }
@@ -188,7 +180,6 @@ public sealed class ImageProcessingPluginTests
             };
 
             await new ImageProcessingPlugin(config).AfterBuildAsync(ctx);
-            Assert.False(ctx.TryGet(BuildDataKeys.ImageSrcsets, out _));
         }
         finally
         {
@@ -214,7 +205,6 @@ public sealed class ImageProcessingPluginTests
             };
 
             await new ImageProcessingPlugin(config).AfterBuildAsync(ctx);
-            Assert.False(ctx.TryGet(BuildDataKeys.ImageSrcsets, out _));
         }
         finally
         {
@@ -258,7 +248,7 @@ public sealed class ImageProcessingPluginTests
         var outDir = GetTempDir();
         try
         {
-            var assetsDir = Path.Combine(outDir, "assets");
+            var assetsDir = Path.Combine(outDir, "assets", "uploads");
             Directory.CreateDirectory(assetsDir);
             WriteValidImage(Path.Combine(assetsDir, "photo.jpg"), "source", width: 1000);
 
@@ -285,7 +275,7 @@ public sealed class ImageProcessingPluginTests
         var originalPath = Environment.GetEnvironmentVariable("PATH");
         try
         {
-            var assetsDir = Path.Combine(outDir, "assets");
+            var assetsDir = Path.Combine(outDir, "assets", "uploads");
             var toolDir = Path.Combine(outDir, "tools");
             Directory.CreateDirectory(assetsDir);
             Directory.CreateDirectory(toolDir);
@@ -353,7 +343,7 @@ public sealed class ImageProcessingPluginTests
         var outDir = GetTempDir();
         try
         {
-            var assetsDir = Path.Combine(outDir, "assets");
+            var assetsDir = Path.Combine(outDir, "assets", "uploads");
             Directory.CreateDirectory(assetsDir);
             File.WriteAllBytes(Path.Combine(assetsDir, "portrait.png"), ImageOptimizerTests.CreateOrientedPng(SKEncodedOrigin.RightTop, true));
             File.WriteAllBytes(Path.Combine(assetsDir, "bad.png"), ImageOptimizerTests.CreateOrientedPng(SKEncodedOrigin.RightTop, false, "ifd-offset"));
@@ -384,7 +374,7 @@ public sealed class ImageProcessingPluginTests
         var outDir = GetTempDir();
         try
         {
-            var assetsDir = Path.Combine(outDir, "assets");
+            var assetsDir = Path.Combine(outDir, "assets", "uploads");
             Directory.CreateDirectory(assetsDir);
             File.WriteAllBytes(Path.Combine(assetsDir, "portrait.jpg"), ImageOptimizerTests.CreateOrientedJpeg(SKEncodedOrigin.RightTop, 40, 80));
 
@@ -410,7 +400,7 @@ public sealed class ImageProcessingPluginTests
         var outDir = GetTempDir();
         try
         {
-            var assetsDir = Path.Combine(outDir, "assets");
+            var assetsDir = Path.Combine(outDir, "assets", "uploads");
             Directory.CreateDirectory(assetsDir);
             File.WriteAllBytes(Path.Combine(assetsDir, "portrait.jpg"), ImageOptimizerTests.CreateOrientedJpeg(SKEncodedOrigin.RightTop, 40, 80));
             var config = CreateConfig(new ImageOptimizationConfig { Enabled = true, Formats = [], Sizes = [20] });
@@ -504,6 +494,56 @@ public sealed class ImageProcessingPluginTests
             var outputs = Assert.IsType<HashSet<PluginOutputTrackingInfo>>(context.Get(BuildDataKeys.PluginOutputs));
             Assert.Contains(outputs, output => output.Path == "assets/photo-480w.webp");
             Assert.Contains(outputs, output => output.Path == "assets/photo-1000w.webp.bukit-freshness.json");
+        }
+        finally
+        {
+            if (Directory.Exists(outDir)) Directory.Delete(outDir, true);
+        }
+    }
+
+    [Fact]
+    public async Task AfterBuild_FallbackVariantsNone_WritesOnlyWebpVariantsAndAPlainFallback()
+    {
+        var outDir = GetTempDir();
+        try
+        {
+            var assetsDir = Path.Combine(outDir, "assets");
+            Directory.CreateDirectory(assetsDir);
+            WriteValidImage(Path.Combine(assetsDir, "photo.jpg"), "source", width: 1000);
+            var htmlFile = Path.Combine(outDir, "index.html");
+            var config = CreateConfig(new ImageOptimizationConfig
+            {
+                Enabled = true,
+                Formats = new[] { "webp" },
+                Sizes = new[] { 480 },
+                SizesAttribute = "100vw",
+                FallbackVariants = "none"
+            }) with
+            {
+                Content = TestContent.Markdown() with { Media = new MediaConfig { UrlBase = "/assets" } }
+            };
+            var context = CreateContext(outDir);
+            context.Set(BuildDataKeys.MediaDownloadDir, assetsDir);
+            context.Set(BuildDataKeys.CurrentHtmlOutputs, new[] { "index.html" });
+            var plugin = new ImageProcessingPlugin(config);
+            var transformed = plugin.CreateHtmlTransform(new HtmlTransformPluginContext(
+                context,
+                BuildExecutionMode.Production)).Transform(
+                    new HtmlTransformContext("/", "index.html", HtmlDocumentKind.Content, BuildExecutionMode.Production, context.Logger),
+                    "<img src=\"/assets/photo.jpg\" alt=\"a\">");
+            File.WriteAllText(htmlFile, $"<html><body>{transformed}</body></html>");
+
+            await plugin.AfterBuildAsync(context);
+
+            Assert.True(File.Exists(Path.Combine(assetsDir, "photo-480w.webp")));
+            Assert.False(File.Exists(Path.Combine(assetsDir, "photo-480w.jpg")));
+            var html = File.ReadAllText(htmlFile);
+            Assert.Contains("<picture><source type=\"image/webp\" srcset=\"/assets/photo-480w.webp 480w, /assets/photo-1000w.webp 1000w\" sizes=\"100vw\">", html, StringComparison.Ordinal);
+            Assert.Equal(1, CountOccurrences(html, "srcset="));
+            // sizes without srcset is invalid on an img, so the value lives only on the WebP source.
+            Assert.Contains("<img src=\"/assets/photo.jpg\" alt=\"a\" decoding=\"async\" width=\"1000\" height=\"8\">", html, StringComparison.Ordinal);
+            Assert.Equal(1, CountOccurrences(html, "sizes="));
+            Assert.DoesNotContain("data-bukit-source-sizes", html, StringComparison.Ordinal);
         }
         finally
         {
@@ -744,7 +784,7 @@ public sealed class ImageProcessingPluginTests
         var outDir = GetTempDir();
         try
         {
-            var assetsDir = Path.Combine(outDir, "assets");
+            var assetsDir = Path.Combine(outDir, "assets", "uploads");
             Directory.CreateDirectory(assetsDir);
             WriteValidImage(Path.Combine(assetsDir, "photo.jpg"), "source", width: 700);
             var config = CreateConfig(new ImageOptimizationConfig { Enabled = true, Formats = new[] { "webp" }, Sizes = new[] { 480 } });
@@ -769,7 +809,7 @@ public sealed class ImageProcessingPluginTests
             await new ImageProcessingPlugin(config).AfterBuildAsync(second);
 
             Assert.StartsWith("skiasharp-webp-", JsonNode.Parse(File.ReadAllText(webp + ".bukit-freshness.json"))!["tool"]!.GetValue<string>(), StringComparison.Ordinal);
-            Assert.Equal("skiasharp-orientation-v2", JsonNode.Parse(File.ReadAllText(fallback + ".bukit-freshness.json"))!["tool"]!.GetValue<string>());
+            Assert.Equal("skiasharp-orientation-v3", JsonNode.Parse(File.ReadAllText(fallback + ".bukit-freshness.json"))!["tool"]!.GetValue<string>());
             Assert.True(File.GetLastWriteTimeUtc(webp) > oldTimestamp);
             Assert.True(File.GetLastWriteTimeUtc(fallback) > oldTimestamp);
         }
@@ -865,7 +905,7 @@ public sealed class ImageProcessingPluginTests
         var outDir = GetTempDir();
         try
         {
-            var assetsDir = Path.Combine(outDir, "assets");
+            var assetsDir = Path.Combine(outDir, "assets", "uploads");
             Directory.CreateDirectory(assetsDir);
             WriteValidImage(Path.Combine(assetsDir, "photo.jpg"), "source", width: 700);
             var sidecar = Path.Combine(assetsDir, "photo-480w.jpg.bukit-freshness.json");
@@ -874,7 +914,7 @@ public sealed class ImageProcessingPluginTests
             var failure = await Assert.ThrowsAsync<InvalidOperationException>(() => new ImageProcessingPlugin(CreateConfig(
                 new ImageOptimizationConfig { Enabled = true, Formats = [], Sizes = [480] })).AfterBuildAsync(CreateContext(outDir)));
 
-            Assert.Contains("assets/photo-480w.jpg", failure.Message, StringComparison.Ordinal);
+            Assert.Contains("assets/uploads/photo-480w.jpg", failure.Message, StringComparison.Ordinal);
             Assert.Contains("photo-480w.jpg.bukit-freshness.json", failure.Message, StringComparison.Ordinal);
             Assert.Equal("user", File.ReadAllText(sidecar));
             Assert.False(File.Exists(Path.Combine(assetsDir, "photo-480w.jpg")));
@@ -891,7 +931,7 @@ public sealed class ImageProcessingPluginTests
         var outDir = GetTempDir();
         try
         {
-            var assetsDir = Path.Combine(outDir, "assets");
+            var assetsDir = Path.Combine(outDir, "assets", "uploads");
             Directory.CreateDirectory(assetsDir);
             WriteValidImage(Path.Combine(assetsDir, "photo.jpg"), "source", width: 700);
             var variant = Path.Combine(assetsDir, "photo-480w.jpg");
@@ -983,6 +1023,72 @@ public sealed class ImageProcessingPluginTests
             Assert.Contains("srcset=\"/assets/uploads/photo-480w.jpg 480w, /assets/uploads/photo-768w.jpg 768w, /assets/uploads/photo.jpg 1000w\"", html, StringComparison.Ordinal);
             Assert.Contains("decoding=\"async\"", html, StringComparison.Ordinal);
             Assert.DoesNotContain("1200w", html, StringComparison.Ordinal);
+        }
+        finally
+        {
+            if (Directory.Exists(outDir)) Directory.Delete(outDir, true);
+        }
+    }
+
+    [Theory]
+    [InlineData("<img src=\"/assets/uploads/photo.jpg\">", "sizes=\"auto, (max-width: 768px) 100vw, 768px\"")]
+    [InlineData("<img src=\"/assets/uploads/photo.jpg\" loading=\"eager\">", "sizes=\"(max-width: 768px) 100vw, 768px\"")]
+    [InlineData("<img src=\"/assets/uploads/photo.jpg\" sizes=\"50vw\">", "sizes=\"50vw\"")]
+    public void HtmlTransform_SizesAttribute_AddsAutoOnlyToLazyImagesAndKeepsAuthorSizes(string second, string expected)
+    {
+        var outDir = GetTempDir();
+        try
+        {
+            var mediaDir = Path.Combine(outDir, "media");
+            Directory.CreateDirectory(mediaDir);
+            WriteValidImage(Path.Combine(mediaDir, "photo.jpg"), "source", width: 1000);
+            var context = CreateContext(outDir);
+            context.Set(BuildDataKeys.MediaDownloadDir, mediaDir);
+            var plugin = new ImageProcessingPlugin(CreateConfig(new ImageOptimizationConfig
+            {
+                Enabled = true,
+                Sizes = new[] { 480 },
+                SizesAttribute = "(max-width: 768px) 100vw, 768px"
+            }));
+            var transform = plugin.CreateHtmlTransform(new HtmlTransformPluginContext(
+                context,
+                BuildExecutionMode.Production));
+
+            var html = transform.Transform(
+                new HtmlTransformContext("/", "index.html", HtmlDocumentKind.Content, BuildExecutionMode.Production, context.Logger),
+                "<img src=\"/assets/uploads/photo.jpg\">" + second);
+
+            var firstEnd = html.IndexOf('>', StringComparison.Ordinal) + 1;
+            Assert.Contains("sizes=\"(max-width: 768px) 100vw, 768px\"", html[..firstEnd], StringComparison.Ordinal);
+            Assert.Contains(expected, html[firstEnd..], StringComparison.Ordinal);
+            Assert.Equal(2, Regex.Matches(html, @"\ssizes=", RegexOptions.IgnoreCase).Count);
+        }
+        finally
+        {
+            if (Directory.Exists(outDir)) Directory.Delete(outDir, true);
+        }
+    }
+
+    [Fact]
+    public void HtmlTransform_SizesAttributeUnset_AddsNoSizes()
+    {
+        var outDir = GetTempDir();
+        try
+        {
+            var mediaDir = Path.Combine(outDir, "media");
+            Directory.CreateDirectory(mediaDir);
+            WriteValidImage(Path.Combine(mediaDir, "photo.jpg"), "source", width: 1000);
+            var context = CreateContext(outDir);
+            context.Set(BuildDataKeys.MediaDownloadDir, mediaDir);
+            var plugin = new ImageProcessingPlugin(CreateConfig(new ImageOptimizationConfig { Enabled = true, Sizes = new[] { 480 } }));
+            var transform = plugin.CreateHtmlTransform(new HtmlTransformPluginContext(context, BuildExecutionMode.Production));
+
+            var html = transform.Transform(
+                new HtmlTransformContext("/", "index.html", HtmlDocumentKind.Content, BuildExecutionMode.Production, context.Logger),
+                "<img src=\"/assets/uploads/photo.jpg\"><img src=\"/assets/uploads/photo.jpg\">");
+
+            Assert.Contains("srcset=", html, StringComparison.Ordinal);
+            Assert.DoesNotContain("sizes=", html, StringComparison.Ordinal);
         }
         finally
         {
@@ -1106,7 +1212,7 @@ public sealed class ImageProcessingPluginTests
         var outDir = GetTempDir();
         try
         {
-            var assetsDir = Path.Combine(outDir, "assets");
+            var assetsDir = Path.Combine(outDir, "assets", "uploads");
             Directory.CreateDirectory(assetsDir);
             WriteValidImage(Path.Combine(assetsDir, "test.jpg"), "fake-jpeg");
             using var cancellation = new CancellationTokenSource();
@@ -1129,7 +1235,6 @@ public sealed class ImageProcessingPluginTests
             Assert.False(File.Exists(Path.Combine(assetsDir, "test-768w.jpg")));
             Assert.False(File.Exists(Path.Combine(assetsDir, "test-768w.jpg.bukit-freshness.json")));
             Assert.False(context.TryGet(BuildDataKeys.PluginOutputs, out _));
-            Assert.False(context.TryGet(BuildDataKeys.ImageSrcsets, out _));
             Assert.Empty(Directory.GetFiles(assetsDir, ".test-*.bukit-*.jpg"));
             Assert.Empty(Directory.GetFiles(assetsDir, "*.bukit-freshness.json.bukit-*.tmp"));
         }
@@ -1159,7 +1264,7 @@ public sealed class ImageProcessingPluginTests
         var outDir = GetTempDir();
         try
         {
-            var assets = Path.Combine(outDir, "assets");
+            var assets = Path.Combine(outDir, "assets", "uploads");
             Directory.CreateDirectory(assets);
             for (var i = 0; i < 8; i++) WriteUndecodableImage(Path.Combine(assets, $"photo{i}.jpg"), $"failure-{i}");
             var logger = new ResizeWarningLogger(new ConsoleLogger(LogLevel.Error));
@@ -1190,7 +1295,7 @@ public sealed class ImageProcessingPluginTests
         var outDir = GetTempDir();
         try
         {
-            var assetsDir = Path.Combine(outDir, "assets");
+            var assetsDir = Path.Combine(outDir, "assets", "uploads");
             Directory.CreateDirectory(assetsDir);
             for (var i = 0; i < 8; i++)
             {
@@ -1227,7 +1332,7 @@ public sealed class ImageProcessingPluginTests
         var outDir = GetTempDir();
         try
         {
-            var assetsDir = Path.Combine(outDir, "assets");
+            var assetsDir = Path.Combine(outDir, "assets", "uploads");
             Directory.CreateDirectory(assetsDir);
             WriteValidImage(Path.Combine(assetsDir, "photo.jpg"), "original");
             File.WriteAllText(Path.Combine(assetsDir, "photo-480w.jpg"), "existing-sized");
@@ -1237,6 +1342,7 @@ public sealed class ImageProcessingPluginTests
                 .AfterBuildAsync(CreateContext(outDir));
 
             Assert.False(File.Exists(Path.Combine(assetsDir, "photo-480w-480w.jpg")));
+            Assert.Equal("existing-sized", File.ReadAllText(Path.Combine(assetsDir, "photo-480w.jpg")));
         }
         finally
         {
@@ -1245,12 +1351,12 @@ public sealed class ImageProcessingPluginTests
     }
 
     [Fact]
-    public async Task AfterBuildAsync_WhenOnlyOneResizeSucceeds_ProjectsOnlyExistingVariant()
+    public async Task AfterBuildAsync_WhenOnlyOneResizeSucceeds_TracksOnlyExistingVariant()
     {
         var outDir = GetTempDir();
         try
         {
-            var assetsDir = Path.Combine(outDir, "assets");
+            var assetsDir = Path.Combine(outDir, "assets", "uploads");
             Directory.CreateDirectory(assetsDir);
             WriteValidImage(Path.Combine(assetsDir, "photo.jpg"), "original");
             // An unowned sidecar blocks the 768w variant, so only 480w can be produced.
@@ -1261,10 +1367,9 @@ public sealed class ImageProcessingPluginTests
                     new ImageOptimizationConfig { Enabled = true, Sizes = new[] { 480, 768 } }))
                 .AfterBuildAsync(context));
 
-            var images = Assert.IsType<Dictionary<string, object>>(context.Get(BuildDataKeys.ImageSrcsets));
-            var photo = Assert.IsType<Dictionary<string, object>>(images["photo.jpg"]);
-            Assert.Equal("/assets/photo-480w.jpg 480w", photo["srcset"]);
-            Assert.Equal(new[] { 480 }, Assert.IsType<int[]>(photo["sizes"]));
+            var outputs = Assert.IsType<HashSet<PluginOutputTrackingInfo>>(context.Get(BuildDataKeys.PluginOutputs));
+            Assert.Contains(outputs, output => output.Path == "assets/uploads/photo-480w.jpg");
+            Assert.DoesNotContain(outputs, output => output.Path.StartsWith("assets/uploads/photo-768w.jpg", StringComparison.Ordinal));
             Assert.True(File.Exists(Path.Combine(assetsDir, "photo-480w.jpg")));
             Assert.False(File.Exists(Path.Combine(assetsDir, "photo-768w.jpg")));
         }
@@ -1275,7 +1380,7 @@ public sealed class ImageProcessingPluginTests
     }
 
     [Fact]
-    public async Task AfterBuildAsync_WhenNoResizeSucceeds_OmitsImageSrcsetProjection()
+    public async Task AfterBuildAsync_WhenNoResizeSucceeds_TracksNoOutputs()
     {
         var outDir = GetTempDir();
         try
@@ -1289,7 +1394,7 @@ public sealed class ImageProcessingPluginTests
                     new ImageOptimizationConfig { Enabled = true, Sizes = new[] { 480 } }))
                 .AfterBuildAsync(context));
 
-            Assert.False(context.TryGet(BuildDataKeys.ImageSrcsets, out _));
+            Assert.False(context.TryGet(BuildDataKeys.PluginOutputs, out _));
         }
         finally
         {
@@ -1303,7 +1408,7 @@ public sealed class ImageProcessingPluginTests
         var outDir = GetTempDir();
         try
         {
-            var assetsDir = Path.Combine(outDir, "assets");
+            var assetsDir = Path.Combine(outDir, "assets", "uploads");
             Directory.CreateDirectory(assetsDir);
 
             // Round 1: create source and generate variant
@@ -1334,12 +1439,12 @@ public sealed class ImageProcessingPluginTests
     }
 
     [Fact]
-    public async Task AfterBuildAsync_StaleVariantRebuildFails_RemovesVariantAndProjection()
+    public async Task AfterBuildAsync_StaleVariantRebuildFails_RemovesVariant()
     {
         var outDir = GetTempDir();
         try
         {
-            var assetsDir = Path.Combine(outDir, "assets");
+            var assetsDir = Path.Combine(outDir, "assets", "uploads");
             Directory.CreateDirectory(assetsDir);
             var sourceFile = Path.Combine(assetsDir, "photo.jpg");
             WriteValidImage(sourceFile, "original");
@@ -1359,7 +1464,6 @@ public sealed class ImageProcessingPluginTests
 
             Assert.False(File.Exists(variantFile));
             Assert.False(File.Exists(freshnessFile));
-            Assert.False(secondContext.TryGet(BuildDataKeys.ImageSrcsets, out _));
         }
         finally
         {
@@ -1373,7 +1477,7 @@ public sealed class ImageProcessingPluginTests
         var outDir = GetTempDir();
         try
         {
-            var assetsDir = Path.Combine(outDir, "assets");
+            var assetsDir = Path.Combine(outDir, "assets", "uploads");
             Directory.CreateDirectory(assetsDir);
             var sourceFile = Path.Combine(assetsDir, "photo.jpg");
             WriteValidImage(sourceFile, "same-metadata");
@@ -1417,7 +1521,7 @@ public sealed class ImageProcessingPluginTests
         var outDir = GetTempDir();
         try
         {
-            var assetsDir = Path.Combine(outDir, "assets");
+            var assetsDir = Path.Combine(outDir, "assets", "uploads");
             Directory.CreateDirectory(assetsDir);
             WriteValidImage(Path.Combine(assetsDir, "photo.jpg"), "source");
             var context = CreateContext(outDir);
@@ -1427,8 +1531,8 @@ public sealed class ImageProcessingPluginTests
                 .AfterBuildAsync(context);
 
             var outputs = Assert.IsType<HashSet<PluginOutputTrackingInfo>>(context.Get(BuildDataKeys.PluginOutputs));
-            Assert.Contains(outputs, output => output.Path == "assets/photo-480w.jpg");
-            Assert.Contains(outputs, output => output.Path == "assets/photo-480w.jpg.bukit-freshness.json");
+            Assert.Contains(outputs, output => output.Path == "assets/uploads/photo-480w.jpg");
+            Assert.Contains(outputs, output => output.Path == "assets/uploads/photo-480w.jpg.bukit-freshness.json");
         }
         finally
         {
@@ -1442,7 +1546,7 @@ public sealed class ImageProcessingPluginTests
         var outDir = GetTempDir();
         try
         {
-            var assetsDir = Path.Combine(outDir, "assets");
+            var assetsDir = Path.Combine(outDir, "assets", "uploads");
             Directory.CreateDirectory(assetsDir);
 
             // Round 1: generate with sizes [480, 768]
@@ -1473,12 +1577,141 @@ public sealed class ImageProcessingPluginTests
     }
 
     [Fact]
+    public async Task AfterBuildAsync_ThemeImage_GetsWebpPictureButNoResizedVariants()
+    {
+        var outDir = GetTempDir();
+        try
+        {
+            var mediaDir = Path.Combine(outDir, "assets", "uploads");
+            var themeDir = Path.Combine(outDir, "assets", "theme");
+            Directory.CreateDirectory(mediaDir);
+            Directory.CreateDirectory(themeDir);
+            WriteValidImage(Path.Combine(mediaDir, "photo.jpg"), "media");
+            WriteValidImage(Path.Combine(themeDir, "logo.jpg"), "theme");
+            var context = CreateContext(outDir);
+            context.Set(BuildDataKeys.MediaDownloadDir, mediaDir);
+            context.Set(BuildDataKeys.CurrentHtmlOutputs, new[] { "index.html" });
+            var plugin = new ImageProcessingPlugin(CreateConfig(new ImageOptimizationConfig
+            {
+                Enabled = true,
+                Formats = ["webp"],
+                Sizes = [480, 1200]
+            }));
+            var transformed = plugin.CreateHtmlTransform(new HtmlTransformPluginContext(context, BuildExecutionMode.Production)).Transform(
+                new HtmlTransformContext("/", "index.html", HtmlDocumentKind.Content, BuildExecutionMode.Production, context.Logger),
+                "<img src=\"/assets/uploads/photo.jpg\" alt=\"\"><img src=\"/assets/theme/logo.jpg\" alt=\"\">");
+            File.WriteAllText(Path.Combine(outDir, "index.html"), $"<html><body>{transformed}</body></html>");
+
+            await plugin.AfterBuildAsync(context);
+
+            Assert.True(File.Exists(Path.Combine(mediaDir, "photo-480w.jpg")));
+            Assert.True(File.Exists(Path.Combine(mediaDir, "photo-1200w.jpg")));
+            Assert.False(File.Exists(Path.Combine(themeDir, "logo-480w.jpg")));
+            Assert.False(File.Exists(Path.Combine(themeDir, "logo-1200w.jpg")));
+            foreach (var width in new[] { 480, 1200, 1600 })
+            {
+                Assert.True(File.Exists(Path.Combine(themeDir, $"logo-{width}w.webp")));
+            }
+
+            var html = File.ReadAllText(Path.Combine(outDir, "index.html"));
+            Assert.Contains("/assets/uploads/photo-480w.jpg 480w, /assets/uploads/photo-1200w.jpg 1200w", html, StringComparison.Ordinal);
+            Assert.Contains(
+                "<picture><source type=\"image/webp\" srcset=\"/assets/theme/logo-480w.webp 480w, /assets/theme/logo-1200w.webp 1200w, /assets/theme/logo-1600w.webp 1600w\"><img src=\"/assets/theme/logo.jpg\" alt=\"\"",
+                html,
+                StringComparison.Ordinal);
+            Assert.Equal(2, CountOccurrences(html, "<picture>"));
+            var outputs = Assert.IsType<HashSet<PluginOutputTrackingInfo>>(context.Get(BuildDataKeys.PluginOutputs));
+            Assert.DoesNotContain(outputs, output => output.Path.StartsWith("assets/theme/logo-", StringComparison.Ordinal) &&
+                !output.Path.Contains(".webp", StringComparison.Ordinal));
+        }
+        finally
+        {
+            if (Directory.Exists(outDir)) Directory.Delete(outDir, true);
+        }
+    }
+
+    [Fact]
+    public async Task AfterBuildAsync_CustomMediaUrlBaseOutsideAssets_GetsResizedVariantsAndSrcset()
+    {
+        var outDir = GetTempDir();
+        try
+        {
+            var mediaDir = Path.Combine(outDir, "media");
+            Directory.CreateDirectory(mediaDir);
+            WriteValidImage(Path.Combine(mediaDir, "photo.jpg"), "media");
+            var context = CreateContext(outDir);
+            context.Set(BuildDataKeys.MediaDownloadDir, mediaDir);
+            var plugin = new ImageProcessingPlugin(CreateConfig(new ImageOptimizationConfig
+            {
+                Enabled = true,
+                Formats = [],
+                Sizes = [480, 1200]
+            }) with
+            {
+                Content = TestContent.Markdown() with { Media = new MediaConfig { UrlBase = "/media" } }
+            });
+            var transformed = plugin.CreateHtmlTransform(new HtmlTransformPluginContext(context, BuildExecutionMode.Production)).Transform(
+                new HtmlTransformContext("/", "index.html", HtmlDocumentKind.Content, BuildExecutionMode.Production, context.Logger),
+                "<img src=\"/media/photo.jpg\" alt=\"\">");
+
+            await plugin.AfterBuildAsync(context);
+
+            Assert.True(File.Exists(Path.Combine(mediaDir, "photo-480w.jpg")));
+            Assert.True(File.Exists(Path.Combine(mediaDir, "photo-1200w.jpg")));
+            Assert.Contains("/media/photo-480w.jpg 480w, /media/photo-1200w.jpg 1200w", transformed, StringComparison.Ordinal);
+            var outputs = Assert.IsType<HashSet<PluginOutputTrackingInfo>>(context.Get(BuildDataKeys.PluginOutputs));
+            Assert.Contains(outputs, output => output.Path == "media/photo-480w.jpg");
+            Assert.Contains(outputs, output => output.Path == "media/photo-1200w.jpg");
+        }
+        finally
+        {
+            if (Directory.Exists(outDir)) Directory.Delete(outDir, true);
+        }
+    }
+
+    [Fact]
+    public async Task AfterBuildAsync_ThemeImageResizedVariantFromEarlierBuild_IsDeleted()
+    {
+        var outDir = GetTempDir();
+        try
+        {
+            var themeDir = Path.Combine(outDir, "assets", "theme");
+            Directory.CreateDirectory(themeDir);
+            var source = Path.Combine(themeDir, "logo.jpg");
+            WriteValidImage(source, "theme");
+            var images = new ImageOptimizationConfig { Enabled = true, Formats = [], Sizes = [480] };
+
+            // An earlier build planned resized variants for every scanned image. Treating
+            // the assets dir as the media dir reproduces the owned variant it left behind.
+            await new ImageProcessingPlugin(CreateConfig(images) with
+            {
+                Content = TestContent.Markdown() with { Media = new MediaConfig { UrlBase = "/assets" } }
+            }).AfterBuildAsync(CreateContext(outDir));
+            var variant = Path.Combine(themeDir, "logo-480w.jpg");
+            Assert.True(File.Exists(variant));
+            Assert.True(File.Exists(variant + ".bukit-freshness.json"));
+
+            var context = CreateContextWithPriorImageOwnership(outDir, variant);
+            await new ImageProcessingPlugin(CreateConfig(images)).AfterBuildAsync(context);
+
+            Assert.False(File.Exists(variant));
+            Assert.False(File.Exists(variant + ".bukit-freshness.json"));
+            Assert.True(File.Exists(source));
+            Assert.False(context.TryGet(BuildDataKeys.PluginOutputs, out _));
+        }
+        finally
+        {
+            if (Directory.Exists(outDir)) Directory.Delete(outDir, true);
+        }
+    }
+
+    [Fact]
     public async Task AfterBuildAsync_CurrentSizeUserLookalikeWithoutOwnership_IsNeverOverwritten()
     {
         var outDir = GetTempDir();
         try
         {
-            var assetsDir = Path.Combine(outDir, "assets");
+            var assetsDir = Path.Combine(outDir, "assets", "uploads");
             Directory.CreateDirectory(assetsDir);
             WriteValidImage(Path.Combine(assetsDir, "photo.jpg"), "source");
             var userOwnedVariant = Path.Combine(assetsDir, "photo-300w.jpg");
@@ -1513,7 +1746,7 @@ public sealed class ImageProcessingPluginTests
         var outDir = GetTempDir();
         try
         {
-            var assetsDir = Path.Combine(outDir, "assets");
+            var assetsDir = Path.Combine(outDir, "assets", "uploads");
             Directory.CreateDirectory(assetsDir);
             WriteValidImage(Path.Combine(assetsDir, "photo.jpg"), "source");
             var userOwnedVariant = Path.Combine(assetsDir, "photo-300w.jpg");
@@ -1534,13 +1767,13 @@ public sealed class ImageProcessingPluginTests
     }
 
     [Fact]
-    public async Task AfterBuildAsync_CopiedValidSidecarAcrossDirectories_DoesNotAuthorizeProjection()
+    public async Task AfterBuildAsync_CopiedValidSidecarAcrossDirectories_DoesNotAuthorizeTracking()
     {
         var outDir = GetTempDir();
         try
         {
-            var ownedDir = Path.Combine(outDir, "assets", "owned");
-            var copiedDir = Path.Combine(outDir, "assets", "copied");
+            var ownedDir = Path.Combine(outDir, "assets", "uploads", "owned");
+            var copiedDir = Path.Combine(outDir, "assets", "uploads", "copied");
             Directory.CreateDirectory(ownedDir);
             Directory.CreateDirectory(copiedDir);
             var ownedSource = Path.Combine(ownedDir, "photo.jpg");
@@ -1567,9 +1800,7 @@ public sealed class ImageProcessingPluginTests
             Assert.Equal(copiedVariantBytes, await File.ReadAllBytesAsync(copiedVariant));
             Assert.Equal(copiedSidecarBytes, await File.ReadAllBytesAsync(copiedSidecar));
             var outputs = Assert.IsType<HashSet<PluginOutputTrackingInfo>>(context.Get(BuildDataKeys.PluginOutputs));
-            Assert.DoesNotContain(outputs, output => output.Path == "assets/copied/photo-300w.jpg");
-            var images = Assert.IsType<Dictionary<string, object>>(context.Get(BuildDataKeys.ImageSrcsets));
-            Assert.DoesNotContain("copied/photo.jpg", images.Keys);
+            Assert.DoesNotContain(outputs, output => output.Path == "assets/uploads/copied/photo-300w.jpg");
         }
         finally
         {
@@ -1578,12 +1809,12 @@ public sealed class ImageProcessingPluginTests
     }
 
     [Fact]
-    public async Task AfterBuildAsync_CurrentManagedPathWithUserReplacedBytes_IsNotProjectedOrOverwritten()
+    public async Task AfterBuildAsync_CurrentManagedPathWithUserReplacedBytes_IsNotTrackedOrOverwritten()
     {
         var outDir = GetTempDir();
         try
         {
-            var assetsDir = Path.Combine(outDir, "assets");
+            var assetsDir = Path.Combine(outDir, "assets", "uploads");
             Directory.CreateDirectory(assetsDir);
             WriteValidImage(Path.Combine(assetsDir, "photo.jpg"), "source");
             var config = CreateConfig(
@@ -1618,7 +1849,7 @@ public sealed class ImageProcessingPluginTests
         var outDir = GetTempDir();
         try
         {
-            var assetsDir = Path.Combine(outDir, "assets");
+            var assetsDir = Path.Combine(outDir, "assets", "uploads");
             Directory.CreateDirectory(assetsDir);
             WriteValidImage(Path.Combine(assetsDir, "photo.jpg"), "source");
 
@@ -1652,7 +1883,7 @@ public sealed class ImageProcessingPluginTests
         var outDir = GetTempDir();
         try
         {
-            var assetsDir = Path.Combine(outDir, "assets");
+            var assetsDir = Path.Combine(outDir, "assets", "uploads");
             Directory.CreateDirectory(assetsDir);
             var source = Path.Combine(assetsDir, "photo.jpg");
             WriteValidImage(source, "source");
@@ -1672,7 +1903,6 @@ public sealed class ImageProcessingPluginTests
             Assert.False(File.Exists(sidecar));
             Assert.True(File.Exists(Path.Combine(assetsDir, "renamed-480w.jpg")));
             Assert.True(context.TryGet(BuildDataKeys.PluginOutputs, out _));
-            Assert.True(context.TryGet(BuildDataKeys.ImageSrcsets, out _));
         }
         finally
         {
@@ -1686,7 +1916,7 @@ public sealed class ImageProcessingPluginTests
         var outDir = GetTempDir();
         try
         {
-            var assetsDir = Path.Combine(outDir, "assets");
+            var assetsDir = Path.Combine(outDir, "assets", "uploads");
             Directory.CreateDirectory(assetsDir);
             var source = Path.Combine(assetsDir, "photo.jpg");
             WriteValidImage(source, "source");
@@ -1697,6 +1927,8 @@ public sealed class ImageProcessingPluginTests
 
             var variant = Path.Combine(assetsDir, "photo-480w.jpg");
             var sidecar = variant + ".bukit-freshness.json";
+            Assert.True(File.Exists(variant));
+            Assert.True(File.Exists(sidecar));
             File.Delete(source);
             var context = CreateContextWithPriorImageOwnership(outDir, variant);
 
@@ -1705,7 +1937,6 @@ public sealed class ImageProcessingPluginTests
             Assert.False(File.Exists(variant));
             Assert.False(File.Exists(sidecar));
             Assert.False(context.TryGet(BuildDataKeys.PluginOutputs, out _));
-            Assert.False(context.TryGet(BuildDataKeys.ImageSrcsets, out _));
         }
         finally
         {
@@ -1714,12 +1945,12 @@ public sealed class ImageProcessingPluginTests
     }
 
     [Fact]
-    public async Task AfterBuildAsync_CurrentFullyRecomputedSpoofWithoutPriorManifest_IsNotProjected()
+    public async Task AfterBuildAsync_CurrentFullyRecomputedSpoofWithoutPriorManifest_IsNotTracked()
     {
         var outDir = GetTempDir();
         try
         {
-            var assetsDir = Path.Combine(outDir, "assets");
+            var assetsDir = Path.Combine(outDir, "assets", "uploads");
             Directory.CreateDirectory(assetsDir);
             WriteValidImage(Path.Combine(assetsDir, "photo.jpg"), "source");
             var config = CreateConfig(
@@ -1755,7 +1986,7 @@ public sealed class ImageProcessingPluginTests
         var outDir = GetTempDir();
         try
         {
-            var assetsDir = Path.Combine(outDir, "assets");
+            var assetsDir = Path.Combine(outDir, "assets", "uploads");
             Directory.CreateDirectory(assetsDir);
             WriteValidImage(Path.Combine(assetsDir, "photo.jpg"), "source");
 
@@ -1789,7 +2020,7 @@ public sealed class ImageProcessingPluginTests
         var outDir = GetTempDir();
         try
         {
-            var assetsDir = Path.Combine(outDir, "assets");
+            var assetsDir = Path.Combine(outDir, "assets", "uploads");
             Directory.CreateDirectory(assetsDir);
             var source = Path.Combine(assetsDir, "photo.jpg");
             WriteValidImage(source, "source");
@@ -1823,7 +2054,7 @@ public sealed class ImageProcessingPluginTests
         var outDir = GetTempDir();
         try
         {
-            var assetsDir = Path.Combine(outDir, "assets");
+            var assetsDir = Path.Combine(outDir, "assets", "uploads");
             Directory.CreateDirectory(assetsDir);
             // User source whose filename happens to look like a generated variant.
             // Without ownership proof it must be treated as an ordinary input.
@@ -1858,7 +2089,6 @@ public sealed class ImageProcessingPluginTests
 
             Assert.False(File.Exists(Path.Combine(assetsDir, "hero-480w.jpg")));
             Assert.False(File.Exists(Path.Combine(assetsDir, "hero-480w.jpg.bukit-freshness.json")));
-            Assert.False(context.TryGet(BuildDataKeys.ImageSrcsets, out _));
             Assert.False(context.TryGet(BuildDataKeys.PluginOutputs, out _));
             Assert.Empty(Directory.GetFiles(assetsDir, ".hero-480w.bukit-*.jpg"));
             Assert.Empty(Directory.GetFiles(assetsDir, "hero-480w.jpg.bukit-freshness.json.bukit-*.tmp"));

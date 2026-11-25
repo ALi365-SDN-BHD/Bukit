@@ -9,9 +9,11 @@ using static Bukit.Engine.Plugins.BuiltIn.ImageProcessing.ImageVariantOwnership;
 namespace Bukit.Engine.Plugins.BuiltIn;
 
 /// <summary>
-/// Generates resized and WebP image variants after the build and projects their
-/// srcsets. Variant generation, freshness records, ownership and HTML rewriting
-/// live in the ImageProcessing folder.
+/// Generates image variants after the build: same-format resized variants for media
+/// images, which are the only images that get a srcset, and WebP variants for every
+/// scanned image, which any local JPEG/PNG img can reference through a picture element.
+/// Variant generation, freshness records, ownership and HTML rewriting live in the
+/// ImageProcessing folder.
 /// </summary>
 internal sealed class ImageProcessingPlugin : IBukitPlugin, IAfterBuildAsyncPlugin, IHtmlTransformPlugin
 {
@@ -49,7 +51,8 @@ internal sealed class ImageProcessingPlugin : IBukitPlugin, IAfterBuildAsyncPlug
         }
 
         var priorPluginOutputs = GetPriorPluginOutputs(context);
-        var imageFiles = FindSourceImages(context, priorPluginOutputs, cancellationToken);
+        var mediaDir = ResolveMediaOutputDir(context);
+        var imageFiles = FindSourceImages(context, mediaDir, priorPluginOutputs, cancellationToken);
         var sizes = NormalizeSizes(config.Sizes);
         var webpEnabled = config.Formats?.Any(format =>
             string.Equals(format, "webp", StringComparison.OrdinalIgnoreCase)) == true;
@@ -77,8 +80,10 @@ internal sealed class ImageProcessingPlugin : IBukitPlugin, IAfterBuildAsyncPlug
         var (resizePlans, sourceWidths) = PlanResizes(
             context,
             imageFiles,
+            mediaDir,
             sizes,
             webpEnabled,
+            config.WebpOnlyVariants,
             priorPluginOutputs,
             cancellationToken);
 
@@ -125,12 +130,6 @@ internal sealed class ImageProcessingPlugin : IBukitPlugin, IAfterBuildAsyncPlug
             PreservePriorWebpOutputs(context, priorPluginOutputs, generatedOutputs);
         }
 
-        var data = BuildSrcsetData(context, imageFiles, resizePlans, generatedOutputs);
-        if (data.Count > 0)
-        {
-            context.Set(BuildDataKeys.ImageSrcsets, data);
-        }
-
         SetTrackedOutputs(context, generatedOutputs);
         ThrowIfVariantsFailed(failures);
     }
@@ -157,8 +156,10 @@ internal sealed class ImageProcessingPlugin : IBukitPlugin, IAfterBuildAsyncPlug
     private static (Dictionary<string, IReadOnlyList<int>> ResizePlans, Dictionary<string, int> SourceWidths) PlanResizes(
         BuildContext context,
         IReadOnlyList<string> imageFiles,
+        string mediaDir,
         IReadOnlyList<int> sizes,
         bool webpEnabled,
+        bool webpOnlyVariants,
         HashSet<PluginOutputTrackingInfo> priorPluginOutputs,
         CancellationToken cancellationToken)
     {
@@ -168,7 +169,12 @@ internal sealed class ImageProcessingPlugin : IBukitPlugin, IAfterBuildAsyncPlug
         {
             cancellationToken.ThrowIfCancellationRequested();
             var hasWidth = TryGetImageWidth(imageFile, context.Logger, out var width);
-            IReadOnlyList<int> applicableSizes = hasWidth
+            // Only media images get a srcset (ResponsiveImageHtmlTransform), so resized
+            // same-format variants of other images would never be referenced. Planning
+            // none also lets the cleanup below remove ones an earlier build owned.
+            // theme.images.fallbackVariants: none leaves JPEG/PNG media images to their WebP variants.
+            IReadOnlyList<int> applicableSizes = hasWidth && IsWithinDirectory(mediaDir, imageFile) &&
+                !(webpOnlyVariants && !ImageVariantPlan.IsWebpSource(imageFile))
                 ? ImageVariantPlan.GeneratedWidths(sizes, width)
                 : [];
             CleanupStaleVariants(
@@ -243,68 +249,24 @@ internal sealed class ImageProcessingPlugin : IBukitPlugin, IAfterBuildAsyncPlug
         }
     }
 
-    private static Dictionary<string, object> BuildSrcsetData(
-        BuildContext context,
-        IReadOnlyList<string> imageFiles,
-        IReadOnlyDictionary<string, IReadOnlyList<int>> resizePlans,
-        HashSet<PluginOutputTrackingInfo> generatedOutputs)
+    private string ResolveMediaOutputDir(BuildContext context)
     {
-        var data = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase);
-        foreach (var imageFile in imageFiles)
-        {
-            var relPath = Path.GetRelativePath(context.OutputDir, imageFile);
-            var ext = Path.GetExtension(imageFile);
-
-            var srcsetParts = new List<string>();
-            var existingSizes = new List<int>();
-            foreach (var size in resizePlans.GetValueOrDefault(imageFile) ?? [])
-            {
-                var sizedFile = ImageVariantPlan.VariantFileName(imageFile, size, ext);
-                if (!File.Exists(sizedFile))
-                {
-                    continue;
-                }
-
-                if (!IsTrackedOutput(context, generatedOutputs, sizedFile))
-                {
-                    continue;
-                }
-
-                var sizedRel = ImageVariantPlan.VariantFileName(relPath, size, ext)
-                    .Replace("\\", "/", StringComparison.Ordinal);
-                srcsetParts.Add($"/{sizedRel} {size}w");
-                existingSizes.Add(size);
-            }
-
-            if (srcsetParts.Count == 0)
-            {
-                continue;
-            }
-
-            var rel = relPath.Replace("\\", "/", StringComparison.Ordinal);
-            data[rel.StartsWith("assets/", StringComparison.Ordinal) ? rel[7..] : rel] = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
-            {
-                ["srcset"] = string.Join(", ", srcsetParts),
-                ["sizes"] = existingSizes.ToArray(),
-                ["url"] = $"/{rel}"
-            };
-        }
-
-        return data;
-    }
-
-    private List<string> FindSourceImages(
-        BuildContext context,
-        HashSet<PluginOutputTrackingInfo> priorPluginOutputs,
-        CancellationToken cancellationToken)
-    {
-        var assetsDir = Path.Combine(context.OutputDir, "assets");
         var mediaDir = Path.GetFullPath(Path.Combine(context.OutputDir,
             ResponsiveImageHtmlTransform.NormalizeMediaUrlBase(_config.Content.Media.UrlBase).TrimStart('/')));
         if (!IsWithinDirectory(context.OutputDir, mediaDir))
         {
             throw new IOException("Image media output directory escapes the output root.");
         }
+        return mediaDir;
+    }
+
+    private static List<string> FindSourceImages(
+        BuildContext context,
+        string mediaDir,
+        HashSet<PluginOutputTrackingInfo> priorPluginOutputs,
+        CancellationToken cancellationToken)
+    {
+        var assetsDir = Path.Combine(context.OutputDir, "assets");
         var imageDirectories = new[] { assetsDir, mediaDir }.Distinct(StringComparer.Ordinal)
             .Where(Directory.Exists).ToArray();
         foreach (var directory in imageDirectories)

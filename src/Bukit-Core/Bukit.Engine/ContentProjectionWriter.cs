@@ -1,6 +1,7 @@
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using Bukit.Config;
 using Bukit.Engine.Abstractions.Content;
 using Bukit.Engine.Abstractions.Plugins;
 using Bukit.Rendering;
@@ -92,6 +93,7 @@ internal sealed class DefaultContentProjectionWriter : IContentProjectionWriter
         if (routedDocuments.Count > 0)
         {
             var languageFallback = ContentLanguageFallback.ForSite(context.Config.Site);
+            var timeZone = TimeZoneResolver.ResolveOrUtc(context.Config.Site.Timezone);
             return routedDocuments
                 .Select(document =>
                 {
@@ -105,7 +107,8 @@ internal sealed class DefaultContentProjectionWriter : IContentProjectionWriter
                         entry,
                         model,
                         context.BaseUrl,
-                        languageFallback);
+                        languageFallback,
+                        timeZone);
                 })
                 .ToArray();
         }
@@ -141,11 +144,25 @@ internal sealed class DefaultContentProjectionWriter : IContentProjectionWriter
                     entry,
                     model,
                     context.BaseUrl),
-                record.Lifecycle.UpdatedAt ?? record.Lifecycle.PublishedAt));
+                record.Lifecycle.PublishedAt,
+                record.Lifecycle.UpdatedAt));
         }
 
         return manifestEntries;
     }
+
+    internal static IReadOnlyList<AgentManifestListEntry> BuildAgentManifestListEntries(PublishProjectionContext context)
+        => AgentManifestListEntries.Build(
+            context.Config,
+            context.SeoIndex,
+            context.ListRouteGraph,
+            context.RoutedDocuments.Concat(context.DerivedDocuments),
+            context.OutputDir,
+            context.BaseUrl,
+            context.Config.Site.Language,
+            prefixRoutes: false,
+            AgentManifestListEntries.CreateLocFilter(context.Config, context.BaseUrl),
+            context.Logger);
 
     internal static IReadOnlyList<RepresentationEntry> BuildAgentManifestRepresentationEntries(
         RouteInfo route,
@@ -176,7 +193,8 @@ internal sealed class DefaultContentProjectionWriter : IContentProjectionWriter
         string ReviewStatus,
         IReadOnlyList<string> Entities,
         IReadOnlyList<RepresentationEntry> Representations,
-        DateTimeOffset PublishedAt);
+        DateTimeOffset PublishedAt,
+        [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] DateTimeOffset? UpdatedAt);
 
     internal sealed record RepresentationEntry(string Kind, string Url);
 }
@@ -188,7 +206,8 @@ internal sealed record ContentProjectionDocumentContext(
     SeoIndexEntry? SeoIndexEntry,
     SeoModel? SeoModel,
     string BaseUrl = "/",
-    string? LanguageFallback = null)
+    string? LanguageFallback = null,
+    TimeZoneInfo? TimeZone = null)
 {
     /// <summary>The page language, or the site language for an undetermined page of a single-language site.</summary>
     internal string Language => ContentLanguageFallback.Resolve(Record.Presentation.Language, LanguageFallback)!;
@@ -290,6 +309,21 @@ internal sealed class MarkdownContentDocumentProjection : IPublishProjection
             sb.AppendLine($"- Canonical: {entry.Canonical}");
         }
 
+        var timeZone = context.TimeZone ?? TimeZoneInfo.Utc;
+        if (record.Lifecycle.PublishedAt != default)
+        {
+            sb.AppendLine($"- Published: {SeoDateFormat.Format(TimeZoneInfo.ConvertTime(record.Lifecycle.PublishedAt, timeZone))}");
+        }
+
+        if (record.Lifecycle.UpdatedAt is { } updated)
+        {
+            sb.AppendLine($"- Updated: {SeoDateFormat.Format(TimeZoneInfo.ConvertTime(updated, timeZone))}");
+        }
+
+        AppendHeaderLine(sb, "Author", record.Ownership.Author);
+        // Only the public original source: "- Source:" is reserved, and the audit rejects it as leaked provenance.
+        AppendHeaderLine(sb, "Original Source", record.Provenance.OriginalSource);
+
         if (!string.IsNullOrWhiteSpace(record.Presentation.Summary))
         {
             sb.AppendLine();
@@ -325,6 +359,15 @@ internal sealed class MarkdownContentDocumentProjection : IPublishProjection
             File.Exists(path),
             entry?.Indexable != false, route.Url);
     }
+
+    // Header values are front-matter text; a line break would start a forged header line.
+    private static void AppendHeaderLine(StringBuilder sb, string label, string? value)
+    {
+        if (!string.IsNullOrWhiteSpace(value))
+        {
+            sb.AppendLine($"- {label}: {value.ReplaceLineEndings(" ").Trim()}");
+        }
+    }
 }
 
 internal sealed class AgentManifestProjection : IPublishProjection
@@ -341,23 +384,31 @@ internal sealed class AgentManifestProjection : IPublishProjection
                 [new PublishRepresentationOutput(Representation.Kind, "/" + Representation.Path, Representation.Path, Exists: false, Indexable: false)]);
         }
 
-        var path = Project(context.OutputDir, DefaultContentProjectionWriter.BuildAgentManifestEntries(context));
+        var path = Project(
+            context.OutputDir,
+            DefaultContentProjectionWriter.BuildAgentManifestEntries(context),
+            DefaultContentProjectionWriter.BuildAgentManifestListEntries(context));
         return new PublishProjectionResult(
             Representation,
             [new PublishRepresentationOutput(Representation.Kind, "/" + Representation.Path, Representation.Path, File.Exists(path), Indexable: false)]);
     }
 
-    internal string Project(string outputDir, IReadOnlyList<DefaultContentProjectionWriter.AgentManifestEntry> entries)
+    internal string Project(
+        string outputDir,
+        IReadOnlyList<DefaultContentProjectionWriter.AgentManifestEntry> entries,
+        IReadOnlyList<AgentManifestListEntry> lists)
     {
+        // generatedAt is the latest change: an edit moves it, as it did before publishedAt held the publish date.
         var generatedAt = entries.Count == 0
             ? DateTimeOffset.UnixEpoch
-            : entries.Max(x => x.PublishedAt);
+            : entries.Max(x => x.UpdatedAt ?? x.PublishedAt);
         var orderedEntries = entries.OrderBy(x => x.Route, StringComparer.OrdinalIgnoreCase).ToArray();
         var manifest = new ContentProjectionAgentManifest(
             Schema: "https://bukit.dev/schemas/agent-manifest.v1.json",
-            SchemaVersion: "1.0",
+            SchemaVersion: "1.1",
             GeneratedAt: generatedAt,
-            Documents: orderedEntries);
+            Documents: orderedEntries,
+            Lists: [.. lists.OrderBy(x => x.Route, StringComparer.OrdinalIgnoreCase)]);
 
         var json = JsonSerializer.Serialize(manifest, ContentProjectionJsonContext.Default.ContentProjectionAgentManifest);
         // No BOM: llms.txt points agents here, and JSON parsers may reject a leading BOM (RFC 8259).
@@ -407,4 +458,5 @@ internal sealed record ContentProjectionAgentManifest(
     string Schema,
     string SchemaVersion,
     DateTimeOffset GeneratedAt,
-    IReadOnlyList<DefaultContentProjectionWriter.AgentManifestEntry> Documents);
+    IReadOnlyList<DefaultContentProjectionWriter.AgentManifestEntry> Documents,
+    IReadOnlyList<AgentManifestListEntry> Lists);

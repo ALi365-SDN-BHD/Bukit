@@ -138,7 +138,10 @@ def check(root, inventory):
         if declared:
             require(schema["properties"]["schema"].get("const") == declared, "Stale schema const: " + identity)
         if version:
-            actual = schema["properties"][version["property"]].get("const")
-            require(type(actual) is type(version["value"]) and actual == version["value"], "Stale schema version: " + identity)
+            # A schema that still accepts older payloads lists its versions in an enum; the bound version must be one of them.
+            binding = schema["properties"][version["property"]]
+            allowed = [binding["const"]] if "const" in binding else binding.get("enum", [])
+            require(any(type(actual) is type(version["value"]) and actual == version["value"] for actual in allowed),
+                    "Stale schema version: " + identity)
         vocabulary(schema)
     return len(records), len(local_paths)

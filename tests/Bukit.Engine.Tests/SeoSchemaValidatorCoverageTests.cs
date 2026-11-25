@@ -1,3 +1,4 @@
+using Bukit.Engine.Audit;
 using Xunit;
 using System.Text.Json;
 
@@ -22,6 +23,30 @@ public sealed class SeoSchemaValidatorCoverageTests
     {
         var result = SeoSchemaValidator.IsSupportedArticleAuthorType(type);
         Assert.Equal(expected, result);
+    }
+
+    [Theory]
+    [InlineData("TechArticle", "seo.schema_article_headline_missing")]
+    [InlineData("NewsArticle", "seo.schema_newsarticle_headline_missing")]
+    public void ValidateSchemaObject_AnyArticleType_RunsTheArticleChecks(string type, string code)
+    {
+        using var doc = JsonDocument.Parse($$"""{"@context":"https://schema.org","@type":"{{type}}"}""");
+        var issues = new List<SeoAuditIssue>();
+
+        SeoSchemaValidator.ValidateSchemaObject(doc.RootElement, "/post/", issues);
+
+        Assert.Contains(issues, issue => issue.Code == code);
+    }
+
+    [Fact]
+    public void ValidateSchemaObject_WrongCaseArticleType_IsNotAnArticle()
+    {
+        using var doc = JsonDocument.Parse("""{"@context":"https://schema.org","@type":"techarticle"}""");
+        var issues = new List<SeoAuditIssue>();
+
+        SeoSchemaValidator.ValidateSchemaObject(doc.RootElement, "/post/", issues);
+
+        Assert.Empty(issues);
     }
 
     // ── IsSupportedProfileAuthorType ────────────────────────────────

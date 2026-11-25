@@ -1,4 +1,5 @@
 using Bukit.Engine.Abstractions.Plugins;
+using Bukit.Shared;
 
 namespace Bukit.Engine.Plugins.BuiltIn;
 
@@ -7,7 +8,29 @@ internal static class TaxonomyMetadataLoader
     internal static void LoadAndEnrich(BuildContext context, string kind, Dictionary<string, TaxonomyTerm> terms)
     {
         LoadFromEnsureTerms(context, kind, terms);
-        LoadFromIndexFiles(context.RootDir, kind, terms);
+        LoadFromIndexFiles(context.RootDir, kind, terms, context.Logger);
+        DropDuplicateI18nKeys(context, kind, terms);
+    }
+
+    /// <summary>
+    /// A key shared by two terms of one kind cannot pair either of them, so both fall back to route pairing.
+    /// </summary>
+    private static void DropDuplicateI18nKeys(BuildContext context, string kind, Dictionary<string, TaxonomyTerm> terms)
+    {
+        var duplicates = terms.Values
+            .Where(term => term.I18nKey is not null)
+            .GroupBy(term => term.I18nKey!, StringComparer.Ordinal)
+            .Where(group => group.Count() > 1)
+            .ToArray();
+        foreach (var group in duplicates)
+        {
+            var slugs = group.Select(term => term.Slug).Order(StringComparer.Ordinal).ToArray();
+            context.Logger.Warn($"event=taxonomy.term.i18n_key_duplicate kind={kind} key={group.Key} slugs={string.Join(',', slugs)}");
+            foreach (var slug in slugs)
+            {
+                terms[slug] = Copy(terms[slug], terms[slug].Description, terms[slug].Image, terms[slug].Weight, terms[slug].ParentSlug, i18nKey: null);
+            }
+        }
     }
 
     internal static void LoadFromEnsureTerms(BuildContext context, string kind, Dictionary<string, TaxonomyTerm> terms)
@@ -37,7 +60,7 @@ internal static class TaxonomyMetadataLoader
         }
     }
 
-    internal static void LoadFromIndexFiles(string rootDir, string kind, Dictionary<string, TaxonomyTerm> terms)
+    internal static void LoadFromIndexFiles(string rootDir, string kind, Dictionary<string, TaxonomyTerm> terms, ILogger logger)
     {
         var taxonomyDir = Path.Combine(rootDir, "content", "_taxonomy", kind);
         if (!Directory.Exists(taxonomyDir))
@@ -68,8 +91,9 @@ internal static class TaxonomyMetadataLoader
                     EnrichTerm(terms, slug, term, fm);
                 }
             }
-            catch
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
             {
+                logger.Warn($"event=taxonomy.term.index_unreadable kind={kind} slug={slug} error={ex.GetType().Name}");
             }
         }
     }
@@ -114,25 +138,36 @@ internal static class TaxonomyMetadataLoader
             }
         }
 
+        var i18nKey = TryGetString(item, "i18nKey") ?? TryGetString(item, "i18n_key");
+        if (string.IsNullOrWhiteSpace(term.I18nKey) && i18nKey is not null)
+        {
+            needReplace = true;
+        }
+
         if (needReplace)
         {
-            var desc = TryGetString(item, "description") ?? term.Description;
-            var img = TryGetString(item, "image") ?? term.Image;
-            var weight = TryGetInt(item, "weight") ?? term.Weight;
-            var parent = TryGetString(item, "parent") ?? term.ParentSlug;
-
-            terms[slug] = new TaxonomyTerm(term.DisplayName, term.Slug)
-            {
-                Description = desc,
-                Image = img,
-                Weight = weight,
-                IsVisible = term.IsVisible,
-                ParentSlug = parent,
-                Aliases = term.Aliases,
-                Pages = term.Pages,
-            };
+            terms[slug] = Copy(
+                term,
+                TryGetString(item, "description") ?? term.Description,
+                TryGetString(item, "image") ?? term.Image,
+                TryGetInt(item, "weight") ?? term.Weight,
+                TryGetString(item, "parent") ?? term.ParentSlug,
+                term.I18nKey ?? i18nKey);
         }
     }
+
+    private static TaxonomyTerm Copy(TaxonomyTerm term, string? description, string? image, int weight, string? parentSlug, string? i18nKey)
+        => new(term.DisplayName, term.Slug)
+        {
+            Description = description,
+            Image = image,
+            Weight = weight,
+            IsVisible = term.IsVisible,
+            ParentSlug = parentSlug,
+            I18nKey = i18nKey,
+            Aliases = term.Aliases,
+            Pages = term.Pages,
+        };
 
     internal static Dictionary<string, object>? ParseSimpleFrontMatter(string content)
     {

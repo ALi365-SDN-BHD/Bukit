@@ -78,6 +78,42 @@ level-skip checks, enter `semanticOutline`, or supply the visible title for
 JSON-LD comparison. A standalone article fallback does not suppress
 `publish.semantic_main_missing`.
 
+## Agent Manifest
+
+`agent-manifest.json` declares `schema`
+`https://bukit.dev/schemas/agent-manifest.v1.json` and `schemaVersion` `1.1`
+(local schema: `docs/schemas/agent-manifest.v1.schema.json`, which also accepts
+`1.0`). Version 1.1 only adds optional fields, so readers of 1.0 keep working if
+they ignore unknown fields.
+
+- `documents` has one row per indexable content record: `id`, `canonicalId`,
+  `route`, `language`, `reviewStatus`, `entities`, `representations` (kind and
+  URL of the HTML, JSON, Markdown and JSON-LD forms), and dates.
+- `publishedAt` is the publish date. `updatedAt` is the last edit time and is
+  present only when the record has one. Before 1.1, `publishedAt` held the edit
+  time when there was one.
+- `generatedAt` is the latest change in the manifest: the newest `updatedAt`,
+  or `publishedAt` for a record without one.
+- `lists` has one row per home, collection list and taxonomy route that the
+  sitemap would list: `route`, `language`, `kind` (`home`, `list` or
+  `taxonomy`), `lastModified` and `representations` (an `html` entry with the
+  page URL, in the same `{kind, url}` form as documents). The same checks as the
+  sitemap apply: routes that are `noindex`, in a collection with
+  `output.sitemap: false`, marked out of the sitemap by their page's meta tags,
+  canonical to another site or base path, or sharing a canonical that a page
+  listed earlier already took are left out. A route that is already a
+  `documents` row is not repeated. Without `site.url` no sitemap is written, so
+  `lists` is empty.
+
+All dates use the ISO 8601 form with an offset, such as
+`2026-07-13T00:00:00+00:00`. In every manifest, `lists` routes use the same
+route space as `documents` routes, and public URLs are in `representations`. A
+single-language manifest and each language's own manifest under `<lang>/` use
+routes relative to their base URL (for example `/posts/` on a site served at
+`/repo/`). The root merged manifest of a multilingual build combines every
+language's `documents` and `lists`, with routes that include the language base
+URL; with `sitemapMode: merged` its lists follow the merged sitemap's rules.
+
 ## Public And Internal Output Boundary
 
 Rendered pages and the machine-readable files outside `.bukit/` are public

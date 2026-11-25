@@ -15,6 +15,16 @@ internal sealed class ThemeAndTemplateModelContributor : IRenderDependencyContri
         writer.AppendLabeledCanonicalValue("theme.images.formats", theme.Images?.Formats);
         writer.AppendLabeledCanonicalValue("theme.images.sizes", theme.Images?.Sizes);
         writer.AppendLabeledCanonicalValue("theme.images.quality", theme.Images?.Quality);
+        // Appended only when set, so sites without it keep their existing hash.
+        if (theme.Images?.SizesAttribute is { } sizesAttribute)
+        {
+            writer.AppendLabeledCanonicalValue("theme.images.sizesAttribute", sizesAttribute);
+        }
+
+        if (theme.Images is { FallbackVariants: not ImageFallbackVariants.All } images)
+        {
+            writer.AppendLabeledCanonicalValue("theme.images.fallbackVariants", images.FallbackVariants);
+        }
 
 
         if (theme.Shortcodes is { Count: > 0 })

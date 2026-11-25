@@ -207,8 +207,8 @@
       "entrypoints": [{"source": "src/Bukit-Core/Bukit.Engine/ContentProjectionWriter.cs", "symbol": "DefaultContentProjectionWriter.WriteAsync"}, {"source": "src/Bukit-Core/Bukit.Engine/I18nRootAgentManifestWriter.cs", "symbol": "I18nRootAgentManifestWriter.Write"}],
       "artifactPaths": ["{outputRoot}/agent-manifest.json", "{outputRoot}/{language}/agent-manifest.json"],
       "declaredSchemaId": "https://bukit.dev/schemas/agent-manifest.v1.json", "localSchema": "docs/schemas/agent-manifest.v1.schema.json", "schemaStatus": "declared-local",
-      "versionBinding": {"property": "schemaVersion", "value": "1.0"},
-      "declaration": {"source": "src/Bukit-Core/Bukit.Engine/ContentProjectionWriter.cs", "schemaExpression": "Schema: \"https://bukit.dev/schemas/agent-manifest.v1.json\"", "versionExpression": "SchemaVersion: \"1.0\""},
+      "versionBinding": {"property": "schemaVersion", "value": "1.1"},
+      "declaration": {"source": "src/Bukit-Core/Bukit.Engine/ContentProjectionWriter.cs", "schemaExpression": "Schema: \"https://bukit.dev/schemas/agent-manifest.v1.json\"", "versionExpression": "SchemaVersion: \"1.1\""},
       "tests": [{"source": "tests/Bukit.Engine.Tests/ReportSchemaContractTests.cs", "symbol": "ReportSchemaContractTests.RealMultilingualBuildOutputs_MatchLocalSchema"}],
       "note": "Active serializer is ContentProjectionJsonContext, not the legacy AgentManifestJsonContext."
     },

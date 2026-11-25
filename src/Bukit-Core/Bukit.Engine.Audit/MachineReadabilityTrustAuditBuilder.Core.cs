@@ -254,8 +254,7 @@ internal static partial class MachineReadabilityTrustAuditBuilder
             .ThenBy(x => x.OutputPath, StringComparer.OrdinalIgnoreCase)
             .ToList();
         var geoEnhancedRoutes = sortedRoutes
-            .Where(x => x.SchemaTypes.Any(t =>
-                t is "FAQPage" or "HowTo" or "BlogPosting" or "Person" or "Article" or "NewsArticle" or "SpeakableSpecification"))
+            .Where(x => x.SchemaTypes.Any(SeoSchemaValidator.IsGeoEnhancedType))
             .ToArray();
         var llmsTxtGenerated = paths.Llms is not null && File.Exists(paths.Llms);
         var llmsFullTxtGenerated = paths.LlmsFull is not null && File.Exists(paths.LlmsFull);

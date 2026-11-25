@@ -25,7 +25,11 @@ internal sealed partial class ResponsiveImageHtmlTransform(
         """(?<name>[^\s=/>]+)(?:\s*=\s*(?:"(?<double>[^"]*)"|'(?<single>[^']*)'|(?<unquoted>[^\s>]+)))?""",
         RegexOptions.CultureInvariant)]
     private static partial Regex AttributeRegex();
+    [GeneratedRegex("\\sdata-bukit-source-sizes=\"[^\"]*\"", RegexOptions.CultureInvariant)]
+    private static partial Regex SourceSizesMarkerRegex();
     private readonly IReadOnlyList<int> _sizes = NormalizeSizes(config.Theme.Images?.Sizes);
+    private readonly string? _sizesAttribute = config.Theme.Images?.SizesAttribute;
+    private readonly bool _webpOnlyVariants = config.Theme.Images?.WebpOnlyVariants == true;
     private readonly string _baseUrl = BuildPathUtils.NormalizeBaseUrl(baseUrl).TrimEnd('/');
     private readonly string _mediaUrlBase = NormalizeMediaUrlBase(config.Content.Media.UrlBase);
     private readonly Uri? _siteUri = Uri.TryCreate(config.Site.Url, UriKind.Absolute, out var siteUri) ? siteUri : null;
@@ -33,6 +37,9 @@ internal sealed partial class ResponsiveImageHtmlTransform(
         string.Equals(format, "webp", StringComparison.OrdinalIgnoreCase)) == true;
 
     private const string GeneratedSrcsetMarker = "data-bukit-generated-srcset";
+    // Sizes for the WebP <source> of an img that keeps no srcset (fallbackVariants: none); sizes on
+    // an img without srcset is invalid HTML, so the picture rewrite moves it to the source.
+    private const string SourceSizesMarker = "data-bukit-source-sizes";
 
     public string Name => "responsive-images";
 
@@ -90,6 +97,11 @@ internal sealed partial class ResponsiveImageHtmlTransform(
             var fallbackTag = hasGeneratedSrcset
                 ? match.Value.Replace($" {GeneratedSrcsetMarker}=\"\"", string.Empty, StringComparison.Ordinal)
                 : match.Value;
+            var sourceSizes = GetAttributeValue(attributes, SourceSizesMarker);
+            if (sourceSizes is not null)
+            {
+                fallbackTag = SourceSizesMarkerRegex().Replace(fallbackTag, string.Empty);
+            }
             var src = GetAttributeValue(attributes, "src");
             if (src is null || !TryNormalizeLocalImageUrl(src, normalizedBaseUrl, normalizedAssetBaseUrl, sharedAssets, siteUri, out var sourceUrl) ||
                 !webpSrcsets.TryGetValue(sourceUrl, out var webpSrcset))
@@ -97,7 +109,7 @@ internal sealed partial class ResponsiveImageHtmlTransform(
                 return fallbackTag;
             }
 
-            var sizes = GetAttributeValue(attributes, "sizes");
+            var sizes = GetAttributeValue(attributes, "sizes") ?? sourceSizes;
             var source = $"<source type=\"image/webp\" srcset=\"{WebUtility.HtmlEncode(webpSrcset)}\"" +
                 (sizes is null ? ">" : $" sizes=\"{WebUtility.HtmlEncode(sizes)}\">");
             return $"<picture>{source}{fallbackTag}</picture>";
@@ -206,13 +218,21 @@ internal sealed partial class ResponsiveImageHtmlTransform(
 
         isMediaImage = true;
         var attributes = string.Empty;
-        var applicableSizes = ImageVariantPlan.GeneratedWidths(_sizes, sourceWidth).ToArray();
-        if (applicableSizes.Length > 0 && !HasAttribute(parsedAttributes, "srcset"))
+        // With fallbackVariants: none a JPEG/PNG keeps only its src; the WebP <source> carries the
+        // candidates and takes the sizes value from the img.
+        var webpOnly = _webpOnlyVariants && !ImageVariantPlan.IsWebpSource(sourceFile);
+        var applicableSizes = webpOnly ? [] : ImageVariantPlan.GeneratedWidths(_sizes, sourceWidth).ToArray();
+        if (webpOnly && !HasAttribute(parsedAttributes, "srcset"))
+        {
+            attributes += BuildSizesAttribute(parsedAttributes, lazy, SourceSizesMarker);
+        }
+        else if (applicableSizes.Length > 0 && !HasAttribute(parsedAttributes, "srcset"))
         {
             var candidates = applicableSizes
                 .Select(size => $"{BuildVariantUrl(sourceUrl, size)} {size}w")
                 .Append($"{sourceUrl} {sourceWidth}w");
             attributes += $" srcset=\"{WebUtility.HtmlEncode(string.Join(", ", candidates))}\"";
+            attributes += BuildSizesAttribute(parsedAttributes, lazy);
             if (_webpEnabled)
             {
                 attributes += $" {GeneratedSrcsetMarker}=\"\"";
@@ -245,6 +265,21 @@ internal sealed partial class ResponsiveImageHtmlTransform(
             insertAt--;
         }
         return tag.Insert(insertAt, attributes);
+    }
+
+    // Without sizes the browser assumes 100vw and picks a candidate for the full viewport width.
+    // "auto" lets it use the laid-out width, which the spec allows only on lazy images.
+    private string BuildSizesAttribute(MatchCollection parsedAttributes, bool lazy, string attributeName = "sizes")
+    {
+        if (_sizesAttribute is null || HasAttribute(parsedAttributes, "sizes"))
+        {
+            return string.Empty;
+        }
+
+        var loading = GetAttributeValue(parsedAttributes, "loading");
+        var isLazy = loading is null ? lazy : loading.Trim().Equals("lazy", StringComparison.OrdinalIgnoreCase);
+        var value = isLazy ? $"auto, {_sizesAttribute}" : _sizesAttribute;
+        return $" {attributeName}=\"{WebUtility.HtmlEncode(value)}\"";
     }
 
     private bool TryResolveMediaSource(string sourceUrl, out string sourceFile)

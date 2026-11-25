@@ -10,6 +10,9 @@ namespace Bukit.Engine.Tests;
 
 public sealed class ImageOptimizerTests
 {
+    private const byte PngColorTypeRgb = 2;
+    private const byte PngColorTypeRgba = 6;
+
     // Two full 2x1 RGBA frames: red for 100 ms, blue for 200 ms, infinite loop.
     internal static readonly byte[] AnimatedPng = Convert.FromBase64String(
         "iVBORw0KGgoAAAANSUhEUgAAAAIAAAABCAYAAAD0In+KAAAACGFjVEwAAAACAAAAAPONk3AAAAAaZmNUTAAAAAAAAAACAAAAAQAAAAAAAAAAAAEACgAA+Sm2eQAAAA5JREFUeJxj+M/A8B+EARH3A/3jxfXvAAAAGmZjVEwAAAABAAAAAgAAAAEAAAAAAAAAAAACAAoAACX6Jn0AAAASZmRBVAAAAAJ4nGNgYPj/H4QBDfsD/a6UELEAAAAASUVORK5CYII=");
@@ -119,6 +122,170 @@ public sealed class ImageOptimizerTests
         finally
         {
             if (Directory.Exists(root)) Directory.Delete(root, recursive: true);
+        }
+    }
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData(24)]
+    public async Task EncodeAsync_OpaquePngSourceWritesSmallerRgbPng(int? width)
+    {
+        var root = CreateRoot();
+        Directory.CreateDirectory(root);
+        try
+        {
+            var input = Path.Combine(root, "opaque.png");
+            var output = Path.Combine(root, "variant.png");
+            var random = new Random(7);
+            using (var image = new SKBitmap(new SKImageInfo(48, 32, SKColorType.Rgba8888, SKAlphaType.Opaque)))
+            {
+                for (var y = 0; y < image.Height; y++)
+                {
+                    for (var x = 0; x < image.Width; x++)
+                    {
+                        image.SetPixel(x, y, new SKColor((byte)random.Next(256), (byte)random.Next(256), (byte)random.Next(256)));
+                    }
+                }
+
+                using var encoded = image.Encode(SKEncodedImageFormat.Png, 100);
+                File.WriteAllBytes(input, encoded.ToArray());
+            }
+            Assert.Equal(PngColorTypeRgb, File.ReadAllBytes(input)[25]);
+
+            await ImageOptimizer.EncodeAsync(input, output, width, 80, SKEncodedImageFormat.Png, CancellationToken.None);
+
+            var bytes = File.ReadAllBytes(output);
+            Assert.Equal(PngColorTypeRgb, bytes[25]);
+            using var result = SKBitmap.Decode(bytes);
+            Assert.Equal(width ?? 48, result.Width);
+            using var rgba = SKBitmap.Decode(bytes, new SKImageInfo(result.Width, result.Height, SKColorType.Rgba8888, SKAlphaType.Premul));
+            using var rgbaPixels = rgba.PeekPixels() ?? throw new XunitException("RGBA pixels are unavailable.");
+            using var rgbaPng = rgbaPixels.Encode(new SKPngEncoderOptions(SKPngEncoderFilterFlags.AllFilters, 9))
+                ?? throw new XunitException("RGBA encoding failed.");
+            Assert.Equal(PngColorTypeRgba, rgbaPng.ToArray()[25]);
+            Assert.True(bytes.Length < rgbaPng.Size, $"RGB {bytes.Length} bytes should be smaller than RGBA {rgbaPng.Size} bytes.");
+        }
+        finally
+        {
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
+    [Theory]
+    [InlineData(SKEncodedOrigin.TopLeft)]
+    [InlineData(SKEncodedOrigin.RightTop)]
+    public async Task EncodeAsync_OrientedJpegSourceWritesRgbPng(SKEncodedOrigin origin)
+    {
+        var root = CreateRoot();
+        Directory.CreateDirectory(root);
+        try
+        {
+            var input = Path.Combine(root, "oriented.jpg");
+            var output = Path.Combine(root, "oriented.png");
+            File.WriteAllBytes(input, CreateOrientedJpeg(origin));
+
+            await ImageOptimizer.EncodeAsync(input, output, 20, 80, SKEncodedImageFormat.Png, CancellationToken.None);
+
+            var bytes = File.ReadAllBytes(output);
+            Assert.Equal(PngColorTypeRgb, bytes[25]);
+            using var result = SKBitmap.Decode(bytes);
+            Assert.Equal(origin < SKEncodedOrigin.LeftTop ? (20, 10) : (20, 40), (result.Width, result.Height));
+        }
+        finally
+        {
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData(24)]
+    public async Task EncodeAsync_RgbaPngSourceWithOnlyOpaquePixelsWritesRgbPngWithSameColours(int? width)
+    {
+        var root = CreateRoot();
+        Directory.CreateDirectory(root);
+        try
+        {
+            var input = Path.Combine(root, "opaque-rgba.png");
+            var output = Path.Combine(root, "variant.png");
+            var random = new Random(11);
+            var unpremul = new SKImageInfo(48, 32, SKColorType.Rgba8888, SKAlphaType.Unpremul);
+            using (var image = new SKBitmap(unpremul))
+            {
+                for (var y = 0; y < image.Height; y++)
+                {
+                    for (var x = 0; x < image.Width; x++)
+                    {
+                        image.SetPixel(x, y, new SKColor((byte)random.Next(256), (byte)random.Next(256), (byte)random.Next(256)));
+                    }
+                }
+
+                using var encoded = image.Encode(SKEncodedImageFormat.Png, 100);
+                File.WriteAllBytes(input, encoded.ToArray());
+            }
+            Assert.Equal(PngColorTypeRgba, File.ReadAllBytes(input)[25]);
+            using (var codec = SKCodec.Create(input))
+            {
+                Assert.NotEqual(SKAlphaType.Opaque, codec.Info.AlphaType);
+            }
+
+            using var sourceUnpremul = SKBitmap.Decode(input, unpremul);
+            using var sourcePremul = SKBitmap.Decode(input, unpremul.WithAlphaType(SKAlphaType.Premul));
+            Assert.Equal(sourceUnpremul.Bytes, sourcePremul.Bytes);
+
+            await ImageOptimizer.EncodeAsync(input, output, width, 80, SKEncodedImageFormat.Png, CancellationToken.None);
+
+            var bytes = File.ReadAllBytes(output);
+            Assert.Equal(PngColorTypeRgb, bytes[25]);
+            using var result = SKBitmap.Decode(bytes);
+            Assert.Equal(width is null ? (48, 32) : (24, 16), (result.Width, result.Height));
+            if (width is null)
+            {
+                using var resultUnpremul = SKBitmap.Decode(bytes, unpremul);
+                Assert.Equal(sourceUnpremul.Bytes, resultUnpremul.Bytes);
+            }
+        }
+        finally
+        {
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
+    [Fact]
+    public async Task EncodeAsync_TransparentPngSourceKeepsRgbaAndAlpha()
+    {
+        var root = CreateRoot();
+        Directory.CreateDirectory(root);
+        try
+        {
+            var input = Path.Combine(root, "transparent.png");
+            var output = Path.Combine(root, "variant.png");
+            using (var image = new SKBitmap(new SKImageInfo(20, 10, SKColorType.Rgba8888, SKAlphaType.Unpremul)))
+            {
+                image.Erase(SKColors.Transparent);
+                for (var y = 0; y < image.Height; y++)
+                {
+                    for (var x = 0; x < image.Width / 2; x++)
+                    {
+                        image.SetPixel(x, y, SKColors.Red);
+                    }
+                }
+
+                using var encoded = image.Encode(SKEncodedImageFormat.Png, 100);
+                File.WriteAllBytes(input, encoded.ToArray());
+            }
+
+            await ImageOptimizer.EncodeAsync(input, output, null, 80, SKEncodedImageFormat.Png, CancellationToken.None);
+
+            var bytes = File.ReadAllBytes(output);
+            Assert.Equal(PngColorTypeRgba, bytes[25]);
+            using var result = SKBitmap.Decode(bytes);
+            Assert.Equal(SKColors.Red, result.GetPixel(2, 5));
+            Assert.Equal(0, result.GetPixel(17, 5).Alpha);
+        }
+        finally
+        {
+            Directory.Delete(root, recursive: true);
         }
     }
 

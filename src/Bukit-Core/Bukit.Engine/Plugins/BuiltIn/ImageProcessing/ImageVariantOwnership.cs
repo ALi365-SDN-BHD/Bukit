@@ -20,16 +20,6 @@ internal static class ImageVariantOwnership
         outputs.Add(new PluginOutputTrackingInfo("image-processing", "after-build", relPath));
     }
 
-    internal static bool IsTrackedOutput(
-        BuildContext context,
-        HashSet<PluginOutputTrackingInfo> outputs,
-        string path)
-    {
-        var relPath = Path.GetRelativePath(context.OutputDir, path)
-            .Replace("\\", "/", StringComparison.Ordinal);
-        return outputs.Contains(new PluginOutputTrackingInfo("image-processing", "after-build", relPath));
-    }
-
     internal static void PreservePriorWebpOutputs(
         BuildContext context,
         HashSet<PluginOutputTrackingInfo> priorOutputs,

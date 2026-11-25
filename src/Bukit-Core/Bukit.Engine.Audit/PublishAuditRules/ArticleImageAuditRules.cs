@@ -16,7 +16,7 @@ internal static class ArticleImageAuditRules
             return;
         }
 
-        if (!document.SchemaTypes.Any(type => type is "Article" or "BlogPosting" or "NewsArticle"))
+        if (!document.SchemaTypes.Any(SeoSchemaValidator.IsArticleType))
         {
             return;
         }

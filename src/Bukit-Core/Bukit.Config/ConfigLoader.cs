@@ -101,7 +101,8 @@ public static class ConfigLoader
             Search = SiteDefaultsApplier.ReadSearchConfig(siteNode),
             Related = SiteDefaultsApplier.ReadRelatedConfig(siteNode),
             Menus = SiteDefaultsApplier.ReadMenus(siteNode),
-            SharedAssets = SiteDefaultsApplier.ReadSharedAssetsConfig(siteNode)
+            SharedAssets = SiteDefaultsApplier.ReadSharedAssetsConfig(siteNode),
+            I18n = SiteLanguageIdentity.Read(siteNode)
         };
 
         var sources = ConfigCollectionReader.ReadSources(contentNode);

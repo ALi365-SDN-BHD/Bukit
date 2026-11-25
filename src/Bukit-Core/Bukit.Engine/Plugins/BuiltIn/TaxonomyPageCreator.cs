@@ -321,6 +321,10 @@ internal static class TaxonomyPageCreator
         {
             taxonomyValue["description"] = term.Description;
         }
+        if (!string.IsNullOrWhiteSpace(term.I18nKey))
+        {
+            taxonomyValue["i18n_key"] = term.I18nKey;
+        }
         if (!string.IsNullOrWhiteSpace(term.Image))
         {
             taxonomyValue["image"] = term.Image;

@@ -35,9 +35,9 @@ internal static partial class MachineReadabilityTrustAuditBuilder
         }
 
         var articleCount = allRoutes.Count(r => r.SchemaTypes.Any(t =>
-            t is "BlogPosting" or "Article" or "NewsArticle"));
+            SeoSchemaValidator.IsArticleType(t)));
         var withSchemaType = geoRoutes.Count(r => r.SchemaTypes.Any(t =>
-            t is "BlogPosting" or "Article" or "NewsArticle" or "FAQPage" or "HowTo"));
+            t is "FAQPage" or "HowTo" || SeoSchemaValidator.IsArticleType(t)));
         if (articleCount > 0)
         {
             var ratio = (double)withSchemaType / articleCount;

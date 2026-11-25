@@ -27,6 +27,19 @@ public sealed class TaxonomyTermsInjectorTests
     }
 
     [Fact]
+    public void InjectFromDataDocuments_CarriesTheTermI18nKey()
+    {
+        var context = CreateContext();
+        var fields = ContentFieldReader.ToFieldMap(new Dictionary<string, object> { ["sourceKey"] = "tags", ["i18nKey"] = "my" });
+
+        TaxonomyTermsInjector.InjectFromDataDocuments(context, [CreateDocument("1", "马来西亚", "ma-lai-xi-ya", fields)]);
+
+        Assert.True(context.TryGet(BuildDataKeys.TaxonomyEnsureTerms, out var ensure));
+        var term = Assert.Single(ensure["tags"]);
+        Assert.Equal("my", term["i18nKey"]);
+    }
+
+    [Fact]
     public void InjectFromDataDocuments_WithDocuments_DoesNotThrow()
     {
         var documents = new List<ContentDocument>

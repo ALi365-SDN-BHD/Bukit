@@ -178,7 +178,7 @@ public static class RssGenerator
 
         var sb = new StringBuilder();
         sb.AppendLine("<?xml version=\"1.0\" encoding=\"UTF-8\"?>");
-        sb.AppendLine("<rss version=\"2.0\" xmlns:atom=\"http://www.w3.org/2005/Atom\" xmlns:content=\"http://purl.org/rss/1.0/modules/content/\">");
+        sb.AppendLine("<rss version=\"2.0\" xmlns:atom=\"http://www.w3.org/2005/Atom\" xmlns:content=\"http://purl.org/rss/1.0/modules/content/\" xmlns:dc=\"http://purl.org/dc/elements/1.1/\">");
         sb.AppendLine("  <channel>");
         sb.AppendLine($"    <title>{EscapeXml(siteTitle)}</title>");
         sb.AppendLine($"    <link>{EscapeXml(homeUrl)}</link>");
@@ -217,7 +217,8 @@ public static class RssGenerator
 
             if (!string.IsNullOrWhiteSpace(post.Author))
             {
-                sb.AppendLine($"      <author>{EscapeXml(post.Author!)}</author>");
+                // RSS 2.0 <author> must be an email address; a display name goes in Dublin Core's creator.
+                sb.AppendLine($"      <dc:creator>{EscapeXml(post.Author!)}</dc:creator>");
             }
 
             if (post.Categories is { Count: > 0 } cats)
