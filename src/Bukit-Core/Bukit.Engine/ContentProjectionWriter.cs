@@ -1,6 +1,7 @@
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using Bukit.Config;
 using Bukit.Engine.Abstractions.Content;
 using Bukit.Engine.Abstractions.Plugins;
 using Bukit.Rendering;
@@ -92,6 +93,7 @@ internal sealed class DefaultContentProjectionWriter : IContentProjectionWriter
         if (routedDocuments.Count > 0)
         {
             var languageFallback = ContentLanguageFallback.ForSite(context.Config.Site);
+            var timeZone = TimeZoneResolver.ResolveOrUtc(context.Config.Site.Timezone);
             return routedDocuments
                 .Select(document =>
                 {
@@ -105,7 +107,8 @@ internal sealed class DefaultContentProjectionWriter : IContentProjectionWriter
                         entry,
                         model,
                         context.BaseUrl,
-                        languageFallback);
+                        languageFallback,
+                        timeZone);
                 })
                 .ToArray();
         }
@@ -203,7 +206,8 @@ internal sealed record ContentProjectionDocumentContext(
     SeoIndexEntry? SeoIndexEntry,
     SeoModel? SeoModel,
     string BaseUrl = "/",
-    string? LanguageFallback = null)
+    string? LanguageFallback = null,
+    TimeZoneInfo? TimeZone = null)
 {
     /// <summary>The page language, or the site language for an undetermined page of a single-language site.</summary>
     internal string Language => ContentLanguageFallback.Resolve(Record.Presentation.Language, LanguageFallback)!;
@@ -305,6 +309,21 @@ internal sealed class MarkdownContentDocumentProjection : IPublishProjection
             sb.AppendLine($"- Canonical: {entry.Canonical}");
         }
 
+        var timeZone = context.TimeZone ?? TimeZoneInfo.Utc;
+        if (record.Lifecycle.PublishedAt != default)
+        {
+            sb.AppendLine($"- Published: {SeoDateFormat.Format(TimeZoneInfo.ConvertTime(record.Lifecycle.PublishedAt, timeZone))}");
+        }
+
+        if (record.Lifecycle.UpdatedAt is { } updated)
+        {
+            sb.AppendLine($"- Updated: {SeoDateFormat.Format(TimeZoneInfo.ConvertTime(updated, timeZone))}");
+        }
+
+        AppendHeaderLine(sb, "Author", record.Ownership.Author);
+        // Only the public original source: "- Source:" is reserved, and the audit rejects it as leaked provenance.
+        AppendHeaderLine(sb, "Original Source", record.Provenance.OriginalSource);
+
         if (!string.IsNullOrWhiteSpace(record.Presentation.Summary))
         {
             sb.AppendLine();
@@ -339,6 +358,15 @@ internal sealed class MarkdownContentDocumentProjection : IPublishProjection
             relPath,
             File.Exists(path),
             entry?.Indexable != false, route.Url);
+    }
+
+    // Header values are front-matter text; a line break would start a forged header line.
+    private static void AppendHeaderLine(StringBuilder sb, string label, string? value)
+    {
+        if (!string.IsNullOrWhiteSpace(value))
+        {
+            sb.AppendLine($"- {label}: {value.ReplaceLineEndings(" ").Trim()}");
+        }
     }
 }
 

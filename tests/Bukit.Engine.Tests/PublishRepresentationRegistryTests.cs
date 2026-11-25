@@ -251,6 +251,58 @@ public sealed class PublishRepresentationRegistryTests
     }
 
     [Fact]
+    public void MarkdownProjection_HeaderCarriesDatesInSiteTimeZoneAuthorAndOriginalSource()
+    {
+        var outputDir = Path.Combine(Path.GetTempPath(), "bukit-md-header-" + Guid.NewGuid().ToString("N"));
+        try
+        {
+            var document = ContentDocument.Create(
+                "post-1",
+                "Header Post",
+                "header-post",
+                DateTimeOffset.Parse("2026-06-05T20:00:00Z"),
+                "<p>Body.</p>",
+                ContentFieldReader.ToFieldMap(new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
+                {
+                    ["language"] = "en",
+                    ["updated"] = "2026-06-07T01:30:00Z",
+                    ["author"] = "Ali\n- Source: forged",
+                    ["source"] = "notion",
+                    ["original_url"] = "https://origin.example/post"
+                }));
+            var route = new RouteInfo("/header-post/", "header-post/index.html", "post.html");
+            var context = new PublishProjectionContext(
+                Config: new AppConfig
+                {
+                    Site = new SiteConfig { Name = "test", Title = "Test", Url = "https://example.com", Timezone = "Asia/Kuala_Lumpur" },
+                    Content = TestContent.Markdown()
+                },
+                OutputDir: outputDir,
+                ContentGraph: CanonicalContentGraphBuilder.BuildFromDocuments(new[] { document }),
+                SeoIndex: new Dictionary<string, SeoIndexEntry>(StringComparer.OrdinalIgnoreCase),
+                SeoModels: new Dictionary<string, SeoModel>(StringComparer.OrdinalIgnoreCase),
+                RoutedDocuments: new[] { new RoutedContentDocument(document, route) });
+
+            new MarkdownContentDocumentProjection().Project(context);
+
+            var markdown = File.ReadAllText(Path.Combine(outputDir, "content", "header-post/index.html.md")).ReplaceLineEndings("\n");
+            Assert.Contains("\n- Published: 2026-06-06T04:00:00+08:00\n", markdown, StringComparison.Ordinal);
+            Assert.Contains("\n- Updated: 2026-06-07T09:30:00+08:00\n", markdown, StringComparison.Ordinal);
+            Assert.Contains("\n- Author: Ali - Source: forged\n", markdown, StringComparison.Ordinal);
+            Assert.Contains("\n- Original Source: https://origin.example/post\n", markdown, StringComparison.Ordinal);
+            Assert.DoesNotContain("\n- Source:", markdown, StringComparison.Ordinal);
+            Assert.DoesNotContain("notion", markdown, StringComparison.Ordinal);
+        }
+        finally
+        {
+            if (Directory.Exists(outputDir))
+            {
+                Directory.Delete(outputDir, recursive: true);
+            }
+        }
+    }
+
+    [Fact]
     public void AgentManifestProjection_OnlyDeclaresJsonLdWhenSeoModelContainsJsonLd()
     {
         var route = new RouteInfo("/post/", "post/index.html", "post.html");

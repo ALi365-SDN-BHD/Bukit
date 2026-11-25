@@ -145,8 +145,10 @@ paths; they return a plain 404.
 
 ## Machine-readable projections
 
-Every routed page also gets `content/<output path>.json` and `.md`, and
-`agent-manifest.json` lists indexable documents with their representations and dates
+Every routed page also gets `content/<output path>.json` and `.md`. The `.md` header
+lists `Route`, `Language`, `Type`, `Review Status`, `Canonical`, then `Published`, `Updated`
+(when set; both in `site.timezone`), `Author` and `Original Source` (the public original URL;
+never the private `source`). `agent-manifest.json` lists indexable documents with their representations and dates
 (`publishedAt` = publish date, `updatedAt` = last edit when set), plus a `lists` array of
 the home, collection list and taxonomy routes the sitemap lists. In SEO
 inject mode, indexable content pages get `<link rel="alternate">` tags to their JSON
