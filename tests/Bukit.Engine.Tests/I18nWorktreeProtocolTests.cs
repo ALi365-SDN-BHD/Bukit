@@ -63,7 +63,8 @@ public sealed class I18nWorktreeProtocolTests : IDisposable
                         Collection = "route",
                         Field = "days[].attractions",
                         Target = new ContentLinkTargetConfig { Collection = "attraction", Key = "code" },
-                        Select = ["image"]
+                        Select = ["image"],
+                        Backref = new ContentLinkBackrefConfig { Name = "routes", Limit = 6, Select = ["region"] }
                     }
                 ]
             }
@@ -75,6 +76,7 @@ public sealed class I18nWorktreeProtocolTests : IDisposable
         var link = Assert.Single(restored.Content.Links);
         Assert.Equal(("route", "days[].attractions", "attraction", "code"), (link.Collection, link.Field, link.Target.Collection, link.Target.Key));
         Assert.Equal(["image"], link.Select);
+        Assert.Equal(("routes", 6, "region"), (link.Backref!.Name, link.Backref.Limit, Assert.Single(link.Backref.Select)));
         Assert.NotEqual(
             I18nWorktreeProtocol.ComputeConfigHash(config, new ConfigOverrides()),
             I18nWorktreeProtocol.ComputeConfigHash(config with { Content = config.Content with { Links = [] } }, new ConfigOverrides()));

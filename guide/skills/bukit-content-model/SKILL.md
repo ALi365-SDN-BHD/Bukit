@@ -202,6 +202,10 @@ each target once. Keys must be text and match within the page's language. Unknow
 non-text keys and existing output fields are reported under the page collection's
 `schemaFailMode` (`content.link_*` codes).
 
+Add `backref: { name: routes, limit: 6, select: [image] }` to a link to list, on each target page,
+the pages that link to it (`routes`, in collection order, each page once) and the total before the
+limit (`routes_count`). Only target pages get it; data targets do not.
+
 ## Check
 
 ```bash

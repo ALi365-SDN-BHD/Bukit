@@ -30,13 +30,7 @@ internal sealed class CollectionRouteIndex
     /// <param name="tieBreak">Orders entries with the same publish time (content.ordering); null keeps URL order.</param>
     internal static CollectionRouteIndex Create(IReadOnlyList<RoutedContentDocument> routed, ContentTieBreak? tieBreak)
     {
-        var ordered = routed
-            .Where(x => !string.IsNullOrWhiteSpace(GetCollection(x.Document)))
-            .OrderByDescending(x => x.Document.PublishAt)
-            .ThenByTieBreak(tieBreak, x => x.Document, x => x.Route.Url)
-            .ThenBy(x => x.Route.Url, StringComparer.Ordinal)
-            .ThenBy(x => x.Document.Id, StringComparer.Ordinal)
-            .ToList();
+        var ordered = OrderEntries(routed.Where(x => !string.IsNullOrWhiteSpace(GetCollection(x.Document))), tieBreak).ToList();
 
         var byCollection = ordered
             .GroupBy(x => GetCollection(x.Document), StringComparer.OrdinalIgnoreCase)
@@ -47,6 +41,14 @@ internal sealed class CollectionRouteIndex
 
         return new CollectionRouteIndex(ordered, byCollection);
     }
+
+    /// <summary>The collection order: newest first, then content.ordering, URL and id, so it is stable byte for byte.</summary>
+    internal static IOrderedEnumerable<RoutedContentDocument> OrderEntries(IEnumerable<RoutedContentDocument> items, ContentTieBreak? tieBreak)
+        => items
+            .OrderByDescending(x => x.Document.PublishAt)
+            .ThenByTieBreak(tieBreak, x => x.Document, x => x.Route.Url)
+            .ThenBy(x => x.Route.Url, StringComparer.Ordinal)
+            .ThenBy(x => x.Document.Id, StringComparer.Ordinal);
 
     internal IReadOnlyList<RoutedContentDocument> GetByCollection(string collectionKey)
     {

@@ -491,7 +491,7 @@ public static class ConfigValidator
     private static void ValidateContentLinks(ContentConfig content)
     {
         var links = content.Links;
-        // Two links writing the same page field would overwrite each other.
+        // Two links (or backrefs) writing the same page field would overwrite each other.
         var outputs = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         for (var index = 0; index < links.Count; index++)
         {
@@ -509,24 +509,50 @@ public static class ConfigValidator
                 throw new ConfigException($"{path}.target.key '{link.Target.Key}' is not a valid field name.", DiagnosticCode.ConfigInvalidValue);
             }
 
-            var selected = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-            foreach (var name in link.Select)
+            ValidateContentLinkSelect(link.Select, $"{path}.select");
+            ClaimContentLinkOutput(outputs, link.Collection, field.IsNested ? field.FlatName : field.GroupedName, path);
+            if (link.Backref is { } backref)
             {
-                if (!ContentLinkPath.IsName(name) || ContentLinkBaseKeys.Contains(name) || !selected.Add(name))
+                var backrefPath = $"{path}.backref";
+                if (!ContentLinkPath.IsName(backref.Name))
                 {
-                    throw new ConfigException(
-                        $"{path}.select '{name}' must be a distinct field name other than {string.Join(", ", ContentLinkBaseKeys)}.",
-                        DiagnosticCode.ConfigInvalidValue);
+                    throw new ConfigException($"{backrefPath}.name '{backref.Name}' is not a valid field name.", DiagnosticCode.ConfigInvalidValue);
                 }
-            }
 
-            var output = field.IsNested ? field.FlatName : field.GroupedName;
-            if (!outputs.Add($"{link.Collection.Trim()}\n{output}"))
+                if (backref.Limit < 0)
+                {
+                    throw new ConfigException($"{backrefPath}.limit must be 0 (no limit) or more.", DiagnosticCode.ConfigInvalidValue);
+                }
+
+                ValidateContentLinkSelect(backref.Select, $"{backrefPath}.select");
+                ClaimContentLinkOutput(outputs, link.Target.Collection, backref.Name, backrefPath);
+                ClaimContentLinkOutput(outputs, link.Target.Collection, backref.Name + "_count", backrefPath);
+            }
+        }
+    }
+
+    private static void ValidateContentLinkSelect(IReadOnlyList<string> select, string path)
+    {
+        var selected = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var name in select)
+        {
+            if (!ContentLinkPath.IsName(name) || ContentLinkBaseKeys.Contains(name) || !selected.Add(name))
             {
                 throw new ConfigException(
-                    $"{path} writes '{output}' in collection '{link.Collection}', which another content.links entry already writes.",
+                    $"{path} '{name}' must be a distinct field name other than {string.Join(", ", ContentLinkBaseKeys)}.",
                     DiagnosticCode.ConfigInvalidValue);
             }
+        }
+    }
+
+    /// <summary>Rejects a second content.links writer of one field in one collection.</summary>
+    private static void ClaimContentLinkOutput(HashSet<string> outputs, string collection, string output, string path)
+    {
+        if (!outputs.Add($"{collection.Trim()}\n{output}"))
+        {
+            throw new ConfigException(
+                $"{path} writes '{output}' in collection '{collection}', which another content.links entry already writes.",
+                DiagnosticCode.ConfigInvalidValue);
         }
     }
 

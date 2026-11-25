@@ -348,6 +348,19 @@ internal sealed record ContentLinkConfig
     public required ContentLinkTargetConfig Target { get; init; }
     /// <summary>Top-level target fields copied into each link.</summary>
     public IReadOnlyList<string> Select { get; init; } = [];
+    /// <summary>Optional reverse list written on each target page that this link reaches.</summary>
+    public ContentLinkBackrefConfig? Backref { get; init; }
+}
+
+/// <summary>content.links[].backref: lists, on each target page, the pages that link to it.</summary>
+internal sealed record ContentLinkBackrefConfig
+{
+    /// <summary>The target page field that receives the list; <c>&lt;name&gt;_count</c> holds the total.</summary>
+    public required string Name { get; init; }
+    /// <summary>The most entries kept, in collection order; 0 keeps them all.</summary>
+    public int Limit { get; init; }
+    /// <summary>Top-level fields of the linking page copied into each entry.</summary>
+    public IReadOnlyList<string> Select { get; init; } = [];
 }
 
 internal sealed record ContentLinkTargetConfig

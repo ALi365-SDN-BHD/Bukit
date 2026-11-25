@@ -45,7 +45,7 @@ internal sealed class RoutePipeline
         RouteInventoryValidator.ValidateContentRoutes(routedDocuments);
         // Links need target URLs, so they resolve after routing and before anything reads the pages.
         var linkedDocuments = ContentLinkResolver.Apply(
-            config.Content.Links,
+            config.Content,
             routedDocuments,
             [.. documents.Where(ContentFieldReader.IsDataItem)]);
 

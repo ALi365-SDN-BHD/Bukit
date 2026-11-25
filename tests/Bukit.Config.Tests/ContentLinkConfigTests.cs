@@ -28,6 +28,7 @@ public sealed class ContentLinkConfigTests
                 Assert.Equal("city", link.Target.Collection);
                 Assert.Equal("slug", link.Target.Key);
                 Assert.Empty(link.Select);
+                Assert.Null(link.Backref);
             },
             link =>
             {
@@ -106,6 +107,110 @@ public sealed class ContentLinkConfigTests
             """));
 
         Assert.Contains($"Unknown config field '{path}'", exception.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Load_Backref_ParsesNameLimitAndSelect()
+    {
+        var config = Load("""
+              links:
+                - collection: route
+                  field: cities
+                  target: { collection: city }
+                  backref: { name: routes, limit: 6, select: [image] }
+                - collection: route
+                  field: days[].attractions
+                  target: { collection: attraction, key: code }
+                  backref: { name: routes }
+            """);
+
+        ConfigValidator.Validate(config);
+        var backref = config.Content.Links[0].Backref!;
+        Assert.Equal("routes", backref.Name);
+        Assert.Equal(6, backref.Limit);
+        Assert.Equal(["image"], backref.Select);
+        Assert.Equal(0, config.Content.Links[1].Backref!.Limit);
+        Assert.Empty(config.Content.Links[1].Backref!.Select);
+    }
+
+    [Fact]
+    public void Load_BackrefWithoutName_Throws()
+    {
+        var exception = Assert.Throws<ConfigException>(() => Load("""
+              links:
+                - collection: route
+                  field: cities
+                  target: { collection: city }
+                  backref: { limit: 3 }
+            """));
+
+        Assert.Equal("content.links[0].backref.name is required.", exception.Message);
+    }
+
+    [Theory]
+    [InlineData("backref: { name: 'bad name' }", "backref.name 'bad name'")]
+    [InlineData("backref: { name: routes, limit: -1 }", "backref.limit must be 0")]
+    [InlineData("backref: { name: routes, select: [title] }", "backref.select 'title'")]
+    public void Load_InvalidBackref_Throws(string backref, string message)
+    {
+        var exception = Assert.Throws<ConfigException>(() => LoadAndValidate($$"""
+              links:
+                - collection: route
+                  field: cities
+                  target: { collection: city }
+                  {{backref}}
+            """));
+
+        Assert.Equal(DiagnosticCode.ConfigInvalidValue, exception.Code);
+        Assert.Contains(message, exception.Message, StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData("collection: guide\n      field: cities\n      target: { collection: CITY }\n      backref: { name: routes }", "writes 'routes' in collection 'CITY'")]
+    [InlineData("collection: city\n      field: nearby\n      target: { collection: city }\n      backref: { name: nearby_links }", "writes 'nearby_links' in collection 'city'")]
+    [InlineData("collection: guide\n      field: cities\n      target: { collection: city }\n      backref: { name: routes_count }", "writes 'routes_count' in collection 'city'")]
+    public void Load_BackrefWritingAnotherOutput_Throws(string second, string message)
+    {
+        var exception = Assert.Throws<ConfigException>(() => LoadAndValidate($$"""
+              links:
+                - collection: route
+                  field: cities
+                  target: { collection: city }
+                  backref: { name: routes }
+                - {{second}}
+            """));
+
+        Assert.Contains(message, exception.Message, StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData("backref: { name: routes, limit: abc }", "content.links[0].backref.limit must be a whole number, got 'abc'.")]
+    [InlineData("backref: routes", "content.links[0].backref")]
+    public void Load_MalformedBackref_NamesTheLink(string backref, string message)
+    {
+        var exception = Assert.Throws<ConfigException>(() => Load($$"""
+              links:
+                - collection: route
+                  field: cities
+                  target: { collection: city }
+                  {{backref}}
+            """));
+
+        Assert.Contains(message, exception.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Load_UnknownBackrefField_Throws()
+    {
+        var exception = Assert.Throws<ConfigException>(() => Load("""
+              links:
+                - collection: route
+                  field: cities
+                  target: { collection: city }
+                  backref: { name: routes, order: desc }
+            """));
+
+        Assert.Contains("Unknown config field 'content.links[0].backref.order'", exception.Message, StringComparison.Ordinal);
     }
 
     [Theory]

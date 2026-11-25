@@ -15,8 +15,9 @@ internal static class ConfigStrictFieldValidator
         "timezone", "permalinks", "collections", "plugins", "feed",
         "sitemapDetail", "pagination", "search", "related", "menus", "sharedAssets", "i18n");
     private static readonly HashSet<string> ContentKeys = Set("sources", "media", "modelSchema", "routeMetadata", "ordering", "links");
-    private static readonly HashSet<string> ContentLinkKeys = Set("collection", "field", "target", "select");
+    private static readonly HashSet<string> ContentLinkKeys = Set("collection", "field", "target", "select", "backref");
     private static readonly HashSet<string> ContentLinkTargetKeys = Set("collection", "key");
+    private static readonly HashSet<string> ContentLinkBackrefKeys = Set("name", "limit", "select");
     private static readonly HashSet<string> BuildKeys = Set(
         "output", "clean", "draft", "listPageContentMode", "schemaFailMode", "fingerprintMode",
         "publishDotFiles", "followSymlinks", "languageJobs", "templateLoopLimit", "report");
@@ -449,6 +450,11 @@ internal static class ConfigStrictFieldValidator
         if (Map(link, "target", $"{path}.target") is { } target)
         {
             RequireOnly(target, ContentLinkTargetKeys, $"{path}.target");
+        }
+
+        if (Map(link, "backref", $"{path}.backref") is { } backref)
+        {
+            RequireOnly(backref, ContentLinkBackrefKeys, $"{path}.backref");
         }
     }
 

@@ -1,3 +1,4 @@
+using System.Globalization;
 using Bukit.Shared;
 using YamlDotNet.RepresentationModel;
 
@@ -241,11 +242,33 @@ internal static class ConfigCollectionReader
                     Collection = RequiredLinkString(target, "collection", $"{path}.target"),
                     Key = ConfigYamlHelpers.GetOptionalString(target, "key")?.Trim() ?? "slug"
                 },
-                Select = ConfigYamlHelpers.ReadStringList(node, "select") ?? []
+                Select = ConfigYamlHelpers.ReadStringList(node, "select") ?? [],
+                Backref = ReadBackref(node, path)
             });
         }
 
         return content with { Links = links };
+    }
+
+    private static ContentLinkBackrefConfig? ReadBackref(YamlMappingNode link, string path)
+    {
+        var node = ConfigYamlHelpers.GetOptionalMapping(link, "backref", path);
+        if (node is null)
+        {
+            return null;
+        }
+
+        var limit = ConfigYamlHelpers.GetOptionalString(node, "limit");
+        return new ContentLinkBackrefConfig
+        {
+            Name = RequiredLinkString(node, "name", $"{path}.backref"),
+            Limit = limit is null
+                ? 0
+                : int.TryParse(limit, NumberStyles.Integer, CultureInfo.InvariantCulture, out var value)
+                    ? value
+                    : throw new ConfigException($"{path}.backref.limit must be a whole number, got '{limit}'.", DiagnosticCode.ConfigInvalidValue),
+            Select = ConfigYamlHelpers.ReadStringList(node, "select") ?? []
+        };
     }
 
     private static string RequiredLinkString(YamlMappingNode node, string key, string path)

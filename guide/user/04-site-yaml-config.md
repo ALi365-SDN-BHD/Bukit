@@ -362,6 +362,9 @@ field itself, so templates, SEO and search can use the links from the page field
 | `content.links[].target.collection` | required | The collection holding the documents the keys name. It can hold pages or data documents (`mode: data`). |
 | `content.links[].target.key` | `slug` | The target field matched against the keys: `slug`, or any text or whole-number content field (a Notion number `101` matches the key `"101"`). Keys are matched case-insensitively. |
 | `content.links[].select` | none | Top-level target fields copied into each link, such as `image` or `summary`. A missing field is null. These names are reserved and cannot be selected: `key`, `title`, `slug`, `url`, `collection`. |
+| `content.links[].backref.name` | none | Turns on the reverse list: the field written on each target page, such as `routes`. See [Backrefs](#backrefs). |
+| `content.links[].backref.limit` | `0` | The most entries kept on each target page. `0` keeps them all. |
+| `content.links[].backref.select` | none | Top-level fields of the linking page copied into each entry. The reserved names are the same as for `select`. |
 
 Each link is a map with `key`, `title`, `slug`, `url` and `collection`, plus the `select`ed fields.
 `url` is the target page URL relative to the site base URL, like `page.url`, so prefix it with
@@ -408,6 +411,37 @@ checks each site language the same way, so a key that exists only in another lan
 reported as unknown. When a target's title, URL or
 selected fields change, every page that links to it is rebuilt in incremental builds. Media
 targets are not supported yet.
+
+### Backrefs
+
+A link with `backref` also works in reverse. Each target page gets a list of the pages that link to
+it, so a city page can list the routes that pass through it.
+
+```yaml
+content:
+  links:
+    - collection: route
+      field: days[].attractions
+      target: { collection: attraction, key: code }
+      backref: { name: routes, limit: 6, select: [image] }
+```
+
+Every page of the target collection gets two fields, even when no page links to it:
+
+- `routes`: the linking pages. Each entry is a map with `key` (the linking page's slug), `title`, `slug`, `url`, `collection` and the fields listed in the backref `select`.
+- `routes_count`: how many pages link to it, counted before `limit`. Use it for text such as "6 of 23 routes".
+
+The list follows the collection list order: newest first, then
+[`content.ordering`](#content-ordering), then URL. A page appears once, however many times it names the target.
+Only content pages count as linking pages. Only targets that have a page get a backref list; data
+documents do not. When a key names more than one target, only the first one lists the page, the same
+target the link itself uses. Backrefs follow the same per-language rules as links.
+
+Backrefs are page fields on the target, so incremental builds rebuild a target page when a page
+that links to it is added, removed or changes its title, URL or selected fields. Two entries that
+would write the same field in one collection are rejected when the config loads. A target page that
+already has the field, or `<name>_count`, keeps it, and the conflict is reported
+(`content.link_output_conflict`) under the target page collection's `schemaFailMode`.
 
 ## Content Media
 

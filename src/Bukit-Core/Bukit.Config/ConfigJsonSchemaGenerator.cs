@@ -110,13 +110,20 @@ public static class ConfigJsonSchemaGenerator
         target["properties"] = Obj(
             ("collection", StringSchema()),
             ("key", StringSchema()));
+        var backref = Obj(("type", "object"));
+        backref["required"] = Arr("name");
+        backref["properties"] = Obj(
+            ("name", StringSchema()),
+            ("limit", Obj(("type", "integer"), ("minimum", 0))),
+            ("select", StringArraySchema()));
         var schema = Obj(("type", "object"));
         schema["required"] = Arr("collection", "field", "target");
         schema["properties"] = Obj(
             ("collection", StringSchema()),
             ("field", StringSchema()),
             ("target", target),
-            ("select", StringArraySchema()));
+            ("select", StringArraySchema()),
+            ("backref", backref));
         return schema;
     }
 
