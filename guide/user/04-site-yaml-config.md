@@ -530,6 +530,7 @@ always starts with one clean build and rebuilds incrementally after that.
 | `theme.images.formats` | `webp` | Case-insensitive output formats. WebP uses the Core-bundled SkiaSharp encoder and needs no PATH tool. `[]` disables next-generation generation and projection without deleting already owned WebP. AVIF remains fail-closed until Core has an approved encoder and full decoder validation path. |
 | `theme.images.sizes` | `480`, `768`, `1200` | Positive widths below the source width; images are never upscaled. Resized original-format variants are generated for media images only; WebP candidates use these widths for every local JPEG/PNG image. |
 | `theme.images.quality` | `80` | WebP/JPEG quality setting, clamped to `1..100` by the built-in WebP encoder. |
+| `theme.images.sizesAttribute` | none | CSS `sizes` value (for example `(max-width: 768px) 100vw, 768px`) added beside a generated media `srcset` that has no author `sizes`; lazy images get `auto, ` in front. Must not itself start with `auto`. |
 | `theme.componentValidation` | `off` | `off`, `warn`, or `strict`. |
 
 When WebP is enabled, Bukit emits validated full-width and configured smaller
@@ -553,6 +554,16 @@ it has neither. Every media image on a page except the first also gets
 largest above-the-fold image, loads immediately. Set `loading="lazy"` on it to
 defer it anyway, or `loading="eager"` on a later image to load that one
 immediately; author-written `width`, `height`, and `loading` are never changed.
+
+A generated `srcset` without `sizes` makes the browser assume the image fills the
+viewport (`100vw`), so it downloads a wider candidate than a narrow column needs.
+Set `theme.images.sizesAttribute` to the layout width of content images, for
+example `(max-width: 768px) 100vw, 768px`. Lazy images then get
+`sizes="auto, <value>"`, so the browser uses the laid-out width and falls back to
+the value; an eager image (the first one, or one marked `loading="eager"`) gets
+the plain value, since the spec allows `auto` only on lazy images. The value also
+reaches the WebP `<source>`. Images whose author wrote `sizes` or `srcset` are
+left alone. Unset, Bukit adds no `sizes`.
 Incremental builds re-render pages when a media image's width or height changes,
 and the first incremental build after upgrading re-renders every page.
 

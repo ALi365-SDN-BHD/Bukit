@@ -621,6 +621,11 @@ public sealed record ImageOptimizationConfig
     public IReadOnlyList<string> Formats { get; init; } = new[] { "webp" };
     public IReadOnlyList<int> Sizes { get; init; } = new[] { 480, 768, 1200 };
     public int Quality { get; init; } = 80;
+    /// <summary>
+    /// CSS <c>sizes</c> value added beside a generated srcset when the author set none; lazy images
+    /// get <c>auto, </c> in front. Unset adds nothing.
+    /// </summary>
+    internal string? SizesAttribute { get; init; }
 }
 
 public sealed record TaxonomyConfig

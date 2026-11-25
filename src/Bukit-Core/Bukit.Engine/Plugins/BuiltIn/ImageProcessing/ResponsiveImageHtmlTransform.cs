@@ -26,6 +26,7 @@ internal sealed partial class ResponsiveImageHtmlTransform(
         RegexOptions.CultureInvariant)]
     private static partial Regex AttributeRegex();
     private readonly IReadOnlyList<int> _sizes = NormalizeSizes(config.Theme.Images?.Sizes);
+    private readonly string? _sizesAttribute = config.Theme.Images?.SizesAttribute;
     private readonly string _baseUrl = BuildPathUtils.NormalizeBaseUrl(baseUrl).TrimEnd('/');
     private readonly string _mediaUrlBase = NormalizeMediaUrlBase(config.Content.Media.UrlBase);
     private readonly Uri? _siteUri = Uri.TryCreate(config.Site.Url, UriKind.Absolute, out var siteUri) ? siteUri : null;
@@ -213,6 +214,7 @@ internal sealed partial class ResponsiveImageHtmlTransform(
                 .Select(size => $"{BuildVariantUrl(sourceUrl, size)} {size}w")
                 .Append($"{sourceUrl} {sourceWidth}w");
             attributes += $" srcset=\"{WebUtility.HtmlEncode(string.Join(", ", candidates))}\"";
+            attributes += BuildSizesAttribute(parsedAttributes, lazy);
             if (_webpEnabled)
             {
                 attributes += $" {GeneratedSrcsetMarker}=\"\"";
@@ -245,6 +247,21 @@ internal sealed partial class ResponsiveImageHtmlTransform(
             insertAt--;
         }
         return tag.Insert(insertAt, attributes);
+    }
+
+    // Without sizes the browser assumes 100vw and picks a candidate for the full viewport width.
+    // "auto" lets it use the laid-out width, which the spec allows only on lazy images.
+    private string BuildSizesAttribute(MatchCollection parsedAttributes, bool lazy)
+    {
+        if (_sizesAttribute is null || HasAttribute(parsedAttributes, "sizes"))
+        {
+            return string.Empty;
+        }
+
+        var loading = GetAttributeValue(parsedAttributes, "loading");
+        var isLazy = loading is null ? lazy : loading.Trim().Equals("lazy", StringComparison.OrdinalIgnoreCase);
+        var value = isLazy ? $"auto, {_sizesAttribute}" : _sizesAttribute;
+        return $" sizes=\"{WebUtility.HtmlEncode(value)}\"";
     }
 
     private bool TryResolveMediaSource(string sourceUrl, out string sourceFile)

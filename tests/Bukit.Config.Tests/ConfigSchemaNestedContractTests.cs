@@ -114,7 +114,7 @@ public sealed class ConfigSchemaNestedContractTests
         new("content/routeMetadata", "source", "routeField", "titleField", "summaryField", "seoTitleField", "seoDescriptionField", "requiredRoutes"),
         new("build/report", "enabled", "securityFailMode"),
         new("theme/scss", "enabled", "entryPoint", "outputDir"),
-        new("theme/images", "enabled", "formats", "sizes", "quality"),
+        new("theme/images", "enabled", "formats", "sizes", "quality", "sizesAttribute"),
         new("theme/components/*", "template", "props"),
         new("taxonomy/kinds[]", "key", "kind", "title", "description", "singularTitlePrefix", "template", "indexTemplate", "termTemplate", "indexEnabled", "hierarchical", "routePrefix"),
         new("logging", "level"),

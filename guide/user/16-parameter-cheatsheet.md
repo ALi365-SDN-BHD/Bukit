@@ -143,6 +143,7 @@
 | `theme.images.formats` | `webp` |
 | `theme.images.sizes` | `480`, `768`, `1200` |
 | `theme.images.quality` | `80` |
+| `theme.images.sizesAttribute` | none; CSS `sizes` for generated srcsets (`auto, ` added on lazy images) |
 | `theme.componentValidation` | `off` |
 | `taxonomy.outputMode` | `both` |
 | `taxonomy.pageSize` | `10` |

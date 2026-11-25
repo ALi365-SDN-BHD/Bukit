@@ -480,7 +480,8 @@ public static class ConfigJsonSchemaGenerator
             ("enabled", BoolSchema()),
             ("formats", StringArraySchema()),
             ("sizes", Obj(("type", "array"), ("items", IntSchema(1)))),
-            ("quality", IntSchema(0)))));
+            ("quality", IntSchema(0)),
+            ("sizesAttribute", Obj(("type", "string"), ("minLength", 1), ("pattern", "^(?![Aa][Uu][Tt][Oo])"))))));
 
     private static JsonObject MediaSchema()
         => Obj(("type", "object"), ("properties", Obj(

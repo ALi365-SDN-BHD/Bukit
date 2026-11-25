@@ -981,6 +981,72 @@ public sealed class ImageProcessingPluginTests
     }
 
     [Theory]
+    [InlineData("<img src=\"/assets/uploads/photo.jpg\">", "sizes=\"auto, (max-width: 768px) 100vw, 768px\"")]
+    [InlineData("<img src=\"/assets/uploads/photo.jpg\" loading=\"eager\">", "sizes=\"(max-width: 768px) 100vw, 768px\"")]
+    [InlineData("<img src=\"/assets/uploads/photo.jpg\" sizes=\"50vw\">", "sizes=\"50vw\"")]
+    public void HtmlTransform_SizesAttribute_AddsAutoOnlyToLazyImagesAndKeepsAuthorSizes(string second, string expected)
+    {
+        var outDir = GetTempDir();
+        try
+        {
+            var mediaDir = Path.Combine(outDir, "media");
+            Directory.CreateDirectory(mediaDir);
+            WriteValidImage(Path.Combine(mediaDir, "photo.jpg"), "source", width: 1000);
+            var context = CreateContext(outDir);
+            context.Set(BuildDataKeys.MediaDownloadDir, mediaDir);
+            var plugin = new ImageProcessingPlugin(CreateConfig(new ImageOptimizationConfig
+            {
+                Enabled = true,
+                Sizes = new[] { 480 },
+                SizesAttribute = "(max-width: 768px) 100vw, 768px"
+            }));
+            var transform = plugin.CreateHtmlTransform(new HtmlTransformPluginContext(
+                context,
+                BuildExecutionMode.Production));
+
+            var html = transform.Transform(
+                new HtmlTransformContext("/", "index.html", HtmlDocumentKind.Content, BuildExecutionMode.Production, context.Logger),
+                "<img src=\"/assets/uploads/photo.jpg\">" + second);
+
+            var firstEnd = html.IndexOf('>', StringComparison.Ordinal) + 1;
+            Assert.Contains("sizes=\"(max-width: 768px) 100vw, 768px\"", html[..firstEnd], StringComparison.Ordinal);
+            Assert.Contains(expected, html[firstEnd..], StringComparison.Ordinal);
+            Assert.Equal(2, Regex.Matches(html, @"\ssizes=", RegexOptions.IgnoreCase).Count);
+        }
+        finally
+        {
+            if (Directory.Exists(outDir)) Directory.Delete(outDir, true);
+        }
+    }
+
+    [Fact]
+    public void HtmlTransform_SizesAttributeUnset_AddsNoSizes()
+    {
+        var outDir = GetTempDir();
+        try
+        {
+            var mediaDir = Path.Combine(outDir, "media");
+            Directory.CreateDirectory(mediaDir);
+            WriteValidImage(Path.Combine(mediaDir, "photo.jpg"), "source", width: 1000);
+            var context = CreateContext(outDir);
+            context.Set(BuildDataKeys.MediaDownloadDir, mediaDir);
+            var plugin = new ImageProcessingPlugin(CreateConfig(new ImageOptimizationConfig { Enabled = true, Sizes = new[] { 480 } }));
+            var transform = plugin.CreateHtmlTransform(new HtmlTransformPluginContext(context, BuildExecutionMode.Production));
+
+            var html = transform.Transform(
+                new HtmlTransformContext("/", "index.html", HtmlDocumentKind.Content, BuildExecutionMode.Production, context.Logger),
+                "<img src=\"/assets/uploads/photo.jpg\"><img src=\"/assets/uploads/photo.jpg\">");
+
+            Assert.Contains("srcset=", html, StringComparison.Ordinal);
+            Assert.DoesNotContain("sizes=", html, StringComparison.Ordinal);
+        }
+        finally
+        {
+            if (Directory.Exists(outDir)) Directory.Delete(outDir, true);
+        }
+    }
+
+    [Theory]
     [InlineData("<img src=\"/assets/uploads/photo.jpg\" alt=\"a\">", "width=\"1000\" height=\"8\"", "loading=\"lazy\"", 2)]
     [InlineData("<img src=\"/assets/uploads/photo.jpg\" width=\"50\" loading=\"eager\">", "width=\"50\"", "loading=\"eager\"", 1)]
     [InlineData("<img src=\"/assets/uploads/photo.jpg\" HEIGHT=\"4\" Loading=\"auto\">", "HEIGHT=\"4\"", "Loading=\"auto\"", 1)]
