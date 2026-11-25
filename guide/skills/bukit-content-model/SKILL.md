@@ -51,7 +51,12 @@ Use `type: cloudbase` for a CloudBase PG-mode table or view: set `cloudbase.envI
 `cloud://` references and require `storageBucket`, `content.media.fieldKeys`,
 `downloadToLocal`, `onFailure: placeholder`, and no exclusion of the gateway/storage
 hosts (an empty `downloadHosts` is fine; when set it must include them). Only body images and file fields are rewritten; other `cloud://`
-values are degraded (`BKT-0C0B`). See `guide/user/27-cloudbase-content.md`.
+values are degraded (`BKT-0C0B`). jsonb objects and non-text arrays stay structured
+(`page.fields.<k>.value`, sorted keys, JSON types kept so numbers stay numbers unlike
+Markdown list items, depth 8, 256 KiB); an allowed column is published whole, nested
+personal keys with the dropped names are removed, nested `cloud://` drops the column, and
+a too-deep or too-large column is dropped as `cloudbase.structured_field_invalid` under
+`schemaFailMode`. See `guide/user/27-cloudbase-content.md`.
 
 ## Remote media
 

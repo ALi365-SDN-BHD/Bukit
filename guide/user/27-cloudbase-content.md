@@ -41,6 +41,27 @@ In `content` mode a row with a blank `slugField` takes its slug from the slugifi
 
 Character sets: `envId` matches `^[a-z0-9][a-z0-9-]{0,62}$`; `table` and `idField` match `^[A-Za-z_][A-Za-z0-9_]{0,62}$`; `storageBucket` matches `^[a-z0-9][a-z0-9._-]{0,62}$`; object names must not be empty, start with `/`, or contain `//` or `..` segments.
 
+## Structured fields
+
+A jsonb (or json) column holding an object, or an array holding anything other than strings, is kept with its structure, like nested front matter in Markdown:
+
+```yaml
+fieldPolicy: { mode: whitelist, allowed: [days, months, contact] }
+```
+
+```scriban
+{{ for day in page.fields.days.value }}<h3>{{ day.title }}</h3>{{ for a in day.attractions }}{{ a }}{{ end }}{{ end }}
+{{ for m in page.fields.months.value }}{{ if m == 4 }}April{{ end }}{{ end }}
+{{ page.fields.contact.value.phone }}
+```
+
+- Object keys are sorted by ordinal comparison, so the same row always builds the same output. Every object and every array counts as one nesting level, up to 8 levels, and one field's raw JSON may be at most 256 KiB.
+- **Types are kept**: `[3, 4, 5]` stays numbers (whole numbers are 64-bit), and booleans and nulls stay booleans and nulls. Compare numbers with `==` as above: `array.contains 4` is false for a CloudBase `[3, 4, 5]`, because Scriban reads the literal `4` as a 32-bit number and `array.contains` needs the exact same type. Markdown front matter list items are strings, so the same Markdown `months: [3, 4, 5]` needs `m == "4"` (or `array.contains "4"`); one template does not serve both sources unchanged. An array of only strings (and nulls) keeps the plain-text list behaviour: blank items and nulls are dropped. An empty array or object is treated as absent.
+- **Privacy**: `allowed` names top-level columns, and an allowed column is published whole, nested content included. Do not put personal data inside an allowed jsonb column. The always-dropped names (`user_id`, `owner`, `created_by`, `updated_by`, `_openid`) are also removed from the keys of every nested object. The build privacy check only catches CloudBase identifiers (envId, `cloud://`, gateway and storage hosts, signed links); it does not detect personal data.
+- `cloud://` anywhere inside a structured column that is not in `fileFields` (in a value or in a key) drops the whole column with `BKT-0C0B`.
+- Upgrading: with `fieldPolicy.mode: all`, object columns and non-text array columns that earlier builds dropped now appear as fields; if `content.modelSchema.rejectUnknownRawKeys` is on, declare them in the schema or switch to `whitelist`.
+- A column that is too deep, too large or otherwise invalid is dropped and reported as the content diagnostic `cloudbase.structured_field_invalid`. Its message names the column and key path, never the value, and the log shows the row only as a hash; key names are data too, so do not key objects by personal identifiers. The collection's `schemaFailMode` decides what happens: `off` ignores it, `warn` (the default) logs it, and `strict` fails the build.
+
 ## Credentials
 
 Use a Publishable Key only, from `CLOUDBASE_PUBLISHABLE_KEY` or `--secrets-stdin`:
