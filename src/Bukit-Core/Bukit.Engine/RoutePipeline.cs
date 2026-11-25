@@ -7,6 +7,7 @@ using Bukit.Engine.Abstractions.Routing;
 using Bukit.Shared;
 using Bukit.Engine.Primitives;
 using Bukit.Engine.ContentLinks;
+using Bukit.Engine.DerivedFields;
 namespace Bukit.Engine;
 
 internal sealed record RoutePipelineResult(
@@ -49,6 +50,8 @@ internal sealed class RoutePipeline
             config.Content,
             routedDocuments,
             [.. documents.Where(i => !CollectionPagePolicy.HasPage(i, config.Site))]);
+        // Derived values may read the links, and every page consumer below reads the values.
+        linkedDocuments = DerivedFieldResolver.Apply(config.Content, linkedDocuments);
 
         var listRouteGraph = ListRouteGraphBuilder.Build(
             linkedDocuments,

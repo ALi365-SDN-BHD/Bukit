@@ -115,6 +115,7 @@ public sealed class ConfigSchemaNestedContractTests
         new("content/ordering", "tieBreakField", "tieBreakOrder"),
         new("content/links[]", "collection", "field", "target", "select", "backref"),
         new("content/links[]/target", "collection", "key"),
+        new("content/derivedFields/*/*", "value", "mode"),
         new("content/links[]/backref", "name", "limit", "select"),
         new("content/routeMetadata", "source", "routeField", "titleField", "summaryField", "seoTitleField", "seoDescriptionField", "requiredRoutes"),
         new("build/report", "enabled", "securityFailMode"),
@@ -617,6 +618,8 @@ public sealed class ConfigSchemaNestedContractTests
             .Select(result => result
                 .Replace("{name}", "*", StringComparison.Ordinal)
                 .Replace("{scope}", "*", StringComparison.Ordinal)
+                .Replace("{collection}", "*", StringComparison.Ordinal)
+                .Replace("{field}", "*", StringComparison.Ordinal)
                 .Replace("{index}", "", StringComparison.Ordinal))
             .Select(NormalizePath)
             .ToArray();

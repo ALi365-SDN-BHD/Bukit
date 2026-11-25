@@ -4,6 +4,8 @@ Semua perubahan penting kepada Bukit akan didokumenkan dalam fail ini.
 
 ## [Belum Dikeluarkan]
 
+- **Medan terbitan.** `content.derivedFields.<collection>.<field>: { value, mode }` mengira medan halaman daripada templat Scriban atas medan halaman itu sendiri (termasuk `<field>_links`), contohnya tajuk SEO daripada dua nama. `seo.describe <width>` memotong huraian mengikut lebar paparan. Templat adalah deterministik; kegagalan masa jalan dilaporkan sebagai `content.derived_field_failed`.
+
 - **Pemegang tempat medan dalam permalink**: corak permalink koleksi atau `site.permalinks` boleh menggunakan `{fields.<name>}`, iaitu nilai medan teks atau nombor bulat aras atas yang dijadikan slug, contohnya `/malaysia/{fields.city}/attractions/{slug}/`. Halaman yang medannya tiada, kosong atau tidak menghasilkan slug akan menggagalkan binaan dengan `RouteInvalidPattern`; URL pendua gagal sebagai konflik laluan, seperti sebelum ini. Lihat [04 Konfigurasi site.yaml](guide/user/04-site-yaml-config.md#collections).
 
 - **Fail mod data CloudBase**: sumber CloudBase dengan `mode: data` kini menerima `fileFields`. Rujukan failnya ditandatangani dan disetempatkan seperti medan fail mod kandungan, jadi baris data seperti foto galeri mendapat fail setempat dengan nama yang stabil; medan lain yang memuatkan `cloud://` masih digugurkan. Prasyarat media yang sama terpakai (`downloadToLocal`, `fieldKeys`, `onFailure: placeholder` dan hos CloudBase). Lihat [27 Kandungan CloudBase](guide/user/27-cloudbase-content.md).

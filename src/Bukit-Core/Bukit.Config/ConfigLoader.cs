@@ -126,6 +126,7 @@ public static class ConfigLoader
             ConfigCollectionReader.ReadRouteMetadata(contentNode));
         content = ConfigCollectionReader.ApplyContentOrdering(content, contentNode);
         content = ConfigCollectionReader.ApplyContentLinks(content, contentNode);
+        content = ConfigCollectionReader.ApplyDerivedFields(content, contentNode);
 
         var buildReportNode = buildNode is null ? null : ConfigYamlHelpers.GetOptionalMapping(buildNode, "report");
         var build = new BuildConfig

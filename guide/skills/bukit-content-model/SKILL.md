@@ -206,6 +206,15 @@ Add `backref: { name: routes, limit: 6, select: [image] }` to a link to list, on
 the pages that link to it (`routes`, in collection order, each page once) and the total before the
 limit (`routes_count`). Only target pages get it; data targets do not.
 
+## Derived fields
+
+`content.derivedFields.<collection>.<field>: { value, mode }` writes a field from a Scriban
+template over the page's own top-level fields (`<field>_links` included), in the order written.
+`mode: default` fills only a missing or empty field; `override` always writes. `seo.describe 150`
+makes a plain description by display width (CJK counts 2). The clock and random functions are
+not available. Built-in names such as `slug` or `title` are rejected; runtime failures are
+reported as `content.derived_field_failed`.
+
 ## Check
 
 ```bash

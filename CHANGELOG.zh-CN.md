@@ -4,6 +4,8 @@ Bukit 所有重要变更都将记录在此文件中。
 
 ## [Unreleased]
 
+- **派生字段。** `content.derivedFields.<collection>.<field>: { value, mode }` 用 Scriban 模板根据页面自身字段（包括 `<field>_links`）计算页面字段，例如用中英文名拼出 SEO 标题。`seo.describe <width>` 按显示宽度截取描述。模板结果是确定的；运行时失败报告为 `content.derived_field_failed`。
+
 - **permalink 字段占位符**：集合 permalink 和 `site.permalinks` 可以用 `{fields.<name>}`，取顶层文本或整数字段的值并做 slug 化，例如 `/malaysia/{fields.city}/attractions/{slug}/`。字段缺失、为空或 slug 化后为空的页面会让构建以 `RouteInvalidPattern` 失败；网址重复时照旧报路由冲突。见 [04 site.yaml 配置](guide/user/04-site-yaml-config.md#collections)。
 
 - **CloudBase data 模式的文件字段**：`mode: data` 的 CloudBase 源现在可以配置 `fileFields`。文件引用和 content 模式一样签名并下载到本地，图库照片这类数据行也能得到文件名稳定的本地文件；其他含 `cloud://` 的字段仍会被丢弃。媒体前提条件不变（`downloadToLocal`、`fieldKeys`、`onFailure: placeholder` 和 CloudBase 主机）。见 [27 CloudBase 内容源](guide/user/27-cloudbase-content.md)。

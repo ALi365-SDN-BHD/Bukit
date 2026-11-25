@@ -272,6 +272,46 @@ internal static class ConfigCollectionReader
         return content with { Links = links };
     }
 
+    internal static ContentConfig ApplyDerivedFields(ContentConfig content, YamlMappingNode contentNode)
+    {
+        if (ConfigYamlHelpers.GetOptionalMapping(contentNode, "derivedFields", "content") is not { } node)
+        {
+            return content;
+        }
+
+        var derived = new List<ContentDerivedFieldConfig>();
+        foreach (var (collectionKey, collectionValue) in node.Children)
+        {
+            var collection = (collectionKey as YamlScalarNode)?.Value?.Trim();
+            var path = $"content.derivedFields.{collection}";
+            if (string.IsNullOrEmpty(collection) || collectionValue is not YamlMappingNode fields)
+            {
+                throw new ConfigException($"{path} must be a mapping of field names.", DiagnosticCode.ConfigInvalidValue);
+            }
+
+            foreach (var (fieldKey, fieldValue) in fields.Children)
+            {
+                var field = (fieldKey as YamlScalarNode)?.Value?.Trim();
+                if (string.IsNullOrEmpty(field) || fieldValue is not YamlMappingNode rule)
+                {
+                    throw new ConfigException($"{path}.{field} must be a mapping with value and mode.", DiagnosticCode.ConfigInvalidValue);
+                }
+
+                derived.Add(new ContentDerivedFieldConfig
+                {
+                    Collection = collection,
+                    Field = field,
+                    Value = ConfigYamlHelpers.GetOptionalString(rule, "value") is { Length: > 0 } value
+                        ? value
+                        : throw new ConfigException($"{path}.{field}.value is required.", DiagnosticCode.ConfigRequiredFieldMissing),
+                    Mode = ConfigYamlHelpers.GetOptionalString(rule, "mode")?.Trim().ToLowerInvariant() ?? "default"
+                });
+            }
+        }
+
+        return content with { DerivedFields = derived };
+    }
+
     private static ContentLinkBackrefConfig? ReadBackref(YamlMappingNode link, string path)
     {
         var node = ConfigYamlHelpers.GetOptionalMapping(link, "backref", path);

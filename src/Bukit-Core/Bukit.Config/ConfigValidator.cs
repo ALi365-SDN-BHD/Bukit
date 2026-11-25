@@ -115,6 +115,7 @@ public static class ConfigValidator
 
         ValidateRouteMetadata(config.Content);
         ValidateContentLinks(config.Content);
+        ValidateDerivedFields(config.Content.DerivedFields);
 
         ProviderValidators.ValidateMedia(config.Content.Media);
 
@@ -527,6 +528,31 @@ public static class ConfigValidator
                 ValidateContentLinkSelect(backref.Select, $"{backrefPath}.select");
                 ClaimContentLinkOutput(outputs, link.Target.Collection, backref.Name, backrefPath);
                 ClaimContentLinkOutput(outputs, link.Target.Collection, backref.Name + "_count", backrefPath);
+            }
+        }
+    }
+
+    /// <summary>Fields that decide identity, routing or language; a derived value must not replace them.</summary>
+    internal static readonly IReadOnlySet<string> DerivedFieldReservedNames = new HashSet<string>(
+        ["id", "slug", "title", "collection", "type", "sourceMode", "sourceKey", "language", "locale", "draft",
+         "status", "route", "publishAt", "translations", "i18nKey", "i18n_key"],
+        StringComparer.OrdinalIgnoreCase);
+
+    private static void ValidateDerivedFields(IReadOnlyList<ContentDerivedFieldConfig> derived)
+    {
+        foreach (var item in derived)
+        {
+            var path = $"content.derivedFields.{item.Collection}.{item.Field}";
+            if (!ContentLinkPath.IsName(item.Field) || DerivedFieldReservedNames.Contains(item.Field))
+            {
+                throw new ConfigException(
+                    $"{path} must be a field name other than {string.Join(", ", DerivedFieldReservedNames)}.",
+                    DiagnosticCode.ConfigInvalidValue);
+            }
+
+            if (item.Mode is not ("default" or "override"))
+            {
+                throw new ConfigException($"{path}.mode must be default or override.", DiagnosticCode.ConfigInvalidValue);
             }
         }
     }

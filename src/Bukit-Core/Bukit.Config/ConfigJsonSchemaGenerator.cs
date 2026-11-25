@@ -93,6 +93,7 @@ public static class ConfigJsonSchemaGenerator
         schema["properties"] = Obj(
             ("media", MediaSchema()),
             ("links", Obj(("type", "array"), ("items", ContentLinkSchema()))),
+            ("derivedFields", DerivedFieldsSchema()),
             ("modelSchema", ContentModelSchemaSchema()),
             ("ordering", Obj(("type", "object"), ("properties", Obj(
                 ("tieBreakField", StringSchema()),
@@ -101,6 +102,18 @@ public static class ConfigJsonSchemaGenerator
             ("sources", Obj(("type", "array"), ("items", ContentSourceItemSchema())))
             );
         return schema;
+    }
+
+    private static JsonObject DerivedFieldsSchema()
+    {
+        var rule = Obj(("type", "object"));
+        rule["required"] = Arr("value");
+        rule["properties"] = Obj(
+            ("value", StringSchema()),
+            ("mode", EnumSchema("default", "override")));
+        return Obj(
+            ("type", "object"),
+            ("additionalProperties", Obj(("type", "object"), ("additionalProperties", rule))));
     }
 
     private static JsonObject ContentLinkSchema()

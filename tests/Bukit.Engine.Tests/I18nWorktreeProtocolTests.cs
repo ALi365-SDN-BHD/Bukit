@@ -83,6 +83,28 @@ public sealed class I18nWorktreeProtocolTests : IDisposable
     }
 
     [Fact]
+    public void WorkerConfig_KeepsDerivedFields()
+    {
+        var config = new AppConfig
+        {
+            Site = new SiteConfig { Name = "s", Title = "S" },
+            Content = new ContentConfig
+            {
+                DerivedFields = [new ContentDerivedFieldConfig { Collection = "city", Field = "seo_title", Value = "{{ name }}", Mode = "override" }]
+            }
+        };
+
+        var json = JsonSerializer.Serialize(config, I18nWorktreeJsonContext.Default.AppConfig);
+        var restored = JsonSerializer.Deserialize(json, I18nWorktreeJsonContext.Default.AppConfig)!;
+
+        var rule = Assert.Single(restored.Content.DerivedFields);
+        Assert.Equal(("city", "seo_title", "{{ name }}", "override"), (rule.Collection, rule.Field, rule.Value, rule.Mode));
+        Assert.NotEqual(
+            I18nWorktreeProtocol.ComputeConfigHash(config, new ConfigOverrides()),
+            I18nWorktreeProtocol.ComputeConfigHash(config with { Content = config.Content with { DerivedFields = [] } }, new ConfigOverrides()));
+    }
+
+    [Fact]
     public void WorkerConfig_KeepsCloudBaseSourceSettings()
     {
         // Workers validate the config rebuilt from this JSON; a cloudbase source without its settings fails validation.

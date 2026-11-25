@@ -14,7 +14,7 @@ internal static class ConfigStrictFieldValidator
         "searchIncludeDerived", "pluginFailMode", "deriveConflictPolicy",
         "timezone", "permalinks", "collections", "plugins", "feed",
         "sitemapDetail", "pagination", "search", "related", "menus", "sharedAssets", "i18n");
-    private static readonly HashSet<string> ContentKeys = Set("sources", "media", "modelSchema", "routeMetadata", "ordering", "links");
+    private static readonly HashSet<string> ContentKeys = Set("sources", "media", "modelSchema", "routeMetadata", "ordering", "links", "derivedFields");
     private static readonly HashSet<string> ContentLinkKeys = Set("collection", "field", "target", "select", "backref");
     private static readonly HashSet<string> ContentLinkTargetKeys = Set("collection", "key");
     private static readonly HashSet<string> ContentLinkBackrefKeys = Set("name", "limit", "select");
@@ -442,6 +442,17 @@ internal static class ConfigStrictFieldValidator
         if (Seq(content, "links", "content.links") is { } links)
         {
             ValidateSequenceMappings(links, ContentLinkKeys, "content.links", ValidateContentLink);
+        }
+
+        if (Map(content, "derivedFields", "content.derivedFields") is { } derivedFields)
+        {
+            foreach (var (collection, fields) in MappingChildren(derivedFields, "content.derivedFields"))
+            {
+                foreach (var (field, rule) in MappingChildren(fields, $"content.derivedFields.{collection}"))
+                {
+                    RequireOnly(rule, Set("value", "mode"), $"content.derivedFields.{collection}.{field}");
+                }
+            }
         }
     }
 

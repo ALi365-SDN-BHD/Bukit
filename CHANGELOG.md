@@ -4,6 +4,8 @@ All notable changes to Bukit will be documented in this file.
 
 ## [Unreleased]
 
+- **Derived fields.** `content.derivedFields.<collection>.<field>: { value, mode }` computes page fields from a Scriban template over the page's own fields (including `<field>_links`), such as an SEO title from two names. `seo.describe <width>` cuts a description by display width. Templates are deterministic; runtime failures are reported as `content.derived_field_failed`.
+
 - **Field placeholders in permalinks**: a collection permalink or `site.permalinks` pattern can use `{fields.<name>}`, the slugified value of a top-level text or whole-number field, such as `/malaysia/{fields.city}/attractions/{slug}/`. A page whose field is missing, empty or slugifies to nothing fails the build with `RouteInvalidPattern`; duplicate URLs fail as a route conflict, as before. See [04 site.yaml Config](guide/user/04-site-yaml-config.md#collections).
 
 - **CloudBase data-mode files**: a CloudBase source with `mode: data` now accepts `fileFields`. Its file references are signed and localized like content-mode file fields, so data rows such as gallery photos get local files with stable names; other fields holding `cloud://` are still dropped. The same media preconditions apply (`downloadToLocal`, `fieldKeys`, `onFailure: placeholder` and the CloudBase hosts). See [27 CloudBase Content](guide/user/27-cloudbase-content.md).

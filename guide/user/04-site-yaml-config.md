@@ -467,6 +467,35 @@ would write the same field in one collection are rejected when the config loads.
 already has the field, or `<name>_count`, keeps it, and the conflict is reported
 (`content.link_output_conflict`) under the target page collection's `schemaFailMode`.
 
+## Derived Fields
+
+`content.derivedFields` computes page fields from other fields of the same page, such as an SEO
+title from a Chinese and an English name. Each value is a Scriban template whose variables are the
+page's top-level fields, including the `<field>_links` lists from [content links](#content-links).
+
+```yaml
+content:
+  derivedFields:
+    city:
+      seo_title: { value: "{{ name }} {{ name_en }} travel guide" }
+      seo_desc: { value: "{{ summary | seo.describe 150 }}" }
+      summary: { value: "{{ name }}: {{ summary }}", mode: override }
+```
+
+- `mode: default` (the default) writes the field only when it is missing or empty, and skips an empty result. `mode: override` always writes it.
+- Values run in the order written, so a later value can read an earlier one.
+- The result is trimmed text. Writing `summary`, `description` or `excerpt` also updates the page summary that lists and SEO read.
+- `seo.describe <width>` turns text into a plain description of at most that many display columns (a CJK character counts as two). It removes tags, prefers to cut after a sentence end, and otherwise cuts with `…`.
+- Templates run with the invariant culture and a loop limit of 1000. The clock and random functions (`now`, `random` and `uuid`) are not available, so the same content builds the same value every time.
+- A value can read only its own page. It cannot read other pages or `site` data.
+
+Values are computed after content links and before lists, SEO, feeds and search read the pages,
+and incremental builds rebuild a page when a derived value changes. Field names must be valid
+names and cannot be built-in fields such as `slug`, `title`, `route` or `language`. A template
+that does not parse fails when the config loads. A template that fails on a page (for example, by
+hitting the loop limit) leaves the field unchanged and is reported
+(`content.derived_field_failed`) under the collection's `schemaFailMode`.
+
 ## Content Media
 
 | Field | Default | Notes |

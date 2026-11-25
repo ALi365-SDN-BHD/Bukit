@@ -333,6 +333,13 @@ public sealed record ContentConfig
     [System.Text.Json.Serialization.JsonInclude]
     internal IReadOnlyList<ContentLinkConfig> Links { get; init; } = [];
     /// <summary>
+    /// content.derivedFields: page fields computed from Scriban expressions over the page's own fields,
+    /// in declaration order. Empty when unset.
+    /// </summary>
+    /// <remarks>Internal: configured only through site.yaml, so it does not widen the public API.</remarks>
+    [System.Text.Json.Serialization.JsonInclude]
+    internal IReadOnlyList<ContentDerivedFieldConfig> DerivedFields { get; init; } = [];
+    /// <summary>
     /// content.ordering.tieBreakField: orders entries with the same publish time in every list (home page,
     /// collection lists and pagination, archives, site feeds and llms.txt). Use url, title or any content field;
     /// numbers compare numerically. Unset keeps each list's built-in order. Term pages use it when
@@ -366,6 +373,18 @@ internal sealed record ContentLinkConfig
     public IReadOnlyList<string> Select { get; init; } = [];
     /// <summary>Optional reverse list written on each target page that this link reaches.</summary>
     public ContentLinkBackrefConfig? Backref { get; init; }
+}
+
+/// <summary>One content.derivedFields.&lt;collection&gt;.&lt;field&gt; entry.</summary>
+internal sealed record ContentDerivedFieldConfig
+{
+    public required string Collection { get; init; }
+    /// <summary>The page field written.</summary>
+    public required string Field { get; init; }
+    /// <summary>A Scriban template evaluated over the page's top-level fields.</summary>
+    public required string Value { get; init; }
+    /// <summary><c>default</c> writes only when the field is missing or empty; <c>override</c> always writes.</summary>
+    public string Mode { get; init; } = "default";
 }
 
 /// <summary>content.links[].backref: lists, on each target page, the pages that link to it.</summary>
