@@ -104,6 +104,7 @@ content:
 | `site.seo.twitterSite` | none | Twitter/X site handle. |
 | `site.seo.defaultAuthor` | none | Author name for SEO output when a page has no author relation, no `author` field, and no GEO author. |
 | `site.seo.defaultAuthorType` | `Person` | `Person` or `Organization` (case-insensitive); requires `defaultAuthor`. |
+| `site.seo.authors` | none | Author profiles keyed by author name or `authoredBy` id (case-insensitive). Each entry accepts `name`, `type` (`Person` or `Organization`), `url`, `image`, and `sameAs`; see [11 i18n and SEO](11-i18n-seo.md). |
 | `site.seo.organization.type` | `Organization` | `Organization` or `NewsMediaOrganization`; invalid values fail configuration validation. |
 | `site.seo.organization.name` | none | Organization schema name. |
 | `site.seo.organization.url` | none | Absolute HTTP(S) URL or root-relative URL resolved against `site.url`; only an absolute HTTP(S) result is emitted. |
@@ -115,6 +116,7 @@ content:
 | `site.seo.schema.collectionPage` | `true` | Emits CollectionPage JSON-LD. |
 | `site.seo.schema.breadcrumbHome` | `false` | Starts every BreadcrumbList JSON-LD with the home page. |
 | `site.seo.schema.breadcrumbParent` | none | Taxonomy kind (for example `categories`) whose first term page becomes the breadcrumb parent of content listed under it. |
+| `site.seo.schema.articleType` | `BlogPosting` | Schema type of article pages that set none: `BlogPosting` or a schema.org Article type such as `Article`, `NewsArticle`, or `TechArticle`. |
 | `site.seo.schema.searchAction` | `true` | Allows SearchAction JSON-LD only when `site.search.route` is also declared and exists in the final HTML route inventory. |
 | `site.seo.geo.enabled` | `true` | Enables GEO report data. |
 | `site.seo.geo.llmsTxt` | `true` | Writes `llms.txt` when build output is indexable. |
@@ -182,6 +184,7 @@ SearchAction and does not perform the final-route check.
 | `site.collections.<name>.listDescription` | none | List page description. |
 | `site.collections.<name>.listTemplate` | none | List route template. |
 | `site.collections.<name>.schemaFailMode` | none | `off`, `warn`, or `strict`. |
+| `site.collections.<name>.seo.articleType` | none | Overrides `site.seo.schema.articleType` for this collection's articles. |
 | `site.collections.<name>.noindexWhenEmpty` | `false` | When true, an empty list route uses `noindex,follow` and is excluded from sitemap, search, `llms.txt`, and `llms-full.txt`. |
 | `site.collections.<name>.indexPolicy.minimumItems` | `0` | Minimum content threshold; must be an integer >= 0. |
 | `site.collections.<name>.indexPolicy.belowMinimum` | `index` | `index` or `noindex-follow`. |

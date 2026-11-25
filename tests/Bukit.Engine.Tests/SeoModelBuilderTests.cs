@@ -1355,6 +1355,43 @@ public sealed class SeoModelBuilderTests
         Assert.Contains(model.JsonLd, json => json.Contains("BlogPosting", StringComparison.Ordinal));
     }
 
+    [Theory]
+    [InlineData("news", null, "NewsArticle")]
+    [InlineData("posts", null, "Article")]
+    [InlineData("news", "TechArticle", "TechArticle")]
+    public void BuildForContent_ArticleWithoutSchemaType_UsesCollectionThenSiteArticleType(
+        string collection,
+        string? pageType,
+        string expected)
+    {
+        var fields = new Dictionary<string, object> { ["type"] = "post", ["collection"] = collection };
+        if (pageType is not null)
+        {
+            fields["schema_type"] = pageType;
+        }
+
+        var item = ContentDocument.Create("typed", "Typed", "typed", DateTimeOffset.UnixEpoch, null, ContentFieldReader.ToFieldMap(fields));
+        var baseConfig = CreateConfig();
+        var config = baseConfig with
+        {
+            Site = baseConfig.Site with
+            {
+                Seo = baseConfig.Site.Seo with { Schema = baseConfig.Site.Seo.Schema with { ArticleType = "Article" } },
+                Collections = new Dictionary<string, CollectionConfig>
+                {
+                    ["news"] = new() { Permalink = "/news/:slug/", ArticleType = "NewsArticle" },
+                    ["posts"] = new() { Permalink = "/posts/:slug/" }
+                }
+            }
+        };
+
+        var model = SeoModelBuilder.BuildForContent(config, "/", item, new RouteInfo("/typed/", "typed/index.html", "post.html"));
+
+        Assert.Equal(expected, model.SchemaType);
+        Assert.Equal("article", model.Og.Type);
+        Assert.Contains(model.JsonLd, json => json.Contains($"\"{expected}\"", StringComparison.Ordinal));
+    }
+
     [Fact]
     public void BuildForContent_PageTypeWithPostCollectionDoesNotEmitBlogPostingJsonLd()
     {

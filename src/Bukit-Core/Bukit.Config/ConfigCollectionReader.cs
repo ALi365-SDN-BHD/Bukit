@@ -50,7 +50,10 @@ internal static class ConfigCollectionReader
             IndexPolicy = ReadCollectionIndexPolicy(collectionName, collectionNode),
             Pagination = ReadCollectionPagination(paginationNode),
             Output = ReadCollectionOutput(outputNode),
-            FilteredLists = ReadFilteredLists(collectionNode)
+            FilteredLists = ReadFilteredLists(collectionNode),
+            ArticleType = ConfigYamlHelpers.GetOptionalMapping(collectionNode, "seo", $"site.collections.{collectionName}") is { } seoNode
+                ? ConfigYamlHelpers.GetOptionalString(seoNode, "articleType")
+                : null
         };
     }
 

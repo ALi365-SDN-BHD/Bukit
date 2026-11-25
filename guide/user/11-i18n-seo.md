@@ -272,6 +272,14 @@ site:
       searchAction: true
       breadcrumbHome: true
       breadcrumbParent: categories
+      articleType: NewsArticle
+    authors:
+      Aisha:
+        type: Person
+        url: /about/aisha/
+        image: /images/aisha.jpg
+        sameAs:
+          - https://www.linkedin.com/in/aisha/
 ```
 
 BreadcrumbList JSON-LD lists real parent routes by URL path, then the current
@@ -347,6 +355,22 @@ relation, no `author` field, and no GEO author; any of those wins. The type is
 `site.seo.defaultAuthorType` (`Person` by default, or `Organization`). Use it
 when one person or organization publishes all content without per-page
 bylines. It does not change the content model, feeds, or `llms.txt`.
+
+`site.seo.authors` gives authors a structured-data profile without author pages.
+Keys match an `author` text byline, a GEO author name, `site.seo.defaultAuthor`,
+or an `authoredBy` id, ignoring case. An entry supplies `url`, `image`, `sameAs`
+and, when the page declares none, `type`. A page's own GEO author `url` and
+`sameAs` win over the entry. A Markdown `authoredBy: <id>` that no relation
+resolver expanded takes its whole profile from the matching entry (`name`
+defaults to the key); without an entry it still blocks the build. For a resolved
+`authoredBy` relation the entry's `url` replaces the generated `/authors/<slug>/`
+path, which Bukit does not check exists. Root-relative URLs resolve against the
+site URL.
+
+Article pages that set no schema type (front-matter `schema_type`,
+`seo_schema_type`, or `schemaType` inside the `geo` map) use `site.collections.<name>.seo.articleType`, then
+`site.seo.schema.articleType`, then `BlogPosting`. Both accept `BlogPosting` or a
+schema.org type ending in `Article`.
 
 For collection list routes, `site.collections.<name>.noindexWhenEmpty: true`
 marks an empty result as `noindex,follow`. The same indexability decision

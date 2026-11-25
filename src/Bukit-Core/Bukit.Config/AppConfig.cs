@@ -110,6 +110,19 @@ public sealed record SeoConfig
     public SeoRobotsTxtConfig RobotsTxt { get; init; } = new();
     public SeoSchemaConfig Schema { get; init; } = new();
     public SeoGeoConfig Geo { get; init; } = new();
+    /// <summary>Author profiles keyed (case-insensitively) by author name or <c>authoredBy</c> id.</summary>
+    internal IReadOnlyDictionary<string, SeoAuthorProfileConfig>? Authors { get; init; }
+}
+
+/// <summary>A <c>site.seo.authors</c> entry: the structured-data profile of one author.</summary>
+internal sealed record SeoAuthorProfileConfig
+{
+    /// <summary>Display name for an <c>authoredBy</c> id; a text author keeps its own byline.</summary>
+    public string? Name { get; init; }
+    public string? Type { get; init; }
+    public string? Url { get; init; }
+    public string? Image { get; init; }
+    public IReadOnlyList<string> SameAs { get; init; } = [];
 }
 
 public sealed record SeoOrganizationConfig
@@ -186,6 +199,8 @@ public sealed record SeoSchemaConfig
     public bool BreadcrumbHome { get; init; }
     /// <summary>Taxonomy kind whose first term page becomes the breadcrumb parent of content pages.</summary>
     public string? BreadcrumbParent { get; init; }
+    /// <summary>Schema type of article pages that set none; defaults to BlogPosting.</summary>
+    internal string? ArticleType { get; init; }
 }
 
 public sealed record SeoGeoConfig
@@ -221,6 +236,8 @@ public sealed record CollectionConfig
     public CollectionPaginationConfig Pagination { get; init; } = new();
     public CollectionOutputConfig Output { get; init; } = new();
     public IReadOnlyList<FilteredListConfig>? FilteredLists { get; init; }
+    /// <summary>From <c>seo.articleType</c>: overrides <see cref="SeoSchemaConfig.ArticleType"/> for this collection's articles.</summary>
+    internal string? ArticleType { get; init; }
 }
 
 public sealed record CollectionIndexPolicyConfig

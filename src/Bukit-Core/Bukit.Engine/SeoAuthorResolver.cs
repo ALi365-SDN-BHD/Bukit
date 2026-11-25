@@ -33,56 +33,72 @@ internal static class SeoAuthorResolver
             : ContentAuthorProfileProjectionReader.Read(fields);
         if (projection.UsesAuthorRelation)
         {
-            return ResolveProfiles(projection.Profiles);
+            return ResolveProfiles(projection.Profiles, seo);
         }
 
         var canonicalName = Clean(record?.Ownership.Author)
             ?? SeoModelBuilder.FirstTextField(fields, "author");
         if (canonicalName is not null)
         {
-            var declaredType = Clean(record?.Ownership.AuthorType)
-                ?? SeoModelBuilder.FirstTextField(fields, "authorType");
-            var schemaType = AuthorSchemaType.Resolve(canonicalName, declaredType);
-            var matchingGeoAuthor = string.Equals(
-                canonicalName,
-                Clean(geoAuthor?.Name),
-                StringComparison.OrdinalIgnoreCase)
-                ? geoAuthor
-                : null;
-
-            return schemaType is null
-                ? new ResolvedSeoAuthors(Array.Empty<ResolvedSeoAuthor>(), matchingGeoAuthor is not null)
-                {
-                    TextByline = canonicalName
-                }
-                : new ResolvedSeoAuthors(
-                    [
-                        new ResolvedSeoAuthor(
-                            canonicalName,
-                            schemaType,
-                            Clean(matchingGeoAuthor?.Url),
-                            null,
-                            CleanList(matchingGeoAuthor?.SameAs))
-                    ],
-                    matchingGeoAuthor is not null);
+            return ResolveTextAuthor(canonicalName, record, fields, geoAuthor, seo);
         }
 
         var geoName = Clean(geoAuthor?.Name);
-        return geoName is null
-            ? DefaultAuthor(seo)
+        if (geoName is null)
+        {
+            return DefaultAuthor(seo);
+        }
+
+        var geoProfile = ConfiguredProfile(seo, geoName);
+        return new ResolvedSeoAuthors(
+            [
+                new ResolvedSeoAuthor(
+                    geoName,
+                    AuthorSchemaType.Normalize(geoProfile?.Type) ?? AuthorSchemaType.Person,
+                    Clean(geoAuthor?.Url) ?? Clean(geoProfile?.Url),
+                    Clean(geoProfile?.Image),
+                    SameAsOrConfigured(geoAuthor?.SameAs, geoProfile))
+            ],
+            false);
+    }
+
+    private static ResolvedSeoAuthors ResolveTextAuthor(
+        string canonicalName,
+        ContentRecord? record,
+        IReadOnlyDictionary<string, ContentField>? fields,
+        GeoAuthorModel? geoAuthor,
+        SeoConfig? seo)
+    {
+        var configured = ConfiguredProfile(seo, canonicalName);
+        var declaredType = Clean(record?.Ownership.AuthorType)
+            ?? SeoModelBuilder.FirstTextField(fields, "authorType")
+            ?? Clean(configured?.Type);
+        var schemaType = AuthorSchemaType.Resolve(canonicalName, declaredType);
+        var matchingGeoAuthor = string.Equals(
+            canonicalName,
+            Clean(geoAuthor?.Name),
+            StringComparison.OrdinalIgnoreCase)
+            ? geoAuthor
+            : null;
+
+        return schemaType is null
+            ? new ResolvedSeoAuthors(Array.Empty<ResolvedSeoAuthor>(), matchingGeoAuthor is not null)
+            {
+                TextByline = canonicalName
+            }
             : new ResolvedSeoAuthors(
                 [
                     new ResolvedSeoAuthor(
-                        geoName,
-                        AuthorSchemaType.Person,
-                        Clean(geoAuthor?.Url),
-                        null,
-                        CleanList(geoAuthor?.SameAs))
+                        canonicalName,
+                        schemaType,
+                        Clean(matchingGeoAuthor?.Url) ?? Clean(configured?.Url),
+                        Clean(configured?.Image),
+                        SameAsOrConfigured(matchingGeoAuthor?.SameAs, configured))
                 ],
-                false);
+                matchingGeoAuthor is not null);
     }
 
-    private static ResolvedSeoAuthors ResolveProfiles(IReadOnlyList<ContentAuthorProfile> profiles)
+    private static ResolvedSeoAuthors ResolveProfiles(IReadOnlyList<ContentAuthorProfile> profiles, SeoConfig? seo)
     {
         if (profiles.Count == 0)
         {
@@ -96,6 +112,20 @@ internal static class SeoAuthorResolver
             var name = Clean(profile.Title);
             var slug = Clean(profile.Slug);
             var declaredType = Clean(profile.Type);
+            var configured = ConfiguredProfile(seo, id);
+            if (id is not null && configured is not null && (name is null || slug is null || declaredType is null))
+            {
+                // An authoredBy id that no relation resolver expanded (a Markdown front-matter id)
+                // takes its whole profile from site.seo.authors.
+                authors.Add(new ResolvedSeoAuthor(
+                    Clean(configured.Name) ?? id,
+                    AuthorSchemaType.Normalize(configured.Type) ?? AuthorSchemaType.Person,
+                    Clean(configured.Url),
+                    Clean(configured.Image),
+                    CleanList(configured.SameAs)));
+                continue;
+            }
+
             if (id is null || name is null || slug is null || declaredType is null)
             {
                 throw Block($"authoredBy target '{id ?? "<unknown>"}' is not resolved.");
@@ -113,9 +143,9 @@ internal static class SeoAuthorResolver
             authors.Add(new ResolvedSeoAuthor(
                 name,
                 schemaType,
-                $"/authors/{Uri.EscapeDataString(slug)}/",
-                Clean(profile.Image),
-                CleanList(profile.SameAs)));
+                Clean(configured?.Url) ?? $"/authors/{Uri.EscapeDataString(slug)}/",
+                Clean(profile.Image) ?? Clean(configured?.Image),
+                SameAsOrConfigured(profile.SameAs, configured)));
         }
 
         return new ResolvedSeoAuthors(authors, true)
@@ -134,11 +164,21 @@ internal static class SeoAuthorResolver
             return new ResolvedSeoAuthors(Array.Empty<ResolvedSeoAuthor>(), false);
         }
 
-        var schemaType = AuthorSchemaType.Normalize(seo!.DefaultAuthorType) ?? AuthorSchemaType.Person;
+        var configured = ConfiguredProfile(seo, name);
+        var schemaType = AuthorSchemaType.Normalize(seo!.DefaultAuthorType)
+            ?? AuthorSchemaType.Normalize(configured?.Type)
+            ?? AuthorSchemaType.Person;
         return new ResolvedSeoAuthors(
-            [new ResolvedSeoAuthor(name, schemaType, null, null, Array.Empty<string>())],
+            [new ResolvedSeoAuthor(name, schemaType, Clean(configured?.Url), Clean(configured?.Image), CleanList(configured?.SameAs))],
             false);
     }
+
+    // site.seo.authors entry for an author name or authoredBy id; keys match case-insensitively.
+    private static SeoAuthorProfileConfig? ConfiguredProfile(SeoConfig? seo, string? key)
+        => key is not null && seo?.Authors is { } authors && authors.TryGetValue(key, out var profile) ? profile : null;
+
+    private static IReadOnlyList<string> SameAsOrConfigured(IReadOnlyList<string>? sameAs, SeoAuthorProfileConfig? configured)
+        => CleanList(sameAs) is { Count: > 0 } own ? own : CleanList(configured?.SameAs);
 
     private static InvalidOperationException Block(string message)
         => new($"SEO author profile validation blocked publication: {message}");

@@ -122,36 +122,7 @@ internal static class ConfigStrictFieldValidator
 
         if (Map(site, "i18n") is { } i18n) ValidateSiteI18n(i18n);
 
-        if (Map(site, "collections") is { } collections)
-        {
-            foreach (var (name, collection) in MappingChildren(collections, "site.collections"))
-            {
-                RequireOnly(collection, Set("permalink", "template", "listRoute", "listTitle", "listDescription", "listTemplate", "schemaFailMode", "noindexWhenEmpty", "indexPolicy", "pagination", "output", "filteredLists"), $"site.collections.{name}");
-                if (Map(collection, "indexPolicy") is { } indexPolicy)
-                {
-                    RequireOnly(indexPolicy, Set("minimumItems", "belowMinimum"), $"site.collections.{name}.indexPolicy");
-                }
-
-                if (Map(collection, "pagination") is { } collectionPagination)
-                {
-                    RequireOnly(collectionPagination, Set("enabled", "pageSize", "urlPattern", "firstPageUsesListRoute"), $"site.collections.{name}.pagination");
-                }
-
-                if (Map(collection, "output") is { } output)
-                {
-                    RequireOnly(output, Set("rss", "feed", "sitemap", "archive", "feedPath", "feedTitle", "feedDescription", "archiveDetail"), $"site.collections.{name}.output");
-                    if (Map(output, "archiveDetail") is { } archiveDetail)
-                    {
-                        RequireOnly(archiveDetail, Set("depth", "template", "routePrefix"), $"site.collections.{name}.output.archiveDetail");
-                    }
-                }
-
-                if (Seq(collection, "filteredLists") is { } filteredLists)
-                {
-                    ValidateSequenceMappings(filteredLists, Set("field", "operator", "value", "values", "listRoute", "title", "description", "listTemplate", "pageSize", "urlPattern", "emptyBehavior"), $"site.collections.{name}.filteredLists");
-                }
-            }
-        }
+        if (Map(site, "collections") is { } collections) ValidateCollections(collections);
 
         if (Map(site, "seo") is { } seo) ValidateSeo(seo);
         if (site.Children.TryGetValue(new YamlScalarNode("analytics"), out var analyticsNode))
@@ -381,14 +352,22 @@ internal static class ConfigStrictFieldValidator
             "enabled", "renderMode", "diagnostics",
             "homeTitleTemplate", "pageTitleTemplate", "titleSeparator",
             "defaultImage", "twitterSite", "defaultAuthor", "defaultAuthorType",
-            "organization", "robotsTxt", "schema", "geo"), "site.seo");
+            "organization", "robotsTxt", "schema", "geo", "authors"), "site.seo");
+        if (Map(seo, "authors") is { } authors)
+        {
+            foreach (var (name, author) in MappingChildren(authors, "site.seo.authors"))
+            {
+                RequireOnly(author, Set("name", "type", "url", "image", "sameAs"), $"site.seo.authors.{name}");
+            }
+        }
+
         if (Map(seo, "organization") is { } organization) RequireOnly(organization, Set("type", "name", "url", "logo", "sameAs"), "site.seo.organization");
         if (Map(seo, "robotsTxt") is { } robots)
         {
             RequireOnly(robots, Set("enabled", "contentSignal"), "site.seo.robotsTxt");
             if (Map(robots, "contentSignal") is { } contentSignal) RequireOnly(contentSignal, Set("search", "aiInput", "aiTrain"), "site.seo.robotsTxt.contentSignal");
         }
-        if (Map(seo, "schema") is { } schema) RequireOnly(schema, Set("webPage", "collectionPage", "searchAction", "breadcrumbHome", "breadcrumbParent"), "site.seo.schema");
+        if (Map(seo, "schema") is { } schema) RequireOnly(schema, Set("webPage", "collectionPage", "searchAction", "breadcrumbHome", "breadcrumbParent", "articleType"), "site.seo.schema");
         if (Map(seo, "geo") is { } geo)
         {
             RequireOnly(geo, Set(
@@ -617,6 +596,42 @@ internal static class ConfigStrictFieldValidator
         if (Seq(taxonomy, "kinds") is { } kinds)
         {
             ValidateSequenceMappings(kinds, Set("key", "kind", "title", "description", "singularTitlePrefix", "template", "indexTemplate", "termTemplate", "indexEnabled", "hierarchical", "routePrefix"), "taxonomy.kinds");
+        }
+    }
+
+    private static void ValidateCollections(YamlMappingNode collections)
+    {
+        foreach (var (name, collection) in MappingChildren(collections, "site.collections"))
+        {
+            RequireOnly(collection, Set("permalink", "template", "listRoute", "listTitle", "listDescription", "listTemplate", "schemaFailMode", "noindexWhenEmpty", "indexPolicy", "pagination", "output", "filteredLists", "seo"), $"site.collections.{name}");
+            if (Map(collection, "seo") is { } collectionSeo)
+            {
+                RequireOnly(collectionSeo, Set("articleType"), $"site.collections.{name}.seo");
+            }
+
+            if (Map(collection, "indexPolicy") is { } indexPolicy)
+            {
+                RequireOnly(indexPolicy, Set("minimumItems", "belowMinimum"), $"site.collections.{name}.indexPolicy");
+            }
+
+            if (Map(collection, "pagination") is { } collectionPagination)
+            {
+                RequireOnly(collectionPagination, Set("enabled", "pageSize", "urlPattern", "firstPageUsesListRoute"), $"site.collections.{name}.pagination");
+            }
+
+            if (Map(collection, "output") is { } output)
+            {
+                RequireOnly(output, Set("rss", "feed", "sitemap", "archive", "feedPath", "feedTitle", "feedDescription", "archiveDetail"), $"site.collections.{name}.output");
+                if (Map(output, "archiveDetail") is { } archiveDetail)
+                {
+                    RequireOnly(archiveDetail, Set("depth", "template", "routePrefix"), $"site.collections.{name}.output.archiveDetail");
+                }
+            }
+
+            if (Seq(collection, "filteredLists") is { } filteredLists)
+            {
+                ValidateSequenceMappings(filteredLists, Set("field", "operator", "value", "values", "listRoute", "title", "description", "listTemplate", "pageSize", "urlPattern", "emptyBehavior"), $"site.collections.{name}.filteredLists");
+            }
         }
     }
 

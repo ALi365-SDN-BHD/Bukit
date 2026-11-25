@@ -42,7 +42,9 @@ internal static class SeoModelBuilder
                         || IsTruthyField(fields, "seo_article")
                         || IsArticleContentType(record.Identity.ContentType)
                         || IsArticleContentType(record.Classification.Type);
-        schemaType = isArticle && string.IsNullOrWhiteSpace(schemaType) ? "BlogPosting" : schemaType;
+        schemaType = isArticle && string.IsNullOrWhiteSpace(schemaType)
+            ? DefaultArticleType(config.Site, record.Classification.Collection)
+            : schemaType;
         var isStructuredContent = isArticle || IsStructuredContentSchemaType(schemaType);
         var isCollectionPage = !isStructuredContent && IsCollectionLikePage(fields);
         var updated = record.Lifecycle.UpdatedAt;
@@ -395,10 +397,10 @@ internal static class SeoModelBuilder
            ?? FirstTextField(fields, "schema_type")
            ?? FirstTextField(fields, "seo_schema_type");
 
-    internal static bool IsArticleSchemaType(string? schemaType)
-        => schemaType is not null &&
-           (schemaType.EndsWith("Article", StringComparison.OrdinalIgnoreCase) ||
-            string.Equals(schemaType, "BlogPosting", StringComparison.OrdinalIgnoreCase));
+    internal static bool IsArticleSchemaType(string? schemaType) => SeoArticleConfig.IsArticleType(schemaType);
+
+    private static string DefaultArticleType(SiteConfig site, string collection)
+        => SeoArticleConfig.ResolveArticleType(site, collection);
 
     private static bool IsArticleContentType(string? contentType)
         => string.Equals(contentType, "article", StringComparison.OrdinalIgnoreCase) ||

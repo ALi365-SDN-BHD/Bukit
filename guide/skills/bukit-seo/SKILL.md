@@ -40,6 +40,9 @@ site:
       searchAction: true
       breadcrumbHome: false
       breadcrumbParent: categories  # must be a configured taxonomy
+      articleType: BlogPosting      # BlogPosting|Article|NewsArticle|...; collection seo.articleType overrides
+    authors:                        # profiles by author name or authoredBy id (case-insensitive)
+      Aisha: { type: Person, url: /about/aisha/, sameAs: [https://www.linkedin.com/in/aisha/] }
     robotsTxt: { enabled: false }   # see bukit-outputs
     geo: { enabled: true }          # see bukit-geo
 ```

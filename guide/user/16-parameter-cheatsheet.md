@@ -35,12 +35,14 @@
 | `site.seo.titleSeparator` | ` \| ` |
 | `site.seo.defaultAuthor` | none; last SEO author fallback |
 | `site.seo.defaultAuthorType` | `Person`; or `Organization` |
+| `site.seo.authors` | none; author profiles by name or `authoredBy` id |
 | `site.seo.organization.type` | `Organization` |
 | `site.seo.organization.sameAs` | empty array |
 | `site.seo.schema.webPage` | `true` |
 | `site.seo.schema.collectionPage` | `true` |
 | `site.seo.schema.breadcrumbHome` | `false` |
 | `site.seo.schema.breadcrumbParent` | none; taxonomy kind used as breadcrumb parent |
+| `site.seo.schema.articleType` | `BlogPosting`; `site.collections.<name>.seo.articleType` overrides it |
 | `site.seo.schema.searchAction` | `true` |
 | `site.seo.geo.enabled` | `true` |
 | `site.seo.geo.llmsTxt` | `true` |

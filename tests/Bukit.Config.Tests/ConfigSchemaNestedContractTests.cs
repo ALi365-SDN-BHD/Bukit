@@ -56,11 +56,12 @@ public sealed class ConfigSchemaNestedContractTests
 
     private static readonly SchemaCase[] NestedCases =
     [
-        new("site/seo", "enabled", "renderMode", "diagnostics", "homeTitleTemplate", "pageTitleTemplate", "titleSeparator", "defaultImage", "twitterSite", "defaultAuthor", "defaultAuthorType", "organization", "robotsTxt", "schema", "geo"),
+        new("site/seo", "enabled", "renderMode", "diagnostics", "homeTitleTemplate", "pageTitleTemplate", "titleSeparator", "defaultImage", "twitterSite", "defaultAuthor", "defaultAuthorType", "organization", "robotsTxt", "schema", "geo", "authors"),
+        new("site/seo/authors/*", "name", "type", "url", "image", "sameAs"),
         new("site/seo/organization", "type", "name", "url", "logo", "sameAs"),
         new("site/seo/robotsTxt", "enabled", "contentSignal"),
         new("site/seo/robotsTxt/contentSignal", "search", "aiInput", "aiTrain"),
-        new("site/seo/schema", "webPage", "collectionPage", "searchAction", "breadcrumbHome", "breadcrumbParent"),
+        new("site/seo/schema", "webPage", "collectionPage", "searchAction", "breadcrumbHome", "breadcrumbParent", "articleType"),
         new("site/seo/geo", "enabled", "llmsTxt", "llmsFullTxt", "llmsTxtMaxArticles", "aiBotMode", "aiBotAllowList", "aiBotBlockList", "llmsTxtOptionalLinks"),
         new("site/seo/geo/llmsTxtOptionalLinks[]", "title", "url", "description"),
         new("site/analytics", "enabled", "productionOnly", "consent", "csp", "providers"),
@@ -78,7 +79,8 @@ public sealed class ConfigSchemaNestedContractTests
         new("site/related/indices[]", "name", "weight"),
         new("site/sitemapDetail", "defaultPriority", "defaultChangefreq", "imageEnabled", "videoEnabled"),
         new("site/pagination", "enabled", "pageSize"),
-        new("site/collections/*", "permalink", "template", "listRoute", "listTitle", "listDescription", "listTemplate", "schemaFailMode", "noindexWhenEmpty", "indexPolicy", "pagination", "output", "filteredLists"),
+        new("site/collections/*", "permalink", "template", "listRoute", "listTitle", "listDescription", "listTemplate", "schemaFailMode", "noindexWhenEmpty", "indexPolicy", "pagination", "output", "filteredLists", "seo"),
+        new("site/collections/*/seo", "articleType"),
         new("site/collections/*/indexPolicy", "minimumItems", "belowMinimum"),
         new("site/collections/*/pagination", "enabled", "pageSize", "urlPattern", "firstPageUsesListRoute"),
         new("site/collections/*/output", "rss", "feed", "sitemap", "archive", "feedPath", "feedTitle", "feedDescription", "archiveDetail"),
