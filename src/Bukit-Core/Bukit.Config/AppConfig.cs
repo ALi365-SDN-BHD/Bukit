@@ -430,6 +430,11 @@ public sealed record ContentSourceConfig
     public IReadOnlyList<string>? AddToCollections { get; init; }
     public NotionConfig? Notion { get; init; }
     public MarkdownConfig? Markdown { get; init; }
+    /// <remarks>
+    /// Included explicitly because multilingual builds hand the config to worktree workers as JSON,
+    /// and JSON serialization skips internal members otherwise.
+    /// </remarks>
+    [System.Text.Json.Serialization.JsonInclude]
     internal CloudBaseConfig? CloudBase { get; init; }
     public DataIndexConfig? DataIndex { get; init; }
 }

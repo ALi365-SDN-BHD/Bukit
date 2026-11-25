@@ -48,6 +48,43 @@ public sealed class I18nWorktreeProtocolTests : IDisposable
     }
 
     [Fact]
+    public void WorkerConfig_KeepsCloudBaseSourceSettings()
+    {
+        // Workers validate the config rebuilt from this JSON; a cloudbase source without its settings fails validation.
+        var source = new ContentSourceConfig
+        {
+            Type = "cloudbase",
+            CloudBase = new CloudBaseConfig
+            {
+                EnvId = "env-1",
+                Table = "posts",
+                Filter = new CloudBaseFilterConfig { Field = "status", Value = "published" },
+                Sort = new CloudBaseSortConfig { Field = "publish_at", Direction = "desc" },
+                FileFields = ["cover"]
+            }
+        };
+        var config = new AppConfig
+        {
+            Site = new SiteConfig { Name = "s", Title = "S" },
+            Content = new ContentConfig { Sources = [source] }
+        };
+
+        var json = JsonSerializer.Serialize(config, I18nWorktreeJsonContext.Default.AppConfig);
+        var restored = JsonSerializer.Deserialize(json, I18nWorktreeJsonContext.Default.AppConfig)!;
+
+        var cloudBase = Assert.Single(restored.Content.Sources!).CloudBase;
+        Assert.NotNull(cloudBase);
+        Assert.Equal(("env-1", "posts"), (cloudBase.EnvId, cloudBase.Table));
+        Assert.Equal(source.CloudBase.Filter, cloudBase.Filter);
+        Assert.Equal(source.CloudBase.Sort, cloudBase.Sort);
+        Assert.Equal(["cover"], cloudBase.FileFields);
+        var changedSource = source with { CloudBase = source.CloudBase with { Table = "other" } };
+        Assert.NotEqual(
+            I18nWorktreeProtocol.ComputeConfigHash(config, new ConfigOverrides()),
+            I18nWorktreeProtocol.ComputeConfigHash(config with { Content = config.Content with { Sources = [changedSource] } }, new ConfigOverrides()));
+    }
+
+    [Fact]
     public void WorkerConfig_KeepsInternalSiteSeoAndImageSettings()
     {
         // These settings are internal, so the worker JSON keeps them only through JsonInclude.
