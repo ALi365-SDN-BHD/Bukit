@@ -40,6 +40,8 @@ public sealed class SeoImageMetadataResolverTests : IDisposable
 
     [Theory]
     [InlineData("https://cdn.example.net/repo/assets/og.jpg")]
+    [InlineData("//cdn.example.net/repo/assets/og.jpg")]
+    [InlineData("file:///repo/assets/og.jpg")]
     [InlineData("https://example.com/repo/assets/missing.jpg")]
     [InlineData("https://example.com/repo/assets/../../outside.jpg")]
     [InlineData("data:image/png;base64,AAAA")]
@@ -59,7 +61,8 @@ public sealed class SeoImageMetadataResolverTests : IDisposable
     {
         var seo = new SeoModel
         {
-            Title = "T", Canonical = "https://example.com/post/",
+            Title = "T",
+            Canonical = "https://example.com/post/",
             Og = new SeoOpenGraphModel { Image = "https://example.com/og.png", ImageWidth = 1200, ImageHeight = 630, ImageType = "image/png" }
         };
 

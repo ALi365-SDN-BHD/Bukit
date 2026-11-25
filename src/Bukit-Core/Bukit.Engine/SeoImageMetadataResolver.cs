@@ -80,20 +80,20 @@ internal sealed class SeoImageMetadataResolver
     {
         sitePath = string.Empty;
         var path = imageUrl;
-        if (Uri.TryCreate(imageUrl, UriKind.Absolute, out var absolute))
+        // A root-relative path is a site path; on Unix Uri.TryCreate would read it as a file:// URI.
+        if (!imageUrl.StartsWith('/') || imageUrl.StartsWith("//", StringComparison.Ordinal))
         {
-            if (absolute.Scheme is not ("http" or "https") ||
+            var candidate = imageUrl.StartsWith("//", StringComparison.Ordinal) ? "https:" + imageUrl : imageUrl;
+            if (!Uri.TryCreate(candidate, UriKind.Absolute, out var absolute) ||
+                absolute.Scheme is not ("http" or "https") ||
                 _siteUri is null ||
-                !string.Equals(_siteUri.GetLeftPart(UriPartial.Authority), absolute.GetLeftPart(UriPartial.Authority), StringComparison.OrdinalIgnoreCase))
+                !string.Equals(_siteUri.Host, absolute.Host, StringComparison.OrdinalIgnoreCase) ||
+                (!imageUrl.StartsWith("//", StringComparison.Ordinal) && _siteUri.Port != absolute.Port))
             {
                 return false;
             }
 
             path = absolute.AbsolutePath;
-        }
-        else if (!imageUrl.StartsWith('/'))
-        {
-            return false;
         }
 
         var basePath = _basePaths.FirstOrDefault(prefix => prefix.Length == 0 || path.StartsWith(prefix + '/', StringComparison.Ordinal));
