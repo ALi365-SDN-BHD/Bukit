@@ -58,9 +58,22 @@
 - Configure long-running tool calls to yield within 60 seconds and report progress between waits. After the same error occurs twice, stop blind retries and switch to targeted diagnosis.
 - If an agent provides no progress for 90 seconds, the controller must check whether it is stalled, waiting for input, or holding a contested resource.
 
-## Iterative SOP loop
+## Dev SOP (开发sop / dev sop)
 
-When the user asks to run the SOP over a task queue, execute this loop:
+When the user says "开发sop" or "dev sop", run this loop for each task:
+
+1. Analyze: investigate and verify the requirement or problem with evidence; confirm it is real and its scope.
+2. Plan and implement: make a plan and implement it strictly, without expanding scope.
+3. Audit the current task's execution result for problems:
+   - Problem found: record it in the problem log; do not expand the fix within this task.
+   - No problem: return to step 1 and continue with the next task.
+4. Wrap up: after all tasks, review the problem log, verify and audit each logged problem, fix it, then test all execution results.
+
+The red lines in this file (protected areas, Website/Core isolation, verification boundaries, single writer) still apply to every step.
+
+## Iterative SOP loop (full SOP)
+
+When the user asks to run the full SOP over a task queue, execute this loop:
 
 1. Analyze: investigate and verify the current item (problem or task) with evidence before acting.
 2. Plan and implement: define the approach and the verification closure, then implement it.
