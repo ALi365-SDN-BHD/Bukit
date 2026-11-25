@@ -57,6 +57,7 @@ internal static class VariantSeoStage
             breadcrumbs,
             context.BuildStartedAt,
             context.SharedAssets);
+        seoResult = WithSocialImageMetadata(seoResult, context, logger);
         pluginContext.SeoIndex = seoResult.SeoIndex.Entries;
         pluginContext.Set(BuildDataKeys.SeoModels, seoResult.SeoIndex.Models);
 
@@ -65,5 +66,30 @@ internal static class VariantSeoStage
             seoAlternates,
             maxDegreeOfParallelism,
             breadcrumbs));
+    }
+
+    // Page SEO models gain og:image width, height and type when the image is a local file.
+    private static SeoPipelineResult WithSocialImageMetadata(SeoPipelineResult result, BuildVariantContext context, ILogger logger)
+    {
+        if (result.SeoBuilder is null && result.ListSeoBuilder is null)
+        {
+            return result;
+        }
+
+        var resolver = new SeoImageMetadataResolver(
+            context.Config.Site.Url,
+            [context.BaseUrl, context.RootBaseUrl, context.Config.Site.BaseUrl],
+            context.Config.Content.Media.UrlBase,
+            context.MediaDownloadDir,
+            [context.AssetsDir, context.ParentAssetsDir],
+            [context.StaticDir, context.ParentStaticDir],
+            logger);
+        var seoBuilder = result.SeoBuilder;
+        var listSeoBuilder = result.ListSeoBuilder;
+        return result with
+        {
+            SeoBuilder = seoBuilder is null ? null : (document, route) => resolver.Apply(seoBuilder(document, route)),
+            ListSeoBuilder = listSeoBuilder is null ? null : (route, page) => resolver.Apply(listSeoBuilder(route, page))
+        };
     }
 }

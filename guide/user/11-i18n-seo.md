@@ -372,6 +372,17 @@ Article pages that set no schema type (front-matter `schema_type`,
 `site.seo.schema.articleType`, then `BlogPosting`. Both accept `BlogPosting` or a
 schema.org type ending in `Article`.
 
+When the social image is a file of this site (content media, theme `assets/`, or
+a static file), Bukit reads its size and writes `og:image:width`,
+`og:image:height`, and `og:image:type` after `og:image`, so platforms can lay out
+the preview before fetching the image. Themes in `theme` render mode read them as
+`page.seo.og.image_width`, `page.seo.og.image_height`, and
+`page.seo.og.image_type`. External images get none. A WebP share image warns
+`seo.og_image_webp` (and `seo.twitter_image_webp`), because some platforms, such
+as WhatsApp and WeChat, show no preview for WebP; use JPEG or PNG there.
+Incremental builds re-render pages when a media or `assets/` image changes size;
+after resizing a share image elsewhere in `static/`, rebuild with `--clean`.
+
 For collection list routes, `site.collections.<name>.noindexWhenEmpty: true`
 marks an empty result as `noindex,follow`. The same indexability decision
 removes that empty route from sitemap, search output, `llms.txt`, and

@@ -69,6 +69,9 @@ internal static class ScribanModelKnownFields
         public const string Description = "description";
         public const string Url = "url";
         public const string Image = "image";
+        public const string ImageWidth = "image_width";
+        public const string ImageHeight = "image_height";
+        public const string ImageType = "image_type";
         public const string Type = "type";
         public const string SiteName = "site_name";
         public const string Locale = "locale";
@@ -116,7 +119,8 @@ internal static class ScribanModelKnownFields
     private static readonly HashSet<string> _seoOgFields = new(StringComparer.OrdinalIgnoreCase)
     {
         SeoOgFields.Title, SeoOgFields.Description, SeoOgFields.Url,
-        SeoOgFields.Image, SeoOgFields.Type, SeoOgFields.SiteName,
+        SeoOgFields.Image, SeoOgFields.ImageWidth, SeoOgFields.ImageHeight, SeoOgFields.ImageType,
+        SeoOgFields.Type, SeoOgFields.SiteName,
         SeoOgFields.Locale
     };
 

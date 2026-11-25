@@ -7263,9 +7263,12 @@
       "publicMembers": [
         "public .ctor()",
         "public Bukit.Rendering.SeoOpenGraphModel! \u003CClone\u003E$()",
+        "public System.Int32? ImageHeight { get; init; }",
+        "public System.Int32? ImageWidth { get; init; }",
         "public System.String! Type { get; init; }",
         "public System.String? Description { get; init; }",
         "public System.String? Image { get; init; }",
+        "public System.String? ImageType { get; init; }",
         "public System.String? Locale { get; init; }",
         "public System.String? SiteName { get; init; }",
         "public System.String? Title { get; init; }",

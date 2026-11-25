@@ -5,7 +5,7 @@ using Bukit.Shared;
 namespace Bukit.Engine.Incremental;
 
 /// <summary>
-/// Fingerprints what the responsive-image plugin writes into HTML. Page markup only
+/// Fingerprints what the responsive-image plugin and the og:image metadata write into HTML. Page markup only
 /// depends on each source image's path and display size (the width decides the variant
 /// set and srcset; width and height become the img dimensions). Variant files are
 /// regenerated from fresh content by the plugin on every build, so a content change that
@@ -31,7 +31,8 @@ internal static class ImageSourceFingerprint
         string? parentStaticDir,
         ILogger logger)
     {
-        if (config.Theme.Images is not { Enabled: true })
+        // SEO also writes the share image's width, height and type into every page head.
+        if (config.Theme.Images is not { Enabled: true } && !config.Site.Seo.Enabled)
         {
             return null;
         }
