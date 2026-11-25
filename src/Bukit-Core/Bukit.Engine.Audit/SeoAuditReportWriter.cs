@@ -229,8 +229,7 @@ internal static partial class SeoAuditReportWriter
             LlmsFullTxtGenerated: report.Summary.LlmsFullTxtGenerated,
             GeoEnhancedCount: report.Summary.GeoEnhancedCount,
             GeoEnhancedRoutes: report.Routes
-                .Where(r => r.SchemaTypes.Any(t =>
-                    t is "FAQPage" or "HowTo" or "BlogPosting" or "Person" or "Article" or "NewsArticle" or "SpeakableSpecification"))
+                .Where(r => r.SchemaTypes.Any(SeoSchemaValidator.IsGeoEnhancedType))
                 .Select(r => new GeoRouteEntry(r.Url, r.SchemaTypes))
                 .ToList());
 

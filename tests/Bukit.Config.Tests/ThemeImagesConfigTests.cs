@@ -23,8 +23,24 @@ public sealed class ThemeImagesConfigTests : IDisposable
     }
 
     [Theory]
+    [InlineData(" (max-width: 768px) 100vw", true)]
+    [InlineData("100vw", true)]
+    [InlineData("  auto, 100vw", false)]
+    [InlineData("AUTO", false)]
+    [InlineData("   ", false)]
+    public void Schema_SizesAttributePattern_MatchesTheReader(string value, bool valid)
+    {
+        using var doc = System.Text.Json.JsonDocument.Parse(ConfigJsonSchemaGenerator.Generate());
+        var pattern = doc.RootElement.GetProperty("properties").GetProperty("theme").GetProperty("properties")
+            .GetProperty("images").GetProperty("properties").GetProperty("sizesAttribute").GetProperty("pattern").GetString()!;
+
+        Assert.Equal(valid, System.Text.RegularExpressions.Regex.IsMatch(value, pattern));
+    }
+
+    [Theory]
     [InlineData("sizesAttribute: \"  \"", "must not be blank")]
     [InlineData("sizesAttribute: \"auto, 100vw\"", "without auto")]
+    [InlineData("sizesAttribute: \" Auto, 100vw\"", "without auto")]
     [InlineData("sizesAttribute: [100vw]", "theme.images.sizesAttribute")]
     public void Load_RejectsInvalidValues(string fragment, string message)
     {

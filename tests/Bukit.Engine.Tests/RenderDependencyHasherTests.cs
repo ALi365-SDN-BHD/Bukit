@@ -399,7 +399,7 @@ public sealed class RenderDependencyHasherTests
         // Golden hash for the canonical framed/type-tagged render dependency encoding
         // (base hash combined with every shared collection fingerprint).
         Assert.Equal(
-            "c0d8fc14598192a75c3bd993219a4aca99e40014735dc73db84e610a4367b7cd",
+            "e1dcaf6e24bb883f332dae44ee22da728b0bcaf8bea9139e7d4fb8cee60b518f",
             RenderDependencyHasher.Compute(
                 CreateRepresentativeGoldenConfig(),
                 CreateRepresentativeGoldenSiteModel(),

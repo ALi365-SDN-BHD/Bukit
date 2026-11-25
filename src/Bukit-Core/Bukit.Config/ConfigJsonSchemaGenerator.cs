@@ -481,7 +481,7 @@ public static class ConfigJsonSchemaGenerator
             ("formats", StringArraySchema()),
             ("sizes", Obj(("type", "array"), ("items", IntSchema(1)))),
             ("quality", IntSchema(0)),
-            ("sizesAttribute", Obj(("type", "string"), ("minLength", 1), ("pattern", "^(?![Aa][Uu][Tt][Oo])"))),
+            ("sizesAttribute", Obj(("type", "string"), ("minLength", 1), ("pattern", "^\\s*(?![Aa][Uu][Tt][Oo])\\S"))),
             ("fallbackVariants", EnumSchema("all", "none")))));
 
     private static JsonObject MediaSchema()

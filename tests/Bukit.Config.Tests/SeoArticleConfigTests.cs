@@ -76,6 +76,8 @@ public sealed class SeoArticleConfigTests : IDisposable
     [Theory]
     [InlineData("seo:\n  schema:\n    articleType: FAQPage", "site.seo.schema.articleType must be BlogPosting")]
     [InlineData("seo:\n  schema:\n    articleType: \"News Article\"", "site.seo.schema.articleType must be BlogPosting")]
+    [InlineData("seo:\n  schema:\n    articleType: newsarticle", "site.seo.schema.articleType must be BlogPosting")]
+    [InlineData("seo:\n  schema:\n    articleType: blogposting", "site.seo.schema.articleType must be BlogPosting")]
     [InlineData("collections:\n  posts:\n    permalink: /p/{slug}/\n    seo:\n      articleType: WebPage", "site.collections.posts.seo.articleType must be BlogPosting")]
     [InlineData("seo:\n  authors:\n    Aisha:\n      type: Company", "site.seo.authors.Aisha.type must be Person|Organization")]
     [InlineData("seo:\n  authors:\n    Aisha:\n      url: \"  \"", "site.seo.authors.Aisha.url must not be blank")]

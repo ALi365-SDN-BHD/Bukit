@@ -370,7 +370,7 @@ site URL.
 Article pages that set no schema type (front-matter `schema_type`,
 `seo_schema_type`, or `schemaType` inside the `geo` map) use `site.collections.<name>.seo.articleType`, then
 `site.seo.schema.articleType`, then `BlogPosting`. Both accept `BlogPosting` or a
-schema.org type ending in `Article`.
+schema.org type ending in `Article`, spelled in exact case (`TechArticle`, not `techarticle`).
 
 When the social image is a file of this site (content media, theme `assets/`, or
 a static file), Bukit reads its size and writes `og:image:width`,

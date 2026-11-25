@@ -28,6 +28,41 @@ public sealed class TaxonomyMetadataLoaderTests
     }
 
     [Fact]
+    public void LoadFromIndexFiles_UnreadableIndex_WarnsAndKeepsTheTerm()
+    {
+        if (OperatingSystem.IsWindows() || Environment.UserName == "root")
+        {
+            return;
+        }
+
+        var root = Path.Combine(Path.GetTempPath(), "bukit-term-unreadable-" + Guid.NewGuid().ToString("N"));
+        var index = Path.Combine(root, "content", "_taxonomy", "tags", "tech", "_index.md");
+        try
+        {
+            Directory.CreateDirectory(Path.GetDirectoryName(index)!);
+            File.WriteAllText(index, "---\ndescription: Tech\n---\n");
+            File.SetUnixFileMode(index, UnixFileMode.None);
+            var terms = new Dictionary<string, TaxonomyTerm> { ["tech"] = new("Tech", "tech") };
+            var logger = new WarningLogger();
+
+            TaxonomyMetadataLoader.LoadFromIndexFiles(root, "tags", terms, logger);
+
+            Assert.Null(terms["tech"].Description);
+            var warning = Assert.Single(logger.Warnings);
+            Assert.Contains("event=taxonomy.term.index_unreadable kind=tags slug=tech", warning, StringComparison.Ordinal);
+        }
+        finally
+        {
+            if (File.Exists(index))
+            {
+                File.SetUnixFileMode(index, UnixFileMode.UserRead | UnixFileMode.UserWrite);
+            }
+
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
+    [Fact]
     public void LoadAndEnrich_ReadsTermI18nKeys_AndDropsAKeyTwoTermsShare()
     {
         var root = Path.Combine(Path.GetTempPath(), "bukit-term-keys-" + Guid.NewGuid().ToString("N"));

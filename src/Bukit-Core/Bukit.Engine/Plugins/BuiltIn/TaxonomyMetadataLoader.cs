@@ -1,4 +1,5 @@
 using Bukit.Engine.Abstractions.Plugins;
+using Bukit.Shared;
 
 namespace Bukit.Engine.Plugins.BuiltIn;
 
@@ -7,7 +8,7 @@ internal static class TaxonomyMetadataLoader
     internal static void LoadAndEnrich(BuildContext context, string kind, Dictionary<string, TaxonomyTerm> terms)
     {
         LoadFromEnsureTerms(context, kind, terms);
-        LoadFromIndexFiles(context.RootDir, kind, terms);
+        LoadFromIndexFiles(context.RootDir, kind, terms, context.Logger);
         DropDuplicateI18nKeys(context, kind, terms);
     }
 
@@ -59,7 +60,7 @@ internal static class TaxonomyMetadataLoader
         }
     }
 
-    internal static void LoadFromIndexFiles(string rootDir, string kind, Dictionary<string, TaxonomyTerm> terms)
+    internal static void LoadFromIndexFiles(string rootDir, string kind, Dictionary<string, TaxonomyTerm> terms, ILogger logger)
     {
         var taxonomyDir = Path.Combine(rootDir, "content", "_taxonomy", kind);
         if (!Directory.Exists(taxonomyDir))
@@ -90,8 +91,9 @@ internal static class TaxonomyMetadataLoader
                     EnrichTerm(terms, slug, term, fm);
                 }
             }
-            catch
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
             {
+                logger.Warn($"event=taxonomy.term.index_unreadable kind={kind} slug={slug} error={ex.GetType().Name}");
             }
         }
     }

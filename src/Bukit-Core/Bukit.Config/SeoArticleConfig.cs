@@ -14,6 +14,15 @@ internal static class SeoArticleConfig
            (schemaType.EndsWith("Article", StringComparison.OrdinalIgnoreCase) ||
             string.Equals(schemaType, DefaultArticleType, StringComparison.OrdinalIgnoreCase));
 
+    /// <summary>
+    /// Exact-case form of <see cref="IsArticleType"/> for JSON-LD <c>@type</c> values and configuration:
+    /// BlogPosting or an ASCII-letter name ending in Article (Article, NewsArticle, TechArticle, ...).
+    /// </summary>
+    internal static bool IsArticleTypeName(string? schemaType)
+        => schemaType is not null &&
+           (string.Equals(schemaType, DefaultArticleType, StringComparison.Ordinal) ||
+            (schemaType.EndsWith("Article", StringComparison.Ordinal) && schemaType.All(char.IsAsciiLetter)));
+
     /// <summary>Schema type of an article page that sets none: its collection's, then the site's, then BlogPosting.</summary>
     internal static string ResolveArticleType(SiteConfig site, string? collection)
     {
@@ -97,7 +106,8 @@ internal static class SeoArticleConfig
             return;
         }
 
-        if (!IsArticleType(value.Trim()) || !value.Trim().All(char.IsAsciiLetter))
+        // Exact case, like the JSON schema: schema.org types are case-sensitive.
+        if (!IsArticleTypeName(value.Trim()))
         {
             throw new ConfigException(
                 $"{path} must be BlogPosting or a schema.org Article type such as Article, NewsArticle or TechArticle.",
