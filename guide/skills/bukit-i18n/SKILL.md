@@ -147,7 +147,9 @@ points to the default language. In SEO `inject` mode Core writes the links and r
 theme-written ones; templates can read `page.seo.alternates`. Pages pair by `i18nKey`,
 else by URL. Localized term slugs pair through an `i18nKey` in
 `content/_taxonomy/<kind>/<slug>/_index.md` front matter (or on a `sourceKey: tags|categories`
-data document), matched by kind, key and page.
+data document), matched by kind, key and page. In each language's build a term is that
+language when its pages use it, else the `language` in its metadata, else unknown; only two
+terms of the built language (or two unknown ones) sharing a key are a duplicate.
 
 ## Site identity per language
 

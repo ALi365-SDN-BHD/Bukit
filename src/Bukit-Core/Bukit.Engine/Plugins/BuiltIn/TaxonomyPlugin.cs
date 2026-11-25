@@ -107,7 +107,7 @@ internal sealed class TaxonomyPlugin : IBukitPlugin, IDerivePagesPlugin, IAfterB
                 var kind = string.IsNullOrWhiteSpace(kindConfig.Kind) ? key : kindConfig.Kind.Trim();
                 var terms = TaxonomyIndexBuilder.GetOrBuildIndex(context, key, itemFields, _taxonomy, _indexCache);
                 TaxonomyIndexBuilder.MergeEnsureTerms(context, kind, terms);
-                TaxonomyMetadataLoader.LoadAndEnrich(context, kind, terms);
+                TaxonomyMetadataLoader.LoadAndEnrich(context, kind, terms, _config.Site.Language);
                 if (terms.Count == 0)
                 {
                     continue;
@@ -131,8 +131,8 @@ internal sealed class TaxonomyPlugin : IBukitPlugin, IDerivePagesPlugin, IAfterB
         var categories = TaxonomyIndexBuilder.GetOrBuildIndex(context, "categories", itemFields, _taxonomy, _indexCache);
         TaxonomyIndexBuilder.MergeEnsureTerms(context, "tags", tags);
         TaxonomyIndexBuilder.MergeEnsureTerms(context, "categories", categories);
-        TaxonomyMetadataLoader.LoadAndEnrich(context, "tags", tags);
-        TaxonomyMetadataLoader.LoadAndEnrich(context, "categories", categories);
+        TaxonomyMetadataLoader.LoadAndEnrich(context, "tags", tags, _config.Site.Language);
+        TaxonomyMetadataLoader.LoadAndEnrich(context, "categories", categories, _config.Site.Language);
 
         if (tags.Count == 0 && categories.Count == 0)
         {
@@ -176,7 +176,7 @@ internal sealed class TaxonomyPlugin : IBukitPlugin, IDerivePagesPlugin, IAfterB
                 var kind = string.IsNullOrWhiteSpace(kindConfig.Kind) ? key : kindConfig.Kind.Trim();
                 var terms = TaxonomyIndexBuilder.GetOrBuildIndex(context, key, itemFields, _taxonomy, _indexCache);
                 TaxonomyIndexBuilder.MergeEnsureTerms(context, kind, terms);
-                TaxonomyMetadataLoader.LoadAndEnrich(context, kind, terms);
+                TaxonomyMetadataLoader.LoadAndEnrich(context, kind, terms, _config.Site.Language);
                 if (terms.Count == 0)
                 {
                     continue;
@@ -190,7 +190,7 @@ internal sealed class TaxonomyPlugin : IBukitPlugin, IDerivePagesPlugin, IAfterB
         {
             var tags = TaxonomyIndexBuilder.GetOrBuildIndex(context, "tags", itemFields, _taxonomy, _indexCache);
             TaxonomyIndexBuilder.MergeEnsureTerms(context, "tags", tags);
-            TaxonomyMetadataLoader.LoadAndEnrich(context, "tags", tags);
+            TaxonomyMetadataLoader.LoadAndEnrich(context, "tags", tags, _config.Site.Language);
             if (tags.Count > 0)
             {
                 var (title, _) = TaxonomyMetadataFormatter.ResolveBuiltInTitles("tags", _config.Site.Language);
@@ -199,7 +199,7 @@ internal sealed class TaxonomyPlugin : IBukitPlugin, IDerivePagesPlugin, IAfterB
 
             var categories = TaxonomyIndexBuilder.GetOrBuildIndex(context, "categories", itemFields, _taxonomy, _indexCache);
             TaxonomyIndexBuilder.MergeEnsureTerms(context, "categories", categories);
-            TaxonomyMetadataLoader.LoadAndEnrich(context, "categories", categories);
+            TaxonomyMetadataLoader.LoadAndEnrich(context, "categories", categories, _config.Site.Language);
             if (categories.Count > 0)
             {
                 var (title, _) = TaxonomyMetadataFormatter.ResolveBuiltInTitles("categories", _config.Site.Language);
@@ -340,6 +340,8 @@ internal sealed class TaxonomyTerm
     public string? ParentSlug { get; init; }
     /// <summary>Pairs this term's page with the same-key term page of other languages (hreflang).</summary>
     public string? I18nKey { get; init; }
+    /// <summary>The term's <c>language</c> metadata; decides its language only while it has no pages.</summary>
+    public string? Language { get; init; }
     public IReadOnlyList<string>? Aliases { get; init; }
     public List<TaxonomyPage> Pages { get; init; } = new();
 }

@@ -91,14 +91,14 @@ public sealed class TaxonomyMetadataLoaderTests
                 ["kopi"] = new("Kopi", "kopi")
             };
 
-            TaxonomyMetadataLoader.LoadAndEnrich(context, "tags", terms);
+            TaxonomyMetadataLoader.LoadAndEnrich(context, "tags", terms, "en");
 
             Assert.Equal("my", terms["malaysia"].I18nKey);
             Assert.Null(terms["tea"].I18nKey);
             Assert.Null(terms["kopi"].I18nKey);
             Assert.Equal("d", terms["tea"].Description);
             var warning = Assert.Single(logger.Warnings);
-            Assert.Contains("event=taxonomy.term.i18n_key_duplicate kind=tags key=drink slugs=kopi,tea", warning, StringComparison.Ordinal);
+            Assert.Contains("event=taxonomy.term.i18n_key_duplicate kind=tags key=drink slugs=kopi,tea language=en", warning, StringComparison.Ordinal);
         }
         finally
         {
@@ -107,6 +107,124 @@ public sealed class TaxonomyMetadataLoaderTests
                 Directory.Delete(root, recursive: true);
             }
         }
+    }
+
+    [Fact]
+    public void LoadAndEnrich_TermOfTheBuiltLanguage_KeepsAKeyAnotherLanguagesTermShares()
+    {
+        // Notion select options reach every language: the en build also holds the zh term, without pages.
+        var (root, context, logger) = CreateTermIndexes(("market-watch", "i18nKey: market-watch"), ("市场观察", "i18nKey: market-watch"));
+        try
+        {
+            var terms = new Dictionary<string, TaxonomyTerm>
+            {
+                ["market-watch"] = WithPage(new("Market Watch", "market-watch")),
+                ["市场观察"] = new("市场观察", "市场观察")
+            };
+
+            TaxonomyMetadataLoader.LoadAndEnrich(context, "categories", terms, "en");
+
+            Assert.Equal("market-watch", terms["market-watch"].I18nKey);
+            Assert.Null(terms["市场观察"].I18nKey);
+            Assert.Empty(logger.Warnings);
+        }
+        finally
+        {
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
+    [Fact]
+    public void LoadAndEnrich_TermLanguageMetadata_DecidesTheLanguageOfATermWithoutPages()
+    {
+        var (root, context, logger) = CreateTermIndexes(
+            ("market-watch", "i18nKey: market-watch\nlanguage: en"),
+            ("市场观察", "i18nKey: market-watch\nlanguage: zh-CN"),
+            ("macro", "i18nKey: macro\nlanguage: en"));
+        try
+        {
+            var terms = new Dictionary<string, TaxonomyTerm>
+            {
+                ["market-watch"] = new("Market Watch", "market-watch"),
+                ["市场观察"] = new("市场观察", "市场观察"),
+                ["macro"] = new("Macro", "macro")
+            };
+
+            TaxonomyMetadataLoader.LoadAndEnrich(context, "categories", terms, "zh-cn");
+
+            Assert.Equal("market-watch", terms["市场观察"].I18nKey);
+            Assert.Equal("zh-CN", terms["市场观察"].Language);
+            Assert.Null(terms["market-watch"].I18nKey);
+            // A term of another language cannot be this language's translation, even alone.
+            Assert.Null(terms["macro"].I18nKey);
+            Assert.Empty(logger.Warnings);
+        }
+        finally
+        {
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
+    [Fact]
+    public void LoadAndEnrich_PagesOutrankLanguageMetadata_AndTwoBuiltLanguageTermsSharingAKeyPairNeither()
+    {
+        var (root, context, logger) = CreateTermIndexes(
+            ("tea", "i18nKey: drink\nlanguage: zh-CN"),
+            ("kopi", "i18nKey: drink"),
+            ("teh", "i18nKey: drink"));
+        try
+        {
+            var terms = new Dictionary<string, TaxonomyTerm>
+            {
+                ["tea"] = WithPage(new("Tea", "tea")),
+                ["kopi"] = WithPage(new("Kopi", "kopi")),
+                ["teh"] = new("Teh", "teh")
+            };
+
+            TaxonomyMetadataLoader.LoadAndEnrich(context, "tags", terms, "en");
+
+            Assert.Null(terms["tea"].I18nKey);
+            Assert.Null(terms["kopi"].I18nKey);
+            Assert.Null(terms["teh"].I18nKey);
+            var warning = Assert.Single(logger.Warnings);
+            Assert.Contains("event=taxonomy.term.i18n_key_duplicate kind=tags key=drink slugs=kopi,tea language=en", warning, StringComparison.Ordinal);
+        }
+        finally
+        {
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
+    private static TaxonomyTerm WithPage(TaxonomyTerm term)
+    {
+        term.Pages.Add(new TaxonomyPage("p-" + term.Slug, term.DisplayName, "/p/" + term.Slug + "/", DateTimeOffset.UnixEpoch, null, null, false, null));
+        return term;
+    }
+
+    private static (string Root, BuildContext Context, WarningLogger Logger) CreateTermIndexes(params (string Slug, string FrontMatter)[] indexes)
+    {
+        var root = Path.Combine(Path.GetTempPath(), "bukit-term-lang-" + Guid.NewGuid().ToString("N"));
+        foreach (var (slug, frontMatter) in indexes)
+        {
+            foreach (var kind in new[] { "tags", "categories" })
+            {
+                var dir = Path.Combine(root, "content", "_taxonomy", kind, slug);
+                Directory.CreateDirectory(dir);
+                File.WriteAllText(Path.Combine(dir, "_index.md"), $"---\n{frontMatter}\n---\n");
+            }
+        }
+
+        var logger = new WarningLogger();
+        var context = new BuildContext
+        {
+            RootDir = root,
+            OutputDir = root,
+            BaseUrl = "/",
+            LayoutsDir = root,
+            RoutedDocuments = Array.Empty<RoutedContentDocument>(),
+            Logger = logger
+        };
+        return (root, context, logger);
     }
 
     [Fact]

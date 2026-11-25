@@ -110,7 +110,7 @@ The build reports these warnings:
 |---|---|
 | `i18n.document.language_unknown` | A page `language` is not in `site.languages`, so the page is dropped. |
 | `i18n.document.i18n_key_duplicate` | Two pages in the same language use the same `i18nKey`; hreflang and merged sitemap alternates can point to only one of them. |
-| `taxonomy.term.i18n_key_duplicate` | Two terms of one kind in the same language use the same `i18nKey`; neither pairs by key, and both fall back to pairing by URL. |
+| `taxonomy.term.i18n_key_duplicate` | Two terms of one kind in the language being built use the same `i18nKey`; neither pairs by key, and both fall back to pairing by URL. A term of another language sharing the key is not a duplicate (see Pairing term pages across languages). |
 | `i18n.config.default_language_layout_ignored` | `site.defaultLanguageInSubdir` is `true`, `site.defaultLanguageRedirect` is `false`, or `site.defaultLanguageLegacyRedirects` is `true`, but `site.languages` has fewer than two languages, so the single-language output is unchanged. |
 | `i18n.config.legacy_redirects_ignored` | `site.defaultLanguageLegacyRedirects` is `true` but the default language is still prefixed (`defaultLanguageInSubdir: true`), so there are no old URLs to redirect. |
 | `i18n.config.shared_assets_ignored` | `site.sharedAssets.enabled` is `true` on a single-language root-layout site, so sharing is ignored. |
@@ -434,6 +434,20 @@ i18nKey: malaysia
 or as an `i18nKey` field on a `sourceKey: tags` or `sourceKey: categories` data document.
 Term pages with the same kind, key and page number then list each other in hreflang
 and sitemap alternates. Taxonomy index pages still pair by URL.
+
+Each language builds its term pages from its own pages, but terms that no page uses,
+such as Notion select options, reach every language. A term's language in a build is:
+
+1. the language being built, when one of that language's pages uses the term;
+2. otherwise the `language` in its metadata file (`language: zh-CN`), if set;
+3. otherwise unknown.
+
+A term of another language never keeps its key in that build. When one term of the
+built language and terms of unknown language share a key, the built language's term
+keeps it, so a Chinese and an English term may declare the same key. Only two terms of
+the built language, or two of unknown language and none of the built language, sharing
+a key are duplicates. Set `language` on terms that no page uses yet if you want them to
+pair before they have pages.
 
 ## Breadcrumb Route Contract
 
