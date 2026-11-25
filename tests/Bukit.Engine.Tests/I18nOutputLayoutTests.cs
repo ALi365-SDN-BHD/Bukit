@@ -108,6 +108,7 @@ public sealed class I18nOutputLayoutTests
         Assert.Equal(writesOwnFiles, destinations.Contains("sitemap.xml"));
         Assert.Equal(writesOwnFiles, destinations.Contains("rss.xml"));
         Assert.Contains("agent-manifest.json", destinations);
+        Assert.DoesNotContain("robots.txt", destinations);
     }
 
     [Fact]

@@ -28,7 +28,10 @@ internal static class PublicOutputLifecycle
         var layout = I18nOutputLayout.For(config.Site);
         if (RootLanguageKinds.Contains(kind))
         {
-            return language is not null && layout.IsRootLanguage(language);
+            // Crawlers read robots.txt only at the host root, which the root writer owns on a multilingual
+            // site, so no language variant writes its own copy.
+            return language is not null &&
+                (layout.IsRootLanguage(language) || (layout.IsMultilingual && kind.Equals("robots", StringComparison.OrdinalIgnoreCase)));
         }
 
         if (FeedKinds.Contains(kind))

@@ -342,7 +342,8 @@ public sealed class I18nRootLayoutTests
         foreach (var file in new[] { "agent-manifest.json", "robots.txt", "llms.txt", "llms-full.txt" })
         {
             Assert.True(File.Exists(Path.Combine(site.Output, file)), "root " + file);
-            Assert.True(File.Exists(Path.Combine(site.Output, "zh-CN", file)), "zh-CN " + file);
+            // Crawlers read only the host-root robots.txt, so no language writes its own.
+            Assert.Equal(file != "robots.txt", File.Exists(Path.Combine(site.Output, "zh-CN", file)));
             Assert.False(File.Exists(Path.Combine(site.Output, "en", file)), "en " + file);
         }
     }
@@ -987,7 +988,10 @@ public sealed class I18nRootLayoutTests
         using var site = RootSite();
 
         Assert.True(PublicOutputLifecycle.IsRootOwnedAggregate(site.Config, kind, "en"));
-        Assert.False(PublicOutputLifecycle.IsRootOwnedAggregate(site.Config, kind, "zh-CN"));
+        // Only the root writes robots.txt on a multilingual site; other root-language kinds stay with prefixed languages.
+        Assert.Equal(
+            kind.Equals("robots", StringComparison.OrdinalIgnoreCase),
+            PublicOutputLifecycle.IsRootOwnedAggregate(site.Config, kind, "zh-CN"));
     }
 
     [Theory]

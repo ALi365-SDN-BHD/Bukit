@@ -94,6 +94,13 @@ code remains available for legacy aliases such as `/en/about/`. A default-langua
 `static/robots.txt` becomes the site robots file. The name must be exactly
 `robots.txt`: any other casing, such as `Robots.txt`, and any static file that collides
 with another root-owned output fail with `i18n-root-output-conflict` before copying.
+Crawlers read `robots.txt` only at the host root, so Bukit writes one there for a
+multilingual site and none under a language directory.
+
+Each language keeps its own `404.html` when its static directory has one. Hosts that
+serve the nearest `404.html` up the path, such as Cloudflare Pages, then show the
+error page in the visitor's language; hosts that use only the root file, such as
+GitHub Pages, show the default language's page.
 
 ## Language Diagnostics
 

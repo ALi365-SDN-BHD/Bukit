@@ -63,7 +63,10 @@ a second language keeps the default-language URLs. With `true`, every language
 including the default builds into `dist/<lang>/` with base `<baseUrl>/<lang>`; sites
 that relied on the old prefixed default must set it to keep their URLs. In both layouts the
 root holds the aggregate files (sitemap, feeds, search index, `llms.txt`,
-`robots.txt`, `agent-manifest.json`).
+`robots.txt`, `agent-manifest.json`). Crawlers read only the host-root `robots.txt`, so no
+language directory gets its own copy. Each language keeps its own `404.html` (copied from
+its static directory): hosts that serve the nearest `404.html` up the path, such as
+Cloudflare Pages, show a localized error page; GitHub Pages uses only the root one.
 
 `defaultLanguageRedirect: true` (the default) writes a noindex redirect page so the
 home URL never 404s on static hosting: `dist/index.html` → `/<defaultLang>/` for the
