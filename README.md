@@ -261,6 +261,16 @@ See:
 - [`guide/dev/documentation-governance.md`](guide/dev/documentation-governance.md)
 - If you are preparing a release tag, run the repository precheck first: [`release-prerelease-template`](docs/release/release-prerelease-template.md)
 
+### Development SOP (开发sop / dev sop)
+
+Contributors and agents working on this repository follow this loop per task
+(see [`AGENTS.md`](AGENTS.md#dev-sop-开发sop--dev-sop)):
+
+1. Analyze and verify the requirement or problem with evidence.
+2. Plan and implement strictly, without expanding scope.
+3. Audit the task's result for problems. Record any problem; if none, go to step 1 for the next task.
+4. After all tasks, verify and fix every recorded problem, then test all results.
+
 ## License
 
 This project is licensed under the terms in [LICENSE](./LICENSE).
