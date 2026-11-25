@@ -141,7 +141,10 @@ site:
 
 Built when `site.url` is set and at least two languages share a group. `x-default`
 points to the default language. In SEO `inject` mode Core writes the links and removes
-theme-written ones; templates can read `page.seo.alternates`.
+theme-written ones; templates can read `page.seo.alternates`. Pages pair by `i18nKey`,
+else by URL. Localized term slugs pair through an `i18nKey` in
+`content/_taxonomy/<kind>/<slug>/_index.md` front matter (or on a `sourceKey: tags|categories`
+data document), matched by kind, key and page.
 
 ## Site identity per language
 

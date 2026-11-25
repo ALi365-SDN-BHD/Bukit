@@ -274,6 +274,15 @@ internal static class SeoModelBuilder
 
     internal static string BuildListAlternateKey(RouteInfo route) => $"route:{route.Url}";
 
+    /// <summary>
+    /// A term page whose term declares an <c>i18nKey</c> pairs with the same kind, key and page in every language,
+    /// whatever its localized slug; any other list page pairs by URL.
+    /// </summary>
+    internal static string BuildListAlternateKey(ListRoutePlan route)
+        => route.TaxonomyContext is { IsIndex: false, I18nKey: { Length: > 0 } key } taxonomy
+            ? route.PageNumber > 1 ? $"taxonomy:{taxonomy.Kind}:{key}:{route.PageNumber}" : $"taxonomy:{taxonomy.Kind}:{key}"
+            : BuildListAlternateKey(route.ToRouteInfo());
+
     // Article times use the site's time zone, as JSON-LD dates do (same instant, local offset).
     private static DateTimeOffset? InSiteTimeZone(DateTimeOffset? value, AppConfig config)
         => value is { } instant ? TimeZoneInfo.ConvertTime(instant, TimeZoneResolver.ResolveOrUtc(config.Site.Timezone)) : null;

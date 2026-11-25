@@ -40,6 +40,8 @@ Bukit 所有重要变更都将记录在此文件中。
 
 - **按语言设置站点标识**：新增 `site.i18n.<lang>`，多语言站点可以为某一语言设置 `title`、`description` 和 `organization`（`name`、`url`、`logo`、`sameAs`）。该语言的构建会把它们用于 `<title>` 后缀、`og:site_name`、默认描述、JSON-LD 的 `WebSite` 和 `Organization`、该语言的 feed 与 `llms.txt`，以及模板中的 `site.title`；organization 字段逐项覆盖 `site.seo.organization`。根目录的合并输出保留顶层标识。语言键必须是 `site.languages` 中的条目，且至少需要两种语言。
 
+- **本地化的分类词条页可跨语言配对**：分类词条可在 `content/_taxonomy/<kind>/<slug>/_index.md` 的 front matter 中，或在 `sourceKey: tags|categories` 数据文档上声明 `i18nKey`。种类、键和页码都相同的词条页现在会在 hreflang 和 sitemap alternates 中互相列出，因此 `/tags/马来西亚/` 和 `/en/tags/malaysia/` 可以配对；没有键时仍按 URL 配对。同一语言中同一种类的两个词条共用一个键时，记录 `taxonomy.term.i18n_key_duplicate`，并退回按 URL 配对。
+
 ## [2.2.8] - 2026-11-23
 
 - **数据索引支持对象值**：`content.sources[].dataIndex` 的行新增值类型 `object`（一个映射）和 `object[]`（映射列表），模板可以读 `site.data_index.<源>.<scope>.<key>.<字段>`，声明了 `object` 的小程序 `dataIndex` 数据集也能拿到真正的对象。Markdown 行用 YAML 写值；Notion 行用 JSON 文本写值（解析不用反射，Native AOT 二进制可用）。布尔值和数字保留类型，所以 `if info.open` 遇到 `false` 为假，`info.days > 3` 按数字比较：Notion JSON 保留原有类型（JSON 字符串如 `"5"` 仍是文本）；Markdown 标量为 `true`/`false`（YAML 核心写法）时视为布尔值，写成 JSON 数字形式时视为数字，`0123`、`+60`、`yes` 等其他文本保持文本，在 Markdown 里加引号也不能让 `"5"` 保持文本。64 位范围内的整数存为整数，其他数字存为保留原始位数的小数（`12.50`），所以同样的值无论来自哪个源，构建出的模型和增量哈希都相同，小程序 `dataIndex` 数据集也会输出 JSON 布尔值和数字。键按序数排序且不能为空白，嵌套最多 8 层（每个映射或列表算一层），给 `object[]` 单个映射时视为只有一项的列表（与小程序 `object[]` 字段一致），超出 double 范围的数字、无效 JSON、重复键或形状不对都会导致构建失败，报错写明源、内容 id 和 `scope.key`。空的对象值是空映射或空列表；只含空值的映射或列表，`requiredKeys` 也视其为空。**行为变化**：`text`、`multiline`、`email`、`phone`、`url` 行如果值是 YAML 映射或列表，以前会静默构建并输出 .NET 类型名（`System.Collections.Generic.Dictionary...`），现在会构建失败；这些文本行里的数字和日期改为按固定区域格式化，不再随构建机器的区域设置变化。见 [07 多源数据](guide/user/07-multi-source-data.md#object-values)。

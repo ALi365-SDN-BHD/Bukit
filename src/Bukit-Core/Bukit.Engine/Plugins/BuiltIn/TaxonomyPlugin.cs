@@ -338,6 +338,8 @@ internal sealed class TaxonomyTerm
     public int Weight { get; init; }
     public bool IsVisible { get; init; } = true;
     public string? ParentSlug { get; init; }
+    /// <summary>Pairs this term's page with the same-key term page of other languages (hreflang).</summary>
+    public string? I18nKey { get; init; }
     public IReadOnlyList<string>? Aliases { get; init; }
     public List<TaxonomyPage> Pages { get; init; } = new();
 }

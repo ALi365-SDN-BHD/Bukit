@@ -70,7 +70,7 @@ internal static class SeoAlternatesService
                 listRouteGraph);
             foreach (var route in listRouteGraph.Routes.Where(x => !CollectionIndexabilityPolicy.ShouldNoIndex(config, x.Kind, x.Collection, x.TotalItems)))
             {
-                AddAlternate(grouped, SeoModelBuilder.BuildListAlternateKey(route.ToRouteInfo()), language, SeoModelBuilder.BuildAbsoluteUrl(config.Site.Url, baseUrl, route.CanonicalUrl));
+                AddAlternate(grouped, SeoModelBuilder.BuildListAlternateKey(route), language, SeoModelBuilder.BuildAbsoluteUrl(config.Site.Url, baseUrl, route.CanonicalUrl));
             }
         }
 

@@ -55,11 +55,17 @@ internal static class TaxonomyTermsInjector
                 continue;
             }
 
-            list.Add(new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
+            var term = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
             {
                 ["title"] = title,
                 ["slug"] = slug
-            });
+            };
+            if (ContentFieldReader.TryGetI18nKey(document.CustomFields, out var i18nKey))
+            {
+                term["i18nKey"] = i18nKey;
+            }
+
+            list.Add(term);
         }
     }
 

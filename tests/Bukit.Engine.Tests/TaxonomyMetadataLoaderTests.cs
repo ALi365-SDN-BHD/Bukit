@@ -18,6 +18,62 @@ public sealed class TaxonomyMetadataLoaderTests
         Logger = new ConsoleLogger(LogLevel.Error)
     };
 
+    private sealed class WarningLogger : ILogger
+    {
+        public List<string> Warnings { get; } = [];
+        public void Debug(string message) { }
+        public void Info(string message) { }
+        public void Warn(string message) => Warnings.Add(message);
+        public void Error(string message) { }
+    }
+
+    [Fact]
+    public void LoadAndEnrich_ReadsTermI18nKeys_AndDropsAKeyTwoTermsShare()
+    {
+        var root = Path.Combine(Path.GetTempPath(), "bukit-term-keys-" + Guid.NewGuid().ToString("N"));
+        try
+        {
+            foreach (var (slug, key) in new[] { ("malaysia", "my"), ("tea", "drink"), ("kopi", "drink") })
+            {
+                Directory.CreateDirectory(Path.Combine(root, "content", "_taxonomy", "tags", slug));
+                File.WriteAllText(Path.Combine(root, "content", "_taxonomy", "tags", slug, "_index.md"), $"---\ni18nKey: {key}\ndescription: d\n---\n");
+            }
+
+            var logger = new WarningLogger();
+            var context = new BuildContext
+            {
+                RootDir = root,
+                OutputDir = root,
+                BaseUrl = "/",
+                LayoutsDir = root,
+                RoutedDocuments = Array.Empty<RoutedContentDocument>(),
+                Logger = logger
+            };
+            var terms = new Dictionary<string, TaxonomyTerm>
+            {
+                ["malaysia"] = new("Malaysia", "malaysia"),
+                ["tea"] = new("Tea", "tea"),
+                ["kopi"] = new("Kopi", "kopi")
+            };
+
+            TaxonomyMetadataLoader.LoadAndEnrich(context, "tags", terms);
+
+            Assert.Equal("my", terms["malaysia"].I18nKey);
+            Assert.Null(terms["tea"].I18nKey);
+            Assert.Null(terms["kopi"].I18nKey);
+            Assert.Equal("d", terms["tea"].Description);
+            var warning = Assert.Single(logger.Warnings);
+            Assert.Contains("event=taxonomy.term.i18n_key_duplicate kind=tags key=drink slugs=kopi,tea", warning, StringComparison.Ordinal);
+        }
+        finally
+        {
+            if (Directory.Exists(root))
+            {
+                Directory.Delete(root, recursive: true);
+            }
+        }
+    }
+
     [Fact]
     public void ParseSimpleFrontMatter_ValidYaml_ReturnsDictionary()
     {

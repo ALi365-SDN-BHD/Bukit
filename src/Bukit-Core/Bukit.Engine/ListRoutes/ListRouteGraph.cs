@@ -265,6 +265,8 @@ internal sealed record ListRouteTaxonomyContext
     public string? RoutePrefix { get; init; }
     public string? Url { get; init; }
     public bool IsIndex { get; init; }
+    /// <summary>The term's <c>i18nKey</c>, which pairs its pages across languages.</summary>
+    public string? I18nKey { get; init; }
 }
 
 internal sealed record ListRouteGraphSnapshot

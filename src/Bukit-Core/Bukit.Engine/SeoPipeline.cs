@@ -78,7 +78,7 @@ internal sealed class SeoPipeline
                         baseUrl,
                         page,
                         graphRoute,
-                        SeoPipeline.GetSeoAlternates(seoAlternates, SeoModelBuilder.BuildListAlternateKey(graphRoute.ToRouteInfo())),
+                        SeoPipeline.GetSeoAlternates(seoAlternates, SeoModelBuilder.BuildListAlternateKey(graphRoute)),
                         searchAction,
                         breadcrumbs?.Find(route.Url),
                         sharedAssets: sharedAssets);

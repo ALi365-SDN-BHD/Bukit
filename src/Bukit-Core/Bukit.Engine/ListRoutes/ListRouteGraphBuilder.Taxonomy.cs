@@ -134,7 +134,8 @@ internal static partial class ListRouteGraphBuilder
                 Slug = slug,
                 RoutePrefix = GetString(taxonomy, "route_prefix") ?? GetString(taxonomy, "routePrefix"),
                 Url = GetString(taxonomy, "url"),
-                IsIndex = false
+                IsIndex = false,
+                I18nKey = GetString(taxonomy, "i18n_key")
             }
         };
     }

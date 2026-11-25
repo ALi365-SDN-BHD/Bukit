@@ -13,6 +13,28 @@ namespace Bukit.Engine.Tests;
 
 public sealed class SeoModelBuilderTests
 {
+    [Theory]
+    [InlineData("my", 1, "taxonomy:tags:my")]
+    [InlineData("my", 2, "taxonomy:tags:my:2")]
+    [InlineData(null, 1, "route:/tags/malaysia/")]
+    public void BuildListAlternateKey_TermPagesWithAnI18nKeyPairByKindKeyAndPage(string? key, int page, string expected)
+    {
+        var route = new ListRoutePlan
+        {
+            RouteId = "taxonomy:tags:malaysia:" + page,
+            Kind = ListRouteKind.TaxonomyTermPage,
+            Url = "/tags/malaysia/",
+            OutputPath = "tags/malaysia/index.html",
+            Template = "pages/taxonomy-term.html",
+            PageNumber = page,
+            TotalItems = 1,
+            CanonicalUrl = "/tags/malaysia/",
+            TaxonomyContext = new ListRouteTaxonomyContext { Kind = "tags", Slug = "malaysia", I18nKey = key }
+        };
+
+        Assert.Equal(expected, SeoModelBuilder.BuildListAlternateKey(route));
+    }
+
     private static AppConfig CreateConfig(string siteUrl = "https://example.com", string siteTitle = "My Site", string? defaultImage = null)
     {
         return new AppConfig
