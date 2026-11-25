@@ -153,9 +153,9 @@ terms of the built language (or two unknown ones) sharing a key are a duplicate.
 
 ## Site identity per language
 
-`site.i18n.<lang>` replaces `title`, `description` and `organization` (`name`, `url`,
-`logo`, `sameAs`; merged field by field over `site.seo.organization`) in that language's
-build: `<title>` suffix, `og:site_name`, JSON-LD, its feeds and `llms.txt`, `site.title`.
+`site.i18n.<lang>` replaces `title`, `description`, `titleSeparator` (over
+`site.seo.titleSeparator`) and `organization` (`name`, `url`, `logo`, `sameAs`; merged field
+by field over `site.seo.organization`) in that language's build: `<title>` suffix, `og:site_name`, JSON-LD, its feeds and `llms.txt`, `site.title`.
 The key must be a `site.languages` entry written the same way; needs 2+ languages. Root
 merged feed and root `llms.txt` keep the top-level values.
 

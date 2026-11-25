@@ -168,8 +168,8 @@ retrying. This is not a power-loss guarantee.
 
 ## Per-language site identity
 
-`site.title`, `site.description` and `site.seo.organization` describe the site in every
-language unless `site.i18n.<lang>` replaces them in that language's build:
+`site.title`, `site.description`, `site.seo.titleSeparator` and `site.seo.organization`
+describe the site in every language unless `site.i18n.<lang>` replaces them in that language's build:
 
 ```yaml
 site:
@@ -183,6 +183,7 @@ site:
   i18n:
     ms:
       title: Nota Jalan Sutera
+      titleSeparator: " – "
       description: Nota tentang perdagangan dan pengembaraan
       organization:
         name: Media Jalan Sutera
@@ -192,11 +193,13 @@ The `ms` build then uses the Malay values everywhere it reads the site identity:
 page `<title>` suffix, `og:site_name`, the default description, JSON-LD `WebSite` and
 `Organization`, its own feeds and `llms.txt`, and `site.title` in templates. Organization
 fields merge one by one, so `url`, `logo`, `sameAs` and `type` above stay the top-level
-values. Outputs merged across languages at the output root (`site.feed.mode: merged`,
+values. `titleSeparator` replaces `site.seo.titleSeparator` for `{separator}` in that
+language's title templates (it may be explicitly empty); a language without one keeps the
+top-level separator. Outputs merged across languages at the output root (`site.feed.mode: merged`,
 the root `llms.txt`) keep the top-level identity.
 
-Only `title`, `description` and `organization` (`name`, `url`, `logo`, `sameAs`) are
-accepted. The language key must be a `site.languages` entry written the same way, and a
+Only `title`, `description`, `titleSeparator` and `organization` (`name`, `url`, `logo`,
+`sameAs`) are accepted. The language key must be a `site.languages` entry written the same way, and a
 single-language site sets its identity with the top-level keys instead.
 
 ## Shared assets

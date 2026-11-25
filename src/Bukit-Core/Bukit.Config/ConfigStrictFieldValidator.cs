@@ -639,7 +639,7 @@ internal static class ConfigStrictFieldValidator
     {
         foreach (var (name, identity) in MappingChildren(i18n, "site.i18n"))
         {
-            RequireOnly(identity, Set("title", "description", "organization"), $"site.i18n.{name}");
+            RequireOnly(identity, Set("title", "description", "titleSeparator", "organization"), $"site.i18n.{name}");
             if (Map(identity, "organization", $"site.i18n.{name}.organization") is { } organization)
             {
                 RequireOnly(organization, Set("name", "url", "logo", "sameAs"), $"site.i18n.{name}.organization");

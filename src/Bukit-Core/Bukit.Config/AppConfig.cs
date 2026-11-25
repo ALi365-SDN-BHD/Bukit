@@ -76,6 +76,8 @@ internal sealed record SiteLanguageIdentityConfig
 {
     public string? Title { get; init; }
     public string? Description { get; init; }
+    /// <summary>Replaces <c>site.seo.titleSeparator</c>; may be explicitly empty.</summary>
+    public string? TitleSeparator { get; init; }
     /// <summary>Fields that replace the matching <c>site.seo.organization</c> fields; unset fields keep theirs.</summary>
     public SiteLanguageOrganizationConfig? Organization { get; init; }
 }

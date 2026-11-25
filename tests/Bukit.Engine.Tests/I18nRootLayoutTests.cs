@@ -56,6 +56,26 @@ public sealed class I18nRootLayoutTests
     }
 
     [Fact]
+    public async Task SiteI18nTitleSeparator_ReplacesTheSeparatorInThatLanguageOnly()
+    {
+        using var site = RootSite("""
+              seo:
+                renderMode: inject
+                pageTitleTemplate: "{pageTitle}{separator}{siteTitle}"
+                titleSeparator: " ｜ "
+              i18n:
+                en:
+                  titleSeparator: " | "
+            """.ReplaceLineEndings("\n") + "\n");
+
+        await new SiteEngine(new ConsoleLogger(LogLevel.Error)).BuildAsync(site.Config, site.Root,
+            new ConfigOverrides { Incremental = false });
+
+        Assert.Contains("<title>Chinese Page ｜ I18N Test</title>", File.ReadAllText(Path.Combine(site.Output, "zh-CN", "index", "index.html")), StringComparison.Ordinal);
+        Assert.Contains("<title>English Page | I18N Test</title>", File.ReadAllText(Path.Combine(site.Output, "index", "index.html")), StringComparison.Ordinal);
+    }
+
+    [Fact]
     public async Task DefaultLayout_AddingASecondLanguageKeepsDefaultLanguageUrls()
     {
         // Spec scenario "Adding a second language keeps default-language URLs": defaultLanguageInSubdir is not set.

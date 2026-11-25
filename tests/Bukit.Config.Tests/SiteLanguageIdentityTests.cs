@@ -38,6 +38,42 @@ public sealed class SiteLanguageIdentityTests : IDisposable
         Assert.Null(chinese.Organization.Url);
     }
 
+    [Fact]
+    public void Load_ReadsTheTitleSeparator_IncludingAnExplicitlyEmptyOne()
+    {
+        var config = Load("""
+            languages: [en, zh-CN]
+            seo:
+              titleSeparator: " ｜ "
+            i18n:
+              en:
+                titleSeparator: " | "
+              zh-CN:
+                titleSeparator: ""
+            """);
+        ConfigValidator.Validate(config);
+
+        Assert.Equal(" | ", config.Site.I18n!["en"].TitleSeparator);
+        Assert.Equal(string.Empty, config.Site.I18n["zh-CN"].TitleSeparator);
+        Assert.Equal(" | ", SiteLanguageIdentity.Apply(config.Site, "en").Seo.TitleSeparator);
+        Assert.Equal(string.Empty, SiteLanguageIdentity.Apply(config.Site, "zh-CN").Seo.TitleSeparator);
+    }
+
+    [Fact]
+    public void Apply_KeepsTheTopLevelTitleSeparatorWhenTheLanguageSetsNone()
+    {
+        var site = new SiteConfig
+        {
+            Name = "s",
+            Title = "English",
+            Seo = new SeoConfig { TitleSeparator = " ｜ " },
+            I18n = new Dictionary<string, SiteLanguageIdentityConfig> { ["en"] = new() { Title = "Site" } }
+        };
+
+        Assert.Equal(" ｜ ", SiteLanguageIdentity.Apply(site, "en").Seo.TitleSeparator);
+        Assert.Equal(" ｜ ", SiteLanguageIdentity.Apply(site, "zh-CN").Seo.TitleSeparator);
+    }
+
     [Theory]
     [InlineData("i18n:\n  zh-CN:\n    tagline: x", "site.i18n.zh-CN")]
     [InlineData("i18n:\n  zh-CN:\n    organization:\n      type: NewsMediaOrganization", "site.i18n.zh-CN.organization")]

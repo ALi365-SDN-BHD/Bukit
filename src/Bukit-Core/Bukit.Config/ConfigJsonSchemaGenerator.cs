@@ -436,6 +436,7 @@ public static class ConfigJsonSchemaGenerator
         => Obj(("type", "object"), ("properties", Obj(
             ("title", Obj(("type", "string"), ("minLength", 1))),
             ("description", StringSchema()),
+            ("titleSeparator", StringSchema()),
             ("organization", Obj(("type", "object"), ("properties", Obj(
                 ("name", StringSchema()),
                 ("url", StringSchema()),

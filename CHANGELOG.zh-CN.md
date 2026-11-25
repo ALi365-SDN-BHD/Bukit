@@ -38,7 +38,7 @@ Bukit 所有重要变更都将记录在此文件中。
 
 - **Markdown 头部补充日期、作者和原文来源**：每个 `content/<page>.md` 的头部在 `- Canonical:` 之后新增 `- Published:`、`- Updated:`（仅在设置时）、`- Author:` 和 `- Original Source:`，与 JSON 投影一致。日期使用 `site.timezone`，格式与 `article:published_time` 相同；`Original Source` 是公开的原文 URL，绝不是私有的 `source` 来源信息；这些值中的换行会替换为空格，无法伪造其他头部行。
 
-- **按语言设置站点标识**：新增 `site.i18n.<lang>`，多语言站点可以为某一语言设置 `title`、`description` 和 `organization`（`name`、`url`、`logo`、`sameAs`）。该语言的构建会把它们用于 `<title>` 后缀、`og:site_name`、默认描述、JSON-LD 的 `WebSite` 和 `Organization`、该语言的 feed 与 `llms.txt`，以及模板中的 `site.title`；organization 字段逐项覆盖 `site.seo.organization`。根目录的合并输出保留顶层标识。语言键必须是 `site.languages` 中的条目，且至少需要两种语言。
+- **按语言设置站点标识**：新增 `site.i18n.<lang>`，多语言站点可以为某一语言设置 `title`、`description` 和 `organization`（`name`、`url`、`logo`、`sameAs`）。该语言的构建会把它们用于 `<title>` 后缀、`og:site_name`、默认描述、JSON-LD 的 `WebSite` 和 `Organization`、该语言的 feed 与 `llms.txt`，以及模板中的 `site.title`；organization 字段逐项覆盖 `site.seo.organization`。`titleSeparator` 在该语言的页面标题中替换 `site.seo.titleSeparator`（例如中文用全角 ` ｜ `，英文用 ` | `）。根目录的合并输出保留顶层标识。语言键必须是 `site.languages` 中的条目，且至少需要两种语言。
 
 - **本地化的分类词条页可跨语言配对**：分类词条可在 `content/_taxonomy/<kind>/<slug>/_index.md` 的 front matter 中，或在 `sourceKey: tags|categories` 数据文档上声明 `i18nKey`。种类、键和页码都相同的词条页现在会在 hreflang 和 sitemap alternates 中互相列出，因此 `/tags/马来西亚/` 和 `/en/tags/malaysia/` 可以配对；没有键时仍按 URL 配对。同一语言中同一种类的两个词条共用一个键时，记录 `taxonomy.term.i18n_key_duplicate`，并退回按 URL 配对。该语言的页面使用的词条属于该语言，否则以词条可选的 `language` 元数据为准；与其他语言词条（例如提供给所有语言的 Notion 选项）共用的键，不再让当前语言的词条失去键。
 
