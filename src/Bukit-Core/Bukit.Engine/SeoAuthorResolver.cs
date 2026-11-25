@@ -175,7 +175,29 @@ internal static class SeoAuthorResolver
 
     // site.seo.authors entry for an author name or authoredBy id; keys match case-insensitively.
     private static SeoAuthorProfileConfig? ConfiguredProfile(SeoConfig? seo, string? key)
-        => key is not null && seo?.Authors is { } authors && authors.TryGetValue(key, out var profile) ? profile : null;
+    {
+        if (key is null || seo?.Authors is not { } authors)
+        {
+            return null;
+        }
+
+        if (authors.TryGetValue(key, out var profile))
+        {
+            return profile;
+        }
+
+        // The i18n worker rebuilds the map from JSON with the default case-sensitive comparer. Keys that
+        // differ only in case are rejected when the config loads, so at most one key matches here.
+        foreach (var (name, candidate) in authors)
+        {
+            if (string.Equals(name, key, StringComparison.OrdinalIgnoreCase))
+            {
+                return candidate;
+            }
+        }
+
+        return null;
+    }
 
     private static IReadOnlyList<string> SameAsOrConfigured(IReadOnlyList<string>? sameAs, SeoAuthorProfileConfig? configured)
         => CleanList(sameAs) is { Count: > 0 } own ? own : CleanList(configured?.SameAs);

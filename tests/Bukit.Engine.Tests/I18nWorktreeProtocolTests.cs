@@ -74,6 +74,9 @@ public sealed class I18nWorktreeProtocolTests : IDisposable
 
         Assert.Equal("站点", restored.Site.I18n!["zh-CN"].Title);
         Assert.Equal(("Aisha", "https://example.test/aisha/"), (restored.Site.Seo.Authors!["aisha"].Name, restored.Site.Seo.Authors["aisha"].Url));
+        // The restored map is case-sensitive, so a byline in another case must still find its profile.
+        var byline = SeoAuthorResolver.Resolve(null, null, null, restored.Site.Seo with { DefaultAuthor = "AISHA" });
+        Assert.Equal("https://example.test/aisha/", byline.Primary!.Url);
         Assert.Equal("Article", restored.Site.Seo.Schema.ArticleType);
         Assert.Equal("NewsArticle", restored.Site.Collections!["news"].ArticleType);
         Assert.Equal(("100vw", ImageFallbackVariants.None), (restored.Theme.Images!.SizesAttribute, restored.Theme.Images.FallbackVariants));
