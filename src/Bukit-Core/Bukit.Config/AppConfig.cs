@@ -626,6 +626,22 @@ public sealed record ImageOptimizationConfig
     /// get <c>auto, </c> in front. Unset adds nothing.
     /// </summary>
     internal string? SizesAttribute { get; init; }
+    /// <summary>
+    /// <c>none</c> drops the resized original-format variants (and the fallback img srcset) of JPEG/PNG
+    /// media images when WebP is generated; <c>all</c> (default) keeps them for browsers without WebP.
+    /// </summary>
+    internal string FallbackVariants { get; init; } = ImageFallbackVariants.All;
+
+    /// <summary>True when JPEG/PNG media images get only WebP variants.</summary>
+    internal bool WebpOnlyVariants
+        => FallbackVariants == ImageFallbackVariants.None &&
+           Formats.Any(format => string.Equals(format, "webp", StringComparison.OrdinalIgnoreCase));
+}
+
+internal static class ImageFallbackVariants
+{
+    internal const string All = "all";
+    internal const string None = "none";
 }
 
 public sealed record TaxonomyConfig

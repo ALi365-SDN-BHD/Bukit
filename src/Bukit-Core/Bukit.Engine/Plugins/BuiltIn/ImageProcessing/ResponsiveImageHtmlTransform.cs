@@ -27,6 +27,7 @@ internal sealed partial class ResponsiveImageHtmlTransform(
     private static partial Regex AttributeRegex();
     private readonly IReadOnlyList<int> _sizes = NormalizeSizes(config.Theme.Images?.Sizes);
     private readonly string? _sizesAttribute = config.Theme.Images?.SizesAttribute;
+    private readonly bool _webpOnlyVariants = config.Theme.Images?.WebpOnlyVariants == true;
     private readonly string _baseUrl = BuildPathUtils.NormalizeBaseUrl(baseUrl).TrimEnd('/');
     private readonly string _mediaUrlBase = NormalizeMediaUrlBase(config.Content.Media.UrlBase);
     private readonly Uri? _siteUri = Uri.TryCreate(config.Site.Url, UriKind.Absolute, out var siteUri) ? siteUri : null;
@@ -207,8 +208,15 @@ internal sealed partial class ResponsiveImageHtmlTransform(
 
         isMediaImage = true;
         var attributes = string.Empty;
-        var applicableSizes = ImageVariantPlan.GeneratedWidths(_sizes, sourceWidth).ToArray();
-        if (applicableSizes.Length > 0 && !HasAttribute(parsedAttributes, "srcset"))
+        // With fallbackVariants: none a JPEG/PNG keeps only its src; the WebP <source> carries the
+        // candidates and takes the sizes value from the img.
+        var webpOnly = _webpOnlyVariants && !ImageVariantPlan.IsWebpSource(sourceFile);
+        var applicableSizes = webpOnly ? [] : ImageVariantPlan.GeneratedWidths(_sizes, sourceWidth).ToArray();
+        if (webpOnly && !HasAttribute(parsedAttributes, "srcset"))
+        {
+            attributes += BuildSizesAttribute(parsedAttributes, lazy);
+        }
+        else if (applicableSizes.Length > 0 && !HasAttribute(parsedAttributes, "srcset"))
         {
             var candidates = applicableSizes
                 .Select(size => $"{BuildVariantUrl(sourceUrl, size)} {size}w")

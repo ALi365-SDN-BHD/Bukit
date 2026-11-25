@@ -502,6 +502,53 @@ public sealed class ImageProcessingPluginTests
     }
 
     [Fact]
+    public async Task AfterBuild_FallbackVariantsNone_WritesOnlyWebpVariantsAndAPlainFallback()
+    {
+        var outDir = GetTempDir();
+        try
+        {
+            var assetsDir = Path.Combine(outDir, "assets");
+            Directory.CreateDirectory(assetsDir);
+            WriteValidImage(Path.Combine(assetsDir, "photo.jpg"), "source", width: 1000);
+            var htmlFile = Path.Combine(outDir, "index.html");
+            var config = CreateConfig(new ImageOptimizationConfig
+            {
+                Enabled = true,
+                Formats = new[] { "webp" },
+                Sizes = new[] { 480 },
+                SizesAttribute = "100vw",
+                FallbackVariants = "none"
+            }) with
+            {
+                Content = TestContent.Markdown() with { Media = new MediaConfig { UrlBase = "/assets" } }
+            };
+            var context = CreateContext(outDir);
+            context.Set(BuildDataKeys.MediaDownloadDir, assetsDir);
+            context.Set(BuildDataKeys.CurrentHtmlOutputs, new[] { "index.html" });
+            var plugin = new ImageProcessingPlugin(config);
+            var transformed = plugin.CreateHtmlTransform(new HtmlTransformPluginContext(
+                context,
+                BuildExecutionMode.Production)).Transform(
+                    new HtmlTransformContext("/", "index.html", HtmlDocumentKind.Content, BuildExecutionMode.Production, context.Logger),
+                    "<img src=\"/assets/photo.jpg\" alt=\"a\">");
+            File.WriteAllText(htmlFile, $"<html><body>{transformed}</body></html>");
+
+            await plugin.AfterBuildAsync(context);
+
+            Assert.True(File.Exists(Path.Combine(assetsDir, "photo-480w.webp")));
+            Assert.False(File.Exists(Path.Combine(assetsDir, "photo-480w.jpg")));
+            var html = File.ReadAllText(htmlFile);
+            Assert.Contains("<picture><source type=\"image/webp\" srcset=\"/assets/photo-480w.webp 480w, /assets/photo-1000w.webp 1000w\" sizes=\"100vw\">", html, StringComparison.Ordinal);
+            Assert.Equal(1, CountOccurrences(html, "srcset="));
+            Assert.Contains("<img src=\"/assets/photo.jpg\" alt=\"a\" sizes=\"100vw\" decoding=\"async\" width=\"1000\" height=\"8\">", html, StringComparison.Ordinal);
+        }
+        finally
+        {
+            if (Directory.Exists(outDir)) Directory.Delete(outDir, true);
+        }
+    }
+
+    [Fact]
     public async Task AfterBuild_WebpSourceGetsWebpVariantsWithoutPicture()
     {
         var outDir = GetTempDir();

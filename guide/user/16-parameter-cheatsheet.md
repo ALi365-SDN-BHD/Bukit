@@ -144,6 +144,7 @@
 | `theme.images.sizes` | `480`, `768`, `1200` |
 | `theme.images.quality` | `80` |
 | `theme.images.sizesAttribute` | none; CSS `sizes` for generated srcsets (`auto, ` added on lazy images) |
+| `theme.images.fallbackVariants` | `all`; `none` keeps only WebP variants for JPEG/PNG media images |
 | `theme.componentValidation` | `off` |
 | `taxonomy.outputMode` | `both` |
 | `taxonomy.pageSize` | `10` |

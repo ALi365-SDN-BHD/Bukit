@@ -83,6 +83,7 @@ internal sealed class ImageProcessingPlugin : IBukitPlugin, IAfterBuildAsyncPlug
             mediaDir,
             sizes,
             webpEnabled,
+            config.WebpOnlyVariants,
             priorPluginOutputs,
             cancellationToken);
 
@@ -158,6 +159,7 @@ internal sealed class ImageProcessingPlugin : IBukitPlugin, IAfterBuildAsyncPlug
         string mediaDir,
         IReadOnlyList<int> sizes,
         bool webpEnabled,
+        bool webpOnlyVariants,
         HashSet<PluginOutputTrackingInfo> priorPluginOutputs,
         CancellationToken cancellationToken)
     {
@@ -170,7 +172,9 @@ internal sealed class ImageProcessingPlugin : IBukitPlugin, IAfterBuildAsyncPlug
             // Only media images get a srcset (ResponsiveImageHtmlTransform), so resized
             // same-format variants of other images would never be referenced. Planning
             // none also lets the cleanup below remove ones an earlier build owned.
-            IReadOnlyList<int> applicableSizes = hasWidth && IsWithinDirectory(mediaDir, imageFile)
+            // theme.images.fallbackVariants: none leaves JPEG/PNG media images to their WebP variants.
+            IReadOnlyList<int> applicableSizes = hasWidth && IsWithinDirectory(mediaDir, imageFile) &&
+                !(webpOnlyVariants && !ImageVariantPlan.IsWebpSource(imageFile))
                 ? ImageVariantPlan.GeneratedWidths(sizes, width)
                 : [];
             CleanupStaleVariants(

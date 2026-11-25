@@ -21,6 +21,11 @@ internal sealed class ThemeAndTemplateModelContributor : IRenderDependencyContri
             writer.AppendLabeledCanonicalValue("theme.images.sizesAttribute", sizesAttribute);
         }
 
+        if (theme.Images is { FallbackVariants: not ImageFallbackVariants.All } images)
+        {
+            writer.AppendLabeledCanonicalValue("theme.images.fallbackVariants", images.FallbackVariants);
+        }
+
 
         if (theme.Shortcodes is { Count: > 0 })
         {

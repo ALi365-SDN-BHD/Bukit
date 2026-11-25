@@ -118,7 +118,19 @@ internal static partial class SiteDefaultsApplier
             Sizes = ConfigYamlHelpers.ReadIntList(imagesNode, "sizes", "theme.images")
                 ?? new[] { 480, 768, 1200 },
             Quality = ConfigYamlHelpers.GetOptionalInt(imagesNode, "quality") ?? 80,
-            SizesAttribute = ReadSizesAttribute(imagesNode)
+            SizesAttribute = ReadSizesAttribute(imagesNode),
+            FallbackVariants = ReadFallbackVariants(imagesNode)
+        };
+    }
+
+    private static string ReadFallbackVariants(YamlMappingNode imagesNode)
+    {
+        var value = ConfigYamlHelpers.GetOptionalString(imagesNode, "fallbackVariants", "theme.images")?.Trim();
+        return value switch
+        {
+            null => ImageFallbackVariants.All,
+            ImageFallbackVariants.All or ImageFallbackVariants.None => value,
+            _ => throw new ConfigException("theme.images.fallbackVariants must be all|none.", DiagnosticCode.ConfigInvalidValue)
         };
     }
 

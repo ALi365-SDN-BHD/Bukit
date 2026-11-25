@@ -31,6 +31,7 @@ theme:
   scss: { enabled: true, entryPoint: css/main.scss, outputDir: assets }
   images: { enabled: true, formats: [webp], sizes: [480, 768, 1200], quality: 80 }
   # images.sizesAttribute: "(max-width: 768px) 100vw, 768px"  # sizes for generated srcsets; lazy images get "auto, " in front
+  # images.fallbackVariants: none  # with webp: no resized JPEG/PNG fallbacks; the fallback img keeps only src
   componentValidation: off  # off|warn|strict (lowercase)
   shortcodes:
     youtube: '<iframe src="https://www.youtube.com/embed/{{ $1 }}" loading="lazy"></iframe>'

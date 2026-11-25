@@ -567,7 +567,7 @@ internal static class ConfigStrictFieldValidator
         if (Map(theme, "scss") is { } scss) RequireOnly(scss, Set("enabled", "entryPoint", "outputDir"), "theme.scss");
         if (Map(theme, "images") is { } images)
         {
-            RequireOnly(images, Set("enabled", "formats", "sizes", "quality", "sizesAttribute"), "theme.images");
+            RequireOnly(images, Set("enabled", "formats", "sizes", "quality", "sizesAttribute", "fallbackVariants"), "theme.images");
             if (Seq(images, "sizes", "theme.images.sizes") is { } sizes)
             {
                 for (var index = 0; index < sizes.Children.Count; index++)

@@ -3,7 +3,7 @@ using Xunit;
 
 namespace Bukit.Config.Tests;
 
-public sealed class ThemeImagesSizesAttributeTests : IDisposable
+public sealed class ThemeImagesConfigTests : IDisposable
 {
     private readonly List<string> _tempFiles = [];
 
@@ -31,6 +31,29 @@ public sealed class ThemeImagesSizesAttributeTests : IDisposable
         var ex = Assert.Throws<ConfigException>(() => Load(fragment));
 
         Assert.Contains(message, ex.Message, StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData("quality: 80", "all")]
+    [InlineData("fallbackVariants: none", "none")]
+    [InlineData("fallbackVariants: all", "all")]
+    public void Load_ReadsFallbackVariants(string fragment, string expected)
+        => Assert.Equal(expected, Load(fragment).Theme.Images!.FallbackVariants);
+
+    [Fact]
+    public void Load_RejectsUnknownFallbackVariants()
+    {
+        var ex = Assert.Throws<ConfigException>(() => Load("fallbackVariants: some"));
+
+        Assert.Contains("theme.images.fallbackVariants must be all|none", ex.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void WebpOnlyVariants_RequiresNoneAndWebp()
+    {
+        Assert.True(new ImageOptimizationConfig { FallbackVariants = "none" }.WebpOnlyVariants);
+        Assert.False(new ImageOptimizationConfig { FallbackVariants = "none", Formats = [] }.WebpOnlyVariants);
+        Assert.False(new ImageOptimizationConfig().WebpOnlyVariants);
     }
 
     private AppConfig Load(string imagesFragment)

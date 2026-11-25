@@ -531,6 +531,7 @@ always starts with one clean build and rebuilds incrementally after that.
 | `theme.images.sizes` | `480`, `768`, `1200` | Positive widths below the source width; images are never upscaled. Resized original-format variants are generated for media images only; WebP candidates use these widths for every local JPEG/PNG image. |
 | `theme.images.quality` | `80` | WebP/JPEG quality setting, clamped to `1..100` by the built-in WebP encoder. |
 | `theme.images.sizesAttribute` | none | CSS `sizes` value (for example `(max-width: 768px) 100vw, 768px`) added beside a generated media `srcset` that has no author `sizes`; lazy images get `auto, ` in front. Must not itself start with `auto`. |
+| `theme.images.fallbackVariants` | `all` | `all` or `none`. With WebP in `formats`, `none` skips resized original-format variants of JPEG/PNG media images; the fallback `img` keeps only its original `src`. Without WebP it has no effect. |
 | `theme.componentValidation` | `off` | `off`, `warn`, or `strict`. |
 
 When WebP is enabled, Bukit emits validated full-width and configured smaller
@@ -564,6 +565,15 @@ the value; an eager image (the first one, or one marked `loading="eager"`) gets
 the plain value, since the spec allows `auto` only on lazy images. The value also
 reaches the WebP `<source>`. Images whose author wrote `sizes` or `srcset` are
 left alone. Unset, Bukit adds no `sizes`.
+
+With WebP on, every JPEG/PNG media image gets resized WebP candidates and, by
+default, resized original-format ones for the fallback `img` `srcset`.
+`theme.images.fallbackVariants: none` skips the original-format variants: the
+`<picture>` keeps its WebP `<source>` (with the `sizes` value), and the fallback
+`img` keeps only its original `src`, so a browser without WebP support downloads
+the full original. Every current browser supports WebP, so this mainly saves
+output size and build time. Variants an earlier build made are deleted on the
+next build.
 Incremental builds re-render pages when a media image's width or height changes,
 and the first incremental build after upgrading re-renders every page.
 
