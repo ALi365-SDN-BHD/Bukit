@@ -311,6 +311,14 @@ public sealed record ContentConfig
     public ContentModelSchemaConfig? ModelSchema { get; init; }
     public RouteMetadataConfig? RouteMetadata { get; init; }
     /// <summary>
+    /// content.links: resolves key fields of content pages into <c>&lt;field&gt;_links</c> lists of the
+    /// referenced documents. Empty when unset.
+    /// </summary>
+    /// <remarks>Internal: configured only through site.yaml, so it does not widen the public API.</remarks>
+    // JsonInclude: the i18n worktree protocol sends the config to language workers and hashes it.
+    [System.Text.Json.Serialization.JsonInclude]
+    internal IReadOnlyList<ContentLinkConfig> Links { get; init; } = [];
+    /// <summary>
     /// content.ordering.tieBreakField: orders entries with the same publish time in every list (home page,
     /// collection lists and pagination, archives, site feeds and llms.txt). Use url, title or any content field;
     /// numbers compare numerically. Unset keeps each list's built-in order. Term pages use it when
@@ -330,6 +338,26 @@ public sealed record RouteMetadataConfig
     public string SeoTitleField { get; init; } = "seo_title";
     public string SeoDescriptionField { get; init; } = "seo_description";
     public IReadOnlyList<string> RequiredRoutes { get; init; } = Array.Empty<string>();
+}
+
+/// <summary>One content.links entry: which page field holds keys of which target documents.</summary>
+internal sealed record ContentLinkConfig
+{
+    /// <summary>The collection whose pages hold the keys.</summary>
+    public required string Collection { get; init; }
+    /// <summary>The key field: <c>name</c>, or a nested path such as <c>days[].attractions</c>.</summary>
+    public required string Field { get; init; }
+    public required ContentLinkTargetConfig Target { get; init; }
+    /// <summary>Top-level target fields copied into each link.</summary>
+    public IReadOnlyList<string> Select { get; init; } = [];
+}
+
+internal sealed record ContentLinkTargetConfig
+{
+    /// <summary>The collection holding the referenced documents, pages or data.</summary>
+    public required string Collection { get; init; }
+    /// <summary>The target field matched against the keys: <c>slug</c> (default) or a content field.</summary>
+    public string Key { get; init; } = "slug";
 }
 
 public sealed record ContentModelSchemaConfig

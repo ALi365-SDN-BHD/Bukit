@@ -6,6 +6,7 @@ using Bukit.Routing;
 using Bukit.Engine.Abstractions.Routing;
 using Bukit.Shared;
 using Bukit.Engine.Primitives;
+using Bukit.Engine.ContentLinks;
 namespace Bukit.Engine;
 
 internal sealed record RoutePipelineResult(
@@ -42,15 +43,20 @@ internal sealed class RoutePipeline
             .Select(x => x with { Route = ResolveRouteTemplate(x.Document, x.Route, templateResolver) })
             .ToList();
         RouteInventoryValidator.ValidateContentRoutes(routedDocuments);
+        // Links need target URLs, so they resolve after routing and before anything reads the pages.
+        var linkedDocuments = ContentLinkResolver.Apply(
+            config.Content.Links,
+            routedDocuments,
+            [.. documents.Where(ContentFieldReader.IsDataItem)]);
 
         var listRouteGraph = ListRouteGraphBuilder.Build(
-            routedDocuments,
+            linkedDocuments,
             config.Site.Collections,
             config.Site.OutputPathEncoding,
             ContentOrdering.Resolve(config),
             templateResolver);
         var listRoutes = listRouteGraph.Routes.Select(route => route.ToRouteInfo()).ToArray();
-        return new RoutePipelineResult(contentDocuments, routedDocuments, listRoutes)
+        return new RoutePipelineResult(contentDocuments, linkedDocuments, listRoutes)
         {
             ListRouteGraph = listRouteGraph
         };

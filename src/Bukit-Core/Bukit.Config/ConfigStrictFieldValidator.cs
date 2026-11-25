@@ -14,7 +14,9 @@ internal static class ConfigStrictFieldValidator
         "searchIncludeDerived", "pluginFailMode", "deriveConflictPolicy",
         "timezone", "permalinks", "collections", "plugins", "feed",
         "sitemapDetail", "pagination", "search", "related", "menus", "sharedAssets", "i18n");
-    private static readonly HashSet<string> ContentKeys = Set("sources", "media", "modelSchema", "routeMetadata", "ordering");
+    private static readonly HashSet<string> ContentKeys = Set("sources", "media", "modelSchema", "routeMetadata", "ordering", "links");
+    private static readonly HashSet<string> ContentLinkKeys = Set("collection", "field", "target", "select");
+    private static readonly HashSet<string> ContentLinkTargetKeys = Set("collection", "key");
     private static readonly HashSet<string> BuildKeys = Set(
         "output", "clean", "draft", "listPageContentMode", "schemaFailMode", "fingerprintMode",
         "publishDotFiles", "followSymlinks", "languageJobs", "templateLoopLimit", "report");
@@ -434,6 +436,19 @@ internal static class ConfigStrictFieldValidator
             RequireOnly(routeMetadata, Set(
                 "source", "routeField", "titleField", "summaryField", "seoTitleField",
                 "seoDescriptionField", "requiredRoutes"), "content.routeMetadata");
+        }
+
+        if (Seq(content, "links", "content.links") is { } links)
+        {
+            ValidateSequenceMappings(links, ContentLinkKeys, "content.links", ValidateContentLink);
+        }
+    }
+
+    private static void ValidateContentLink(YamlMappingNode link, string path)
+    {
+        if (Map(link, "target", $"{path}.target") is { } target)
+        {
+            RequireOnly(target, ContentLinkTargetKeys, $"{path}.target");
         }
     }
 

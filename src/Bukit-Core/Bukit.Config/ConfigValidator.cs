@@ -114,6 +114,7 @@ public static class ConfigValidator
         }
 
         ValidateRouteMetadata(config.Content);
+        ValidateContentLinks(config.Content);
 
         ProviderValidators.ValidateMedia(config.Content.Media);
 
@@ -481,6 +482,52 @@ public static class ConfigValidator
         if (source.DataIndex is not null)
         {
             throw new ConfigException("content.routeMetadata.source must not declare dataIndex because route metadata is reserved for engine routing and is not exposed through template data bindings.", DiagnosticCode.ConfigInvalidValue);
+        }
+    }
+
+    /// <summary>Names every link carries; <c>select</c> must not overwrite them.</summary>
+    internal static readonly IReadOnlySet<string> ContentLinkBaseKeys =
+        new HashSet<string>(["key", "title", "slug", "url", "collection"], StringComparer.OrdinalIgnoreCase);
+
+    private static void ValidateContentLinks(ContentConfig content)
+    {
+        var links = content.Links;
+        // Two links writing the same page field would overwrite each other.
+        var outputs = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        for (var index = 0; index < links.Count; index++)
+        {
+            var link = links[index];
+            var path = $"content.links[{index}]";
+            if (!ContentLinkPath.TryParse(link.Field, out var field))
+            {
+                throw new ConfigException(
+                    $"{path}.field '{link.Field}' is not a valid path; use a field name or a nested path such as days[].attractions (at most {ContentLinkPath.MaxSegments} names).",
+                    DiagnosticCode.ConfigInvalidValue);
+            }
+
+            if (!ContentLinkPath.IsName(link.Target.Key))
+            {
+                throw new ConfigException($"{path}.target.key '{link.Target.Key}' is not a valid field name.", DiagnosticCode.ConfigInvalidValue);
+            }
+
+            var selected = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var name in link.Select)
+            {
+                if (!ContentLinkPath.IsName(name) || ContentLinkBaseKeys.Contains(name) || !selected.Add(name))
+                {
+                    throw new ConfigException(
+                        $"{path}.select '{name}' must be a distinct field name other than {string.Join(", ", ContentLinkBaseKeys)}.",
+                        DiagnosticCode.ConfigInvalidValue);
+                }
+            }
+
+            var output = field.IsNested ? field.FlatName : field.GroupedName;
+            if (!outputs.Add($"{link.Collection.Trim()}\n{output}"))
+            {
+                throw new ConfigException(
+                    $"{path} writes '{output}' in collection '{link.Collection}', which another content.links entry already writes.",
+                    DiagnosticCode.ConfigInvalidValue);
+            }
         }
     }
 

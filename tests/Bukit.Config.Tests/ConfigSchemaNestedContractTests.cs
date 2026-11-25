@@ -32,7 +32,8 @@ public sealed class ConfigSchemaNestedContractTests
         ],
         ["ValidateMenuItems.path"] = ["site/menus/*"],
         ["ValidateMiniProgramDataset.path"] = ["miniprogram/datasets[]"],
-        ["ValidateTaxonomyKind.path"] = ["taxonomy/kinds[]"]
+        ["ValidateTaxonomyKind.path"] = ["taxonomy/kinds[]"],
+        ["ValidateContentLink.path"] = ["content/links[]"]
     };
 
     private static readonly Regex MethodDeclarationRegex = new(
@@ -112,6 +113,8 @@ public sealed class ConfigSchemaNestedContractTests
         new("content/modelSchema/relationMappings[]/reference", "targetType", "idField", "labelField", "urlField", "required"),
         new("content/modelSchema/media", "requireAlt", "requireDescription", "requireLicense", "allowedKinds"),
         new("content/ordering", "tieBreakField", "tieBreakOrder"),
+        new("content/links[]", "collection", "field", "target", "select"),
+        new("content/links[]/target", "collection", "key"),
         new("content/routeMetadata", "source", "routeField", "titleField", "summaryField", "seoTitleField", "seoDescriptionField", "requiredRoutes"),
         new("build/report", "enabled", "securityFailMode"),
         new("theme/scss", "enabled", "entryPoint", "outputDir"),

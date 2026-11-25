@@ -48,6 +48,39 @@ public sealed class I18nWorktreeProtocolTests : IDisposable
     }
 
     [Fact]
+    public void WorkerConfig_KeepsContentLinks()
+    {
+        // Workers rebuild their config from this JSON; dropped links would leave every page without them.
+        var config = new AppConfig
+        {
+            Site = new SiteConfig { Name = "s", Title = "S" },
+            Content = new ContentConfig
+            {
+                Links =
+                [
+                    new ContentLinkConfig
+                    {
+                        Collection = "route",
+                        Field = "days[].attractions",
+                        Target = new ContentLinkTargetConfig { Collection = "attraction", Key = "code" },
+                        Select = ["image"]
+                    }
+                ]
+            }
+        };
+
+        var json = JsonSerializer.Serialize(config, I18nWorktreeJsonContext.Default.AppConfig);
+        var restored = JsonSerializer.Deserialize(json, I18nWorktreeJsonContext.Default.AppConfig)!;
+
+        var link = Assert.Single(restored.Content.Links);
+        Assert.Equal(("route", "days[].attractions", "attraction", "code"), (link.Collection, link.Field, link.Target.Collection, link.Target.Key));
+        Assert.Equal(["image"], link.Select);
+        Assert.NotEqual(
+            I18nWorktreeProtocol.ComputeConfigHash(config, new ConfigOverrides()),
+            I18nWorktreeProtocol.ComputeConfigHash(config with { Content = config.Content with { Links = [] } }, new ConfigOverrides()));
+    }
+
+    [Fact]
     public void WorkerConfig_KeepsCloudBaseSourceSettings()
     {
         // Workers validate the config rebuilt from this JSON; a cloudbase source without its settings fails validation.
