@@ -2,6 +2,8 @@
 
 状态：**草稿**（2026-11-24）。未审计，未获实施批准。本文件只是提案，不授权任何 Core 改动、commit、push 或发布。
 
+测量结论（2026-11-25）：阶段 0 与阶段 1 的候选已在 macOS 与 Linux 上实测。阶段 2（GC 设置）无一达标，关闭；阶段 1 只有 `BukitStripSymbols` 默认值改为 `true` 达标，实施需用户另行确认。数据见 `docs/plans/2026-11-24-core-performance-optimization-strategy.zh-CN.md` 第 5.1 节。
+
 ## Why
 
 `bukit` 以 Native AOT 单文件发布，但发布配置只做了最基本的设置，运行时内存行为完全使用默认值：

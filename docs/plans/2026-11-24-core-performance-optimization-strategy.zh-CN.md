@@ -1,6 +1,7 @@
 # Bukit Core 性能优化策略：技术栈评估与不重写前提下的优化清单
 
 - 状态：**草稿**（2026-11-24）。分析与提案，未获实施批准。本文件不授权任何 Core 改动、commit、push 或发布。
+- 更新（2026-11-25）：阶段 A（M2 的 GC 实验）与 M1（发布属性）已在 macOS 和 Linux 上实测，结果与结论见第 5.1 节。M2 关闭；M1 只有"本地发布默认剥离符号"一项达标，待用户确认后实施。
 - 用途：作为后续在 Claude Code 中逐项执行的任务来源。执行规则见第 7 节。
 - 分析基线：分支 `fix/i18n-release-blockers`，提交 `bb8bc44b`，版本 2.2.8。
 - 分析方式：只读。阅读了项目结构、全部 csproj、插件层、渲染调度、发布脚本和 `docs/plans/2026-11-10-build-time-incremental-remediation-plan.zh-CN.md`；没有逐行读完全部源码。
@@ -43,7 +44,9 @@
 
 本机产物（`artifacts/publish/osx-arm64/`）：`bukit` 29.9 MB，`libSkiaSharp.dylib` 15.9 MB，合计约 46 MB。
 
-未测量：冷启动时间、小站点内存、开发服务器空闲内存。
+2026-11-25 在 5002 页合成站点上**实测**（第 5.1 节）：Native AOT 冷启动（`bukit version`）约 10 ms，全量构建约 25 秒，峰值内存约 700–890 MiB，输出 21,061 个文件。
+
+未测量：小站点内存、开发服务器空闲内存。
 
 ### 1.4 两套插件机制
 
@@ -95,8 +98,8 @@ Rust。理由：无 GC、流式处理是生态默认做法、编译期排除数�
 
 | 编号 | 措施 | 证据 | 涉及文件 | 承载变更 |
 |---|---|---|---|---|
-| M1 | 补充 AOT 发布属性：`IlcFoldIdenticalMethodBodies`、`OptimizationPreference`（Size 与 Speed 各测）、特性开关；本地发布默认剥离符号 | 已确认 csproj 只有基本属性；收益未测，预计不大 | `Bukit.Cli.csproj` | `tune-native-aot-size-and-gc` |
-| M2 | GC 设置：关闭并发 GC、`GCConserveMemory`、gen0 预算 | 已确认全仓库无任何 GC 配置；收益未测 | `Bukit.Cli.csproj` | 同上 |
+| M1 | 补充 AOT 发布属性：`IlcFoldIdenticalMethodBodies`、`OptimizationPreference`（Size 与 Speed 各测）、特性开关；本地发布默认剥离符号 | **已实测**（第 5.1 节）：只有本地发布默认剥离符号达标，其余候选不采纳 | `Bukit.Cli.csproj` | `tune-native-aot-size-and-gc` |
+| M2 | GC 设置：关闭并发 GC、`GCConserveMemory`、gen0 预算 | **已实测，关闭**（第 5.1 节）：两个平台上都没有一组满足采纳条件 | `Bukit.Cli.csproj` | 同上 |
 
 M1 明确排除：`UseSystemResourceKeys`（会把框架异常消息换成资源键，而 Bukit 多处把 `ex.Message` 展示给用户）、`StackTraceSupport=false`、`InvariantTimezone`、`IlcInstructionSet`。
 
@@ -133,8 +136,8 @@ M12 的代价：需要新增依赖，并使现有增量缓存整体失效一次�
 
 | 阶段 | 内容 | 是否改 Core | 放行条件 |
 |---|---|---|---|
-| A | M2 的阶段 0：用现有 Native AOT 二进制先做两次 E0 基线对照，再用环境变量做 GC 实验 | 否 | 准备好的可信离线站点副本。E0 两次输出一致，并确认候选运行时设置确实生效后，再做候选测量 |
-| B | M1、M2：按实验结果固化发布属性与 GC 设置 | 是（仅 csproj） | 阶段 A 有至少一组满足采纳条件 |
+| A | M2 的阶段 0：用现有 Native AOT 二进制先做两次 E0 基线对照，再用环境变量做 GC 实验 | 否 | 准备好的可信离线站点副本。E0 两次输出一致，并确认候选运行时设置确实生效后，再做候选测量。**已完成（2026-11-25），无一组达标** |
+| B | M1、M2：按实验结果固化发布属性与 GC 设置 | 是（仅 csproj） | 阶段 A 有至少一组满足采纳条件。**M2 部分已关闭；M1 已实测，只剩 `BukitStripSymbols` 默认值一项，待用户确认** |
 | C | M3 的阶段 0：测量发布审计中正则的占比；然后转换 | 是 | 用户确认 |
 | D | M5 的采样：确认并行度问题是否存在 | 否 | 无 |
 | E | M4、M6 | 是 | 用户逐项确认，先有 openspec 变更 |
@@ -150,7 +153,7 @@ python3 scripts/benchmarks/run-gc-experiments.py --yes "<离线站点副本>" \
 
 - 脚本把输入冻结在专用临时目录，每次从同一份输入恢复工作副本，显式指定副本内的输出和初始为空的构建缓存。站点应关闭媒体下载，移除外部命令插件，并将自定义缓存放在副本内。Notion 内容使用 `--notion-snapshot <副本内相对路径>` 离线读取。
 - 脚本打印结果目录。`header.json` 记录二进制版本与 SHA-256，`results.tsv` 记录耗时、峰值 RSS 和等价性结果。原始构建日志、输出和按相对路径生成的清单也保存在该目录。
-- 基线对照通过后，可以追加 `--experiments E0 E1 E2 E3 E4a E4b --runs 3`。每次从清洁环境启动。E4 使用无 `0x` 前缀的 `1000000` 和 `4000000`，分别表示 16 MiB 和 64 MiB 的最小 gen0 预算。
+- 基线对照通过后，可以追加 `--experiments E0 E1 E2 E3 E4a E4b --runs 3`。每次从清洁环境启动。E4 使用无 `0x` 前缀的 `1000000` 和 `4000000`，意图分别表示 16 MiB 和 64 MiB 的最小 gen0 预算（实测无法确认，见第 5.1 节）。
 - 先确认 Native AOT 运行时采用的候选设置，再解释测量差异。`GCgen0size` 是实验环境变量，没有供 `RuntimeHostConfigurationOption` 使用的 `System.GC.*` 键。
 
 ### 统一的采纳条件
@@ -162,6 +165,69 @@ python3 scripts/benchmarks/run-gc-experiments.py --yes "<离线站点副本>" \
 - AOT 发布无 IL 警告。
 
 阈值是提案值，由用户确认或修改。
+
+### 5.1 阶段 A 与 M1 实测结果（2026-11-25）
+
+#### 测量条件
+
+- 源码：分支 `docs/core-performance-strategy` 提交 `686cc89a`（main `c0697dab` 加本文档与脚本），版本串 `2.2.8-gcphasea` / `2.2.8-m1`。没有修改任何仓库文件。
+- 二进制：阶段 A 用 `scripts/build/package-native-aot.sh` 原样打包。M1 用该脚本的临时副本，只在正式发布参数之后追加候选属性。
+- 站点：没有真实站点的 Notion 离线快照，改用离线生成的合成站点：`bukit new` starter 主题，4950 篇文章、50 个页面（加 starter 自带 2 页），约 19 MB Markdown，60 个标签、10 个分类、页面互链；设置了 `site.url`，关闭媒体下载，`build.templateLoopLimit: 100000`（starter 首页遍历全部文章）。每次构建输出 21,061 个文件。
+- 平台：
+  - macOS：Apple M2 Pro，10 核，16 GiB，macOS 15.8.3，`osx-arm64`。
+  - Linux：同一台机器上的 Multipass 虚拟机，Ubuntu 24.04.5，aarch64，6 vCPU，8 GiB，`linux-arm64`，clang 18、GNU objcopy 2.42。
+  - 两边都是 .NET SDK 10.0.403、运行时 10.0.14，工作站 GC；合成站点逐文件一致。
+- 次数：GC 每组 3 次构建，取中位数；M1 每个候选 3 次构建，冷启动为 7 个二进制在同一计时进程内交替各运行 30 次 `bukit version` 的中位数。
+- 噪声：同一二进制的构建耗时最多相差约 9%，峰值内存最多相差约 19%；单轮运行内耗时还有约 10% 的漂移。因此 ±5% 左右的耗时差视为噪声。
+
+#### GC 设置的有效值
+
+用 Native AOT 探针读取 `GC.GetConfigurationVariables()`，两个平台结果相同：
+
+- E1 `DOTNET_gcConcurrent=0` → `ConcurrentGC=False`（`LatencyMode` 变为 `Batch`），生效。
+- E2 `DOTNET_GCConserveMemory=5` → `GCConserveMem=5`，生效。
+- E4 `DOTNET_GCgen0size`：该项不在运行时报告中；`1000000` 与 `4000000` 都只把 `GCGen0MaxBudget` 从 8 MiB 改为 128 MiB，两个值无法区分。按放行条件，E4 只作参考，不参与采纳判断。
+
+#### 阶段 A：GC 实验（相对 E0）
+
+| 组 | macOS 峰值内存 | macOS 耗时 | Linux 峰值内存 | Linux 耗时 |
+|---|---|---|---|---|
+| E0 | 714.3 MiB | 24.85 s | 730.0 MiB | 26.76 s |
+| E1 关闭并发 GC | +9.7% | −1.8% | +15.2% | −6.0% |
+| E2 `GCConserveMemory=5` | −7.0% | +10.0% | +15.1% | +2.9% |
+| E3 E1+E2 | +1.2% | +4.2% | +4.6% | −10.1% |
+| E4a / E4b（参考） | +1.9% / +0.5% | +4.7% / +5.0% | −0.9% / +8.4% | −11.4% / −14.0% |
+
+- 所有构建的输出都与同平台的 E0 一致。
+- 结论：两个平台都没有一组把峰值内存降低 10%，E1 在两边都升高内存，E2 只在 macOS 上降低 7% 且耗时多 10%。**M2 关闭**，`tune-native-aot-size-and-gc` 的阶段 2 不实施。
+- Linux 上 E3、E4 耗时更低，但 E3 是 E1 与 E2 的组合而两者单独都没有这么快，判断为运行内漂移，不是 GC 效果。
+
+#### M1：发布属性（相对 C0，正式发布参数）
+
+| 候选 | 属性 | macOS 体积 | macOS 冷启动 | Linux 体积 | Linux 冷启动 | 结论 |
+|---|---|---|---|---|---|---|
+| C0 | 基线 | 31.29 MB | 10.75 ms | 33.31 MB | 9.75 ms | — |
+| C1 | `IlcFoldIdenticalMethodBodies=true` | −2.9% | +0.3% | −3.5% | −1.6% | 不足 10%，不采纳 |
+| C2 | `OptimizationPreference=Size` | −1.8% | −1.1% | −1.8% | −2.3% | 不足 10%，不采纳 |
+| C3 | `OptimizationPreference=Speed` | +7.0% | −1.0% | +6.5% | −0.4% | 更大且不更快，不采纳 |
+| C4 | `EventSourceSupport=false` | 0 | +0.1% | 0 | +0.5% | Native AOT 已默认关闭，不写入 |
+| C5 | `DebuggerSupport=false` | −96 B | −0.8% | +16 B | +2.0% | 等同默认值，不写入 |
+| C6 | `BukitStripSymbols=false`（本地发布的现行默认） | +267% | +20.3% | +225% | +0.6% | 见下 |
+
+- 所有候选 AOT 发布均无 IL 警告；构建耗时与峰值内存的差异都在噪声内。
+- 反过来读 C6，即把 `BukitStripSymbols` 默认值改为 `true`：本地发布体积 macOS −72.7%（114.8 → 31.3 MB）、Linux −69.2%（108.2 → 33.3 MB）；冷启动只在 macOS 上快 16.9%。这是唯一满足采纳条件的候选。正式发布包已经剥离符号，不受影响。实施前仍需发布包可复现性自检。
+- `IlcFoldIdenticalMethodBodies` 不采纳，因此不需要用户确认其对堆栈方法名的影响。
+
+#### 输出一致性
+
+- 同一平台的 7 个二进制产出的发布文件逐字节相同；Linux 与 macOS 的发布文件（21,047 个，不含 `.bukit`）也逐字节相同。
+- 只有 `.bukit/build-report.json` 的 `project.root` 与 `.bukit/incremental-manifest.json` 的 `variants[].outputDir` 不同，它们记录各次运行目录的绝对路径。
+
+#### 局限
+
+- 只用了合成站点，主题与内容比 4651 页的真实站点简单，也没有图片处理；真实站点的 GC 表现可能不同。
+- Linux 在同机虚拟机内测量，不是独立物理机。
+- 未测各阶段分项计时。
 
 ## 6. DeepSeek Harness 插件机制与 pi
 
@@ -201,7 +267,7 @@ README 明确把 AI intent 工作流排除在 Core 2.0 之外，LLM 进入 Core 
 ## 8. 局限
 
 - 没有逐行阅读全部源码；第 4 节中标为"线索"的项都可能在验证后被否定。
-- 没有任何一项优化的收益经过实测；第 2.2 节和各项的幅度都是估算。
-- 冷启动、小站点内存、开发服务器空闲内存没有基线。
+- 除 M1、M2 外，其余各项的收益都没有实测；第 2.2 节和各项的幅度都是估算。M1、M2 的实测只用了合成站点（第 5.1 节）。
+- 小站点内存、开发服务器空闲内存没有基线。
 - 两份 OpenSpec 草稿已通过严格格式验证，仍待审批与对应专项验收。
 - 第 6 节关于 DSH 和 pi 的描述来自 2026-11-24 的公开资料检索，两者都在快速变化。
