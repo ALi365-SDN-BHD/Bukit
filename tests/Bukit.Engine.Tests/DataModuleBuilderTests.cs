@@ -1,9 +1,11 @@
 using Bukit.Content;
+using Bukit.Content.CloudBase;
 using Bukit.Config;
 using Bukit.Engine.Abstractions.Content;
 using System.Collections;
 using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
+using System.Text.Json;
 using Bukit.Shared;
 using Xunit;
 
@@ -372,6 +374,33 @@ public sealed class DataModuleBuilderTests
         // A JSON string stays text even when it looks like a number.
         Assert.Equal("5", map["code"]);
         Assert.Equal("<b>x</b>", map["html"]);
+    }
+
+    [Theory]
+    [InlineData("object")]
+    [InlineData("object[]")]
+    public void BuildDataIndex_ObjectFromCloudBaseJson_KeepsJsonStrings(string valueType)
+    {
+        const string row = """{"sourceKey":"settings","sourceMode":"data","scope":"trip","key":"info","value_type":"VALUE_TYPE","value":{"label":"false","code":"123","huge":"1e999","days":5,"open":true}}""";
+        var fields = CloudBaseFieldProjector.ProjectWithSet(
+            JsonDocument.Parse(row.Replace("VALUE_TYPE", valueType, StringComparison.Ordinal)).RootElement,
+            "all",
+            CloudBaseFieldProjector.BuildAllowedSet("all", null),
+            "id");
+        var document = CreateDocument("row", "row", "row", null, fields) with
+        {
+            Source = new ContentSourceInfo("cloudbase", SourceKey: "settings")
+        };
+
+        var info = ReadIndexed(document, "trip", "info");
+
+        var map = Assert.IsAssignableFrom<IReadOnlyDictionary<string, object>>(
+            valueType == "object" ? info : Assert.Single(Assert.IsType<List<object?>>(info))!);
+        Assert.Equal("false", map["label"]);
+        Assert.Equal("123", map["code"]);
+        Assert.Equal("1e999", map["huge"]);
+        Assert.Equal(5L, map["days"]);
+        Assert.Equal(true, map["open"]);
     }
 
     [Theory]

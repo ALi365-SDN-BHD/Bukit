@@ -1,3 +1,4 @@
+using Bukit.Content.CloudBase;
 using Bukit.Engine.Abstractions.Content;
 using Bukit.Shared;
 
@@ -31,7 +32,7 @@ internal sealed class ContentGraphValidateStage : IContentStage
 
         foreach (var (error, _) in classified)
         {
-            input.Logger.Warn($"event=canonical.validation code={error.Code} field={error.Field} source={error.SourcePath} message={error.Message}");
+            input.Logger.Warn($"event=canonical.validation code={error.Code} field={error.Field} source={LogSource(error.SourcePath, documentsById)} message={error.Message}");
         }
 
         if (classified.Any(item => string.Equals(item.Mode, "strict", StringComparison.OrdinalIgnoreCase)))
@@ -50,6 +51,14 @@ internal sealed class ContentGraphValidateStage : IContentStage
                 diagnostic.Code,
                 diagnostic.Message,
                 diagnostic.SourceId ?? document.Id));
+
+    /// <summary>A CloudBase document id holds the row id, which logs show only as a hash (D7).</summary>
+    private static string? LogSource(string? sourcePath, Dictionary<string, ContentDocument> documentsById)
+        => sourcePath is not null &&
+           documentsById.TryGetValue(sourcePath, out var document) &&
+           string.Equals(document.Source.Provider, "cloudbase", StringComparison.OrdinalIgnoreCase)
+            ? CloudBaseContentSource.LogId(sourcePath)
+            : sourcePath;
 
     private static string ResolveFailMode(
         ContentValidationIssue issue,

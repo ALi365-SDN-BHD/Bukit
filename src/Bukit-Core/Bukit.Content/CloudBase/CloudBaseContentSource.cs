@@ -16,6 +16,13 @@ internal sealed class CloudBaseContentSource : IContentProvider
     private const long MaxUnixMilliseconds = 253_402_300_799_999;
     private const int MaxLoggedFailures = 10;
 
+    /// <summary>
+    /// A structured field dropped for being too deep, too large or invalid. Its severity is error, so
+    /// the content validation stage applies the collection's <c>schemaFailMode</c>: off ignores it,
+    /// warn logs it, and strict fails the build.
+    /// </summary>
+    internal const string StructuredFieldInvalidCode = "cloudbase.structured_field_invalid";
+
     private readonly CloudBaseContentSourceOptions _options;
     private readonly ILogger? _logger;
     private readonly Func<CloudBaseClient>? _clientFactory;
@@ -113,7 +120,10 @@ internal sealed class CloudBaseContentSource : IContentProvider
                     SourcePath: _options.Table,
                     ExternalId: draft.Id,
                     SyncStatus: "loaded"),
-                CustomFields: draft.Fields));
+                CustomFields: draft.Fields)
+            {
+                Diagnostics = draft.Diagnostics
+            });
         }
 
         _logger?.Info($"event=cloudbase.stats table={_options.Table} count={documents.Count}");
@@ -266,8 +276,11 @@ internal sealed class CloudBaseContentSource : IContentProvider
     /// Names a failing entry by a short hash of the row id (the id itself may be sensitive and
     /// diagnostics log only its hash) and the configured field name.
     /// </summary>
-    internal static string LogEntry(string id, string field)
-        => $"row:{Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes(id)), 0, 6)}/{field}";
+    internal static string LogEntry(string id, string field) => $"{LogId(id)}/{field}";
+
+    /// <summary>Names a row by a short hash of its id, which may be sensitive (D7).</summary>
+    internal static string LogId(string id)
+        => $"row:{Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes(id)), 0, 6)}";
 
     private void WarnUnsupported(int count)
     {
@@ -278,14 +291,37 @@ internal sealed class CloudBaseContentSource : IContentProvider
         }
     }
 
+    /// <summary>True when the value, any nested value or any nested object key contains cloud://.</summary>
     private static bool ContainsCloudReference(object? value)
-        => value switch
+    {
+        switch (value)
         {
-            string text => text.Contains("cloud://", StringComparison.OrdinalIgnoreCase),
-            IEnumerable<string> items => items.Any(item =>
-                item?.Contains("cloud://", StringComparison.OrdinalIgnoreCase) == true),
-            _ => false
-        };
+            case string text:
+                return text.Contains("cloud://", StringComparison.OrdinalIgnoreCase);
+            case System.Collections.IDictionary map:
+                foreach (System.Collections.DictionaryEntry entry in map)
+                {
+                    if (ContainsCloudReference(entry.Key) || ContainsCloudReference(entry.Value))
+                    {
+                        return true;
+                    }
+                }
+
+                return false;
+            case System.Collections.IEnumerable items:
+                foreach (var item in items)
+                {
+                    if (ContainsCloudReference(item))
+                    {
+                        return true;
+                    }
+                }
+
+                return false;
+            default:
+                return false;
+        }
+    }
 
     private sealed class Draft(
         string id,
@@ -293,7 +329,8 @@ internal sealed class CloudBaseContentSource : IContentProvider
         string slug,
         DateTimeOffset? publishedAt,
         Dictionary<string, ContentField> fields,
-        string markdown)
+        string markdown,
+        IReadOnlyList<ContentDiagnostic> diagnostics)
     {
         internal string Id { get; } = id;
         internal string Title { get; } = title;
@@ -301,6 +338,7 @@ internal sealed class CloudBaseContentSource : IContentProvider
         internal DateTimeOffset? PublishedAt { get; } = publishedAt;
         internal Dictionary<string, ContentField> Fields { get; } = fields;
         internal string Markdown { get; } = markdown;
+        internal IReadOnlyList<ContentDiagnostic> Diagnostics { get; } = diagnostics;
         internal Dictionary<string, string> FileObjects { get; } = new(StringComparer.OrdinalIgnoreCase);
         internal HashSet<string> NonStringFileFields { get; } = new(StringComparer.OrdinalIgnoreCase);
     }
@@ -362,11 +400,13 @@ internal sealed class CloudBaseContentSource : IContentProvider
         IReadOnlySet<string>? allowedSet,
         bool isData)
     {
+        var rejected = new List<(string Field, string Problem)>();
         var fields = CloudBaseFieldProjector.ProjectWithSet(
             row,
             _options.FieldPolicyMode,
             allowedSet,
-            _options.IdField);
+            _options.IdField,
+            rejected);
         fields["source"] = new ContentField("text", "cloudbase");
         if (ParseDate(row, _options.UpdatedAtField) is { } updatedAt)
         {
@@ -406,7 +446,13 @@ internal sealed class CloudBaseContentSource : IContentProvider
             slug,
             ParseDate(row, _options.PublishAtField),
             fields,
-            isData ? string.Empty : GetString(row, _options.BodyField) ?? string.Empty);
+            isData ? string.Empty : GetString(row, _options.BodyField) ?? string.Empty,
+            // A file field holding a structure becomes the placeholder below, like any non-string file value.
+            [.. rejected.Where(item => !_options.FileFields.Contains(item.Field, StringComparer.OrdinalIgnoreCase)).Select(item => new ContentDiagnostic(
+                StructuredFieldInvalidCode,
+                "error",
+                $"{item.Problem} The field was dropped.",
+                item.Field))]);
         if (nonStringFileFields is not null)
         {
             draft.NonStringFileFields.UnionWith(nonStringFileFields);

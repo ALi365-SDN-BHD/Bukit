@@ -2,6 +2,7 @@ using System.Collections;
 using System.Globalization;
 using System.Text.Json;
 using System.Text.RegularExpressions;
+using static Bukit.Content.CanonicalJsonValue;
 using Bukit.Shared;
 
 namespace Bukit.Engine;
@@ -12,14 +13,16 @@ namespace Bukit.Engine;
 /// and scalars are strings, booleans, numbers (<see cref="long"/>, then <see cref="decimal"/>, then
 /// <see cref="double"/>) or null. Markdown front matter hands over a parsed map or list; Notion hands
 /// over JSON text, which is parsed with <see cref="JsonDocument"/> (no reflection, so it is Native
-/// AOT safe).
+/// AOT safe). The JSON rules, depth limit and errors are shared with CloudBase structured fields
+/// through <see cref="Bukit.Content.CanonicalJsonValue"/>.
 /// </summary>
 /// <remarks>
 /// JSON says which scalars are numbers and booleans. Markdown front matter gives every scalar as a
 /// string, so a Markdown string is read as a boolean when it is <c>true</c> or <c>false</c> (in the
 /// YAML core-schema spellings) and as a number when it is in JSON number form; anything else, such
 /// as <c>0123</c> or <c>+60</c>, stays text. The same value therefore builds the same model and hash
-/// from either source, and a template's <c>if info.open</c> is false for <c>false</c>.
+/// from either source, and a template's <c>if info.open</c> is false for <c>false</c>. A map or list
+/// that a JSON source already parsed (a CloudBase structured field) keeps its JSON strings as text.
 /// </remarks>
 internal static partial class DataIndexObjectValue
 {
@@ -27,13 +30,17 @@ internal static partial class DataIndexObjectValue
     internal const string ObjectArrayType = "object[]";
 
     /// <summary>The deepest nesting allowed; every object and every list counts as one level.</summary>
-    internal const int MaxDepth = 8;
+    internal const int MaxDepth = Bukit.Content.CanonicalJsonValue.MaxDepth;
 
     /// <param name="raw">The source value: null, JSON text, or a parsed map or list.</param>
     /// <param name="isArray">True for <c>object[]</c>, false for <c>object</c>.</param>
     /// <param name="context">Names the source, content id and <c>scope.key</c> in every error.</param>
+    /// <param name="jsonTyped">
+    /// True when a parsed map or list came from JSON, whose strings are text and must not be read as
+    /// booleans or numbers.
+    /// </param>
     /// <returns>An empty or canonical map for <c>object</c>; an empty or canonical list of maps for <c>object[]</c>.</returns>
-    internal static object Read(object? raw, bool isArray, string context)
+    internal static object Read(object? raw, bool isArray, string context, bool jsonTyped = false)
     {
         var valueType = isArray ? ObjectArrayType : ObjectType;
         object? value;
@@ -47,7 +54,7 @@ internal static partial class DataIndexObjectValue
         }
         else if (raw is IDictionary or (IEnumerable and not string))
         {
-            value = FromValue(raw, depth: 1, path: string.Empty, context);
+            value = FromValue(raw, depth: 1, path: string.Empty, context, jsonTyped);
         }
         else
         {
@@ -131,46 +138,6 @@ internal static partial class DataIndexObjectValue
         }
     }
 
-    private static object? FromJson(JsonElement element, int depth, string path, string context)
-    {
-        switch (element.ValueKind)
-        {
-            case JsonValueKind.Object:
-                CheckDepth(depth, path, context);
-                var map = new SortedDictionary<string, object?>(StringComparer.Ordinal);
-                foreach (var property in element.EnumerateObject())
-                {
-                    var childPath = Key(path, property.Name, context);
-                    if (!map.TryAdd(property.Name, FromJson(property.Value, depth + 1, childPath, context)))
-                    {
-                        throw Invalid(context, null, childPath, "is a duplicate key");
-                    }
-                }
-
-                return map;
-            case JsonValueKind.Array:
-                CheckDepth(depth, path, context);
-                var list = new List<object?>(element.GetArrayLength());
-                var index = 0;
-                foreach (var item in element.EnumerateArray())
-                {
-                    list.Add(FromJson(item, depth + 1, $"{path}[{index++}]", context));
-                }
-
-                return list;
-            case JsonValueKind.String:
-                return element.GetString();
-            case JsonValueKind.Number:
-                return ParseNumber(element.GetRawText(), path, context);
-            case JsonValueKind.True:
-                return true;
-            case JsonValueKind.False:
-                return false;
-            default:
-                return null;
-        }
-    }
-
     /// <summary>
     /// A Markdown scalar, which front matter always gives as text: <c>true</c>/<c>false</c> in the
     /// YAML core-schema spellings become booleans and JSON-form numbers become numbers, so Markdown
@@ -184,39 +151,17 @@ internal static partial class DataIndexObjectValue
         _ => text
     };
 
-    /// <summary>
-    /// A JSON-form number as <see cref="long"/> when it is a whole number in range, as
-    /// <see cref="decimal"/> when it fits (keeping its digits, so <c>12.50</c> stays <c>12.50</c>),
-    /// and otherwise as a finite <see cref="double"/>.
-    /// </summary>
-    private static object ParseNumber(string text, string path, string context)
-    {
-        if (long.TryParse(text, NumberStyles.AllowLeadingSign, CultureInfo.InvariantCulture, out var whole))
-        {
-            return whole;
-        }
-
-        if (decimal.TryParse(text, NumberStyles.Float, CultureInfo.InvariantCulture, out var exact))
-        {
-            return exact;
-        }
-
-        return double.TryParse(text, NumberStyles.Float, CultureInfo.InvariantCulture, out var real) && double.IsFinite(real)
-            ? real
-            : throw Invalid(context, null, path, "is not a finite number");
-    }
-
     [GeneratedRegex(@"^-?(0|[1-9][0-9]*)(\.[0-9]+)?([eE][+-]?[0-9]+)?$", RegexOptions.CultureInvariant)]
     private static partial Regex JsonNumber();
 
-    private static object? FromValue(object? value, int depth, string path, string context)
+    private static object? FromValue(object? value, int depth, string path, string context, bool jsonTyped)
     {
         switch (value)
         {
             case null:
                 return null;
             case string text:
-                return ResolveText(text, path, context);
+                return jsonTyped ? text : ResolveText(text, path, context);
             case bool flag:
                 return flag;
             case double real when !double.IsFinite(real):
@@ -244,7 +189,7 @@ internal static partial class DataIndexObjectValue
                         throw Invalid(context, null, path, "has an object key that is not a string");
                     }
 
-                    map[key] = FromValue(entry.Value, depth + 1, Key(path, key, context), context);
+                    map[key] = FromValue(entry.Value, depth + 1, Key(path, key, context), context, jsonTyped);
                 }
 
                 return map;
@@ -255,7 +200,7 @@ internal static partial class DataIndexObjectValue
                 foreach (var (key, item) in pairs)
                 {
                     var childPath = Key(path, key, context);
-                    if (!pairMap.TryAdd(key, FromValue(item, depth + 1, childPath, context)))
+                    if (!pairMap.TryAdd(key, FromValue(item, depth + 1, childPath, context, jsonTyped)))
                     {
                         throw Invalid(context, null, childPath, "is a duplicate key");
                     }
@@ -268,41 +213,12 @@ internal static partial class DataIndexObjectValue
                 var index = 0;
                 foreach (var item in sequence)
                 {
-                    list.Add(FromValue(item, depth + 1, $"{path}[{index++}]", context));
+                    list.Add(FromValue(item, depth + 1, $"{path}[{index++}]", context, jsonTyped));
                 }
 
                 return list;
             default:
                 throw Invalid(context, null, path, $"has an unsupported value of type '{value.GetType().Name}'");
         }
-    }
-
-    private static void CheckDepth(int depth, string path, string context)
-    {
-        if (depth > MaxDepth)
-        {
-            throw Invalid(context, null, path, $"exceeds the maximum nesting depth of {MaxDepth}");
-        }
-    }
-
-    /// <summary>
-    /// The path of an object key. A blank key is rejected: templates cannot read it, so it would
-    /// reach the mini-program output and the hash but never a page.
-    /// </summary>
-    private static string Key(string path, string key, string context)
-    {
-        if (string.IsNullOrWhiteSpace(key))
-        {
-            throw Invalid(context, null, path, "has a blank object key");
-        }
-
-        return path.Length == 0 ? key : $"{path}.{key}";
-    }
-
-    private static ContentException Invalid(string context, string? valueType, string path, string problem)
-    {
-        var subject = valueType is null ? " value" : $" has value type '{valueType}' but its value";
-        var at = path.Length == 0 ? string.Empty : $" at '{path}'";
-        return new ContentException($"{context}{subject}{at} {problem}.");
     }
 }

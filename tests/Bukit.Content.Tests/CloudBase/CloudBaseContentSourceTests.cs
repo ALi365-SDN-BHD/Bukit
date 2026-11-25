@@ -608,6 +608,70 @@ public sealed class CloudBaseContentSourceTests
         Assert.DoesNotContain("gallery", document.CustomFields!.Keys);
     }
 
+    [Theory]
+    [InlineData("content")]
+    [InlineData("data")]
+    public async Task LoadRawAsync_NestedCloudReference_DropsWholeFieldWithWarning(string mode)
+    {
+        var api = new FakeCloudBaseApi();
+        api.Pages[0] = """[{"id":"a1","title":"A","slug":"a","content":"x","days":[{"title":"D1","photos":[{"src":"cloud://env-abc.media/a.png"}]}],"keyed":{"cloud://x":1},"months":[3,4]}]""";
+        api.Total = 1;
+        var messages = new List<string>();
+        var source = Create(
+            api,
+            options => options with { Mode = mode, FieldPolicyMode = "whitelist", AllowedFields = ["days", "keyed", "months"] },
+            new ListLogger(messages));
+
+        var document = Assert.Single((await source.LoadRawAsync()).Documents);
+
+        Assert.DoesNotContain("days", document.CustomFields!.Keys);
+        Assert.DoesNotContain("keyed", document.CustomFields.Keys);
+        Assert.Equal([3L, 4L], Assert.IsType<List<object?>>(document.CustomFields["months"].Value));
+        Assert.Contains(messages, message =>
+            message.Contains("event=cloudbase.unsupported_file_reference", StringComparison.Ordinal) &&
+            message.Contains("count=2", StringComparison.Ordinal));
+        Assert.DoesNotContain(api.Requests, uri => uri.AbsolutePath.StartsWith("/v1/storages/", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task LoadRawAsync_RejectedStructureInFileField_UsesPlaceholderWithoutDiagnostic()
+    {
+        var api = new FakeCloudBaseApi();
+        api.Pages[0] = """[{"id":"a1","title":"A","slug":"a","content":"x","cover":{"a":[[[[[[[[1]]]]]]]]}}]""";
+        api.Total = 1;
+        var source = Create(api, options => options with
+        {
+            FileFields = ["cover"],
+            StorageBucket = "media",
+            DefaultImageUrl = "/ph.jpg"
+        });
+
+        var document = Assert.Single((await source.LoadRawAsync()).Documents);
+
+        Assert.Equal("/ph.jpg", document.CustomFields!["cover"].Value);
+        Assert.Empty(document.Diagnostics);
+        Assert.DoesNotContain(api.Requests, uri => uri.AbsolutePath.StartsWith("/v1/storages/", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task LoadRawAsync_RejectedStructuredField_IsDroppedWithErrorDiagnostic()
+    {
+        var api = new FakeCloudBaseApi();
+        api.Pages[0] = """[{"id":"a1","title":"A","slug":"a","content":"x","deep":{"a":[[[[[[[[1]]]]]]]]},"ok":{"k":"v"}}]""";
+        api.Total = 1;
+        var source = Create(api, options => options with { FieldPolicyMode = "whitelist", AllowedFields = ["deep", "ok"] });
+
+        var document = Assert.Single((await source.LoadRawAsync()).Documents);
+
+        Assert.DoesNotContain("deep", document.CustomFields!.Keys);
+        Assert.Contains("ok", document.CustomFields.Keys);
+        var diagnostic = Assert.Single(document.Diagnostics);
+        Assert.Equal(CloudBaseContentSource.StructuredFieldInvalidCode, diagnostic.Code);
+        Assert.Equal("error", diagnostic.Severity);
+        Assert.Equal("deep", diagnostic.Field);
+        Assert.DoesNotContain("a1", diagnostic.Message, StringComparison.Ordinal);
+    }
+
     [Fact]
     public async Task LoadRawAsync_MixedBodyImages_KeepsOrdinaryImages()
     {
