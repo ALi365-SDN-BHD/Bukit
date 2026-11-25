@@ -188,7 +188,8 @@ SearchAction and does not perform the final-route check.
 | `site.collections.<name>.pagination.pageSize` | `10` | Positive page size. |
 | `site.collections.<name>.pagination.urlPattern` | `page/:num/` | Relative pattern with `:num`, `{num}`, or `{page}`. |
 | `site.collections.<name>.pagination.firstPageUsesListRoute` | `true` | First page reuses `listRoute`. |
-| `site.collections.<name>.output.rss` | `true` | Includes collection feed output. |
+| `site.collections.<name>.output.rss` | `true` | Includes the collection's posts in the site feed. |
+| `site.collections.<name>.output.feed` | unset | Writes the collection's own feed under `feedPath` (default `<site.feed.path>/<name>/`). Unset means `true` only when two or more collections have `output.rss: true`, so a single-collection site does not repeat its site feed; set `true` or `false` to choose explicitly. |
 | `site.collections.<name>.output.sitemap` | `true` | Includes collection items in sitemap output. |
 | `site.collections.<name>.output.archive` | `false` | Enables archive routes. |
 | `site.collections.<name>.output.feedPath` | none | Collection feed path. |

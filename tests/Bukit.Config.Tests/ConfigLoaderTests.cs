@@ -857,6 +857,7 @@ public sealed class ConfigLoaderTests : IDisposable
                       listRoute: /blog/market/
                   output:
                     rss: true
+                    feed: true
                     sitemap: true
                     archive: true
                     feedPath: blog-feed
@@ -908,6 +909,7 @@ public sealed class ConfigLoaderTests : IDisposable
         Assert.Equal(new[] { "市场观察", "政策动态" }, inFilter.Values);
         Assert.Equal("/blog/market/", inFilter.ListRoute);
         Assert.True(posts.Output.Rss);
+        Assert.True(posts.Output.Feed);
         Assert.True(posts.Output.Sitemap);
         Assert.True(posts.Output.Archive);
         Assert.Equal("blog-feed", posts.Output.FeedPath);

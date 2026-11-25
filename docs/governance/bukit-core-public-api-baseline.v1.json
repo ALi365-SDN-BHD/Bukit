@@ -771,6 +771,7 @@
         "public System.Boolean Archive { get; init; }",
         "public System.Boolean Rss { get; init; }",
         "public System.Boolean Sitemap { get; init; }",
+        "public System.Boolean? Feed { get; init; }",
         "public System.String? FeedDescription { get; init; }",
         "public System.String? FeedPath { get; init; }",
         "public System.String? FeedTitle { get; init; }",

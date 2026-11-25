@@ -41,6 +41,7 @@ internal sealed class CollectionsAndFieldScopesContributor : IRenderDependencyCo
 
                 var output = collection.Value.Output;
                 writer.AppendLabeledCanonicalValue("collection.output.rss", output.Rss);
+                writer.AppendLabeledCanonicalValue("collection.output.feed", output.Feed);
                 writer.AppendLabeledCanonicalValue("collection.output.sitemap", output.Sitemap);
                 writer.AppendLabeledCanonicalValue("collection.output.archive", output.Archive);
                 writer.AppendLabeledCanonicalValue("collection.output.feedPath", output.FeedPath);

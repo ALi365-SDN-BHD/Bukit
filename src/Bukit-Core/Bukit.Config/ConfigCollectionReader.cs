@@ -105,6 +105,7 @@ internal static class ConfigCollectionReader
         => new()
         {
             Rss = outputNode is null ? true : ConfigYamlHelpers.GetOptionalBool(outputNode, "rss") ?? true,
+            Feed = outputNode is null ? null : ConfigYamlHelpers.GetOptionalBool(outputNode, "feed"),
             Sitemap = outputNode is null ? true : ConfigYamlHelpers.GetOptionalBool(outputNode, "sitemap") ?? true,
             Archive = outputNode is not null && (ConfigYamlHelpers.GetOptionalBool(outputNode, "archive") ?? false),
             FeedPath = outputNode is null ? null : ConfigYamlHelpers.GetOptionalString(outputNode, "feedPath"),

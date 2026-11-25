@@ -227,6 +227,7 @@ public sealed record PaginationGlobalConfig
 public sealed record CollectionOutputConfig
 {
     public bool Rss { get; init; } = true;
+    public bool? Feed { get; init; }
     public bool Sitemap { get; init; } = true;
     public bool Archive { get; init; }
     public string? FeedPath { get; init; }

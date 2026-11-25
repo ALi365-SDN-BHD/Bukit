@@ -1058,7 +1058,7 @@ public sealed class I18nRootLayoutTests
                 Collections = config.Site.Collections!.ToDictionary(
                     pair => pair.Key,
                     pair => pair.Key == "page"
-                        ? pair.Value with { Output = pair.Value.Output with { Rss = true, FeedPath = feedPath } }
+                        ? pair.Value with { Output = pair.Value.Output with { Rss = true, Feed = true, FeedPath = feedPath } }
                         : pair.Value)
             }
         };

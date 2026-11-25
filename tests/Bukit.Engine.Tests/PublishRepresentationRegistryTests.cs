@@ -471,6 +471,7 @@ public sealed class PublishRepresentationRegistryTests
                                 Output = new CollectionOutputConfig
                                 {
                                     Rss = true,
+                                    Feed = true,
                                     FeedPath = "feeds/posts",
                                     FeedTitle = "Post Feed"
                                 }

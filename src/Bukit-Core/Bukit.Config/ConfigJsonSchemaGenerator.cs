@@ -618,6 +618,7 @@ public static class ConfigJsonSchemaGenerator
     private static JsonObject CollectionOutputSchema()
         => Obj(("type", "object"), ("properties", Obj(
             ("rss", BoolSchema()),
+            ("feed", BoolSchema()),
             ("sitemap", BoolSchema()),
             ("archive", BoolSchema()),
             ("feedPath", StringSchema()),

@@ -137,7 +137,7 @@ internal static class ConfigStrictFieldValidator
 
                 if (Map(collection, "output") is { } output)
                 {
-                    RequireOnly(output, Set("rss", "sitemap", "archive", "feedPath", "feedTitle", "feedDescription", "archiveDetail"), $"site.collections.{name}.output");
+                    RequireOnly(output, Set("rss", "feed", "sitemap", "archive", "feedPath", "feedTitle", "feedDescription", "archiveDetail"), $"site.collections.{name}.output");
                     if (Map(output, "archiveDetail") is { } archiveDetail)
                     {
                         RequireOnly(archiveDetail, Set("depth", "template", "routePrefix"), $"site.collections.{name}.output.archiveDetail");

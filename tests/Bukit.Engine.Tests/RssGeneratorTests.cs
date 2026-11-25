@@ -407,6 +407,17 @@ public sealed class RssGeneratorTests
         new("T " + slug, "https://example.com/" + slug + "/", new DateTimeOffset(2024, 6, 1, 0, 0, 0, TimeSpan.Zero), null, null, contentHtml, Language: language);
 
     [Fact]
+    public void GenerateMerged_WritesAuthorNameAsDcCreator()
+    {
+        var rss = RenderMerged([new RssGenerator.Post("T", "https://example.com/t/", new DateTimeOffset(2024, 6, 1, 0, 0, 0, TimeSpan.Zero), null, null, null, Author: "Ali & Co")]);
+
+        Assert.Contains("xmlns:dc=\"http://purl.org/dc/elements/1.1/\"", rss, StringComparison.Ordinal);
+        Assert.Contains("      <dc:creator>Ali &amp; Co</dc:creator>", rss, StringComparison.Ordinal);
+        Assert.DoesNotContain("<author>", rss, StringComparison.Ordinal);
+        Assert.NotNull(System.Xml.Linq.XDocument.Parse(rss));
+    }
+
+    [Fact]
     public void GenerateMerged_SingleLanguage_WritesChannelLanguage()
     {
         var rss = RenderMerged([LanguagePost("a", "zh-CN"), LanguagePost("b", "zh-CN")]);

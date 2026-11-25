@@ -79,7 +79,7 @@ public sealed class ConfigSchemaNestedContractTests
         new("site/collections/*", "permalink", "template", "listRoute", "listTitle", "listDescription", "listTemplate", "schemaFailMode", "noindexWhenEmpty", "indexPolicy", "pagination", "output", "filteredLists"),
         new("site/collections/*/indexPolicy", "minimumItems", "belowMinimum"),
         new("site/collections/*/pagination", "enabled", "pageSize", "urlPattern", "firstPageUsesListRoute"),
-        new("site/collections/*/output", "rss", "sitemap", "archive", "feedPath", "feedTitle", "feedDescription", "archiveDetail"),
+        new("site/collections/*/output", "rss", "feed", "sitemap", "archive", "feedPath", "feedTitle", "feedDescription", "archiveDetail"),
         new("site/collections/*/output/archiveDetail", "depth", "template", "routePrefix"),
         new("site/collections/*/filteredLists[]", "field", "operator", "value", "values", "listRoute", "title", "description", "listTemplate", "pageSize", "urlPattern", "emptyBehavior"),
         new("site/menus/*[]", "identifier", "name", "url", "weight", "children"),

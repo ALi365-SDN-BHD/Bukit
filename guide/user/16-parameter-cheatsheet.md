@@ -79,6 +79,7 @@
 | `site.collections.<name>.pagination.urlPattern` | `page/:num/` |
 | `site.collections.<name>.pagination.firstPageUsesListRoute` | `true` |
 | `site.collections.<name>.output.rss` | `true` |
+| `site.collections.<name>.output.feed` | unset (`true` with 2+ `rss` collections) |
 | `site.collections.<name>.output.sitemap` | `true` |
 | `site.collections.<name>.output.archive` | `false` |
 | `site.collections.<name>.output.archiveDetail.depth` | `monthly` |
