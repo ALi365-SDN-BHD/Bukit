@@ -153,10 +153,10 @@ the offline collector boundary and local observation contract.
 `generatedFiles` array is the sorted, root-relative public output inventory and
 excludes `.bukit/`, state/marker files, and files reachable only through
 directory symlinks. SEO, publish, and security issue totals remain in their own
-reports and are not copied into build health. Its `project.root` is `.` and
-`project.output` is the output directory relative to the project root (for
-example `dist`; an absolute `build.output` is written relative to the project
-root), so the report carries no absolute local paths.
+reports and are not copied into build health. In its `project` object,
+`root` is `.` and `output` is the output directory relative to the project
+root (for example `dist`; an absolute `build.output` is written relative to
+the project root), so the report carries no absolute local paths.
 
 `security-report.json` includes the `publicOutputPrivacy` check when the build
 uses Notion content. The check scans public text output for known Notion
