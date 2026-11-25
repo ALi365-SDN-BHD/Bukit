@@ -5,33 +5,52 @@ namespace Bukit.Engine.Plugins.BuiltIn;
 
 internal static class TaxonomyMetadataLoader
 {
-    internal static void LoadAndEnrich(BuildContext context, string kind, Dictionary<string, TaxonomyTerm> terms)
+    /// <param name="language">The language being built; its documents are the only ones whose terms carry pages.</param>
+    internal static void LoadAndEnrich(BuildContext context, string kind, Dictionary<string, TaxonomyTerm> terms, string language)
     {
         LoadFromEnsureTerms(context, kind, terms);
         LoadFromIndexFiles(context.RootDir, kind, terms, context.Logger);
-        DropDuplicateI18nKeys(context, kind, terms);
+        ResolveI18nKeys(context, kind, terms, language);
     }
 
     /// <summary>
-    /// A key shared by two terms of one kind cannot pair either of them, so both fall back to route pairing.
+    /// A term's language is the built language when it has pages (each language builds from its own
+    /// documents), else its <c>language</c> metadata, else unknown. Only a term of the built language, or of
+    /// unknown language, keeps its key. A key that two such terms share pairs neither, unless exactly one of
+    /// them is of the built language: the others are then other languages' terms (Notion select options are
+    /// offered to every language) and only they lose the key.
     /// </summary>
-    private static void DropDuplicateI18nKeys(BuildContext context, string kind, Dictionary<string, TaxonomyTerm> terms)
+    private static void ResolveI18nKeys(BuildContext context, string kind, Dictionary<string, TaxonomyTerm> terms, string language)
     {
-        var duplicates = terms.Values
-            .Where(term => term.I18nKey is not null)
-            .GroupBy(term => term.I18nKey!, StringComparer.Ordinal)
-            .Where(group => group.Count() > 1)
-            .ToArray();
-        foreach (var group in duplicates)
+        var dropped = new List<string>();
+        foreach (var group in terms.Values
+                     .Where(term => term.I18nKey is not null)
+                     .GroupBy(term => term.I18nKey!, StringComparer.Ordinal))
         {
-            var slugs = group.Select(term => term.Slug).Order(StringComparer.Ordinal).ToArray();
-            context.Logger.Warn($"event=taxonomy.term.i18n_key_duplicate kind={kind} key={group.Key} slugs={string.Join(',', slugs)}");
-            foreach (var slug in slugs)
+            var candidates = group.Where(term => IsLanguageOrUnknown(TermLanguage(term, language), language)).ToArray();
+            var inLanguage = candidates.Where(term => TermLanguage(term, language) is not null).ToArray();
+            var keeper = candidates.Length == 1 ? candidates[0] : inLanguage.Length == 1 ? inLanguage[0] : null;
+            if (keeper is null && candidates.Length > 1)
             {
-                terms[slug] = Copy(terms[slug], terms[slug].Description, terms[slug].Image, terms[slug].Weight, terms[slug].ParentSlug, i18nKey: null);
+                var slugs = (inLanguage.Length > 1 ? inLanguage : candidates).Select(term => term.Slug).Order(StringComparer.Ordinal);
+                context.Logger.Warn($"event=taxonomy.term.i18n_key_duplicate kind={kind} key={group.Key} slugs={string.Join(',', slugs)} language={language}");
             }
+
+            dropped.AddRange(group.Where(term => !ReferenceEquals(term, keeper)).Select(term => term.Slug));
+        }
+
+        foreach (var slug in dropped)
+        {
+            var term = terms[slug];
+            terms[slug] = Copy(term, term.Description, term.Image, term.Weight, term.ParentSlug, i18nKey: null, term.Language);
         }
     }
+
+    private static string? TermLanguage(TaxonomyTerm term, string language)
+        => term.Pages.Count > 0 ? language : term.Language;
+
+    private static bool IsLanguageOrUnknown(string? termLanguage, string language)
+        => termLanguage is null || string.Equals(termLanguage, language, StringComparison.OrdinalIgnoreCase);
 
     internal static void LoadFromEnsureTerms(BuildContext context, string kind, Dictionary<string, TaxonomyTerm> terms)
     {
@@ -144,6 +163,12 @@ internal static class TaxonomyMetadataLoader
             needReplace = true;
         }
 
+        var language = TryGetString(item, "language");
+        if (string.IsNullOrWhiteSpace(term.Language) && language is not null)
+        {
+            needReplace = true;
+        }
+
         if (needReplace)
         {
             terms[slug] = Copy(
@@ -152,11 +177,12 @@ internal static class TaxonomyMetadataLoader
                 TryGetString(item, "image") ?? term.Image,
                 TryGetInt(item, "weight") ?? term.Weight,
                 TryGetString(item, "parent") ?? term.ParentSlug,
-                term.I18nKey ?? i18nKey);
+                term.I18nKey ?? i18nKey,
+                term.Language ?? language);
         }
     }
 
-    private static TaxonomyTerm Copy(TaxonomyTerm term, string? description, string? image, int weight, string? parentSlug, string? i18nKey)
+    private static TaxonomyTerm Copy(TaxonomyTerm term, string? description, string? image, int weight, string? parentSlug, string? i18nKey, string? language)
         => new(term.DisplayName, term.Slug)
         {
             Description = description,
@@ -165,6 +191,7 @@ internal static class TaxonomyMetadataLoader
             IsVisible = term.IsVisible,
             ParentSlug = parentSlug,
             I18nKey = i18nKey,
+            Language = language,
             Aliases = term.Aliases,
             Pages = term.Pages,
         };

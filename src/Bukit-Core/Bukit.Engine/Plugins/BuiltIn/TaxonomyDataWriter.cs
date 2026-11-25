@@ -11,7 +11,8 @@ internal static class TaxonomyDataWriter
         BuildContext context,
         IReadOnlyList<string> itemFields,
         TaxonomyConfig config,
-        TaxonomyIndexCache cache)
+        TaxonomyIndexCache cache,
+        string? language)
     {
         var taxonomy = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase);
 
@@ -33,7 +34,8 @@ internal static class TaxonomyDataWriter
                     continue;
                 }
 
-                var title = string.IsNullOrWhiteSpace(kindConfig.Title) ? kind : kindConfig.Title.Trim();
+                var configuredTitle = kindConfig.LabelsFor(language).Title;
+                var title = string.IsNullOrWhiteSpace(configuredTitle) ? kind : configuredTitle.Trim();
                 taxonomy[kind] = BuildKindData(key, kind, title, terms, kindConfig.RoutePrefix);
             }
         }

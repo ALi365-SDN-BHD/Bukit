@@ -137,7 +137,8 @@ one job deploys with a token scoped to another repository.
 The GitHub Pages provider copies only public build output into its temporary
 branch checkout. It excludes these internal artifacts:
 
-- `.bukit/`
+- `.bukit/` directories, including `<lang>/.bukit/`
+- `*.bukit-freshness.json` image freshness sidecars
 - `.bukit-build-state.json`
 - `.bukit-output-marker`
 - nested `.git/` directories

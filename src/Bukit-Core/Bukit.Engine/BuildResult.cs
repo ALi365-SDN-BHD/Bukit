@@ -52,6 +52,30 @@ public sealed record BuildIncrementalSummary(
 
 internal static class BuildResultFactory
 {
+    /// <summary><paramref name="outputDir"/> relative to <paramref name="rootDir"/>, with forward slashes.</summary>
+    internal static string PortableOutputPath(string rootDir, string outputDir)
+    {
+        var root = Path.GetFullPath(rootDir);
+        var relative = Path.GetRelativePath(root, Path.GetFullPath(outputDir, root));
+        return relative.Replace(Path.DirectorySeparatorChar, '/').Replace(Path.AltDirectorySeparatorChar, '/');
+    }
+
+    /// <summary>
+    /// The configured relative output as written; an absolute output, or a worktree build's published output,
+    /// relative to the project root.
+    /// </summary>
+    internal static string ReportedOutputPath(string configuredOutput, string rootDir, string? reportedOutputDir)
+    {
+        if (reportedOutputDir is not null)
+        {
+            return PortableOutputPath(rootDir, reportedOutputDir);
+        }
+
+        return Path.IsPathRooted(configuredOutput)
+            ? PortableOutputPath(rootDir, configuredOutput)
+            : configuredOutput;
+    }
+
     internal static BuildResult Create(
         AppConfig config,
         string rootDir,
@@ -64,7 +88,8 @@ internal static class BuildResultFactory
         IReadOnlyList<ContentValidationIssue>? schemaErrors = null,
         IReadOnlyList<string>? generatedFiles = null,
         int warningCount = 0,
-        int errorCount = 0)
+        int errorCount = 0,
+        string? reportedOutputDir = null)
     {
         var pageCount = variants.Sum(v => v.RenderedCount + v.SkippedCount);
         var routeCount = variants.Sum(v => v.RoutedDocuments.Count + v.DerivedDocuments.Count);
@@ -82,8 +107,10 @@ internal static class BuildResultFactory
                 Runtime: RuntimeInformation.FrameworkDescription,
                 Aot: !System.Runtime.CompilerServices.RuntimeFeature.IsDynamicCodeSupported),
             Project: new BuildProjectInfo(
-                Root: Path.GetFullPath(rootDir),
-                Output: config.Build.Output,
+                // Portable paths: the report is copied with the output, so it names no local directories. A worktree
+                // build reports the output it publishes to, not its staging directory.
+                Root: ".",
+                Output: ReportedOutputPath(config.Build.Output, rootDir, reportedOutputDir),
                 ContentSource: ContentConfigResolver.Describe(config.Content),
                 ThemeName: config.Theme.Name),
             Summary: new BuildSummary(

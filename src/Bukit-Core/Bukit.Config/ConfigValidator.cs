@@ -240,6 +240,7 @@ public static class ConfigValidator
             for (var i = 0; i < kinds.Count; i++)
             {
                 ValidateTaxonomyKindConfig($"taxonomy.kinds[{i}]", kinds[i]);
+                ValidateTaxonomyKindLabels($"taxonomy.kinds[{i}].i18n", kinds[i], config.Site);
             }
         }
     }
@@ -549,6 +550,40 @@ public static class ConfigValidator
         }
 
         return text.Skip(1).All(ch => ch is >= 'a' and <= 'z' or >= '0' and <= '9' or '_');
+    }
+
+    private static void ValidateTaxonomyKindLabels(string prefix, TaxonomyKindConfig kind, SiteConfig site)
+    {
+        if (kind.I18n is not { Count: > 0 } labelsByLanguage)
+        {
+            return;
+        }
+
+        var languages = SiteLanguageResolver.Clean(site.Languages);
+        if (languages.Count < 2)
+        {
+            throw new ConfigException(
+                $"{prefix} requires two or more site.languages; a single-language site sets the kind's title, description and singularTitlePrefix directly.",
+                DiagnosticCode.ConfigInvalidValue);
+        }
+
+        foreach (var (language, labels) in labelsByLanguage)
+        {
+            if (!languages.Contains(language, StringComparer.Ordinal))
+            {
+                throw new ConfigException(
+                    $"{prefix}.{language} is not a site language; use one of: {string.Join(", ", languages)}.",
+                    DiagnosticCode.ConfigInvalidValue);
+            }
+
+            foreach (var (name, value) in new[] { ("title", labels.Title), ("description", labels.Description), ("singularTitlePrefix", labels.SingularTitlePrefix) })
+            {
+                if (value is not null && string.IsNullOrWhiteSpace(value))
+                {
+                    throw new ConfigException($"{prefix}.{language}.{name} must be a non-empty string when set.", DiagnosticCode.ConfigInvalidValue);
+                }
+            }
+        }
     }
 
     private static void ValidateTaxonomyKindConfig(string prefix, TaxonomyKindConfig kind)

@@ -47,7 +47,7 @@ content:
 | `site.title` | required | Human-facing site title. |
 | `site.url` | none | Absolute site URL for canonical URLs, feeds, sitemap, robots, and deploy output. |
 | `site.description` | none | Default description used by templates and SEO models. |
-| `site.i18n.<lang>` | none | Multilingual sites only. Per-language site identity: `title`, `description` and `organization` (`name`, `url`, `logo`, `sameAs`) replace the top-level `site.title`, `site.description` and matching `site.seo.organization` fields in that language's build. Unset fields keep the top-level value, and the organization type always stays the top-level one. `<lang>` must be a `site.languages` entry, written the same way; a blank `title`, an unknown key, or a single-language site fails validation. Root merged outputs (merged feed, root `llms.txt`) keep the top-level identity. See [11 i18n and SEO](11-i18n-seo.md#per-language-site-identity). |
+| `site.i18n.<lang>` | none | Multilingual sites only. Per-language site identity: `title`, `description`, `titleSeparator` and `organization` (`name`, `url`, `logo`, `sameAs`) replace the top-level `site.title`, `site.description`, `site.seo.titleSeparator` and matching `site.seo.organization` fields in that language's build. Unset fields keep the top-level value, and the organization type always stays the top-level one. `<lang>` must be a `site.languages` entry, written the same way; a blank `title`, an unknown key, or a single-language site fails validation. Root merged outputs (merged feed, root `llms.txt`) keep the top-level identity. See [11 i18n and SEO](11-i18n-seo.md#per-language-site-identity). |
 | `site.baseUrl` | `/` | Base path for generated URLs. CLI `--base-url` can override it. |
 | `site.languages` | `[zh-CN]` | The only language setting (the old `language` key was removed). Letters and digits in hyphen-separated subtags, such as `en` or `zh-CN` (not `en_US`). One entry builds a single-language site at the output root; two or more build language variants, each with its own code. Templates read the current language as `{{ site.language }}`. |
 | `site.defaultLanguage` | first `site.languages` entry | Default language of a multilingual site; must be one of `site.languages`. With one entry it must be that entry or omitted. |
@@ -700,6 +700,7 @@ with `--clean` after replacing images.
 | `taxonomy.kinds[].indexEnabled` | inherits global | Per-kind index switch. |
 | `taxonomy.kinds[].hierarchical` | `false` | Builds hierarchy from slash-like terms. |
 | `taxonomy.kinds[].routePrefix` | none | Absolute route prefix. |
+| `taxonomy.kinds[].i18n.<lang>` | none | Multilingual sites only. `title`, `description` and `singularTitlePrefix` for that language's build; unset labels keep the kind's values. `<lang>` must be a `site.languages` entry. See [11 i18n and SEO](11-i18n-seo.md#taxonomy-metadata-language). |
 
 Taxonomy metadata defaults follow the site language (`{{ site.language }}`): languages beginning with
 `zh` use Chinese titles, punctuation, counts, and pagination ranges; other

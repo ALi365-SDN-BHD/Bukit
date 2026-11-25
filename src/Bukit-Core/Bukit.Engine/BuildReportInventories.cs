@@ -46,9 +46,11 @@ internal static class ReleaseBundleInventory
         }
 
         var reportDirectories = BuildReportPaths.ReportDirectories(site);
-        // Recovery state is finalized after reporting and is not release content.
+        // Recovery state is finalized after reporting and is not release content; nor are image freshness records,
+        // which deploys leave out.
         return SafeFileEnumerator.EnumerateFiles(outputDir)
             .Where(path => !IsUnderReportDirectory(path, reportDir))
+            .Where(path => !BuildReportPaths.IsFreshnessSidecar(path))
             .Where(path => !BuildReportPaths.IsInReportDirectory(Path.GetRelativePath(outputDir, path), reportDirectories))
             .Where(path => BuildReporter.NormalizePath(Path.GetRelativePath(outputDir, path)) != ".bukit-build-state.json")
             .OrderBy(path => path, StringComparer.OrdinalIgnoreCase)

@@ -105,7 +105,8 @@ internal sealed class PaginationPlugin : IBukitPlugin, IDerivePagesPlugin, ITemp
                 slug: $"page-{page}",
                 publishAt: publishAt,
                 body: new ContentBodyRef(Html: html),
-                customFields: fields);
+                customFields: fields,
+                language: _config.Site.Language);
 
             derived.Add(new RoutedContentDocument(document, route, publishAt));
         }

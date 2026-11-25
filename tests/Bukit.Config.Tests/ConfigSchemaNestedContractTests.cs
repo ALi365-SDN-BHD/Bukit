@@ -32,6 +32,7 @@ public sealed class ConfigSchemaNestedContractTests
         ],
         ["ValidateMenuItems.path"] = ["site/menus/*"],
         ["ValidateMiniProgramDataset.path"] = ["miniprogram/datasets[]"],
+        ["ValidateTaxonomyKind.path"] = ["taxonomy/kinds[]"],
         ["ValidateContentLink.path"] = ["content/links[]"]
     };
 
@@ -73,7 +74,7 @@ public sealed class ConfigSchemaNestedContractTests
         new("site/analytics/providers[]", "type", "measurementId", "containerId", "domain", "snippetMode", "websiteId", "scriptUrl"),
         new("site/feed", "mode", "formats", "limit", "path"),
         new("site/sharedAssets", "enabled", "paths"),
-        new("site/i18n/*", "title", "description", "organization"),
+        new("site/i18n/*", "title", "description", "titleSeparator", "organization"),
         new("site/i18n/*/organization", "name", "url", "logo", "sameAs"),
         new("site/search", "mode", "route", "ui", "uiTheme", "placeholderText", "maxContentLength"),
         new("site/related", "enabled", "threshold", "limit", "indices"),
@@ -119,7 +120,8 @@ public sealed class ConfigSchemaNestedContractTests
         new("theme/scss", "enabled", "entryPoint", "outputDir"),
         new("theme/images", "enabled", "formats", "sizes", "quality", "sizesAttribute", "fallbackVariants"),
         new("theme/components/*", "template", "props"),
-        new("taxonomy/kinds[]", "key", "kind", "title", "description", "singularTitlePrefix", "template", "indexTemplate", "termTemplate", "indexEnabled", "hierarchical", "routePrefix"),
+        new("taxonomy/kinds[]", "key", "kind", "title", "description", "singularTitlePrefix", "template", "indexTemplate", "termTemplate", "indexEnabled", "hierarchical", "routePrefix", "i18n"),
+        new("taxonomy/kinds[]/i18n/*", "title", "description", "singularTitlePrefix"),
         new("logging", "level"),
         new("miniprogram", "enabled", "outputDir", "maxListItems", "datasets"),
         new("miniprogram/datasets[]", "name", "kind", "source", "module", "scope", "menu", "taxonomy", "fields", "listFields", "detailFields", "sort", "required", "types"),

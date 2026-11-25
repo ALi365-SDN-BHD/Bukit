@@ -147,13 +147,15 @@ points to the default language. In SEO `inject` mode Core writes the links and r
 theme-written ones; templates can read `page.seo.alternates`. Pages pair by `i18nKey`,
 else by URL. Localized term slugs pair through an `i18nKey` in
 `content/_taxonomy/<kind>/<slug>/_index.md` front matter (or on a `sourceKey: tags|categories`
-data document), matched by kind, key and page.
+data document), matched by kind, key and page. In each language's build a term is that
+language when its pages use it, else the `language` in its metadata, else unknown; only two
+terms of the built language (or two unknown ones) sharing a key are a duplicate.
 
 ## Site identity per language
 
-`site.i18n.<lang>` replaces `title`, `description` and `organization` (`name`, `url`,
-`logo`, `sameAs`; merged field by field over `site.seo.organization`) in that language's
-build: `<title>` suffix, `og:site_name`, JSON-LD, its feeds and `llms.txt`, `site.title`.
+`site.i18n.<lang>` replaces `title`, `description`, `titleSeparator` (over
+`site.seo.titleSeparator`) and `organization` (`name`, `url`, `logo`, `sameAs`; merged field
+by field over `site.seo.organization`) in that language's build: `<title>` suffix, `og:site_name`, JSON-LD, its feeds and `llms.txt`, `site.title`.
 The key must be a `site.languages` entry written the same way; needs 2+ languages. Root
 merged feed and root `llms.txt` keep the top-level values.
 

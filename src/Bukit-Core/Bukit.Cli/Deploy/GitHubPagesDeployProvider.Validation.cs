@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.Text.RegularExpressions;
+using Bukit.Engine;
 using Bukit.Shared;
 
 namespace Bukit.Cli.Deploy;
@@ -383,7 +384,8 @@ public sealed partial class GitHubPagesDeployProvider
             var fileName = Path.GetFileName(file);
             if (File.GetAttributes(file).HasFlag(FileAttributes.ReparsePoint) ||
                 fileName.Equals(".bukit-build-state.json", StringComparison.OrdinalIgnoreCase) ||
-                fileName.Equals(".bukit-output-marker", StringComparison.OrdinalIgnoreCase))
+                fileName.Equals(".bukit-output-marker", StringComparison.OrdinalIgnoreCase) ||
+                BuildReportPaths.IsFreshnessSidecar(fileName))
             {
                 continue;
             }
@@ -426,7 +428,8 @@ public sealed partial class GitHubPagesDeployProvider
                     segment.Equals(".git", StringComparison.OrdinalIgnoreCase) ||
                     segment.Equals(".bukit", StringComparison.OrdinalIgnoreCase)) ||
                 fileName.Equals(".bukit-build-state.json", StringComparison.OrdinalIgnoreCase) ||
-                fileName.Equals(".bukit-output-marker", StringComparison.OrdinalIgnoreCase))
+                fileName.Equals(".bukit-output-marker", StringComparison.OrdinalIgnoreCase) ||
+                BuildReportPaths.IsFreshnessSidecar(fileName))
             {
                 continue;
             }

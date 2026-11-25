@@ -63,7 +63,7 @@ internal static class ReportAssertions
             Assert.InRange(result.EndedAt, wallStart, wallEnd);
             Assert.Equal(result.DurationMs, root.GetProperty("durationMs").GetInt64());
             Assert.True(result.DurationMs >= 0);
-            Assert.Equal(site.Root, root.GetProperty("project").GetProperty("root").GetString());
+            Assert.Equal(".", root.GetProperty("project").GetProperty("root").GetString());
             Assert.Equal("dist", root.GetProperty("project").GetProperty("output").GetString());
             var summary = root.GetProperty("summary");
             Assert.Equal(result.Summary.PageCount, summary.GetProperty("pageCount").GetInt32());
