@@ -77,7 +77,10 @@ before changing it, because writing to the shared model can fail the render.
 trailing slash; includes `/<lang>` for prefixed languages), `language` (the current
 language, from `site.languages`: the variant language, or the only entry), `build_year`,
 `params` (from `theme.params`), `data.<source>`, `data_index.<source>.<scope>.<key>`,
-`data_files.<file>`, `modules.<type>`, `related_pages[<id>]`. `site.data` also holds
+`data_files.<file>`, `modules.<type>`, `related_pages[<id>]`, `queries.<name>` (lists from
+`site.queries`: entries with `key`, `title`, `slug`, `url`, `collection` and the selected fields;
+`{ value, items }` groups; or distinct values), `field_enums.<field>` (enum options in order,
+each `value` and `label`). `site.data` also holds
 the built-in keys `taxonomy` (all terms, usable on any page) and `pages_by_id`. There
 is no `site.menus` or `site.languages`.
 
@@ -109,6 +112,9 @@ site:
     indices:             # default tags 80, categories 60
       - { name: tags, weight: 80 }
       - { name: date, weight: 20 }   # tags|categories|keywords|collection|type|date
+      - { field: region, weight: 10 }  # any content field: weight per shared value
+    collections:         # own rules; compares only within the collection
+      route: { threshold: 0, limit: 4, indices: [{ field: cities, weight: 2 }] }
 ```
 
 There is no `page.related`. Results are a map keyed by document id:
@@ -119,7 +125,8 @@ There is no `page.related`. Results are a map keyed by document id:
 {{ end }}
 ```
 
-Each entry has `title`, `url`, `score`. Pages with no match have no entry.
+Each entry has `id`, `slug`, `title`, `url`, `score`, sorted by score; equal scores keep the
+collection list order. Pages with no match have no entry.
 
 ## Escaping and URLs
 

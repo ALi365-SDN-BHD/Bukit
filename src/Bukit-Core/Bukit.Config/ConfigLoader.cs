@@ -100,6 +100,7 @@ public static class ConfigLoader
             Pagination = SiteDefaultsApplier.ReadPaginationConfig(siteNode),
             Search = SiteDefaultsApplier.ReadSearchConfig(siteNode),
             Related = SiteDefaultsApplier.ReadRelatedConfig(siteNode),
+            Queries = SiteQueryConfigReader.Read(siteNode),
             Menus = SiteDefaultsApplier.ReadMenus(siteNode),
             SharedAssets = SiteDefaultsApplier.ReadSharedAssetsConfig(siteNode),
             I18n = SiteLanguageIdentity.Read(siteNode)
@@ -126,6 +127,7 @@ public static class ConfigLoader
             ConfigCollectionReader.ReadRouteMetadata(contentNode));
         content = ConfigCollectionReader.ApplyContentOrdering(content, contentNode);
         content = ConfigCollectionReader.ApplyContentLinks(content, contentNode);
+        content = ConfigCollectionReader.ApplyDerivedFields(content, contentNode);
 
         var buildReportNode = buildNode is null ? null : ConfigYamlHelpers.GetOptionalMapping(buildNode, "report");
         var build = new BuildConfig

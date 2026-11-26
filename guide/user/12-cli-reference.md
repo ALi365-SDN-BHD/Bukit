@@ -6,10 +6,10 @@ This table is derived from `BukitCliSpecs.cs`.
 
 | Command | Purpose | Parameters |
 |---|---|---|
-| `build` | Build the site. | `--config`, `--site`, `--output`, `--base-url`, `--site-url`, `--clean`, `--no-clean`, `--draft`, `--ci`, `--incremental`, `--no-incremental`, `--cache-dir`, `--metrics`, `--jobs`, `--log-format`, `--notion-snapshot`, `--notion-offline`, `--notion-pin`, `--secrets-stdin` |
-| `doctor` | Diagnose config, content, theme, templates, and providers. | `--config`, `--site`, `--site-url`, `--notion-snapshot`, `--notion-offline`, `--notion-pin`, `--secrets-stdin` |
+| `build` | Build the site. | `--config`, `--site`, `--output`, `--base-url`, `--site-url`, `--clean`, `--no-clean`, `--draft`, `--ci`, `--incremental`, `--no-incremental`, `--cache-dir`, `--metrics`, `--jobs`, `--log-format`, `--content-snapshot`, `--content-offline`, `--notion-snapshot`, `--notion-offline`, `--notion-pin`, `--secrets-stdin` |
+| `doctor` | Diagnose config, content, theme, templates, and providers. | `--config`, `--site`, `--site-url`, `--content-snapshot`, `--content-offline`, `--notion-snapshot`, `--notion-offline`, `--notion-pin`, `--secrets-stdin` |
 | `config` | Parent command for config checks. | `--config`, `--site`, `--site-url`, `--output` |
-| `config check` | Validate config without building pages. | `--config`, `--site`, `--site-url`, `--notion-snapshot`, `--notion-offline`, `--notion-pin`, `--secrets-stdin` |
+| `config check` | Validate config without building pages. | `--config`, `--site`, `--site-url`, `--content-snapshot`, `--content-offline`, `--notion-snapshot`, `--notion-offline`, `--notion-pin`, `--secrets-stdin` |
 | `config schema` | Emit JSON Schema for `site.yaml`. | `--output` |
 | `preview` | Serve an existing output directory. | `--dir`, `--host`, `--port`, `--strict-port`, `--config`, `--site`, `--allow-lan`, `--public` |
 | `dev` | Build, watch files, serve output, and trigger LiveReload. | `--config`, `--site`, `--host`, `--port`, `--output`, `--no-watch`, `--allow-lan`, `--public`, `--secrets-stdin` |

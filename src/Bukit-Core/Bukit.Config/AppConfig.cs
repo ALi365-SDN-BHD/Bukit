@@ -63,6 +63,10 @@ public sealed record SiteConfig
     public PaginationGlobalConfig Pagination { get; init; } = new();
     public SearchDetailConfig Search { get; init; } = new();
     public RelatedConfig Related { get; init; } = new();
+    /// <summary>site.queries: named lists computed from the site's entries, read in templates as <c>site.queries.&lt;name&gt;</c>.</summary>
+    /// <remarks>Internal: configured only through site.yaml, so it does not widen the public API.</remarks>
+    [System.Text.Json.Serialization.JsonInclude]
+    internal IReadOnlyList<SiteQueryConfig> Queries { get; init; } = [];
     public IReadOnlyDictionary<string, IReadOnlyList<MenuConfig>>? Menus { get; init; }
     public SharedAssetsConfig SharedAssets { get; init; } = new();
     /// <summary>Per-language site identity, keyed by a <see cref="Languages"/> entry; applied to that language's build.</summary>
@@ -248,6 +252,66 @@ public sealed record CollectionConfig
     // JsonInclude: the i18n worktree protocol sends the config to language workers and hashes it.
     [System.Text.Json.Serialization.JsonInclude]
     internal string? ArticleType { get; init; }
+    /// <summary>
+    /// From <c>routeWhen</c>: only entries whose field equals the value get a page; the others stay
+    /// available to content links. Null gives every entry a page.
+    /// </summary>
+    // Internal: configured only through site.yaml, so it does not widen the public API.
+    [System.Text.Json.Serialization.JsonInclude]
+    internal CollectionRouteWhenConfig? RouteWhen { get; init; }
+}
+
+/// <summary>One site.queries.&lt;name&gt; entry: filter, order and cut one collection's entries.</summary>
+internal sealed record SiteQueryConfig
+{
+    public required string Name { get; init; }
+    /// <summary>The collection read, pages and entries without a page alike.</summary>
+    public required string From { get; init; }
+    /// <summary>Every filter must match.</summary>
+    public IReadOnlyList<SiteQueryFilterConfig> Where { get; init; } = [];
+    /// <summary>Applied in order after the collection list order, so equal entries keep that order.</summary>
+    public IReadOnlyList<SiteQuerySortConfig> Sort { get; init; } = [];
+    /// <summary>Fields copied into each result entry, next to key, title, slug, url and collection.</summary>
+    public IReadOnlyList<string> Select { get; init; } = [];
+    /// <summary>When set, the result is the distinct values of this field instead of entries.</summary>
+    public string? Distinct { get; init; }
+    public SiteQueryGroupConfig? Group { get; init; }
+    /// <summary>The most entries or values kept; per group when grouped.</summary>
+    public int? Limit { get; init; }
+}
+
+/// <summary>A site.queries filter: <c>field</c> with <c>eq</c> or <c>in</c>, or <c>hasBackref</c>.</summary>
+internal sealed record SiteQueryFilterConfig
+{
+    public string? Field { get; init; }
+    /// <summary>The field, or any item of a list field, must equal one of these.</summary>
+    public IReadOnlyList<string> Values { get; init; } = [];
+    /// <summary>The entry must have at least one page linking to it through this backref.</summary>
+    public string? HasBackref { get; init; }
+}
+
+/// <summary>A site.queries sort key: by value and <c>direction</c>, or by position in <c>values</c>.</summary>
+internal sealed record SiteQuerySortConfig
+{
+    public required string Field { get; init; }
+    public string Direction { get; init; } = "asc";
+    public IReadOnlyList<string> Values { get; init; } = [];
+}
+
+/// <summary>site.queries group: one group per value, holding the entries whose field (or any list item) equals it.</summary>
+internal sealed record SiteQueryGroupConfig
+{
+    public required string Field { get; init; }
+    public required IReadOnlyList<string> Values { get; init; }
+}
+
+/// <summary>site.collections.*.routeWhen: the field test an entry must pass to get a page.</summary>
+internal sealed record CollectionRouteWhenConfig
+{
+    /// <summary>The top-level content field tested.</summary>
+    public required string Field { get; init; }
+    /// <summary>The value it must equal: text compared case-insensitively, or a boolean or whole number.</summary>
+    public required string Eq { get; init; }
 }
 
 public sealed record CollectionIndexPolicyConfig
@@ -319,6 +383,13 @@ public sealed record ContentConfig
     [System.Text.Json.Serialization.JsonInclude]
     internal IReadOnlyList<ContentLinkConfig> Links { get; init; } = [];
     /// <summary>
+    /// content.derivedFields: page fields computed from template expressions over the page's own fields,
+    /// in declaration order. Empty when unset.
+    /// </summary>
+    /// <remarks>Internal: configured only through site.yaml, so it does not widen the public API.</remarks>
+    [System.Text.Json.Serialization.JsonInclude]
+    internal IReadOnlyList<ContentDerivedFieldConfig> DerivedFields { get; init; } = [];
+    /// <summary>
     /// content.ordering.tieBreakField: orders entries with the same publish time in every list (home page,
     /// collection lists and pagination, archives, site feeds and llms.txt). Use url, title or any content field;
     /// numbers compare numerically. Unset keeps each list's built-in order. Term pages use it when
@@ -349,6 +420,31 @@ internal sealed record ContentLinkConfig
     public required string Field { get; init; }
     public required ContentLinkTargetConfig Target { get; init; }
     /// <summary>Top-level target fields copied into each link.</summary>
+    public IReadOnlyList<string> Select { get; init; } = [];
+    /// <summary>Optional reverse list written on each target page that this link reaches.</summary>
+    public ContentLinkBackrefConfig? Backref { get; init; }
+}
+
+/// <summary>One content.derivedFields.&lt;collection&gt;.&lt;field&gt; entry.</summary>
+internal sealed record ContentDerivedFieldConfig
+{
+    public required string Collection { get; init; }
+    /// <summary>The page field written.</summary>
+    public required string Field { get; init; }
+    /// <summary>A template evaluated over the page's top-level fields.</summary>
+    public required string Value { get; init; }
+    /// <summary><c>default</c> writes only when the field is missing or empty; <c>override</c> always writes.</summary>
+    public string Mode { get; init; } = "default";
+}
+
+/// <summary>content.links[].backref: lists, on each target page, the pages that link to it.</summary>
+internal sealed record ContentLinkBackrefConfig
+{
+    /// <summary>The target page field that receives the list; <c>&lt;name&gt;_count</c> holds the total.</summary>
+    public required string Name { get; init; }
+    /// <summary>The most entries kept, in collection order; 0 keeps them all.</summary>
+    public int Limit { get; init; }
+    /// <summary>Top-level fields of the linking page copied into each entry.</summary>
     public IReadOnlyList<string> Select { get; init; } = [];
 }
 
@@ -408,6 +504,14 @@ public sealed record CustomFieldDefinitionConfig
     public object? Default { get; init; }
     public string? SourcePolicy { get; init; }
     public ContentReferenceRuleConfig? Reference { get; init; }
+    /// <summary>
+    /// Display labels for <see cref="Enum"/> values, keyed by value, set when an enum item is
+    /// written as <c>{ value, label }</c>. Templates read options in definition order as
+    /// <c>site.field_enums.&lt;field&gt;</c>.
+    /// </summary>
+    /// <remarks>Internal: configured only through site.yaml, so it does not widen the public API.</remarks>
+    [System.Text.Json.Serialization.JsonInclude]
+    internal IReadOnlyDictionary<string, string>? EnumLabels { get; init; }
 }
 
 public sealed record EntityMappingConfig
@@ -796,12 +900,35 @@ public sealed record RelatedConfig
         new RelatedIndexConfig { Name = "tags", Weight = 80 },
         new RelatedIndexConfig { Name = "categories", Weight = 60 }
     };
+    /// <summary>
+    /// site.related.collections: rules for pages of one collection, compared only with pages of
+    /// the same collection. Pages of other collections keep the rules above.
+    /// </summary>
+    /// <remarks>Internal: configured only through site.yaml, so it does not widen the public API.</remarks>
+    [System.Text.Json.Serialization.JsonInclude]
+    internal IReadOnlyList<RelatedCollectionConfig> Collections { get; init; } = [];
 }
 
 public sealed record RelatedIndexConfig
 {
     public required string Name { get; init; }
     public int Weight { get; init; } = 100;
+    /// <summary>
+    /// A content field scored like tags: the number of shared values times <see cref="Weight"/>.
+    /// Set instead of a built-in <see cref="Name"/> (which is then <c>field</c>).
+    /// </summary>
+    /// <remarks>Internal: configured only through site.yaml, so it does not widen the public API.</remarks>
+    [System.Text.Json.Serialization.JsonInclude]
+    internal string? Field { get; init; }
+}
+
+/// <summary>One site.related.collections.&lt;collection&gt; entry.</summary>
+internal sealed record RelatedCollectionConfig
+{
+    public required string Collection { get; init; }
+    public required int Threshold { get; init; }
+    public required int Limit { get; init; }
+    public required IReadOnlyList<RelatedIndexConfig> Indices { get; init; }
 }
 
 public sealed record MenuConfig

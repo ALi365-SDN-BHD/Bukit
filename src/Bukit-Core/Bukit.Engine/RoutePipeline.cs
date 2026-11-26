@@ -7,6 +7,8 @@ using Bukit.Engine.Abstractions.Routing;
 using Bukit.Shared;
 using Bukit.Engine.Primitives;
 using Bukit.Engine.ContentLinks;
+using Bukit.Engine.DerivedFields;
+using Bukit.Engine.Queries;
 namespace Bukit.Engine;
 
 internal sealed record RoutePipelineResult(
@@ -15,6 +17,12 @@ internal sealed record RoutePipelineResult(
     IReadOnlyList<RouteInfo> ListRoutes)
 {
     internal ListRouteGraph ListRouteGraph { get; init; } = ListRouteGraph.Empty;
+
+    /// <summary>site.queries results by name, or null when none are configured.</summary>
+    internal IReadOnlyDictionary<string, object>? Queries { get; init; }
+
+    /// <summary>Runtime errors of content.derivedFields, for <see cref="DerivedFieldResolver.Report"/>.</summary>
+    internal IReadOnlyList<ContentValidationIssue> DerivedFieldIssues { get; init; } = [];
 }
 
 internal sealed class RoutePipeline
@@ -34,7 +42,7 @@ internal sealed class RoutePipeline
             documents = I18nOutputMerger.FilterDocumentsByLanguage(documents, currentLang, defaultLang);
         }
 
-        var contentDocuments = documents.Where(i => !ContentFieldReader.IsDataItem(i)).ToList();
+        var contentDocuments = documents.Where(i => CollectionPagePolicy.HasPage(i, config.Site)).ToList();
         var collectionRules = RouteInventoryValidator.BuildCollectionRules(config.Site);
         var routedDocuments = contentDocuments
             .Select(i => new RoutedContentDocument(
@@ -44,10 +52,14 @@ internal sealed class RoutePipeline
             .ToList();
         RouteInventoryValidator.ValidateContentRoutes(routedDocuments);
         // Links need target URLs, so they resolve after routing and before anything reads the pages.
-        var linkedDocuments = ContentLinkResolver.Apply(
-            config.Content.Links,
-            routedDocuments,
-            [.. documents.Where(ContentFieldReader.IsDataItem)]);
+        // Documents without a page (data, or failing routeWhen) are targets without a URL.
+        IReadOnlyList<ContentDocument> withoutPage = [.. documents.Where(i => !CollectionPagePolicy.HasPage(i, config.Site))];
+        var linkedDocuments = ContentLinkResolver.Apply(config.Content, routedDocuments, withoutPage);
+        // Derived values may read the links, and every page consumer below reads the values.
+        var derivedFieldIssues = new List<ContentValidationIssue>();
+        linkedDocuments = DerivedFieldResolver.Apply(config.Content, linkedDocuments, derivedFieldIssues);
+        // Queries see the final page fields, backrefs and derived values included.
+        var queries = SiteQueryResolver.Resolve(config, linkedDocuments, withoutPage);
 
         var listRouteGraph = ListRouteGraphBuilder.Build(
             linkedDocuments,
@@ -58,7 +70,9 @@ internal sealed class RoutePipeline
         var listRoutes = listRouteGraph.Routes.Select(route => route.ToRouteInfo()).ToArray();
         return new RoutePipelineResult(contentDocuments, linkedDocuments, listRoutes)
         {
-            ListRouteGraph = listRouteGraph
+            ListRouteGraph = listRouteGraph,
+            Queries = queries,
+            DerivedFieldIssues = derivedFieldIssues
         };
     }
 

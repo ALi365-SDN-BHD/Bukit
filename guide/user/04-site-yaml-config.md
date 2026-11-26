@@ -87,8 +87,15 @@ content:
 | `site.related.enabled` | `false` | Enables related-content data. |
 | `site.related.threshold` | `80` | Match threshold. |
 | `site.related.limit` | `5` | Positive result limit. |
-| `site.related.indices[].name` | `tags`, `categories` | Index names used for matching. |
+| `site.related.indices[].name` | `tags`, `categories` | Built-in index: `tags`, `categories`, `keywords`, `collection`, `type` or `date`. |
+| `site.related.indices[].field` | none | A content field used instead of `name`: the score adds `weight` for each shared value. |
 | `site.related.indices[].weight` | `80`, `60` | Index weights. |
+| `site.related.collections.<collection>` | none | Rules for that collection's pages, compared only with pages of the same collection: `indices` (required), `threshold` (`0` or more) and `limit`, which default to the values above. |
+
+Related pages are sorted by score, and pages with the same score keep the collection list order
+(newest first, then [`content.ordering`](#content-ordering)). Each entry in
+`site.related_pages[<id>]` has `id`, `slug`, `title`, `url` and `score`. With `threshold: 0`, every
+page of the collection is a candidate, so a page always gets `limit` entries when enough exist.
 
 ## SEO, GEO, And Analytics
 
@@ -177,7 +184,7 @@ SearchAction and does not perform the final-route check.
 
 | Field | Default | Notes |
 |---|---|---|
-| `site.collections.<name>.permalink` | required | Must include `{slug}`. |
+| `site.collections.<name>.permalink` | required | Must include `{slug}`. Other placeholders: `{title}`, `{year}`, `{month}`, `{day}`, `{type}`, `{collection}`, and `{fields.<name>}` for a top-level text or whole-number field, slugified like `{title}`, such as `/malaysia/{fields.city}/attractions/{slug}/`. A page whose field is missing, empty or slugifies to nothing fails the build (`RouteInvalidPattern`), and two pages with the same URL fail as a route conflict. |
 | `site.collections.<name>.template` | none | Content page template. |
 | `site.collections.<name>.listRoute` | none | Collection list route; must start with `/` when set. |
 | `site.collections.<name>.listTitle` | none | List page title. |
@@ -185,6 +192,8 @@ SearchAction and does not perform the final-route check.
 | `site.collections.<name>.listTemplate` | none | List route template. |
 | `site.collections.<name>.schemaFailMode` | none | `off`, `warn`, or `strict`. |
 | `site.collections.<name>.seo.articleType` | none | Overrides `site.seo.schema.articleType` for this collection's articles. |
+| `site.collections.<name>.routeWhen.field` | none | Gives a page only to entries whose field passes the test. See [Entries Without A Page](#entries-without-a-page). |
+| `site.collections.<name>.routeWhen.eq` | required with `field` | The value the field must equal. |
 | `site.collections.<name>.noindexWhenEmpty` | `false` | When true, an empty list route uses `noindex,follow` and is excluded from sitemap, search, `llms.txt`, and `llms-full.txt`. |
 | `site.collections.<name>.indexPolicy.minimumItems` | `0` | Minimum content threshold; must be an integer >= 0. |
 | `site.collections.<name>.indexPolicy.belowMinimum` | `index` | `index` or `noindex-follow`. |
@@ -214,6 +223,28 @@ noindex-follow`; declaring both fields on the same collection fails
 configuration validation. Thin list routes stay in the route map with
 indexable false, and feeds keep emitting eligible content items.
 
+### Entries Without A Page
+
+Every entry of a collection gets a page by default. `routeWhen` gives a page only to the entries
+whose field equals a value, so a table can hold 18 cities while only 8 of them get pages:
+
+```yaml
+site:
+  collections:
+    city:
+      permalink: /cities/{slug}/
+      routeWhen: { field: has_page, eq: true }
+```
+
+The field is a top-level content field. Text is compared ignoring case and surrounding spaces, and a
+boolean or whole-number value is compared as `true`, `false` or its digits. An entry without the
+field gets no page.
+
+An entry without a page is left out of collection lists, feeds, the sitemap, search and every other
+page output, like a data document. It is still loaded, so [content links](#content-links) can name
+it: its link has a null `url`. It does not link to other documents itself and gets no
+[backref](#backrefs) list.
+
 ## Filtered Lists
 
 | Field | Default | Notes |
@@ -229,6 +260,65 @@ indexable false, and feeds keep emitting eligible content items.
 | `pageSize` | none | Optional positive page size. |
 | `urlPattern` | none | Optional pagination URL pattern. |
 | `emptyBehavior` | `render` | `render` or `skip`. |
+
+## Named Queries
+
+`site.queries` builds named lists from one collection, so templates do not need ordered lists
+prepared outside Bukit. Read them as `site.queries.<name>`.
+
+```yaml
+site:
+  queries:
+    route_cities:
+      from: city
+      where: [{ field: has_page, eq: true }, { hasBackref: routes }]
+      select: [image]
+    featured_routes:
+      from: route
+      sort: [{ field: featured, direction: desc }]
+      limit: 6
+    routes_by_month:
+      from: route
+      group: { field: best_months, values: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12] }
+      limit: 3
+    attraction_types:
+      from: attraction
+      distinct: type
+```
+
+| Field | Default | Notes |
+|---|---|---|
+| `from` | required | Collection read: its pages and its entries without a page. |
+| `where` | none | Every filter must match: `{ field, eq }`, `{ field, in: [...] }`, or `{ hasBackref: <name> }`. |
+| `sort` | collection order | `{ field, direction }` (`asc` or `desc`), or `{ field, values: [...] }` to order by position in the list. |
+| `select` | none | Extra fields copied into each entry. |
+| `distinct` | none | Return the distinct values of this field instead of entries. |
+| `group` | none | `{ field, values }`: one group per value. Cannot be combined with `distinct`. |
+| `limit` | none | At least 1. Applies per group when grouped. |
+
+Entries start in the collection list order (newest first, then
+[`content.ordering`](#content-ordering)), and each query works on the current language only.
+Filters use the [filtered list](#filtered-lists) matching: text is compared without case, and a
+list field matches when any item matches, so `eq: 3` finds routes whose `best_months` holds 3.
+`hasBackref` keeps entries that at least one page links to through that [backref](#backrefs); it
+must name a backref whose target collection is `from`, or the config fails. A `from` collection
+that has no entries gives an empty result. Sorting is stable, and an entry without the field (or
+with a value missing from `values`) comes last in both directions. A list field sorts by its first
+item. Values of mixed types sort numbers first (text that reads as a number, such as `"10"`,
+counts as a number), then dates, then true/false, then other text without case.
+
+Each entry has `key` (the slug), `title`, `slug`, `url` (null for an entry without a page),
+`collection` and the `select` fields, like a [content link](#content-links); `select` cannot name
+those five keys. A grouped query
+returns a list of `{ value, items }` in the order of `values`, where `value` is the text written
+in the config. `distinct` returns plain values in entry order; list fields are flattened, and
+values differing only in case appear once.
+
+Queries run last, after routing, [content links](#content-links) and
+[derived fields](#derived-fields), so they see backrefs and derived values on pages. Entries
+without a page get links but no derived fields.
+Incremental builds render a page again when a query it reads changes. Per-page queries, such as
+"two experiences in this page's city", stay in templates, filtered with the Scriban array functions.
 
 ## Content Sources
 
@@ -325,7 +415,11 @@ A `mode: data` source does not require collection, defaults missing document
 type to `module`, and is not routed or indexed as a collection page.
 
 `dataIndex` requires `mode: data` and a source `name`. Source names, field
-names, scopes, and keys use `^[a-z][a-z0-9_]*$`. Duplicate scope and key pairs,
+names, and scopes use `^[a-z][a-z0-9_]*$`. Keys use `^[A-Za-z0-9][A-Za-z0-9._+-]*$`, so
+dotted camelCase copy keys (such as a `daysHint` key under `custom.`, or a range like
+`4-5` inside the key) work as written; read them with brackets (`site.data_index.<source>.<scope>["custom.daysHint"]`). In
+`requiredKeys`, the first segment is the scope and the rest is the key; keys are case-sensitive, so
+`daysHint` and `dayshint` in one scope are different keys. Duplicate scope and key pairs,
 missing required values, unknown value types, invalid email values, and URLs
 other than HTTP(S) or root-relative paths fail the build.
 
@@ -362,6 +456,9 @@ field itself, so templates, SEO and search can use the links from the page field
 | `content.links[].target.collection` | required | The collection holding the documents the keys name. It can hold pages or data documents (`mode: data`). |
 | `content.links[].target.key` | `slug` | The target field matched against the keys: `slug`, or any text or whole-number content field (a Notion number `101` matches the key `"101"`). Keys are matched case-insensitively. |
 | `content.links[].select` | none | Top-level target fields copied into each link, such as `image` or `summary`. A missing field is null. These names are reserved and cannot be selected: `key`, `title`, `slug`, `url`, `collection`. |
+| `content.links[].backref.name` | none | Turns on the reverse list: the field written on each target page, such as `routes`. See [Backrefs](#backrefs). |
+| `content.links[].backref.limit` | `0` | The most entries kept on each target page. `0` keeps them all. |
+| `content.links[].backref.select` | none | Top-level fields of the linking page copied into each entry. The reserved names are the same as for `select`. |
 
 Each link is a map with `key`, `title`, `slug`, `url` and `collection`, plus the `select`ed fields.
 `url` is the target page URL relative to the site base URL, like `page.url`, so prefix it with
@@ -408,6 +505,71 @@ checks each site language the same way, so a key that exists only in another lan
 reported as unknown. When a target's title, URL or
 selected fields change, every page that links to it is rebuilt in incremental builds. Media
 targets are not supported yet.
+
+### Backrefs
+
+A link with `backref` also works in reverse. Each target page gets a list of the pages that link to
+it, so a city page can list the routes that pass through it.
+
+```yaml
+content:
+  links:
+    - collection: route
+      field: days[].attractions
+      target: { collection: attraction, key: code }
+      backref: { name: routes, limit: 6, select: [image] }
+```
+
+Every page of the target collection gets two fields, even when no page links to it:
+
+- `routes`: the linking pages. Each entry is a map with `key` (the linking page's slug), `title`, `slug`, `url`, `collection` and the fields listed in the backref `select`.
+- `routes_count`: how many pages link to it, counted before `limit`. Use it for text such as "6 of 23 routes".
+
+The list follows the collection list order: newest first, then
+[`content.ordering`](#content-ordering), then URL. A page appears once, however many times it names the target.
+Only content pages count as linking pages. Only targets that have a page get a backref list; data
+documents do not. When a key names more than one target, only the first one lists the page, the same
+target the link itself uses. Backrefs follow the same per-language rules as links.
+
+Backrefs are page fields on the target, so incremental builds rebuild a target page when a page
+that links to it is added, removed or changes its title, URL or selected fields. Two entries that
+would write the same field in one collection are rejected when the config loads. A target page that
+already has the field, or `<name>_count`, keeps it, and the conflict is reported
+(`content.link_output_conflict`) under the target page collection's `schemaFailMode`.
+
+## Derived Fields
+
+`content.derivedFields` computes page fields from other fields of the same page, such as an SEO
+title from a Chinese and an English name. Each value is a Scriban template whose variables are the
+page's top-level fields, including the `<field>_links` lists from [content links](#content-links).
+
+```yaml
+content:
+  derivedFields:
+    city:
+      seo_title: { value: "{{ name }} {{ name_en }} travel guide" }
+      seo_desc: { value: "{{ summary | seo.describe 150 }}" }
+      summary: { value: "{{ name }}: {{ summary }}", mode: override }
+```
+
+- `mode: default` (the default) writes the field only when it is missing or empty, and skips an empty result. `mode: override` always writes it.
+- Values run in the order written, so a later value can read an earlier one.
+- The result is trimmed text. Writing `summary`, `description` or `excerpt` also updates the page summary that lists and SEO read.
+- `seo.describe <width>` turns text into a plain description of at most that many display columns (a CJK character counts as two). It removes tags, prefers to cut after a sentence end, and otherwise cuts with `…`.
+- Templates run with the invariant culture and a loop limit of 1000. The clock and random functions (`now`, `random` and `uuid`) are not available, so the same content builds the same value every time; calling one is a runtime failure (`content.derived_field_failed`).
+- A value can read only its own page. It cannot read other pages or `site` data.
+
+The build runs routing, then content links, then derived fields, then
+[named queries](#named-queries), and lists, SEO, feeds and search read the pages after that.
+Incremental builds rebuild a page when a derived value changes. Because of this order, a derived
+value cannot be used in a permalink `{fields.<name>}`, in `routeWhen`, or in a link's `select`
+(the selected field is captured before it is derived), and entries without a page do not get
+derived values. Field names must be valid names and cannot be built-in fields such as `slug`,
+`title`, `route` or `language`, or a field that a content link writes in that collection
+(`<field>_links`, a backref name or `<name>_count`). `bukit config check` and the start of a build
+fail on a template that does not parse. A template that fails on a page (for example, by hitting
+the loop limit while reading its links) leaves the field unchanged and is reported
+(`content.derived_field_failed`) under the collection's `schemaFailMode`.
 
 ## Content Media
 
@@ -504,6 +666,23 @@ content:
 | `content.modelSchema.requireMediaLicense` | Require media licenses. |
 | `content.modelSchema.requireEntityIds` | Require entity IDs. |
 | `content.modelSchema.requireRelationTargets` | Defaults to `true`. Blank targets are always invalid; when enabled, non-blank targets must resolve to a content record or entity. `translation-of` language keys and absolute HTTP(S) URLs are exempt. |
+
+An `enum` item is a value, or `{ value, label }` to give the value a display label:
+
+```yaml
+content:
+  modelSchema:
+    customFields:
+      - name: audience
+        enum:
+          - { value: family, label: Family trips }
+          - couple            # label: couple
+```
+
+Validation still checks the values. Templates read the options in definition order as
+`site.field_enums.<field>`, each with `value` and `label` (the value when no label is given);
+fields of a field scope are under `site.field_enums.scopes.<collection>.<field>`, so a custom enum
+field cannot be named `scopes`. A value may appear only once in an `enum`.
 
 Canonical validation reports `canonical_duplicate_id` when two documents share an id; with two or more `site.languages`, only documents in the same language collide, so translations may share one, and a document without a language counts as the default language, `canonical_relation_target_missing` for a blank target, and `canonical_relation_target_unresolved` when a target cannot be resolved. Content targets resolve by id or slug; entity targets resolve by id or name. Root-relative paths are not treated as external targets.
 

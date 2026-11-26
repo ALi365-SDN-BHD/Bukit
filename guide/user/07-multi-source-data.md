@@ -70,7 +70,15 @@ Templates read values directly:
 {{ site.data_index.settings.contact.email }}
 ```
 
-Each record must have a safe scope and key plus a supported value type:
+A key with dots, dashes, `+` or capitals (for example `custom.days.4-5.label`)
+is kept as written; read it with brackets:
+
+```scriban
+{{ site.data_index.settings.copy["custom.days.4-5.label"] }}
+```
+
+Each record must have a safe scope (`^[a-z][a-z0-9_]*$`) and key
+(`^[A-Za-z0-9][A-Za-z0-9._+-]*$`) plus a supported value type:
 `text`, `multiline`, `email`, `phone`, `url`, `object`, or `object[]`.
 Duplicate keys and missing or empty required values fail the build. Email
 values must be valid. URL values must be HTTP(S) absolute URLs or root-relative

@@ -1,3 +1,4 @@
+using System.Globalization;
 using Bukit.Shared;
 using YamlDotNet.RepresentationModel;
 
@@ -53,7 +54,29 @@ internal static class ConfigCollectionReader
             FilteredLists = ReadFilteredLists(collectionNode),
             ArticleType = ConfigYamlHelpers.GetOptionalMapping(collectionNode, "seo", $"site.collections.{collectionName}") is { } seoNode
                 ? ConfigYamlHelpers.GetOptionalString(seoNode, "articleType")
-                : null
+                : null,
+            RouteWhen = ReadRouteWhen(collectionName, collectionNode)
+        };
+    }
+
+    private static CollectionRouteWhenConfig? ReadRouteWhen(string collectionName, YamlMappingNode collectionNode)
+    {
+        var path = $"site.collections.{collectionName}";
+        if (ConfigYamlHelpers.GetOptionalMapping(collectionNode, "routeWhen", path) is not { } node)
+        {
+            return null;
+        }
+
+        var field = RequiredText(node, "field", $"{path}.routeWhen");
+        if (!ContentLinkPath.IsName(field))
+        {
+            throw new ConfigException($"{path}.routeWhen.field '{field}' is not a valid field name.", DiagnosticCode.ConfigInvalidValue);
+        }
+
+        return new CollectionRouteWhenConfig
+        {
+            Field = field,
+            Eq = RequiredText(node, "eq", $"{path}.routeWhen")
         };
     }
 
@@ -234,21 +257,83 @@ internal static class ConfigCollectionReader
                 ?? throw new ConfigException($"{path}.target is required.", DiagnosticCode.ConfigRequiredFieldMissing);
             links.Add(new ContentLinkConfig
             {
-                Collection = RequiredLinkString(node, "collection", path),
-                Field = RequiredLinkString(node, "field", path),
+                Collection = RequiredText(node, "collection", path),
+                Field = RequiredText(node, "field", path),
                 Target = new ContentLinkTargetConfig
                 {
-                    Collection = RequiredLinkString(target, "collection", $"{path}.target"),
+                    Collection = RequiredText(target, "collection", $"{path}.target"),
                     Key = ConfigYamlHelpers.GetOptionalString(target, "key")?.Trim() ?? "slug"
                 },
-                Select = ConfigYamlHelpers.ReadStringList(node, "select") ?? []
+                Select = ConfigYamlHelpers.ReadStringList(node, "select") ?? [],
+                Backref = ReadBackref(node, path)
             });
         }
 
         return content with { Links = links };
     }
 
-    private static string RequiredLinkString(YamlMappingNode node, string key, string path)
+    internal static ContentConfig ApplyDerivedFields(ContentConfig content, YamlMappingNode contentNode)
+    {
+        if (ConfigYamlHelpers.GetOptionalMapping(contentNode, "derivedFields", "content") is not { } node)
+        {
+            return content;
+        }
+
+        var derived = new List<ContentDerivedFieldConfig>();
+        foreach (var (collectionKey, collectionValue) in node.Children)
+        {
+            var collection = (collectionKey as YamlScalarNode)?.Value?.Trim();
+            var path = $"content.derivedFields.{collection}";
+            if (string.IsNullOrEmpty(collection) || collectionValue is not YamlMappingNode fields)
+            {
+                throw new ConfigException($"{path} must be a mapping of field names.", DiagnosticCode.ConfigInvalidValue);
+            }
+
+            foreach (var (fieldKey, fieldValue) in fields.Children)
+            {
+                var field = (fieldKey as YamlScalarNode)?.Value?.Trim();
+                if (string.IsNullOrEmpty(field) || fieldValue is not YamlMappingNode rule)
+                {
+                    throw new ConfigException($"{path}.{field} must be a mapping with value and mode.", DiagnosticCode.ConfigInvalidValue);
+                }
+
+                derived.Add(new ContentDerivedFieldConfig
+                {
+                    Collection = collection,
+                    Field = field,
+                    Value = ConfigYamlHelpers.GetOptionalString(rule, "value") is { Length: > 0 } value
+                        ? value
+                        : throw new ConfigException($"{path}.{field}.value is required.", DiagnosticCode.ConfigRequiredFieldMissing),
+                    Mode = ConfigYamlHelpers.GetOptionalString(rule, "mode")?.Trim().ToLowerInvariant() ?? "default"
+                });
+            }
+        }
+
+        return content with { DerivedFields = derived };
+    }
+
+    private static ContentLinkBackrefConfig? ReadBackref(YamlMappingNode link, string path)
+    {
+        var node = ConfigYamlHelpers.GetOptionalMapping(link, "backref", path);
+        if (node is null)
+        {
+            return null;
+        }
+
+        var limit = ConfigYamlHelpers.GetOptionalString(node, "limit");
+        return new ContentLinkBackrefConfig
+        {
+            Name = RequiredText(node, "name", $"{path}.backref"),
+            Limit = limit is null
+                ? 0
+                : int.TryParse(limit, NumberStyles.Integer, CultureInfo.InvariantCulture, out var value)
+                    ? value
+                    : throw new ConfigException($"{path}.backref.limit must be a whole number, got '{limit}'.", DiagnosticCode.ConfigInvalidValue),
+            Select = ConfigYamlHelpers.ReadStringList(node, "select") ?? []
+        };
+    }
+
+    private static string RequiredText(YamlMappingNode node, string key, string path)
     {
         var value = ConfigYamlHelpers.GetOptionalString(node, key);
         return string.IsNullOrWhiteSpace(value)
@@ -407,6 +492,7 @@ internal static class ConfigCollectionReader
                 throw MissingRequired(pathPrefix, index, "name");
             }
 
+            var (enumValues, enumLabels) = ReadEnum(child, $"{pathPrefix}[{index}].enum");
             fields.Add(new CustomFieldDefinitionConfig
             {
                 Name = name,
@@ -415,7 +501,8 @@ internal static class ConfigCollectionReader
                 SemanticType = ConfigYamlHelpers.GetOptionalString(child, "semanticType"),
                 Label = ConfigYamlHelpers.GetOptionalString(child, "label"),
                 Format = ConfigYamlHelpers.GetOptionalString(child, "format"),
-                Enum = ConfigYamlHelpers.ReadStringList(child, "enum"),
+                Enum = enumValues,
+                EnumLabels = enumLabels,
                 Min = ConfigYamlHelpers.GetOptionalDouble(child, "min"),
                 Max = ConfigYamlHelpers.GetOptionalDouble(child, "max"),
                 Default = child.Children.TryGetValue(new YamlScalarNode("default"), out var defaultNode)
@@ -428,6 +515,58 @@ internal static class ConfigCollectionReader
         }
 
         return fields;
+    }
+
+    /// <summary>
+    /// Reads <c>enum</c>: each item is a value, or <c>{ value, label }</c>. Labels are kept only
+    /// when at least one item has one; values keep their order.
+    /// </summary>
+    private static (IReadOnlyList<string>? Values, IReadOnlyDictionary<string, string>? Labels) ReadEnum(YamlMappingNode field, string path)
+    {
+        if (ConfigYamlHelpers.GetOptionalSequence(field, "enum") is not { } sequence)
+        {
+            return (null, null);
+        }
+
+        var values = new List<string>();
+        var labels = new Dictionary<string, string>(StringComparer.Ordinal);
+        for (var i = 0; i < sequence.Children.Count; i++)
+        {
+            switch (sequence.Children[i])
+            {
+                case YamlScalarNode { Value: var scalar } when !string.IsNullOrWhiteSpace(scalar):
+                    values.Add(scalar.Trim());
+                    break;
+                case YamlScalarNode:
+                    break;
+                case YamlMappingNode option:
+                    if (option.Children.Keys.FirstOrDefault(key => key is not YamlScalarNode { Value: "value" or "label" }) is { } unknown)
+                    {
+                        throw new ConfigException($"Unknown config field '{path}[{i}].{(unknown as YamlScalarNode)?.Value}'.", DiagnosticCode.ConfigInvalidValue);
+                    }
+
+                    var value = ConfigYamlHelpers.GetOptionalString(option, "value")?.Trim();
+                    if (string.IsNullOrEmpty(value))
+                    {
+                        throw new ConfigException($"{path}[{i}].value is required.", DiagnosticCode.ConfigRequiredFieldMissing);
+                    }
+
+                    values.Add(value);
+                    if (ConfigYamlHelpers.GetOptionalString(option, "label")?.Trim() is { Length: > 0 } label)
+                    {
+                        labels[value] = label;
+                    }
+
+                    break;
+                default:
+                    throw new ConfigException($"{path}[{i}] must be a value or a mapping with value and label.", DiagnosticCode.ConfigInvalidValue);
+            }
+        }
+
+        var duplicate = values.GroupBy(value => value, StringComparer.Ordinal).FirstOrDefault(group => group.Count() > 1);
+        return duplicate is not null
+            ? throw new ConfigException($"{path} lists '{duplicate.Key}' more than once.", DiagnosticCode.ConfigInvalidValue)
+            : (values, labels.Count == 0 ? null : labels);
     }
 
     private static IReadOnlyList<EntityMappingConfig>? ReadEntityMappings(YamlMappingNode node)

@@ -53,8 +53,9 @@ Other collection keys:
   collection's own feed (`bukit-outputs`).
 
 Placeholders (case-insensitive): `{slug}`, `{title}` (slugified), `{year}`, `{month}`,
-`{day}` (from `publishAt`, UTC), `{type}`, `{collection}`. Unknown placeholders stay in
-the URL literally, so check spelling.
+`{day}` (from `publishAt`, UTC), `{type}`, `{collection}`, and `{fields.<name>}` (a top-level
+text or whole-number field, slugified; missing or empty fails the build). Unknown placeholders
+stay in the URL literally, so check spelling.
 
 ```yaml
 ---
@@ -108,6 +109,10 @@ sort by `publishAt` descending, then `content.ordering.tieBreakField`, then URL.
 Pagination (`site.collections.<c>.pagination`): `enabled` (false), `pageSize` (10),
 `urlPattern` (`page/:num/`; relative, must contain `:num`, `{num}`, or `{page}`),
 `firstPageUsesListRoute` (true). Page N lives at `<listRoute><urlPattern>`.
+
+Only some entries get pages: `routeWhen: { field: has_page, eq: true }` on a collection gives a page
+only to entries whose top-level field equals the value. The rest leave lists, feeds, sitemap
+and search but stay content link targets with a null `url` (`04-site-yaml-config.md`).
 
 ## Filtered lists
 

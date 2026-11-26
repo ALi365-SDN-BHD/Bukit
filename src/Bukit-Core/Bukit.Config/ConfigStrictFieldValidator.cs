@@ -13,10 +13,11 @@ internal static class ConfigStrictFieldValidator
         "defaultLanguageInSubdir", "defaultLanguageRedirect", "defaultLanguageLegacyRedirects", "sitemapMode",
         "searchIncludeDerived", "pluginFailMode", "deriveConflictPolicy",
         "timezone", "permalinks", "collections", "plugins", "feed",
-        "sitemapDetail", "pagination", "search", "related", "menus", "sharedAssets", "i18n");
-    private static readonly HashSet<string> ContentKeys = Set("sources", "media", "modelSchema", "routeMetadata", "ordering", "links");
-    private static readonly HashSet<string> ContentLinkKeys = Set("collection", "field", "target", "select");
+        "sitemapDetail", "pagination", "search", "related", "queries", "menus", "sharedAssets", "i18n");
+    private static readonly HashSet<string> ContentKeys = Set("sources", "media", "modelSchema", "routeMetadata", "ordering", "links", "derivedFields");
+    private static readonly HashSet<string> ContentLinkKeys = Set("collection", "field", "target", "select", "backref");
     private static readonly HashSet<string> ContentLinkTargetKeys = Set("collection", "key");
+    private static readonly HashSet<string> ContentLinkBackrefKeys = Set("name", "limit", "select");
     private static readonly HashSet<string> BuildKeys = Set(
         "output", "clean", "draft", "listPageContentMode", "schemaFailMode", "fingerprintMode",
         "publishDotFiles", "followSymlinks", "languageJobs", "templateLoopLimit", "report");
@@ -125,6 +126,7 @@ internal static class ConfigStrictFieldValidator
         if (Map(site, "i18n") is { } i18n) ValidateSiteI18n(i18n);
 
         if (Map(site, "collections") is { } collections) ValidateCollections(collections);
+        if (Map(site, "queries", "site.queries") is { } queries) ValidateSiteQueries(queries);
 
         if (Map(site, "seo") is { } seo) ValidateSeo(seo);
         if (site.Children.TryGetValue(new YamlScalarNode("analytics"), out var analyticsNode))
@@ -166,10 +168,22 @@ internal static class ConfigStrictFieldValidator
         if (Map(site, "search") is { } search) RequireOnly(search, Set("mode", "route", "ui", "uiTheme", "placeholderText", "maxContentLength"), "site.search");
         if (Map(site, "related") is { } related)
         {
-            RequireOnly(related, Set("enabled", "threshold", "limit", "indices"), "site.related");
+            RequireOnly(related, Set("enabled", "threshold", "limit", "indices", "collections"), "site.related");
             if (Seq(related, "indices") is { } indices)
             {
-                ValidateSequenceMappings(indices, Set("name", "weight"), "site.related.indices");
+                ValidateSequenceMappings(indices, Set("name", "field", "weight"), "site.related.indices");
+            }
+
+            if (Map(related, "collections", "site.related.collections") is { } relatedCollections)
+            {
+                foreach (var (collection, rules) in MappingChildren(relatedCollections, "site.related.collections"))
+                {
+                    RequireOnly(rules, Set("threshold", "limit", "indices"), $"site.related.collections.{collection}");
+                    if (Seq(rules, "indices", $"site.related.collections.{collection}.indices") is { } collectionIndices)
+                    {
+                        ValidateSequenceMappings(collectionIndices, Set("name", "field", "weight"), $"site.related.collections.{collection}.indices");
+                    }
+                }
             }
         }
 
@@ -442,6 +456,17 @@ internal static class ConfigStrictFieldValidator
         {
             ValidateSequenceMappings(links, ContentLinkKeys, "content.links", ValidateContentLink);
         }
+
+        if (Map(content, "derivedFields", "content.derivedFields") is { } derivedFields)
+        {
+            foreach (var (collection, fields) in MappingChildren(derivedFields, "content.derivedFields"))
+            {
+                foreach (var (field, rule) in MappingChildren(fields, $"content.derivedFields.{collection}"))
+                {
+                    RequireOnly(rule, Set("value", "mode"), $"content.derivedFields.{collection}.{field}");
+                }
+            }
+        }
     }
 
     private static void ValidateContentLink(YamlMappingNode link, string path)
@@ -449,6 +474,11 @@ internal static class ConfigStrictFieldValidator
         if (Map(link, "target", $"{path}.target") is { } target)
         {
             RequireOnly(target, ContentLinkTargetKeys, $"{path}.target");
+        }
+
+        if (Map(link, "backref", $"{path}.backref") is { } backref)
+        {
+            RequireOnly(backref, ContentLinkBackrefKeys, $"{path}.backref");
         }
     }
 
@@ -625,11 +655,38 @@ internal static class ConfigStrictFieldValidator
         }
     }
 
+    private static void ValidateSiteQueries(YamlMappingNode queries)
+    {
+        foreach (var (name, query) in MappingChildren(queries, "site.queries"))
+        {
+            RequireOnly(query, Set("from", "where", "sort", "select", "distinct", "group", "limit"), $"site.queries.{name}");
+            if (Seq(query, "where", $"site.queries.{name}.where") is { } where)
+            {
+                ValidateSequenceMappings(where, Set("field", "eq", "in", "hasBackref"), $"site.queries.{name}.where");
+            }
+
+            if (Seq(query, "sort", $"site.queries.{name}.sort") is { } sort)
+            {
+                ValidateSequenceMappings(sort, Set("field", "direction", "values"), $"site.queries.{name}.sort");
+            }
+
+            if (Map(query, "group", $"site.queries.{name}.group") is { } group)
+            {
+                RequireOnly(group, Set("field", "values"), $"site.queries.{name}.group");
+            }
+        }
+    }
+
     private static void ValidateCollections(YamlMappingNode collections)
     {
         foreach (var (name, collection) in MappingChildren(collections, "site.collections"))
         {
-            RequireOnly(collection, Set("permalink", "template", "listRoute", "listTitle", "listDescription", "listTemplate", "schemaFailMode", "noindexWhenEmpty", "indexPolicy", "pagination", "output", "filteredLists", "seo"), $"site.collections.{name}");
+            RequireOnly(collection, Set("permalink", "template", "listRoute", "listTitle", "listDescription", "listTemplate", "schemaFailMode", "noindexWhenEmpty", "indexPolicy", "pagination", "output", "filteredLists", "seo", "routeWhen"), $"site.collections.{name}");
+            if (Map(collection, "routeWhen") is { } routeWhen)
+            {
+                RequireOnly(routeWhen, Set("field", "eq"), $"site.collections.{name}.routeWhen");
+            }
+
             if (Map(collection, "seo") is { } collectionSeo)
             {
                 RequireOnly(collectionSeo, Set("articleType"), $"site.collections.{name}.seo");

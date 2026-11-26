@@ -73,7 +73,7 @@ everything use `bukit clean --config site.yaml` or `bukit build --no-incremental
 
 Each page depends only on the shared collections its templates read (`site.data`,
 `site.modules` and `site.data_index` keys, `site.related_pages`, `site.data_files`,
-`pages`); whole `site`/`site.data` use, unknown globals, section plugins and custom
+`site.queries`, `pages`); whole `site`/`site.data` use, unknown globals, section plugins and custom
 renderers count as reading all of them. Known gaps: a Bukit binary built without git metadata or with uncommitted changes shares
 its release's identity, so an upgrade between such builds is not noticed either. Use
 `--no-clean` for local speed only; run the default clean build for every release or

@@ -131,8 +131,10 @@ internal static class ContentProviderFactory
         string rootDir,
         ILogger logger)
     {
-        var publishableKey = SecretStore.Get("CLOUDBASE_PUBLISHABLE_KEY");
-        if (string.IsNullOrWhiteSpace(publishableKey))
+        // Offline, the rows and file identities come from the content snapshot: no key is read.
+        var offline = NotionSnapshotSession.Current is { Offline: true };
+        var publishableKey = offline ? string.Empty : SecretStore.Get("CLOUDBASE_PUBLISHABLE_KEY");
+        if (!offline && string.IsNullOrWhiteSpace(publishableKey))
         {
             throw new ConfigException(
                 "CLOUDBASE_PUBLISHABLE_KEY is required for cloudbase provider and must come from environment variables.",
@@ -157,7 +159,7 @@ internal static class ContentProviderFactory
                 PageSize = cloudBase.PageSize,
                 MaxItems = cloudBase.MaxItems,
                 FilterField = cloudBase.Filter?.Field,
-                FilterValue = cloudBase.Filter?.Value,
+                FilterValue = cloudBase.Filter is { } filter ? ConfigEnvValue.Resolve(filter.Value, "cloudbase.filter.value") : null,
                 SortField = cloudBase.Sort?.Field,
                 SortDirection = cloudBase.Sort?.Direction ?? "asc",
                 TitleField = cloudBase.TitleField,
@@ -168,7 +170,7 @@ internal static class ContentProviderFactory
                 Mode = mode,
                 FieldPolicyMode = cloudBase.FieldPolicy.Mode,
                 AllowedFields = cloudBase.FieldPolicy.Allowed,
-                PublishableKey = publishableKey,
+                PublishableKey = publishableKey ?? string.Empty,
                 StorageBucket = cloudBase.StorageBucket,
                 FileFields = cloudBase.FileFields,
                 DefaultImageUrl = CloudBasePlaceholderUrl(config.Content.Media.DefaultImageUrl),

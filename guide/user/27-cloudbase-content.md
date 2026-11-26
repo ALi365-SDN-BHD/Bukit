@@ -90,9 +90,45 @@ CREATE POLICY media_read ON storage.objects
 
 RLS filters silently: when `doctor` sees a reachable table with a total count of 0 it prints a hint, and the build succeeds with zero documents. Check the policies and `GRANT`, then run an equivalent query from the console with the same credential.
 
+## Reading one release
+
+When the CMS publishes content as releases, build one release at a time by reading the release
+id from an environment variable in the filter value:
+
+```yaml
+cloudbase:
+  filter: { field: release_id, value: "${env:RELEASE_ID}" }
+```
+
+Quote the value: bare `{` and `}` are not valid inside a YAML flow mapping. A filter value can
+hold any number of `${env:NAME}` references (NAME is letters, digits and `_`, not starting with a
+digit) and text around them. They are read when the build fetches the table, so `config check`
+works without the variable. An unset or empty variable fails the build with
+`ConfigRequiredFieldMissing` instead of querying with an empty value, which RLS would answer with
+zero rows and a successful build. Environment references work only in the filter value; `envId`,
+`table` and other fields that form the request address do not accept them.
+
+The build reads with the Publishable Key, so `anon` must be able to read the release being built
+before it goes live. Anyone with the key (which is not a secret) can read that release from the
+start of the build, and a release whose build fails stays readable. If that window is not
+acceptable, keep unreleased rows out of `anon` and build from a view of the live release instead:
+
+```sql
+-- the release currently live, read through the caller's own RLS
+CREATE VIEW public.live_cities WITH (security_invoker = true) AS
+  SELECT c.* FROM public.cities c
+  JOIN public.releases r ON r.id = c.release_id
+  WHERE r.status = 'live';
+GRANT SELECT ON public.live_cities TO anon;
+```
+
+A view of the live release changes when someone publishes during a build: pages built before and
+after the switch can come from different releases. Pin the release with `${env:RELEASE_ID}` when
+the build must be consistent, or publish only between builds.
+
 ## Image and file fields
 
-A `fileFields` value is an object name in `storageBucket` (such as `posts/a.png`) or a `cloud://<envId>.<bucket>/<path>` compatible reference. Any other value (an array, an object or a number) is never signed: it becomes the media placeholder and is counted in `BKT-0C0B`. The build signs batches of up to 500 objects and substitutes the signed links for media localization. In the body only image positions with `cloud://` are rewritten; links to non-images are reduced to their text (autolinks are removed), and any other public field whose value contains `cloud://` is dropped with `BKT-0C0B`. `mode: data` does not rewrite file references, so in data mode every field containing `cloud://` is dropped.
+A `fileFields` value is an object name in `storageBucket` (such as `posts/a.png`) or a `cloud://<envId>.<bucket>/<path>` compatible reference. Any other value (an array, an object or a number) is never signed: it becomes the media placeholder and is counted in `BKT-0C0B`. The build signs batches of up to 500 objects and substitutes the signed links for media localization. In the body only image positions with `cloud://` are rewritten; links to non-images are reduced to their text (autolinks are removed), and any other public field whose value contains `cloud://` is dropped with `BKT-0C0B`. `mode: data` sources rewrite `fileFields` the same way, so data rows such as gallery photos or advisor portraits get local files too; data documents have no body, and any other field containing `cloud://` is dropped. A local file is named after the object, not the signed link, so it keeps its name from build to build. To serve smaller sizes, use `theme.images` (see [04 site.yaml Config](04-site-yaml-config.md)) instead of fixed file names such as `-640.webp`.
 
 When `fileFields` is non-empty, all five conditions must hold (D8):
 
@@ -104,13 +140,44 @@ When `fileFields` is non-empty, all five conditions must hold (D8):
 
 Any rewrite failure (invalid object name, `cloud://` env or bucket mismatch, per-item signing error, wrong scheme/host/path) falls back to `content.media.defaultImageUrl` with `BKT-0C08`; in `mode: content`, bare object names and `cloud://` never reach the rewritten content output. `signExpiresSeconds` defaults to 3600 (60–3600).
 
+## Offline snapshot
+
+A content offline snapshot lets `build`, `config check` and `doctor` run with no
+`CLOUDBASE_PUBLISHABLE_KEY` and no network, for example to rebuild in CI from the rows a release
+build read. It is the same snapshot as the [Notion one](06-notion-content.md), and one directory
+holds both providers.
+
+```bash
+# Formal build with the key: records the snapshot (outside the site and its output).
+CLOUDBASE_PUBLISHABLE_KEY=... bukit build --content-snapshot /path/outside/the/site/content-snapshot
+
+# Later, with no key: reads only the snapshot.
+bukit config check --content-snapshot /path/outside/the/site/content-snapshot --content-offline
+bukit build        --content-snapshot /path/outside/the/site/content-snapshot --content-offline
+```
+
+- The snapshot stores each table's rows reduced to what the build may publish: the mapped
+  columns, `fileFields` and the columns `fieldPolicy` allows. Personal columns and nested keys
+  (`user_id`, `owner`, …) are never written, so widening `fieldPolicy` offline cannot show them.
+- File fields and body images resolve to the files the recording build localized, found by the
+  object (the signed link without its token); signed links are never stored. Keep the media cache
+  (`.cache/media`) between the builds; a file missing from it gets the media placeholder.
+- The resolved `filter` value is part of the record. An offline build whose `${env:NAME}` gives
+  another value fails (`BKT-0B13`) instead of serving the recorded release; a table the snapshot
+  does not hold fails with `BKT-0B11`.
+- Each source keeps its own record: the mapped fields, `fileFields`, `fieldPolicy`, `sort`,
+  `maxItems` and `storageBucket` are part of it. Two sources on one table never share rows, and a
+  source changed since the recording fails with `BKT-0B13` until a new snapshot is recorded.
+- `doctor` skips the CloudBase network checks offline. `--notion-snapshot` and
+  `--notion-offline` remain aliases of the two options.
+
 ## P1 limits
 
 - PG-mode tables or views only; no classic mode or data models;
 - Markdown bodies only (`bodyFormat: markdown`);
 - image fields only, no other file fields;
-- no caching (`cacheMode` accepts `off` only);
-- `filter` supports a single equality `{ field, value }`, no `op`; `sort` is one field with `asc`/`desc`, and paging always appends `idField` ascending;
+- no row cache (`cacheMode` accepts `off` only); use the [offline snapshot](#offline-snapshot) to build without the network;
+- `filter` supports a single equality `{ field, value }`, no `op` (the value may read `${env:NAME}`); filter on several columns through a view; `sort` is one field with `asc`/`desc`, and paging always appends `idField` ascending;
 - no incremental fingerprints; every build reads the table (bounded by `maxItems`). The build
   keeps every row and body in memory, so set `maxItems` to a practical bound for large tables
   (a few thousand rows is fine; very large `text` bodies multiply memory use).

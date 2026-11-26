@@ -114,7 +114,7 @@ public static class ConfigValidator
         }
 
         ValidateRouteMetadata(config.Content);
-        ValidateContentLinks(config.Content);
+        ValidateContentDerivation(config);
 
         ProviderValidators.ValidateMedia(config.Content.Media);
 
@@ -410,13 +410,15 @@ public static class ConfigValidator
             }
         }
 
-        var required = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        // Keys are case-sensitive, as the data index stores them; the scope is lower case by rule.
+        var required = new HashSet<string>(StringComparer.Ordinal);
         foreach (var key in source.DataIndex.RequiredKeys ?? Array.Empty<string>())
         {
-            var parts = key.Split('.', StringSplitOptions.TrimEntries);
-            if (parts.Length != 2 || !IsDataIndexIdentifier(parts[0]) || !IsDataIndexIdentifier(parts[1]))
+            // The scope is the first segment; the key may itself contain dots.
+            var parts = key.Split('.', 2, StringSplitOptions.TrimEntries);
+            if (parts.Length != 2 || !IsDataIndexIdentifier(parts[0]) || !DataIndexKey.IsValid(parts[1]))
             {
-                throw new ConfigException($"{sourcePath}.dataIndex.requiredKeys values must use scope.key with safe identifiers.", DiagnosticCode.ConfigInvalidValue);
+                throw new ConfigException($"{sourcePath}.dataIndex.requiredKeys values must use scope.key: a scope matching ^[a-z][a-z0-9_]*$ and a key matching {DataIndexKey.Pattern}.", DiagnosticCode.ConfigInvalidValue);
             }
 
             if (!required.Add($"{parts[0]}.{parts[1]}"))
@@ -489,10 +491,20 @@ public static class ConfigValidator
     internal static readonly IReadOnlySet<string> ContentLinkBaseKeys =
         new HashSet<string>(["key", "title", "slug", "url", "collection"], StringComparer.OrdinalIgnoreCase);
 
-    private static void ValidateContentLinks(ContentConfig content)
+    /// <summary>content.links, content.derivedFields, enum labels and site.queries, which read one another's outputs.</summary>
+    private static void ValidateContentDerivation(AppConfig config)
+    {
+        var linkOutputs = ValidateContentLinks(config.Content);
+        ValidateDerivedFields(config.Content.DerivedFields, linkOutputs);
+        ValidateFieldEnumNames(config.Content.ModelSchema);
+        ValidateQueryBackrefs(config.Site.Queries, config.Content.Links);
+    }
+
+    /// <returns>The fields the links write, as <c>collection\nfield</c>.</returns>
+    private static HashSet<string> ValidateContentLinks(ContentConfig content)
     {
         var links = content.Links;
-        // Two links writing the same page field would overwrite each other.
+        // Two links (or backrefs) writing the same page field would overwrite each other.
         var outputs = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         for (var index = 0; index < links.Count; index++)
         {
@@ -510,24 +522,123 @@ public static class ConfigValidator
                 throw new ConfigException($"{path}.target.key '{link.Target.Key}' is not a valid field name.", DiagnosticCode.ConfigInvalidValue);
             }
 
-            var selected = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-            foreach (var name in link.Select)
+            ValidateContentLinkSelect(link.Select, $"{path}.select");
+            ClaimContentLinkOutput(outputs, link.Collection, field.IsNested ? field.FlatName : field.GroupedName, path);
+            if (link.Backref is { } backref)
             {
-                if (!ContentLinkPath.IsName(name) || ContentLinkBaseKeys.Contains(name) || !selected.Add(name))
+                var backrefPath = $"{path}.backref";
+                if (!ContentLinkPath.IsName(backref.Name))
                 {
-                    throw new ConfigException(
-                        $"{path}.select '{name}' must be a distinct field name other than {string.Join(", ", ContentLinkBaseKeys)}.",
-                        DiagnosticCode.ConfigInvalidValue);
+                    throw new ConfigException($"{backrefPath}.name '{backref.Name}' is not a valid field name.", DiagnosticCode.ConfigInvalidValue);
                 }
-            }
 
-            var output = field.IsNested ? field.FlatName : field.GroupedName;
-            if (!outputs.Add($"{link.Collection.Trim()}\n{output}"))
+                if (backref.Limit < 0)
+                {
+                    throw new ConfigException($"{backrefPath}.limit must be 0 (no limit) or more.", DiagnosticCode.ConfigInvalidValue);
+                }
+
+                ValidateContentLinkSelect(backref.Select, $"{backrefPath}.select");
+                ClaimContentLinkOutput(outputs, link.Target.Collection, backref.Name, backrefPath);
+                ClaimContentLinkOutput(outputs, link.Target.Collection, backref.Name + "_count", backrefPath);
+            }
+        }
+
+        return outputs;
+    }
+
+    /// <summary>
+    /// <c>hasBackref</c> reads the backref count, so it must name a backref that lists pages on the
+    /// queried collection; a content field that happens to end in <c>_count</c> must not match.
+    /// </summary>
+    private static void ValidateQueryBackrefs(IReadOnlyList<SiteQueryConfig> queries, IReadOnlyList<ContentLinkConfig> links)
+    {
+        foreach (var query in queries)
+        {
+            for (var i = 0; i < query.Where.Count; i++)
             {
+                if (query.Where[i].HasBackref is not { } name ||
+                    links.Any(link => link.Backref is { } backref &&
+                        string.Equals(backref.Name, name, StringComparison.OrdinalIgnoreCase) &&
+                        string.Equals(link.Target.Collection.Trim(), query.From, StringComparison.OrdinalIgnoreCase)))
+                {
+                    continue;
+                }
+
                 throw new ConfigException(
-                    $"{path} writes '{output}' in collection '{link.Collection}', which another content.links entry already writes.",
+                    $"site.queries.{query.Name}.where[{i}].hasBackref '{name}' is not a content.links backref on collection '{query.From}'.",
                     DiagnosticCode.ConfigInvalidValue);
             }
+        }
+    }
+
+    /// <summary>Fields that decide identity, routing or language; a derived value must not replace them.</summary>
+    internal static readonly IReadOnlySet<string> DerivedFieldReservedNames = new HashSet<string>(
+        ["id", "slug", "title", "collection", "type", "sourceMode", "sourceKey", "language", "locale", "draft",
+         "status", "route", "publishAt", "translations", "i18nKey", "i18n_key"],
+        StringComparer.OrdinalIgnoreCase);
+
+    /// <summary><c>site.field_enums.scopes</c> holds the field scopes, so a custom enum field cannot be named scopes.</summary>
+    private static void ValidateFieldEnumNames(ContentModelSchemaConfig? schema)
+    {
+        if (schema?.CustomFields?.FirstOrDefault(field =>
+                field.Enum is { Count: > 0 } && string.Equals(field.Name, "scopes", StringComparison.OrdinalIgnoreCase)) is not null)
+        {
+            throw new ConfigException(
+                "content.modelSchema.customFields: an enum field cannot be named 'scopes', which site.field_enums uses for field scopes.",
+                DiagnosticCode.ConfigInvalidValue);
+        }
+    }
+
+    private static void ValidateDerivedFields(IReadOnlyList<ContentDerivedFieldConfig> derived, HashSet<string> linkOutputs)
+    {
+        foreach (var item in derived)
+        {
+            var path = $"content.derivedFields.{item.Collection}.{item.Field}";
+            if (!ContentLinkPath.IsName(item.Field) || DerivedFieldReservedNames.Contains(item.Field))
+            {
+                throw new ConfigException(
+                    $"{path} must be a field name other than {string.Join(", ", DerivedFieldReservedNames)}.",
+                    DiagnosticCode.ConfigInvalidValue);
+            }
+
+            if (item.Mode is not ("default" or "override"))
+            {
+                throw new ConfigException($"{path}.mode must be default or override.", DiagnosticCode.ConfigInvalidValue);
+            }
+
+            // Links run first; a derived value would replace their list or count with text.
+            if (linkOutputs.Contains($"{item.Collection.Trim()}\n{item.Field}"))
+            {
+                throw new ConfigException(
+                    $"{path} is a field that content.links writes in collection '{item.Collection}'.",
+                    DiagnosticCode.ConfigInvalidValue);
+            }
+        }
+    }
+
+    /// <summary>A link, backref or query <c>select</c>: distinct field names that do not overwrite the entry keys.</summary>
+    internal static void ValidateContentLinkSelect(IReadOnlyList<string> select, string path)
+    {
+        var selected = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var name in select)
+        {
+            if (!ContentLinkPath.IsName(name) || ContentLinkBaseKeys.Contains(name) || !selected.Add(name))
+            {
+                throw new ConfigException(
+                    $"{path} '{name}' must be a distinct field name other than {string.Join(", ", ContentLinkBaseKeys)}.",
+                    DiagnosticCode.ConfigInvalidValue);
+            }
+        }
+    }
+
+    /// <summary>Rejects a second content.links writer of one field in one collection.</summary>
+    private static void ClaimContentLinkOutput(HashSet<string> outputs, string collection, string output, string path)
+    {
+        if (!outputs.Add($"{collection.Trim()}\n{output}"))
+        {
+            throw new ConfigException(
+                $"{path} writes '{output}' in collection '{collection}', which another content.links entry already writes.",
+                DiagnosticCode.ConfigInvalidValue);
         }
     }
 

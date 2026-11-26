@@ -288,6 +288,65 @@ public sealed class RelatedContentPluginTests
             && val is Dictionary<string, List<object>> d && d.Values.Any(v => v.Count > 0));
     }
 
+    [Fact]
+    public void DerivePages_CollectionRules_ScoreFieldsWithinTheCollectionAndKeepListOrderOnTies()
+    {
+        static ContentDocument Route(string id, int day, string[] cities, string[] audiences) => ContentDocument.Create(
+            id, id, id, DateTimeOffset.UnixEpoch.AddDays(day), "<p></p>",
+            new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["collection"] = new("text", "route"),
+                ["cities"] = new("list", cities),
+                ["audiences"] = new("list", audiences)
+            });
+        var routed = new List<(ContentDocument, RouteInfo)>
+        {
+            (Route("r1", 1, ["kl", "penang"], ["family"]), RelatedContentPluginTests.Route("/r1/")),
+            (Route("r2", 2, ["kl"], ["couple"]), RelatedContentPluginTests.Route("/r2/")),
+            (Route("r3", 3, ["kl"], ["family"]), RelatedContentPluginTests.Route("/r3/")),
+            (Route("r4", 4, ["ipoh"], ["solo"]), RelatedContentPluginTests.Route("/r4/")),
+            (Route("r5", 5, ["kl"], ["couple"]), RelatedContentPluginTests.Route("/r5/")),
+            (CreateItem("p1", "Post", "p1", tags: "kl", collection: "post"), RelatedContentPluginTests.Route("/p1/"))
+        };
+        var config = CreateConfig(new RelatedConfig
+        {
+            Enabled = true,
+            Indices = new[] { new RelatedIndexConfig { Name = "tags", Weight = 100 } },
+            Collections =
+            [
+                new RelatedCollectionConfig
+                {
+                    Collection = "route",
+                    Threshold = 0,
+                    Limit = 4,
+                    Indices =
+                    [
+                        new RelatedIndexConfig { Name = "field", Field = "cities", Weight = 2 },
+                        new RelatedIndexConfig { Name = "field", Field = "audiences", Weight = 1 }
+                    ]
+                }
+            ]
+        });
+        var ctx = new BuildContext
+        {
+            RootDir = "/t",
+            OutputDir = "/t/out",
+            BaseUrl = "/",
+            LayoutsDir = "/t/l",
+            RoutedDocuments = routed.ToRoutedDocuments(),
+            Logger = new ConsoleLogger(LogLevel.Error)
+        };
+
+        new RelatedContentPlugin(config).DerivePages(ctx);
+
+        var related = ctx.Get(BuildDataKeys.RelatedPages)["r1"].Cast<Dictionary<string, object>>().ToList();
+        // r3 shares a city and the audience (3); r5 and r2 share a city (2, newest first); r4 nothing (0).
+        Assert.Equal(["r3", "r5", "r2", "r4"], related.Select(entry => (string)entry["id"]));
+        Assert.Equal([3, 2, 2, 0], related.Select(entry => (int)entry["score"]));
+        Assert.Equal("r3", related[0]["slug"]);
+        Assert.DoesNotContain(related, entry => (string)entry["id"] == "p1");
+    }
+
     private static AppConfig CreateConfig(RelatedConfig related)
         => new()
         {

@@ -16,29 +16,30 @@ internal sealed partial class CloudBaseFileResolver
     private const string ReferenceMismatch = "reference-mismatch";
     private const string InvalidObjectName = "invalid-object-name";
 
-    private readonly CloudBaseClient _client;
+    private readonly CloudBaseSigner _sign;
     private readonly string _envId;
     private readonly string _bucket;
     private readonly string _placeholder;
-    private readonly int _expiresSeconds;
     private readonly Dictionary<string, string?> _resolved = new(StringComparer.Ordinal);
     private readonly Dictionary<string, string> _bodyObjects = new(StringComparer.Ordinal);
     private readonly List<string> _pending = [];
     private readonly Dictionary<string, List<string>> _entriesByObject = new(StringComparer.Ordinal);
     private readonly List<string> _failures = [];
 
+    /// <param name="sign">
+    /// Signs object names in <c>bucket</c>: the storage API online, or the recorded identities of an
+    /// offline snapshot. A <see cref="CloudBaseApiException"/> fails every pending object.
+    /// </param>
     internal CloudBaseFileResolver(
-        CloudBaseClient client,
+        CloudBaseSigner sign,
         string envId,
         string bucket,
-        string placeholder,
-        int expiresSeconds)
+        string placeholder)
     {
-        _client = client;
+        _sign = sign;
         _envId = envId;
         _bucket = bucket;
         _placeholder = placeholder;
-        _expiresSeconds = expiresSeconds;
     }
 
     /// <summary>One line per failed entry: <c>{documentId}/{field or body}: {reason}</c>.</summary>
@@ -161,8 +162,7 @@ internal sealed partial class CloudBaseFileResolver
         IReadOnlyList<Bukit.CloudBase.Models.CloudBaseSignedObject> results;
         try
         {
-            results = await _client.SignObjectsAsync(_bucket, _pending, _expiresSeconds, cancellationToken)
-                .ConfigureAwait(false);
+            results = await _sign(_pending, cancellationToken).ConfigureAwait(false);
         }
         catch (CloudBaseApiException ex)
         {
@@ -192,7 +192,7 @@ internal sealed partial class CloudBaseFileResolver
 
     /// <summary>Keeps transport-defined reasons; gateway free text is reduced to a fixed word.</summary>
     private static string DescribeItemError(string? error)
-        => error is InvalidObjectName or "invalid-signed-url" or CloudBaseClient.SignMismatchError
+        => error is InvalidObjectName or "invalid-signed-url" or CloudBaseClient.SignMismatchError or CloudBaseSnapshot.NotRecordedError
             ? error
             : "object-unavailable";
 

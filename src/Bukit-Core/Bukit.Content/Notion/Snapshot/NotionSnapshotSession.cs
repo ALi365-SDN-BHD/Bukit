@@ -223,6 +223,46 @@ internal sealed class NotionSnapshotSession : INotionSnapshotHandle, IDisposable
         WriteBytes(Path.Combine(queryDir, CursorKey(startCursor) + ".json"), buffer.ToArray());
     }
 
+    /// <summary>
+    /// Writes another provider's entry under <paramref name="relativePath"/> (for example
+    /// <c>cloudbase/&lt;table key&gt;/&lt;query key&gt;.json</c>); the caller builds the path from
+    /// hashes only. The entry is private and committed with the snapshot.
+    /// </summary>
+    internal void RecordEntry(string relativePath, byte[] bytes) => WriteBytes(EntryPath(relativePath), bytes);
+
+    /// <summary>The bytes of another provider's entry, or null when the snapshot does not hold it.</summary>
+    internal byte[]? ReadEntry(string relativePath)
+    {
+        var path = EntryPath(relativePath);
+        if (!File.Exists(path))
+        {
+            return null;
+        }
+
+        try
+        {
+            return File.ReadAllBytes(path);
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+        {
+            throw new NotionSnapshotException(
+                "Content offline snapshot has an unreadable entry; record it again.",
+                exception,
+                DiagnosticCode.NotionSnapshotEntryMissing);
+        }
+    }
+
+    /// <summary>True when the snapshot holds a directory of entries at <paramref name="relativePath"/>.</summary>
+    internal bool HasEntryDirectory(string relativePath) => System.IO.Directory.Exists(EntryPath(relativePath));
+
+    private string EntryPath(string relativePath)
+    {
+        var path = Path.GetFullPath(Path.Combine(Directory, relativePath));
+        return PathUtils.IsSameOrSubPathOf(path, Directory) && !string.Equals(path, Path.GetFullPath(Directory), StringComparison.Ordinal)
+            ? path
+            : throw new ArgumentException("A snapshot entry path must stay inside the snapshot.", nameof(relativePath));
+    }
+
     /// <summary>Marks a rendered body as used by this build so commit keeps it.</summary>
     internal void MarkBodyUsed(string pageId) => _usedBodies.TryAdd(pageId, 0);
 

@@ -64,6 +64,7 @@ public static class ConfigCommand
 
             (config, var pinned) = NotionSnapshotOptions.ApplyPin(command, config);
             ConfigValidator.Validate(config);
+            Bukit.Engine.DerivedFields.DerivedFieldResolver.ValidateTemplates(config.Content);
             snapshot?.EnsureDatabases(config);
 
             Console.WriteLine("✔ Config check passed");
@@ -144,7 +145,7 @@ public static class ConfigCommand
     private static void PrintUsage()
     {
         Console.WriteLine("Usage:");
-        Console.WriteLine("  bukit config check [--config <path>] [--site <name>] [--site-url <url>] [--notion-snapshot <dir> --notion-offline]");
+        Console.WriteLine("  bukit config check [--config <path>] [--site <name>] [--site-url <url>] [--content-snapshot <dir> --content-offline]");
         Console.WriteLine("  bukit config schema [--output <path>]");
     }
 }

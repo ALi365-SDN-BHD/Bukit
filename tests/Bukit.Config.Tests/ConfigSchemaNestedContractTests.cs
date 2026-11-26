@@ -77,11 +77,18 @@ public sealed class ConfigSchemaNestedContractTests
         new("site/i18n/*", "title", "description", "titleSeparator", "organization"),
         new("site/i18n/*/organization", "name", "url", "logo", "sameAs"),
         new("site/search", "mode", "route", "ui", "uiTheme", "placeholderText", "maxContentLength"),
-        new("site/related", "enabled", "threshold", "limit", "indices"),
-        new("site/related/indices[]", "name", "weight"),
+        new("site/related", "enabled", "threshold", "limit", "indices", "collections"),
+        new("site/related/indices[]", "name", "field", "weight"),
+        new("site/related/collections/*", "threshold", "limit", "indices"),
+        new("site/related/collections/*/indices[]", "name", "field", "weight"),
         new("site/sitemapDetail", "defaultPriority", "defaultChangefreq", "imageEnabled", "videoEnabled"),
         new("site/pagination", "enabled", "pageSize"),
-        new("site/collections/*", "permalink", "template", "listRoute", "listTitle", "listDescription", "listTemplate", "schemaFailMode", "noindexWhenEmpty", "indexPolicy", "pagination", "output", "filteredLists", "seo"),
+        new("site/collections/*", "permalink", "template", "listRoute", "listTitle", "listDescription", "listTemplate", "schemaFailMode", "noindexWhenEmpty", "indexPolicy", "pagination", "output", "filteredLists", "seo", "routeWhen"),
+        new("site/collections/*/routeWhen", "field", "eq"),
+        new("site/queries/*", "from", "where", "sort", "select", "distinct", "group", "limit"),
+        new("site/queries/*/where[]", "field", "eq", "in", "hasBackref"),
+        new("site/queries/*/sort[]", "field", "direction", "values"),
+        new("site/queries/*/group", "field", "values"),
         new("site/collections/*/seo", "articleType"),
         new("site/collections/*/indexPolicy", "minimumItems", "belowMinimum"),
         new("site/collections/*/pagination", "enabled", "pageSize", "urlPattern", "firstPageUsesListRoute"),
@@ -113,8 +120,10 @@ public sealed class ConfigSchemaNestedContractTests
         new("content/modelSchema/relationMappings[]/reference", "targetType", "idField", "labelField", "urlField", "required"),
         new("content/modelSchema/media", "requireAlt", "requireDescription", "requireLicense", "allowedKinds"),
         new("content/ordering", "tieBreakField", "tieBreakOrder"),
-        new("content/links[]", "collection", "field", "target", "select"),
+        new("content/links[]", "collection", "field", "target", "select", "backref"),
         new("content/links[]/target", "collection", "key"),
+        new("content/derivedFields/*/*", "value", "mode"),
+        new("content/links[]/backref", "name", "limit", "select"),
         new("content/routeMetadata", "source", "routeField", "titleField", "summaryField", "seoTitleField", "seoDescriptionField", "requiredRoutes"),
         new("build/report", "enabled", "securityFailMode"),
         new("theme/scss", "enabled", "entryPoint", "outputDir"),
@@ -617,6 +626,8 @@ public sealed class ConfigSchemaNestedContractTests
             .Select(result => result
                 .Replace("{name}", "*", StringComparison.Ordinal)
                 .Replace("{scope}", "*", StringComparison.Ordinal)
+                .Replace("{collection}", "*", StringComparison.Ordinal)
+                .Replace("{field}", "*", StringComparison.Ordinal)
                 .Replace("{index}", "", StringComparison.Ordinal))
             .Select(NormalizePath)
             .ToArray();

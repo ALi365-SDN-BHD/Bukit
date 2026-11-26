@@ -153,7 +153,7 @@ public static class RouteInventoryValidator
         ThemeTemplateResolver? templateResolver)
     {
         return I18nOutputMerger.FilterDocumentsByLanguage(documents, language, defaultLanguage)
-            .Where(i => !ContentFieldReader.IsDataItem(i))
+            .Where(i => CollectionPagePolicy.HasPage(i, config.Site))
             .Select(i => new RoutedContentDocument(i, RouteGenerator.Generate(i, config.Site.OutputPathEncoding, config.Site.Permalinks, collectionRules)))
             .Select(x => x with { Route = ResolveRouteTemplate(x.Document, x.Route, templateResolver) })
             .ToList();

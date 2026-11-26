@@ -80,6 +80,7 @@ public static class ConfigJsonSchemaGenerator
             ("pagination", PaginationGlobalSchema()),
             ("search", SearchDetailSchema()),
             ("related", RelatedSchema()),
+            ("queries", SiteQueriesSchema()),
             ("menus", MenusSchema()),
             ("sharedAssets", SharedAssetsSchema()),
             ("i18n", Obj(("type", "object"), ("additionalProperties", SiteLanguageIdentitySchema()))));
@@ -93,6 +94,7 @@ public static class ConfigJsonSchemaGenerator
         schema["properties"] = Obj(
             ("media", MediaSchema()),
             ("links", Obj(("type", "array"), ("items", ContentLinkSchema()))),
+            ("derivedFields", DerivedFieldsSchema()),
             ("modelSchema", ContentModelSchemaSchema()),
             ("ordering", Obj(("type", "object"), ("properties", Obj(
                 ("tieBreakField", StringSchema()),
@@ -103,6 +105,18 @@ public static class ConfigJsonSchemaGenerator
         return schema;
     }
 
+    private static JsonObject DerivedFieldsSchema()
+    {
+        var rule = Obj(("type", "object"));
+        rule["required"] = Arr("value");
+        rule["properties"] = Obj(
+            ("value", StringSchema()),
+            ("mode", EnumSchema("default", "override")));
+        return Obj(
+            ("type", "object"),
+            ("additionalProperties", Obj(("type", "object"), ("additionalProperties", rule))));
+    }
+
     private static JsonObject ContentLinkSchema()
     {
         var target = Obj(("type", "object"));
@@ -110,13 +124,20 @@ public static class ConfigJsonSchemaGenerator
         target["properties"] = Obj(
             ("collection", StringSchema()),
             ("key", StringSchema()));
+        var backref = Obj(("type", "object"));
+        backref["required"] = Arr("name");
+        backref["properties"] = Obj(
+            ("name", StringSchema()),
+            ("limit", Obj(("type", "integer"), ("minimum", 0))),
+            ("select", StringArraySchema()));
         var schema = Obj(("type", "object"));
         schema["required"] = Arr("collection", "field", "target");
         schema["properties"] = Obj(
             ("collection", StringSchema()),
             ("field", StringSchema()),
             ("target", target),
-            ("select", StringArraySchema()));
+            ("select", StringArraySchema()),
+            ("backref", backref));
         return schema;
     }
 
@@ -440,13 +461,55 @@ public static class ConfigJsonSchemaGenerator
         var indexSchema = Obj(("type", "object"));
         indexSchema["properties"] = Obj(
             ("name", StringSchema()),
+            ("field", StringSchema()),
             ("weight", IntSchema(0)));
+        var collectionSchema = Obj(("type", "object"));
+        collectionSchema["required"] = Arr("indices");
+        collectionSchema["properties"] = Obj(
+            ("threshold", IntSchema(0)),
+            ("limit", IntSchema(1)),
+            ("indices", Obj(("type", "array"), ("items", indexSchema.DeepClone()))));
 
         return Obj(("type", "object"), ("properties", Obj(
             ("enabled", BoolSchema()),
             ("threshold", IntSchema(0)),
             ("limit", IntSchema(1)),
-            ("indices", Obj(("type", "array"), ("items", indexSchema))))));
+            ("indices", Obj(("type", "array"), ("items", indexSchema))),
+            ("collections", Obj(("type", "object"), ("additionalProperties", collectionSchema))))));
+    }
+
+    private static JsonObject SiteQueriesSchema()
+    {
+        var scalar = Obj(("type", Arr("string", "boolean", "number")));
+        var scalars = Obj(("type", "array"), ("items", Obj(("type", Arr("string", "boolean", "number")))));
+        var filter = Obj(("type", "object"));
+        filter["properties"] = Obj(
+            ("field", StringSchema()),
+            ("eq", scalar),
+            ("in", scalars),
+            ("hasBackref", StringSchema()));
+        var sort = Obj(("type", "object"));
+        sort["required"] = Arr("field");
+        sort["properties"] = Obj(
+            ("field", StringSchema()),
+            ("direction", EnumSchema("asc", "desc")),
+            ("values", scalars.DeepClone()));
+        var group = Obj(("type", "object"));
+        group["required"] = Arr("field", "values");
+        group["properties"] = Obj(
+            ("field", StringSchema()),
+            ("values", scalars.DeepClone()));
+        var query = Obj(("type", "object"));
+        query["required"] = Arr("from");
+        query["properties"] = Obj(
+            ("from", StringSchema()),
+            ("where", Obj(("type", "array"), ("items", filter))),
+            ("sort", Obj(("type", "array"), ("items", sort))),
+            ("select", StringArraySchema()),
+            ("distinct", StringSchema()),
+            ("group", group),
+            ("limit", IntSchema(1)));
+        return Obj(("type", "object"), ("additionalProperties", query));
     }
 
     private static JsonObject SharedAssetsSchema()
@@ -646,7 +709,18 @@ public static class ConfigJsonSchemaGenerator
             ("pagination", CollectionPaginationSchema()),
             ("output", CollectionOutputSchema()),
             ("filteredLists", Obj(("type", "array"), ("items", CollectionFilteredListItemSchema()))),
-            ("seo", Obj(("type", "object"), ("properties", Obj(("articleType", ArticleTypeSchema()))))));
+            ("seo", Obj(("type", "object"), ("properties", Obj(("articleType", ArticleTypeSchema()))))),
+            ("routeWhen", RouteWhenSchema()));
+        return schema;
+    }
+
+    private static JsonObject RouteWhenSchema()
+    {
+        var schema = Obj(("type", "object"));
+        schema["required"] = Arr("field", "eq");
+        schema["properties"] = Obj(
+            ("field", StringSchema()),
+            ("eq", Obj(("type", Arr("string", "boolean", "integer")))));
         return schema;
     }
 
@@ -730,6 +804,19 @@ public static class ConfigJsonSchemaGenerator
             ("semanticType", StringSchema()),
             ("required", BoolSchema()))));
 
+    /// <summary>An enum item: a value, or <c>{ value, label }</c>.</summary>
+    private static JsonObject EnumOptionsSchema()
+    {
+        var option = Obj(("type", "object"));
+        option["required"] = Arr("value");
+        option["properties"] = Obj(
+            ("value", Obj(("type", Arr("string", "number", "boolean")))),
+            ("label", StringSchema()));
+        var item = Obj();
+        item["oneOf"] = new JsonArray(Obj(("type", Arr("string", "number", "boolean"))), option);
+        return Obj(("type", "array"), ("items", item));
+    }
+
     private static JsonObject ContentModelFieldSchema()
     {
         var schema = Obj(("type", "object"));
@@ -740,7 +827,7 @@ public static class ConfigJsonSchemaGenerator
             ("label", StringSchema()),
             ("semanticType", StringSchema()),
             ("format", StringSchema()),
-            ("enum", StringArraySchema()),
+            ("enum", EnumOptionsSchema()),
             ("min", Obj(("type", "number"))),
             ("max", Obj(("type", "number"))),
             ("required", BoolSchema()),

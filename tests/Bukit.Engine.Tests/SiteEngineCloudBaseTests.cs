@@ -68,6 +68,69 @@ public sealed partial class SiteEngineIntegrationTests
         Assert.DoesNotContain("u-secret", html, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public async Task BuildAsync_CloudBaseOfflineSnapshot_BuildsWithoutKeyOrNetwork()
+    {
+        var (root, config) = CreateBuildReportHealthSite();
+        File.WriteAllText(
+            Path.Combine(root, "layouts", "pages", "page.html"),
+            "<html><head><title>{{ page.title }}</title></head><body><main>{{ page.content }}</main></body></html>");
+        var source = TestContent.CloudBaseSource(new CloudBaseConfig
+        {
+            EnvId = "env-abc",
+            Table = "articles",
+            BodyField = "content",
+            FieldPolicy = new NotionFieldPolicyConfig { Mode = "all" }
+        });
+        config = config with
+        {
+            Content = ContentConfigFactory.FromSources([source]) with { Media = new MediaConfig { DownloadToLocal = false } },
+            Build = config.Build with { Clean = true, Report = new BuildReportConfig { Enabled = false } }
+        };
+        var snapshotRoot = Path.Combine(Path.GetTempPath(), "bukit-engine-cloudbase-snapshot-" + Guid.NewGuid().ToString("N"));
+        var snapshotDir = Path.Combine(snapshotRoot, "content");
+        var originalKey = Environment.GetEnvironmentVariable("CLOUDBASE_PUBLISHABLE_KEY");
+        try
+        {
+            Environment.SetEnvironmentVariable("CLOUDBASE_PUBLISHABLE_KEY", "pk_engine_test");
+            CloudBaseClient.TransportOverride.Value = () => new CloudBaseApi();
+            using (var recording = NotionSnapshot.BeginWrite(snapshotDir))
+            {
+                using (NotionSnapshot.Enter(recording))
+                {
+                    await new SiteEngine(new TestLogger()).BuildAsync(config, root, new ConfigOverrides { Clean = true, Incremental = false });
+                }
+
+                recording.Commit();
+            }
+
+            Environment.SetEnvironmentVariable("CLOUDBASE_PUBLISHABLE_KEY", null);
+            CloudBaseClient.TransportOverride.Value = () => throw new InvalidOperationException("An offline build must not open a CloudBase connection.");
+            Directory.Delete(Path.Combine(root, "dist"), recursive: true);
+            using (var offline = NotionSnapshot.OpenOffline(snapshotDir))
+            {
+                offline.EnsureDatabases(config);
+                using (NotionSnapshot.Enter(offline))
+                {
+                    await new SiteEngine(new TestLogger()).BuildAsync(config, root, new ConfigOverrides { Clean = true, Incremental = false });
+                }
+            }
+
+            var html = File.ReadAllText(Path.Combine(root, "dist", "pages", "cloud-post-1", "index.html"));
+            Assert.Contains("Hi", html, StringComparison.Ordinal);
+            Assert.DoesNotContain("u-secret", string.Concat(Directory.GetFiles(snapshotDir, "*.json", SearchOption.AllDirectories).Select(File.ReadAllText)), StringComparison.Ordinal);
+        }
+        finally
+        {
+            CloudBaseClient.TransportOverride.Value = null;
+            Environment.SetEnvironmentVariable("CLOUDBASE_PUBLISHABLE_KEY", originalKey);
+            if (Directory.Exists(snapshotRoot))
+            {
+                Directory.Delete(snapshotRoot, recursive: true);
+            }
+        }
+    }
+
     [Theory]
     [InlineData("assets/images/p.jpg", "/assets/images/p.jpg")]
     [InlineData("  /assets/images/p.jpg  ", "/assets/images/p.jpg")]
@@ -118,6 +181,39 @@ public sealed partial class SiteEngineIntegrationTests
         finally
         {
             Environment.SetEnvironmentVariable("CLOUDBASE_PUBLISHABLE_KEY", originalKey);
+        }
+    }
+
+    [Fact]
+    public void Create_FilterValueEnvReference_ResolvesOrFailsWhenUnset()
+    {
+        var (root, config) = CreateBuildReportHealthSite();
+        var variable = "BUKIT_TEST_RELEASE_" + Guid.NewGuid().ToString("N");
+        var source = TestContent.CloudBaseSource(new CloudBaseConfig
+        {
+            EnvId = "env-abc",
+            Table = "articles",
+            BodyField = "content",
+            Filter = new CloudBaseFilterConfig { Field = "release_id", Value = "${env:" + variable + "}" }
+        });
+        config = config with { Content = ContentConfigFactory.FromSources([source]) };
+
+        var originalKey = Environment.GetEnvironmentVariable("CLOUDBASE_PUBLISHABLE_KEY");
+        try
+        {
+            Environment.SetEnvironmentVariable("CLOUDBASE_PUBLISHABLE_KEY", "pk_engine_test");
+
+            var ex = Assert.Throws<ConfigException>(() => ContentProviderFactory.Create(config, root, isCi: false, new TestLogger()));
+            Assert.Equal(DiagnosticCode.ConfigRequiredFieldMissing, ex.Code);
+            Assert.Contains(variable, ex.Message, StringComparison.Ordinal);
+
+            Environment.SetEnvironmentVariable(variable, "r42");
+            Assert.NotNull(ContentProviderFactory.Create(config, root, isCi: false, new TestLogger()));
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable("CLOUDBASE_PUBLISHABLE_KEY", originalKey);
+            Environment.SetEnvironmentVariable(variable, null);
         }
     }
 

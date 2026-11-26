@@ -36,6 +36,47 @@ public sealed class RouteGeneratorTests
         Assert.Contains("/blog/", route.Url);
     }
 
+    [Theory]
+    [InlineData("Kuala Lumpur", "/malaysia/kuala-lumpur/attractions/batu-caves/")]
+    [InlineData(42L, "/malaysia/42/attractions/batu-caves/")]
+    [InlineData(7d, "/malaysia/7/attractions/batu-caves/")]
+    public void Generate_FieldPlaceholder_UsesTheSlugifiedFieldValue(object city, string expected)
+    {
+        var document = CreateDocument(
+            "batu-caves",
+            new Dictionary<string, object> { ["collection"] = "attraction", ["city"] = city });
+        var collections = new Dictionary<string, RouteGenerator.CollectionRouteRule>
+        {
+            ["attraction"] = new("/malaysia/{fields.city}/attractions/{slug}/", "pages/attraction.html")
+        };
+
+        Assert.Equal(expected, RouteGenerator.Generate(document, collections: collections).Url);
+    }
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData("  ")]
+    [InlineData("!!!")]
+    [InlineData(1.5d)]
+    public void Generate_FieldPlaceholderWithoutAValue_Throws(object? city)
+    {
+        var fields = new Dictionary<string, object> { ["collection"] = "attraction" };
+        if (city is not null)
+        {
+            fields["city"] = city;
+        }
+
+        var collections = new Dictionary<string, RouteGenerator.CollectionRouteRule>
+        {
+            ["attraction"] = new("/malaysia/{fields.city}/{slug}/", "pages/attraction.html")
+        };
+
+        var exception = Assert.Throws<ConfigException>(() => RouteGenerator.Generate(CreateDocument("batu-caves", fields), collections: collections));
+
+        Assert.Equal(DiagnosticCode.RouteInvalidPattern, exception.Code);
+        Assert.Contains("field 'city'", exception.Message, StringComparison.Ordinal);
+    }
+
     [Fact]
     public void Generate_WithFileExtensionPermalink_PreservesFileRoute()
     {

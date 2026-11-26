@@ -150,7 +150,7 @@ public sealed class ImageAssetLocalizer : IImageAssetLocalizer, IDisposable
         var root = _config.DownloadDir.Trim();
         if (_offline && !Directory.Exists(root))
         {
-            return KeepOffline(source, original);
+            return KeepOffline(source, uri, original);
         }
 
         Directory.CreateDirectory(root);
@@ -212,7 +212,7 @@ public sealed class ImageAssetLocalizer : IImageAssetLocalizer, IDisposable
 
         if (_offline)
         {
-            return KeepOffline(source, original);
+            return KeepOffline(source, uri, original);
         }
 
         // Checked after the success lookups: once any reference to an object has downloaded, an
@@ -796,12 +796,17 @@ public sealed class ImageAssetLocalizer : IImageAssetLocalizer, IDisposable
         }
     }
 
-    /// <summary>Offline builds make no network requests and never change the media cache: the URL is kept.</summary>
-    private string KeepOffline(string source, string original)
+    /// <summary>
+    /// Offline builds make no network requests and never change the media cache: the URL is kept,
+    /// except a CloudBase object, whose recorded URL has no token and names the environment: it
+    /// fails like a download, as the recording build did.
+    /// </summary>
+    private string KeepOffline(string source, Uri uri, string original)
     {
         _logger?.Info($"event=media.skip_offline source={UrlRedactor.Redact(source)}");
-        return original;
+        return SignedUrlIdentity.IsCloudBaseObject(uri) ? FailureResult(original) : original;
     }
+
     private string FailureResult(string sourceUrl)
     {
         if (_keepOriginalOnFailure)

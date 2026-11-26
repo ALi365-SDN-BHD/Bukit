@@ -157,9 +157,9 @@ internal static class DataModuleBuilder
             var scope = RequireIndexField(document, config.ScopeField, sourceName);
             var key = RequireIndexField(document, config.KeyField, sourceName);
             var valueType = RequireIndexField(document, config.ValueTypeField, sourceName).ToLowerInvariant();
-            if (!IsIndexIdentifier(scope) || !IsIndexIdentifier(key))
+            if (!IsIndexIdentifier(scope) || !DataIndexKey.IsValid(key))
             {
-                throw new ContentException($"Data index source '{sourceName}' requires scope and key values to match ^[a-z][a-z0-9_]*$; content '{document.Id}' has '{scope}.{key}'.");
+                throw new ContentException($"Data index source '{sourceName}' requires scopes to match ^[a-z][a-z0-9_]*$ and keys to match {DataIndexKey.Pattern}; content '{document.Id}' has '{scope}.{key}'.");
             }
 
             var context = $"Data index source '{sourceName}' content '{document.Id}'";

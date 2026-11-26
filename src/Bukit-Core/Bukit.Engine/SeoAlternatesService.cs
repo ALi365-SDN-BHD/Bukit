@@ -39,10 +39,9 @@ internal static class SeoAlternatesService
                 .FilterDocumentsByLanguage(documents, language, defaultLanguage)
                 .ToList();
             var variantContentDocuments = variantDocuments
-                .Where(i => !ContentFieldReader.IsDataItem(i))
+                .Where(i => CollectionPagePolicy.HasPage(i, config.Site))
                 .ToList();
-            var variantRouted = variantDocuments
-                .Where(i => !ContentFieldReader.IsDataItem(i))
+            var variantRouted = variantContentDocuments
                 .Select(i => new RoutedContentDocument(i, RouteGenerator.Generate(i, config.Site.OutputPathEncoding, config.Site.Permalinks, collectionRules)))
                 .ToList();
 

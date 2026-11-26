@@ -50,13 +50,17 @@ Use `type: cloudbase` for a CloudBase PG-mode table or view: set `cloudbase.envI
 `created_by`, `updated_by` and `_openid`. `fileFields` values are object names or
 `cloud://` references and require `storageBucket`, `content.media.fieldKeys`,
 `downloadToLocal`, `onFailure: placeholder`, and no exclusion of the gateway/storage
-hosts (an empty `downloadHosts` is fine; when set it must include them). Only body images and file fields are rewritten; other `cloud://`
+hosts (an empty `downloadHosts` is fine; when set it must include them); `mode: data` sources support them too. Only body images and file fields are rewritten; other `cloud://`
 values are degraded (`BKT-0C0B`). jsonb objects and non-text arrays stay structured
 (`page.fields.<k>.value`, sorted keys, JSON types kept so numbers stay numbers unlike
 Markdown list items, depth 8, 256 KiB); an allowed column is published whole, nested
 personal keys with the dropped names are removed, nested `cloud://` drops the column, and
 a too-deep or too-large column is dropped as `cloudbase.structured_field_invalid` under
-`schemaFailMode`. See `guide/user/27-cloudbase-content.md`.
+`schemaFailMode`. The `filter` value may read `${env:NAME}` (quote it), resolved when the build
+fetches the table; an unset or empty variable fails the build. `--content-snapshot <dir>` records
+the public rows for builds with `--content-offline` (no key, no network; another filter value
+fails). See
+`guide/user/27-cloudbase-content.md`.
 
 ## Remote media
 
@@ -125,7 +129,9 @@ build:
   collection. Field options: `required`, `default`, `enum`, `format`
   (`url|email|date|slug`; `semanticType` is used when `format` is absent), `min`/`max`,
   `sourcePolicy` (`raw|canonical|custom|provider|any`; only the value is checked).
-  `label` has no effect.
+  `label` has no effect. An `enum` item may be `{ value, label }`; templates read options in
+  order as `site.field_enums.<field>` (`value`, `label`), scoped fields under
+  `site.field_enums.scopes.<collection>.<field>`.
 - `rejectUnknownRawKeys: true` fails the build on any undeclared front matter key,
   whatever `schemaFailMode` says. Use it only with a complete field list.
 - Mappings (lists) turn raw fields into canonical fields, entities, and relations:
@@ -201,6 +207,22 @@ selected fields. A nested path also writes a top-level `days_attractions_links` 
 each target once. Keys must be text and match within the page's language. Unknown or repeated keys,
 non-text keys and existing output fields are reported under the page collection's
 `schemaFailMode` (`content.link_*` codes).
+
+Add `backref: { name: routes, limit: 6, select: [image] }` to a link to list, on each target page,
+the pages that link to it (`routes`, in collection order, each page once) and the total before the
+limit (`routes_count`). Only target pages get it; data targets do not.
+
+## Derived fields
+
+`content.derivedFields.<collection>.<field>: { value, mode }` writes a field from a Scriban
+template over the page's own top-level fields (`<field>_links` included), in the order written.
+`mode: default` fills only a missing or empty field; `override` always writes. `seo.describe 150`
+makes a plain description by display width (CJK counts 2). The clock and random functions are
+not available (calling one is a runtime failure). Built-in names such as `slug` or `title`, and fields a link writes (`<field>_links`,
+backref names, `<name>_count`), are rejected. `config check` fails on a template that does not
+parse; runtime failures are reported as `content.derived_field_failed`. Derived fields run after
+routing and links, so permalinks, `routeWhen` and link `select` cannot read them, and entries
+without a page do not get them.
 
 ## Check
 

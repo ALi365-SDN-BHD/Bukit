@@ -4,6 +4,7 @@ using Bukit.Engine.Abstractions.Content;
 using Bukit.Routing;
 using Bukit.Engine.Abstractions.Routing;
 using Bukit.Engine.Abstractions.Plugins;
+using Bukit.Engine.Primitives;
 namespace Bukit.Engine.Plugins.BuiltIn;
 
 internal sealed class RelatedContentPlugin : IBukitPlugin, IDerivePagesPlugin
@@ -27,15 +28,23 @@ internal sealed class RelatedContentPlugin : IBukitPlugin, IDerivePagesPlugin
             return Array.Empty<RoutedContentDocument>();
         }
 
-        var indices = relatedConfig.Indices;
-        if (indices is null || indices.Count == 0)
+        var siteRules = relatedConfig.Indices is { Count: > 0 }
+            ? new Rules(relatedConfig.Threshold, relatedConfig.Limit > 0 ? relatedConfig.Limit : 5, relatedConfig.Indices, SameCollection: false)
+            : null;
+        var collectionRules = relatedConfig.Collections.ToDictionary(
+            rule => rule.Collection,
+            rule => new Rules(rule.Threshold, rule.Limit, rule.Indices, SameCollection: true),
+            StringComparer.OrdinalIgnoreCase);
+        if (siteRules is null && collectionRules.Count == 0)
         {
             return Array.Empty<RoutedContentDocument>();
         }
 
-        var items = context.RoutedDocuments
-            .Where(x => !x.Document.Id.StartsWith("blog-archive-", StringComparison.OrdinalIgnoreCase)
-                        && !x.Document.Id.StartsWith("blog-page-", StringComparison.OrdinalIgnoreCase))
+        // Candidates in collection list order, so equal scores keep that order.
+        var items = CollectionRouteIndex.OrderEntries(
+                context.RoutedDocuments.Where(x => !x.Document.Id.StartsWith("blog-archive-", StringComparison.OrdinalIgnoreCase)
+                                                   && !x.Document.Id.StartsWith("blog-page-", StringComparison.OrdinalIgnoreCase)),
+                ContentOrdering.Resolve(_config))
             .ToList();
 
         if (items.Count < 2)
@@ -43,8 +52,6 @@ internal sealed class RelatedContentPlugin : IBukitPlugin, IDerivePagesPlugin
             return Array.Empty<RoutedContentDocument>();
         }
 
-        var threshold = relatedConfig.Threshold;
-        var limit = relatedConfig.Limit > 0 ? relatedConfig.Limit : 5;
         var recordsById = context.ContentGraph.Records
             .GroupBy(x => x.Identity.Id, StringComparer.OrdinalIgnoreCase)
             .ToDictionary(x => x.Key, x => x.First(), StringComparer.OrdinalIgnoreCase);
@@ -52,9 +59,15 @@ internal sealed class RelatedContentPlugin : IBukitPlugin, IDerivePagesPlugin
         for (var i = 0; i < items.Count; i++)
         {
             var currentItem = items[i].Document;
-            var related = new List<object>();
             recordsById.TryGetValue(currentItem.Id, out var currentRecord);
+            var collection = ResolveCollection(currentItem, currentRecord);
+            var rules = collection is not null && collectionRules.TryGetValue(collection, out var own) ? own : siteRules;
+            if (rules is null)
+            {
+                continue;
+            }
 
+            var related = new List<(int Score, int Order, RoutedContentDocument Item)>();
             for (var j = 0; j < items.Count; j++)
             {
                 if (i == j)
@@ -63,30 +76,35 @@ internal sealed class RelatedContentPlugin : IBukitPlugin, IDerivePagesPlugin
                 }
 
                 var otherItem = items[j].Document;
-                var otherRoute = items[j].Route;
                 recordsById.TryGetValue(otherItem.Id, out var otherRecord);
-                var score = CalculateScore(currentItem, otherItem, currentRecord, otherRecord, indices);
-                if (score >= threshold)
+                if (rules.SameCollection &&
+                    !string.Equals(collection, ResolveCollection(otherItem, otherRecord), StringComparison.OrdinalIgnoreCase))
                 {
-                    related.Add(new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
-                    {
-                        ["title"] = otherItem.Title,
-                        ["url"] = otherRoute.Url,
-                        ["score"] = score
-                    });
+                    continue;
+                }
+
+                var score = CalculateScore(currentItem, otherItem, currentRecord, otherRecord, rules.Indices);
+                if (score >= rules.Threshold)
+                {
+                    related.Add((score, j, items[j]));
                 }
             }
 
             if (related.Count > 0)
             {
-                related.Sort((a, b) =>
-                {
-                    var sa = (int)((Dictionary<string, object>)a)["score"];
-                    var sb = (int)((Dictionary<string, object>)b)["score"];
-                    return sb.CompareTo(sa);
-                });
-
-                var topN = related.Take(limit).ToList();
+                var topN = related
+                    .OrderByDescending(x => x.Score)
+                    .ThenBy(x => x.Order)
+                    .Take(rules.Limit)
+                    .Select(x => (object)new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
+                    {
+                        ["id"] = x.Item.Document.Id,
+                        ["slug"] = x.Item.Document.Slug,
+                        ["title"] = x.Item.Document.Title,
+                        ["url"] = x.Item.Route.Url,
+                        ["score"] = x.Score
+                    })
+                    .ToList();
 
                 var dict = context.GetOrAdd(
                     BuildDataKeys.RelatedPages,
@@ -101,6 +119,9 @@ internal sealed class RelatedContentPlugin : IBukitPlugin, IDerivePagesPlugin
         return Array.Empty<RoutedContentDocument>();
     }
 
+    /// <summary>The scoring rules for one page: the site rules, or its collection's rules (same-collection candidates only).</summary>
+    private sealed record Rules(int Threshold, int Limit, IReadOnlyList<RelatedIndexConfig> Indices, bool SameCollection);
+
     private static int CalculateScore(
         ContentDocument a,
         ContentDocument b,
@@ -112,6 +133,12 @@ internal sealed class RelatedContentPlugin : IBukitPlugin, IDerivePagesPlugin
 
         foreach (var idx in indices)
         {
+            if (idx.Field is { } field)
+            {
+                total += idx.Weight * CountShared(ContentFieldReader.GetTextList(a.CustomFields, field), ContentFieldReader.GetTextList(b.CustomFields, field));
+                continue;
+            }
+
             switch (idx.Name.ToLowerInvariant())
             {
                 case "tags":

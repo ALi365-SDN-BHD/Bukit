@@ -35,6 +35,8 @@ internal static class BuildPlanner
             config,
             internalOutputDir is null ? overrides : overrides with { Output = null });
         ConfigValidator.Validate(effectiveConfig);
+        // Before content is fetched, so a template that does not parse fails fast.
+        DerivedFields.DerivedFieldResolver.ValidateTemplates(effectiveConfig.Content);
         // Overrides such as --site-url are applied now, so a missing URL fails before rendering.
         // Development builds skip mini-program output instead, so `bukit dev` works without one.
         MiniProgramConfigValidator.ValidateSiteUrl(effectiveConfig, required: overrides.ExecutionMode == BuildExecutionMode.Production);

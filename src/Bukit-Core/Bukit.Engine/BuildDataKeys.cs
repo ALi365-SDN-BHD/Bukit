@@ -48,6 +48,12 @@ internal static class BuildDataKeys
     /// <summary>Writer: RelatedContentPlugin. Reader: templates as <c>site.related_pages</c>.</summary>
     internal static readonly BuildDataKey<Dictionary<string, List<object>>> RelatedPages = new("__related_pages");
 
+    /// <summary>Writer: VariantRouteStage (from content.modelSchema). Reader: templates as <c>site.field_enums</c>.</summary>
+    internal static readonly BuildDataKey<Dictionary<string, object>> FieldEnums = new("__field_enums");
+
+    /// <summary>Writer: VariantRouteStage (from RoutePipeline). Reader: templates as <c>site.queries</c>.</summary>
+    internal static readonly BuildDataKey<IReadOnlyDictionary<string, object>> Queries = new("__queries");
+
     /// <summary>Writer: PagesIndexPlugin. Reader: templates as <c>site.data.pages_by_id</c>.</summary>
     internal static readonly BuildDataKey<Dictionary<string, object>> PagesById = new("pages_by_id");
 

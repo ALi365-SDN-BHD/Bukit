@@ -55,14 +55,14 @@ internal sealed class ContentGraphValidateStage : IContentStage
                 diagnostic.SourceId ?? document.Id));
 
     /// <summary>A CloudBase document id holds the row id, which logs show only as a hash (D7).</summary>
-    private static string? LogSource(string? sourcePath, Dictionary<string, ContentDocument> documentsById)
+    internal static string? LogSource(string? sourcePath, IReadOnlyDictionary<string, ContentDocument> documentsById)
         => sourcePath is not null &&
            documentsById.TryGetValue(sourcePath, out var document) &&
            string.Equals(document.Source.Provider, "cloudbase", StringComparison.OrdinalIgnoreCase)
             ? CloudBaseContentSource.LogId(sourcePath)
             : sourcePath;
 
-    private static string ResolveFailMode(
+    internal static string ResolveFailMode(
         ContentValidationIssue issue,
         IReadOnlyDictionary<string, ContentDocument> documentsById,
         Bukit.Config.AppConfig config,

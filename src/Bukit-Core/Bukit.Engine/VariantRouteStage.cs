@@ -5,6 +5,7 @@ using Bukit.Content;
 using Bukit.Engine.Abstractions.Content;
 using Bukit.Engine.Abstractions.Plugins;
 using Bukit.Engine.Abstractions.Routing;
+using Bukit.Engine.DerivedFields;
 using Bukit.Routing;
 using Bukit.Shared;
 
@@ -32,6 +33,7 @@ internal static class VariantRouteStage
             context.Documents,
             templateResolver);
         routeGenerationStopwatch.Stop();
+        DerivedFieldResolver.Report(context.Config, routeResult.RoutedDocuments, routeResult.DerivedFieldIssues, logger);
         WarnDecodedRouteUrls(routeResult.RoutedDocuments, logger);
         metrics.AddDuration("routeGeneration", routeGenerationStopwatch.ElapsedMilliseconds);
 
@@ -43,12 +45,12 @@ internal static class VariantRouteStage
             LayoutsDir = context.LayoutsDir,
             RoutedDocuments = routeResult.RoutedDocuments,
             StaticHtmlRoutes = Array.Empty<RouteInfo>(),
-            ContentGraph = context.ContentGraph,
+            ContentGraph = DerivedFieldResolver.ProjectSummaries(context.Config.Content, context.ContentGraph, routeResult.RoutedDocuments),
             BodyStore = context.BodyStore,
             TemplateResolver = templateResolver.ResolveKindTemplate,
             Logger = logger
         };
-        pluginContext.Set(BuildDataKeys.ListRouteGraph, routeResult.ListRouteGraph);
+        SetSiteProjections(pluginContext, routeResult, context.Config);
         pluginContext.Set(BuildDataKeys.MediaDownloadDir, ContentProviderFactory
             .BuildEffectiveMediaConfig(context.Config.Content.Media, context.RootDir, context.MediaDownloadDir)
             .DownloadDir);
@@ -95,6 +97,21 @@ internal static class VariantRouteStage
             staticHtmlRoutes,
             staticEntries,
             pluginContext);
+    }
+
+    /// <summary>The route results templates read through <c>site</c>: list routes, queries and enum labels.</summary>
+    private static void SetSiteProjections(BuildContext pluginContext, RoutePipelineResult routeResult, AppConfig config)
+    {
+        pluginContext.Set(BuildDataKeys.ListRouteGraph, routeResult.ListRouteGraph);
+        if (routeResult.Queries is { } queries)
+        {
+            pluginContext.Set(BuildDataKeys.Queries, queries);
+        }
+
+        if (FieldEnumProjection.Build(config.Content.ModelSchema) is { } fieldEnums)
+        {
+            pluginContext.Set(BuildDataKeys.FieldEnums, fieldEnums);
+        }
     }
 
     private static void WarnDecodedRouteUrls(IReadOnlyList<RoutedContentDocument> routedDocuments, ILogger logger)

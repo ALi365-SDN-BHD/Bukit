@@ -50,7 +50,7 @@ public sealed class ContentLinkResolverTests
         var route = Page("r1", "route", ("cities", new ContentField("text", "kl")));
         var data = Document("kl", "city", ("sourceMode", new ContentField("text", "data")));
 
-        var page = Single(ContentLinkResolver.Apply([CityLink], [Routed(route)], [data]));
+        var page = Single(ContentLinkResolver.Apply(Content(CityLink), [Routed(route)], [data]));
 
         var link = Assert.Single(Links(page, "cities_links"));
         Assert.Null(link["url"]);
@@ -98,7 +98,7 @@ public sealed class ContentLinkResolverTests
         var other = Routed(Page("p1", "page", ("cities", new ContentField("list", new[] { "kl" }))));
         var empty = Routed(Page("r2", "route"));
 
-        var result = ContentLinkResolver.Apply([CityLink], [other, empty, Routed(City("kl", "KL"))], []);
+        var result = ContentLinkResolver.Apply(Content(CityLink), [other, empty, Routed(City("kl", "KL"))], []);
 
         Assert.Same(other, result[0]);
         Assert.Same(empty, result[1]);
@@ -225,6 +225,194 @@ public sealed class ContentLinkResolverTests
     }
 
     [Fact]
+    public void Apply_Backref_ListsEachLinkingPageOnceInCollectionOrderWithTheTotal()
+    {
+        var link = WithBackref(CityLink, 0, "region");
+
+        var result = Apply(
+            [link],
+            Route("r1", 2020, "kl", "penang"),
+            Route("r2", 2022, "kl", "KL"),
+            Route("r3", 2021, "ipoh"),
+            City("kl", "KL"),
+            City("penang", "Penang"),
+            City("melaka", "Melaka"));
+
+        var kl = ById(result, "kl");
+        var routes = Links(kl, "routes");
+        Assert.Equal(["r2", "r1"], routes.Select(entry => entry["key"]));
+        Assert.Equal(["collection", "key", "region", "slug", "title", "url"], routes[0].Keys);
+        Assert.Equal("/route/r2/", routes[0]["url"]);
+        Assert.Equal("route", routes[0]["collection"]);
+        Assert.Equal("Route r2", routes[0]["title"]);
+        Assert.Equal("region-r2", routes[0]["region"]);
+        Assert.Equal(2L, kl.CustomFields!["routes_count"].Value);
+        Assert.Equal(["r1"], Links(ById(result, "penang"), "routes").Select(entry => entry["key"]));
+        Assert.Empty(Links(ById(result, "melaka"), "routes"));
+        Assert.Equal(0L, ById(result, "melaka").CustomFields!["routes_count"].Value);
+        Assert.False(ById(result, "r1").CustomFields!.ContainsKey("routes"));
+    }
+
+    [Fact]
+    public void Apply_BackrefLimit_KeepsTheFirstEntriesAndTheFullCount()
+    {
+        var result = Apply(
+            [WithBackref(CityLink, limit: 1)],
+            Route("r1", 2020, "kl"),
+            Route("r2", 2022, "kl"),
+            City("kl", "KL"));
+
+        var kl = ById(result, "kl");
+        Assert.Equal(["r2"], Links(kl, "routes").Select(entry => entry["key"]));
+        Assert.Equal(2L, kl.CustomFields!["routes_count"].Value);
+    }
+
+    [Fact]
+    public void Apply_BackrefSameTimes_UsesTheOrderingTieBreak()
+    {
+        var content = Content(WithBackref(CityLink)) with { OrderingTieBreakField = "region", OrderingTieBreakOrder = "desc" };
+
+        var result = ContentLinkResolver.Apply(content, [.. new[] { Route("a", 2020, "kl"), Route("b", 2020, "kl"), City("kl", "KL") }.Select(Routed)], []);
+
+        Assert.Equal(["b", "a"], Links(ById(result, "kl"), "routes").Select(entry => entry["key"]));
+    }
+
+    [Fact]
+    public void Apply_BackrefFromNestedPath_ListsTheRouteOnce()
+    {
+        var day = (string code) => new SortedDictionary<string, object?>(StringComparer.Ordinal) { ["attractions"] = new List<object?> { code } };
+        var route = Page("r1", "route", ("days", new ContentField("list", new List<object?> { day("a1"), day("a1") })));
+        var link = AttractionLink with { Backref = new ContentLinkBackrefConfig { Name = "routes" } };
+
+        var result = Apply([link], route, Attraction("a1"));
+
+        Assert.Equal(["r1"], Links(ById(result, "attraction-a1"), "routes").Select(entry => entry["key"]));
+    }
+
+    [Fact]
+    public void Apply_Backref_SkipsDataTargetsAndRepeatedKeys()
+    {
+        var result = ContentLinkResolver.Apply(
+            Content(WithBackref(CityLink)),
+            [Routed(Route("r1", 2020, "kl", "penang")), Routed(City("kl", "KL", id: "kl-1")), Routed(City("kl", "KL again", id: "kl-2"))],
+            [Document("penang", "city", ("sourceMode", new ContentField("text", "data")))]);
+
+        Assert.Single(Links(ById(result, "kl-1"), "routes"));
+        Assert.Empty(Links(ById(result, "kl-2"), "routes"));
+    }
+
+    [Fact]
+    public void Apply_BackrefOnItsOwnCollection_ListsOnlyForwardFields()
+    {
+        var related = new ContentLinkConfig
+        {
+            Collection = "post",
+            Field = "related",
+            Target = new ContentLinkTargetConfig { Collection = "post" },
+            Backref = new ContentLinkBackrefConfig { Name = "related_from", Select = ["related_from", "related_links"] }
+        };
+        var p1 = Page("p1", "post", ("related", new ContentField("text", "p2")));
+        var p2 = Page("p2", "post", ("related", new ContentField("text", "p1")));
+
+        var result = Apply([related], p1, p2);
+
+        var entry = Assert.Single(Links(ById(result, "p1"), "related_from"));
+        Assert.Equal("p2", entry["key"]);
+        Assert.Null(entry["related_from"]);
+        Assert.NotNull(entry["related_links"]);
+    }
+
+    [Fact]
+    public void Apply_LinkWhoseOwnOutputConflicts_StillCountsForTheBackref()
+    {
+        var route = Page("r1", "route", ("cities", new ContentField("text", "kl")), ("cities_links", new ContentField("text", "mine")));
+
+        var result = Apply([WithBackref(CityLink)], route, City("kl", "KL"));
+
+        Assert.Equal("mine", ById(result, "r1").CustomFields!["cities_links"].Value);
+        Assert.Equal(["r1"], Links(ById(result, "kl"), "routes").Select(entry => entry["key"]));
+    }
+
+    [Fact]
+    public void Apply_TwoBackrefsOnOneCollection_AreWrittenIndependently()
+    {
+        var guideLink = new ContentLinkConfig
+        {
+            Collection = "guide",
+            Field = "cities",
+            Target = new ContentLinkTargetConfig { Collection = "city" },
+            Backref = new ContentLinkBackrefConfig { Name = "guides" }
+        };
+        var guide = Page("g1", "guide", ("cities", new ContentField("text", "kl")));
+
+        var result = Apply([WithBackref(CityLink), guideLink], Route("r1", 2020, "kl"), Route("r2", 2021, "kl"), guide, City("kl", "KL"));
+
+        var kl = ById(result, "kl");
+        Assert.Equal(["r2", "r1"], Links(kl, "routes").Select(entry => entry["key"]));
+        Assert.Equal(["g1"], Links(kl, "guides").Select(entry => entry["key"]));
+        Assert.Equal(2L, kl.CustomFields!["routes_count"].Value);
+        Assert.Equal(1L, kl.CustomFields["guides_count"].Value);
+    }
+
+    [Fact]
+    public void RoutePipeline_BackrefCountsOnlyPagesOfTheBuiltLanguage()
+    {
+        var config = new AppConfig
+        {
+            Site = new SiteConfig
+            {
+                Name = "test",
+                Title = "Test",
+                Language = "en",
+                Collections = new Dictionary<string, CollectionConfig>(StringComparer.OrdinalIgnoreCase)
+                {
+                    ["route"] = new() { Permalink = "/routes/{slug}/", Template = "route.html" },
+                    ["city"] = new() { Permalink = "/cities/{slug}/", Template = "city.html" }
+                }
+            },
+            Content = TestContent.Markdown() with { Links = [WithBackref(CityLink)] }
+        };
+        var enRoute = Page("r-en", "route", ("cities", new ContentField("text", "kl")), ("language", new ContentField("text", "en")));
+        var msRoute = Page("r-ms", "route", ("cities", new ContentField("text", "kl")), ("language", new ContentField("text", "ms")));
+
+        var result = new RoutePipeline().Execute(config, [enRoute, msRoute, City("kl", "KL")]);
+
+        var city = Assert.Single(result.RoutedDocuments, page => page.Document.Id == "kl");
+        Assert.Equal(["r-en"], Links(city.Document, "routes").Select(entry => entry["key"]));
+    }
+
+    [Fact]
+    public void Backref_ExistingField_IsKeptAndReportedOnTheTargetPage()
+    {
+        var link = WithBackref(CityLink);
+        var city = Document("kl", "city", ("routes", new ContentField("text", "mine")));
+        var route = Route("r1", 2020, "kl");
+
+        var applied = ById(Apply([link], route, city), "kl");
+        var issue = Assert.Single(ContentLinkResolver.Validate(Config(link), [route, city]));
+
+        Assert.Equal("mine", applied.CustomFields!["routes"].Value);
+        Assert.False(applied.CustomFields.ContainsKey("routes_count"));
+        Assert.Equal(ContentLinkResolver.OutputConflictCode, issue.Code);
+        Assert.Equal("routes", issue.Field);
+        Assert.Equal("kl", issue.SourcePath);
+    }
+
+    [Fact]
+    public void Apply_ReferrerTitleChange_ChangesTheTargetPageHash()
+    {
+        var link = WithBackref(CityLink);
+        string Hash(string title)
+        {
+            var route = ContentDocument.Create("r1", title, "r1", DateTimeOffset.UnixEpoch, null, Fields("route", [("cities", new ContentField("text", "kl"))]));
+            return IncrementalBuildEngine.ComputeMetadataHash(ById(Apply([link], route, City("kl", "KL")), "kl"));
+        }
+
+        Assert.Equal(Hash("One"), Hash("One"));
+        Assert.NotEqual(Hash("One"), Hash("Two"));
+    }
+
+    [Fact]
     public void RoutePipeline_ResolvesLinksBeforeListRoutes()
     {
         var config = new AppConfig
@@ -240,7 +428,7 @@ public sealed class ContentLinkResolverTests
                     ["city"] = new() { Permalink = "/cities/{slug}/", Template = "city.html" }
                 }
             },
-            Content = TestContent.Markdown() with { Links = [CityLink] }
+            Content = TestContent.Markdown() with { Links = [WithBackref(CityLink)] }
         };
         var route = Page("r1", "route", ("cities", new ContentField("text", "kl")));
 
@@ -248,6 +436,8 @@ public sealed class ContentLinkResolverTests
 
         var routed = Assert.Single(result.RoutedDocuments, page => page.Document.Id == "r1");
         Assert.Equal("/cities/kl/", Assert.Single(Links(routed.Document, "cities_links"))["url"]);
+        var city = Assert.Single(result.RoutedDocuments, page => page.Document.Id == "kl");
+        Assert.Equal("/routes/r1/", Assert.Single(Links(city.Document, "routes"))["url"]);
         var list = Assert.Single(result.ListRouteGraph.Routes, listRoute => listRoute.Url == "/routes/");
         Assert.True(Assert.Single(list.Items).Fields!.ContainsKey("cities_links"));
     }
@@ -284,7 +474,24 @@ public sealed class ContentLinkResolverTests
     }
 
     private static IReadOnlyList<RoutedContentDocument> Apply(IReadOnlyList<ContentLinkConfig> links, params ContentDocument[] documents)
-        => ContentLinkResolver.Apply(links, [.. documents.Select(Routed)], []);
+        => ContentLinkResolver.Apply(Content([.. links]), [.. documents.Select(Routed)], []);
+
+    private static ContentConfig Content(params ContentLinkConfig[] links) => TestContent.Markdown() with { Links = links };
+
+    private static ContentLinkConfig WithBackref(ContentLinkConfig link, int limit = 0, params string[] select)
+        => link with { Backref = new ContentLinkBackrefConfig { Name = "routes", Limit = limit, Select = select } };
+
+    private static ContentDocument Route(string id, int year, params string[] cities)
+        => ContentDocument.Create(
+            id,
+            $"Route {id}",
+            id,
+            new DateTimeOffset(year, 1, 1, 0, 0, 0, TimeSpan.Zero),
+            null,
+            Fields("route", [("cities", new ContentField("list", cities)), ("region", new ContentField("text", $"region-{id}"))]));
+
+    private static ContentDocument ById(IReadOnlyList<RoutedContentDocument> result, string id)
+        => Assert.Single(result, page => page.Document.Id == id).Document;
 
     private static ContentDocument Single(IReadOnlyList<RoutedContentDocument> result)
         => Assert.Single(result, page => page.Document.Id == "r1").Document;

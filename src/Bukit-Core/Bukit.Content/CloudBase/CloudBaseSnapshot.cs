@@ -1,0 +1,259 @@
+using System.Security.Cryptography;
+using System.Text;
+using System.Text.Encodings.Web;
+using System.Text.Json;
+using Bukit.CloudBase.Models;
+using Bukit.Config;
+using Bukit.Content.Media;
+using Bukit.Content.Notion.Snapshot;
+using Bukit.Shared;
+
+namespace Bukit.Content.CloudBase;
+
+/// <summary>
+/// One CloudBase query in the content offline snapshot: the projected public rows the build read
+/// and, per file object, its media identity (the signed URL without its token). An offline build
+/// replays the same projection from the rows and finds the media files the recording build
+/// localized by that identity, so it needs no key and no network.
+/// </summary>
+/// <remarks>
+/// Rows keep only the mapped columns, the file fields and the columns the field policy publishes;
+/// personal and operator columns and nested keys are never written, so widening the policy offline
+/// cannot reveal them. Entries live at
+/// <c>cloudbase/&lt;table key&gt;/&lt;shape key&gt;/&lt;filter key&gt;.json</c>, keyed by hashes.
+/// The shape key covers the settings that decide which rows and columns are recorded (mapped
+/// fields, file fields, field policy, sort, item limit and bucket), so two sources on one table
+/// keep separate entries and a changed source fails offline. The filter key covers the resolved
+/// filter value, so a table recorded for one release fails offline for another instead of
+/// serving the recorded rows.
+/// </remarks>
+internal sealed class CloudBaseSnapshot : IDisposable
+{
+    /// <summary>The reason a file object has no recorded identity.</summary>
+    internal const string NotRecordedError = "not-in-snapshot";
+
+    private const int EntryFormat = 1;
+    private const string Hint =
+        "Run a build with CLOUDBASE_PUBLISHABLE_KEY and --content-snapshot (without --content-offline) to record it.";
+
+    private readonly JsonDocument _document;
+    private readonly Dictionary<string, string> _files;
+
+    private CloudBaseSnapshot(JsonDocument document, IReadOnlyList<JsonElement> rows, Dictionary<string, string> files)
+    {
+        _document = document;
+        Rows = rows;
+        _files = files;
+    }
+
+    /// <summary>The recorded rows, valid until this snapshot is disposed.</summary>
+    internal IReadOnlyList<JsonElement> Rows { get; }
+
+    /// <summary>Fails when the offline snapshot holds no query of this CloudBase table (for <c>config check</c>).</summary>
+    internal static void EnsureTable(NotionSnapshotSession session, string envId, string table, string? filterField)
+    {
+        if (session.Offline && !session.HasEntryDirectory(TableDirectory(envId, table, filterField)))
+        {
+            throw Missing(table);
+        }
+    }
+
+    /// <summary>Opens the recorded query for <paramref name="options"/>.</summary>
+    internal static CloudBaseSnapshot Read(NotionSnapshotSession session, CloudBaseContentSourceOptions options)
+    {
+        var bytes = session.ReadEntry(EntryPath(options)) ?? throw NotRecorded(session, options);
+
+        JsonDocument? document = null;
+        try
+        {
+            document = JsonDocument.Parse(bytes);
+            var root = document.RootElement;
+            if (root.ValueKind != JsonValueKind.Object ||
+                !root.TryGetProperty("format", out var format) || !format.TryGetInt32(out var version) || version != EntryFormat ||
+                !root.TryGetProperty("rows", out var rows) || rows.ValueKind != JsonValueKind.Array ||
+                !root.TryGetProperty("files", out var files) || files.ValueKind != JsonValueKind.Object)
+            {
+                throw new JsonException("The entry does not have the expected shape.");
+            }
+
+            var map = new Dictionary<string, string>(StringComparer.Ordinal);
+            foreach (var file in files.EnumerateObject())
+            {
+                if (file.Value.ValueKind == JsonValueKind.String && file.Value.GetString() is { Length: > 0 } url)
+                {
+                    map[file.Name] = url;
+                }
+            }
+
+            var snapshot = new CloudBaseSnapshot(document, [.. rows.EnumerateArray()], map);
+            document = null;
+            return snapshot;
+        }
+        catch (JsonException exception)
+        {
+            throw new NotionSnapshotException(
+                $"Content offline snapshot has an unreadable entry for CloudBase table '{options.Table}'. {Hint}",
+                exception,
+                DiagnosticCode.NotionSnapshotEntryMissing);
+        }
+        finally
+        {
+            document?.Dispose();
+        }
+    }
+
+    /// <summary>Answers a signing request from the recorded identities; an unrecorded object fails like an unavailable one.</summary>
+    /// <remarks>Synchronous, so <paramref name="cancellationToken"/> is not observed.</remarks>
+    internal Task<IReadOnlyList<CloudBaseSignedObject>> SignAsync(IReadOnlyList<string> objectNames, CancellationToken cancellationToken)
+        => Task.FromResult<IReadOnlyList<CloudBaseSignedObject>>([.. objectNames.Select(objectName => _files.TryGetValue(objectName, out var url)
+            ? new CloudBaseSignedObject(objectName, url, null)
+            : new CloudBaseSignedObject(objectName, null, NotRecordedError))]);
+
+    /// <summary>
+    /// Records one query: the rows reduced to what the projection may publish, and the identity of
+    /// each signed file object. Signed URLs and their tokens are never written.
+    /// </summary>
+    internal static void Write(
+        NotionSnapshotSession session,
+        CloudBaseContentSourceOptions options,
+        IReadOnlyList<JsonElement> rows,
+        IEnumerable<CloudBaseSignedObject> signed)
+    {
+        var mapped = new HashSet<string>(
+            [options.IdField, options.TitleField, options.SlugField, options.PublishAtField, options.UpdatedAtField, options.BodyField, .. options.FileFields],
+            StringComparer.OrdinalIgnoreCase);
+        var allowed = CloudBaseFieldProjector.BuildAllowedSet(options.FieldPolicyMode, options.AllowedFields);
+        var all = string.Equals(options.FieldPolicyMode?.Trim(), "all", StringComparison.OrdinalIgnoreCase);
+
+        var buffer = new MemoryStream();
+        // The entry is never HTML: keep non-ASCII text as is, so its size matches the source row.
+        using (var writer = new Utf8JsonWriter(buffer, new JsonWriterOptions { Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping }))
+        {
+            writer.WriteStartObject();
+            writer.WriteNumber("format", EntryFormat);
+            writer.WriteString("table", options.Table);
+            writer.WriteStartArray("rows");
+            foreach (var row in rows)
+            {
+                writer.WriteStartObject();
+                if (row.ValueKind == JsonValueKind.Object)
+                {
+                    foreach (var column in row.EnumerateObject())
+                    {
+                        var published = !CloudBaseFieldRules.IsHardExcluded(column.Name) && (all || allowed!.Contains(column.Name));
+                        if (mapped.Contains(column.Name) || published)
+                        {
+                            writer.WritePropertyName(column.Name);
+                            WritePublic(writer, column.Value);
+                        }
+                    }
+                }
+
+                writer.WriteEndObject();
+            }
+
+            writer.WriteEndArray();
+            writer.WriteStartObject("files");
+            foreach (var item in signed)
+            {
+                if (item.Url is { } url && Uri.TryCreate(url, UriKind.Absolute, out var uri))
+                {
+                    writer.WriteString(item.ObjectName, SignedUrlIdentity.IdentityTarget(uri));
+                }
+            }
+
+            writer.WriteEndObject();
+            writer.WriteEndObject();
+        }
+
+        session.RecordEntry(EntryPath(options), buffer.ToArray());
+    }
+
+    public void Dispose() => _document.Dispose();
+
+    /// <summary>Writes a value without the personal and operator keys of nested objects.</summary>
+    private static void WritePublic(Utf8JsonWriter writer, JsonElement value)
+    {
+        switch (value.ValueKind)
+        {
+            case JsonValueKind.Object:
+                writer.WriteStartObject();
+                foreach (var property in value.EnumerateObject())
+                {
+                    if (!CloudBaseFieldRules.IsHardExcluded(property.Name))
+                    {
+                        writer.WritePropertyName(property.Name);
+                        WritePublic(writer, property.Value);
+                    }
+                }
+
+                writer.WriteEndObject();
+                break;
+            case JsonValueKind.Array:
+                writer.WriteStartArray();
+                foreach (var item in value.EnumerateArray())
+                {
+                    WritePublic(writer, item);
+                }
+
+                writer.WriteEndArray();
+                break;
+            default:
+                value.WriteTo(writer);
+                break;
+        }
+    }
+
+    private static NotionSnapshotException Missing(string table)
+        => new($"Content offline snapshot has no data for CloudBase table '{table}'. {Hint}", DiagnosticCode.NotionSnapshotDatabaseMissing);
+
+    /// <summary>The query was not recorded: say whether the table, the source settings or the filter value differ.</summary>
+    private static NotionSnapshotException NotRecorded(NotionSnapshotSession session, CloudBaseContentSourceOptions options)
+    {
+        var table = TableDirectory(options.EnvId, options.Table, options.FilterField);
+        if (!session.HasEntryDirectory(table))
+        {
+            return Missing(options.Table);
+        }
+
+        var difference = session.HasEntryDirectory(ShapeDirectory(table, options))
+            ? "another filter value"
+            : "different source settings (mapped fields, file fields, field policy, sort, maxItems or bucket)";
+        return new NotionSnapshotException(
+            $"Content offline snapshot recorded CloudBase table '{options.Table}' with {difference}. {Hint}",
+            DiagnosticCode.NotionSnapshotQueryMismatch);
+    }
+
+    private static string TableDirectory(string envId, string table, string? filterField)
+        => Path.Combine("cloudbase", Hash($"{envId}\n{table}\n{filterField}"));
+
+    /// <summary>Hashes the settings that decide which rows and columns a query records.</summary>
+    private static string ShapeDirectory(string tableDirectory, CloudBaseContentSourceOptions options)
+    {
+        var allowed = options.AllowedFields is { } fields ? string.Join('\u001f', fields) : "\u0000";
+        var shape = string.Join(
+            '\n',
+            options.IdField,
+            options.TitleField,
+            options.SlugField,
+            options.PublishAtField,
+            options.UpdatedAtField,
+            options.BodyField,
+            string.Join('\u001f', options.FileFields),
+            options.FieldPolicyMode?.Trim().ToUpperInvariant(),
+            allowed,
+            options.SortField,
+            options.SortDirection,
+            options.MaxItems?.ToString(System.Globalization.CultureInfo.InvariantCulture),
+            options.StorageBucket);
+        return Path.Combine(tableDirectory, Hash(shape));
+    }
+
+    private static string EntryPath(CloudBaseContentSourceOptions options)
+        => Path.Combine(
+            ShapeDirectory(TableDirectory(options.EnvId, options.Table, options.FilterField), options),
+            Hash(options.FilterValue ?? string.Empty) + ".json");
+
+    private static string Hash(string text)
+        => Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes(text)), 0, 16);
+}

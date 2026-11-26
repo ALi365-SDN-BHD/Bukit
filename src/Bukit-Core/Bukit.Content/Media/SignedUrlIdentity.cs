@@ -202,6 +202,10 @@ internal static class SignedUrlIdentity
            host.EndsWith(".notion.so", StringComparison.OrdinalIgnoreCase) ||
            host.EndsWith(".notion.site", StringComparison.OrdinalIgnoreCase);
 
+    /// <summary>True for a CloudBase storage object URL: a gateway sign URL or a storage host.</summary>
+    internal static bool IsCloudBaseObject(Uri uri)
+        => IsCloudBaseGateway(uri) || IsCloudBaseStorageHost(uri.Host);
+
     private static bool IsCloudBaseGateway(Uri uri)
         => (uri.Host.EndsWith(CloudBaseEndpoints.GatewaySuffix, StringComparison.OrdinalIgnoreCase) ||
             uri.Host.EndsWith(CloudBaseEndpoints.IntlGatewaySuffix, StringComparison.OrdinalIgnoreCase)) &&

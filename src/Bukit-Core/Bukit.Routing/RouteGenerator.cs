@@ -1,10 +1,12 @@
 using Bukit.Engine.Abstractions.Routing;
 using Bukit.Engine.Abstractions.Content;
+using System.Globalization;
+using System.Text.RegularExpressions;
 using Bukit.Shared;
 
 namespace Bukit.Routing;
 
-public static class RouteGenerator
+public static partial class RouteGenerator
 {
     public sealed record CollectionRouteRule(string Permalink, string Template);
 
@@ -167,8 +169,34 @@ public static class RouteGenerator
         var collectionVal = GetCollection(source);
         result = result.Replace("{collection}", collectionVal, StringComparison.OrdinalIgnoreCase);
 
-        return result;
+        return FieldPlaceholderRegex().Replace(result, match => ExpandFieldPlaceholder(match, pattern, source));
     }
+
+    /// <summary>
+    /// <c>{fields.name}</c> becomes the slugified text or whole number of a top-level field. A page
+    /// without a usable value has no URL, so it fails the build instead of producing an empty segment.
+    /// </summary>
+    private static string ExpandFieldPlaceholder(Match match, string pattern, RouteContentSource source)
+    {
+        var name = match.Groups["name"].Value;
+        object? value = source.Fields is not null && source.Fields.TryGetValue(name, out var field) ? field.Value : null;
+        var text = value switch
+        {
+            string raw => raw,
+            long or int or decimal => ((IFormattable)value).ToString(null, CultureInfo.InvariantCulture),
+            double real when double.IsInteger(real) => real.ToString("0", CultureInfo.InvariantCulture),
+            _ => null
+        };
+        var segment = text is null ? string.Empty : RoutePathBuilder.Slugify(text);
+        return segment.Length > 0
+            ? segment
+            : throw new ConfigException(
+                $"Permalink pattern \"{pattern}\" for content \"{source.Id}\" needs a text or whole-number field '{name}'.",
+                DiagnosticCode.RouteInvalidPattern);
+    }
+
+    [GeneratedRegex(@"\{fields\.(?<name>[A-Za-z_][A-Za-z0-9_-]*)\}", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
+    private static partial Regex FieldPlaceholderRegex();
 
     private static (RouteInfo Route, RouteSource Source) GenerateBaseRouteWithSource(
         RouteContentSource source,

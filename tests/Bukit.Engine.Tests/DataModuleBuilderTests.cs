@@ -177,6 +177,41 @@ public sealed class DataModuleBuilderTests
         Assert.Equal("Copyright", footer["copyright_text"]);
     }
 
+    [Theory]
+    [InlineData("custom.daysHint")]
+    [InlineData("custom.days.4-5.label")]
+    [InlineData("custom.days.10+.label")]
+    [InlineData("Title")]
+    public void BuildDataIndex_DottedCamelCaseKeys_AreKeptAsWritten(string key)
+        => Assert.Equal("Hello", ReadIndexed(CreateIndexedDocument("k", "copy", key, "Hello", "text"), "copy", key));
+
+    [Theory]
+    [InlineData("copy", ".hidden")]
+    [InlineData("copy", "has space")]
+    [InlineData("copy", "a/b")]
+    [InlineData("Copy", "title")]
+    [InlineData("copy.sub", "title")]
+    public void BuildDataIndex_UnsafeScopeOrKey_Throws(string scope, string key)
+    {
+        var ex = Assert.Throws<ContentException>(() =>
+            DataModuleBuilder.BuildDataIndex([CreateIndexedDocument("k", scope, key, "x", "text")], [CreateIndexedSource()]));
+
+        Assert.Contains("requires scopes to match ^[a-z][a-z0-9_]*$ and keys to match", ex.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void BuildDataIndex_RequiredDottedKey_IsFound()
+    {
+        var source = CreateIndexedSource() with
+        {
+            DataIndex = CreateIndexedSource().DataIndex! with { RequiredKeys = ["copy.custom.days.4-5.label"] }
+        };
+
+        var result = DataModuleBuilder.BuildDataIndex([CreateIndexedDocument("k", "copy", "custom.days.4-5.label", "4-5 days", "text")], [source]);
+
+        Assert.NotNull(result);
+    }
+
     [Fact]
     public void BuildDataIndex_DuplicateScopeAndKey_Throws()
     {

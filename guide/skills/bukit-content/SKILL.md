@@ -146,7 +146,9 @@ value_type: email      # required: text|multiline|email|phone|url|object|object[
 ---
 ```
 
-`scope` and `key` must match `^[a-z][a-z0-9_]*$`, each `scope` + `key` pair must be unique,
+`scope` must match `^[a-z][a-z0-9_]*$` and `key` `^[A-Za-z0-9][A-Za-z0-9._+-]*$` (dotted camelCase
+copy keys work; read them as `site.data_index.settings.copy["custom.daysHint"]`; in `requiredKeys`
+the first segment is the scope), each `scope` + `key` pair must be unique,
 and `email`/`url` values are validated. Template access:
 `{{ site.data_index.settings.contact.email }}`. A text type given a YAML mapping or list
 fails the build. `object` takes a mapping and `object[]` a list of mappings (YAML in

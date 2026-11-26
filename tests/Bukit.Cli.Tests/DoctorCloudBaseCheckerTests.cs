@@ -190,6 +190,51 @@ public sealed class DoctorCloudBaseCheckerTests
     }
 
     [Fact]
+    public async Task FilterEnvReference_QueriesWithTheResolvedValue()
+    {
+        var api = new FakeApi { Total = 1, Row = Row() };
+        var original = Environment.GetEnvironmentVariable("BUKIT_DOCTOR_RELEASE");
+        try
+        {
+            Environment.SetEnvironmentVariable("BUKIT_DOCTOR_RELEASE", "r42");
+            var output = await RunWithConfig(FilteredCloudBase(), Jwt("""{"role":"anon"}"""), api);
+
+            Assert.DoesNotContain("matched no rows", output, StringComparison.Ordinal);
+            Assert.Contains(api.Requests, uri => uri.Contains("release_id=eq.r42", StringComparison.Ordinal));
+            Assert.DoesNotContain(api.Requests, uri => uri.Contains("%24%7B", StringComparison.OrdinalIgnoreCase));
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable("BUKIT_DOCTOR_RELEASE", original);
+        }
+    }
+
+    [Fact]
+    public async Task FilterEnvReference_UnsetVariableFailsWithoutQuerying()
+    {
+        var api = new FakeApi { Total = 1, Row = Row() };
+        var original = Environment.GetEnvironmentVariable("BUKIT_DOCTOR_RELEASE");
+        try
+        {
+            Environment.SetEnvironmentVariable("BUKIT_DOCTOR_RELEASE", null);
+            var output = await RunWithConfig(FilteredCloudBase(), Jwt("""{"role":"anon"}"""), api);
+
+            Assert.Contains("✖", output, StringComparison.Ordinal);
+            Assert.Contains("BUKIT_DOCTOR_RELEASE, which is not set", output, StringComparison.Ordinal);
+            Assert.Empty(api.Requests);
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable("BUKIT_DOCTOR_RELEASE", original);
+        }
+    }
+
+    private static CloudBaseConfig FilteredCloudBase() => CloudBase() with
+    {
+        Filter = new CloudBaseFilterConfig { Field = "release_id", Value = "${env:BUKIT_DOCTOR_RELEASE}" }
+    };
+
+    [Fact]
     public async Task Output_DoesNotContainCredential()
     {
         var key = Jwt("""{"role":"service_role"}""");
@@ -345,11 +390,13 @@ public sealed class DoctorCloudBaseCheckerTests
         public int Total { get; init; }
         public string Row { get; init; } = "[]";
         public HttpStatusCode Status { get; init; } = HttpStatusCode.OK;
+        public List<string> Requests { get; } = [];
 
         protected override Task<HttpResponseMessage> SendAsync(
             HttpRequestMessage request,
             CancellationToken cancellationToken)
         {
+            Requests.Add(request.RequestUri?.ToString() ?? string.Empty);
             var response = new HttpResponseMessage(Status);
             if (request.Method == HttpMethod.Head)
             {

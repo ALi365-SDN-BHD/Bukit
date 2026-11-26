@@ -63,7 +63,8 @@ public sealed class I18nWorktreeProtocolTests : IDisposable
                         Collection = "route",
                         Field = "days[].attractions",
                         Target = new ContentLinkTargetConfig { Collection = "attraction", Key = "code" },
-                        Select = ["image"]
+                        Select = ["image"],
+                        Backref = new ContentLinkBackrefConfig { Name = "routes", Limit = 6, Select = ["region"] }
                     }
                 ]
             }
@@ -75,9 +76,149 @@ public sealed class I18nWorktreeProtocolTests : IDisposable
         var link = Assert.Single(restored.Content.Links);
         Assert.Equal(("route", "days[].attractions", "attraction", "code"), (link.Collection, link.Field, link.Target.Collection, link.Target.Key));
         Assert.Equal(["image"], link.Select);
+        Assert.Equal(("routes", 6, "region"), (link.Backref!.Name, link.Backref.Limit, Assert.Single(link.Backref.Select)));
         Assert.NotEqual(
             I18nWorktreeProtocol.ComputeConfigHash(config, new ConfigOverrides()),
             I18nWorktreeProtocol.ComputeConfigHash(config with { Content = config.Content with { Links = [] } }, new ConfigOverrides()));
+    }
+
+    [Fact]
+    public void WorkerConfig_KeepsDerivedFields()
+    {
+        var config = new AppConfig
+        {
+            Site = new SiteConfig { Name = "s", Title = "S" },
+            Content = new ContentConfig
+            {
+                DerivedFields = [new ContentDerivedFieldConfig { Collection = "city", Field = "seo_title", Value = "{{ name }}", Mode = "override" }]
+            }
+        };
+
+        var json = JsonSerializer.Serialize(config, I18nWorktreeJsonContext.Default.AppConfig);
+        var restored = JsonSerializer.Deserialize(json, I18nWorktreeJsonContext.Default.AppConfig)!;
+
+        var rule = Assert.Single(restored.Content.DerivedFields);
+        Assert.Equal(("city", "seo_title", "{{ name }}", "override"), (rule.Collection, rule.Field, rule.Value, rule.Mode));
+        Assert.NotEqual(
+            I18nWorktreeProtocol.ComputeConfigHash(config, new ConfigOverrides()),
+            I18nWorktreeProtocol.ComputeConfigHash(config with { Content = config.Content with { DerivedFields = [] } }, new ConfigOverrides()));
+    }
+
+    [Fact]
+    public void WorkerConfig_KeepsCollectionRouteWhen()
+    {
+        var config = new AppConfig
+        {
+            Site = new SiteConfig
+            {
+                Name = "s",
+                Title = "S",
+                Collections = new Dictionary<string, CollectionConfig>(StringComparer.OrdinalIgnoreCase)
+                {
+                    ["city"] = new() { Permalink = "/cities/{slug}/", RouteWhen = new CollectionRouteWhenConfig { Field = "has_page", Eq = "true" } }
+                }
+            },
+            Content = new ContentConfig()
+        };
+
+        var json = JsonSerializer.Serialize(config, I18nWorktreeJsonContext.Default.AppConfig);
+        var restored = JsonSerializer.Deserialize(json, I18nWorktreeJsonContext.Default.AppConfig)!;
+
+        var routeWhen = restored.Site.Collections!["city"].RouteWhen;
+        Assert.Equal(("has_page", "true"), (routeWhen?.Field, routeWhen?.Eq));
+        var without = config.Site with
+        {
+            Collections = new Dictionary<string, CollectionConfig>(StringComparer.OrdinalIgnoreCase) { ["city"] = new() { Permalink = "/cities/{slug}/" } }
+        };
+        Assert.NotEqual(
+            I18nWorktreeProtocol.ComputeConfigHash(config, new ConfigOverrides()),
+            I18nWorktreeProtocol.ComputeConfigHash(config with { Site = without }, new ConfigOverrides()));
+    }
+
+    [Fact]
+    public void WorkerConfig_KeepsSiteQueries()
+    {
+        var config = new AppConfig
+        {
+            Site = new SiteConfig
+            {
+                Name = "s",
+                Title = "S",
+                Queries =
+                [
+                    new SiteQueryConfig
+                    {
+                        Name = "top",
+                        From = "route",
+                        Where = [new SiteQueryFilterConfig { Field = "region", Values = ["north"] }, new SiteQueryFilterConfig { HasBackref = "routes" }],
+                        Sort = [new SiteQuerySortConfig { Field = "featured", Direction = "desc", Values = ["a"] }],
+                        Select = ["image"],
+                        Group = new SiteQueryGroupConfig { Field = "months", Values = ["1"] },
+                        Limit = 6
+                    }
+                ]
+            },
+            Content = new ContentConfig()
+        };
+
+        var json = JsonSerializer.Serialize(config, I18nWorktreeJsonContext.Default.AppConfig);
+        var restored = JsonSerializer.Deserialize(json, I18nWorktreeJsonContext.Default.AppConfig)!;
+
+        var query = Assert.Single(restored.Site.Queries);
+        Assert.Equal(("top", "route", 6, "image"), (query.Name, query.From, query.Limit, Assert.Single(query.Select)));
+        Assert.Equal(("region", "north", "routes"), (query.Where[0].Field, Assert.Single(query.Where[0].Values), query.Where[1].HasBackref));
+        Assert.Equal(("featured", "desc", "a"), (query.Sort[0].Field, query.Sort[0].Direction, Assert.Single(query.Sort[0].Values)));
+        Assert.Equal(("months", "1"), (query.Group!.Field, Assert.Single(query.Group.Values)));
+        Assert.NotEqual(
+            I18nWorktreeProtocol.ComputeConfigHash(config, new ConfigOverrides()),
+            I18nWorktreeProtocol.ComputeConfigHash(config with { Site = config.Site with { Queries = [] } }, new ConfigOverrides()));
+    }
+
+    [Fact]
+    public void WorkerConfig_KeepsRelatedFieldIndicesAndCollectionRules()
+    {
+        var config = new AppConfig
+        {
+            Site = new SiteConfig
+            {
+                Name = "s",
+                Title = "S",
+                Related = new RelatedConfig
+                {
+                    Indices = [new RelatedIndexConfig { Name = "field", Field = "region" }],
+                    Collections = [new RelatedCollectionConfig { Collection = "route", Threshold = 0, Limit = 4, Indices = [new RelatedIndexConfig { Name = "field", Field = "cities", Weight = 2 }] }]
+                }
+            },
+            Content = new ContentConfig()
+        };
+
+        var json = JsonSerializer.Serialize(config, I18nWorktreeJsonContext.Default.AppConfig);
+        var restored = JsonSerializer.Deserialize(json, I18nWorktreeJsonContext.Default.AppConfig)!.Site.Related;
+
+        Assert.Equal("region", Assert.Single(restored.Indices).Field);
+        var route = Assert.Single(restored.Collections);
+        Assert.Equal(("route", 0, 4, "cities", 2), (route.Collection, route.Threshold, route.Limit, Assert.Single(route.Indices).Field, route.Indices[0].Weight));
+    }
+
+    [Fact]
+    public void WorkerConfig_KeepsEnumLabels()
+    {
+        var config = new AppConfig
+        {
+            Site = new SiteConfig { Name = "s", Title = "S" },
+            Content = new ContentConfig
+            {
+                ModelSchema = new ContentModelSchemaConfig
+                {
+                    CustomFields = [new CustomFieldDefinitionConfig { Name = "audience", Enum = ["family"], EnumLabels = new Dictionary<string, string> { ["family"] = "亲子" } }]
+                }
+            }
+        };
+
+        var json = JsonSerializer.Serialize(config, I18nWorktreeJsonContext.Default.AppConfig);
+        var restored = JsonSerializer.Deserialize(json, I18nWorktreeJsonContext.Default.AppConfig)!;
+
+        Assert.Equal("亲子", restored.Content.ModelSchema!.CustomFields![0].EnumLabels!["family"]);
     }
 
     [Fact]

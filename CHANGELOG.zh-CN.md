@@ -4,6 +4,28 @@ Bukit 所有重要变更都将记录在此文件中。
 
 ## [Unreleased]
 
+- **CloudBase 离线构建。** `--content-snapshot <dir>` 会和 Notion 数据一起记录每个 CloudBase 表的公开行（映射列、`fileFields` 和 `fieldPolicy` 允许的列；个人列、嵌套的个人键和签名链接一律不保存），`--content-offline` 用它构建、检查和运行 `doctor`，不需要 `CLOUDBASE_PUBLISHABLE_KEY`，也不联网。文件字段复用本地媒体缓存，缓存中没有的对象使用媒体占位图。每个来源单独记录，同一张表上的两个来源不会共用行。离线构建时如果 `${env:...}` 给出的筛选值不同或来源设置已改，会以 `BKT-0B13` 失败；快照里没有的表以 `BKT-0B11` 失败。`--notion-snapshot` 和 `--notion-offline` 保留为别名，已有快照继续有效。
+
+- **枚举标签。** `content.modelSchema` 的 `enum` 项可以写成 `{ value, label }`。模板按定义顺序用 `site.field_enums.<field>` 读取选项（集合作用域的字段在 `site.field_enums.scopes.<collection>.<field>`），标签不再需要单独的数据文件。同一个 `enum` 里重复的值现在会让配置报错（以前可以加载）。
+
+- **CloudBase 按发布版本构建。** `cloudbase.filter.value` 可以读取 `${env:NAME}`（例如 `"${env:RELEASE_ID}"`），在构建读取数据表时解析。变量未设置或为空时构建失败，不会用空值查询。CloudBase 指南说明了“当前线上版本”视图的写法，以及用 Publishable Key 读取未上线版本时的公开窗口。
+
+- **dataIndex 键名支持点号。** `dataIndex` 的键现在接受 `^[A-Za-z0-9][A-Za-z0-9._+-]*$`，`custom.daysHint`、`custom.days.4-5.label` 这类文案键可以原样使用（模板里用方括号读取）。范围（scope）和来源名仍是 `^[a-z][a-z0-9_]*$`；`requiredKeys` 以第一段作为范围，键名区分大小写。
+
+- **按自定义字段计算相关页面。** `site.related.indices[].field` 可以按任意内容字段的共同值计分，`site.related.collections.<collection>` 给单个集合单独的规则（只在该集合内比较；`threshold` 可以为 0）。结果条目新增 `id` 和 `slug`，同分时保持集合列表顺序。
+
+- **命名查询。** `site.queries.<name>: { from, where, sort, select, distinct, group, limit }` 从一个集合（有页面的条目和没有页面的条目）生成有序列表，模板里用 `site.queries.<name>` 读取。筛选规则与 filteredLists 一致，并支持 `hasBackref`（必须是 `from` 集合上的反向引用）；分组和去重可以做“按月份的路线”“景点类型”这类列表。
+
+- **派生字段。** `content.derivedFields.<collection>.<field>: { value, mode }` 用 Scriban 模板根据页面自身字段（包括 `<field>_links`）计算页面字段，例如用中英文名拼出 SEO 标题。`seo.describe <width>` 按显示宽度截取描述。模板结果是确定的。`config check` 会拒绝无法解析的模板，内容链接写入的字段不能再派生，运行时失败（包括依赖链接数据的失败）按 `schemaFailMode` 报告为 `content.derived_field_failed`。
+
+- **permalink 字段占位符**：集合 permalink 和 `site.permalinks` 可以用 `{fields.<name>}`，取顶层文本或整数字段的值并做 slug 化，例如 `/malaysia/{fields.city}/attractions/{slug}/`。字段缺失、为空或 slug 化后为空的页面会让构建以 `RouteInvalidPattern` 失败；网址重复时照旧报路由冲突。见 [04 site.yaml 配置](guide/user/04-site-yaml-config.md#collections)。
+
+- **CloudBase data 模式的文件字段**：`mode: data` 的 CloudBase 源现在可以配置 `fileFields`。文件引用和 content 模式一样签名并下载到本地，图库照片这类数据行也能得到文件名稳定的本地文件；其他含 `cloud://` 的字段仍会被丢弃。媒体前提条件不变（`downloadToLocal`、`fieldKeys`、`onFailure: placeholder` 和 CloudBase 主机）。见 [27 CloudBase 内容源](guide/user/27-cloudbase-content.md)。
+
+- **部分条目不出页面**：`site.collections.<name>.routeWhen: { field, eq }` 只给顶层字段等于该值的条目出页面（文本不区分大小写，也可以是布尔值或整数）。其余条目不进集合列表、feed、sitemap、搜索和任何页面输出，但仍然会加载，`content.links` 照样可以引用它们（链接的 `url` 为 null）。这些条目自己不解析引用，也没有反链列表。见 [04 site.yaml 配置](guide/user/04-site-yaml-config.md#entries-without-a-page)。
+
+- **内容反向索引**：`content.links` 条目可以加 `backref: { name, limit, select }`。每个目标页会列出引用它的内容页：`<name>` 里每条含 `key`（引用页的 slug）、`title`、`slug`、`url`、`collection` 和 `select` 列出的字段，按集合列表顺序排列，同一页只出现一次，最多 `limit` 条（`0` 表示不限）。`<name>_count` 是截断前的总数。目标集合的每个页面都会有这两个字段，没人引用时为空列表和 0；data 目标没有。同一集合里同一个字段被写两次时，加载配置就报错；目标页已有同名字段时保留原值，并按该页所在集合的 `schemaFailMode` 报告。引用页变化时，增量构建会重建目标页。见 [04 site.yaml 配置](guide/user/04-site-yaml-config.md#backrefs)。
+
 - **内部文件不再进入部署；build-report 路径可移植**：`bukit deploy`（GitHub Pages）不再把 `*.bukit-freshness.json` 图片新鲜度旁路文件复制到发布分支，发布校验和也不再列出它们；`.bukit/` 目录（包括 `<lang>/.bukit/`）以及根目录的状态与标记文件此前已被排除。`build-report.json` 的 `project.root` 现在写为 `.`，`project.output` 写为相对项目根目录的路径（绝对的 `build.output` 或 worktree 构建的暂存目录不再泄露），不再包含本地绝对路径。这些文件仍保留在输出目录中，供审计和增量构建读取；自行上传输出目录的部署方应排除 [10 内置输出](guide/user/10-built-in-outputs.md#public-and-internal-output-boundary) 中列出的内部文件。
 
 - **分类种类标签按语言设置，派生页带上语言**：`taxonomy.kinds[].i18n.<lang>` 可为某一语言的构建设置种类的 `title`、`description` 和 `singularTitlePrefix`，因此种类标签为中文的站点在英文构建中，词条页标题是 `Tag: Malaysia` 而不是 `标签: Malaysia`，HTML 与 Markdown、JSON 表示一致。未设置的标签沿用种类本身的值；语言键必须是 `site.languages` 中的条目。派生的分类、分页和归档页面现在带有派生它们的构建语言，因此多语言站点中它们的表示、agent manifest 条目和 JSON-LD 写出该语言而不是 `und`；升级后第一次增量构建会重新渲染这些页面。见 [11 I18n And SEO](guide/user/11-i18n-seo.md#taxonomy-metadata-language)。

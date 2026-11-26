@@ -44,6 +44,29 @@ public sealed partial class ImageAssetLocalizerTests
             Assert.Equal(0, offline.RequestCount);
         });
 
+    [Fact]
+    public async Task LocalizeAsync_CloudBaseOfflineCacheMiss_UsesThePlaceholderNotTheGateway()
+        => await WithTempDirAsync(async dir =>
+        {
+            const string recorded = "https://env-abc.api.tcloudbasegateway.com/v1/storages/object/sign/media/posts/a.png";
+            var offline = new CountingHandler(HttpStatusCode.OK, "image/png", "never");
+            using (NotionSnapshotScope.Enter(new OfflineHandle()))
+            {
+                // The media cache directory is missing, then present but without the object.
+                using (var localizer = CreateLocalizer(ControlConfig(Path.Combine(dir, "missing")), offline))
+                {
+                    Assert.Equal("/assets/images/noneimg-news.jpg", await localizer.LocalizeAsync(recorded, CancellationToken.None));
+                }
+
+                using (var localizer = CreateLocalizer(ControlConfig(dir), offline))
+                {
+                    Assert.Equal("/assets/images/noneimg-news.jpg", await localizer.LocalizeAsync(recorded, CancellationToken.None));
+                }
+            }
+
+            Assert.Equal(0, offline.RequestCount);
+        });
+
     private sealed class OfflineHandle : INotionSnapshotHandle
     {
         public string Directory => "unused";
