@@ -216,7 +216,7 @@ limit (`routes_count`). Only target pages get it; data targets do not.
 template over the page's own top-level fields (`<field>_links` included), in the order written.
 `mode: default` fills only a missing or empty field; `override` always writes. `seo.describe 150`
 makes a plain description by display width (CJK counts 2). The clock and random functions are
-not available. Built-in names such as `slug` or `title`, and fields a link writes (`<field>_links`,
+not available (calling one is a runtime failure). Built-in names such as `slug` or `title`, and fields a link writes (`<field>_links`,
 backref names, `<name>_count`), are rejected. `config check` fails on a template that does not
 parse; runtime failures are reported as `content.derived_field_failed`. Derived fields run after
 routing and links, so permalinks, `routeWhen` and link `select` cannot read them, and entries

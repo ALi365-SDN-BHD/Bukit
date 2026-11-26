@@ -555,7 +555,7 @@ content:
 - Values run in the order written, so a later value can read an earlier one.
 - The result is trimmed text. Writing `summary`, `description` or `excerpt` also updates the page summary that lists and SEO read.
 - `seo.describe <width>` turns text into a plain description of at most that many display columns (a CJK character counts as two). It removes tags, prefers to cut after a sentence end, and otherwise cuts with `…`.
-- Templates run with the invariant culture and a loop limit of 1000. The clock and random functions (`now`, `random` and `uuid`) are not available, so the same content builds the same value every time.
+- Templates run with the invariant culture and a loop limit of 1000. The clock and random functions (`now`, `random` and `uuid`) are not available, so the same content builds the same value every time; calling one is a runtime failure (`content.derived_field_failed`).
 - A value can read only its own page. It cannot read other pages or `site` data.
 
 The build runs routing, then content links, then derived fields, then

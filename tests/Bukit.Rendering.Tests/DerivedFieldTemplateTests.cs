@@ -38,15 +38,16 @@ public sealed class DerivedFieldTemplateTests
         }
     }
 
-    [Fact]
-    public void Render_ClockIsUnavailable()
-        => Assert.Equal(string.Empty, Parse("{{ date.now }}").Render(null));
-
-    [Fact]
-    public void Render_RandomFunctionsAreUnavailable()
+    [Theory]
+    [InlineData("{{ date.now }}", "date.now")]
+    [InlineData("{{ date.now | date.to_string '%Y' }}", "date.now")]
+    [InlineData("{{ math.uuid }}", "math.uuid")]
+    [InlineData("{{ math.random 1 10 }}", "math.random")]
+    public void Render_ClockAndRandomFunctionsFailWithTheirName(string template, string name)
     {
-        Assert.ThrowsAny<ScriptRuntimeException>(() => Parse("{{ math.random 1 10 }}").Render(null));
-        Assert.Equal(string.Empty, Parse("{{ math.uuid }}").Render(null));
+        var exception = Assert.ThrowsAny<ScriptRuntimeException>(() => Parse(template).Render(null));
+
+        Assert.Contains($"{name} is not available in derived fields", exception.Message, StringComparison.Ordinal);
     }
 
     [Fact]

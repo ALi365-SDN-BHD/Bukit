@@ -72,12 +72,17 @@ internal sealed partial class DerivedFieldTemplate
     private static BuiltinFunctions CreateBuiltins()
     {
         var builtins = new BuiltinFunctions();
-        // A value must not change between builds of the same content.
-        (builtins["date"] as ScriptObject)?.Remove("now");
+        // A value must not change between builds of the same content, so the clock and random
+        // functions fail loudly instead of reading as an empty variable.
+        if (builtins["date"] is ScriptObject date)
+        {
+            date.SetValue("now", new UnavailableFunction("date.now"), readOnly: true);
+        }
+
         if (builtins["math"] is ScriptObject math)
         {
-            math.Remove("random");
-            math.Remove("uuid");
+            math.SetValue("random", new UnavailableFunction("math.random"), readOnly: true);
+            math.SetValue("uuid", new UnavailableFunction("math.uuid"), readOnly: true);
         }
 
         var seo = new ScriptObject();
@@ -150,6 +155,23 @@ internal sealed partial class DerivedFieldTemplate
             var text = arguments[0] is null ? null : context.ObjectToString(arguments[0]);
             return Describe(text, context.ToInt(callerContext?.Span ?? default, arguments[1]));
         }
+
+        public ValueTask<object?> InvokeAsync(TemplateContext context, ScriptNode? callerContext, ScriptArray arguments, ScriptBlockStatement? blockStatement)
+            => new(Invoke(context, callerContext, arguments, blockStatement));
+    }
+
+    /// <summary>A built-in removed from derived fields: any call is a runtime error naming it.</summary>
+    private sealed class UnavailableFunction(string name) : IScriptCustomFunction
+    {
+        public int RequiredParameterCount => 0;
+        public int ParameterCount => 0;
+        public ScriptVarParamKind VarParamKind => ScriptVarParamKind.Direct;
+        public Type ReturnType => typeof(object);
+
+        public ScriptParameterInfo GetParameterInfo(int index) => new(typeof(object), "value");
+
+        public object? Invoke(TemplateContext context, ScriptNode? callerContext, ScriptArray arguments, ScriptBlockStatement? blockStatement)
+            => throw new ScriptRuntimeException(callerContext?.Span ?? default, $"{name} is not available in derived fields, which must build the same value every time.");
 
         public ValueTask<object?> InvokeAsync(TemplateContext context, ScriptNode? callerContext, ScriptArray arguments, ScriptBlockStatement? blockStatement)
             => new(Invoke(context, callerContext, arguments, blockStatement));
