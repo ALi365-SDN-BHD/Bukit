@@ -959,6 +959,10 @@ public sealed class CloudBaseContentSourceTests
                 Bukit.Content.CloudBase.CloudBaseSnapshot.EnsureSource(offline, reordered(Options()));
                 Assert.Throws<Bukit.Content.Notion.Snapshot.NotionSnapshotException>(
                     () => Bukit.Content.CloudBase.CloudBaseSnapshot.EnsureSource(offline, reordered(Options()) with { AllowedFields = ["deep", "CITY", "tags"] }));
+                // The query keeps the first of names differing only in case, so that order counts.
+                Bukit.Content.CloudBase.CloudBaseSnapshot.EnsureSource(offline, reordered(Options()) with { AllowedFields = ["deep", "city", "tags", "City"] });
+                Assert.Throws<Bukit.Content.Notion.Snapshot.NotionSnapshotException>(
+                    () => Bukit.Content.CloudBase.CloudBaseSnapshot.EnsureSource(offline, reordered(Options()) with { AllowedFields = ["deep", "City", "tags", "city"] }));
 
                 var data = await Assert.ThrowsAsync<Bukit.Content.Notion.Snapshot.NotionSnapshotException>(
                     () => Create(offlineApi, options => reordered(options) with { Mode = "data" }).LoadRawAsync());

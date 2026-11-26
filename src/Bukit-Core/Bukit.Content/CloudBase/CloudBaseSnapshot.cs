@@ -333,9 +333,12 @@ internal sealed class CloudBaseSnapshot : IDisposable
     private static string PublishesId(CloudBaseContentSourceOptions options)
         => options.AllowedFields?.Contains(options.IdField, StringComparer.OrdinalIgnoreCase) is true ? "ID" : string.Empty;
 
-    /// <summary>Columns are read and selected by their exact names, so only the order is ignored.</summary>
+    /// <summary>
+    /// The columns a list selects, hashed ignoring order. Columns are selected by their exact names,
+    /// and of names differing only in case the query keeps the first, so that spelling is hashed.
+    /// </summary>
     private static string NameSet(IEnumerable<string>? names)
-        => string.Join('\u001f', (names ?? []).Select(name => name.Trim()).Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal));
+        => string.Join('\u001f', (names ?? []).Select(name => name.Trim()).Distinct(StringComparer.OrdinalIgnoreCase).Order(StringComparer.Ordinal));
 
     private static string EntryPath(CloudBaseContentSourceOptions options)
         => Path.Combine(
