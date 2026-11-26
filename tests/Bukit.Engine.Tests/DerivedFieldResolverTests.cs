@@ -181,6 +181,32 @@ public sealed class DerivedFieldResolverTests
     }
 
     [Fact]
+    public void RoutePipeline_LanguageVariantResolvesRelationsAgainstTheWholeSite()
+    {
+        // A multilingual build hands the route stage one language; the content graph has the rest.
+        var config = Config(Content(Rule("summary", "{{ name }}"))) with
+        {
+            Site = new SiteConfig
+            {
+                Name = "t",
+                Title = "t",
+                Languages = ["en", "zh"],
+                DefaultLanguage = "en",
+                Language = "en",
+                Collections = new Dictionary<string, CollectionConfig>(StringComparer.OrdinalIgnoreCase)
+                {
+                    ["city"] = new() { Permalink = "/cities/{slug}/", Template = "city.html" }
+                }
+            }
+        };
+        var english = Page("kl", "city", ("language", "en"), ("name", "KL"), ("related_to", "zh-only"));
+        ContentDocument[] site = [english, Page("zh-only", "post", ("language", "zh"))];
+
+        Assert.Empty(new RoutePipeline().Execute(config, [english], siteDocuments: site).DerivedFieldIssues);
+        Assert.Equal("kl", Assert.Single(new RoutePipeline().Execute(config, [english]).DerivedFieldIssues).SourcePath);
+    }
+
+    [Fact]
     public void Apply_DerivedPublishFields_UpdateThePublishPolicy()
     {
         var content = Content(Rule("noindex", "{{ if thin }}true{{ end }}", "override"), Rule("sitemapExclude", "true", "override"));

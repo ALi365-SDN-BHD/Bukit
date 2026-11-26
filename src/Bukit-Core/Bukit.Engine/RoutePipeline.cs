@@ -30,9 +30,18 @@ internal sealed record RoutePipelineResult(
 
 internal sealed class RoutePipeline
 {
-    public RoutePipelineResult Execute(AppConfig config, IReadOnlyList<ContentDocument> documents, ThemeTemplateResolver? templateResolver = null)
+    /// <param name="siteDocuments">
+    /// Every content document of the site, all languages, for the relation targets of derived-value
+    /// checks; defaults to <paramref name="documents"/>, which a multilingual build has already filtered
+    /// to one language.
+    /// </param>
+    public RoutePipelineResult Execute(
+        AppConfig config,
+        IReadOnlyList<ContentDocument> documents,
+        ThemeTemplateResolver? templateResolver = null,
+        IReadOnlyList<ContentDocument>? siteDocuments = null)
     {
-        var siteDocuments = documents;
+        siteDocuments = siteDocuments is { Count: > 0 } ? siteDocuments : documents;
         var siteLanguages = I18nOutputMerger.GetLanguages(config.Site);
         if (siteLanguages.Count == 0)
         {

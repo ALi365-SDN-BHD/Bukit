@@ -31,7 +31,9 @@ internal static class VariantRouteStage
         var routeResult = new RoutePipeline().Execute(
             context.Config,
             context.Documents,
-            templateResolver);
+            templateResolver,
+            // The variant documents are one language; the content graph holds the whole site.
+            context.ContentGraph.Documents);
         routeGenerationStopwatch.Stop();
         DerivedFieldResolver.Report(context.Config, context.Documents, routeResult.DerivedFieldIssues, logger);
         WarnDecodedRouteUrls(routeResult.RoutedDocuments, logger);
