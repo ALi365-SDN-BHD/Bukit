@@ -4,6 +4,8 @@ Bukit 所有重要变更都将记录在此文件中。
 
 ## [Unreleased]
 
+- **派生字段与 CloudBase 检查。** 派生字段不能再写路由字段（`url`、`outputPath`、`template`、`permalink`、`listGroup`，路由已经读过它们），也不能写 `content.modelSchema` 声明为 `number`、`bool` 或 `list` 的字段，这两种情况现在都会使配置失败。有派生规则的集合中的页面只检查一次，在派生之后进行，所以派生出的摘要或作者可以满足 `requireSummary` 或 `requireAuthor`，派生的 `noindex`、`robots` 以及 feed、搜索和 sitemap 排除也会生效。没有派生规则的构建不再重建插件内容图，语言 worker 查找 `site.collections` 时不区分大小写。设置了 `storageBucket` 的 `mode: content` CloudBase 来源会给正文 `cloud://` 图片签名，因此即使没有 `fileFields`，也需要 `downloadToLocal`、`onFailure: placeholder` 和 CloudBase 媒体主机。
+
 - **CloudBase 离线构建。** `--content-snapshot <dir>` 会和 Notion 数据一起记录每个 CloudBase 表的公开行（映射列、`fileFields` 和 `fieldPolicy` 允许的列；个人列、嵌套的个人键和签名链接一律不保存），`--content-offline` 用它构建、检查和运行 `doctor`，不需要 `CLOUDBASE_PUBLISHABLE_KEY`，也不联网。文件字段复用本地媒体缓存，缓存中没有的对象使用媒体占位图。每个来源单独记录，同一张表上的两个来源不会共用行。离线构建时如果 `${env:...}` 给出的筛选值不同或来源设置已改，会以 `BKT-0B13` 失败；快照里没有的表以 `BKT-0B11` 失败。`--notion-snapshot` 和 `--notion-offline` 保留为别名，已有快照继续有效。
 
 - **枚举标签。** `content.modelSchema` 的 `enum` 项可以写成 `{ value, label }`。模板按定义顺序用 `site.field_enums.<field>` 读取选项（集合作用域的字段在 `site.field_enums.scopes.<collection>.<field>`），标签不再需要单独的数据文件。同一个 `enum` 里重复的值现在会让配置报错（以前可以加载）。

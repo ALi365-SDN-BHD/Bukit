@@ -149,57 +149,66 @@ internal static partial class ProviderValidators
 
     private static void ValidateCloudBaseFileFields(CloudBaseConfig cloudBase, string pathPrefix, string mode, MediaConfig media)
     {
-        if (cloudBase.FileFields.Count == 0)
+        if (cloudBase.StorageBucket is not null && !CloudBaseBucketRegex().IsMatch(cloudBase.StorageBucket))
         {
-            if (cloudBase.StorageBucket is not null && !CloudBaseBucketRegex().IsMatch(cloudBase.StorageBucket))
+            throw CloudBaseInvalid($"{pathPrefix}.storageBucket must match ^[a-z0-9][a-z0-9._-]{{0,62}}$.");
+        }
+
+        if (cloudBase.FileFields.Count > 0)
+        {
+            foreach (var field in cloudBase.FileFields)
             {
-                throw CloudBaseInvalid($"{pathPrefix}.storageBucket must match ^[a-z0-9][a-z0-9._-]{{0,62}}$.");
+                if (CloudBaseFieldRules.IsHardExcluded(field))
+                {
+                    throw CloudBaseInvalid($"{pathPrefix}.fileFields entry '{field}' is a reserved personal field.");
+                }
             }
 
+            if (cloudBase.FileFields.Any(string.IsNullOrWhiteSpace))
+            {
+                throw CloudBaseInvalid($"{pathPrefix}.fileFields must not contain empty names.");
+            }
+
+            if (string.IsNullOrWhiteSpace(cloudBase.StorageBucket))
+            {
+                throw CloudBaseInvalid($"{pathPrefix}.storageBucket is required when fileFields is non-empty and must match ^[a-z0-9][a-z0-9._-]{{0,62}}$.");
+            }
+
+            foreach (var field in cloudBase.FileFields)
+            {
+                if (!media.FieldKeys.Contains(field, StringComparer.Ordinal))
+                {
+                    throw CloudBaseInvalid($"{pathPrefix}.fileFields entry '{field}' is not listed in content.media.fieldKeys.");
+                }
+            }
+        }
+
+        // Body cloud:// images are signed in content mode whenever a bucket is set, so the signed
+        // link (and its token) must always go through media localization.
+        if (!SignsCloudBaseFiles(cloudBase, mode))
+        {
             return;
         }
 
-        foreach (var field in cloudBase.FileFields)
-        {
-            if (CloudBaseFieldRules.IsHardExcluded(field))
-            {
-                throw CloudBaseInvalid($"{pathPrefix}.fileFields entry '{field}' is a reserved personal field.");
-            }
-        }
-
-        if (cloudBase.FileFields.Any(string.IsNullOrWhiteSpace))
-        {
-            throw CloudBaseInvalid($"{pathPrefix}.fileFields must not contain empty names.");
-        }
-
-        if (string.IsNullOrWhiteSpace(cloudBase.StorageBucket) ||
-            !CloudBaseBucketRegex().IsMatch(cloudBase.StorageBucket))
-        {
-            throw CloudBaseInvalid($"{pathPrefix}.storageBucket is required when fileFields is non-empty and must match ^[a-z0-9][a-z0-9._-]{{0,62}}$.");
-        }
-
+        var owner = cloudBase.FileFields.Count > 0 ? $"{pathPrefix}.fileFields" : $"{pathPrefix}.storageBucket";
         if (!media.DownloadToLocal)
         {
-            throw CloudBaseInvalid($"{pathPrefix}.fileFields requires content.media.downloadToLocal to be true.");
-        }
-
-        foreach (var field in cloudBase.FileFields)
-        {
-            if (!media.FieldKeys.Contains(field, StringComparer.Ordinal))
-            {
-                throw CloudBaseInvalid($"{pathPrefix}.fileFields entry '{field}' is not listed in content.media.fieldKeys.");
-            }
+            throw CloudBaseInvalid($"{owner} requires content.media.downloadToLocal to be true.");
         }
 
         if (!string.Equals(media.OnFailure.Trim(), "placeholder", StringComparison.OrdinalIgnoreCase))
         {
-            throw CloudBaseInvalid($"{pathPrefix}.fileFields requires content.media.onFailure to be placeholder.");
+            throw CloudBaseInvalid($"{owner} requires content.media.onFailure to be placeholder.");
         }
 
-        ValidateCloudBaseMediaHosts(cloudBase, pathPrefix, media);
+        ValidateCloudBaseMediaHosts(cloudBase, owner, media);
     }
 
-    private static void ValidateCloudBaseMediaHosts(CloudBaseConfig cloudBase, string pathPrefix, MediaConfig media)
+    /// <summary>Whether a CloudBase source signs storage objects (file fields, or body images in content mode).</summary>
+    internal static bool SignsCloudBaseFiles(CloudBaseConfig cloudBase, string mode) =>
+        cloudBase.FileFields.Count > 0 || (mode == "content" && !string.IsNullOrWhiteSpace(cloudBase.StorageBucket));
+
+    private static void ValidateCloudBaseMediaHosts(CloudBaseConfig cloudBase, string owner, MediaConfig media)
     {
         var gateway = cloudBase.Region == "intl"
             ? $"{cloudBase.EnvId}.api.intl.tcloudbasegateway.com"
@@ -212,7 +221,7 @@ internal static partial class ProviderValidators
             if (excluded)
             {
                 throw new ConfigException(
-                    $"{pathPrefix}.fileFields requires content.media.downloadHosts/skipHosts to include {host}.",
+                    $"{owner} requires content.media.downloadHosts/skipHosts to include {host}.",
                     DiagnosticCode.CloudBaseMediaLocalizationRequired);
             }
         }

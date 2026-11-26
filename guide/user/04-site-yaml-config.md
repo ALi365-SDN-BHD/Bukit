@@ -565,17 +565,22 @@ Incremental builds rebuild a page when a derived value changes. Because of this 
 value cannot be used in a permalink `{fields.<name>}`, in `routeWhen`, or in a link's `select`
 (the selected field is captured before it is derived), and entries without a page do not get
 derived values. Field names must be valid names and cannot be built-in fields such as `slug`,
-`title`, `route` or `language`, or a field that a content link writes in that collection
-(`<field>_links`, a backref name or `<name>_count`). `bukit config check` and the start of a build
+`title`, `route` or `language`, route fields that routing has already read (`url`, `outputPath`,
+`template`, `permalink` and `listGroup`), or a field that a content link writes in that collection
+(`<field>_links`, a backref name or `<name>_count`). A derived value is text, so a field that
+`content.modelSchema` declares as `number`, `bool` or `list` (in `customFields` or that collection's
+`fieldScopes`) cannot be derived. `bukit config check` and the start of a build
 fail on a template that does not parse. A template that fails on a page (for example, by hitting
 the loop limit while reading its links) leaves the field unchanged and is reported
 (`content.derived_field_failed`) under the collection's `schemaFailMode`.
 
-A derived value counts everywhere the page's own field would: `content.modelSchema` checks (such as
-`required` or `enum`, and record checks such as `requireAuthor`) run on the derived value under the
-collection's `schemaFailMode`, so a `default` rule can fill a required field, and
-the summary, `tags`, `categories` and images that SEO, search, related pages and `site.data.pages_by_id`
-read come from the derived fields.
+A derived value counts everywhere the page's own field would. The content checks of a page in a
+collection with derived rules (`content.modelSchema` field checks such as `required` or `enum` on
+the derived fields, and record checks such as `requireAuthor` or `requireSummary`) run once, on the
+derived values, under the collection's `schemaFailMode`, so a `default` rule can fill a required
+field. The summary, `tags`, `categories` and images that SEO, search, related pages and
+`site.data.pages_by_id` read come from the derived fields, and so do `noindex`, `robots` and the
+feed, search and sitemap exclusions.
 
 ## Content Media
 

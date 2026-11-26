@@ -29,6 +29,8 @@ internal static class DerivedFieldResolver
 
     private const string FieldIssuePrefix = "fields.";
 
+    private const string IdentityIssuePrefix = "identity.";
+
     /// <param name="problems">Receives one issue per runtime error; null drops them.</param>
     /// <param name="schema">
     /// The content model the canonical record of a derived page is rebuilt with, so its summary,
@@ -58,119 +60,144 @@ internal static class DerivedFieldResolver
     }
 
     /// <summary>
-    /// Replaces the content graph documents and records that <see cref="Apply"/> derived (same id and
-    /// language), so consumers that read the graph (the page index, related pages) see the derived values.
+    /// The keys (id and language) of the pages <see cref="Apply"/> changed: <paramref name="routed"/> is
+    /// its result for <paramref name="before"/>, in the same order.
     /// </summary>
-    internal static CanonicalContentGraph ProjectRecords(CanonicalContentGraph graph, IReadOnlyList<RoutedContentDocument> routed)
+    internal static IReadOnlySet<string> DerivedKeys(IReadOnlyList<RoutedContentDocument> before, IReadOnlyList<RoutedContentDocument> routed)
     {
+        var keys = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        for (var i = 0; i < routed.Count; i++)
+        {
+            if (!ReferenceEquals(before[i].Document, routed[i].Document))
+            {
+                keys.Add(RecordKey(routed[i].Document.Record));
+            }
+        }
+
+        return keys;
+    }
+
+    /// <summary>
+    /// Replaces the content graph documents and records of the derived pages (<paramref name="derivedKeys"/>
+    /// from <see cref="DerivedKeys"/>), so consumers that read the graph (the page index, related pages)
+    /// see the derived values. Every other graph document is kept as it is.
+    /// </summary>
+    internal static CanonicalContentGraph ProjectRecords(
+        CanonicalContentGraph graph,
+        IReadOnlyList<RoutedContentDocument> routed,
+        IReadOnlySet<string> derivedKeys)
+    {
+        if (derivedKeys.Count == 0)
+        {
+            return graph;
+        }
+
         var derived = new Dictionary<string, ContentDocument>(StringComparer.OrdinalIgnoreCase);
-        var originals = graph.Documents
-            .GroupBy(document => RecordKey(document.Record), StringComparer.OrdinalIgnoreCase)
-            .ToDictionary(group => group.Key, group => group.First().Record, StringComparer.OrdinalIgnoreCase);
         foreach (var page in routed)
         {
             var key = RecordKey(page.Document.Record);
-            if (originals.TryGetValue(key, out var original) && !ReferenceEquals(original, page.Document.Record))
+            if (derivedKeys.Contains(key))
             {
                 derived.TryAdd(key, page.Document);
             }
         }
 
-        return derived.Count == 0
-            ? graph
-            : CanonicalContentGraphBuilder.BuildFromDocuments(
-                [.. graph.Documents.Select(document => derived.TryGetValue(RecordKey(document.Record), out var replacement) ? replacement : document)]);
+        return CanonicalContentGraphBuilder.BuildFromDocuments(
+            [.. graph.Documents.Select(document => derived.TryGetValue(RecordKey(document.Record), out var replacement) ? replacement : document)]);
     }
 
     /// <summary>
-    /// True for a content model issue on a field a derived rule writes in the page's collection: it is
-    /// checked by <see cref="ValidateDerived"/> on the derived values instead of on the source values.
+    /// True for a canonical or content model issue the validate stage leaves to <see cref="ValidateDerived"/>:
+    /// any issue of a page in a collection with derived rules, except identity issues (identity cannot be
+    /// derived) and checks of fields no rule writes (they keep their source values).
     /// </summary>
-    internal static bool IsDerivedFieldIssue(
-        ContentConfig content,
-        ContentValidationIssue issue,
-        IReadOnlyDictionary<string, ContentDocument> documentsById)
-        => content.DerivedFields.Count > 0 &&
-           issue.Field.StartsWith(FieldIssuePrefix, StringComparison.Ordinal) &&
-           issue.SourcePath is { } id &&
-           documentsById.TryGetValue(id, out var document) &&
-           ContentFieldReader.GetCollection(document) is { } collection &&
-           content.DerivedFields.Any(rule =>
-               string.Equals(rule.Collection, collection, StringComparison.OrdinalIgnoreCase) &&
-               string.Equals(rule.Field, issue.Field[FieldIssuePrefix.Length..], StringComparison.OrdinalIgnoreCase));
+    internal static bool DefersCheck(AppConfig config, ContentValidationIssue issue, IReadOnlyDictionary<string, ContentDocument> documentsById)
+        => DerivedPageCollection(config, issue.SourcePath, documentsById) is { } collection &&
+           IsDeferredCheck(config.Content, collection, issue);
 
     /// <summary>
-    /// Checks the derived values: the content model checks of the derived fields, on the derived pages
-    /// and on the entries of the same collections without a page (which keep their source values), and
-    /// the canonical checks that a rebuilt record newly fails (such as a cleared required author).
+    /// True for a required-field diagnostic of the normalizer on a field a derived rule writes on that page:
+    /// <see cref="ValidateDerived"/> repeats the check on the derived value.
     /// </summary>
-    internal static IEnumerable<ContentValidationIssue> ValidateDerived(
-        AppConfig config,
-        ContentModelSchema schema,
-        IReadOnlyList<RoutedContentDocument> before,
-        IReadOnlyList<RoutedContentDocument> routed,
-        IReadOnlyList<ContentDocument> withoutPage)
-        => config.Content.DerivedFields.Count == 0
-            ? []
-            : ValidateSchema(config.Content, schema, routed, withoutPage).Concat(ValidateRebuiltRecords(config, schema, before, routed, withoutPage));
+    internal static bool DefersRequiredDiagnostic(AppConfig config, ContentValidationIssue issue, IReadOnlyDictionary<string, ContentDocument> documentsById)
+        => RequiredFieldCodes.Contains(issue.Code) &&
+           DerivedPageCollection(config, issue.SourcePath, documentsById) is { } collection &&
+           WritesField(config.Content, collection, issue.Field);
 
-    private static IEnumerable<ContentValidationIssue> ValidateSchema(
-        ContentConfig content,
+    /// <summary>
+    /// Runs the checks the validate stage deferred (see <see cref="DefersCheck"/> and
+    /// <see cref="DefersRequiredDiagnostic"/>) on the routed pages of the collections with derived rules,
+    /// after derivation. Relation targets resolve against every page and entry of the variant.
+    /// </summary>
+    internal static IReadOnlyList<ContentValidationIssue> ValidateDerived(
+        AppConfig config,
         ContentModelSchema schema,
         IReadOnlyList<RoutedContentDocument> routed,
         IReadOnlyList<ContentDocument> withoutPage)
     {
-        var collections = content.DerivedFields.Select(rule => rule.Collection).ToHashSet(StringComparer.OrdinalIgnoreCase);
-        ContentDocument[] documents = [.. routed.Select(page => page.Document).Concat(withoutPage)
-            .Where(document => collections.Contains(ContentFieldReader.GetCollection(document) ?? string.Empty))];
-        var documentsById = documents
-            .GroupBy(document => document.Id, StringComparer.OrdinalIgnoreCase)
-            .ToDictionary(group => group.Key, group => group.First(), StringComparer.OrdinalIgnoreCase);
-        return ContentModelSchemaValidator.Validate(CanonicalContentGraphBuilder.BuildFromDocuments(documents), schema)
-            .Where(issue => IsDerivedFieldIssue(content, issue, documentsById));
-    }
-
-    /// <summary>
-    /// Canonical and record-level content model issues (such as <c>requireAuthor</c>) of the rebuilt
-    /// records that their source records did not have. Both checks run on the whole site (pages and
-    /// entries without a page), so relation targets and cross-record rules resolve as in the validate
-    /// stage; only issues of derived pages are kept. Derived-field issues come from <see cref="ValidateSchema"/>.
-    /// </summary>
-    private static IEnumerable<ContentValidationIssue> ValidateRebuiltRecords(
-        AppConfig config,
-        ContentModelSchema schema,
-        IReadOnlyList<RoutedContentDocument> before,
-        IReadOnlyList<RoutedContentDocument> routed,
-        IReadOnlyList<ContentDocument> withoutPage)
-    {
-        var derivedIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        for (var i = 0; i < routed.Count; i++)
-        {
-            if (!ReferenceEquals(before[i].Document, routed[i].Document))
-            {
-                derivedIds.Add(routed[i].Document.Id);
-            }
-        }
-
-        if (derivedIds.Count == 0)
+        var content = config.Content;
+        if (content.DerivedFields.Count == 0)
         {
             return [];
         }
 
-        IEnumerable<ContentValidationIssue> Check(IReadOnlyList<RoutedContentDocument> pages)
+        var pages = new Dictionary<string, (ContentDocument Document, string Collection)>(StringComparer.OrdinalIgnoreCase);
+        foreach (var page in routed)
         {
-            var graph = CanonicalContentGraphBuilder.BuildFromDocuments([.. pages.Select(page => page.Document).Concat(withoutPage)]);
-            return CanonicalContentValidator.Validate(graph, config.Site)
-                .Concat(ContentModelSchemaValidator.Validate(graph, schema)
-                    .Where(issue => !issue.Field.StartsWith(FieldIssuePrefix, StringComparison.Ordinal)))
-                .Where(issue => issue.SourcePath is { } id && derivedIds.Contains(id));
+            if (ContentFieldReader.GetCollection(page.Document) is { } collection && HasRules(content, collection))
+            {
+                pages.TryAdd(page.Document.Id, (page.Document, collection));
+            }
         }
 
-        var known = Check(before).Select(IssueKey).ToHashSet(StringComparer.Ordinal);
-        return Check(routed).Where(issue => !known.Contains(IssueKey(issue)));
+        if (pages.Count == 0)
+        {
+            return [];
+        }
+
+        var graph = CanonicalContentGraphBuilder.BuildFromDocuments([.. routed.Select(page => page.Document).Concat(withoutPage)]);
+        var required = new List<ContentDiagnostic>();
+        foreach (var (document, _) in pages.Values)
+        {
+            DefaultContentNormalizer.AddRequiredFieldDiagnostics(required, schema, document.CustomFields, document.Id);
+        }
+
+        return [.. CanonicalContentValidator.Validate(graph, config.Site)
+            .Concat(ContentModelSchemaValidator.Validate(graph, schema, record => pages.ContainsKey(record.Identity.Id)))
+            .Where(issue => issue.SourcePath is { } id && pages.TryGetValue(id, out var page) && IsDeferredCheck(content, page.Collection, issue))
+            .Concat(required
+                .Where(diagnostic => diagnostic.SourceId is { } id && diagnostic.Field is { } field && WritesField(content, pages[id].Collection, field))
+                .Select(diagnostic => new ContentValidationIssue(diagnostic.Field!, diagnostic.Code, diagnostic.Message, diagnostic.SourceId)))
+            .DistinctBy(issue => $"{issue.SourcePath}:{issue.Field}:{issue.Code}", StringComparer.OrdinalIgnoreCase)];
     }
 
-    private static string IssueKey(ContentValidationIssue issue) => $"{issue.SourcePath}\n{issue.Field}\n{issue.Code}";
+    private static readonly IReadOnlySet<string> RequiredFieldCodes = new HashSet<string>(
+        ["content.required_canonical_field_missing", "content.required_custom_field_missing", "content.required_collection_field_missing"],
+        StringComparer.Ordinal);
+
+    /// <summary>The collection of the page an issue belongs to, when it has a page and derived rules.</summary>
+    private static string? DerivedPageCollection(AppConfig config, string? id, IReadOnlyDictionary<string, ContentDocument> documentsById)
+        => config.Content.DerivedFields.Count > 0 &&
+           id is not null &&
+           documentsById.TryGetValue(id, out var document) &&
+           CollectionPagePolicy.HasPage(document, config.Site) &&
+           ContentFieldReader.GetCollection(document) is { } collection &&
+           HasRules(config.Content, collection)
+            ? collection
+            : null;
+
+    private static bool IsDeferredCheck(ContentConfig content, string collection, ContentValidationIssue issue)
+        => issue.Field.StartsWith(FieldIssuePrefix, StringComparison.Ordinal)
+            ? WritesField(content, collection, issue.Field[FieldIssuePrefix.Length..])
+            : !issue.Field.StartsWith(IdentityIssuePrefix, StringComparison.Ordinal);
+
+    private static bool HasRules(ContentConfig content, string collection)
+        => content.DerivedFields.Any(rule => string.Equals(rule.Collection, collection, StringComparison.OrdinalIgnoreCase));
+
+    private static bool WritesField(ContentConfig content, string collection, string field)
+        => content.DerivedFields.Any(rule =>
+            string.Equals(rule.Collection, collection, StringComparison.OrdinalIgnoreCase) &&
+            string.Equals(rule.Field, field, StringComparison.OrdinalIgnoreCase));
 
     private static string RecordKey(ContentRecord record) => $"{record.Identity.Id}\n{record.Presentation.Language}";
 
@@ -279,6 +306,8 @@ internal static class DerivedFieldResolver
         return document with
         {
             CustomFields = fields,
+            // noindex, robots and the feed, search and sitemap exclusions can be derived too.
+            Publish = ContentPublishPolicy.FromFields(fields),
             Record = rebuilt with
             {
                 Identity = document.Record.Identity,

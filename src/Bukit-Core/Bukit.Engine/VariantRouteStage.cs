@@ -45,7 +45,7 @@ internal static class VariantRouteStage
             LayoutsDir = context.LayoutsDir,
             RoutedDocuments = routeResult.RoutedDocuments,
             StaticHtmlRoutes = Array.Empty<RouteInfo>(),
-            ContentGraph = DerivedFieldResolver.ProjectRecords(context.ContentGraph, routeResult.RoutedDocuments),
+            ContentGraph = DerivedFieldResolver.ProjectRecords(context.ContentGraph, routeResult.RoutedDocuments, routeResult.DerivedKeys),
             BodyStore = context.BodyStore,
             TemplateResolver = templateResolver.ResolveKindTemplate,
             Logger = logger

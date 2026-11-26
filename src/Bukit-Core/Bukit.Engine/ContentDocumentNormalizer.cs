@@ -200,6 +200,61 @@ internal sealed class DefaultContentNormalizer : IContentNormalizer
         };
     }
 
+    /// <summary>
+    /// The required canonical, custom and collection field checks. Derived fields re-run them on the
+    /// derived values (see <c>DerivedFieldResolver.ValidateDerived</c>).
+    /// </summary>
+    internal static void AddRequiredFieldDiagnostics(
+        List<ContentDiagnostic> diagnostics,
+        ContentModelSchema schema,
+        IReadOnlyDictionary<string, ContentField>? fields,
+        string id)
+    {
+        foreach (var mapping in schema.CanonicalMappings?.Values ?? Array.Empty<CanonicalFieldMapping>())
+        {
+            if (mapping.Required && !ContentFieldReader.TryGetField(fields, mapping.CanonicalField, out _))
+            {
+                diagnostics.Add(new ContentDiagnostic(
+                    "content.required_canonical_field_missing",
+                    "error",
+                    $"Required canonical field '{mapping.CanonicalField}' is missing.",
+                    mapping.CanonicalField,
+                    id));
+            }
+        }
+
+        foreach (var definition in schema.CustomFields?.Values ?? Array.Empty<CustomFieldDefinition>())
+        {
+            if (definition.Required && !ContentFieldReader.TryGetField(fields, definition.Name, out _))
+            {
+                diagnostics.Add(new ContentDiagnostic(
+                    "content.required_custom_field_missing",
+                    "error",
+                    $"Required custom field '{definition.Name}' is missing.",
+                    definition.Name,
+                    id));
+            }
+        }
+
+        var collection = ContentFieldReader.GetText(fields, "collection");
+        if (!string.IsNullOrWhiteSpace(collection) &&
+            schema.FieldScopes?.TryGetValue(collection, out var scopedFields) is true)
+        {
+            foreach (var definition in scopedFields)
+            {
+                if (definition.Required && !ContentFieldReader.TryGetField(fields, definition.Name, out _))
+                {
+                    diagnostics.Add(new ContentDiagnostic(
+                        "content.required_collection_field_missing",
+                        "error",
+                        $"Required field '{definition.Name}' is missing for collection '{collection}'.",
+                        definition.Name,
+                        id));
+                }
+            }
+        }
+    }
+
     private static IReadOnlyList<ContentDiagnostic> BuildDiagnostics(
         RawContentDocument raw,
         IReadOnlyDictionary<string, ContentField>? fields,
@@ -223,49 +278,7 @@ internal sealed class DefaultContentNormalizer : IContentNormalizer
             return diagnostics;
         }
 
-        foreach (var mapping in schema.CanonicalMappings?.Values ?? Array.Empty<CanonicalFieldMapping>())
-        {
-            if (mapping.Required && !ContentFieldReader.TryGetField(fields, mapping.CanonicalField, out _))
-            {
-                diagnostics.Add(new ContentDiagnostic(
-                    "content.required_canonical_field_missing",
-                    "error",
-                    $"Required canonical field '{mapping.CanonicalField}' is missing.",
-                    mapping.CanonicalField,
-                    raw.Id));
-            }
-        }
-
-        foreach (var definition in schema.CustomFields?.Values ?? Array.Empty<CustomFieldDefinition>())
-        {
-            if (definition.Required && !ContentFieldReader.TryGetField(fields, definition.Name, out _))
-            {
-                diagnostics.Add(new ContentDiagnostic(
-                    "content.required_custom_field_missing",
-                    "error",
-                    $"Required custom field '{definition.Name}' is missing.",
-                    definition.Name,
-                    raw.Id));
-            }
-        }
-
-        var collection = ContentFieldReader.GetText(fields, "collection");
-        if (!string.IsNullOrWhiteSpace(collection) &&
-            schema.FieldScopes?.TryGetValue(collection, out var scopedFields) is true)
-        {
-            foreach (var definition in scopedFields)
-            {
-                if (definition.Required && !ContentFieldReader.TryGetField(fields, definition.Name, out _))
-                {
-                    diagnostics.Add(new ContentDiagnostic(
-                        "content.required_collection_field_missing",
-                        "error",
-                        $"Required field '{definition.Name}' is missing for collection '{collection}'.",
-                        definition.Name,
-                        raw.Id));
-                }
-            }
-        }
+        AddRequiredFieldDiagnostics(diagnostics, schema, fields, raw.Id);
 
         if (schema.RejectUnknownRawKeys && raw.Properties is { Count: > 0 })
         {

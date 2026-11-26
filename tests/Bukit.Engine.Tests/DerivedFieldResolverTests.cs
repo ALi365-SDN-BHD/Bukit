@@ -36,10 +36,11 @@ public sealed class DerivedFieldResolverTests
         var city = Page("kl", "city", ("name", "KL"), ("summary", "Capital city"), ("tags", new ContentField("list", new List<string> { "old" })));
         var post = Page("p1", "post", ("summary", "Post summary"));
         var graph = CanonicalContentGraphBuilder.BuildFromDocuments([city, post]);
+        RoutedContentDocument[] before = [Routed(city), Routed(post)];
 
-        var routed = DerivedFieldResolver.Apply(content, [Routed(city), Routed(post)]);
+        var routed = DerivedFieldResolver.Apply(content, before);
         var derived = Single(routed.Take(1).ToList());
-        var projected = DerivedFieldResolver.ProjectRecords(graph, routed);
+        var projected = DerivedFieldResolver.ProjectRecords(graph, routed, DerivedFieldResolver.DerivedKeys(before, routed));
 
         Assert.Equal(["new"], derived.Record.Classification.Tags);
         Assert.Equal("kl", derived.Record.Identity.Id);
@@ -47,68 +48,108 @@ public sealed class DerivedFieldResolverTests
         Assert.Equal("KL: Capital city", record.Presentation.Summary);
         Assert.Equal(["new"], record.Classification.Tags);
         Assert.Same(post.Record, projected.Records.Single(record => record.Identity.Id == "p1"));
-        Assert.Same(graph, DerivedFieldResolver.ProjectRecords(graph, [Routed(city), Routed(post)]));
     }
 
     [Fact]
-    public void ValidateSchema_ChecksDerivedFieldsOnTheDerivedValues()
+    public void ProjectRecords_PagesNoRuleChanged_KeepTheGraph()
+    {
+        // Media localization gives every routed page a new record, derived or not.
+        var city = Page("kl", "city", ("name", "KL"));
+        var graph = CanonicalContentGraphBuilder.BuildFromDocuments([city]);
+        RoutedContentDocument[] localized = [Routed(city with { Record = city.Record with { } })];
+
+        var keys = DerivedFieldResolver.DerivedKeys(localized, DerivedFieldResolver.Apply(Content(), localized));
+
+        Assert.Empty(keys);
+        Assert.Same(graph, DerivedFieldResolver.ProjectRecords(graph, localized, keys));
+    }
+
+    [Fact]
+    public void ValidateDerived_ChecksDeferredFieldsOnTheDerivedValues()
     {
         var content = Content(Rule("seo_title", "{{ name }} guide"), Rule("tone", "loud", "override"));
-        var schema = ContentModelSchemaFactory.FromConfig(new AppConfig
+        var config = Config(content with
         {
-            Site = new SiteConfig { Name = "t", Title = "t" },
-            Content = content with
+            ModelSchema = new ContentModelSchemaConfig
             {
-                ModelSchema = new ContentModelSchemaConfig
-                {
-                    CustomFields =
-                    [
-                        new CustomFieldDefinitionConfig { Name = "seo_title", FieldType = "string", Required = true },
-                        new CustomFieldDefinitionConfig { Name = "tone", FieldType = "string", Enum = ["calm", "warm"] }
-                    ]
-                }
+                CustomFields =
+                [
+                    new CustomFieldDefinitionConfig { Name = "seo_title", FieldType = "string", Required = true },
+                    new CustomFieldDefinitionConfig { Name = "tone", FieldType = "string", Enum = ["calm", "warm"] },
+                    new CustomFieldDefinitionConfig { Name = "mood", FieldType = "string", Enum = ["calm"] }
+                ]
             }
         });
-        var city = Page("kl", "city", ("name", "KL"), ("tone", "calm"));
+        var schema = ContentModelSchemaFactory.FromConfig(config);
+        var city = Page("kl", "city", ("name", "KL"), ("tone", "calm"), ("mood", "loud"));
         var documentsById = new Dictionary<string, ContentDocument>(StringComparer.OrdinalIgnoreCase) { ["kl"] = city };
 
         var before = ContentModelSchemaValidator.Validate(CanonicalContentGraphBuilder.BuildFromDocuments([city]), schema);
-        Assert.Contains(before, issue => issue.Field == "fields.seo_title");
-        Assert.All(before, issue => Assert.True(DerivedFieldResolver.IsDerivedFieldIssue(content, issue, documentsById)));
+        Assert.True(DerivedFieldResolver.DefersCheck(config, Assert.Single(before, issue => issue.Field == "fields.seo_title"), documentsById));
+        Assert.False(DerivedFieldResolver.DefersCheck(config, Assert.Single(before, issue => issue.Field == "fields.mood"), documentsById));
 
         var routed = DerivedFieldResolver.Apply(content, [Routed(city)], schema: schema);
-        var issue = Assert.Single(DerivedFieldResolver.ValidateDerived(new AppConfig { Site = new SiteConfig { Name = "t", Title = "t" }, Content = content }, schema, [Routed(city)], routed, []));
+        var issue = Assert.Single(DerivedFieldResolver.ValidateDerived(config, schema, routed, []));
         Assert.Equal("fields.tone", issue.Field);
         Assert.Equal("content.custom_field_enum_mismatch", issue.Code);
     }
 
     [Fact]
-    public void ValidateDerived_ReportsRecordChecksTheRebuiltRecordNewlyFails()
+    public void ValidateDerived_RepeatsRequiredFieldChecksOnTheDerivedValues()
     {
-        var content = Content(Rule("author", "{{ missing }}", "override"));
-        var config = new AppConfig
+        var content = Content(Rule("seo_title", "{{ name }}"));
+        var config = Config(content with
         {
-            Site = new SiteConfig { Name = "t", Title = "t" },
-            Content = content with { ModelSchema = new ContentModelSchemaConfig { RequireAuthor = true } }
-        };
+            ModelSchema = new ContentModelSchemaConfig
+            {
+                FieldScopes = new Dictionary<string, IReadOnlyList<CustomFieldDefinitionConfig>>(StringComparer.OrdinalIgnoreCase)
+                {
+                    ["city"] = [new CustomFieldDefinitionConfig { Name = "seo_title", FieldType = "string", Required = true }]
+                }
+            }
+        });
         var schema = ContentModelSchemaFactory.FromConfig(config);
-        var source = Routed(Page("kl", "city", ("author", "Ali")));
-        Assert.DoesNotContain(
+        var named = Page("kl", "city", ("name", "KL"));
+        var unnamed = Page("pg", "city");
+        var documentsById = new Dictionary<string, ContentDocument>(StringComparer.OrdinalIgnoreCase) { ["kl"] = named, ["pg"] = unnamed };
+        var sourceIssue = new ContentValidationIssue("seo_title", "content.required_collection_field_missing", "missing", "kl");
+        Assert.True(DerivedFieldResolver.DefersRequiredDiagnostic(config, sourceIssue, documentsById));
+        Assert.False(DerivedFieldResolver.DefersRequiredDiagnostic(config, sourceIssue with { Field = "name" }, documentsById));
+
+        var routed = DerivedFieldResolver.Apply(content, [Routed(named), Routed(unnamed)], schema: schema);
+
+        // As in the validate stage, the normalizer and the content model both report the missing field.
+        var issues = DerivedFieldResolver.ValidateDerived(config, schema, routed, []);
+        Assert.All(issues, issue => Assert.Equal("pg", issue.SourcePath));
+        Assert.Equal(
+            ["content.custom_field_required_missing", "content.required_collection_field_missing"],
+            issues.Select(issue => issue.Code).Order(StringComparer.Ordinal));
+    }
+
+    [Fact]
+    public void ValidateDerived_ReportsRecordChecksOfTheDerivedRecords()
+    {
+        var content = Content(Rule("author", "{{ missing }}", "override"), Rule("summary", "{{ name }}"));
+        var config = Config(content with { ModelSchema = new ContentModelSchemaConfig { RequireAuthor = true, RequireSummary = true } });
+        var schema = ContentModelSchemaFactory.FromConfig(config);
+        var source = Routed(Page("kl", "city", ("author", "Ali"), ("name", "KL")));
+        var documentsById = new Dictionary<string, ContentDocument>(StringComparer.OrdinalIgnoreCase) { ["kl"] = source.Document };
+        var summary = Assert.Single(
             ContentModelSchemaValidator.Validate(CanonicalContentGraphBuilder.BuildFromDocuments([source.Document]), schema),
-            issue => issue.Field == "ownership.author");
+            issue => issue.Field == "presentation.summary");
+        Assert.True(DerivedFieldResolver.DefersCheck(config, summary, documentsById));
 
         var routed = DerivedFieldResolver.Apply(content, [source], schema: schema);
 
-        var issue = Assert.Single(DerivedFieldResolver.ValidateDerived(config, schema, [source], routed, []));
+        var issue = Assert.Single(DerivedFieldResolver.ValidateDerived(config, schema, routed, []));
         Assert.Equal("ownership.author", issue.Field);
-        Assert.Empty(DerivedFieldResolver.ValidateDerived(config, schema, [source], [source], []));
     }
 
     [Fact]
     public void ValidateDerived_ResolvesRelationsAgainstUnchangedPagesAndEntries()
     {
         var content = Content(Rule("related_to", "{{ target }}", "override"));
-        var config = new AppConfig { Site = new SiteConfig { Name = "t", Title = "t" }, Content = content };
+        var config = Config(content);
         var schema = ContentModelSchemaFactory.FromConfig(config);
         Assert.True(schema.RequireRelationTargets);
         var post = Routed(Page("p1", "post"));
@@ -117,9 +158,20 @@ public sealed class DerivedFieldResolverTests
 
         var routed = DerivedFieldResolver.Apply(content, before, schema: schema);
 
-        Assert.Empty(DerivedFieldResolver.ValidateDerived(config, schema, before, routed, [entry]));
-        var missing = DerivedFieldResolver.ValidateDerived(config, schema, before, routed, []);
+        Assert.Empty(DerivedFieldResolver.ValidateDerived(config, schema, routed, [entry]));
+        var missing = DerivedFieldResolver.ValidateDerived(config, schema, routed, []);
         Assert.Equal("pg", Assert.Single(missing).SourcePath);
+    }
+
+    [Fact]
+    public void Apply_DerivedPublishFields_UpdateThePublishPolicy()
+    {
+        var content = Content(Rule("noindex", "{{ if thin }}true{{ end }}", "override"), Rule("sitemapExclude", "true", "override"));
+
+        var page = Single(DerivedFieldResolver.Apply(content, [Routed(Page("kl", "city", ("thin", "true")))]));
+
+        Assert.True(page.Publish.NoIndex);
+        Assert.True(page.Publish.ExcludeFromSitemap);
     }
 
     [Fact]
@@ -243,6 +295,8 @@ public sealed class DerivedFieldResolverTests
         public void Warn(string message) => Warnings.Add(message);
         public void Error(string message) { }
     }
+
+    private static AppConfig Config(ContentConfig content) => new() { Site = new SiteConfig { Name = "t", Title = "t" }, Content = content };
 
     private static ContentDerivedFieldConfig Rule(string field, string value, string mode = "default")
         => new() { Collection = "city", Field = field, Value = value, Mode = mode };

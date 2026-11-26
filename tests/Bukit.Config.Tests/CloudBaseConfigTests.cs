@@ -522,6 +522,50 @@ public sealed class CloudBaseConfigTests
         Assert.Contains("prod-abc.storage.tcloudbase.com", ex.Message, StringComparison.Ordinal);
     }
 
+    [Theory]
+    [InlineData(false, "placeholder", "downloadToLocal")]
+    [InlineData(true, "keep", "onFailure")]
+    public void Load_ContentBucketWithoutFileFields_RequiresMediaLocalization(bool downloadToLocal, string onFailure, string expected)
+    {
+        // Body cloud:// images are signed whenever a bucket is set, so D8 applies without fileFields.
+        var ex = Fails("""
+            envId: prod-abc
+            table: articles
+            bodyField: content
+            storageBucket: media
+            """, MediaBlock(downloadToLocal, ["cover"], onFailure));
+
+        AssertCloudBaseError(ex);
+        Assert.Contains("content.sources[0].cloudbase.storageBucket requires", ex.Message, StringComparison.Ordinal);
+        Assert.Contains(expected, ex.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Load_ContentBucketWithoutFileFields_RequiresCloudBaseHosts()
+    {
+        var ex = Fails("""
+            envId: prod-abc
+            table: articles
+            bodyField: content
+            storageBucket: media
+            """, MediaWithHosts(skip: ["prod-abc.api.tcloudbasegateway.com"]));
+
+        Assert.Equal(DiagnosticCode.CloudBaseMediaLocalizationRequired, ex.Code);
+    }
+
+    [Fact]
+    public void Load_DataBucketWithoutFileFields_SkipsMediaLocalization()
+    {
+        // Data mode signs nothing without fileFields.
+        var config = Load("""
+            envId: prod-abc
+            table: articles
+            storageBucket: media
+            """, MediaBlock(downloadToLocal: false, ["cover"], "keep"), mode: "data");
+
+        Assert.Equal("media", Assert.IsType<CloudBaseConfig>(Assert.Single(config.Content.Sources!).CloudBase).StorageBucket);
+    }
+
     [Fact]
     public void Load_DownloadHostsIncludeBothCloudBaseHosts_Passes()
     {

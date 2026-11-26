@@ -23,6 +23,9 @@ internal sealed record RoutePipelineResult(
 
     /// <summary>Runtime errors of content.derivedFields, for <see cref="DerivedFieldResolver.Report"/>.</summary>
     internal IReadOnlyList<ContentValidationIssue> DerivedFieldIssues { get; init; } = [];
+
+    /// <summary>The id and language keys of the pages a derived rule changed.</summary>
+    internal IReadOnlySet<string> DerivedKeys { get; init; } = new HashSet<string>();
 }
 
 internal sealed class RoutePipeline
@@ -61,7 +64,7 @@ internal sealed class RoutePipeline
         var sourceDocuments = linkedDocuments;
         linkedDocuments = DerivedFieldResolver.Apply(config.Content, linkedDocuments, derivedFieldIssues, schema);
         // The checks of derived values wait for them (see ContentGraphValidateStage).
-        derivedFieldIssues.AddRange(DerivedFieldResolver.ValidateDerived(config, schema, sourceDocuments, linkedDocuments, withoutPage));
+        derivedFieldIssues.AddRange(DerivedFieldResolver.ValidateDerived(config, schema, linkedDocuments, withoutPage));
         // Queries see the final page fields, backrefs and derived values included.
         var queries = SiteQueryResolver.Resolve(config, linkedDocuments, withoutPage);
 
@@ -76,7 +79,8 @@ internal sealed class RoutePipeline
         {
             ListRouteGraph = listRouteGraph,
             Queries = queries,
-            DerivedFieldIssues = derivedFieldIssues
+            DerivedFieldIssues = derivedFieldIssues,
+            DerivedKeys = DerivedFieldResolver.DerivedKeys(sourceDocuments, linkedDocuments)
         };
     }
 

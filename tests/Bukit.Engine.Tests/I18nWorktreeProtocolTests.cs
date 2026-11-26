@@ -136,6 +136,24 @@ public sealed class I18nWorktreeProtocolTests : IDisposable
     }
 
     [Fact]
+    public void WorkerSite_LooksUpCollectionsIgnoringCase()
+    {
+        var site = new SiteConfig
+        {
+            Name = "s",
+            Title = "S",
+            Collections = new Dictionary<string, CollectionConfig>(StringComparer.OrdinalIgnoreCase) { ["City"] = new() { Permalink = "/cities/{slug}/" } }
+        };
+        var json = JsonSerializer.Serialize(new AppConfig { Site = site, Content = new ContentConfig() }, I18nWorktreeJsonContext.Default.AppConfig);
+        var restored = JsonSerializer.Deserialize(json, I18nWorktreeJsonContext.Default.AppConfig)!;
+
+        var worker = SiteEngine.VariantSite(restored.Site, "en", "https://example.com/en/");
+
+        Assert.Equal("/cities/{slug}/", worker.Collections!["city"].Permalink);
+        Assert.Equal(("en", "https://example.com/en/"), (worker.Language, worker.BaseUrl));
+    }
+
+    [Fact]
     public void WorkerConfig_KeepsSiteQueries()
     {
         var config = new AppConfig

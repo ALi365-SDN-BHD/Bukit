@@ -174,6 +174,17 @@ public sealed partial class SiteEngine
         return (result, buildLogger.WarningCount, buildLogger.ErrorCount);
     }
 
+    internal static SiteConfig VariantSite(SiteConfig site, string language, string baseUrl) =>
+        SiteLanguageIdentity.Apply(site, language) with
+        {
+            Language = language,
+            BaseUrl = baseUrl,
+            // JSON gives the map back case-sensitive; the config reader builds it ignoring case.
+            Collections = site.Collections is { } collections
+                ? new Dictionary<string, CollectionConfig>(collections, StringComparer.OrdinalIgnoreCase)
+                : null
+        };
+
     private static BuildVariantContext CreateVariantContext(
         I18nWorkerRequest request,
         I18nContentSnapshot snapshot,
@@ -188,11 +199,7 @@ public sealed partial class SiteEngine
         var baseUrl = layout.BaseUrl(request.Language);
         var variantConfig = request.Config with
         {
-            Site = SiteLanguageIdentity.Apply(request.Config.Site, request.Language) with
-            {
-                Language = request.Language,
-                BaseUrl = baseUrl
-            },
+            Site = VariantSite(request.Config.Site, request.Language, baseUrl),
             Content = request.Config.Content with { Media = request.Config.Content.Media with { DownloadDir = "assets/uploads" } }
         };
         var bodyStore = new DictionaryContentBodyStore(snapshot.Bodies);
