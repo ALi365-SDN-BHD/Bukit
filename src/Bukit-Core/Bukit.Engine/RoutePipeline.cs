@@ -58,9 +58,10 @@ internal sealed class RoutePipeline
         // Derived values may read the links, and every page consumer below reads the values.
         var derivedFieldIssues = new List<ContentValidationIssue>();
         var schema = ContentModelSchemaFactory.FromConfig(config);
+        var sourceDocuments = linkedDocuments;
         linkedDocuments = DerivedFieldResolver.Apply(config.Content, linkedDocuments, derivedFieldIssues, schema);
-        // The content model checks of derived fields wait for the derived values (see ContentGraphValidateStage).
-        derivedFieldIssues.AddRange(DerivedFieldResolver.ValidateSchema(config.Content, schema, linkedDocuments, withoutPage));
+        // The checks of derived values wait for them (see ContentGraphValidateStage).
+        derivedFieldIssues.AddRange(DerivedFieldResolver.ValidateDerived(config, schema, sourceDocuments, linkedDocuments, withoutPage));
         // Queries see the final page fields, backrefs and derived values included.
         var queries = SiteQueryResolver.Resolve(config, linkedDocuments, withoutPage);
 

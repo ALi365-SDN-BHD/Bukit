@@ -33,7 +33,7 @@ internal static class VariantRouteStage
             context.Documents,
             templateResolver);
         routeGenerationStopwatch.Stop();
-        DerivedFieldResolver.Report(context.Config, routeResult.RoutedDocuments, routeResult.DerivedFieldIssues, logger);
+        DerivedFieldResolver.Report(context.Config, context.Documents, routeResult.DerivedFieldIssues, logger);
         WarnDecodedRouteUrls(routeResult.RoutedDocuments, logger);
         metrics.AddDuration("routeGeneration", routeGenerationStopwatch.ElapsedMilliseconds);
 

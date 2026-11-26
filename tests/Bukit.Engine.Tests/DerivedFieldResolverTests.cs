@@ -77,9 +77,31 @@ public sealed class DerivedFieldResolverTests
         Assert.All(before, issue => Assert.True(DerivedFieldResolver.IsDerivedFieldIssue(content, issue, documentsById)));
 
         var routed = DerivedFieldResolver.Apply(content, [Routed(city)], schema: schema);
-        var issue = Assert.Single(DerivedFieldResolver.ValidateSchema(content, schema, routed, []));
+        var issue = Assert.Single(DerivedFieldResolver.ValidateDerived(new AppConfig { Site = new SiteConfig { Name = "t", Title = "t" }, Content = content }, schema, [Routed(city)], routed, []));
         Assert.Equal("fields.tone", issue.Field);
         Assert.Equal("content.custom_field_enum_mismatch", issue.Code);
+    }
+
+    [Fact]
+    public void ValidateDerived_ReportsRecordChecksTheRebuiltRecordNewlyFails()
+    {
+        var content = Content(Rule("author", "{{ missing }}", "override"));
+        var config = new AppConfig
+        {
+            Site = new SiteConfig { Name = "t", Title = "t" },
+            Content = content with { ModelSchema = new ContentModelSchemaConfig { RequireAuthor = true } }
+        };
+        var schema = ContentModelSchemaFactory.FromConfig(config);
+        var source = Routed(Page("kl", "city", ("author", "Ali")));
+        Assert.DoesNotContain(
+            ContentModelSchemaValidator.Validate(CanonicalContentGraphBuilder.BuildFromDocuments([source.Document]), schema),
+            issue => issue.Field == "ownership.author");
+
+        var routed = DerivedFieldResolver.Apply(content, [source], schema: schema);
+
+        var issue = Assert.Single(DerivedFieldResolver.ValidateDerived(config, schema, [source], routed, []));
+        Assert.Equal("ownership.author", issue.Field);
+        Assert.Empty(DerivedFieldResolver.ValidateDerived(config, schema, [source], [source], []));
     }
 
     [Fact]
@@ -145,7 +167,7 @@ public sealed class DerivedFieldResolverTests
         var issue = new ContentValidationIssue("seo_title", DerivedFieldResolver.FailedCode, "failed", "r1");
         var logger = new WarnLogger();
 
-        var exception = Record.Exception(() => DerivedFieldResolver.Report(config, [page], [issue], logger));
+        var exception = Record.Exception(() => DerivedFieldResolver.Report(config, [page.Document], [issue], logger));
 
         Assert.Equal(throws, exception is ConfigException { Code: DiagnosticCode.SchemaStrictModeBlocked });
         Assert.Equal(mode == "off" ? 0 : 1, logger.Warnings.Count(warning => warning.Contains("code=content.derived_field_failed", StringComparison.Ordinal)));

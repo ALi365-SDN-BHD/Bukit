@@ -84,7 +84,7 @@ internal static class DerivedFieldResolver
 
     /// <summary>
     /// True for a content model issue on a field a derived rule writes in the page's collection: it is
-    /// checked by <see cref="ValidateSchema"/> on the derived values instead of on the source values.
+    /// checked by <see cref="ValidateDerived"/> on the derived values instead of on the source values.
     /// </summary>
     internal static bool IsDerivedFieldIssue(
         ContentConfig content,
@@ -100,20 +100,26 @@ internal static class DerivedFieldResolver
                string.Equals(rule.Field, issue.Field[FieldIssuePrefix.Length..], StringComparison.OrdinalIgnoreCase));
 
     /// <summary>
-    /// Runs the content model checks of the derived fields on the final values: the derived pages and
-    /// the entries of the same collections without a page, which keep their source values.
+    /// Checks the derived values: the content model checks of the derived fields, on the derived pages
+    /// and on the entries of the same collections without a page (which keep their source values), and
+    /// the canonical checks that a rebuilt record newly fails (such as a cleared required author).
     /// </summary>
-    internal static IEnumerable<ContentValidationIssue> ValidateSchema(
+    internal static IEnumerable<ContentValidationIssue> ValidateDerived(
+        AppConfig config,
+        ContentModelSchema schema,
+        IReadOnlyList<RoutedContentDocument> before,
+        IReadOnlyList<RoutedContentDocument> routed,
+        IReadOnlyList<ContentDocument> withoutPage)
+        => config.Content.DerivedFields.Count == 0
+            ? []
+            : ValidateSchema(config.Content, schema, routed, withoutPage).Concat(ValidateRebuiltRecords(config, schema, before, routed));
+
+    private static IEnumerable<ContentValidationIssue> ValidateSchema(
         ContentConfig content,
         ContentModelSchema schema,
         IReadOnlyList<RoutedContentDocument> routed,
         IReadOnlyList<ContentDocument> withoutPage)
     {
-        if (content.DerivedFields.Count == 0)
-        {
-            return [];
-        }
-
         var collections = content.DerivedFields.Select(rule => rule.Collection).ToHashSet(StringComparer.OrdinalIgnoreCase);
         ContentDocument[] documents = [.. routed.Select(page => page.Document).Concat(withoutPage)
             .Where(document => collections.Contains(ContentFieldReader.GetCollection(document) ?? string.Empty))];
@@ -124,8 +130,49 @@ internal static class DerivedFieldResolver
             .Where(issue => IsDerivedFieldIssue(content, issue, documentsById));
     }
 
-    private static string RecordKey(ContentRecord record) => $"{record.Identity.Id}\n{record.Presentation.Language}";
+    /// <summary>
+    /// Canonical and record-level content model issues (such as <c>requireAuthor</c>) of the rebuilt
+    /// records that their source records did not have. The source records were checked by the
+    /// validate stage; comparing the same pages keeps cross-record checks from reporting pages outside
+    /// this set. Derived-field issues come from <see cref="ValidateSchema"/>.
+    /// </summary>
+    private static IEnumerable<ContentValidationIssue> ValidateRebuiltRecords(
+        AppConfig config,
+        ContentModelSchema schema,
+        IReadOnlyList<RoutedContentDocument> before,
+        IReadOnlyList<RoutedContentDocument> routed)
+    {
+        var sources = new List<ContentDocument>();
+        var derived = new List<ContentDocument>();
+        for (var i = 0; i < routed.Count; i++)
+        {
+            if (!ReferenceEquals(before[i].Document, routed[i].Document))
+            {
+                sources.Add(before[i].Document);
+                derived.Add(routed[i].Document);
+            }
+        }
 
+        if (derived.Count == 0)
+        {
+            return [];
+        }
+
+        IEnumerable<ContentValidationIssue> Check(List<ContentDocument> documents)
+        {
+            var graph = CanonicalContentGraphBuilder.BuildFromDocuments(documents);
+            return CanonicalContentValidator.Validate(graph, config.Site)
+                .Concat(ContentModelSchemaValidator.Validate(graph, schema)
+                    .Where(issue => !issue.Field.StartsWith(FieldIssuePrefix, StringComparison.Ordinal)));
+        }
+
+        var known = Check(sources).Select(IssueKey).ToHashSet(StringComparer.Ordinal);
+        return Check(derived).Where(issue => !known.Contains(IssueKey(issue)));
+    }
+
+    private static string IssueKey(ContentValidationIssue issue) => $"{issue.SourcePath}\n{issue.Field}\n{issue.Code}";
+
+    private static string RecordKey(ContentRecord record) => $"{record.Identity.Id}\n{record.Presentation.Language}";
 
     /// <summary>Throws a config error for the first template that does not parse.</summary>
     internal static void ValidateTemplates(ContentConfig content) => Compile(content.DerivedFields);
@@ -134,9 +181,10 @@ internal static class DerivedFieldResolver
     /// Logs the runtime errors <see cref="Apply"/> collected, as the validate stage logs content issues,
     /// and fails the build when a failing page's collection uses <c>schemaFailMode: strict</c>.
     /// </summary>
+    /// <param name="documents">Every content document, pages and entries without a page, to find an issue's collection.</param>
     internal static void Report(
         AppConfig config,
-        IReadOnlyList<RoutedContentDocument> routed,
+        IReadOnlyList<ContentDocument> documents,
         IReadOnlyList<ContentValidationIssue> issues,
         ILogger logger)
     {
@@ -146,9 +194,9 @@ internal static class DerivedFieldResolver
         }
 
         var globalMode = (config.Build.SchemaFailMode ?? "warn").Trim().ToLowerInvariant();
-        var documentsById = routed
-            .GroupBy(page => page.Document.Id, StringComparer.OrdinalIgnoreCase)
-            .ToDictionary(group => group.Key, group => group.First().Document, StringComparer.OrdinalIgnoreCase);
+        var documentsById = documents
+            .GroupBy(document => document.Id, StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(group => group.Key, group => group.First(), StringComparer.OrdinalIgnoreCase);
         var strict = 0;
         foreach (var issue in issues)
         {

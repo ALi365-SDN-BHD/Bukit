@@ -572,7 +572,8 @@ the loop limit while reading its links) leaves the field unchanged and is report
 (`content.derived_field_failed`) under the collection's `schemaFailMode`.
 
 A derived value counts everywhere the page's own field would: `content.modelSchema` checks (such as
-`required` or `enum`) run on the derived value, so a `default` rule can fill a required field, and
+`required` or `enum`, and record checks such as `requireAuthor`) run on the derived value under the
+collection's `schemaFailMode`, so a `default` rule can fill a required field, and
 the summary, `tags`, `categories` and images that SEO, search, related pages and `site.data.pages_by_id`
 read come from the derived fields.
 
