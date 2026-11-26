@@ -502,6 +502,14 @@ public sealed record CustomFieldDefinitionConfig
     public object? Default { get; init; }
     public string? SourcePolicy { get; init; }
     public ContentReferenceRuleConfig? Reference { get; init; }
+    /// <summary>
+    /// Display labels for <see cref="Enum"/> values, keyed by value, set when an enum item is
+    /// written as <c>{ value, label }</c>. Templates read options in definition order as
+    /// <c>site.field_enums.&lt;field&gt;</c>.
+    /// </summary>
+    /// <remarks>Internal: configured only through site.yaml, so it does not widen the public API.</remarks>
+    [System.Text.Json.Serialization.JsonInclude]
+    internal IReadOnlyDictionary<string, string>? EnumLabels { get; init; }
 }
 
 public sealed record EntityMappingConfig

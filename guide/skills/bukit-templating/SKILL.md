@@ -79,7 +79,8 @@ language, from `site.languages`: the variant language, or the only entry), `buil
 `params` (from `theme.params`), `data.<source>`, `data_index.<source>.<scope>.<key>`,
 `data_files.<file>`, `modules.<type>`, `related_pages[<id>]`, `queries.<name>` (lists from
 `site.queries`: entries with `key`, `title`, `slug`, `url`, `collection` and the selected fields;
-`{ value, items }` groups; or distinct values). `site.data` also holds
+`{ value, items }` groups; or distinct values), `field_enums.<field>` (enum options in order,
+each `value` and `label`). `site.data` also holds
 the built-in keys `taxonomy` (all terms, usable on any page) and `pages_by_id`. There
 is no `site.menus` or `site.languages`.
 

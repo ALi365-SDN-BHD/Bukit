@@ -116,6 +116,7 @@ public static class ConfigValidator
         ValidateRouteMetadata(config.Content);
         ValidateContentLinks(config.Content);
         ValidateDerivedFields(config.Content.DerivedFields);
+        ValidateFieldEnumNames(config.Content.ModelSchema);
 
         ProviderValidators.ValidateMedia(config.Content.Media);
 
@@ -538,6 +539,18 @@ public static class ConfigValidator
         ["id", "slug", "title", "collection", "type", "sourceMode", "sourceKey", "language", "locale", "draft",
          "status", "route", "publishAt", "translations", "i18nKey", "i18n_key"],
         StringComparer.OrdinalIgnoreCase);
+
+    /// <summary><c>site.field_enums.scopes</c> holds the field scopes, so a custom enum field cannot be named scopes.</summary>
+    private static void ValidateFieldEnumNames(ContentModelSchemaConfig? schema)
+    {
+        if (schema?.CustomFields?.FirstOrDefault(field =>
+                field.Enum is { Count: > 0 } && string.Equals(field.Name, "scopes", StringComparison.OrdinalIgnoreCase)) is not null)
+        {
+            throw new ConfigException(
+                "content.modelSchema.customFields: an enum field cannot be named 'scopes', which site.field_enums uses for field scopes.",
+                DiagnosticCode.ConfigInvalidValue);
+        }
+    }
 
     private static void ValidateDerivedFields(IReadOnlyList<ContentDerivedFieldConfig> derived)
     {

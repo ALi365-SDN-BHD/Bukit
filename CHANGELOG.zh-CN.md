@@ -4,6 +4,8 @@ Bukit 所有重要变更都将记录在此文件中。
 
 ## [Unreleased]
 
+- **枚举标签。** `content.modelSchema` 的 `enum` 项可以写成 `{ value, label }`。模板按定义顺序用 `site.field_enums.<field>` 读取选项（集合作用域的字段在 `site.field_enums.scopes.<collection>.<field>`），标签不再需要单独的数据文件。
+
 - **CloudBase 按发布版本构建。** `cloudbase.filter.value` 可以读取 `${env:NAME}`（例如 `"${env:RELEASE_ID}"`），在构建读取数据表时解析。变量未设置或为空时构建失败，不会用空值查询。CloudBase 指南说明了“当前线上版本”视图的写法，以及用 Publishable Key 读取未上线版本时的公开窗口。
 
 - **dataIndex 键名支持点号。** `dataIndex` 的键现在接受 `^[A-Za-z0-9][A-Za-z0-9._+-]*$`，`custom.daysHint`、`custom.days.4-5.label` 这类文案键可以原样使用（模板里用方括号读取）。范围（scope）和来源名仍是 `^[a-z][a-z0-9_]*$`；`requiredKeys` 以第一段作为范围。

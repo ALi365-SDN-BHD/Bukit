@@ -53,6 +53,11 @@ internal static class VariantRouteStage
         {
             pluginContext.Set(BuildDataKeys.Queries, queries);
         }
+
+        if (FieldEnumProjection.Build(context.Config.Content.ModelSchema) is { } fieldEnums)
+        {
+            pluginContext.Set(BuildDataKeys.FieldEnums, fieldEnums);
+        }
         pluginContext.Set(BuildDataKeys.MediaDownloadDir, ContentProviderFactory
             .BuildEffectiveMediaConfig(context.Config.Content.Media, context.RootDir, context.MediaDownloadDir)
             .DownloadDir);

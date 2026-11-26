@@ -170,6 +170,27 @@ public sealed class I18nWorktreeProtocolTests : IDisposable
     }
 
     [Fact]
+    public void WorkerConfig_KeepsEnumLabels()
+    {
+        var config = new AppConfig
+        {
+            Site = new SiteConfig { Name = "s", Title = "S" },
+            Content = new ContentConfig
+            {
+                ModelSchema = new ContentModelSchemaConfig
+                {
+                    CustomFields = [new CustomFieldDefinitionConfig { Name = "audience", Enum = ["family"], EnumLabels = new Dictionary<string, string> { ["family"] = "亲子" } }]
+                }
+            }
+        };
+
+        var json = JsonSerializer.Serialize(config, I18nWorktreeJsonContext.Default.AppConfig);
+        var restored = JsonSerializer.Deserialize(json, I18nWorktreeJsonContext.Default.AppConfig)!;
+
+        Assert.Equal("亲子", restored.Content.ModelSchema!.CustomFields![0].EnumLabels!["family"]);
+    }
+
+    [Fact]
     public void WorkerConfig_KeepsCloudBaseSourceSettings()
     {
         // Workers validate the config rebuilt from this JSON; a cloudbase source without its settings fails validation.

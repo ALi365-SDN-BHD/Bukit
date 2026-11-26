@@ -639,6 +639,24 @@ content:
 | `content.modelSchema.canonicalMappings[]` | Maps raw keys to canonical fields with optional semantic type and required flag. |
 | `content.modelSchema.customFields[]` | Defines custom fields with `name`, `fieldType`, `required`, `semanticType`, `label`, `format`, `enum`, `min`, `max`, `default`, `sourcePolicy`, and `reference`. |
 | `content.modelSchema.fieldScopes.<collection>[]` | Collection-scoped custom fields. |
+
+An `enum` item is a value, or `{ value, label }` to give the value a display label:
+
+```yaml
+content:
+  modelSchema:
+    customFields:
+      - name: audience
+        enum:
+          - { value: family, label: Family trips }
+          - couple            # label: couple
+```
+
+Validation still checks the values. Templates read the options in definition order as
+`site.field_enums.<field>`, each with `value` and `label` (the value when no label is given);
+fields of a field scope are under `site.field_enums.scopes.<collection>.<field>`, so a custom enum
+field cannot be named `scopes`. A value may appear only once in an `enum`.
+
 | `content.modelSchema.entityMappings[]` | Entity extraction mappings with raw key, type, id/name/description/url/sameAs fields, required flag, and reference rule. |
 | `content.modelSchema.relationMappings[]` | Relation mappings with raw key, relation type, target fields, required flag, and reference rule. |
 | `content.modelSchema.media` | Media policy with `requireAlt`, `requireDescription`, `requireLicense`, and `allowedKinds`. |

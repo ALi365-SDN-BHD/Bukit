@@ -195,7 +195,7 @@ internal static class ScribanTemplateReadAnalyzer
                         ? $"site.{scope}.*"
                         : $"site.{scope}.{key.ToLowerInvariant()}");
                     return;
-                case "related_pages" or "data_files" or "queries":
+                case "related_pages" or "data_files" or "queries" or "field_enums":
                     Keys.Add($"site.{scope}");
                     return;
                 default:

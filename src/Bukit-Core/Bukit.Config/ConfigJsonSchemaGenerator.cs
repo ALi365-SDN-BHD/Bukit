@@ -799,6 +799,19 @@ public static class ConfigJsonSchemaGenerator
             ("semanticType", StringSchema()),
             ("required", BoolSchema()))));
 
+    /// <summary>An enum item: a value, or <c>{ value, label }</c>.</summary>
+    private static JsonObject EnumOptionsSchema()
+    {
+        var option = Obj(("type", "object"));
+        option["required"] = Arr("value");
+        option["properties"] = Obj(
+            ("value", Obj(("type", Arr("string", "number", "boolean")))),
+            ("label", StringSchema()));
+        var item = Obj();
+        item["oneOf"] = new JsonArray(Obj(("type", Arr("string", "number", "boolean"))), option);
+        return Obj(("type", "array"), ("items", item));
+    }
+
     private static JsonObject ContentModelFieldSchema()
     {
         var schema = Obj(("type", "object"));
@@ -809,7 +822,7 @@ public static class ConfigJsonSchemaGenerator
             ("label", StringSchema()),
             ("semanticType", StringSchema()),
             ("format", StringSchema()),
-            ("enum", StringArraySchema()),
+            ("enum", EnumOptionsSchema()),
             ("min", Obj(("type", "number"))),
             ("max", Obj(("type", "number"))),
             ("required", BoolSchema()),

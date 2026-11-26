@@ -492,6 +492,7 @@ internal static class ConfigCollectionReader
                 throw MissingRequired(pathPrefix, index, "name");
             }
 
+            var (enumValues, enumLabels) = ReadEnum(child, $"{pathPrefix}[{index}].enum");
             fields.Add(new CustomFieldDefinitionConfig
             {
                 Name = name,
@@ -500,7 +501,8 @@ internal static class ConfigCollectionReader
                 SemanticType = ConfigYamlHelpers.GetOptionalString(child, "semanticType"),
                 Label = ConfigYamlHelpers.GetOptionalString(child, "label"),
                 Format = ConfigYamlHelpers.GetOptionalString(child, "format"),
-                Enum = ConfigYamlHelpers.ReadStringList(child, "enum"),
+                Enum = enumValues,
+                EnumLabels = enumLabels,
                 Min = ConfigYamlHelpers.GetOptionalDouble(child, "min"),
                 Max = ConfigYamlHelpers.GetOptionalDouble(child, "max"),
                 Default = child.Children.TryGetValue(new YamlScalarNode("default"), out var defaultNode)
@@ -513,6 +515,58 @@ internal static class ConfigCollectionReader
         }
 
         return fields;
+    }
+
+    /// <summary>
+    /// Reads <c>enum</c>: each item is a value, or <c>{ value, label }</c>. Labels are kept only
+    /// when at least one item has one; values keep their order.
+    /// </summary>
+    private static (IReadOnlyList<string>? Values, IReadOnlyDictionary<string, string>? Labels) ReadEnum(YamlMappingNode field, string path)
+    {
+        if (ConfigYamlHelpers.GetOptionalSequence(field, "enum") is not { } sequence)
+        {
+            return (null, null);
+        }
+
+        var values = new List<string>();
+        var labels = new Dictionary<string, string>(StringComparer.Ordinal);
+        for (var i = 0; i < sequence.Children.Count; i++)
+        {
+            switch (sequence.Children[i])
+            {
+                case YamlScalarNode { Value: var scalar } when !string.IsNullOrWhiteSpace(scalar):
+                    values.Add(scalar.Trim());
+                    break;
+                case YamlScalarNode:
+                    break;
+                case YamlMappingNode option:
+                    if (option.Children.Keys.FirstOrDefault(key => (key as YamlScalarNode)?.Value is not ("value" or "label")) is { } unknown)
+                    {
+                        throw new ConfigException($"Unknown config field '{path}[{i}].{(unknown as YamlScalarNode)?.Value}'.", DiagnosticCode.ConfigInvalidValue);
+                    }
+
+                    var value = ConfigYamlHelpers.GetOptionalString(option, "value")?.Trim();
+                    if (string.IsNullOrEmpty(value))
+                    {
+                        throw new ConfigException($"{path}[{i}].value is required.", DiagnosticCode.ConfigRequiredFieldMissing);
+                    }
+
+                    values.Add(value);
+                    if (ConfigYamlHelpers.GetOptionalString(option, "label")?.Trim() is { Length: > 0 } label)
+                    {
+                        labels[value] = label;
+                    }
+
+                    break;
+                default:
+                    throw new ConfigException($"{path}[{i}] must be a value or a mapping with value and label.", DiagnosticCode.ConfigInvalidValue);
+            }
+        }
+
+        var duplicate = values.GroupBy(value => value, StringComparer.Ordinal).FirstOrDefault(group => group.Count() > 1);
+        return duplicate is not null
+            ? throw new ConfigException($"{path} lists '{duplicate.Key}' more than once.", DiagnosticCode.ConfigInvalidValue)
+            : (values, labels.Count == 0 ? null : labels);
     }
 
     private static IReadOnlyList<EntityMappingConfig>? ReadEntityMappings(YamlMappingNode node)

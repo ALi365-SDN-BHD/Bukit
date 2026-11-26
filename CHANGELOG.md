@@ -4,6 +4,8 @@ All notable changes to Bukit will be documented in this file.
 
 ## [Unreleased]
 
+- **Enum labels.** `content.modelSchema` `enum` items can be `{ value, label }`. Templates read the options in definition order as `site.field_enums.<field>` (scoped fields under `site.field_enums.scopes.<collection>.<field>`), so labels no longer need a separate data file.
+
 - **CloudBase release builds.** `cloudbase.filter.value` can read `${env:NAME}` (for example `"${env:RELEASE_ID}"`), resolved when the build fetches the table. An unset or empty variable fails the build instead of querying with an empty value. The CloudBase guide covers the live-release view and the exposure window of reading unreleased rows with the Publishable Key.
 
 - **Dotted dataIndex keys.** `dataIndex` keys now accept `^[A-Za-z0-9][A-Za-z0-9._+-]*$`, so copy keys such as `custom.daysHint` or `custom.days.4-5.label` work as written (read them with brackets). Scopes and source names keep `^[a-z][a-z0-9_]*$`; `requiredKeys` take the first segment as the scope.

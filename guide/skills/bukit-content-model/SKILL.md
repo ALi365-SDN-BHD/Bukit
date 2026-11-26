@@ -127,7 +127,9 @@ build:
   collection. Field options: `required`, `default`, `enum`, `format`
   (`url|email|date|slug`; `semanticType` is used when `format` is absent), `min`/`max`,
   `sourcePolicy` (`raw|canonical|custom|provider|any`; only the value is checked).
-  `label` has no effect.
+  `label` has no effect. An `enum` item may be `{ value, label }`; templates read options in
+  order as `site.field_enums.<field>` (`value`, `label`), scoped fields under
+  `site.field_enums.scopes.<collection>.<field>`.
 - `rejectUnknownRawKeys: true` fails the build on any undeclared front matter key,
   whatever `schemaFailMode` says. Use it only with a complete field list.
 - Mappings (lists) turn raw fields into canonical fields, entities, and relations:

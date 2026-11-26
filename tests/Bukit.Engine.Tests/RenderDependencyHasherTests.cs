@@ -1524,6 +1524,7 @@ public sealed class RenderDependencyHasherTests
     [InlineData("__data_files")]
     [InlineData("__related_pages")]
     [InlineData("__queries")]
+    [InlineData("__field_enums")]
     public void Compute_PublicPluginProjectionChange_ProducesDifferentHash(string internalKey)
     {
         var config = CreateBaseConfig();

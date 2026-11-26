@@ -4,6 +4,8 @@ Semua perubahan penting kepada Bukit akan didokumenkan dalam fail ini.
 
 ## [Belum Dikeluarkan]
 
+- **Label enum.** Item `enum` dalam `content.modelSchema` boleh ditulis sebagai `{ value, label }`. Templat membaca pilihan mengikut susunan takrifan sebagai `site.field_enums.<field>` (medan berskop di bawah `site.field_enums.scopes.<collection>.<field>`), jadi label tidak lagi memerlukan fail data berasingan.
+
 - **Binaan keluaran CloudBase.** `cloudbase.filter.value` boleh membaca `${env:NAME}` (contohnya `"${env:RELEASE_ID}"`), diselesaikan apabila binaan mengambil jadual. Pemboleh ubah yang tidak ditetapkan atau kosong menggagalkan binaan dan tidak membuat pertanyaan dengan nilai kosong. Panduan CloudBase menerangkan paparan keluaran langsung dan tempoh pendedahan apabila baris yang belum dikeluarkan dibaca dengan Publishable Key.
 
 - **Kunci dataIndex bertitik.** Kunci `dataIndex` kini menerima `^[A-Za-z0-9][A-Za-z0-9._+-]*$`, jadi kunci teks seperti `custom.daysHint` atau `custom.days.4-5.label` berfungsi seperti yang ditulis (baca dengan kurungan siku). Skop dan nama sumber kekal `^[a-z][a-z0-9_]*$`; `requiredKeys` mengambil segmen pertama sebagai skop.

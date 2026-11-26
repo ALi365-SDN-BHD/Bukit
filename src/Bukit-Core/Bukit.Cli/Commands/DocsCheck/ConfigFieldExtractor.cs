@@ -185,6 +185,7 @@ public static class ConfigFieldExtractor
         "site.data_files",
         "site.related_pages",
         "site.queries",
+        "site.field_enums",
         "site.rss",
         "content.custom_field_enum_mismatch",
         "content.custom_field_format_mismatch",

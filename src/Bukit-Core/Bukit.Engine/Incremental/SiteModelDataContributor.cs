@@ -4,7 +4,7 @@ namespace Bukit.Engine.Incremental;
 
 /// <summary>
 /// The shared data collections of the site model (<c>site.modules</c>, <c>site.data</c>,
-/// <c>site.data_index</c>, <c>site.related_pages</c>, <c>site.data_files</c>, <c>site.queries</c>). They are not part
+/// <c>site.data_index</c>, <c>site.related_pages</c>, <c>site.data_files</c>, <c>site.queries</c>, <c>site.field_enums</c>). They are not part
 /// of the base render hash: each route depends only on the collections its last render read
 /// (see <see cref="RenderDependencySnapshot"/>).
 /// </summary>
@@ -58,6 +58,7 @@ internal sealed class SiteModelDataContributor : IRenderDependencyContributor
                     "__data_files" => "data_files",
                     "__related_pages" => "related_pages",
                     "__queries" => "queries",
+                    "__field_enums" => "field_enums",
                     _ => null
                 };
                 if (publicAlias is not null)
