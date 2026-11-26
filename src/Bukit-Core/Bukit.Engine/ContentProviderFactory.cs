@@ -157,7 +157,7 @@ internal static class ContentProviderFactory
                 PageSize = cloudBase.PageSize,
                 MaxItems = cloudBase.MaxItems,
                 FilterField = cloudBase.Filter?.Field,
-                FilterValue = cloudBase.Filter?.Value,
+                FilterValue = cloudBase.Filter is { } filter ? ConfigEnvValue.Resolve(filter.Value, "cloudbase.filter.value") : null,
                 SortField = cloudBase.Sort?.Field,
                 SortDirection = cloudBase.Sort?.Direction ?? "asc",
                 TitleField = cloudBase.TitleField,

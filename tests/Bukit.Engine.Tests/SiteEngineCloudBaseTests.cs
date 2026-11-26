@@ -122,6 +122,39 @@ public sealed partial class SiteEngineIntegrationTests
     }
 
     [Fact]
+    public void Create_FilterValueEnvReference_ResolvesOrFailsWhenUnset()
+    {
+        var (root, config) = CreateBuildReportHealthSite();
+        var variable = "BUKIT_TEST_RELEASE_" + Guid.NewGuid().ToString("N");
+        var source = TestContent.CloudBaseSource(new CloudBaseConfig
+        {
+            EnvId = "env-abc",
+            Table = "articles",
+            BodyField = "content",
+            Filter = new CloudBaseFilterConfig { Field = "release_id", Value = "${env:" + variable + "}" }
+        });
+        config = config with { Content = ContentConfigFactory.FromSources([source]) };
+
+        var originalKey = Environment.GetEnvironmentVariable("CLOUDBASE_PUBLISHABLE_KEY");
+        try
+        {
+            Environment.SetEnvironmentVariable("CLOUDBASE_PUBLISHABLE_KEY", "pk_engine_test");
+
+            var ex = Assert.Throws<ConfigException>(() => ContentProviderFactory.Create(config, root, isCi: false, new TestLogger()));
+            Assert.Equal(DiagnosticCode.ConfigRequiredFieldMissing, ex.Code);
+            Assert.Contains(variable, ex.Message, StringComparison.Ordinal);
+
+            Environment.SetEnvironmentVariable(variable, "r42");
+            Assert.NotNull(ContentProviderFactory.Create(config, root, isCi: false, new TestLogger()));
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable("CLOUDBASE_PUBLISHABLE_KEY", originalKey);
+            Environment.SetEnvironmentVariable(variable, null);
+        }
+    }
+
+    [Fact]
     public async Task BuildAsync_MarkdownOnlySite_ProducesIdenticalOutputWithoutCloudBaseSource()
     {
         var originalKey = Environment.GetEnvironmentVariable("CLOUDBASE_PUBLISHABLE_KEY");

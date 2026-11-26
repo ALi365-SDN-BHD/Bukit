@@ -83,6 +83,11 @@ internal static partial class ProviderValidators
             throw CloudBaseInvalid($"{pathPrefix}.filter.field must match ^[A-Za-z_][A-Za-z0-9_]{{0,62}}$.");
         }
 
+        if (cloudBase.Filter is { } envFilter && ConfigEnvValue.FindSyntaxError(envFilter.Value) is { } envError)
+        {
+            throw CloudBaseInvalid($"{pathPrefix}.filter.value {envError}.");
+        }
+
         if (cloudBase.Sort is { } sort &&
             (string.IsNullOrWhiteSpace(sort.Field) || sort.Direction is not ("asc" or "desc")))
         {

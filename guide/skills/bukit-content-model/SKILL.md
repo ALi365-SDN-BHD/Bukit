@@ -56,7 +56,9 @@ values are degraded (`BKT-0C0B`). jsonb objects and non-text arrays stay structu
 Markdown list items, depth 8, 256 KiB); an allowed column is published whole, nested
 personal keys with the dropped names are removed, nested `cloud://` drops the column, and
 a too-deep or too-large column is dropped as `cloudbase.structured_field_invalid` under
-`schemaFailMode`. See `guide/user/27-cloudbase-content.md`.
+`schemaFailMode`. The `filter` value may read `${env:NAME}` (quote it), resolved when the build
+fetches the table; an unset or empty variable fails the build. See
+`guide/user/27-cloudbase-content.md`.
 
 ## Remote media
 

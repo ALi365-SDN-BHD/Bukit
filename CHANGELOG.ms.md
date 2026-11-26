@@ -4,6 +4,8 @@ Semua perubahan penting kepada Bukit akan didokumenkan dalam fail ini.
 
 ## [Belum Dikeluarkan]
 
+- **Binaan keluaran CloudBase.** `cloudbase.filter.value` boleh membaca `${env:NAME}` (contohnya `"${env:RELEASE_ID}"`), diselesaikan apabila binaan mengambil jadual. Pemboleh ubah yang tidak ditetapkan atau kosong menggagalkan binaan dan tidak membuat pertanyaan dengan nilai kosong. Panduan CloudBase menerangkan paparan keluaran langsung dan tempoh pendedahan apabila baris yang belum dikeluarkan dibaca dengan Publishable Key.
+
 - **Kunci dataIndex bertitik.** Kunci `dataIndex` kini menerima `^[A-Za-z0-9][A-Za-z0-9._+-]*$`, jadi kunci teks seperti `custom.daysHint` atau `custom.days.4-5.label` berfungsi seperti yang ditulis (baca dengan kurungan siku). Skop dan nama sumber kekal `^[a-z][a-z0-9_]*$`; `requiredKeys` mengambil segmen pertama sebagai skop.
 
 - **Halaman berkaitan mengikut medan tersuai.** `site.related.indices[].field` memberi skor kepada mana-mana medan kandungan mengikut nilai yang dikongsi, dan `site.related.collections.<collection>` memberi satu koleksi peraturannya sendiri (dibandingkan dalam koleksi itu; `threshold` boleh 0). Entri kini mengandungi `id` dan `slug`, dan skor yang sama mengekalkan susunan senarai koleksi.

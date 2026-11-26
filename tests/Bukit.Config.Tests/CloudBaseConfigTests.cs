@@ -95,6 +95,32 @@ public sealed class CloudBaseConfigTests
     }
 
     [Fact]
+    public void Load_FilterValueEnvReference_PassesWithoutTheVariable()
+    {
+        var config = Load("""
+            envId: prod-abc
+            table: articles
+            bodyField: content
+            filter: { field: release_id, value: "${env:BUKIT_TEST_UNSET_RELEASE}" }
+            """);
+
+        Assert.Equal("${env:BUKIT_TEST_UNSET_RELEASE}", config.Content.Sources![0].CloudBase!.Filter!.Value);
+    }
+
+    [Fact]
+    public void Load_FilterValueMalformedEnvReference_Fails()
+    {
+        var ex = Fails("""
+            envId: prod-abc
+            table: articles
+            bodyField: content
+            filter: { field: release_id, value: "${RELEASE_ID}" }
+            """);
+        AssertCloudBaseError(ex);
+        Assert.Contains("filter.value uses '${' outside a ${env:NAME} reference", ex.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void Load_MissingEnvId_Fails()
     {
         var ex = Fails("""

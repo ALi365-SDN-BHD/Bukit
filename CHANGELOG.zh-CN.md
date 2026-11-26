@@ -4,6 +4,8 @@ Bukit 所有重要变更都将记录在此文件中。
 
 ## [Unreleased]
 
+- **CloudBase 按发布版本构建。** `cloudbase.filter.value` 可以读取 `${env:NAME}`（例如 `"${env:RELEASE_ID}"`），在构建读取数据表时解析。变量未设置或为空时构建失败，不会用空值查询。CloudBase 指南说明了“当前线上版本”视图的写法，以及用 Publishable Key 读取未上线版本时的公开窗口。
+
 - **dataIndex 键名支持点号。** `dataIndex` 的键现在接受 `^[A-Za-z0-9][A-Za-z0-9._+-]*$`，`custom.daysHint`、`custom.days.4-5.label` 这类文案键可以原样使用（模板里用方括号读取）。范围（scope）和来源名仍是 `^[a-z][a-z0-9_]*$`；`requiredKeys` 以第一段作为范围。
 
 - **按自定义字段计算相关页面。** `site.related.indices[].field` 可以按任意内容字段的共同值计分，`site.related.collections.<collection>` 给单个集合单独的规则（只在该集合内比较；`threshold` 可以为 0）。结果条目新增 `id` 和 `slug`，同分时保持集合列表顺序。
