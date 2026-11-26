@@ -127,13 +127,15 @@ internal static class DerivedFieldResolver
     /// <summary>
     /// Runs the checks the validate stage deferred (see <see cref="DefersCheck"/> and
     /// <see cref="DefersRequiredDiagnostic"/>) on the routed pages of the collections with derived rules,
-    /// after derivation. Relation targets resolve against every page and entry of the variant.
+    /// after derivation. Relation targets resolve against the whole site, as in the validate stage: the
+    /// routed pages with their derived values, and every other document of every language.
     /// </summary>
+    /// <param name="siteDocuments">Every content document of the site; routed pages replace their own entry.</param>
     internal static IReadOnlyList<ContentValidationIssue> ValidateDerived(
         AppConfig config,
         ContentModelSchema schema,
         IReadOnlyList<RoutedContentDocument> routed,
-        IReadOnlyList<ContentDocument> withoutPage)
+        IReadOnlyList<ContentDocument> siteDocuments)
     {
         var content = config.Content;
         if (content.DerivedFields.Count == 0)
@@ -155,15 +157,21 @@ internal static class DerivedFieldResolver
             return [];
         }
 
-        var graph = CanonicalContentGraphBuilder.BuildFromDocuments([.. routed.Select(page => page.Document).Concat(withoutPage)]);
+        // Pages come first, so an id that translations share finds the page of this variant.
+        var pageKeys = pages.Values.Select(page => RecordKey(page.Document.Record)).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var routedKeys = routed.Select(page => RecordKey(page.Document.Record)).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var site = CanonicalContentGraphBuilder.BuildFromDocuments(
+            [.. routed.Select(page => page.Document), .. siteDocuments.Where(document => !routedKeys.Contains(RecordKey(document.Record)))]);
+        // The canonical checks look at one record at a time.
+        var own = CanonicalContentGraphBuilder.BuildFromDocuments([.. pages.Values.Select(page => page.Document)]);
         var required = new List<ContentDiagnostic>();
         foreach (var (document, _) in pages.Values)
         {
             DefaultContentNormalizer.AddRequiredFieldDiagnostics(required, schema, document.CustomFields, document.Id);
         }
 
-        return [.. CanonicalContentValidator.Validate(graph, config.Site)
-            .Concat(ContentModelSchemaValidator.Validate(graph, schema, record => pages.ContainsKey(record.Identity.Id)))
+        return [.. CanonicalContentValidator.Validate(own, config.Site)
+            .Concat(ContentModelSchemaValidator.Validate(site, schema, record => pageKeys.Contains(RecordKey(record))))
             .Where(issue => issue.SourcePath is { } id && pages.TryGetValue(id, out var page) && IsDeferredCheck(content, page.Collection, issue))
             .Concat(required
                 .Where(diagnostic => diagnostic.SourceId is { } id && diagnostic.Field is { } field && WritesField(content, pages[id].Collection, field))

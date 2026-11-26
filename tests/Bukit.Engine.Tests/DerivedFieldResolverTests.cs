@@ -164,6 +164,23 @@ public sealed class DerivedFieldResolverTests
     }
 
     [Fact]
+    public void ValidateDerived_ResolvesRelationsAgainstOtherLanguagesAndKeepsTranslationsApart()
+    {
+        // Only a summary is derived; the relation and its target in another language are unchanged.
+        var content = Content(Rule("summary", "{{ name }}"));
+        var config = Config(content);
+        var schema = ContentModelSchemaFactory.FromConfig(config);
+        var english = Page("kl", "city", ("language", "en"), ("name", "KL"), ("related_to", "zh-only"));
+        var target = Page("zh-only", "post", ("language", "zh"));
+        var translation = Page("kl", "city", ("language", "zh"), ("related_to", "missing"));
+
+        var routed = DerivedFieldResolver.Apply(content, [Routed(english)], schema: schema);
+
+        Assert.Empty(DerivedFieldResolver.ValidateDerived(config, schema, routed, [english, target, translation]));
+        Assert.Equal("kl", Assert.Single(DerivedFieldResolver.ValidateDerived(config, schema, routed, [english, translation])).SourcePath);
+    }
+
+    [Fact]
     public void Apply_DerivedPublishFields_UpdateThePublishPolicy()
     {
         var content = Content(Rule("noindex", "{{ if thin }}true{{ end }}", "override"), Rule("sitemapExclude", "true", "override"));
