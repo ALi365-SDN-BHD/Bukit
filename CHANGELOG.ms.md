@@ -4,6 +4,8 @@ Semua perubahan penting kepada Bukit akan didokumenkan dalam fail ini.
 
 ## [Belum Dikeluarkan]
 
+- **Halaman berkaitan mengikut medan tersuai.** `site.related.indices[].field` memberi skor kepada mana-mana medan kandungan mengikut nilai yang dikongsi, dan `site.related.collections.<collection>` memberi satu koleksi peraturannya sendiri (dibandingkan dalam koleksi itu; `threshold` boleh 0). Entri kini mengandungi `id` dan `slug`, dan skor yang sama mengekalkan susunan senarai koleksi.
+
 - **Pertanyaan bernama.** `site.queries.<name>: { from, where, sort, select, distinct, group, limit }` membina senarai tersusun daripada satu koleksi (halaman dan entri tanpa halaman), dibaca dalam templat sebagai `site.queries.<name>`. Penapis sepadan seperti senarai tertapis dan menyokong `hasBackref`; kumpulan dan nilai unik meliputi senarai seperti laluan mengikut bulan atau jenis tarikan.
 
 - **Medan terbitan.** `content.derivedFields.<collection>.<field>: { value, mode }` mengira medan halaman daripada templat Scriban atas medan halaman itu sendiri (termasuk `<field>_links`), contohnya tajuk SEO daripada dua nama. `seo.describe <width>` memotong huraian mengikut lebar paparan. Templat adalah deterministik; kegagalan masa jalan dilaporkan sebagai `content.derived_field_failed`.

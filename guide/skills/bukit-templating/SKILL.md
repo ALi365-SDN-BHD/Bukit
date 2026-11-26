@@ -111,6 +111,9 @@ site:
     indices:             # default tags 80, categories 60
       - { name: tags, weight: 80 }
       - { name: date, weight: 20 }   # tags|categories|keywords|collection|type|date
+      - { field: region, weight: 10 }  # any content field: weight per shared value
+    collections:         # own rules; compares only within the collection
+      route: { threshold: 0, limit: 4, indices: [{ field: cities, weight: 2 }] }
 ```
 
 There is no `page.related`. Results are a map keyed by document id:
@@ -121,7 +124,8 @@ There is no `page.related`. Results are a map keyed by document id:
 {{ end }}
 ```
 
-Each entry has `title`, `url`, `score`. Pages with no match have no entry.
+Each entry has `id`, `slug`, `title`, `url`, `score`, sorted by score; equal scores keep the
+collection list order. Pages with no match have no entry.
 
 ## Escaping and URLs
 

@@ -168,10 +168,22 @@ internal static class ConfigStrictFieldValidator
         if (Map(site, "search") is { } search) RequireOnly(search, Set("mode", "route", "ui", "uiTheme", "placeholderText", "maxContentLength"), "site.search");
         if (Map(site, "related") is { } related)
         {
-            RequireOnly(related, Set("enabled", "threshold", "limit", "indices"), "site.related");
+            RequireOnly(related, Set("enabled", "threshold", "limit", "indices", "collections"), "site.related");
             if (Seq(related, "indices") is { } indices)
             {
-                ValidateSequenceMappings(indices, Set("name", "weight"), "site.related.indices");
+                ValidateSequenceMappings(indices, Set("name", "field", "weight"), "site.related.indices");
+            }
+
+            if (Map(related, "collections", "site.related.collections") is { } relatedCollections)
+            {
+                foreach (var (collection, rules) in MappingChildren(relatedCollections, "site.related.collections"))
+                {
+                    RequireOnly(rules, Set("threshold", "limit", "indices"), $"site.related.collections.{collection}");
+                    if (Seq(rules, "indices", $"site.related.collections.{collection}.indices") is { } collectionIndices)
+                    {
+                        ValidateSequenceMappings(collectionIndices, Set("name", "field", "weight"), $"site.related.collections.{collection}.indices");
+                    }
+                }
             }
         }
 

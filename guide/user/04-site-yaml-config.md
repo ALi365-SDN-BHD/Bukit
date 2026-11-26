@@ -87,8 +87,15 @@ content:
 | `site.related.enabled` | `false` | Enables related-content data. |
 | `site.related.threshold` | `80` | Match threshold. |
 | `site.related.limit` | `5` | Positive result limit. |
-| `site.related.indices[].name` | `tags`, `categories` | Index names used for matching. |
+| `site.related.indices[].name` | `tags`, `categories` | Built-in index: `tags`, `categories`, `keywords`, `collection`, `type` or `date`. |
+| `site.related.indices[].field` | none | A content field used instead of `name`: the score adds `weight` for each shared value. |
 | `site.related.indices[].weight` | `80`, `60` | Index weights. |
+| `site.related.collections.<collection>` | none | Rules for that collection's pages, compared only with pages of the same collection: `indices` (required), `threshold` (`0` or more) and `limit`, which default to the values above. |
+
+Related pages are sorted by score, and pages with the same score keep the collection list order
+(newest first, then [`content.ordering`](#content-ordering)). Each entry in
+`site.related_pages[<id>]` has `id`, `slug`, `title`, `url` and `score`. With `threshold: 0`, every
+page of the collection is a candidate, so a page always gets `limit` entries when enough exist.
 
 ## SEO, GEO, And Analytics
 

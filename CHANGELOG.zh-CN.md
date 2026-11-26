@@ -4,6 +4,8 @@ Bukit 所有重要变更都将记录在此文件中。
 
 ## [Unreleased]
 
+- **按自定义字段计算相关页面。** `site.related.indices[].field` 可以按任意内容字段的共同值计分，`site.related.collections.<collection>` 给单个集合单独的规则（只在该集合内比较；`threshold` 可以为 0）。结果条目新增 `id` 和 `slug`，同分时保持集合列表顺序。
+
 - **命名查询。** `site.queries.<name>: { from, where, sort, select, distinct, group, limit }` 从一个集合（有页面的条目和没有页面的条目）生成有序列表，模板里用 `site.queries.<name>` 读取。筛选规则与 filteredLists 一致，并支持 `hasBackref`；分组和去重可以做“按月份的路线”“景点类型”这类列表。
 
 - **派生字段。** `content.derivedFields.<collection>.<field>: { value, mode }` 用 Scriban 模板根据页面自身字段（包括 `<field>_links`）计算页面字段，例如用中英文名拼出 SEO 标题。`seo.describe <width>` 按显示宽度截取描述。模板结果是确定的；运行时失败报告为 `content.derived_field_failed`。

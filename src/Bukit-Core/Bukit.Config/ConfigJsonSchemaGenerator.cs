@@ -457,13 +457,21 @@ public static class ConfigJsonSchemaGenerator
         var indexSchema = Obj(("type", "object"));
         indexSchema["properties"] = Obj(
             ("name", StringSchema()),
+            ("field", StringSchema()),
             ("weight", IntSchema(0)));
+        var collectionSchema = Obj(("type", "object"));
+        collectionSchema["required"] = Arr("indices");
+        collectionSchema["properties"] = Obj(
+            ("threshold", IntSchema(0)),
+            ("limit", IntSchema(1)),
+            ("indices", Obj(("type", "array"), ("items", indexSchema.DeepClone()))));
 
         return Obj(("type", "object"), ("properties", Obj(
             ("enabled", BoolSchema()),
             ("threshold", IntSchema(0)),
             ("limit", IntSchema(1)),
-            ("indices", Obj(("type", "array"), ("items", indexSchema))))));
+            ("indices", Obj(("type", "array"), ("items", indexSchema))),
+            ("collections", Obj(("type", "object"), ("additionalProperties", collectionSchema))))));
     }
 
     private static JsonObject SiteQueriesSchema()

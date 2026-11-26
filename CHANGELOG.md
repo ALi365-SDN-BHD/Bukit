@@ -4,6 +4,8 @@ All notable changes to Bukit will be documented in this file.
 
 ## [Unreleased]
 
+- **Related pages by custom fields.** `site.related.indices[].field` scores any content field by shared values, and `site.related.collections.<collection>` gives one collection its own rules (compared within the collection; `threshold` may be 0). Entries now include `id` and `slug`, and equal scores keep the collection list order.
+
 - **Named queries.** `site.queries.<name>: { from, where, sort, select, distinct, group, limit }` builds ordered lists from one collection (pages and entries without a page), read in templates as `site.queries.<name>`. Filters match like filtered lists and support `hasBackref`; groups and distinct values cover lists such as routes by month or attraction types.
 
 - **Derived fields.** `content.derivedFields.<collection>.<field>: { value, mode }` computes page fields from a Scriban template over the page's own fields (including `<field>_links`), such as an SEO title from two names. `seo.describe <width>` cuts a description by display width. Templates are deterministic; runtime failures are reported as `content.derived_field_failed`.

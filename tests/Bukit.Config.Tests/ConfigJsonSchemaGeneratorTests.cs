@@ -27,6 +27,7 @@ public sealed class ConfigJsonSchemaGeneratorTests
         "$/properties/content/properties/modelSchema/properties/fieldScopes",
         "$/properties/content/properties/derivedFields",
         "$/properties/site/properties/queries",
+        "$/properties/site/properties/related/properties/collections",
         "$/properties/content/properties/derivedFields/additionalProperties"
     };
 

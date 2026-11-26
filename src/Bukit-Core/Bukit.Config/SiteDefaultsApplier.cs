@@ -311,16 +311,57 @@ internal static partial class SiteDefaultsApplier
             return new RelatedConfig();
         }
 
+        var threshold = ConfigYamlHelpers.GetOptionalIntStrict(relatedNode, "threshold") ?? 80;
+        var limit = ConfigYamlHelpers.GetOptionalIntStrict(relatedNode, "limit") ?? 5;
         return new RelatedConfig
         {
             Enabled = ConfigYamlHelpers.GetOptionalBool(relatedNode, "enabled") ?? false,
-            Threshold = ConfigYamlHelpers.GetOptionalIntStrict(relatedNode, "threshold") ?? 80,
-            Limit = ConfigYamlHelpers.GetOptionalIntStrict(relatedNode, "limit") ?? 5,
-            Indices = ReadRelatedIndices(relatedNode) ?? new RelatedConfig().Indices
+            Threshold = threshold,
+            Limit = limit,
+            Indices = ReadRelatedIndices(relatedNode, "site.related") ?? new RelatedConfig().Indices,
+            Collections = ReadRelatedCollections(relatedNode, threshold, limit)
         };
     }
 
-    private static IReadOnlyList<RelatedIndexConfig>? ReadRelatedIndices(YamlMappingNode relatedNode)
+    /// <summary>site.related.collections: threshold and limit default to the site.related values; indices are required.</summary>
+    private static IReadOnlyList<RelatedCollectionConfig> ReadRelatedCollections(YamlMappingNode relatedNode, int threshold, int limit)
+    {
+        if (ConfigYamlHelpers.GetOptionalMapping(relatedNode, "collections", "site.related") is not { } node)
+        {
+            return [];
+        }
+
+        var collections = new List<RelatedCollectionConfig>();
+        foreach (var (key, value) in node.Children)
+        {
+            var collection = (key as YamlScalarNode)?.Value?.Trim();
+            var path = $"site.related.collections.{collection}";
+            if (string.IsNullOrEmpty(collection) || value is not YamlMappingNode rules)
+            {
+                throw new ConfigException($"{path} must be a mapping.", DiagnosticCode.ConfigInvalidValue);
+            }
+
+            var collectionLimit = ConfigYamlHelpers.GetOptionalIntStrict(rules, "limit") ?? limit;
+            var collectionThreshold = ConfigYamlHelpers.GetOptionalIntStrict(rules, "threshold") ?? threshold;
+            if (collectionLimit < 1 || collectionThreshold < 0)
+            {
+                throw new ConfigException($"{path} needs limit of at least 1 and threshold of at least 0.", DiagnosticCode.ConfigInvalidValue);
+            }
+
+            collections.Add(new RelatedCollectionConfig
+            {
+                Collection = collection,
+                Threshold = collectionThreshold,
+                Limit = collectionLimit,
+                Indices = ReadRelatedIndices(rules, path)
+                    ?? throw new ConfigException($"{path}.indices must list at least one index.", DiagnosticCode.ConfigRequiredFieldMissing)
+            });
+        }
+
+        return collections;
+    }
+
+    private static IReadOnlyList<RelatedIndexConfig>? ReadRelatedIndices(YamlMappingNode relatedNode, string path)
     {
         var indicesNode = ConfigYamlHelpers.GetOptionalSequence(relatedNode, "indices");
         if (indicesNode is null)
@@ -333,13 +374,26 @@ internal static partial class SiteDefaultsApplier
         {
             if (n is not YamlMappingNode m)
             {
-                throw new ConfigException("site.related.indices items must be mappings.", DiagnosticCode.ConfigRequiredFieldMissing);
+                throw new ConfigException($"{path}.indices items must be mappings.", DiagnosticCode.ConfigRequiredFieldMissing);
+            }
+
+            var name = ConfigYamlHelpers.GetOptionalString(m, "name")?.Trim();
+            var field = ConfigYamlHelpers.GetOptionalString(m, "field")?.Trim();
+            if (string.IsNullOrEmpty(name) == string.IsNullOrEmpty(field))
+            {
+                throw new ConfigException($"{path}.indices[{indices.Count}] needs exactly one of name or field.", DiagnosticCode.ConfigRequiredFieldMissing);
+            }
+
+            if (field is { Length: > 0 } && !ContentLinkPath.IsName(field))
+            {
+                throw new ConfigException($"{path}.indices[{indices.Count}].field '{field}' is not a valid field name.", DiagnosticCode.ConfigInvalidValue);
             }
 
             indices.Add(new RelatedIndexConfig
             {
-                Name = ConfigYamlHelpers.GetRequiredString(m, "name"),
-                Weight = ConfigYamlHelpers.GetOptionalIntStrict(m, "weight") ?? 100
+                Name = string.IsNullOrEmpty(field) ? name! : "field",
+                Weight = ConfigYamlHelpers.GetOptionalIntStrict(m, "weight") ?? 100,
+                Field = string.IsNullOrEmpty(field) ? null : field
             });
         }
 

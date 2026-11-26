@@ -866,12 +866,35 @@ public sealed record RelatedConfig
         new RelatedIndexConfig { Name = "tags", Weight = 80 },
         new RelatedIndexConfig { Name = "categories", Weight = 60 }
     };
+    /// <summary>
+    /// site.related.collections: rules for pages of one collection, compared only with pages of
+    /// the same collection. Pages of other collections keep the rules above.
+    /// </summary>
+    /// <remarks>Internal: configured only through site.yaml, so it does not widen the public API.</remarks>
+    [System.Text.Json.Serialization.JsonInclude]
+    internal IReadOnlyList<RelatedCollectionConfig> Collections { get; init; } = [];
 }
 
 public sealed record RelatedIndexConfig
 {
     public required string Name { get; init; }
     public int Weight { get; init; } = 100;
+    /// <summary>
+    /// A content field scored like tags: the number of shared values times <see cref="Weight"/>.
+    /// Set instead of a built-in <see cref="Name"/> (which is then <c>field</c>).
+    /// </summary>
+    /// <remarks>Internal: configured only through site.yaml, so it does not widen the public API.</remarks>
+    [System.Text.Json.Serialization.JsonInclude]
+    internal string? Field { get; init; }
+}
+
+/// <summary>One site.related.collections.&lt;collection&gt; entry.</summary>
+internal sealed record RelatedCollectionConfig
+{
+    public required string Collection { get; init; }
+    public required int Threshold { get; init; }
+    public required int Limit { get; init; }
+    public required IReadOnlyList<RelatedIndexConfig> Indices { get; init; }
 }
 
 public sealed record MenuConfig

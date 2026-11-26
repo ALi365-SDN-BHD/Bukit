@@ -144,6 +144,32 @@ public sealed class I18nWorktreeProtocolTests : IDisposable
     }
 
     [Fact]
+    public void WorkerConfig_KeepsRelatedFieldIndicesAndCollectionRules()
+    {
+        var config = new AppConfig
+        {
+            Site = new SiteConfig
+            {
+                Name = "s",
+                Title = "S",
+                Related = new RelatedConfig
+                {
+                    Indices = [new RelatedIndexConfig { Name = "field", Field = "region" }],
+                    Collections = [new RelatedCollectionConfig { Collection = "route", Threshold = 0, Limit = 4, Indices = [new RelatedIndexConfig { Name = "field", Field = "cities", Weight = 2 }] }]
+                }
+            },
+            Content = new ContentConfig()
+        };
+
+        var json = JsonSerializer.Serialize(config, I18nWorktreeJsonContext.Default.AppConfig);
+        var restored = JsonSerializer.Deserialize(json, I18nWorktreeJsonContext.Default.AppConfig)!.Site.Related;
+
+        Assert.Equal("region", Assert.Single(restored.Indices).Field);
+        var route = Assert.Single(restored.Collections);
+        Assert.Equal(("route", 0, 4, "cities", 2), (route.Collection, route.Threshold, route.Limit, Assert.Single(route.Indices).Field, route.Indices[0].Weight));
+    }
+
+    [Fact]
     public void WorkerConfig_KeepsCloudBaseSourceSettings()
     {
         // Workers validate the config rebuilt from this JSON; a cloudbase source without its settings fails validation.
