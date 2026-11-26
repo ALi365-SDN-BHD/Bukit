@@ -28,6 +28,22 @@ public sealed class DerivedFieldResolverTests
     }
 
     [Fact]
+    public void ProjectSummaries_CopiesDerivedSummariesIntoTheContentGraph()
+    {
+        var content = Content(Rule("summary", "{{ name }}: {{ summary }}", "override"));
+        var city = Page("kl", "city", ("name", "KL"), ("summary", "Capital city"));
+        var post = Page("p1", "post", ("summary", "Post summary"));
+        var graph = CanonicalContentGraphBuilder.BuildFromDocuments([city, post]);
+
+        var routed = DerivedFieldResolver.Apply(content, [Routed(city), Routed(post)]);
+        var projected = DerivedFieldResolver.ProjectSummaries(content, graph, routed);
+
+        Assert.Equal("KL: Capital city", projected.Records.Single(record => record.Identity.Id == "kl").Presentation.Summary);
+        Assert.Same(graph.Records.Single(record => record.Identity.Id == "p1"), projected.Records.Single(record => record.Identity.Id == "p1"));
+        Assert.Same(graph, DerivedFieldResolver.ProjectSummaries(Content(Rule("seo_title", "x")), graph, routed));
+    }
+
+    [Fact]
     public void Apply_OtherCollectionsAndEmptyDefaultResults_AreUnchanged()
     {
         var content = Content(Rule("seo_title", "{{ missing }}"));

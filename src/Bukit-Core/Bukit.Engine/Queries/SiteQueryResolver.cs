@@ -181,11 +181,24 @@ internal static class SiteQueryResolver
 
         return (x, y) switch
         {
-            _ when xKind == 0 => Number(x)!.Value.CompareTo(Number(y)!.Value),
+            _ when xKind == 0 => CompareNumbers(x, y),
             (DateTimeOffset xd, DateTimeOffset yd) => xd.CompareTo(yd),
             (bool xb, bool yb) => xb.CompareTo(yb),
             _ => StringComparer.OrdinalIgnoreCase.Compare(Text(x), Text(y))
         };
+    }
+
+    /// <summary>
+    /// Compares numbers without the precision a double loses past 2^53: as decimals when both fit,
+    /// otherwise whole numbers by their digits as <see cref="ContentOrdering"/> does.
+    /// </summary>
+    private static int CompareNumbers(object x, object y)
+    {
+        var (a, b) = (Text(x)!, Text(y)!);
+        return decimal.TryParse(a, NumberStyles.Float, CultureInfo.InvariantCulture, out var xd) &&
+               decimal.TryParse(b, NumberStyles.Float, CultureInfo.InvariantCulture, out var yd)
+            ? xd.CompareTo(yd)
+            : ContentOrdering.CompareValues(a, b, 1);
     }
 
     private static int Kind(object value) => value switch

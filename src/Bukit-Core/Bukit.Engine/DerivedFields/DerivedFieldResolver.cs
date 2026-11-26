@@ -53,6 +53,51 @@ internal static class DerivedFieldResolver
         return result;
     }
 
+    /// <summary>
+    /// Copies the summaries <see cref="Apply"/> derived into the content graph records with the same id
+    /// and language, so consumers that read the graph (the page index) see the derived text too.
+    /// </summary>
+    internal static CanonicalContentGraph ProjectSummaries(
+        ContentConfig content,
+        CanonicalContentGraph graph,
+        IReadOnlyList<RoutedContentDocument> routed)
+    {
+        var collections = content.DerivedFields
+            .Where(rule => SummaryFields.Contains(rule.Field))
+            .Select(rule => rule.Collection)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+        if (collections.Count == 0)
+        {
+            return graph;
+        }
+
+        var summaries = new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase);
+        foreach (var page in routed)
+        {
+            var document = page.Document;
+            if (collections.Contains(ContentFieldReader.GetCollection(document) ?? string.Empty))
+            {
+                summaries.TryAdd(SummaryKey(document.Id, document.Record.Presentation.Language), document.Record.Presentation.Summary);
+            }
+        }
+
+        var changed = false;
+        var records = new ContentRecord[graph.Records.Count];
+        for (var i = 0; i < records.Length; i++)
+        {
+            var record = graph.Records[i];
+            records[i] = summaries.TryGetValue(SummaryKey(record.Identity.Id, record.Presentation.Language), out var summary) &&
+                         !string.Equals(summary, record.Presentation.Summary, StringComparison.Ordinal)
+                ? record with { Presentation = record.Presentation with { Summary = summary } }
+                : record;
+            changed |= !ReferenceEquals(records[i], record);
+        }
+
+        return changed ? graph with { Records = records } : graph;
+    }
+
+    private static string SummaryKey(string? id, string? language) => $"{id}\n{language}";
+
     /// <summary>Throws a config error for the first template that does not parse.</summary>
     internal static void ValidateTemplates(ContentConfig content) => Compile(content.DerivedFields);
 

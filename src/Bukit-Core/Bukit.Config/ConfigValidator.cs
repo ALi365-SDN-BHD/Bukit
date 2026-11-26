@@ -616,7 +616,8 @@ public static class ConfigValidator
         }
     }
 
-    private static void ValidateContentLinkSelect(IReadOnlyList<string> select, string path)
+    /// <summary>A link, backref or query <c>select</c>: distinct field names that do not overwrite the entry keys.</summary>
+    internal static void ValidateContentLinkSelect(IReadOnlyList<string> select, string path)
     {
         var selected = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         foreach (var name in select)

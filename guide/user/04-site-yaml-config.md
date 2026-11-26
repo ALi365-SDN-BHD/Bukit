@@ -308,7 +308,8 @@ item. Values of mixed types sort numbers first (text that reads as a number, suc
 counts as a number), then dates, then true/false, then other text without case.
 
 Each entry has `key` (the slug), `title`, `slug`, `url` (null for an entry without a page),
-`collection` and the `select` fields, like a [content link](#content-links). A grouped query
+`collection` and the `select` fields, like a [content link](#content-links); `select` cannot name
+those five keys. A grouped query
 returns a list of `{ value, items }` in the order of `values`, where `value` is the text written
 in the config. `distinct` returns plain values in entry order; list fields are flattened, and
 values differing only in case appear once.

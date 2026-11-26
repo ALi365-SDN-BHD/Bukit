@@ -109,6 +109,28 @@ public sealed class SiteQueryResolverTests
     }
 
     [Fact]
+    public void Resolve_LargeAndPreciseNumbersSortExactly()
+    {
+        var pages = new[]
+        {
+            Routed(Doc("a", "route", 5, ("rank", 9007199254740992L))),
+            Routed(Doc("b", "route", 4, ("rank", 9007199254740993L))),
+            Routed(Doc("c", "route", 3, ("rank", "0.10000000000000000001"))),
+            Routed(Doc("d", "route", 2, ("rank", "0.1"))),
+            Routed(Doc("e", "route", 1, ("rank", "123456789012345678901234567890123")))
+        };
+
+        var sorted = Query(Config(new SiteQueryConfig
+        {
+            Name = "q",
+            From = "route",
+            Sort = [new SiteQuerySortConfig { Field = "rank", Direction = "desc" }]
+        }), pages, [], "q");
+
+        Assert.Equal(["e", "b", "a", "c", "d"], Keys(sorted));
+    }
+
+    [Fact]
     public void Resolve_DistinctFlattensListsAndKeepsFirstSpelling()
     {
         var pages = new[]

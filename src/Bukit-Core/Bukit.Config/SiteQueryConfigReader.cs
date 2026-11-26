@@ -49,7 +49,7 @@ internal static class SiteQueryConfigReader
                     : throw new ConfigException($"{path}.from is required.", DiagnosticCode.ConfigRequiredFieldMissing),
                 Where = ReadItems(query, "where", path, ReadFilter),
                 Sort = ReadItems(query, "sort", path, ReadSort),
-                Select = Names(query, "select", path),
+                Select = Select(query, path),
                 Distinct = distinct,
                 Group = group,
                 Limit = limit
@@ -138,12 +138,12 @@ internal static class SiteQueryConfigReader
         return items;
     }
 
-    private static IReadOnlyList<string> Names(YamlMappingNode node, string key, string path)
+    /// <summary>Query entries carry key, title, slug, url and collection like link entries; select must not overwrite them.</summary>
+    private static IReadOnlyList<string> Select(YamlMappingNode query, string path)
     {
-        var names = ConfigYamlHelpers.ReadStringList(node, key) ?? [];
-        return names.FirstOrDefault(name => !ContentLinkPath.IsName(name)) is { } bad
-            ? throw Invalid($"{path}.{key} entry '{bad}' is not a valid field name.")
-            : names;
+        var names = ConfigYamlHelpers.ReadStringList(query, "select") ?? [];
+        ConfigValidator.ValidateContentLinkSelect(names, $"{path}.select");
+        return names;
     }
 
     private static string? OptionalName(YamlMappingNode node, string key, string path)
