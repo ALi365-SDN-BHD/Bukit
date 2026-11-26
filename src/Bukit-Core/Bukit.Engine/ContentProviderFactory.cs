@@ -141,11 +141,11 @@ internal static class ContentProviderFactory
                 DiagnosticCode.CloudBaseCredentialMissing);
         }
 
-        if (cloudBase.FileFields.Count > 0 &&
+        if (ProviderValidators.SignsCloudBaseFiles(cloudBase, mode) &&
             MediaPlaceholderProbe.FindMissing(config, rootDir, logger) is { } missing)
         {
             throw new ConfigException(
-                $"cloudbase.fileFields requires the media placeholder image '{missing}' to exist.",
+                $"cloudbase.{(cloudBase.FileFields.Count > 0 ? "fileFields" : "storageBucket")} requires the media placeholder image '{missing}' to exist.",
                 DiagnosticCode.CloudBaseConfigInvalid);
         }
 

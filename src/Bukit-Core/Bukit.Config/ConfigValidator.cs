@@ -495,7 +495,7 @@ public static class ConfigValidator
     private static void ValidateContentDerivation(AppConfig config)
     {
         var linkOutputs = ValidateContentLinks(config.Content);
-        ValidateDerivedFields(config.Content.DerivedFields, linkOutputs);
+        ValidateDerivedFields(config.Content.DerivedFields, linkOutputs, config.Content.ModelSchema);
         ValidateFieldEnumNames(config.Content.ModelSchema);
         ValidateQueryBackrefs(config.Site.Queries, config.Content.Links);
     }
@@ -571,10 +571,14 @@ public static class ConfigValidator
         }
     }
 
-    /// <summary>Fields that decide identity, routing or language; a derived value must not replace them.</summary>
+    /// <summary>
+    /// Fields that decide identity, routing or language; a derived value must not replace them. The route
+    /// fields (url, outputPath, template, permalink, listGroup) are read before derived values run.
+    /// </summary>
     internal static readonly IReadOnlySet<string> DerivedFieldReservedNames = new HashSet<string>(
         ["id", "slug", "title", "collection", "type", "sourceMode", "sourceKey", "language", "locale", "draft",
-         "status", "route", "publishAt", "translations", "i18nKey", "i18n_key"],
+         "status", "route", "publishAt", "translations", "i18nKey", "i18n_key",
+         "url", "outputPath", "template", "permalink", "listGroup"],
         StringComparer.OrdinalIgnoreCase);
 
     /// <summary><c>site.field_enums.scopes</c> holds the field scopes, so a custom enum field cannot be named scopes.</summary>
@@ -589,7 +593,10 @@ public static class ConfigValidator
         }
     }
 
-    private static void ValidateDerivedFields(IReadOnlyList<ContentDerivedFieldConfig> derived, HashSet<string> linkOutputs)
+    private static void ValidateDerivedFields(
+        IReadOnlyList<ContentDerivedFieldConfig> derived,
+        HashSet<string> linkOutputs,
+        ContentModelSchemaConfig? schema)
     {
         foreach (var item in derived)
         {
@@ -613,7 +620,36 @@ public static class ConfigValidator
                     $"{path} is a field that content.links writes in collection '{item.Collection}'.",
                     DiagnosticCode.ConfigInvalidValue);
             }
+
+            // A derived value is text: a field the content model types otherwise would always fail its check.
+            if (DeclaredNonTextType(schema, item.Collection.Trim(), item.Field) is { } type)
+            {
+                throw new ConfigException(
+                    $"{path} writes text, but content.modelSchema declares '{item.Field}' as {type}.",
+                    DiagnosticCode.ConfigInvalidValue);
+            }
         }
+    }
+
+    /// <summary>Model field types a text value never satisfies.</summary>
+    private static readonly IReadOnlySet<string> NonTextFieldTypes = new HashSet<string>(
+        ["number", "int", "integer", "bool", "boolean", "list", "array", "string[]"],
+        StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>The declared type of a site-wide or collection-scoped model field when a text value cannot satisfy it.</summary>
+    private static string? DeclaredNonTextType(ContentModelSchemaConfig? schema, string collection, string field)
+    {
+        IEnumerable<CustomFieldDefinitionConfig> definitions = schema?.CustomFields ?? [];
+        if (schema?.FieldScopes is { } scopes &&
+            scopes.FirstOrDefault(scope => string.Equals(scope.Key, collection, StringComparison.OrdinalIgnoreCase)).Value is { } scoped)
+        {
+            definitions = definitions.Concat(scoped);
+        }
+
+        return definitions
+            .Where(definition => string.Equals(definition.Name, field, StringComparison.OrdinalIgnoreCase))
+            .Select(definition => definition.FieldType.Trim())
+            .FirstOrDefault(NonTextFieldTypes.Contains);
     }
 
     /// <summary>A link, backref or query <c>select</c>: distinct field names that do not overwrite the entry keys.</summary>

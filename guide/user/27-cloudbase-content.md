@@ -130,7 +130,9 @@ the build must be consistent, or publish only between builds.
 
 A `fileFields` value is an object name in `storageBucket` (such as `posts/a.png`) or a `cloud://<envId>.<bucket>/<path>` compatible reference. Any other value (an array, an object or a number) is never signed: it becomes the media placeholder and is counted in `BKT-0C0B`. The build signs batches of up to 500 objects and substitutes the signed links for media localization. In the body only image positions with `cloud://` are rewritten; links to non-images are reduced to their text (autolinks are removed), and any other public field whose value contains `cloud://` is dropped with `BKT-0C0B`. `mode: data` sources rewrite `fileFields` the same way, so data rows such as gallery photos or advisor portraits get local files too; data documents have no body, and any other field containing `cloud://` is dropped. A local file is named after the object, not the signed link, so it keeps its name from build to build. To serve smaller sizes, use `theme.images` (see [04 site.yaml Config](04-site-yaml-config.md)) instead of fixed file names such as `-640.webp`.
 
-When `fileFields` is non-empty, all five conditions must hold (D8):
+When `fileFields` is non-empty, all five conditions must hold (D8). A `mode: content` source with
+`storageBucket` set signs body `cloud://` images even without `fileFields`, so conditions 1, 3 and 5
+also apply to it:
 
 1. `content.media.downloadToLocal` is not `false`;
 2. every field is listed in `content.media.fieldKeys`;

@@ -18,11 +18,12 @@ internal sealed class ContentGraphValidateStage : IContentStage
         var documentsById = input.Documents
             .GroupBy(document => document.Id, StringComparer.OrdinalIgnoreCase)
             .ToDictionary(group => group.Key, group => group.First(), StringComparer.OrdinalIgnoreCase);
-        // Fields a derived rule writes are checked after derivation, on the derived values.
+        // Pages of collections with derived rules are checked after derivation, on the derived values.
         var issues = CanonicalContentValidator.Validate(graph, input.Config.Site)
-            .Concat(ContentModelSchemaValidator.Validate(graph, schema)
-                .Where(issue => !DerivedFieldResolver.IsDerivedFieldIssue(input.Config.Content, issue, documentsById)))
-            .Concat(input.Documents.SelectMany(ToSchemaErrors))
+            .Concat(ContentModelSchemaValidator.Validate(graph, schema))
+            .Where(issue => !DerivedFieldResolver.DefersCheck(input.Config, issue, documentsById))
+            .Concat(input.Documents.SelectMany(ToSchemaErrors)
+                .Where(issue => !DerivedFieldResolver.DefersRequiredDiagnostic(input.Config, issue, documentsById)))
             .Concat(ContentLinkResolver.Validate(input.Config, input.Documents))
             .GroupBy(x => $"{x.SourcePath}:{x.Field}:{x.Code}", StringComparer.OrdinalIgnoreCase)
             .Select(x => x.First())

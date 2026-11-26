@@ -7,9 +7,13 @@ internal static class ContentModelSchemaValidator
 {
     internal static ContentModelSchema Default => ContentModelSchemaFactory.Default;
 
+    /// <param name="include">
+    /// The records to check; null checks all. Every record of the graph still resolves relation targets.
+    /// </param>
     internal static IReadOnlyList<ContentValidationIssue> Validate(
         CanonicalContentGraph graph,
-        ContentModelSchema? schema = null)
+        ContentModelSchema? schema = null,
+        Func<ContentRecord, bool>? include = null)
     {
         schema ??= Default;
         var errors = new List<ContentValidationIssue>();
@@ -19,6 +23,11 @@ internal static class ContentModelSchemaValidator
             .ToDictionary(x => x.Key, x => x.First(), StringComparer.OrdinalIgnoreCase);
         foreach (var record in graph.Records)
         {
+            if (include is not null && !include(record))
+            {
+                continue;
+            }
+
             ValidateRecord(record, schema, graph, errors);
             documentsById.TryGetValue(record.Identity.Id, out var document);
             ValidateDocumentFields(record, document, schema, errors);
