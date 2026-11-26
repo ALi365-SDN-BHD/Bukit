@@ -20,6 +20,13 @@ internal static partial class CloudBaseEndpoints
             ? envId + IntlGatewaySuffix
             : envId + GatewaySuffix;
 
+    /// <summary>True for an https link on the gateway's default port under the sign path of the bucket.</summary>
+    internal static bool IsSignUrl(Uri uri, string gatewayHost, string bucket)
+        => string.Equals(uri.Scheme, Uri.UriSchemeHttps, StringComparison.Ordinal) &&
+           uri.IsDefaultPort &&
+           string.Equals(uri.Host, gatewayHost, StringComparison.OrdinalIgnoreCase) &&
+           uri.AbsolutePath.StartsWith($"{SignPrefix}{bucket}/", StringComparison.Ordinal);
+
     internal static string StorageCdnHost(string envId)
         => envId + StorageSuffix;
 

@@ -264,7 +264,9 @@ it: its link has a null `url`. It does not link to other documents itself and ge
 ## Named Queries
 
 `site.queries` builds named lists from one collection, so templates do not need ordered lists
-prepared outside Bukit. Read them as `site.queries.<name>`.
+prepared outside Bukit. Read them as `site.queries.<name>`. Names use letters, digits, `_` or `-`
+and ignore case, so two names differing only in case fail the config; read a name with `-` as
+`site.queries["top-cities"]`, because `site.queries.top-cities` is a subtraction in templates.
 
 ```yaml
 site:
@@ -301,7 +303,9 @@ Entries start in the collection list order (newest first, then
 Filters use the [filtered list](#filtered-lists) matching: text is compared without case, and a
 list field matches when any item matches, so `eq: 3` finds routes whose `best_months` holds 3.
 `hasBackref` keeps entries that at least one page links to through that [backref](#backrefs); it
-must name a backref whose target collection is `from`, or the config fails. A `from` collection
+must name a backref whose target collection is `from`, or the config fails. It reads the
+`<name>_count` field, so an entry whose own field already uses that name (an output conflict that
+is reported) is filtered on its own value. A `from` collection
 that has no entries gives an empty result. Sorting is stable, and an entry without the field (or
 with a value missing from `values`) comes last in both directions. A list field sorts by its first
 item. Values of mixed types sort numbers first (text that reads as a number, such as `"10"`,
@@ -316,7 +320,7 @@ values differing only in case appear once.
 
 Queries run last, after routing, [content links](#content-links) and
 [derived fields](#derived-fields), so they see backrefs and derived values on pages. Entries
-without a page get links but no derived fields.
+without a page get no links and no derived fields.
 Incremental builds render a page again when a query it reads changes. Per-page queries, such as
 "two experiences in this page's city", stay in templates, filtered with the Scriban array functions.
 
@@ -520,7 +524,8 @@ content:
       backref: { name: routes, limit: 6, select: [image] }
 ```
 
-Every page of the target collection gets two fields, even when no page links to it:
+Every page of the target collection gets two fields, even when no page links to it (read a name
+with `-` with brackets, such as `page.fields["top-routes"].value`):
 
 - `routes`: the linking pages. Each entry is a map with `key` (the linking page's slug), `title`, `slug`, `url`, `collection` and the fields listed in the backref `select`.
 - `routes_count`: how many pages link to it, counted before `limit`. Use it for text such as "6 of 23 routes".
@@ -580,7 +585,8 @@ the derived fields, and record checks such as `requireAuthor` or `requireSummary
 derived values, under the collection's `schemaFailMode`, so a `default` rule can fill a required
 field. The summary, `tags`, `categories` and images that SEO, search, related pages and
 `site.data.pages_by_id` read come from the derived fields, and so do `noindex`, `robots` and the
-feed, search and sitemap exclusions.
+feed, search and sitemap exclusions. Media localization runs before derived fields, so a derived
+image URL is published as written and is not downloaded.
 
 ## Content Media
 

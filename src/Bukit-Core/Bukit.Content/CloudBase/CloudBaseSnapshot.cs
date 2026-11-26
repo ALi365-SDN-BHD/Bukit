@@ -3,6 +3,7 @@ using System.Text;
 using System.Text.Encodings.Web;
 using System.Text.Json;
 using Bukit.CloudBase.Models;
+using Bukit.CloudBase.Transport;
 using Bukit.Config;
 using Bukit.Content.Media;
 using Bukit.Content.Notion.Snapshot;
@@ -39,22 +40,34 @@ internal sealed class CloudBaseSnapshot : IDisposable
     private readonly JsonDocument _document;
     private readonly Dictionary<string, string> _files;
 
-    private CloudBaseSnapshot(JsonDocument document, IReadOnlyList<JsonElement> rows, Dictionary<string, string> files)
+    private CloudBaseSnapshot(
+        JsonDocument document,
+        IReadOnlyList<JsonElement> rows,
+        Dictionary<string, string> files,
+        ILookup<int, (string Field, string Problem)> rejected)
     {
         _document = document;
         Rows = rows;
         _files = files;
+        Rejected = rejected;
     }
 
     /// <summary>The recorded rows, valid until this snapshot is disposed.</summary>
     internal IReadOnlyList<JsonElement> Rows { get; }
 
-    /// <summary>Fails when the offline snapshot holds no query of this CloudBase table (for <c>config check</c>).</summary>
-    internal static void EnsureTable(NotionSnapshotSession session, string envId, string table, string? filterField)
+    /// <summary>The structured columns left out of each row (by row index) and why, reported again offline.</summary>
+    internal ILookup<int, (string Field, string Problem)> Rejected { get; }
+
+    /// <summary>
+    /// Fails when the offline snapshot holds no query of this CloudBase source with these settings (for
+    /// <c>config check</c>). The filter value is not needed, so <c>${env:NAME}</c> need not be set.
+    /// </summary>
+    internal static void EnsureSource(NotionSnapshotSession session, CloudBaseContentSourceOptions options)
     {
-        if (session.Offline && !session.HasEntryDirectory(TableDirectory(envId, table, filterField)))
+        if (session.Offline &&
+            !session.HasEntryDirectory(ShapeDirectory(TableDirectory(options.EnvId, options.Table, options.FilterField), options)))
         {
-            throw Missing(table);
+            throw NotRecorded(session, options);
         }
     }
 
@@ -76,16 +89,26 @@ internal sealed class CloudBaseSnapshot : IDisposable
                 throw new JsonException("The entry does not have the expected shape.");
             }
 
+            // Only an identity the client could have recorded counts: an edited entry cannot publish other links.
             var map = new Dictionary<string, string>(StringComparer.Ordinal);
+            var gateway = CloudBaseEndpoints.GatewayHost(options.EnvId, options.Region);
             foreach (var file in files.EnumerateObject())
             {
-                if (file.Value.ValueKind == JsonValueKind.String && file.Value.GetString() is { Length: > 0 } url)
+                if (options.StorageBucket is { Length: > 0 } bucket &&
+                    file.Value.ValueKind == JsonValueKind.String &&
+                    file.Value.GetString() is { } url &&
+                    Uri.TryCreate(url, UriKind.Absolute, out var uri) &&
+                    CloudBaseEndpoints.IsSignUrl(uri, gateway, bucket))
                 {
                     map[file.Name] = url;
                 }
             }
 
-            var snapshot = new CloudBaseSnapshot(document, [.. rows.EnumerateArray()], map);
+            var snapshot = new CloudBaseSnapshot(
+                document,
+                [.. rows.EnumerateArray()],
+                map,
+                ReadRejected(root));
             document = null;
             return snapshot;
         }
@@ -100,6 +123,36 @@ internal sealed class CloudBaseSnapshot : IDisposable
         {
             document?.Dispose();
         }
+    }
+
+    /// <summary>Reads the recorded rejections; an entry may hold none.</summary>
+    private static ILookup<int, (string Field, string Problem)> ReadRejected(JsonElement root)
+    {
+        var rejected = new List<(int Row, string Field, string Problem)>();
+        if (!root.TryGetProperty("rejected", out var items))
+        {
+            return rejected.ToLookup(item => item.Row, item => (item.Field, item.Problem));
+        }
+
+        if (items.ValueKind != JsonValueKind.Array)
+        {
+            throw new JsonException("The entry does not have the expected shape.");
+        }
+
+        foreach (var item in items.EnumerateArray())
+        {
+            if (item.ValueKind != JsonValueKind.Object ||
+                !item.TryGetProperty("row", out var row) || !row.TryGetInt32(out var index) ||
+                !item.TryGetProperty("field", out var field) || field.ValueKind != JsonValueKind.String ||
+                !item.TryGetProperty("problem", out var problem) || problem.ValueKind != JsonValueKind.String)
+            {
+                throw new JsonException("The entry does not have the expected shape.");
+            }
+
+            rejected.Add((index, field.GetString()!, problem.GetString()!));
+        }
+
+        return rejected.ToLookup(item => item.Row, item => (item.Field, item.Problem));
     }
 
     /// <summary>Answers a signing request from the recorded identities; an unrecorded object fails like an unavailable one.</summary>
@@ -132,15 +185,26 @@ internal sealed class CloudBaseSnapshot : IDisposable
             writer.WriteStartObject();
             writer.WriteNumber("format", EntryFormat);
             writer.WriteString("table", options.Table);
+            var rejected = new List<(int Row, string Field, string Problem)>();
             writer.WriteStartArray("rows");
-            foreach (var row in rows)
+            for (var index = 0; index < rows.Count; index++)
             {
+                var row = rows[index];
                 writer.WriteStartObject();
                 if (row.ValueKind == JsonValueKind.Object)
                 {
                     foreach (var column in row.EnumerateObject())
                     {
                         var published = !CloudBaseFieldRules.IsHardExcluded(column.Name) && (all || allowed!.Contains(column.Name));
+                        if (!mapped.Contains(column.Name) &&
+                            published &&
+                            CloudBaseFieldProjector.TryGetStructuredRejection(column.Name, column.Value, out var problem))
+                        {
+                            // Nested personal keys are left out below, which could make the value valid offline.
+                            rejected.Add((index, column.Name, problem));
+                            continue;
+                        }
+
                         if (mapped.Contains(column.Name) || published)
                         {
                             writer.WritePropertyName(column.Name);
@@ -149,6 +213,17 @@ internal sealed class CloudBaseSnapshot : IDisposable
                     }
                 }
 
+                writer.WriteEndObject();
+            }
+
+            writer.WriteEndArray();
+            writer.WriteStartArray("rejected");
+            foreach (var (row, field, problem) in rejected)
+            {
+                writer.WriteStartObject();
+                writer.WriteNumber("row", row);
+                writer.WriteString("field", field);
+                writer.WriteString("problem", problem);
                 writer.WriteEndObject();
             }
 
@@ -218,7 +293,7 @@ internal sealed class CloudBaseSnapshot : IDisposable
 
         var difference = session.HasEntryDirectory(ShapeDirectory(table, options))
             ? "another filter value"
-            : "different source settings (mapped fields, file fields, field policy, sort, maxItems or bucket)";
+            : "different source settings (mode, mapped fields, file fields, field policy, sort, maxItems or bucket)";
         return new NotionSnapshotException(
             $"Content offline snapshot recorded CloudBase table '{options.Table}' with {difference}. {Hint}",
             DiagnosticCode.NotionSnapshotQueryMismatch);
@@ -227,27 +302,44 @@ internal sealed class CloudBaseSnapshot : IDisposable
     private static string TableDirectory(string envId, string table, string? filterField)
         => Path.Combine("cloudbase", Hash($"{envId}\n{table}\n{filterField}"));
 
-    /// <summary>Hashes the settings that decide which rows and columns a query records.</summary>
+    /// <summary>
+    /// Hashes the settings that decide which rows, columns and files a query records. The allowed list is
+    /// matched ignoring order, so it is hashed that way; the mode decides whether body
+    /// images are signed. In all mode only the id publication is hashed from the allowed list.
+    /// </summary>
     private static string ShapeDirectory(string tableDirectory, CloudBaseContentSourceOptions options)
     {
-        var allowed = options.AllowedFields is { } fields ? string.Join('\u001f', fields) : "\u0000";
+        var all = string.Equals(options.FieldPolicyMode?.Trim(), "all", StringComparison.OrdinalIgnoreCase);
         var shape = string.Join(
             '\n',
+            options.Mode.Trim().ToLowerInvariant(),
             options.IdField,
             options.TitleField,
             options.SlugField,
             options.PublishAtField,
             options.UpdatedAtField,
             options.BodyField,
-            string.Join('\u001f', options.FileFields),
-            options.FieldPolicyMode?.Trim().ToUpperInvariant(),
-            allowed,
+            // Every file field is read by its exact name, a later one overriding an earlier one: kept as given.
+            string.Join('\u001f', options.FileFields.Select(name => name.Trim())),
+            all ? "ALL" : "WHITELIST",
+            all ? PublishesId(options) : NameSet(options.AllowedFields),
             options.SortField,
             options.SortDirection,
             options.MaxItems?.ToString(System.Globalization.CultureInfo.InvariantCulture),
             options.StorageBucket);
         return Path.Combine(tableDirectory, Hash(shape));
     }
+
+    /// <summary>In all mode the allowed list only decides whether the id column is published.</summary>
+    private static string PublishesId(CloudBaseContentSourceOptions options)
+        => options.AllowedFields?.Contains(options.IdField, StringComparer.OrdinalIgnoreCase) is true ? "ID" : string.Empty;
+
+    /// <summary>
+    /// The columns a list selects, hashed ignoring order. Columns are selected by their exact names,
+    /// and of names differing only in case the query keeps the first, so that spelling is hashed.
+    /// </summary>
+    private static string NameSet(IEnumerable<string>? names)
+        => string.Join('\u001f', (names ?? []).Select(name => name.Trim()).Distinct(StringComparer.OrdinalIgnoreCase).Order(StringComparer.Ordinal));
 
     private static string EntryPath(CloudBaseContentSourceOptions options)
         => Path.Combine(

@@ -348,10 +348,7 @@ internal sealed class CloudBaseClient : IDisposable
             return false;
         }
 
-        return string.Equals(uri.Scheme, Uri.UriSchemeHttps, StringComparison.Ordinal) &&
-            uri.IsDefaultPort &&
-            string.Equals(uri.Host, _options.GatewayHost, StringComparison.OrdinalIgnoreCase) &&
-            uri.AbsolutePath.StartsWith($"{CloudBaseEndpoints.SignPrefix}{bucket}/", StringComparison.Ordinal);
+        return CloudBaseEndpoints.IsSignUrl(uri, _options.GatewayHost, bucket);
     }
 
     private static string? GetString(JsonElement item, string propertyName)

@@ -798,13 +798,13 @@ public sealed class ImageAssetLocalizer : IImageAssetLocalizer, IDisposable
 
     /// <summary>
     /// Offline builds make no network requests and never change the media cache: the URL is kept,
-    /// except a CloudBase object, whose recorded URL has no token and names the environment: it
-    /// fails like a download, as the recording build did.
+    /// except a CloudBase gateway sign URL, whose recorded form has no token and names the
+    /// environment: it fails like a download, as the recording build did.
     /// </summary>
     private string KeepOffline(string source, Uri uri, string original)
     {
         _logger?.Info($"event=media.skip_offline source={UrlRedactor.Redact(source)}");
-        return SignedUrlIdentity.IsCloudBaseObject(uri) ? FailureResult(original) : original;
+        return SignedUrlIdentity.IsCloudBaseGateway(uri) ? FailureResult(original) : original;
     }
 
     private string FailureResult(string sourceUrl)

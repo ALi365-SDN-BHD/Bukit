@@ -103,7 +103,8 @@ cloudbase:
 Quote the value: bare `{` and `}` are not valid inside a YAML flow mapping. A filter value can
 hold any number of `${env:NAME}` references (NAME is letters, digits and `_`, not starting with a
 digit) and text around them. They are read when the build fetches the table, so `config check`
-works without the variable. An unset or empty variable fails the build with
+works without the variable. The resolved value is trimmed, and a literal `${` that is not a valid
+reference fails the config. An unset or empty variable fails the build with
 `ConfigRequiredFieldMissing` instead of querying with an empty value, which RLS would answer with
 zero rows and a successful build. Environment references work only in the filter value; `envId`,
 `table` and other fields that form the request address do not accept them.
@@ -161,15 +162,20 @@ bukit build        --content-snapshot /path/outside/the/site/content-snapshot --
 - The snapshot stores each table's rows reduced to what the build may publish: the mapped
   columns, `fileFields` and the columns `fieldPolicy` allows. Personal columns and nested keys
   (`user_id`, `owner`, …) are never written, so widening `fieldPolicy` offline cannot show them.
+  A structured column the recording build dropped as too large or too deep is left out too, and its
+  `cloudbase.structured_field_invalid` diagnostic is reported again offline, so `schemaFailMode`
+  applies as online.
 - File fields and body images resolve to the files the recording build localized, found by the
   object (the signed link without its token); signed links are never stored. Keep the media cache
-  (`.cache/media`) between the builds; a file missing from it gets the media placeholder.
+  (`.cache/media`) between the builds; a file missing from it gets the media placeholder. A public
+  `*.storage.tcloudbase.com` image written in a page is kept as is.
 - The resolved `filter` value is part of the record. An offline build whose `${env:NAME}` gives
   another value fails (`BKT-0B13`) instead of serving the recorded release; a table the snapshot
   does not hold fails with `BKT-0B11`.
-- Each source keeps its own record: the mapped fields, `fileFields`, `fieldPolicy`, `sort`,
-  `maxItems` and `storageBucket` are part of it. Two sources on one table never share rows, and a
-  source changed since the recording fails with `BKT-0B13` until a new snapshot is recorded.
+- Each source keeps its own record: `mode`, the mapped fields, `fileFields`, `fieldPolicy`,
+  `sort`, `maxItems` and `storageBucket` are part of it (`allowed` ignores order, not case; `fileFields` must match exactly). Two
+  sources on one table never share rows, and a source changed since the recording fails with
+  `BKT-0B13`, in `config check` too, until a new snapshot is recorded.
 - `doctor` skips the CloudBase network checks offline. `--notion-snapshot` and
   `--notion-offline` remain aliases of the two options.
 

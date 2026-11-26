@@ -97,7 +97,7 @@ public sealed class NotionOfflineSnapshotCommandTests : IDisposable
         var (checkCode, checkOutput) = await CaptureAsync(() => ConfigCommand.RunAsync(CliTestHelper.CreateCommand("config",
             ["config", "check", "--config", _configPath, "--notion-snapshot", SnapshotDir, "--notion-offline"])));
         Assert.True(checkCode == 0, checkOutput);
-        Assert.Contains("notion: offline snapshot (format 1", checkOutput, StringComparison.Ordinal);
+        Assert.Contains("content: offline snapshot (format 1", checkOutput, StringComparison.Ordinal);
         Assert.DoesNotContain(SnapshotDir, checkOutput, StringComparison.Ordinal);
 
         var (doctorCode, doctorOutput) = await CaptureAsync(() => DoctorCommand.RunAsync(CliTestHelper.CreateCommand("doctor",

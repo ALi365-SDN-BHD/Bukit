@@ -1,4 +1,3 @@
-using System.Globalization;
 using Bukit.Config;
 using Bukit.Engine.Abstractions.Content;
 
@@ -35,9 +34,7 @@ internal static class CollectionPagePolicy
         {
             string value => value.Trim(),
             bool flag => flag ? "true" : "false",
-            long or int or decimal => ((IFormattable)field.Value).ToString(null, CultureInfo.InvariantCulture),
-            double real when double.IsInteger(real) => real.ToString("0", CultureInfo.InvariantCulture),
-            _ => null
+            _ => ContentFieldReader.WholeNumberText(field.Value)
         };
         return text is not null && string.Equals(text, when.Eq.Trim(), StringComparison.OrdinalIgnoreCase);
     }

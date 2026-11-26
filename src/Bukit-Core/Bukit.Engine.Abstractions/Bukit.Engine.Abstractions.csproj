@@ -12,6 +12,7 @@
 
   <ItemGroup>
     <InternalsVisibleTo Include="Bukit.Engine" />
+    <InternalsVisibleTo Include="Bukit.Routing" />
     <InternalsVisibleTo Include="Bukit.Rendering" />
     <InternalsVisibleTo Include="Bukit.Theme" />
     <InternalsVisibleTo Include="Bukit.Content" />

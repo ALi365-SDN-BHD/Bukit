@@ -55,6 +55,18 @@ public sealed class DerivedFieldTemplateTests
         => Assert.ThrowsAny<ScriptRuntimeException>(() => Parse("{{ for i in 1..5000 }}x{{ end }}").Render(null));
 
     [Fact]
+    public void Render_OutputLimit_FailsWhileRendering()
+    {
+        // 1000 x 1000 x 60000 characters would be 60 GB; the limit stops it at 64 KiB.
+        var template = Parse("{{ for i in 1..1000 }}{{ for j in 1..1000 }}{{ \"\" | string.pad_left 60000 }}{{ end }}{{ end }}");
+
+        var exception = Assert.ThrowsAny<ScriptRuntimeException>(() => template.Render(null));
+
+        Assert.Contains("longer than 65536 characters", exception.Message, StringComparison.Ordinal);
+        Assert.Equal(new string('x', 1000), Parse("{{ for i in 1..1000 }}x{{ end }}").Render(null));
+    }
+
+    [Fact]
     public void Parse_InvalidTemplate_ReportsTheError()
     {
         Assert.Null(DerivedFieldTemplate.Parse("{{ if }}", out var error));

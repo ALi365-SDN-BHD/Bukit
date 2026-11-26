@@ -78,11 +78,13 @@ internal static class DerivedFieldResolver
     }
 
     /// <summary>
-    /// Replaces the content graph documents and records of the derived pages (<paramref name="derivedKeys"/>
-    /// from <see cref="DerivedKeys"/>), so consumers that read the graph (the page index, related pages)
-    /// see the derived values. Every other graph document is kept as it is.
+    /// Writes the derived fields, record and publish policy of the derived pages (<paramref name="derivedKeys"/>
+    /// from <see cref="DerivedKeys"/>) into their content graph documents, so consumers that read the graph
+    /// (the page index, related pages) see the derived values. Only the derived fields change: like every
+    /// other graph document, a derived one keeps no link or backref fields.
     /// </summary>
     internal static CanonicalContentGraph ProjectRecords(
+        ContentConfig content,
         CanonicalContentGraph graph,
         IReadOnlyList<RoutedContentDocument> routed,
         IReadOnlySet<string> derivedKeys)
@@ -103,7 +105,25 @@ internal static class DerivedFieldResolver
         }
 
         return CanonicalContentGraphBuilder.BuildFromDocuments(
-            [.. graph.Documents.Select(document => derived.TryGetValue(RecordKey(document.Record), out var replacement) ? replacement : document)]);
+            [.. graph.Documents.Select(document => derived.TryGetValue(RecordKey(document.Record), out var page) ? Project(content, document, page) : document)]);
+    }
+
+    private static ContentDocument Project(ContentConfig content, ContentDocument document, ContentDocument page)
+    {
+        var collection = ContentFieldReader.GetCollection(page);
+        var fields = document.CustomFields is null
+            ? new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase)
+            : new Dictionary<string, ContentField>(document.CustomFields, StringComparer.OrdinalIgnoreCase);
+        foreach (var rule in content.DerivedFields)
+        {
+            if (string.Equals(rule.Collection, collection, StringComparison.OrdinalIgnoreCase) &&
+                page.CustomFields?.TryGetValue(rule.Field, out var value) is true)
+            {
+                fields[rule.Field] = value;
+            }
+        }
+
+        return document with { CustomFields = fields, Record = page.Record, Publish = page.Publish };
     }
 
     /// <summary>

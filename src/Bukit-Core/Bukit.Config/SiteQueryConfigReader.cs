@@ -28,6 +28,11 @@ internal static class SiteQueryConfigReader
                 throw Invalid($"{path} must be a mapping.");
             }
 
+            if (queries.Any(item => string.Equals(item.Name, name, StringComparison.OrdinalIgnoreCase)))
+            {
+                throw Invalid($"{path} repeats a query name; query names ignore case.");
+            }
+
             var distinct = OptionalName(query, "distinct", path);
             var group = ReadGroup(query, path);
             if (distinct is not null && group is not null)

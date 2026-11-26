@@ -3,14 +3,14 @@ using Bukit.Shared;
 namespace Bukit.Content.Notion.Snapshot;
 
 /// <summary>
-/// The Notion offline snapshot is missing, unreadable, from another format, or lacks data
+/// The content offline snapshot (Notion and CloudBase data) is missing, unreadable, from another format, or lacks data
 /// the build needs. Never swallowed: offline builds fail instead of silently skipping Notion
 /// data. Messages never contain the snapshot path.
 /// </summary>
 internal sealed class NotionSnapshotException : BukitException
 {
     internal const string RebuildHint =
-        "Run a build with NOTION_TOKEN and --notion-snapshot (without --notion-offline) to refresh the snapshot.";
+        "Run a build with the content credentials (NOTION_TOKEN, CLOUDBASE_PUBLISHABLE_KEY) and --content-snapshot (without --content-offline) to refresh the snapshot.";
 
     public NotionSnapshotException(string message, DiagnosticCode code)
         : base(message, code)

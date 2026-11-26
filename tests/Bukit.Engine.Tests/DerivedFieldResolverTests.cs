@@ -36,11 +36,16 @@ public sealed class DerivedFieldResolverTests
         var city = Page("kl", "city", ("name", "KL"), ("summary", "Capital city"), ("tags", new ContentField("list", new List<string> { "old" })));
         var post = Page("p1", "post", ("summary", "Post summary"));
         var graph = CanonicalContentGraphBuilder.BuildFromDocuments([city, post]);
-        RoutedContentDocument[] before = [Routed(city), Routed(post)];
+        // The routed page carries a backref field that graph documents never have.
+        var linked = city with { CustomFields = new Dictionary<string, ContentField>(city.CustomFields!, StringComparer.OrdinalIgnoreCase) { ["routes_count"] = new("number", 2L) } };
+        RoutedContentDocument[] before = [Routed(linked), Routed(post)];
 
         var routed = DerivedFieldResolver.Apply(content, before);
         var derived = Single(routed.Take(1).ToList());
-        var projected = DerivedFieldResolver.ProjectRecords(graph, routed, DerivedFieldResolver.DerivedKeys(before, routed));
+        var projected = DerivedFieldResolver.ProjectRecords(content, graph, routed, DerivedFieldResolver.DerivedKeys(before, routed));
+        var document = projected.Documents.Single(document => document.Id == "kl");
+        Assert.Equal("KL: Capital city", document.CustomFields!["summary"].Value);
+        Assert.False(document.CustomFields.ContainsKey("routes_count"));
 
         Assert.Equal(["new"], derived.Record.Classification.Tags);
         Assert.Equal("kl", derived.Record.Identity.Id);
@@ -61,7 +66,7 @@ public sealed class DerivedFieldResolverTests
         var keys = DerivedFieldResolver.DerivedKeys(localized, DerivedFieldResolver.Apply(Content(), localized));
 
         Assert.Empty(keys);
-        Assert.Same(graph, DerivedFieldResolver.ProjectRecords(graph, localized, keys));
+        Assert.Same(graph, DerivedFieldResolver.ProjectRecords(Content(), graph, localized, keys));
     }
 
     [Fact]

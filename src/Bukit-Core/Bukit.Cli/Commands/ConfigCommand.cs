@@ -70,7 +70,7 @@ public static class ConfigCommand
             Console.WriteLine("✔ Config check passed");
             if (snapshot is not null)
             {
-                Console.WriteLine($"  notion: offline snapshot ({snapshot.Describe()})");
+                Console.WriteLine($"  content: offline snapshot ({snapshot.Describe()})");
             }
 
             foreach (var (source, keys) in pinned)

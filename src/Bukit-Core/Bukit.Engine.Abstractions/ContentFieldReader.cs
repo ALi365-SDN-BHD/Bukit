@@ -127,6 +127,21 @@ public static class ContentFieldReader
         return ToTextList(field.Value);
     }
 
+    /// <summary>
+    /// A whole number as invariant digits (<c>1.0</c> gives <c>1</c>), else null. Notion numbers are
+    /// doubles and Markdown <c>1.0</c> is a decimal; a double beyond 2^53 is not exact, so it is null.
+    /// </summary>
+    internal static string? WholeNumberText(object? value) => value switch
+    {
+        long or int => ((IFormattable)value).ToString(null, System.Globalization.CultureInfo.InvariantCulture),
+        decimal exact when decimal.IsInteger(exact) => exact.ToString("0", System.Globalization.CultureInfo.InvariantCulture),
+        double real when double.IsInteger(real) && Math.Abs(real) <= MaxExactDouble => ((long)real).ToString(System.Globalization.CultureInfo.InvariantCulture),
+        _ => null
+    };
+
+    /// <summary>2^53: every whole double up to this is exact.</summary>
+    private const double MaxExactDouble = 9007199254740992d;
+
     public static IReadOnlyList<string>? ToTextList(object? value)
     {
         switch (value)

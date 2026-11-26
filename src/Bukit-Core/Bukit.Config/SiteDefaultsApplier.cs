@@ -341,6 +341,11 @@ internal static partial class SiteDefaultsApplier
                 throw new ConfigException($"{path} must be a mapping.", DiagnosticCode.ConfigInvalidValue);
             }
 
+            if (collections.Any(item => string.Equals(item.Collection, collection, StringComparison.OrdinalIgnoreCase)))
+            {
+                throw new ConfigException($"{path} repeats a collection; collection names ignore case.", DiagnosticCode.ConfigInvalidValue);
+            }
+
             var collectionLimit = ConfigYamlHelpers.GetOptionalIntStrict(rules, "limit") ?? limit;
             var collectionThreshold = ConfigYamlHelpers.GetOptionalIntStrict(rules, "threshold") ?? threshold;
             if (collectionLimit < 1 || collectionThreshold < 0)
