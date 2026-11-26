@@ -146,7 +146,7 @@ internal static class ContentLinkResolver
         => Entry(page.Document, page.Document.Slug, page.Route.Url, backref.Select);
 
     /// <summary>A link or backref entry: key, title, slug, url, collection and the selected fields.</summary>
-    private static SortedDictionary<string, object?> Entry(ContentDocument document, string key, string? url, IReadOnlyList<string> select)
+    internal static SortedDictionary<string, object?> Entry(ContentDocument document, string key, string? url, IReadOnlyList<string> select)
     {
         var entry = new SortedDictionary<string, object?>(StringComparer.Ordinal)
         {

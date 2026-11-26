@@ -49,6 +49,10 @@ internal static class VariantRouteStage
             Logger = logger
         };
         pluginContext.Set(BuildDataKeys.ListRouteGraph, routeResult.ListRouteGraph);
+        if (routeResult.Queries is { } queries)
+        {
+            pluginContext.Set(BuildDataKeys.Queries, queries);
+        }
         pluginContext.Set(BuildDataKeys.MediaDownloadDir, ContentProviderFactory
             .BuildEffectiveMediaConfig(context.Config.Content.Media, context.RootDir, context.MediaDownloadDir)
             .DownloadDir);

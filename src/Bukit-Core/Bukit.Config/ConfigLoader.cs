@@ -100,6 +100,7 @@ public static class ConfigLoader
             Pagination = SiteDefaultsApplier.ReadPaginationConfig(siteNode),
             Search = SiteDefaultsApplier.ReadSearchConfig(siteNode),
             Related = SiteDefaultsApplier.ReadRelatedConfig(siteNode),
+            Queries = SiteQueryConfigReader.Read(siteNode),
             Menus = SiteDefaultsApplier.ReadMenus(siteNode),
             SharedAssets = SiteDefaultsApplier.ReadSharedAssetsConfig(siteNode),
             I18n = SiteLanguageIdentity.Read(siteNode)

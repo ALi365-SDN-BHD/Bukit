@@ -211,7 +211,7 @@ addition:
 - Shared data is tracked per page. Bukit records which collections each page's
   templates (layout, includes, components and sections) read: a `site.data`,
   `site.modules` or `site.data_index` key, `site.related_pages`,
-  `site.data_files`, or the `pages` list (also read by sections with a
+  `site.data_files`, `site.queries`, or the `pages` list (also read by sections with a
   `source`). When one of those changes, only the pages that read it render
   again, reported as `data_dependency_changed`; a change to a site-wide setting
   is still `render_dependency_changed` for every page. A template that uses

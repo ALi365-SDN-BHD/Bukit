@@ -63,6 +63,7 @@ theme:
 | `pluginFailMode` | `strict` | `strict\|warn`. |
 | `deriveConflictPolicy` | `fail` | `fail\|warn\|last-wins` for derived-page route conflicts. |
 | `seo`, `analytics`, `feed`, `search`, `searchIncludeDerived`, `sitemapMode`, `related` | | See related skills. |
+| `queries` | none | Named lists from one collection (`from`, `where`, `sort`, `select`, `distinct`, `group`, `limit`), read as `site.queries.<name>` (`04-site-yaml-config.md`). |
 | `plugins` | none | Built-in plugin toggles (below). |
 
 Accepted but inert today: `site.menus` (written to `menus.json` after the build; not

@@ -149,7 +149,7 @@ public sealed class ScribanTemplateRendererTests : IDisposable
         var templatePath = Path.Combine(_layoutsDir, "plugin-data.html");
         File.WriteAllText(
             templatePath,
-            "{{ site.data_files.catalog.title }}|{{ site.related_pages.post[0].title }}|{{ site.data.__secret }}|{{ site.data.__data_files }}");
+            "{{ site.data_files.catalog.title }}|{{ site.related_pages.post[0].title }}|{{ site.queries.top[0].title }}|{{ site.data.__secret }}|{{ site.data.__data_files }}");
         var site = CreateSite() with
         {
             Data = new Dictionary<string, object>
@@ -161,6 +161,10 @@ public sealed class ScribanTemplateRendererTests : IDisposable
                 ["__related_pages"] = new Dictionary<string, List<object>>
                 {
                     ["post"] = [new Dictionary<string, object> { ["title"] = "Related" }]
+                },
+                ["__queries"] = new Dictionary<string, object>
+                {
+                    ["top"] = new List<object?> { new SortedDictionary<string, object?>(StringComparer.Ordinal) { ["title"] = "Top" } }
                 },
                 ["__secret"] = "must-not-render"
             }
@@ -174,7 +178,7 @@ public sealed class ScribanTemplateRendererTests : IDisposable
         var result = new Bukit.Rendering.Scriban.ScribanTemplateRenderer(_layoutsDir)
             .RenderPage("plugin-data.html", model);
 
-        Assert.Equal("Catalog|Related||", result);
+        Assert.Equal("Catalog|Related|Top||", result);
     }
 
     [Fact]

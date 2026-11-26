@@ -26,6 +26,7 @@ public sealed class ConfigJsonSchemaGeneratorTests
         "$/$defs/miniProgramFieldType/oneOf[1]/properties/fields",
         "$/properties/content/properties/modelSchema/properties/fieldScopes",
         "$/properties/content/properties/derivedFields",
+        "$/properties/site/properties/queries",
         "$/properties/content/properties/derivedFields/additionalProperties"
     };
 

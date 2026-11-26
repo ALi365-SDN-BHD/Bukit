@@ -13,7 +13,7 @@ internal static class ConfigStrictFieldValidator
         "defaultLanguageInSubdir", "defaultLanguageRedirect", "defaultLanguageLegacyRedirects", "sitemapMode",
         "searchIncludeDerived", "pluginFailMode", "deriveConflictPolicy",
         "timezone", "permalinks", "collections", "plugins", "feed",
-        "sitemapDetail", "pagination", "search", "related", "menus", "sharedAssets", "i18n");
+        "sitemapDetail", "pagination", "search", "related", "queries", "menus", "sharedAssets", "i18n");
     private static readonly HashSet<string> ContentKeys = Set("sources", "media", "modelSchema", "routeMetadata", "ordering", "links", "derivedFields");
     private static readonly HashSet<string> ContentLinkKeys = Set("collection", "field", "target", "select", "backref");
     private static readonly HashSet<string> ContentLinkTargetKeys = Set("collection", "key");
@@ -126,6 +126,7 @@ internal static class ConfigStrictFieldValidator
         if (Map(site, "i18n") is { } i18n) ValidateSiteI18n(i18n);
 
         if (Map(site, "collections") is { } collections) ValidateCollections(collections);
+        if (Map(site, "queries", "site.queries") is { } queries) ValidateSiteQueries(queries);
 
         if (Map(site, "seo") is { } seo) ValidateSeo(seo);
         if (site.Children.TryGetValue(new YamlScalarNode("analytics"), out var analyticsNode))
@@ -628,6 +629,28 @@ internal static class ConfigStrictFieldValidator
         if (Seq(taxonomy, "kinds") is { } kinds)
         {
             ValidateSequenceMappings(kinds, Set("key", "kind", "title", "description", "singularTitlePrefix", "template", "indexTemplate", "termTemplate", "indexEnabled", "hierarchical", "routePrefix"), "taxonomy.kinds");
+        }
+    }
+
+    private static void ValidateSiteQueries(YamlMappingNode queries)
+    {
+        foreach (var (name, query) in MappingChildren(queries, "site.queries"))
+        {
+            RequireOnly(query, Set("from", "where", "sort", "select", "distinct", "group", "limit"), $"site.queries.{name}");
+            if (Seq(query, "where", $"site.queries.{name}.where") is { } where)
+            {
+                ValidateSequenceMappings(where, Set("field", "eq", "in", "hasBackref"), $"site.queries.{name}.where");
+            }
+
+            if (Seq(query, "sort", $"site.queries.{name}.sort") is { } sort)
+            {
+                ValidateSequenceMappings(sort, Set("field", "direction", "values"), $"site.queries.{name}.sort");
+            }
+
+            if (Map(query, "group", $"site.queries.{name}.group") is { } group)
+            {
+                RequireOnly(group, Set("field", "values"), $"site.queries.{name}.group");
+            }
         }
     }
 

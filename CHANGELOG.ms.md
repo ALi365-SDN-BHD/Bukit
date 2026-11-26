@@ -4,6 +4,8 @@ Semua perubahan penting kepada Bukit akan didokumenkan dalam fail ini.
 
 ## [Belum Dikeluarkan]
 
+- **Pertanyaan bernama.** `site.queries.<name>: { from, where, sort, select, distinct, group, limit }` membina senarai tersusun daripada satu koleksi (halaman dan entri tanpa halaman), dibaca dalam templat sebagai `site.queries.<name>`. Penapis sepadan seperti senarai tertapis dan menyokong `hasBackref`; kumpulan dan nilai unik meliputi senarai seperti laluan mengikut bulan atau jenis tarikan.
+
 - **Medan terbitan.** `content.derivedFields.<collection>.<field>: { value, mode }` mengira medan halaman daripada templat Scriban atas medan halaman itu sendiri (termasuk `<field>_links`), contohnya tajuk SEO daripada dua nama. `seo.describe <width>` memotong huraian mengikut lebar paparan. Templat adalah deterministik; kegagalan masa jalan dilaporkan sebagai `content.derived_field_failed`.
 
 - **Pemegang tempat medan dalam permalink**: corak permalink koleksi atau `site.permalinks` boleh menggunakan `{fields.<name>}`, iaitu nilai medan teks atau nombor bulat aras atas yang dijadikan slug, contohnya `/malaysia/{fields.city}/attractions/{slug}/`. Halaman yang medannya tiada, kosong atau tidak menghasilkan slug akan menggagalkan binaan dengan `RouteInvalidPattern`; URL pendua gagal sebagai konflik laluan, seperti sebelum ini. Lihat [04 Konfigurasi site.yaml](guide/user/04-site-yaml-config.md#collections).

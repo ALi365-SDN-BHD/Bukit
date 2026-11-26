@@ -4,6 +4,8 @@ Bukit 所有重要变更都将记录在此文件中。
 
 ## [Unreleased]
 
+- **命名查询。** `site.queries.<name>: { from, where, sort, select, distinct, group, limit }` 从一个集合（有页面的条目和没有页面的条目）生成有序列表，模板里用 `site.queries.<name>` 读取。筛选规则与 filteredLists 一致，并支持 `hasBackref`；分组和去重可以做“按月份的路线”“景点类型”这类列表。
+
 - **派生字段。** `content.derivedFields.<collection>.<field>: { value, mode }` 用 Scriban 模板根据页面自身字段（包括 `<field>_links`）计算页面字段，例如用中英文名拼出 SEO 标题。`seo.describe <width>` 按显示宽度截取描述。模板结果是确定的；运行时失败报告为 `content.derived_field_failed`。
 
 - **permalink 字段占位符**：集合 permalink 和 `site.permalinks` 可以用 `{fields.<name>}`，取顶层文本或整数字段的值并做 slug 化，例如 `/malaysia/{fields.city}/attractions/{slug}/`。字段缺失、为空或 slug 化后为空的页面会让构建以 `RouteInvalidPattern` 失败；网址重复时照旧报路由冲突。见 [04 site.yaml 配置](guide/user/04-site-yaml-config.md#collections)。

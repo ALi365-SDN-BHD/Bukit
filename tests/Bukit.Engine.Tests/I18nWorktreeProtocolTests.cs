@@ -105,6 +105,45 @@ public sealed class I18nWorktreeProtocolTests : IDisposable
     }
 
     [Fact]
+    public void WorkerConfig_KeepsSiteQueries()
+    {
+        var config = new AppConfig
+        {
+            Site = new SiteConfig
+            {
+                Name = "s",
+                Title = "S",
+                Queries =
+                [
+                    new SiteQueryConfig
+                    {
+                        Name = "top",
+                        From = "route",
+                        Where = [new SiteQueryFilterConfig { Field = "region", Values = ["north"] }, new SiteQueryFilterConfig { HasBackref = "routes" }],
+                        Sort = [new SiteQuerySortConfig { Field = "featured", Direction = "desc", Values = ["a"] }],
+                        Select = ["image"],
+                        Group = new SiteQueryGroupConfig { Field = "months", Values = ["1"] },
+                        Limit = 6
+                    }
+                ]
+            },
+            Content = new ContentConfig()
+        };
+
+        var json = JsonSerializer.Serialize(config, I18nWorktreeJsonContext.Default.AppConfig);
+        var restored = JsonSerializer.Deserialize(json, I18nWorktreeJsonContext.Default.AppConfig)!;
+
+        var query = Assert.Single(restored.Site.Queries);
+        Assert.Equal(("top", "route", 6, "image"), (query.Name, query.From, query.Limit, Assert.Single(query.Select)));
+        Assert.Equal(("region", "north", "routes"), (query.Where[0].Field, Assert.Single(query.Where[0].Values), query.Where[1].HasBackref));
+        Assert.Equal(("featured", "desc", "a"), (query.Sort[0].Field, query.Sort[0].Direction, Assert.Single(query.Sort[0].Values)));
+        Assert.Equal(("months", "1"), (query.Group!.Field, Assert.Single(query.Group.Values)));
+        Assert.NotEqual(
+            I18nWorktreeProtocol.ComputeConfigHash(config, new ConfigOverrides()),
+            I18nWorktreeProtocol.ComputeConfigHash(config with { Site = config.Site with { Queries = [] } }, new ConfigOverrides()));
+    }
+
+    [Fact]
     public void WorkerConfig_KeepsCloudBaseSourceSettings()
     {
         // Workers validate the config rebuilt from this JSON; a cloudbase source without its settings fails validation.

@@ -24,6 +24,7 @@ public sealed class RenderReadRecorderTests : IDisposable
     [InlineData("{{ site.data[\"pages_by_id\"][page.id].title }}", "site.data.pages_by_id")]
     [InlineData("{{ site.modules.team }} {{ site.data_index.tags }}", "site.data_index.tags,site.modules.team")]
     [InlineData("{{ site.related_pages }} {{ site.data_files }}", "site.data_files,site.related_pages")]
+    [InlineData("{{ for c in site.queries.route_cities }}{{ c.title }}{{ end }}", "site.queries")]
     [InlineData("{{ for p in pages }}{{ p.title }}{{ end }}", "pages")]
     [InlineData("{{ site.data }}", "site.data.*")]
     [InlineData("{{ site.data[page.key] }}", "site.data.*")]

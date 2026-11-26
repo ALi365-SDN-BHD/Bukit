@@ -80,6 +80,7 @@ public static class ConfigJsonSchemaGenerator
             ("pagination", PaginationGlobalSchema()),
             ("search", SearchDetailSchema()),
             ("related", RelatedSchema()),
+            ("queries", SiteQueriesSchema()),
             ("menus", MenusSchema()),
             ("sharedAssets", SharedAssetsSchema()),
             ("i18n", Obj(("type", "object"), ("additionalProperties", SiteLanguageIdentitySchema()))));
@@ -463,6 +464,40 @@ public static class ConfigJsonSchemaGenerator
             ("threshold", IntSchema(0)),
             ("limit", IntSchema(1)),
             ("indices", Obj(("type", "array"), ("items", indexSchema))))));
+    }
+
+    private static JsonObject SiteQueriesSchema()
+    {
+        var scalar = Obj(("type", Arr("string", "boolean", "number")));
+        var scalars = Obj(("type", "array"), ("items", Obj(("type", Arr("string", "boolean", "number")))));
+        var filter = Obj(("type", "object"));
+        filter["properties"] = Obj(
+            ("field", StringSchema()),
+            ("eq", scalar),
+            ("in", scalars),
+            ("hasBackref", StringSchema()));
+        var sort = Obj(("type", "object"));
+        sort["required"] = Arr("field");
+        sort["properties"] = Obj(
+            ("field", StringSchema()),
+            ("direction", EnumSchema("asc", "desc")),
+            ("values", scalars.DeepClone()));
+        var group = Obj(("type", "object"));
+        group["required"] = Arr("field", "values");
+        group["properties"] = Obj(
+            ("field", StringSchema()),
+            ("values", scalars.DeepClone()));
+        var query = Obj(("type", "object"));
+        query["required"] = Arr("from");
+        query["properties"] = Obj(
+            ("from", StringSchema()),
+            ("where", Obj(("type", "array"), ("items", filter))),
+            ("sort", Obj(("type", "array"), ("items", sort))),
+            ("select", StringArraySchema()),
+            ("distinct", StringSchema()),
+            ("group", group),
+            ("limit", IntSchema(1)));
+        return Obj(("type", "object"), ("additionalProperties", query));
     }
 
     private static JsonObject SharedAssetsSchema()

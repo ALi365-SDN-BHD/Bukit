@@ -11,19 +11,31 @@ internal static class FilteredListMatcher
     internal static bool Matches(IReadOnlyDictionary<string, ContentField>? fields, FilteredListConfig filter)
     {
         ArgumentNullException.ThrowIfNull(filter);
+        return Matches(fields, filter.Field, filter.Operator, ResolveExpectedValues(filter));
+    }
 
-        if (!ContentFieldReader.TryGetField(fields, filter.Field, out var field) || field.Value is null)
+    /// <summary>
+    /// True when <paramref name="field"/> (or any item of a list field) matches one of
+    /// <paramref name="expected"/> under <paramref name="operatorName"/>: equals (also slug-equal), in, or contains.
+    /// </summary>
+    internal static bool Matches(
+        IReadOnlyDictionary<string, ContentField>? fields,
+        string field,
+        string? operatorName,
+        IReadOnlyList<string> expected)
+    {
+        if (!ContentFieldReader.TryGetField(fields, field, out var value) || value.Value is null)
         {
             return false;
         }
 
-        var actualValues = EnumerateValues(field.Value).ToArray();
+        var actualValues = EnumerateValues(value.Value).ToArray();
         if (actualValues.Length == 0)
         {
             return false;
         }
 
-        var expectedValues = ResolveExpectedValues(filter)
+        var expectedValues = expected
             .Select(CreateMatchValue)
             .Where(value => value is not null)
             .Select(value => value!.Value)
@@ -33,7 +45,7 @@ internal static class FilteredListMatcher
             return false;
         }
 
-        return NormalizeOperator(filter.Operator) switch
+        return NormalizeOperator(operatorName) switch
         {
             "contains" => actualValues.Any(actual => expectedValues.Any(expected => Contains(actual, expected))),
             "in" => actualValues.Any(actual => expectedValues.Any(expected => EqualsValue(actual, expected))),

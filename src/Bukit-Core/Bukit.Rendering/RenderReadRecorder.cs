@@ -8,7 +8,7 @@ namespace Bukit.Rendering;
 /// </summary>
 /// <remarks>
 /// Collection keys: <c>site.data.&lt;key&gt;</c>, <c>site.modules.&lt;key&gt;</c>,
-/// <c>site.data_index.&lt;key&gt;</c>, <c>site.related_pages</c>, <c>site.data_files</c> and
+/// <c>site.data_index.&lt;key&gt;</c>, <c>site.related_pages</c>, <c>site.data_files</c>, <c>site.queries</c> and
 /// <c>pages</c>, with keys in lower case. <c>site.data.*</c> (and the same for modules and
 /// data_index) means every key in that scope; <see cref="All"/> means every collection.
 /// </remarks>

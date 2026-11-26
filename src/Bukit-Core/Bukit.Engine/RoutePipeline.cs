@@ -8,6 +8,7 @@ using Bukit.Shared;
 using Bukit.Engine.Primitives;
 using Bukit.Engine.ContentLinks;
 using Bukit.Engine.DerivedFields;
+using Bukit.Engine.Queries;
 namespace Bukit.Engine;
 
 internal sealed record RoutePipelineResult(
@@ -16,6 +17,9 @@ internal sealed record RoutePipelineResult(
     IReadOnlyList<RouteInfo> ListRoutes)
 {
     internal ListRouteGraph ListRouteGraph { get; init; } = ListRouteGraph.Empty;
+
+    /// <summary>site.queries results by name, or null when none are configured.</summary>
+    internal IReadOnlyDictionary<string, object>? Queries { get; init; }
 }
 
 internal sealed class RoutePipeline
@@ -46,12 +50,12 @@ internal sealed class RoutePipeline
         RouteInventoryValidator.ValidateContentRoutes(routedDocuments);
         // Links need target URLs, so they resolve after routing and before anything reads the pages.
         // Documents without a page (data, or failing routeWhen) are targets without a URL.
-        var linkedDocuments = ContentLinkResolver.Apply(
-            config.Content,
-            routedDocuments,
-            [.. documents.Where(i => !CollectionPagePolicy.HasPage(i, config.Site))]);
+        IReadOnlyList<ContentDocument> withoutPage = [.. documents.Where(i => !CollectionPagePolicy.HasPage(i, config.Site))];
+        var linkedDocuments = ContentLinkResolver.Apply(config.Content, routedDocuments, withoutPage);
         // Derived values may read the links, and every page consumer below reads the values.
         linkedDocuments = DerivedFieldResolver.Apply(config.Content, linkedDocuments);
+        // Queries see the final page fields, backrefs and derived values included.
+        var queries = SiteQueryResolver.Resolve(config, linkedDocuments, withoutPage);
 
         var listRouteGraph = ListRouteGraphBuilder.Build(
             linkedDocuments,
@@ -62,7 +66,8 @@ internal sealed class RoutePipeline
         var listRoutes = listRouteGraph.Routes.Select(route => route.ToRouteInfo()).ToArray();
         return new RoutePipelineResult(contentDocuments, linkedDocuments, listRoutes)
         {
-            ListRouteGraph = listRouteGraph
+            ListRouteGraph = listRouteGraph,
+            Queries = queries
         };
     }
 

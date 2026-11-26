@@ -56,6 +56,7 @@ internal static class ScribanSiteModelMapper
 
             SetInternalProjectionAlias(obj, model.Data, "__data_files", "data_files");
             SetInternalProjectionAlias(obj, model.Data, "__related_pages", "related_pages");
+            SetInternalProjectionAlias(obj, model.Data, "__queries", "queries");
         }
 
         if (model.DataIndex is not null && model.DataIndex.Count > 0)

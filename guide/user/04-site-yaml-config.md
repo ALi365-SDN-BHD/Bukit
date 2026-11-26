@@ -254,6 +254,59 @@ it: its link has a null `url`. It does not link to other documents itself and ge
 | `urlPattern` | none | Optional pagination URL pattern. |
 | `emptyBehavior` | `render` | `render` or `skip`. |
 
+## Named Queries
+
+`site.queries` builds named lists from one collection, so templates do not need ordered lists
+prepared outside Bukit. Read them as `site.queries.<name>`.
+
+```yaml
+site:
+  queries:
+    route_cities:
+      from: city
+      where: [{ field: has_page, eq: true }, { hasBackref: routes }]
+      select: [image]
+    featured_routes:
+      from: route
+      sort: [{ field: featured, direction: desc }]
+      limit: 6
+    routes_by_month:
+      from: route
+      group: { field: best_months, values: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12] }
+      limit: 3
+    attraction_types:
+      from: attraction
+      distinct: type
+```
+
+| Field | Default | Notes |
+|---|---|---|
+| `from` | required | Collection read: its pages and its entries without a page. |
+| `where` | none | Every filter must match: `{ field, eq }`, `{ field, in: [...] }`, or `{ hasBackref: <name> }`. |
+| `sort` | collection order | `{ field, direction }` (`asc` or `desc`), or `{ field, values: [...] }` to order by position in the list. |
+| `select` | none | Extra fields copied into each entry. |
+| `distinct` | none | Return the distinct values of this field instead of entries. |
+| `group` | none | `{ field, values }`: one group per value. Cannot be combined with `distinct`. |
+| `limit` | none | At least 1. Applies per group when grouped. |
+
+Entries start in the collection list order (newest first, then
+[`content.ordering`](#content-ordering)), and each query works on the current language only.
+Filters use the [filtered list](#filtered-lists) matching: text is compared without case, and a
+list field matches when any item matches, so `eq: 3` finds routes whose `best_months` holds 3.
+`hasBackref` keeps entries that at least one page links to through that [backref](#backrefs).
+Sorting is stable, and an entry without the field (or with a value missing from `values`) comes
+last in both directions.
+
+Each entry has `key` (the slug), `title`, `slug`, `url` (null for an entry without a page),
+`collection` and the `select` fields, like a [content link](#content-links). A grouped query
+returns a list of `{ value, items }` in the order of `values`, where `value` is the text written
+in the config. `distinct` returns plain values in entry order; list fields are flattened, and
+values differing only in case appear once.
+
+Queries see the final page fields, including backrefs and [derived fields](#derived-fields).
+Incremental builds render a page again when a query it reads changes. Per-page queries, such as
+"two experiences in this page's city", stay in templates, filtered with the Scriban array functions.
+
 ## Content Sources
 
 | Field | Default | Notes |

@@ -63,6 +63,10 @@ public sealed record SiteConfig
     public PaginationGlobalConfig Pagination { get; init; } = new();
     public SearchDetailConfig Search { get; init; } = new();
     public RelatedConfig Related { get; init; } = new();
+    /// <summary>site.queries: named lists computed from the site's entries, read in templates as <c>site.queries.&lt;name&gt;</c>.</summary>
+    /// <remarks>Internal: configured only through site.yaml, so it does not widen the public API.</remarks>
+    [System.Text.Json.Serialization.JsonInclude]
+    internal IReadOnlyList<SiteQueryConfig> Queries { get; init; } = [];
     public IReadOnlyDictionary<string, IReadOnlyList<MenuConfig>>? Menus { get; init; }
     public SharedAssetsConfig SharedAssets { get; init; } = new();
     /// <summary>Per-language site identity, keyed by a <see cref="Languages"/> entry; applied to that language's build.</summary>
@@ -253,6 +257,50 @@ public sealed record CollectionConfig
     // Internal: configured only through site.yaml, so it does not widen the public API.
     [System.Text.Json.Serialization.JsonInclude]
     internal CollectionRouteWhenConfig? RouteWhen { get; init; }
+}
+
+/// <summary>One site.queries.&lt;name&gt; entry: filter, order and cut one collection's entries.</summary>
+internal sealed record SiteQueryConfig
+{
+    public required string Name { get; init; }
+    /// <summary>The collection read, pages and entries without a page alike.</summary>
+    public required string From { get; init; }
+    /// <summary>Every filter must match.</summary>
+    public IReadOnlyList<SiteQueryFilterConfig> Where { get; init; } = [];
+    /// <summary>Applied in order after the collection list order, so equal entries keep that order.</summary>
+    public IReadOnlyList<SiteQuerySortConfig> Sort { get; init; } = [];
+    /// <summary>Fields copied into each result entry, next to key, title, slug, url and collection.</summary>
+    public IReadOnlyList<string> Select { get; init; } = [];
+    /// <summary>When set, the result is the distinct values of this field instead of entries.</summary>
+    public string? Distinct { get; init; }
+    public SiteQueryGroupConfig? Group { get; init; }
+    /// <summary>The most entries or values kept; per group when grouped.</summary>
+    public int? Limit { get; init; }
+}
+
+/// <summary>A site.queries filter: <c>field</c> with <c>eq</c> or <c>in</c>, or <c>hasBackref</c>.</summary>
+internal sealed record SiteQueryFilterConfig
+{
+    public string? Field { get; init; }
+    /// <summary>The field, or any item of a list field, must equal one of these.</summary>
+    public IReadOnlyList<string> Values { get; init; } = [];
+    /// <summary>The entry must have at least one page linking to it through this backref.</summary>
+    public string? HasBackref { get; init; }
+}
+
+/// <summary>A site.queries sort key: by value and <c>direction</c>, or by position in <c>values</c>.</summary>
+internal sealed record SiteQuerySortConfig
+{
+    public required string Field { get; init; }
+    public string Direction { get; init; } = "asc";
+    public IReadOnlyList<string> Values { get; init; } = [];
+}
+
+/// <summary>site.queries group: one group per value, holding the entries whose field (or any list item) equals it.</summary>
+internal sealed record SiteQueryGroupConfig
+{
+    public required string Field { get; init; }
+    public required IReadOnlyList<string> Values { get; init; }
 }
 
 /// <summary>site.collections.*.routeWhen: the field test an entry must pass to get a page.</summary>
