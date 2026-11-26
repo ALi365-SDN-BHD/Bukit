@@ -968,7 +968,9 @@ public sealed class ConfigLoaderFullCoverageTests : IDisposable
     [Theory]
     [InlineData("site-settings", "scope", "footer.site_name", ".name must match")]
     [InlineData("settings", "Scope-Name", "footer.site_name", ".dataIndex.scopeField must match")]
-    [InlineData("settings", "scope", "footer.site-name", "requiredKeys values must use scope.key")]
+    [InlineData("settings", "scope", "Footer.site_name", "requiredKeys values must use scope.key")]
+    [InlineData("settings", "scope", "footer.site name", "requiredKeys values must use scope.key")]
+    [InlineData("settings", "scope", "footer", "requiredKeys values must use scope.key")]
     public void Load_ContentSourceDataIndexWithUnsafeIdentifiers_Throws(
         string sourceName, string scopeField, string requiredKey, string expectedMessage)
     {
@@ -993,6 +995,29 @@ public sealed class ConfigLoaderFullCoverageTests : IDisposable
         var ex = Assert.Throws<ConfigException>(() => ConfigValidator.Validate(config));
 
         Assert.Contains(expectedMessage, ex.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Load_ContentSourceDataIndexRequiredDottedCamelCaseKey_Passes()
+    {
+        var yaml = """
+            site:
+              name: myblog
+              title: My Blog
+            content:
+              sources:
+                - type: markdown
+                  name: settings
+                  mode: data
+                  markdown:
+                    dir: data
+                  dataIndex:
+                    requiredKeys:
+                      - copy.custom.days.10+.label
+                      - copy.custom.daysHint
+            """;
+
+        ConfigValidator.Validate(ConfigLoader.Load(WriteTempYaml(yaml)));
     }
 
     [Fact]

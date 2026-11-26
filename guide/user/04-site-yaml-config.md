@@ -409,7 +409,10 @@ A `mode: data` source does not require collection, defaults missing document
 type to `module`, and is not routed or indexed as a collection page.
 
 `dataIndex` requires `mode: data` and a source `name`. Source names, field
-names, scopes, and keys use `^[a-z][a-z0-9_]*$`. Duplicate scope and key pairs,
+names, and scopes use `^[a-z][a-z0-9_]*$`. Keys use `^[A-Za-z0-9][A-Za-z0-9._+-]*$`, so
+dotted camelCase copy keys (such as a `daysHint` key under `custom.`, or a range like
+`4-5` inside the key) work as written; read them with brackets (`site.data_index.<source>.<scope>["custom.daysHint"]`). In
+`requiredKeys`, the first segment is the scope and the rest is the key. Duplicate scope and key pairs,
 missing required values, unknown value types, invalid email values, and URLs
 other than HTTP(S) or root-relative paths fail the build.
 

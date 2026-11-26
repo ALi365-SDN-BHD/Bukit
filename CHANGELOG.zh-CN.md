@@ -4,6 +4,8 @@ Bukit 所有重要变更都将记录在此文件中。
 
 ## [Unreleased]
 
+- **dataIndex 键名支持点号。** `dataIndex` 的键现在接受 `^[A-Za-z0-9][A-Za-z0-9._+-]*$`，`custom.daysHint`、`custom.days.4-5.label` 这类文案键可以原样使用（模板里用方括号读取）。范围（scope）和来源名仍是 `^[a-z][a-z0-9_]*$`；`requiredKeys` 以第一段作为范围。
+
 - **按自定义字段计算相关页面。** `site.related.indices[].field` 可以按任意内容字段的共同值计分，`site.related.collections.<collection>` 给单个集合单独的规则（只在该集合内比较；`threshold` 可以为 0）。结果条目新增 `id` 和 `slug`，同分时保持集合列表顺序。
 
 - **命名查询。** `site.queries.<name>: { from, where, sort, select, distinct, group, limit }` 从一个集合（有页面的条目和没有页面的条目）生成有序列表，模板里用 `site.queries.<name>` 读取。筛选规则与 filteredLists 一致，并支持 `hasBackref`；分组和去重可以做“按月份的路线”“景点类型”这类列表。

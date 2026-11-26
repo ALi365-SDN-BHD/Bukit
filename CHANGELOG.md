@@ -4,6 +4,8 @@ All notable changes to Bukit will be documented in this file.
 
 ## [Unreleased]
 
+- **Dotted dataIndex keys.** `dataIndex` keys now accept `^[A-Za-z0-9][A-Za-z0-9._+-]*$`, so copy keys such as `custom.daysHint` or `custom.days.4-5.label` work as written (read them with brackets). Scopes and source names keep `^[a-z][a-z0-9_]*$`; `requiredKeys` take the first segment as the scope.
+
 - **Related pages by custom fields.** `site.related.indices[].field` scores any content field by shared values, and `site.related.collections.<collection>` gives one collection its own rules (compared within the collection; `threshold` may be 0). Entries now include `id` and `slug`, and equal scores keep the collection list order.
 
 - **Named queries.** `site.queries.<name>: { from, where, sort, select, distinct, group, limit }` builds ordered lists from one collection (pages and entries without a page), read in templates as `site.queries.<name>`. Filters match like filtered lists and support `hasBackref`; groups and distinct values cover lists such as routes by month or attraction types.

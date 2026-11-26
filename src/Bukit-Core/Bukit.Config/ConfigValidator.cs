@@ -413,10 +413,11 @@ public static class ConfigValidator
         var required = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         foreach (var key in source.DataIndex.RequiredKeys ?? Array.Empty<string>())
         {
-            var parts = key.Split('.', StringSplitOptions.TrimEntries);
-            if (parts.Length != 2 || !IsDataIndexIdentifier(parts[0]) || !IsDataIndexIdentifier(parts[1]))
+            // The scope is the first segment; the key may itself contain dots.
+            var parts = key.Split('.', 2, StringSplitOptions.TrimEntries);
+            if (parts.Length != 2 || !IsDataIndexIdentifier(parts[0]) || !DataIndexKey.IsValid(parts[1]))
             {
-                throw new ConfigException($"{sourcePath}.dataIndex.requiredKeys values must use scope.key with safe identifiers.", DiagnosticCode.ConfigInvalidValue);
+                throw new ConfigException($"{sourcePath}.dataIndex.requiredKeys values must use scope.key: a scope matching ^[a-z][a-z0-9_]*$ and a key matching {DataIndexKey.Pattern}.", DiagnosticCode.ConfigInvalidValue);
             }
 
             if (!required.Add($"{parts[0]}.{parts[1]}"))
