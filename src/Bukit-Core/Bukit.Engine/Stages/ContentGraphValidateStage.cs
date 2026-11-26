@@ -1,6 +1,7 @@
 using Bukit.Content.CloudBase;
 using Bukit.Engine.Abstractions.Content;
 using Bukit.Engine.ContentLinks;
+using Bukit.Engine.DerivedFields;
 using Bukit.Shared;
 
 namespace Bukit.Engine.Stages;
@@ -14,8 +15,13 @@ internal sealed class ContentGraphValidateStage : IContentStage
         var graph = CanonicalContentGraphBuilder.BuildFromDocuments(input.Documents);
         var schema = ContentModelSchemaFactory.FromConfig(input.Config);
 
+        var documentsById = input.Documents
+            .GroupBy(document => document.Id, StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(group => group.Key, group => group.First(), StringComparer.OrdinalIgnoreCase);
+        // Fields a derived rule writes are checked after derivation, on the derived values.
         var issues = CanonicalContentValidator.Validate(graph, input.Config.Site)
-            .Concat(ContentModelSchemaValidator.Validate(graph, schema))
+            .Concat(ContentModelSchemaValidator.Validate(graph, schema)
+                .Where(issue => !DerivedFieldResolver.IsDerivedFieldIssue(input.Config.Content, issue, documentsById)))
             .Concat(input.Documents.SelectMany(ToSchemaErrors))
             .Concat(ContentLinkResolver.Validate(input.Config, input.Documents))
             .GroupBy(x => $"{x.SourcePath}:{x.Field}:{x.Code}", StringComparer.OrdinalIgnoreCase)
@@ -23,9 +29,6 @@ internal sealed class ContentGraphValidateStage : IContentStage
             .ToArray();
 
         var globalMode = (input.Config.Build.SchemaFailMode ?? "warn").Trim().ToLowerInvariant();
-        var documentsById = input.Documents
-            .GroupBy(document => document.Id, StringComparer.OrdinalIgnoreCase)
-            .ToDictionary(group => group.Key, group => group.First(), StringComparer.OrdinalIgnoreCase);
         var classified = issues
             .Select(issue => (Issue: issue, Mode: ResolveFailMode(issue, documentsById, input.Config, globalMode)))
             .Where(item => !string.Equals(item.Mode, "off", StringComparison.OrdinalIgnoreCase))

@@ -49,6 +49,17 @@ internal static partial class CanonicalContentGraphBuilder
             raw.CustomFields,
             schema));
 
+    /// <summary>The record of <paramref name="document"/> projected again from <paramref name="fields"/>.</summary>
+    internal static ContentRecord ToRecord(ContentDocument document, IReadOnlyDictionary<string, ContentField> fields, ContentModelSchema? schema)
+        => ToRecord(new ContentRecordSource(
+            document.Id,
+            document.Title,
+            document.Slug,
+            document.PublishAt,
+            document.Record.Presentation.Body,
+            fields,
+            schema));
+
     private static ContentRecord ToRecord(ContentRecordSource source)
     {
         var language = FirstText(source, "language") ?? "und";
