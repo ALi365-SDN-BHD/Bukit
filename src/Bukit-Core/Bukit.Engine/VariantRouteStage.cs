@@ -28,7 +28,8 @@ internal static class VariantRouteStage
         CancellationToken cancellationToken)
     {
         var routeGenerationStopwatch = Stopwatch.StartNew();
-        var routeResult = new RoutePipeline().Execute(
+        // The variant documents are one language; the content graph holds the whole site.
+        var routeResult = new RoutePipeline { SiteDocuments = context.ContentGraph.Documents }.Execute(
             context.Config,
             context.Documents,
             templateResolver);

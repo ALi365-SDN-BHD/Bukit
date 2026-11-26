@@ -30,9 +30,16 @@ internal sealed record RoutePipelineResult(
 
 internal sealed class RoutePipeline
 {
+    /// <summary>
+    /// Every content document of the site, all languages, for the relation targets of derived-value
+    /// checks. Empty means the documents passed to <see cref="Execute"/>, which a multilingual build has
+    /// already filtered to one language.
+    /// </summary>
+    internal IReadOnlyList<ContentDocument> SiteDocuments { get; init; } = [];
+
     public RoutePipelineResult Execute(AppConfig config, IReadOnlyList<ContentDocument> documents, ThemeTemplateResolver? templateResolver = null)
     {
-        var siteDocuments = documents;
+        var siteDocuments = SiteDocuments.Count > 0 ? SiteDocuments : documents;
         var siteLanguages = I18nOutputMerger.GetLanguages(config.Site);
         if (siteLanguages.Count == 0)
         {
