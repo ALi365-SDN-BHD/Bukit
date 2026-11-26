@@ -64,7 +64,7 @@ internal static class ContentProviderFactory
                             "content.sources[].cloudbase is required when type is cloudbase.",
                             DiagnosticCode.CloudBaseConfigInvalid);
 
-                    providers.Add((key, mode, s.Collection, s.AddToCollections, CreateCloudBaseProvider(config, cloudBase, mode, rootDir, logger)));
+                    providers.Add((key, mode, s.Collection, s.AddToCollections, CreateCloudBaseProvider(config, cloudBase, mode, $"content.sources[{i}].cloudbase", rootDir, logger)));
                     continue;
                 }
 
@@ -128,6 +128,7 @@ internal static class ContentProviderFactory
         AppConfig config,
         CloudBaseConfig cloudBase,
         string mode,
+        string pathPrefix,
         string rootDir,
         ILogger logger)
     {
@@ -145,41 +146,49 @@ internal static class ContentProviderFactory
             MediaPlaceholderProbe.FindMissing(config, rootDir, logger) is { } missing)
         {
             throw new ConfigException(
-                $"cloudbase.{(cloudBase.FileFields.Count > 0 ? "fileFields" : "storageBucket")} requires the media placeholder image '{missing}' to exist.",
+                $"{pathPrefix}.{(cloudBase.FileFields.Count > 0 ? "fileFields" : "storageBucket")} requires the media placeholder image '{missing}' to exist.",
                 DiagnosticCode.CloudBaseConfigInvalid);
         }
 
-        return new CloudBaseContentSource(
-            new CloudBaseContentSourceOptions
-            {
-                EnvId = cloudBase.EnvId,
-                Region = cloudBase.Region,
-                Table = cloudBase.Table,
-                IdField = cloudBase.IdField,
-                PageSize = cloudBase.PageSize,
-                MaxItems = cloudBase.MaxItems,
-                FilterField = cloudBase.Filter?.Field,
-                FilterValue = cloudBase.Filter is { } filter ? ConfigEnvValue.Resolve(filter.Value, "cloudbase.filter.value") : null,
-                SortField = cloudBase.Sort?.Field,
-                SortDirection = cloudBase.Sort?.Direction ?? "asc",
-                TitleField = cloudBase.TitleField,
-                SlugField = cloudBase.SlugField,
-                PublishAtField = cloudBase.PublishAtField,
-                UpdatedAtField = cloudBase.UpdatedAtField,
-                BodyField = cloudBase.BodyField,
-                Mode = mode,
-                FieldPolicyMode = cloudBase.FieldPolicy.Mode,
-                AllowedFields = cloudBase.FieldPolicy.Allowed,
-                PublishableKey = publishableKey ?? string.Empty,
-                StorageBucket = cloudBase.StorageBucket,
-                FileFields = cloudBase.FileFields,
-                DefaultImageUrl = CloudBasePlaceholderUrl(config.Content.Media.DefaultImageUrl),
-                SignExpiresSeconds = cloudBase.SignExpiresSeconds,
-                MaxRps = cloudBase.MaxRps is > 0 ? cloudBase.MaxRps.Value : 5,
-                MaxRetries = cloudBase.MaxRetries ?? 3
-            },
-            logger: logger);
+        var filterValue = cloudBase.Filter is { } filter ? ConfigEnvValue.Resolve(filter.Value, $"{pathPrefix}.filter.value") : null;
+        return new CloudBaseContentSource(CloudBaseOptions(config, cloudBase, mode, filterValue, publishableKey ?? string.Empty), logger: logger);
     }
+
+    /// <summary>The source options of a CloudBase config; offline checks pass no filter value and no key.</summary>
+    internal static CloudBaseContentSourceOptions CloudBaseOptions(
+        AppConfig config,
+        CloudBaseConfig cloudBase,
+        string mode,
+        string? filterValue,
+        string publishableKey = "")
+        => new CloudBaseContentSourceOptions
+        {
+            EnvId = cloudBase.EnvId,
+            Region = cloudBase.Region,
+            Table = cloudBase.Table,
+            IdField = cloudBase.IdField,
+            PageSize = cloudBase.PageSize,
+            MaxItems = cloudBase.MaxItems,
+            FilterField = cloudBase.Filter?.Field,
+            FilterValue = filterValue,
+            SortField = cloudBase.Sort?.Field,
+            SortDirection = cloudBase.Sort?.Direction ?? "asc",
+            TitleField = cloudBase.TitleField,
+            SlugField = cloudBase.SlugField,
+            PublishAtField = cloudBase.PublishAtField,
+            UpdatedAtField = cloudBase.UpdatedAtField,
+            BodyField = cloudBase.BodyField,
+            Mode = mode,
+            FieldPolicyMode = cloudBase.FieldPolicy.Mode,
+            AllowedFields = cloudBase.FieldPolicy.Allowed,
+            PublishableKey = publishableKey,
+            StorageBucket = cloudBase.StorageBucket,
+            FileFields = cloudBase.FileFields,
+            DefaultImageUrl = CloudBasePlaceholderUrl(config.Content.Media.DefaultImageUrl),
+            SignExpiresSeconds = cloudBase.SignExpiresSeconds,
+            MaxRps = cloudBase.MaxRps is > 0 ? cloudBase.MaxRps.Value : 5,
+            MaxRetries = cloudBase.MaxRetries ?? 3
+        };
 
     private static NotionContentSource CreateNotionProvider(string rootDir, NotionConfig notion, bool isCi, bool renderContent, ILogger logger, bool autoSummary = false, int autoSummaryMaxLength = 200)
     {

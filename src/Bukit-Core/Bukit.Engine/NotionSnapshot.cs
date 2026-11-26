@@ -70,7 +70,8 @@ internal sealed class NotionSnapshot : IDisposable
             else if (source.Type.Equals("cloudbase", StringComparison.OrdinalIgnoreCase) && source.CloudBase is { } cloudBase)
             {
                 // The filter value is checked when the build reads the table, after ${env:NAME} resolves.
-                CloudBaseSnapshot.EnsureTable(_session, cloudBase.EnvId, cloudBase.Table, cloudBase.Filter?.Field);
+                var mode = (source.Mode ?? "content").Trim().ToLowerInvariant();
+                CloudBaseSnapshot.EnsureSource(_session, ContentProviderFactory.CloudBaseOptions(config, cloudBase, mode, filterValue: null));
             }
         }
     }

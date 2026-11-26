@@ -63,10 +63,35 @@ internal sealed partial class DerivedFieldTemplate
         };
         context.PushCulture(CultureInfo.InvariantCulture);
         context.PushGlobal(globals);
-        var output = _template.Render(context);
-        return output.Length > MaxOutputLength
-            ? throw new ScriptRuntimeException(default, $"The value is longer than {MaxOutputLength} characters.")
-            : output.Trim();
+        // The limit holds while rendering, so nested loops cannot buffer gigabytes before the check.
+        var output = new BoundedOutput();
+        context.PushOutput(output);
+        _template.Render(context);
+        return output.ToString().Trim();
+    }
+
+    /// <summary>Output that fails as soon as it grows past <see cref="MaxOutputLength"/>.</summary>
+    private sealed class BoundedOutput : IScriptOutput
+    {
+        private readonly StringBuilder _builder = new();
+
+        public void Write(string text, int offset, int count)
+        {
+            if (_builder.Length + count > MaxOutputLength)
+            {
+                throw new ScriptRuntimeException(default, $"The value is longer than {MaxOutputLength} characters.");
+            }
+
+            _builder.Append(text, offset, count);
+        }
+
+        public ValueTask WriteAsync(string text, int offset, int count, CancellationToken cancellationToken)
+        {
+            Write(text, offset, count);
+            return ValueTask.CompletedTask;
+        }
+
+        public override string ToString() => _builder.ToString();
     }
 
     private static BuiltinFunctions CreateBuiltins()

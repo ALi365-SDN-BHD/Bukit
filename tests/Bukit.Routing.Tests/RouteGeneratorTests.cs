@@ -78,6 +78,21 @@ public sealed class RouteGeneratorTests
     }
 
     [Fact]
+    public void Generate_FieldPlaceholderWithDecimal_UsesOnlyWholeNumbers()
+    {
+        var collections = new Dictionary<string, RouteGenerator.CollectionRouteRule>
+        {
+            ["attraction"] = new("/malaysia/{fields.city}/{slug}/", "pages/attraction.html")
+        };
+        RouteInfo Route(decimal city) => RouteGenerator.Generate(
+            CreateDocument("batu-caves", new Dictionary<string, object> { ["collection"] = "attraction", ["city"] = city }),
+            collections: collections);
+
+        Assert.Equal("/malaysia/2/batu-caves/", Route(2.0m).Url);
+        Assert.Equal(DiagnosticCode.RouteInvalidPattern, Assert.Throws<ConfigException>(() => Route(1.5m)).Code);
+    }
+
+    [Fact]
     public void Generate_WithFileExtensionPermalink_PreservesFileRoute()
     {
         var document = CreateDocument(

@@ -36,6 +36,8 @@ public sealed class CollectionPagePolicyTests
 
         Assert.True(CollectionPagePolicy.HasPage(City("kl", 1d), site));
         Assert.True(CollectionPagePolicy.HasPage(City("kl", 1L), site));
+        Assert.True(CollectionPagePolicy.HasPage(City("kl", 1.0m), site));
+        Assert.False(CollectionPagePolicy.HasPage(City("kl", 1.5m), site));
     }
 
     [Fact]

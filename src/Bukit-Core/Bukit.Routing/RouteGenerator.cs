@@ -1,6 +1,5 @@
 using Bukit.Engine.Abstractions.Routing;
 using Bukit.Engine.Abstractions.Content;
-using System.Globalization;
 using System.Text.RegularExpressions;
 using Bukit.Shared;
 
@@ -183,9 +182,7 @@ public static partial class RouteGenerator
         var text = value switch
         {
             string raw => raw,
-            long or int or decimal => ((IFormattable)value).ToString(null, CultureInfo.InvariantCulture),
-            double real when double.IsInteger(real) => real.ToString("0", CultureInfo.InvariantCulture),
-            _ => null
+            _ => ContentFieldReader.WholeNumberText(value)
         };
         var segment = text is null ? string.Empty : RoutePathBuilder.Slugify(text);
         return segment.Length > 0

@@ -1,5 +1,4 @@
 using System.Collections;
-using System.Globalization;
 using Bukit.Config;
 using Bukit.Engine.Abstractions.Content;
 using Bukit.Engine.Plugins.BuiltIn;
@@ -66,7 +65,7 @@ internal static class ContentLinkResolver
             var fields = page.Document.CustomFields;
             foreach (var link in LinksFor(parsed, page.Document))
             {
-                var resolved = link.Config.Backref is null || ContentFieldReader.IsDataItem(page.Document) ? null : new List<Target>();
+                var resolved = link.Config.Backref is null ? null : new List<Target>();
                 fields = Resolve(fields, link, index, problems: null, resolved) ?? fields;
                 foreach (var target in resolved?.Where(target => target.Url is not null) ?? [])
                 {
@@ -307,19 +306,10 @@ internal static class ContentLinkResolver
             return null;
         }
 
-        // Notion numbers are doubles and Markdown "1.0" is a decimal: a whole number keys as its digits.
-        return field.Value switch
-        {
-            string text when !string.IsNullOrWhiteSpace(text) => text.Trim(),
-            long or int => ((IFormattable)field.Value).ToString(null, CultureInfo.InvariantCulture),
-            decimal exact when decimal.IsInteger(exact) => exact.ToString("0", CultureInfo.InvariantCulture),
-            double real when double.IsInteger(real) && Math.Abs(real) <= MaxExactDouble => ((long)real).ToString(CultureInfo.InvariantCulture),
-            _ => null
-        };
+        return field.Value is string text
+            ? string.IsNullOrWhiteSpace(text) ? null : text.Trim()
+            : ContentFieldReader.WholeNumberText(field.Value);
     }
-
-    /// <summary>2^53: every whole double up to this is exact.</summary>
-    private const double MaxExactDouble = 9007199254740992d;
 
     /// <param name="resolved">When set, receives each target the page links to, once, even when an output conflicts.</param>
     /// <returns>

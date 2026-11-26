@@ -885,6 +885,111 @@ public sealed class CloudBaseContentSourceTests
         }
     }
 
+    [Fact]
+    public async Task Snapshot_MatchesFieldListsIgnoringCaseAndOrderButNotTheMode()
+    {
+        var root = Path.Combine(Path.GetTempPath(), "bukit-cloudbase-snapshot-" + Guid.NewGuid().ToString("N"));
+        var directory = Path.Combine(root, "snapshot");
+        try
+        {
+            // Nine levels: deeper than a structured field may be, so it is dropped online and left out of the entry.
+            var deep = string.Concat(Enumerable.Repeat("{\"a\":", 9)) + "1" + new string('}', 9);
+            var api = new FakeCloudBaseApi { Total = 1 };
+            api.Pages[0] = $$"""[{"id":"a1","title":"A","slug":"a","content":"x","tags":["t"],"city":"KL","deep":{{deep}}}]""";
+            using (var recording = Bukit.Content.Notion.Snapshot.NotionSnapshotSession.BeginWrite(directory))
+            {
+                using (Bukit.Config.NotionSnapshotScope.Enter(recording))
+                {
+                    var online = Assert.Single((await Create(api, options => options with { AllowedFields = ["tags", "city", "deep"] }).LoadRawAsync()).Documents);
+                    Assert.DoesNotContain("deep", online.CustomFields!.Keys);
+                }
+
+                recording.Commit();
+            }
+
+            Assert.DoesNotContain("\"deep\"", File.ReadAllText(Assert.Single(Directory.GetFiles(Path.Combine(directory, "cloudbase"), "*.json", SearchOption.AllDirectories))), StringComparison.Ordinal);
+            using var offline = Bukit.Content.Notion.Snapshot.NotionSnapshotSession.OpenOffline(directory);
+            using (Bukit.Config.NotionSnapshotScope.Enter(offline))
+            {
+                var offlineApi = new FakeCloudBaseApi();
+                Func<CloudBaseContentSourceOptions, CloudBaseContentSourceOptions> reordered = options => options with { AllowedFields = ["deep", "CITY", "tags"] };
+                var document = Assert.Single((await Create(offlineApi, reordered).LoadRawAsync()).Documents);
+                Assert.Equal("KL", document.CustomFields!["city"].Value);
+                Assert.DoesNotContain("deep", document.CustomFields.Keys);
+                Bukit.Content.CloudBase.CloudBaseSnapshot.EnsureSource(offline, reordered(Options()));
+
+                var data = await Assert.ThrowsAsync<Bukit.Content.Notion.Snapshot.NotionSnapshotException>(
+                    () => Create(offlineApi, options => reordered(options) with { Mode = "data" }).LoadRawAsync());
+                Assert.Equal(DiagnosticCode.NotionSnapshotQueryMismatch, data.Code);
+                var check = Assert.Throws<Bukit.Content.Notion.Snapshot.NotionSnapshotException>(
+                    () => Bukit.Content.CloudBase.CloudBaseSnapshot.EnsureSource(offline, reordered(Options()) with { MaxItems = 1 }));
+                Assert.Contains("different source settings", check.Message, StringComparison.Ordinal);
+            }
+        }
+        finally
+        {
+            if (Directory.Exists(root))
+            {
+                Directory.Delete(root, recursive: true);
+            }
+        }
+    }
+
+    [Fact]
+    public async Task Snapshot_EditedFileIdentityIsNotPublished()
+    {
+        var root = Path.Combine(Path.GetTempPath(), "bukit-cloudbase-snapshot-" + Guid.NewGuid().ToString("N"));
+        var directory = Path.Combine(root, "snapshot");
+        try
+        {
+            var api = new FakeCloudBaseApi { Total = 1 };
+            api.Pages[0] = """[{"id":"a1","title":"A","slug":"a","content":"x","cover":"posts/a.png"}]""";
+            Func<CloudBaseContentSourceOptions, CloudBaseContentSourceOptions> configure = options => options with
+            {
+                FileFields = ["cover"],
+                StorageBucket = "media",
+                DefaultImageUrl = "/ph.jpg"
+            };
+            using (var recording = Bukit.Content.Notion.Snapshot.NotionSnapshotSession.BeginWrite(directory))
+            {
+                using (Bukit.Config.NotionSnapshotScope.Enter(recording))
+                {
+                    await Create(api, configure).LoadRawAsync();
+                }
+
+                recording.Commit();
+            }
+
+            var path = Assert.Single(Directory.GetFiles(Path.Combine(directory, "cloudbase"), "*.json", SearchOption.AllDirectories));
+            File.WriteAllText(path, File.ReadAllText(path).Replace(
+                "https://env-abc.api.tcloudbasegateway.com/v1/storages/object/sign/media/posts/a.png",
+                "https://elsewhere.example/a.png",
+                StringComparison.Ordinal));
+
+            using var offline = Bukit.Content.Notion.Snapshot.NotionSnapshotSession.OpenOffline(directory);
+            using (Bukit.Config.NotionSnapshotScope.Enter(offline))
+            {
+                var document = Assert.Single((await Create(new FakeCloudBaseApi(), options => configure(options) with { PublishableKey = string.Empty }).LoadRawAsync()).Documents);
+                Assert.Equal("/ph.jpg", document.CustomFields!["cover"].Value);
+            }
+        }
+        finally
+        {
+            if (Directory.Exists(root))
+            {
+                Directory.Delete(root, recursive: true);
+            }
+        }
+    }
+
+    private static CloudBaseContentSourceOptions Options() => new()
+    {
+        EnvId = "env-abc",
+        Table = "articles",
+        BodyField = "content",
+        PublishableKey = "pk_test"
+    };
+
     private static CloudBaseContentSource Create(
         FakeCloudBaseApi api,
         Func<CloudBaseContentSourceOptions, CloudBaseContentSourceOptions> configure,

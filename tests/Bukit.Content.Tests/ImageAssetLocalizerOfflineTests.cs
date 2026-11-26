@@ -61,6 +61,9 @@ public sealed partial class ImageAssetLocalizerTests
                 using (var localizer = CreateLocalizer(ControlConfig(dir), offline))
                 {
                     Assert.Equal("/assets/images/noneimg-news.jpg", await localizer.LocalizeAsync(recorded, CancellationToken.None));
+                    // A public storage URL loads without a token, so it is kept like any other image.
+                    const string storage = "https://env-abc.storage.tcloudbase.com/posts/a.png";
+                    Assert.Equal(storage, await localizer.LocalizeAsync(storage, CancellationToken.None));
                 }
             }
 

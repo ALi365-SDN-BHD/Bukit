@@ -47,6 +47,20 @@ public sealed class RelatedCollectionConfigTests
         Assert.Contains(message, exception.Message, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public void Load_CollectionsDifferingOnlyInCase_Throws()
+    {
+        var exception = Assert.Throws<ConfigException>(() => Load("""
+              related:
+                collections:
+                  City: { indices: [{ field: a }] }
+                  city: { indices: [{ field: a }] }
+            """));
+
+        Assert.Equal(DiagnosticCode.ConfigInvalidValue, exception.Code);
+        Assert.Contains("site.related.collections.city repeats a collection", exception.Message, StringComparison.Ordinal);
+    }
+
     private static AppConfig Load(string siteYaml)
     {
         var yaml = $$"""

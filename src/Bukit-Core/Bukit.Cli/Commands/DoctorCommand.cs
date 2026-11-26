@@ -33,7 +33,7 @@ public static class DoctorCommand
         }
         catch (Exception ex) when (NotionSnapshot.IsSnapshotError(ex))
         {
-            Console.WriteLine("✖ Notion offline snapshot error");
+            Console.WriteLine("✖ Content offline snapshot error");
             Console.WriteLine(NotionSnapshot.Format(ex));
             return 1;
         }
@@ -67,7 +67,7 @@ public static class DoctorCommand
         }
         catch (Exception ex) when (NotionSnapshot.IsSnapshotError(ex))
         {
-            Console.WriteLine("✖ Notion offline snapshot error");
+            Console.WriteLine("✖ Content offline snapshot error");
             Console.WriteLine(NotionSnapshot.Format(ex));
             return 1;
         }
@@ -362,7 +362,7 @@ public static class DoctorCommand
             }
             catch (Exception ex) when (NotionSnapshot.IsSnapshotError(ex))
             {
-                Console.WriteLine("✖ Notion offline snapshot error");
+                Console.WriteLine("✖ Content offline snapshot error");
                 Console.WriteLine(NotionSnapshot.Format(ex));
                 return 1;
             }
@@ -421,14 +421,15 @@ public static class DoctorCommand
         }
 
         var cloudBaseSources = config.Content.Sources?
+            .Select((source, index) => (source.CloudBase, Path: $"content.sources[{index}].cloudbase"))
             .Where(source => source.CloudBase is not null)
             .ToArray() ?? [];
         if (cloudBaseSources.Length > 0 && snapshot is not { Offline: true })
         {
             var cloudBaseErrors = 0;
-            foreach (var source in cloudBaseSources)
+            foreach (var (cloudBase, path) in cloudBaseSources)
             {
-                cloudBaseErrors += await DoctorCloudBaseChecker.CheckAsync(source.CloudBase!).ConfigureAwait(false);
+                cloudBaseErrors += await DoctorCloudBaseChecker.CheckAsync(cloudBase!, pathPrefix: path).ConfigureAwait(false);
             }
 
             if (cloudBaseErrors > 0)

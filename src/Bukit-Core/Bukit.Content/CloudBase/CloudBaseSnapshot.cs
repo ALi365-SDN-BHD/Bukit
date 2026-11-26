@@ -3,6 +3,7 @@ using System.Text;
 using System.Text.Encodings.Web;
 using System.Text.Json;
 using Bukit.CloudBase.Models;
+using Bukit.CloudBase.Transport;
 using Bukit.Config;
 using Bukit.Content.Media;
 using Bukit.Content.Notion.Snapshot;
@@ -49,12 +50,16 @@ internal sealed class CloudBaseSnapshot : IDisposable
     /// <summary>The recorded rows, valid until this snapshot is disposed.</summary>
     internal IReadOnlyList<JsonElement> Rows { get; }
 
-    /// <summary>Fails when the offline snapshot holds no query of this CloudBase table (for <c>config check</c>).</summary>
-    internal static void EnsureTable(NotionSnapshotSession session, string envId, string table, string? filterField)
+    /// <summary>
+    /// Fails when the offline snapshot holds no query of this CloudBase source with these settings (for
+    /// <c>config check</c>). The filter value is not needed, so <c>${env:NAME}</c> need not be set.
+    /// </summary>
+    internal static void EnsureSource(NotionSnapshotSession session, CloudBaseContentSourceOptions options)
     {
-        if (session.Offline && !session.HasEntryDirectory(TableDirectory(envId, table, filterField)))
+        if (session.Offline &&
+            !session.HasEntryDirectory(ShapeDirectory(TableDirectory(options.EnvId, options.Table, options.FilterField), options)))
         {
-            throw Missing(table);
+            throw NotRecorded(session, options);
         }
     }
 
@@ -76,10 +81,16 @@ internal sealed class CloudBaseSnapshot : IDisposable
                 throw new JsonException("The entry does not have the expected shape.");
             }
 
+            // Only an identity the client could have recorded counts: an edited entry cannot publish other links.
             var map = new Dictionary<string, string>(StringComparer.Ordinal);
+            var gateway = CloudBaseEndpoints.GatewayHost(options.EnvId, options.Region);
             foreach (var file in files.EnumerateObject())
             {
-                if (file.Value.ValueKind == JsonValueKind.String && file.Value.GetString() is { Length: > 0 } url)
+                if (options.StorageBucket is { Length: > 0 } bucket &&
+                    file.Value.ValueKind == JsonValueKind.String &&
+                    file.Value.GetString() is { } url &&
+                    Uri.TryCreate(url, UriKind.Absolute, out var uri) &&
+                    CloudBaseEndpoints.IsSignUrl(uri, gateway, bucket))
                 {
                     map[file.Name] = url;
                 }
@@ -141,7 +152,8 @@ internal sealed class CloudBaseSnapshot : IDisposable
                     foreach (var column in row.EnumerateObject())
                     {
                         var published = !CloudBaseFieldRules.IsHardExcluded(column.Name) && (all || allowed!.Contains(column.Name));
-                        if (mapped.Contains(column.Name) || published)
+                        if (mapped.Contains(column.Name) ||
+                            (published && !CloudBaseFieldProjector.IsRejectedStructured(column.Name, column.Value)))
                         {
                             writer.WritePropertyName(column.Name);
                             WritePublic(writer, column.Value);
@@ -218,7 +230,7 @@ internal sealed class CloudBaseSnapshot : IDisposable
 
         var difference = session.HasEntryDirectory(ShapeDirectory(table, options))
             ? "another filter value"
-            : "different source settings (mapped fields, file fields, field policy, sort, maxItems or bucket)";
+            : "different source settings (mode, mapped fields, file fields, field policy, sort, maxItems or bucket)";
         return new NotionSnapshotException(
             $"Content offline snapshot recorded CloudBase table '{options.Table}' with {difference}. {Hint}",
             DiagnosticCode.NotionSnapshotQueryMismatch);
@@ -227,27 +239,35 @@ internal sealed class CloudBaseSnapshot : IDisposable
     private static string TableDirectory(string envId, string table, string? filterField)
         => Path.Combine("cloudbase", Hash($"{envId}\n{table}\n{filterField}"));
 
-    /// <summary>Hashes the settings that decide which rows and columns a query records.</summary>
+    /// <summary>
+    /// Hashes the settings that decide which rows, columns and files a query records. Field lists are
+    /// matched ignoring case and order, so they are hashed that way; the mode decides whether body
+    /// images are signed.
+    /// </summary>
     private static string ShapeDirectory(string tableDirectory, CloudBaseContentSourceOptions options)
     {
-        var allowed = options.AllowedFields is { } fields ? string.Join('\u001f', fields) : "\u0000";
+        var all = string.Equals(options.FieldPolicyMode?.Trim(), "all", StringComparison.OrdinalIgnoreCase);
         var shape = string.Join(
             '\n',
+            options.Mode.Trim().ToLowerInvariant(),
             options.IdField,
             options.TitleField,
             options.SlugField,
             options.PublishAtField,
             options.UpdatedAtField,
             options.BodyField,
-            string.Join('\u001f', options.FileFields),
-            options.FieldPolicyMode?.Trim().ToUpperInvariant(),
-            allowed,
+            NameSet(options.FileFields),
+            all ? "ALL" : "WHITELIST",
+            all ? string.Empty : NameSet(options.AllowedFields),
             options.SortField,
             options.SortDirection,
             options.MaxItems?.ToString(System.Globalization.CultureInfo.InvariantCulture),
             options.StorageBucket);
         return Path.Combine(tableDirectory, Hash(shape));
     }
+
+    private static string NameSet(IEnumerable<string>? names)
+        => string.Join('\u001f', (names ?? []).Select(name => name.Trim().ToLowerInvariant()).Distinct().Order(StringComparer.Ordinal));
 
     private static string EntryPath(CloudBaseContentSourceOptions options)
         => Path.Combine(

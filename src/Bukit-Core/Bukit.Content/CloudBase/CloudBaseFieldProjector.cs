@@ -124,6 +124,30 @@ internal static class CloudBaseFieldProjector
         }
     }
 
+    /// <summary>
+    /// True for a value the projector rejects as a structured field (too large, too deep or invalid),
+    /// judged on the raw value as online. The content snapshot leaves such a column out, so an offline
+    /// build publishes what an online build does.
+    /// </summary>
+    internal static bool IsRejectedStructured(string name, JsonElement value)
+    {
+        if (value.ValueKind is not (JsonValueKind.Array or JsonValueKind.Object) ||
+            (value.ValueKind == JsonValueKind.Array && IsTextList(value)))
+        {
+            return false;
+        }
+
+        try
+        {
+            ToStructured(name, value);
+            return false;
+        }
+        catch (ContentException)
+        {
+            return true;
+        }
+    }
+
     private static bool IsTextList(JsonElement array)
     {
         foreach (var item in array.EnumerateArray())

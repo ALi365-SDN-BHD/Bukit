@@ -202,11 +202,11 @@ internal static class SignedUrlIdentity
            host.EndsWith(".notion.so", StringComparison.OrdinalIgnoreCase) ||
            host.EndsWith(".notion.site", StringComparison.OrdinalIgnoreCase);
 
-    /// <summary>True for a CloudBase storage object URL: a gateway sign URL or a storage host.</summary>
-    internal static bool IsCloudBaseObject(Uri uri)
-        => IsCloudBaseGateway(uri) || IsCloudBaseStorageHost(uri.Host);
-
-    private static bool IsCloudBaseGateway(Uri uri)
+    /// <summary>
+    /// True for a CloudBase gateway sign URL, the kind a CloudBase source records: without its token it
+    /// does not load. A public storage host URL works as is.
+    /// </summary>
+    internal static bool IsCloudBaseGateway(Uri uri)
         => (uri.Host.EndsWith(CloudBaseEndpoints.GatewaySuffix, StringComparison.OrdinalIgnoreCase) ||
             uri.Host.EndsWith(CloudBaseEndpoints.IntlGatewaySuffix, StringComparison.OrdinalIgnoreCase)) &&
            uri.AbsolutePath.StartsWith(CloudBaseEndpoints.SignPrefix, StringComparison.Ordinal);

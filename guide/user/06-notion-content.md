@@ -272,7 +272,7 @@ print it as `[BKT-0Bxx]` on the text line.
 | `BKT-0B13` | The recorded queries do not match the current filter or sort (CloudBase: the filter value or source settings). |
 | `BKT-0B14` | Another snapshot entry is missing or unreadable. |
 | `BKT-0B15` | The snapshot could not be written. |
-| `BKT-0B16` | The `--notion-snapshot` directory value is invalid. |
+| `BKT-0B16` | The `--content-snapshot` (or `--notion-snapshot`) directory value is invalid. |
 | `BKT-0B17` | The offline build does not support that request. |
 | `BKT-0B18` | The `--notion-pin` file is not valid JSON or not format 1. |
 | `BKT-0B19` | A Notion source is not in the `--notion-pin` file, or its `databaseId` differs. |

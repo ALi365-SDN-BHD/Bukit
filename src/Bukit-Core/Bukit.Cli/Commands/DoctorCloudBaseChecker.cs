@@ -8,9 +8,11 @@ namespace Bukit.Cli.Commands;
 
 internal static class DoctorCloudBaseChecker
 {
+    /// <param name="pathPrefix">The config path of the source, such as <c>content.sources[1].cloudbase</c>.</param>
     internal static async Task<int> CheckAsync(
         CloudBaseConfig cloudBase,
-        Func<CloudBaseClient>? clientFactory = null)
+        Func<CloudBaseClient>? clientFactory = null,
+        string pathPrefix = "cloudbase")
     {
         var errors = 0;
         var key = SecretStore.Get("CLOUDBASE_PUBLISHABLE_KEY");
@@ -31,7 +33,7 @@ internal static class DoctorCloudBaseChecker
             Console.WriteLine($"⚠ cloudbase.fieldPolicy.allowed publishes idField '{cloudBase.IdField}'");
         }
 
-        if (!TryResolveFilterValue(cloudBase, out var filterValue))
+        if (!TryResolveFilterValue(cloudBase, pathPrefix, out var filterValue))
         {
             return errors + 1;
         }
@@ -213,7 +215,7 @@ internal static class DoctorCloudBaseChecker
         };
 
     /// <summary>The build resolves ${env:NAME} when it fetches the table; doctor must query with the same value.</summary>
-    private static bool TryResolveFilterValue(CloudBaseConfig cloudBase, out string? value)
+    private static bool TryResolveFilterValue(CloudBaseConfig cloudBase, string pathPrefix, out string? value)
     {
         value = null;
         if (cloudBase.Filter is not { } filter)
@@ -223,7 +225,7 @@ internal static class DoctorCloudBaseChecker
 
         try
         {
-            value = ConfigEnvValue.Resolve(filter.Value, "cloudbase.filter.value");
+            value = ConfigEnvValue.Resolve(filter.Value, $"{pathPrefix}.filter.value");
             return true;
         }
         catch (ConfigException ex)

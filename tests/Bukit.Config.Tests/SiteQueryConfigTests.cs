@@ -70,6 +70,18 @@ public sealed class SiteQueryConfigTests
         Assert.Contains(message, exception.Message, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public void Load_NamesDifferingOnlyInCase_Throws()
+    {
+        var exception = Assert.Throws<ConfigException>(() => Load("""
+              queries:
+                Top: { from: city }
+                top: { from: city }
+            """));
+
+        Assert.Contains("site.queries.top repeats a query name", exception.Message, StringComparison.Ordinal);
+    }
+
     [Theory]
     [InlineData("city", "routes", null)]
     [InlineData("city", "reviews", "site.queries.q.where[0].hasBackref 'reviews' is not a content.links backref on collection 'city'.")]
