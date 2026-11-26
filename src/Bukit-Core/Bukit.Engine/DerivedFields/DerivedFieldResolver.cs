@@ -27,14 +27,18 @@ internal static class DerivedFieldResolver
 
     private sealed record Rule(ContentDerivedFieldConfig Config, DerivedFieldTemplate Template);
 
-    /// <summary>Names that also set the summary the SEO model and lists read.</summary>
-    private static readonly HashSet<string> SummaryFields = new(["summary", "description", "excerpt"], StringComparer.OrdinalIgnoreCase);
+    private const string FieldIssuePrefix = "fields.";
 
     /// <param name="problems">Receives one issue per runtime error; null drops them.</param>
+    /// <param name="schema">
+    /// The content model the canonical record of a derived page is rebuilt with, so its summary,
+    /// tags, media and other projections match the derived fields.
+    /// </param>
     internal static IReadOnlyList<RoutedContentDocument> Apply(
         ContentConfig content,
         IReadOnlyList<RoutedContentDocument> routed,
-        List<ContentValidationIssue>? problems = null)
+        List<ContentValidationIssue>? problems = null,
+        ContentModelSchema? schema = null)
     {
         if (content.DerivedFields.Count == 0)
         {
@@ -46,7 +50,7 @@ internal static class DerivedFieldResolver
         for (var i = 0; i < routed.Count; i++)
         {
             var page = routed[i];
-            var document = Derive(page.Document, rules, problems);
+            var document = Derive(page.Document, rules, problems, schema);
             result[i] = ReferenceEquals(document, page.Document) ? page : page with { Document = document };
         }
 
@@ -54,49 +58,74 @@ internal static class DerivedFieldResolver
     }
 
     /// <summary>
-    /// Copies the summaries <see cref="Apply"/> derived into the content graph records with the same id
-    /// and language, so consumers that read the graph (the page index) see the derived text too.
+    /// Replaces the content graph documents and records that <see cref="Apply"/> derived (same id and
+    /// language), so consumers that read the graph (the page index, related pages) see the derived values.
     /// </summary>
-    internal static CanonicalContentGraph ProjectSummaries(
-        ContentConfig content,
-        CanonicalContentGraph graph,
-        IReadOnlyList<RoutedContentDocument> routed)
+    internal static CanonicalContentGraph ProjectRecords(CanonicalContentGraph graph, IReadOnlyList<RoutedContentDocument> routed)
     {
-        var collections = content.DerivedFields
-            .Where(rule => SummaryFields.Contains(rule.Field))
-            .Select(rule => rule.Collection)
-            .ToHashSet(StringComparer.OrdinalIgnoreCase);
-        if (collections.Count == 0)
-        {
-            return graph;
-        }
-
-        var summaries = new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase);
+        var derived = new Dictionary<string, ContentDocument>(StringComparer.OrdinalIgnoreCase);
+        var originals = graph.Documents
+            .GroupBy(document => RecordKey(document.Record), StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(group => group.Key, group => group.First().Record, StringComparer.OrdinalIgnoreCase);
         foreach (var page in routed)
         {
-            var document = page.Document;
-            if (collections.Contains(ContentFieldReader.GetCollection(document) ?? string.Empty))
+            var key = RecordKey(page.Document.Record);
+            if (originals.TryGetValue(key, out var original) && !ReferenceEquals(original, page.Document.Record))
             {
-                summaries.TryAdd(SummaryKey(document.Id, document.Record.Presentation.Language), document.Record.Presentation.Summary);
+                derived.TryAdd(key, page.Document);
             }
         }
 
-        var changed = false;
-        var records = new ContentRecord[graph.Records.Count];
-        for (var i = 0; i < records.Length; i++)
-        {
-            var record = graph.Records[i];
-            records[i] = summaries.TryGetValue(SummaryKey(record.Identity.Id, record.Presentation.Language), out var summary) &&
-                         !string.Equals(summary, record.Presentation.Summary, StringComparison.Ordinal)
-                ? record with { Presentation = record.Presentation with { Summary = summary } }
-                : record;
-            changed |= !ReferenceEquals(records[i], record);
-        }
-
-        return changed ? graph with { Records = records } : graph;
+        return derived.Count == 0
+            ? graph
+            : CanonicalContentGraphBuilder.BuildFromDocuments(
+                [.. graph.Documents.Select(document => derived.TryGetValue(RecordKey(document.Record), out var replacement) ? replacement : document)]);
     }
 
-    private static string SummaryKey(string? id, string? language) => $"{id}\n{language}";
+    /// <summary>
+    /// True for a content model issue on a field a derived rule writes in the page's collection: it is
+    /// checked by <see cref="ValidateSchema"/> on the derived values instead of on the source values.
+    /// </summary>
+    internal static bool IsDerivedFieldIssue(
+        ContentConfig content,
+        ContentValidationIssue issue,
+        IReadOnlyDictionary<string, ContentDocument> documentsById)
+        => content.DerivedFields.Count > 0 &&
+           issue.Field.StartsWith(FieldIssuePrefix, StringComparison.Ordinal) &&
+           issue.SourcePath is { } id &&
+           documentsById.TryGetValue(id, out var document) &&
+           ContentFieldReader.GetCollection(document) is { } collection &&
+           content.DerivedFields.Any(rule =>
+               string.Equals(rule.Collection, collection, StringComparison.OrdinalIgnoreCase) &&
+               string.Equals(rule.Field, issue.Field[FieldIssuePrefix.Length..], StringComparison.OrdinalIgnoreCase));
+
+    /// <summary>
+    /// Runs the content model checks of the derived fields on the final values: the derived pages and
+    /// the entries of the same collections without a page, which keep their source values.
+    /// </summary>
+    internal static IEnumerable<ContentValidationIssue> ValidateSchema(
+        ContentConfig content,
+        ContentModelSchema schema,
+        IReadOnlyList<RoutedContentDocument> routed,
+        IReadOnlyList<ContentDocument> withoutPage)
+    {
+        if (content.DerivedFields.Count == 0)
+        {
+            return [];
+        }
+
+        var collections = content.DerivedFields.Select(rule => rule.Collection).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        ContentDocument[] documents = [.. routed.Select(page => page.Document).Concat(withoutPage)
+            .Where(document => collections.Contains(ContentFieldReader.GetCollection(document) ?? string.Empty))];
+        var documentsById = documents
+            .GroupBy(document => document.Id, StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(group => group.Key, group => group.First(), StringComparer.OrdinalIgnoreCase);
+        return ContentModelSchemaValidator.Validate(CanonicalContentGraphBuilder.BuildFromDocuments(documents), schema)
+            .Where(issue => IsDerivedFieldIssue(content, issue, documentsById));
+    }
+
+    private static string RecordKey(ContentRecord record) => $"{record.Identity.Id}\n{record.Presentation.Language}";
+
 
     /// <summary>Throws a config error for the first template that does not parse.</summary>
     internal static void ValidateTemplates(ContentConfig content) => Compile(content.DerivedFields);
@@ -147,7 +176,7 @@ internal static class DerivedFieldResolver
                 $"content.derivedFields.{item.Collection}.{item.Field}.value does not parse: {error}",
                 DiagnosticCode.ConfigInvalidValue))];
 
-    private static ContentDocument Derive(ContentDocument document, Rule[] rules, List<ContentValidationIssue>? problems)
+    private static ContentDocument Derive(ContentDocument document, Rule[] rules, List<ContentValidationIssue>? problems, ContentModelSchema? schema)
     {
         var collection = ContentFieldReader.GetCollection(document);
         Dictionary<string, ContentField>? fields = null;
@@ -196,21 +225,17 @@ internal static class DerivedFieldResolver
             return document;
         }
 
-        var presentation = document.Record.Presentation;
-        if (rules.Any(rule => SummaryFields.Contains(rule.Config.Field)))
-        {
-            presentation = presentation with
-            {
-                Summary = ContentFieldReader.GetText(fields, "summary")
-                    ?? ContentFieldReader.GetText(fields, "description")
-                    ?? ContentFieldReader.GetText(fields, "excerpt")
-            };
-        }
-
+        // The canonical record projects summary, tags, media, ownership and more from the fields:
+        // rebuild it from the derived ones. Identity, title, body and language cannot be derived.
+        var rebuilt = CanonicalContentGraphBuilder.ToRecord(document, fields, schema);
         return document with
         {
             CustomFields = fields,
-            Record = document.Record with { Presentation = presentation }
+            Record = rebuilt with
+            {
+                Identity = document.Record.Identity,
+                Presentation = document.Record.Presentation with { Summary = rebuilt.Presentation.Summary }
+            }
         };
     }
 

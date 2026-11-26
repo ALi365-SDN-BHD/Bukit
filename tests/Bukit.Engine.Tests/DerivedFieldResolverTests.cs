@@ -28,19 +28,58 @@ public sealed class DerivedFieldResolverTests
     }
 
     [Fact]
-    public void ProjectSummaries_CopiesDerivedSummariesIntoTheContentGraph()
+    public void ProjectRecords_CopiesDerivedRecordsIntoTheContentGraph()
     {
-        var content = Content(Rule("summary", "{{ name }}: {{ summary }}", "override"));
-        var city = Page("kl", "city", ("name", "KL"), ("summary", "Capital city"));
+        var content = Content(
+            Rule("summary", "{{ name }}: {{ summary }}", "override"),
+            Rule("tags", "new", "override"));
+        var city = Page("kl", "city", ("name", "KL"), ("summary", "Capital city"), ("tags", new ContentField("list", new List<string> { "old" })));
         var post = Page("p1", "post", ("summary", "Post summary"));
         var graph = CanonicalContentGraphBuilder.BuildFromDocuments([city, post]);
 
         var routed = DerivedFieldResolver.Apply(content, [Routed(city), Routed(post)]);
-        var projected = DerivedFieldResolver.ProjectSummaries(content, graph, routed);
+        var derived = Single(routed.Take(1).ToList());
+        var projected = DerivedFieldResolver.ProjectRecords(graph, routed);
 
-        Assert.Equal("KL: Capital city", projected.Records.Single(record => record.Identity.Id == "kl").Presentation.Summary);
-        Assert.Same(graph.Records.Single(record => record.Identity.Id == "p1"), projected.Records.Single(record => record.Identity.Id == "p1"));
-        Assert.Same(graph, DerivedFieldResolver.ProjectSummaries(Content(Rule("seo_title", "x")), graph, routed));
+        Assert.Equal(["new"], derived.Record.Classification.Tags);
+        Assert.Equal("kl", derived.Record.Identity.Id);
+        var record = projected.Records.Single(record => record.Identity.Id == "kl");
+        Assert.Equal("KL: Capital city", record.Presentation.Summary);
+        Assert.Equal(["new"], record.Classification.Tags);
+        Assert.Same(post.Record, projected.Records.Single(record => record.Identity.Id == "p1"));
+        Assert.Same(graph, DerivedFieldResolver.ProjectRecords(graph, [Routed(city), Routed(post)]));
+    }
+
+    [Fact]
+    public void ValidateSchema_ChecksDerivedFieldsOnTheDerivedValues()
+    {
+        var content = Content(Rule("seo_title", "{{ name }} guide"), Rule("tone", "loud", "override"));
+        var schema = ContentModelSchemaFactory.FromConfig(new AppConfig
+        {
+            Site = new SiteConfig { Name = "t", Title = "t" },
+            Content = content with
+            {
+                ModelSchema = new ContentModelSchemaConfig
+                {
+                    CustomFields =
+                    [
+                        new CustomFieldDefinitionConfig { Name = "seo_title", FieldType = "string", Required = true },
+                        new CustomFieldDefinitionConfig { Name = "tone", FieldType = "string", Enum = ["calm", "warm"] }
+                    ]
+                }
+            }
+        });
+        var city = Page("kl", "city", ("name", "KL"), ("tone", "calm"));
+        var documentsById = new Dictionary<string, ContentDocument>(StringComparer.OrdinalIgnoreCase) { ["kl"] = city };
+
+        var before = ContentModelSchemaValidator.Validate(CanonicalContentGraphBuilder.BuildFromDocuments([city]), schema);
+        Assert.Contains(before, issue => issue.Field == "fields.seo_title");
+        Assert.All(before, issue => Assert.True(DerivedFieldResolver.IsDerivedFieldIssue(content, issue, documentsById)));
+
+        var routed = DerivedFieldResolver.Apply(content, [Routed(city)], schema: schema);
+        var issue = Assert.Single(DerivedFieldResolver.ValidateSchema(content, schema, routed, []));
+        Assert.Equal("fields.tone", issue.Field);
+        Assert.Equal("content.custom_field_enum_mismatch", issue.Code);
     }
 
     [Fact]
