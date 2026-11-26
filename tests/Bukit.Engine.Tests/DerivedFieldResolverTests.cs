@@ -202,7 +202,7 @@ public sealed class DerivedFieldResolverTests
         var english = Page("kl", "city", ("language", "en"), ("name", "KL"), ("related_to", "zh-only"));
         ContentDocument[] site = [english, Page("zh-only", "post", ("language", "zh"))];
 
-        Assert.Empty(new RoutePipeline().Execute(config, [english], siteDocuments: site).DerivedFieldIssues);
+        Assert.Empty(new RoutePipeline { SiteDocuments = site }.Execute(config, [english]).DerivedFieldIssues);
         Assert.Equal("kl", Assert.Single(new RoutePipeline().Execute(config, [english]).DerivedFieldIssues).SourcePath);
     }
 
