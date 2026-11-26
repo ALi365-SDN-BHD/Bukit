@@ -162,7 +162,9 @@ bukit build        --content-snapshot /path/outside/the/site/content-snapshot --
 - The snapshot stores each table's rows reduced to what the build may publish: the mapped
   columns, `fileFields` and the columns `fieldPolicy` allows. Personal columns and nested keys
   (`user_id`, `owner`, …) are never written, so widening `fieldPolicy` offline cannot show them.
-  A structured column the recording build dropped as too large or too deep is left out too.
+  A structured column the recording build dropped as too large or too deep is left out too, and its
+  `cloudbase.structured_field_invalid` diagnostic is reported again offline, so `schemaFailMode`
+  applies as online.
 - File fields and body images resolve to the files the recording build localized, found by the
   object (the signed link without its token); signed links are never stored. Keep the media cache
   (`.cache/media`) between the builds; a file missing from it gets the media placeholder. A public
@@ -171,7 +173,7 @@ bukit build        --content-snapshot /path/outside/the/site/content-snapshot --
   another value fails (`BKT-0B13`) instead of serving the recorded release; a table the snapshot
   does not hold fails with `BKT-0B11`.
 - Each source keeps its own record: `mode`, the mapped fields, `fileFields`, `fieldPolicy`,
-  `sort`, `maxItems` and `storageBucket` are part of it (field lists ignore case and order). Two
+  `sort`, `maxItems` and `storageBucket` are part of it (field lists ignore order, not case). Two
   sources on one table never share rows, and a source changed since the recording fails with
   `BKT-0B13`, in `config check` too, until a new snapshot is recorded.
 - `doctor` skips the CloudBase network checks offline. `--notion-snapshot` and

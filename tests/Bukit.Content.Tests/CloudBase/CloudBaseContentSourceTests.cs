@@ -921,7 +921,7 @@ public sealed class CloudBaseContentSourceTests
     }
 
     [Fact]
-    public async Task Snapshot_MatchesFieldListsIgnoringCaseAndOrderButNotTheMode()
+    public async Task Snapshot_MatchesFieldListsIgnoringOrderButNotCaseOrTheMode()
     {
         var root = Path.Combine(Path.GetTempPath(), "bukit-cloudbase-snapshot-" + Guid.NewGuid().ToString("N"));
         var directory = Path.Combine(root, "snapshot");
@@ -937,21 +937,28 @@ public sealed class CloudBaseContentSourceTests
                 {
                     var online = Assert.Single((await Create(api, options => options with { AllowedFields = ["tags", "city", "deep"] }).LoadRawAsync()).Documents);
                     Assert.DoesNotContain("deep", online.CustomFields!.Keys);
+                    Assert.Contains(online.Diagnostics, d => d.Code == CloudBaseContentSource.StructuredFieldInvalidCode && d.Field == "deep");
                 }
 
                 recording.Commit();
             }
 
-            Assert.DoesNotContain("\"deep\"", File.ReadAllText(Assert.Single(Directory.GetFiles(Path.Combine(directory, "cloudbase"), "*.json", SearchOption.AllDirectories))), StringComparison.Ordinal);
+            Assert.DoesNotContain("\"deep\":{", File.ReadAllText(Assert.Single(Directory.GetFiles(Path.Combine(directory, "cloudbase"), "*.json", SearchOption.AllDirectories))), StringComparison.Ordinal);
             using var offline = Bukit.Content.Notion.Snapshot.NotionSnapshotSession.OpenOffline(directory);
             using (Bukit.Config.NotionSnapshotScope.Enter(offline))
             {
                 var offlineApi = new FakeCloudBaseApi();
-                Func<CloudBaseContentSourceOptions, CloudBaseContentSourceOptions> reordered = options => options with { AllowedFields = ["deep", "CITY", "tags"] };
+                Func<CloudBaseContentSourceOptions, CloudBaseContentSourceOptions> reordered = options => options with { AllowedFields = ["deep", "city", "tags"] };
                 var document = Assert.Single((await Create(offlineApi, reordered).LoadRawAsync()).Documents);
                 Assert.Equal("KL", document.CustomFields!["city"].Value);
                 Assert.DoesNotContain("deep", document.CustomFields.Keys);
+                // The rejection is replayed, so schemaFailMode: strict fails offline as online.
+                var diagnostic = Assert.Single(document.Diagnostics, d => d.Code == CloudBaseContentSource.StructuredFieldInvalidCode);
+                Assert.Equal("deep", diagnostic.Field);
+                Assert.Equal("error", diagnostic.Severity);
                 Bukit.Content.CloudBase.CloudBaseSnapshot.EnsureSource(offline, reordered(Options()));
+                Assert.Throws<Bukit.Content.Notion.Snapshot.NotionSnapshotException>(
+                    () => Bukit.Content.CloudBase.CloudBaseSnapshot.EnsureSource(offline, reordered(Options()) with { AllowedFields = ["deep", "CITY", "tags"] }));
 
                 var data = await Assert.ThrowsAsync<Bukit.Content.Notion.Snapshot.NotionSnapshotException>(
                     () => Create(offlineApi, options => reordered(options) with { Mode = "data" }).LoadRawAsync());

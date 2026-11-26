@@ -40,15 +40,23 @@ internal sealed class CloudBaseSnapshot : IDisposable
     private readonly JsonDocument _document;
     private readonly Dictionary<string, string> _files;
 
-    private CloudBaseSnapshot(JsonDocument document, IReadOnlyList<JsonElement> rows, Dictionary<string, string> files)
+    private CloudBaseSnapshot(
+        JsonDocument document,
+        IReadOnlyList<JsonElement> rows,
+        Dictionary<string, string> files,
+        ILookup<int, (string Field, string Problem)> rejected)
     {
         _document = document;
         Rows = rows;
         _files = files;
+        Rejected = rejected;
     }
 
     /// <summary>The recorded rows, valid until this snapshot is disposed.</summary>
     internal IReadOnlyList<JsonElement> Rows { get; }
+
+    /// <summary>The structured columns left out of each row (by row index) and why, reported again offline.</summary>
+    internal ILookup<int, (string Field, string Problem)> Rejected { get; }
 
     /// <summary>
     /// Fails when the offline snapshot holds no query of this CloudBase source with these settings (for
@@ -96,7 +104,11 @@ internal sealed class CloudBaseSnapshot : IDisposable
                 }
             }
 
-            var snapshot = new CloudBaseSnapshot(document, [.. rows.EnumerateArray()], map);
+            var snapshot = new CloudBaseSnapshot(
+                document,
+                [.. rows.EnumerateArray()],
+                map,
+                ReadRejected(root));
             document = null;
             return snapshot;
         }
@@ -111,6 +123,36 @@ internal sealed class CloudBaseSnapshot : IDisposable
         {
             document?.Dispose();
         }
+    }
+
+    /// <summary>Reads the recorded rejections; an entry may hold none.</summary>
+    private static ILookup<int, (string Field, string Problem)> ReadRejected(JsonElement root)
+    {
+        var rejected = new List<(int Row, string Field, string Problem)>();
+        if (!root.TryGetProperty("rejected", out var items))
+        {
+            return rejected.ToLookup(item => item.Row, item => (item.Field, item.Problem));
+        }
+
+        if (items.ValueKind != JsonValueKind.Array)
+        {
+            throw new JsonException("The entry does not have the expected shape.");
+        }
+
+        foreach (var item in items.EnumerateArray())
+        {
+            if (item.ValueKind != JsonValueKind.Object ||
+                !item.TryGetProperty("row", out var row) || !row.TryGetInt32(out var index) ||
+                !item.TryGetProperty("field", out var field) || field.ValueKind != JsonValueKind.String ||
+                !item.TryGetProperty("problem", out var problem) || problem.ValueKind != JsonValueKind.String)
+            {
+                throw new JsonException("The entry does not have the expected shape.");
+            }
+
+            rejected.Add((index, field.GetString()!, problem.GetString()!));
+        }
+
+        return rejected.ToLookup(item => item.Row, item => (item.Field, item.Problem));
     }
 
     /// <summary>Answers a signing request from the recorded identities; an unrecorded object fails like an unavailable one.</summary>
@@ -143,17 +185,27 @@ internal sealed class CloudBaseSnapshot : IDisposable
             writer.WriteStartObject();
             writer.WriteNumber("format", EntryFormat);
             writer.WriteString("table", options.Table);
+            var rejected = new List<(int Row, string Field, string Problem)>();
             writer.WriteStartArray("rows");
-            foreach (var row in rows)
+            for (var index = 0; index < rows.Count; index++)
             {
+                var row = rows[index];
                 writer.WriteStartObject();
                 if (row.ValueKind == JsonValueKind.Object)
                 {
                     foreach (var column in row.EnumerateObject())
                     {
                         var published = !CloudBaseFieldRules.IsHardExcluded(column.Name) && (all || allowed!.Contains(column.Name));
-                        if (mapped.Contains(column.Name) ||
-                            (published && !CloudBaseFieldProjector.IsRejectedStructured(column.Name, column.Value)))
+                        if (!mapped.Contains(column.Name) &&
+                            published &&
+                            CloudBaseFieldProjector.TryGetStructuredRejection(column.Name, column.Value, out var problem))
+                        {
+                            // Nested personal keys are left out below, which could make the value valid offline.
+                            rejected.Add((index, column.Name, problem));
+                            continue;
+                        }
+
+                        if (mapped.Contains(column.Name) || published)
                         {
                             writer.WritePropertyName(column.Name);
                             WritePublic(writer, column.Value);
@@ -161,6 +213,17 @@ internal sealed class CloudBaseSnapshot : IDisposable
                     }
                 }
 
+                writer.WriteEndObject();
+            }
+
+            writer.WriteEndArray();
+            writer.WriteStartArray("rejected");
+            foreach (var (row, field, problem) in rejected)
+            {
+                writer.WriteStartObject();
+                writer.WriteNumber("row", row);
+                writer.WriteString("field", field);
+                writer.WriteString("problem", problem);
                 writer.WriteEndObject();
             }
 
@@ -241,7 +304,7 @@ internal sealed class CloudBaseSnapshot : IDisposable
 
     /// <summary>
     /// Hashes the settings that decide which rows, columns and files a query records. Field lists are
-    /// matched ignoring case and order, so they are hashed that way; the mode decides whether body
+    /// matched ignoring order, so they are hashed that way; the mode decides whether body
     /// images are signed. In all mode only the id publication is hashed from the allowed list.
     /// </summary>
     private static string ShapeDirectory(string tableDirectory, CloudBaseContentSourceOptions options)
@@ -270,8 +333,9 @@ internal sealed class CloudBaseSnapshot : IDisposable
     private static string PublishesId(CloudBaseContentSourceOptions options)
         => options.AllowedFields?.Contains(options.IdField, StringComparer.OrdinalIgnoreCase) is true ? "ID" : string.Empty;
 
+    /// <summary>Columns are read and selected by their exact names, so only the order is ignored.</summary>
     private static string NameSet(IEnumerable<string>? names)
-        => string.Join('\u001f', (names ?? []).Select(name => name.Trim().ToLowerInvariant()).Distinct().Order(StringComparer.Ordinal));
+        => string.Join('\u001f', (names ?? []).Select(name => name.Trim()).Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal));
 
     private static string EntryPath(CloudBaseContentSourceOptions options)
         => Path.Combine(

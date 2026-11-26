@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using System.Runtime.InteropServices;
 using System.Text.Json;
 using Bukit.Config;
@@ -125,12 +126,14 @@ internal static class CloudBaseFieldProjector
     }
 
     /// <summary>
-    /// True for a value the projector rejects as a structured field (too large, too deep or invalid),
-    /// judged on the raw value as online. The content snapshot leaves such a column out, so an offline
-    /// build publishes what an online build does.
+    /// Finds whether the projector rejects <paramref name="value"/> as a structured field (too large,
+    /// too deep or invalid), judged on the raw value as online, and why. The content snapshot leaves
+    /// such a column out and records the reason, so an offline build publishes and reports what an
+    /// online build does.
     /// </summary>
-    internal static bool IsRejectedStructured(string name, JsonElement value)
+    internal static bool TryGetStructuredRejection(string name, JsonElement value, [NotNullWhen(true)] out string? problem)
     {
+        problem = null;
         if (value.ValueKind is not (JsonValueKind.Array or JsonValueKind.Object) ||
             (value.ValueKind == JsonValueKind.Array && IsTextList(value)))
         {
@@ -142,8 +145,9 @@ internal static class CloudBaseFieldProjector
             ToStructured(name, value);
             return false;
         }
-        catch (ContentException)
+        catch (ContentException ex)
         {
+            problem = ex.Message;
             return true;
         }
     }

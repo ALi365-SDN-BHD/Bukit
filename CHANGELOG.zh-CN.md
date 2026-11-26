@@ -4,7 +4,7 @@ Bukit 所有重要变更都将记录在此文件中。
 
 ## [Unreleased]
 
-- **配置与快照的后续修正。** `site.queries` 的名称和 `site.related.collections` 的键如果只有大小写不同，现在会使配置失败，不再互相覆盖或直接崩溃。`1.0` 这样的整数小数在 `routeWhen`、链接键和 `{fields.<name>}` 中都按 `1` 处理，`1.5` 不再变成永久链接的一段。派生值在渲染过程中限制为 64 KiB。CloudBase 内容快照现在记录来源的 `mode`，字段列表不区分大小写和顺序，因此此前录制的 CloudBase 快照需要重新录制；`config check --content-offline` 会报告已改动的 CloudBase 来源（`BKT-0B13`），快照中被改动的文件标识不会发布，录制时被丢弃的结构化列离线时同样不出现，公开的 `*.storage.tcloudbase.com` 图片离线时保持原样。离线快照的提示、`doctor` 和 `config check` 的输出以及 `BKT-0B10`、`BKT-0B15`、`BKT-0B16` 的标题改为"内容快照"（content snapshot）。CloudBase 筛选值的错误会指明来源（`content.sources[i].cloudbase.filter.value`）。
+- **配置与快照的后续修正。** `site.queries` 的名称和 `site.related.collections` 的键如果只有大小写不同，现在会使配置失败，不再互相覆盖或直接崩溃。`1.0` 这样的整数小数在 `routeWhen`、链接键和 `{fields.<name>}` 中都按 `1` 处理，`1.5` 不再变成永久链接的一段。派生值在渲染过程中限制为 64 KiB。CloudBase 内容快照现在记录来源的 `mode`，字段列表不区分顺序，因此此前录制的 CloudBase 快照需要重新录制；`config check --content-offline` 会报告已改动的 CloudBase 来源（`BKT-0B13`），快照中被改动的文件标识不会发布，录制时被丢弃的结构化列离线时同样不出现，并照样报告 `cloudbase.structured_field_invalid`，公开的 `*.storage.tcloudbase.com` 图片离线时保持原样。离线快照的提示、`doctor` 和 `config check` 的输出以及 `BKT-0B10`、`BKT-0B15`、`BKT-0B16` 的标题改为"内容快照"（content snapshot）。CloudBase 筛选值的错误会指明来源（`content.sources[i].cloudbase.filter.value`）。
 
 - **派生字段与 CloudBase 检查。** 派生字段不能再写路由字段（`url`、`outputPath`、`template`、`permalink`、`listGroup`，路由已经读过它们），也不能写 `content.modelSchema` 声明为 `number`、`bool` 或 `list` 的字段，这两种情况现在都会使配置失败。有派生规则的集合中的页面只检查一次，在派生之后进行，所以派生出的摘要或作者可以满足 `requireSummary` 或 `requireAuthor`，派生的 `noindex`、`robots` 以及 feed、搜索和 sitemap 排除也会生效。没有派生规则的构建不再重建插件内容图，语言 worker 查找 `site.collections` 时不区分大小写。设置了 `storageBucket` 的 `mode: content` CloudBase 来源会给正文 `cloud://` 图片签名，因此即使没有 `fileFields`，也需要 `downloadToLocal`、`onFailure: placeholder` 和 CloudBase 媒体主机。
 

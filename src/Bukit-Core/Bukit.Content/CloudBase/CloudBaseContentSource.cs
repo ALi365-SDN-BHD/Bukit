@@ -46,7 +46,7 @@ internal sealed class CloudBaseContentSource : IContentProvider
         if (snapshot is { Offline: true })
         {
             using var recorded = CloudBaseSnapshot.Read(snapshot, _options);
-            return await BuildAsync(recorded.Rows, recorded.SignAsync, cancellationToken).ConfigureAwait(false);
+            return await BuildAsync(recorded.Rows, recorded.SignAsync, cancellationToken, recorded.Rejected).ConfigureAwait(false);
         }
 
         if (string.IsNullOrWhiteSpace(_options.PublishableKey))
@@ -92,7 +92,8 @@ internal sealed class CloudBaseContentSource : IContentProvider
     private async Task<RawContentLoadResult> BuildAsync(
         IReadOnlyList<JsonElement> rows,
         CloudBaseSigner sign,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        ILookup<int, (string Field, string Problem)>? recordedRejections = null)
     {
         var isData = string.Equals(_options.Mode, "data", StringComparison.OrdinalIgnoreCase);
         var allowedSet = CloudBaseFieldProjector.BuildAllowedSet(_options.FieldPolicyMode, _options.AllowedFields);
@@ -100,9 +101,10 @@ internal sealed class CloudBaseContentSource : IContentProvider
         var seenIds = new HashSet<string>(StringComparer.Ordinal);
         var slugFromId = 0;
         var untitled = 0;
-        foreach (var row in rows)
+        for (var index = 0; index < rows.Count; index++)
         {
             cancellationToken.ThrowIfCancellationRequested();
+            var row = rows[index];
             var id = GetNonBlank(row, _options.IdField);
             if (string.IsNullOrWhiteSpace(id))
             {
@@ -118,7 +120,7 @@ internal sealed class CloudBaseContentSource : IContentProvider
                     DiagnosticCode.CloudBaseResponseInvalid);
             }
 
-            var (draft, slugFromIdRow, untitledRow) = BuildDraft(row, id, allowedSet, isData);
+            var (draft, slugFromIdRow, untitledRow) = BuildDraft(row, id, allowedSet, isData, recordedRejections?[index]);
             slugFromId += slugFromIdRow ? 1 : 0;
             untitled += untitledRow ? 1 : 0;
             drafts.Add(draft);
@@ -431,9 +433,11 @@ internal sealed class CloudBaseContentSource : IContentProvider
         JsonElement row,
         string id,
         IReadOnlySet<string>? allowedSet,
-        bool isData)
+        bool isData,
+        IEnumerable<(string Field, string Problem)>? recordedRejections)
     {
-        var rejected = new List<(string Field, string Problem)>();
+        // An offline snapshot leaves rejected structured columns out and records why.
+        var rejected = new List<(string Field, string Problem)>(recordedRejections ?? []);
         var fields = CloudBaseFieldProjector.ProjectWithSet(
             row,
             _options.FieldPolicyMode,
