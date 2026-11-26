@@ -63,10 +63,10 @@ public static class DiagnosticCodeFormatter
             DiagnosticCode.NotionInvalidResponse => "Notion: invalid JSON response",
 
             DiagnosticCode.NotionSnapshotUnavailable => "Notion snapshot: unavailable or another format",
-            DiagnosticCode.NotionSnapshotDatabaseMissing => "Notion snapshot: the database is missing",
+            DiagnosticCode.NotionSnapshotDatabaseMissing => "Content snapshot: the Notion database or CloudBase table is missing",
             DiagnosticCode.NotionSnapshotBodyMissing => "Notion snapshot: the rendered page body is missing",
-            DiagnosticCode.NotionSnapshotQueryMismatch => "Notion snapshot: the recorded queries do not match",
-            DiagnosticCode.NotionSnapshotEntryMissing => "Notion snapshot: an entry is missing or unreadable",
+            DiagnosticCode.NotionSnapshotQueryMismatch => "Content snapshot: the recorded queries do not match",
+            DiagnosticCode.NotionSnapshotEntryMissing => "Content snapshot: an entry is missing or unreadable",
             DiagnosticCode.NotionSnapshotWriteFailed => "Notion snapshot: the snapshot could not be written",
             DiagnosticCode.NotionSnapshotOptionInvalid => "Notion snapshot: the directory option is invalid",
             DiagnosticCode.NotionSnapshotUnsupportedRequest => "Notion snapshot: the offline build does not support this request",

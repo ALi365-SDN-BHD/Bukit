@@ -140,12 +140,43 @@ When `fileFields` is non-empty, all five conditions must hold (D8):
 
 Any rewrite failure (invalid object name, `cloud://` env or bucket mismatch, per-item signing error, wrong scheme/host/path) falls back to `content.media.defaultImageUrl` with `BKT-0C08`; in `mode: content`, bare object names and `cloud://` never reach the rewritten content output. `signExpiresSeconds` defaults to 3600 (60–3600).
 
+## Offline snapshot
+
+A content offline snapshot lets `build`, `config check` and `doctor` run with no
+`CLOUDBASE_PUBLISHABLE_KEY` and no network, for example to rebuild in CI from the rows a release
+build read. It is the same snapshot as the [Notion one](06-notion-content.md), and one directory
+holds both providers.
+
+```bash
+# Formal build with the key: records the snapshot (outside the site and its output).
+CLOUDBASE_PUBLISHABLE_KEY=... bukit build --content-snapshot /path/outside/the/site/content-snapshot
+
+# Later, with no key: reads only the snapshot.
+bukit config check --content-snapshot /path/outside/the/site/content-snapshot --content-offline
+bukit build        --content-snapshot /path/outside/the/site/content-snapshot --content-offline
+```
+
+- The snapshot stores each table's rows reduced to what the build may publish: the mapped
+  columns, `fileFields` and the columns `fieldPolicy` allows. Personal columns and nested keys
+  (`user_id`, `owner`, …) are never written, so widening `fieldPolicy` offline cannot show them.
+- File fields and body images resolve to the files the recording build localized, found by the
+  object (the signed link without its token); signed links are never stored. Keep the media cache
+  (`.cache/media`) between the builds; a file missing from it gets the media placeholder.
+- The resolved `filter` value is part of the record. An offline build whose `${env:NAME}` gives
+  another value fails (`BKT-0B13`) instead of serving the recorded release; a table the snapshot
+  does not hold fails with `BKT-0B11`.
+- Each source keeps its own record: the mapped fields, `fileFields`, `fieldPolicy`, `sort`,
+  `maxItems` and `storageBucket` are part of it. Two sources on one table never share rows, and a
+  source changed since the recording fails with `BKT-0B13` until a new snapshot is recorded.
+- `doctor` skips the CloudBase network checks offline. `--notion-snapshot` and
+  `--notion-offline` remain aliases of the two options.
+
 ## P1 limits
 
 - PG-mode tables or views only; no classic mode or data models;
 - Markdown bodies only (`bodyFormat: markdown`);
 - image fields only, no other file fields;
-- no caching (`cacheMode` accepts `off` only);
+- no row cache (`cacheMode` accepts `off` only); use the [offline snapshot](#offline-snapshot) to build without the network;
 - `filter` supports a single equality `{ field, value }`, no `op` (the value may read `${env:NAME}`); filter on several columns through a view; `sort` is one field with `asc`/`desc`, and paging always appends `idField` ascending;
 - no incremental fingerprints; every build reads the table (bounded by `maxItems`). The build
   keeps every row and body in memory, so set `maxItems` to a practical bound for large tables

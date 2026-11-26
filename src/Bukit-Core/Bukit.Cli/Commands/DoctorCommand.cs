@@ -353,9 +353,9 @@ public static class DoctorCommand
         }
 
         if (snapshot is { Offline: true } && config.Content.Sources is { Count: > 0 } &&
-            config.Content.Sources.Any(static s => s.Type.Equals("notion", StringComparison.OrdinalIgnoreCase) || s.Notion is not null))
+            config.Content.Sources.Any(static s => s.Type.Equals("notion", StringComparison.OrdinalIgnoreCase) || s.Notion is not null || s.CloudBase is not null))
         {
-            // Offline: no token and no Notion network checks; the snapshot must cover every source.
+            // Offline: no token or key and no network checks; the snapshot must cover every source.
             try
             {
                 snapshot.EnsureDatabases(config);
@@ -367,7 +367,7 @@ public static class DoctorCommand
                 return 1;
             }
 
-            Console.WriteLine($"✔ Notion offline snapshot ({snapshot.Describe()}); Notion network checks skipped");
+            Console.WriteLine($"✔ Content offline snapshot ({snapshot.Describe()}); Notion and CloudBase network checks skipped");
         }
         else if (HasNotionSource(config.Content) && config.Content.Sources is not null)
         {
@@ -423,7 +423,7 @@ public static class DoctorCommand
         var cloudBaseSources = config.Content.Sources?
             .Where(source => source.CloudBase is not null)
             .ToArray() ?? [];
-        if (cloudBaseSources.Length > 0)
+        if (cloudBaseSources.Length > 0 && snapshot is not { Offline: true })
         {
             var cloudBaseErrors = 0;
             foreach (var source in cloudBaseSources)

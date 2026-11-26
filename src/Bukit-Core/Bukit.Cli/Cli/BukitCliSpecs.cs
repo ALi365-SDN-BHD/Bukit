@@ -26,8 +26,10 @@ public static partial class BukitCliSpecs
                 new CliOptionSpec("--metrics", "输出构建指标"),
                 new CliOptionSpec("--jobs", "并行渲染并发度", CliOptionType.Integer, ValueName: "n"),
                 new CliOptionSpec("--log-format", "日志格式", CliOptionType.String, AllowedValues: new[] { "text", "json" }),
-                new CliOptionSpec("--notion-snapshot", "Notion 离线快照目录（构建时带 token 写入）", ValueName: "dir"),
-                new CliOptionSpec("--notion-offline", "只读 Notion 离线快照，不要 token、不联网", CliOptionType.Flag),
+                new CliOptionSpec("--content-snapshot", "内容离线快照目录（Notion 和 CloudBase；构建时带凭证写入）", ValueName: "dir"),
+                new CliOptionSpec("--content-offline", "只读内容离线快照，不要 token 或 key、不联网", CliOptionType.Flag),
+                new CliOptionSpec("--notion-snapshot", "--content-snapshot 的别名", ValueName: "dir"),
+                new CliOptionSpec("--notion-offline", "--content-offline 的别名", CliOptionType.Flag),
                 new CliOptionSpec("--notion-pin", "离线时 Notion 字段和过滤按此文件（审核过的版本）", ValueName: "file"),
                 new CliOptionSpec("--secrets-stdin", "从标准输入读取 JSON 密钥对象（如 NOTION_TOKEN），不经环境变量", CliOptionType.Flag)
             });
@@ -40,8 +42,10 @@ public static partial class BukitCliSpecs
                 new CliOptionSpec("--config", "配置文件路径"),
                 new CliOptionSpec("--site", "多站点名"),
                 new CliOptionSpec("--site-url", "覆盖 site.url"),
-                new CliOptionSpec("--notion-snapshot", "Notion 离线快照目录（构建时带 token 写入）", ValueName: "dir"),
-                new CliOptionSpec("--notion-offline", "只读 Notion 离线快照，不要 token、不联网", CliOptionType.Flag),
+                new CliOptionSpec("--content-snapshot", "内容离线快照目录（Notion 和 CloudBase；构建时带凭证写入）", ValueName: "dir"),
+                new CliOptionSpec("--content-offline", "只读内容离线快照，不要 token 或 key、不联网", CliOptionType.Flag),
+                new CliOptionSpec("--notion-snapshot", "--content-snapshot 的别名", ValueName: "dir"),
+                new CliOptionSpec("--notion-offline", "--content-offline 的别名", CliOptionType.Flag),
                 new CliOptionSpec("--notion-pin", "离线时 Notion 字段和过滤按此文件（审核过的版本）", ValueName: "file"),
                 new CliOptionSpec("--secrets-stdin", "从标准输入读取 JSON 密钥对象（如 NOTION_TOKEN），不经环境变量", CliOptionType.Flag)
             });
@@ -66,8 +70,10 @@ public static partial class BukitCliSpecs
                         new CliOptionSpec("--config", "配置文件路径"),
                         new CliOptionSpec("--site", "多站点名"),
                         new CliOptionSpec("--site-url", "覆盖 site.url"),
-                        new CliOptionSpec("--notion-snapshot", "Notion 离线快照目录", ValueName: "dir"),
-                        new CliOptionSpec("--notion-offline", "只读 Notion 离线快照，不要 token、不联网", CliOptionType.Flag),
+                        new CliOptionSpec("--content-snapshot", "内容离线快照目录（Notion 和 CloudBase）", ValueName: "dir"),
+                        new CliOptionSpec("--content-offline", "只读内容离线快照，不要 token 或 key、不联网", CliOptionType.Flag),
+                        new CliOptionSpec("--notion-snapshot", "--content-snapshot 的别名", ValueName: "dir"),
+                        new CliOptionSpec("--notion-offline", "--content-offline 的别名", CliOptionType.Flag),
                         new CliOptionSpec("--notion-pin", "离线时 Notion 字段和过滤按此文件（审核过的版本）", ValueName: "file"),
                         new CliOptionSpec("--secrets-stdin", "从标准输入读取 JSON 密钥对象（如 NOTION_TOKEN），不经环境变量", CliOptionType.Flag)
                     }),

@@ -4,6 +4,8 @@ All notable changes to Bukit will be documented in this file.
 
 ## [Unreleased]
 
+- **CloudBase offline builds.** `--content-snapshot <dir>` records the public rows of every CloudBase table (mapped columns, `fileFields` and the columns `fieldPolicy` allows; personal columns, nested personal keys and signed links are never stored) next to the Notion data, and `--content-offline` builds, checks and runs `doctor` from it with no `CLOUDBASE_PUBLISHABLE_KEY` and no network. File fields reuse the local media cache; an object missing from it gets the media placeholder. Each source keeps its own record, so two sources on one table never share rows. An offline build for another `${env:...}` filter value or a changed source fails with `BKT-0B13`; a table the snapshot lacks fails with `BKT-0B11`. `--notion-snapshot` and `--notion-offline` remain as aliases; existing snapshots stay valid.
+
 - **Enum labels.** `content.modelSchema` `enum` items can be `{ value, label }`. Templates read the options in definition order as `site.field_enums.<field>` (scoped fields under `site.field_enums.scopes.<collection>.<field>`), so labels no longer need a separate data file. A value listed twice in one `enum` now fails the config (it loaded before).
 
 - **CloudBase release builds.** `cloudbase.filter.value` can read `${env:NAME}` (for example `"${env:RELEASE_ID}"`), resolved when the build fetches the table. An unset or empty variable fails the build instead of querying with an empty value. The CloudBase guide covers the live-release view and the exposure window of reading unreleased rows with the Publishable Key.

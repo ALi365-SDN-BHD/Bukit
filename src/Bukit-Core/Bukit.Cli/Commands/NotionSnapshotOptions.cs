@@ -6,14 +6,17 @@ using Bukit.Shared;
 namespace Bukit.Cli.Commands;
 
 /// <summary>
-/// <c>--notion-snapshot &lt;dir&gt;</c> and <c>--notion-offline</c>: record a Notion offline
-/// snapshot during a build with a token, or read only from it (no token, no network).
-/// Both override <c>cacheDir</c> and <c>cacheMode</c> of every Notion source.
+/// <c>--content-snapshot &lt;dir&gt;</c> and <c>--content-offline</c> (aliases
+/// <c>--notion-snapshot</c> and <c>--notion-offline</c>): record a content offline snapshot of the
+/// Notion and CloudBase sources during a build with their credentials, or read only from it (no
+/// token or key, no network). Both override <c>cacheDir</c> and <c>cacheMode</c> of every Notion source.
 /// </summary>
 internal static class NotionSnapshotOptions
 {
-    internal const string SnapshotOption = "--notion-snapshot";
-    internal const string OfflineOption = "--notion-offline";
+    internal const string SnapshotOption = "--content-snapshot";
+    internal const string OfflineOption = "--content-offline";
+    internal const string NotionSnapshotAlias = "--notion-snapshot";
+    internal const string NotionOfflineAlias = "--notion-offline";
     internal const string PinOption = "--notion-pin";
 
     /// <summary>
@@ -28,7 +31,7 @@ internal static class NotionSnapshotOptions
             return (config, []);
         }
 
-        if (!command.GetBool(OfflineOption))
+        if (!IsOffline(command))
         {
             throw new CommandArgumentException($"{PinOption} requires {OfflineOption}.");
         }
@@ -83,10 +86,20 @@ internal static class NotionSnapshotOptions
         return NotionSnapshot.OpenOffline(directory);
     }
 
+    private static bool IsOffline(CliBoundCommand command)
+        => command.GetBool(OfflineOption) || command.GetBool(NotionOfflineAlias);
+
     private static (string? Directory, bool Offline) Read(CliBoundCommand command)
     {
-        var directory = command.GetString(SnapshotOption);
-        var offline = command.GetBool(OfflineOption);
+        var content = command.GetString(SnapshotOption);
+        var notion = command.GetString(NotionSnapshotAlias);
+        if (!string.IsNullOrWhiteSpace(content) && !string.IsNullOrWhiteSpace(notion))
+        {
+            throw new CommandArgumentException($"Use {SnapshotOption} or its alias {NotionSnapshotAlias}, not both.");
+        }
+
+        var directory = string.IsNullOrWhiteSpace(content) ? notion : content;
+        var offline = IsOffline(command);
         if (offline && string.IsNullOrWhiteSpace(directory))
         {
             throw new CommandArgumentException($"{OfflineOption} requires {SnapshotOption} <dir>.");

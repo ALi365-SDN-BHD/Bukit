@@ -4,6 +4,7 @@ using System.Text;
 using System.Text.Json;
 using Bukit.CloudBase.Models;
 using Bukit.CloudBase.Transport;
+using Bukit.Content.Notion.Snapshot;
 using Bukit.Engine.Abstractions.Content;
 using Bukit.Shared;
 
@@ -40,6 +41,14 @@ internal sealed class CloudBaseContentSource : IContentProvider
 
     public async Task<RawContentLoadResult> LoadRawAsync(CancellationToken cancellationToken = default)
     {
+        // An offline content snapshot replaces the query and the signing: no key, no network.
+        var snapshot = NotionSnapshotSession.Current;
+        if (snapshot is { Offline: true })
+        {
+            using var recorded = CloudBaseSnapshot.Read(snapshot, _options);
+            return await BuildAsync(recorded.Rows, recorded.SignAsync, cancellationToken).ConfigureAwait(false);
+        }
+
         if (string.IsNullOrWhiteSpace(_options.PublishableKey))
         {
             throw new ContentException(
@@ -60,13 +69,38 @@ internal sealed class CloudBaseContentSource : IContentProvider
                 CloudBaseErrorMapper.Map(ex.Kind));
         }
 
+        var signed = new List<CloudBaseSignedObject>();
+        var result = await BuildAsync(
+            page.Rows,
+            async (objectNames, token) =>
+            {
+                var results = await client.SignObjectsAsync(_options.StorageBucket ?? string.Empty, objectNames, _options.SignExpiresSeconds, token)
+                    .ConfigureAwait(false);
+                signed.AddRange(results);
+                return results;
+            },
+            cancellationToken).ConfigureAwait(false);
+        if (snapshot is not null)
+        {
+            // Recorded only after the rows built, so a failing build never stages a partial query.
+            CloudBaseSnapshot.Write(snapshot, _options, page.Rows, signed);
+        }
+
+        return result;
+    }
+
+    private async Task<RawContentLoadResult> BuildAsync(
+        IReadOnlyList<JsonElement> rows,
+        CloudBaseSigner sign,
+        CancellationToken cancellationToken)
+    {
         var isData = string.Equals(_options.Mode, "data", StringComparison.OrdinalIgnoreCase);
         var allowedSet = CloudBaseFieldProjector.BuildAllowedSet(_options.FieldPolicyMode, _options.AllowedFields);
-        var drafts = new List<Draft>(page.Rows.Count);
+        var drafts = new List<Draft>(rows.Count);
         var seenIds = new HashSet<string>(StringComparer.Ordinal);
         var slugFromId = 0;
         var untitled = 0;
-        foreach (var row in page.Rows)
+        foreach (var row in rows)
         {
             cancellationToken.ThrowIfCancellationRequested();
             var id = GetNonBlank(row, _options.IdField);
@@ -96,7 +130,7 @@ internal sealed class CloudBaseContentSource : IContentProvider
                 $"event=cloudbase.missing_title_or_slug table={_options.Table} slugFromId={slugFromId} untitled={untitled}");
         }
 
-        var imageUrls = await ResolveFilesAsync(drafts, client, isData, cancellationToken).ConfigureAwait(false);
+        var imageUrls = await ResolveFilesAsync(drafts, sign, isData, cancellationToken).ConfigureAwait(false);
 
         var documents = new List<RawContentDocument>(drafts.Count);
         var bodies = new Dictionary<string, string>(StringComparer.Ordinal);
@@ -167,7 +201,7 @@ internal sealed class CloudBaseContentSource : IContentProvider
 
     private async Task<IReadOnlyDictionary<string, string>> ResolveFilesAsync(
         List<Draft> drafts,
-        CloudBaseClient client,
+        CloudBaseSigner sign,
         bool isData,
         CancellationToken cancellationToken)
     {
@@ -187,11 +221,10 @@ internal sealed class CloudBaseContentSource : IContentProvider
         }
 
         var resolver = new CloudBaseFileResolver(
-            client,
+            sign,
             _options.EnvId,
             _options.StorageBucket ?? string.Empty,
-            _options.DefaultImageUrl,
-            _options.SignExpiresSeconds);
+            _options.DefaultImageUrl);
         var nonStringFileValues = 0;
         foreach (var draft in drafts)
         {

@@ -145,7 +145,7 @@ public static class ConfigCommand
     private static void PrintUsage()
     {
         Console.WriteLine("Usage:");
-        Console.WriteLine("  bukit config check [--config <path>] [--site <name>] [--site-url <url>] [--notion-snapshot <dir> --notion-offline]");
+        Console.WriteLine("  bukit config check [--config <path>] [--site <name>] [--site-url <url>] [--content-snapshot <dir> --content-offline]");
         Console.WriteLine("  bukit config schema [--output <path>]");
     }
 }

@@ -177,6 +177,10 @@ bukit doctor       --notion-snapshot /path/outside/the/site/notion-snapshot --no
 bukit build        --notion-snapshot /path/outside/the/site/notion-snapshot --notion-offline
 ```
 
+`--content-snapshot <dir>` and `--content-offline` are the same options under
+provider-neutral names; one snapshot also holds CloudBase sources (see
+[27 CloudBase Content](27-cloudbase-content.md#offline-snapshot)).
+
 `--notion-snapshot <dir>` overrides `cacheMode` and `cacheDir` of every Notion
 source, so no Notion cache is written into the site directory. `--notion-offline`
 requires `--notion-snapshot`; `config check` and `doctor` only read a snapshot,
@@ -263,9 +267,9 @@ print it as `[BKT-0Bxx]` on the text line.
 | `BKT-0B07` | A network or timeout error. |
 | `BKT-0B08` | Notion returned invalid JSON. |
 | `BKT-0B10` | The snapshot is missing, unreadable, or another format. |
-| `BKT-0B11` | The snapshot has no data for a database (a changed `databaseId` or a new source). |
+| `BKT-0B11` | The snapshot has no data for a database or CloudBase table (a changed `databaseId`, table or a new source). |
 | `BKT-0B12` | The snapshot has no rendered body for a page. |
-| `BKT-0B13` | The recorded queries do not match the current filter or sort. |
+| `BKT-0B13` | The recorded queries do not match the current filter or sort (CloudBase: the filter value or source settings). |
 | `BKT-0B14` | Another snapshot entry is missing or unreadable. |
 | `BKT-0B15` | The snapshot could not be written. |
 | `BKT-0B16` | The `--notion-snapshot` directory value is invalid. |

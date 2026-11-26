@@ -103,7 +103,7 @@ public sealed class NotionOfflineSnapshotCommandTests : IDisposable
         var (doctorCode, doctorOutput) = await CaptureAsync(() => DoctorCommand.RunAsync(CliTestHelper.CreateCommand("doctor",
             ["doctor", "--config", _configPath, "--notion-snapshot", SnapshotDir, "--notion-offline"])));
         Assert.True(doctorCode == 0, doctorOutput);
-        Assert.Contains("Notion network checks skipped", doctorOutput, StringComparison.Ordinal);
+        Assert.Contains("Notion and CloudBase network checks skipped", doctorOutput, StringComparison.Ordinal);
         Assert.DoesNotContain("NOTION_TOKEN", doctorOutput, StringComparison.Ordinal);
 
         Directory.Delete(Path.Combine(_rootDir, "dist"), recursive: true);
@@ -202,6 +202,25 @@ public sealed class NotionOfflineSnapshotCommandTests : IDisposable
         Assert.Equal(1, missingCode);
         Assert.Matches(@"(?m)^(?:✖ )?\[BKT-0B10\]", missingOutput);
         Assert.Contains("snapshot not found", missingOutput, StringComparison.Ordinal);
+        var both = await Assert.ThrowsAsync<CommandArgumentException>(() => ConfigCommand.RunAsync(CliTestHelper.CreateCommand("config",
+            ["config", "check", "--config", _configPath, "--content-snapshot", SnapshotDir, "--notion-snapshot", SnapshotDir, "--content-offline"])));
+        Assert.Contains("not both", both.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task ContentFlags_ReadTheSnapshotLikeTheNotionAliases()
+    {
+        await RecordSnapshotAsync();
+        Environment.SetEnvironmentVariable(EnvironmentHelper.NotionTokenKey, null);
+        var offlineApi = new FakeNotionApi();
+        NotionContentClient.TransportOverride.Value = () => offlineApi;
+
+        var (code, output) = await CaptureAsync(() => ConfigCommand.RunAsync(CliTestHelper.CreateCommand("config",
+            ["config", "check", "--config", _configPath, "--content-snapshot", SnapshotDir, "--notion-offline"])));
+
+        Assert.True(code == 0, output);
+        Assert.Contains("offline snapshot", output, StringComparison.Ordinal);
+        Assert.Empty(offlineApi.Requests);
     }
 
     [Fact]

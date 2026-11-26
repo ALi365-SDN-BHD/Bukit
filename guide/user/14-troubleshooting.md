@@ -35,9 +35,9 @@ cli-error keeps the worker's code and reason.
 | `BKT-0B06` / `BKT-0B08` | Another Notion HTTP error / invalid JSON response. |
 | `BKT-0B07` | Network or timeout error. |
 | `BKT-0B10` | No usable snapshot, or another snapshot format. |
-| `BKT-0B11` | The snapshot lacks the database (changed `databaseId` or new source). |
+| `BKT-0B11` | The snapshot lacks the database or CloudBase table (changed `databaseId`, table or new source). |
 | `BKT-0B12` | The snapshot lacks a rendered body. |
-| `BKT-0B13` | The recorded queries do not match the filter/sort. |
+| `BKT-0B13` | The recorded queries do not match the filter/sort (CloudBase: filter value or source settings). |
 | `BKT-0B14` | Another snapshot entry is missing or unreadable. |
 | `BKT-0B15` | The snapshot could not be written. |
 | `BKT-0B16` / `BKT-0B17` | Invalid `--notion-snapshot` value / unsupported offline request. |

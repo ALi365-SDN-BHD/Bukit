@@ -1,4 +1,5 @@
 using Bukit.Config;
+using Bukit.Content.CloudBase;
 using Bukit.Content.Notion.Snapshot;
 using Bukit.Shared;
 
@@ -52,7 +53,7 @@ internal sealed class NotionSnapshot : IDisposable
     /// <summary>Replaces the previous snapshot with the one just recorded. Call only after a successful build.</summary>
     public void Commit() => _session.Commit();
 
-    /// <summary>Fails when the configured Notion sources need databases the offline snapshot lacks.</summary>
+    /// <summary>Fails when the configured Notion or CloudBase sources need data the offline snapshot lacks.</summary>
     public void EnsureDatabases(AppConfig config)
     {
         if (config.Content.Sources is not { Count: > 0 } sources)
@@ -65,6 +66,11 @@ internal sealed class NotionSnapshot : IDisposable
             if (source.Type.Equals("notion", StringComparison.OrdinalIgnoreCase) && source.Notion is { } notion)
             {
                 _session.EnsureDatabase(notion.DatabaseId);
+            }
+            else if (source.Type.Equals("cloudbase", StringComparison.OrdinalIgnoreCase) && source.CloudBase is { } cloudBase)
+            {
+                // The filter value is checked when the build reads the table, after ${env:NAME} resolves.
+                CloudBaseSnapshot.EnsureTable(_session, cloudBase.EnvId, cloudBase.Table, cloudBase.Filter?.Field);
             }
         }
     }

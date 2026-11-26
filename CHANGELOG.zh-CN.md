@@ -4,6 +4,8 @@ Bukit 所有重要变更都将记录在此文件中。
 
 ## [Unreleased]
 
+- **CloudBase 离线构建。** `--content-snapshot <dir>` 会和 Notion 数据一起记录每个 CloudBase 表的公开行（映射列、`fileFields` 和 `fieldPolicy` 允许的列；个人列、嵌套的个人键和签名链接一律不保存），`--content-offline` 用它构建、检查和运行 `doctor`，不需要 `CLOUDBASE_PUBLISHABLE_KEY`，也不联网。文件字段复用本地媒体缓存，缓存中没有的对象使用媒体占位图。每个来源单独记录，同一张表上的两个来源不会共用行。离线构建时如果 `${env:...}` 给出的筛选值不同或来源设置已改，会以 `BKT-0B13` 失败；快照里没有的表以 `BKT-0B11` 失败。`--notion-snapshot` 和 `--notion-offline` 保留为别名，已有快照继续有效。
+
 - **枚举标签。** `content.modelSchema` 的 `enum` 项可以写成 `{ value, label }`。模板按定义顺序用 `site.field_enums.<field>` 读取选项（集合作用域的字段在 `site.field_enums.scopes.<collection>.<field>`），标签不再需要单独的数据文件。同一个 `enum` 里重复的值现在会让配置报错（以前可以加载）。
 
 - **CloudBase 按发布版本构建。** `cloudbase.filter.value` 可以读取 `${env:NAME}`（例如 `"${env:RELEASE_ID}"`），在构建读取数据表时解析。变量未设置或为空时构建失败，不会用空值查询。CloudBase 指南说明了“当前线上版本”视图的写法，以及用 Publishable Key 读取未上线版本时的公开窗口。

@@ -57,7 +57,9 @@ Markdown list items, depth 8, 256 KiB); an allowed column is published whole, ne
 personal keys with the dropped names are removed, nested `cloud://` drops the column, and
 a too-deep or too-large column is dropped as `cloudbase.structured_field_invalid` under
 `schemaFailMode`. The `filter` value may read `${env:NAME}` (quote it), resolved when the build
-fetches the table; an unset or empty variable fails the build. See
+fetches the table; an unset or empty variable fails the build. `--content-snapshot <dir>` records
+the public rows for builds with `--content-offline` (no key, no network; another filter value
+fails). See
 `guide/user/27-cloudbase-content.md`.
 
 ## Remote media
