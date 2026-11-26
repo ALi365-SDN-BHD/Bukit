@@ -112,7 +112,7 @@ internal static class DerivedFieldResolver
         IReadOnlyList<ContentDocument> withoutPage)
         => config.Content.DerivedFields.Count == 0
             ? []
-            : ValidateSchema(config.Content, schema, routed, withoutPage).Concat(ValidateRebuiltRecords(config, schema, before, routed));
+            : ValidateSchema(config.Content, schema, routed, withoutPage).Concat(ValidateRebuiltRecords(config, schema, before, routed, withoutPage));
 
     private static IEnumerable<ContentValidationIssue> ValidateSchema(
         ContentConfig content,
@@ -132,42 +132,42 @@ internal static class DerivedFieldResolver
 
     /// <summary>
     /// Canonical and record-level content model issues (such as <c>requireAuthor</c>) of the rebuilt
-    /// records that their source records did not have. The source records were checked by the
-    /// validate stage; comparing the same pages keeps cross-record checks from reporting pages outside
-    /// this set. Derived-field issues come from <see cref="ValidateSchema"/>.
+    /// records that their source records did not have. Both checks run on the whole site (pages and
+    /// entries without a page), so relation targets and cross-record rules resolve as in the validate
+    /// stage; only issues of derived pages are kept. Derived-field issues come from <see cref="ValidateSchema"/>.
     /// </summary>
     private static IEnumerable<ContentValidationIssue> ValidateRebuiltRecords(
         AppConfig config,
         ContentModelSchema schema,
         IReadOnlyList<RoutedContentDocument> before,
-        IReadOnlyList<RoutedContentDocument> routed)
+        IReadOnlyList<RoutedContentDocument> routed,
+        IReadOnlyList<ContentDocument> withoutPage)
     {
-        var sources = new List<ContentDocument>();
-        var derived = new List<ContentDocument>();
+        var derivedIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         for (var i = 0; i < routed.Count; i++)
         {
             if (!ReferenceEquals(before[i].Document, routed[i].Document))
             {
-                sources.Add(before[i].Document);
-                derived.Add(routed[i].Document);
+                derivedIds.Add(routed[i].Document.Id);
             }
         }
 
-        if (derived.Count == 0)
+        if (derivedIds.Count == 0)
         {
             return [];
         }
 
-        IEnumerable<ContentValidationIssue> Check(List<ContentDocument> documents)
+        IEnumerable<ContentValidationIssue> Check(IReadOnlyList<RoutedContentDocument> pages)
         {
-            var graph = CanonicalContentGraphBuilder.BuildFromDocuments(documents);
+            var graph = CanonicalContentGraphBuilder.BuildFromDocuments([.. pages.Select(page => page.Document).Concat(withoutPage)]);
             return CanonicalContentValidator.Validate(graph, config.Site)
                 .Concat(ContentModelSchemaValidator.Validate(graph, schema)
-                    .Where(issue => !issue.Field.StartsWith(FieldIssuePrefix, StringComparison.Ordinal)));
+                    .Where(issue => !issue.Field.StartsWith(FieldIssuePrefix, StringComparison.Ordinal)))
+                .Where(issue => issue.SourcePath is { } id && derivedIds.Contains(id));
         }
 
-        var known = Check(sources).Select(IssueKey).ToHashSet(StringComparer.Ordinal);
-        return Check(derived).Where(issue => !known.Contains(IssueKey(issue)));
+        var known = Check(before).Select(IssueKey).ToHashSet(StringComparer.Ordinal);
+        return Check(routed).Where(issue => !known.Contains(IssueKey(issue)));
     }
 
     private static string IssueKey(ContentValidationIssue issue) => $"{issue.SourcePath}\n{issue.Field}\n{issue.Code}";
