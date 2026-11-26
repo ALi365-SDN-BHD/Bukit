@@ -324,7 +324,7 @@ internal static partial class SiteDefaultsApplier
     }
 
     /// <summary>site.related.collections: threshold and limit default to the site.related values; indices are required.</summary>
-    private static IReadOnlyList<RelatedCollectionConfig> ReadRelatedCollections(YamlMappingNode relatedNode, int threshold, int limit)
+    private static List<RelatedCollectionConfig> ReadRelatedCollections(YamlMappingNode relatedNode, int threshold, int limit)
     {
         if (ConfigYamlHelpers.GetOptionalMapping(relatedNode, "collections", "site.related") is not { } node)
         {
@@ -361,7 +361,7 @@ internal static partial class SiteDefaultsApplier
         return collections;
     }
 
-    private static IReadOnlyList<RelatedIndexConfig>? ReadRelatedIndices(YamlMappingNode relatedNode, string path)
+    private static List<RelatedIndexConfig>? ReadRelatedIndices(YamlMappingNode relatedNode, string path)
     {
         var indicesNode = ConfigYamlHelpers.GetOptionalSequence(relatedNode, "indices");
         if (indicesNode is null)
@@ -382,6 +382,12 @@ internal static partial class SiteDefaultsApplier
             if (string.IsNullOrEmpty(name) == string.IsNullOrEmpty(field))
             {
                 throw new ConfigException($"{path}.indices[{indices.Count}] needs exactly one of name or field.", DiagnosticCode.ConfigRequiredFieldMissing);
+            }
+
+            // "field" marks a field index internally; without field: it would silently score 0.
+            if (string.Equals(name, "field", StringComparison.OrdinalIgnoreCase))
+            {
+                throw new ConfigException($"{path}.indices[{indices.Count}] uses name: field; write field: <name> instead.", DiagnosticCode.ConfigInvalidValue);
             }
 
             if (field is { Length: > 0 } && !ContentLinkPath.IsName(field))

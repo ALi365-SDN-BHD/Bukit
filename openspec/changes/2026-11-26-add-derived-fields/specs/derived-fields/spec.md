@@ -19,9 +19,9 @@ Templates SHALL run with the invariant culture and a loop limit, and SHALL NOT h
 functions.
 
 #### Scenario: Runtime failure
-- **WHEN** a template exceeds the loop limit on a page
+- **WHEN** a template exceeds the loop limit on a page, including when only the page's link data makes it fail
 - **THEN** the field is unchanged and `content.derived_field_failed` is reported under the collection's `schemaFailMode`
 
 #### Scenario: Template does not parse
 - **WHEN** a value is not valid Scriban
-- **THEN** the build fails with `ConfigInvalidValue`
+- **THEN** `bukit config check` and the build fail with `ConfigInvalidValue` before content is fetched

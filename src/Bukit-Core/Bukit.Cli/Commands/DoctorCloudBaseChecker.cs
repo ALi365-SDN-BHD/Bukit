@@ -31,6 +31,11 @@ internal static class DoctorCloudBaseChecker
             Console.WriteLine($"⚠ cloudbase.fieldPolicy.allowed publishes idField '{cloudBase.IdField}'");
         }
 
+        if (!TryResolveFilterValue(cloudBase, out var filterValue))
+        {
+            return errors + 1;
+        }
+
         using var client = CreateClient(cloudBase, key, clientFactory);
 
         int? total;
@@ -60,7 +65,7 @@ internal static class DoctorCloudBaseChecker
                 PageSize = 1,
                 MaxItems = 1,
                 FilterField = cloudBase.Filter?.Field,
-                FilterValue = cloudBase.Filter?.Value,
+                FilterValue = filterValue,
                 SortField = cloudBase.Sort?.Field,
                 SortDirection = cloudBase.Sort?.Direction ?? "asc"
             }).ConfigureAwait(false);
@@ -206,6 +211,27 @@ internal static class DoctorCloudBaseChecker
             CloudBaseErrorKind.ResponseInvalid => DiagnosticCode.CloudBaseResponseInvalid,
             _ => DiagnosticCode.CloudBaseRequestFailed
         };
+
+    /// <summary>The build resolves ${env:NAME} when it fetches the table; doctor must query with the same value.</summary>
+    private static bool TryResolveFilterValue(CloudBaseConfig cloudBase, out string? value)
+    {
+        value = null;
+        if (cloudBase.Filter is not { } filter)
+        {
+            return true;
+        }
+
+        try
+        {
+            value = ConfigEnvValue.Resolve(filter.Value, "cloudbase.filter.value");
+            return true;
+        }
+        catch (ConfigException ex)
+        {
+            Console.WriteLine($"✖ [{Code(ex.Code ?? DiagnosticCode.ConfigRequiredFieldMissing)}] {ex.Message}");
+            return false;
+        }
+    }
 
     private static string Code(DiagnosticCode code) => DiagnosticCodeFormatter.Format(code);
 }

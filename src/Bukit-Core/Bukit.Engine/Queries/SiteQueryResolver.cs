@@ -167,25 +167,41 @@ internal static class SiteQueryResolver
         return null;
     }
 
+    /// <summary>
+    /// A total order, so the sort is well defined on mixed fields: numbers (numeric text included,
+    /// read with the invariant culture) before dates, then booleans, then other text ignoring case.
+    /// </summary>
     private static int CompareValues(object x, object y)
     {
-        if (Number(x) is { } xn && Number(y) is { } yn)
+        var (xKind, yKind) = (Kind(x), Kind(y));
+        if (xKind != yKind)
         {
-            return xn.CompareTo(yn);
+            return xKind.CompareTo(yKind);
         }
 
         return (x, y) switch
         {
+            _ when xKind == 0 => Number(x)!.Value.CompareTo(Number(y)!.Value),
             (DateTimeOffset xd, DateTimeOffset yd) => xd.CompareTo(yd),
             (bool xb, bool yb) => xb.CompareTo(yb),
             _ => StringComparer.OrdinalIgnoreCase.Compare(Text(x), Text(y))
         };
     }
 
+    private static int Kind(object value) => value switch
+    {
+        _ when Number(value) is not null => 0,
+        DateTimeOffset => 1,
+        bool => 2,
+        _ => 3
+    };
+
     private static double? Number(object? value) => value switch
     {
         long or int or short or byte or ulong or uint or ushort or sbyte or double or float or decimal
             => Convert.ToDouble(value, CultureInfo.InvariantCulture),
+        string text when double.TryParse(text, NumberStyles.Float, CultureInfo.InvariantCulture, out var number) && double.IsFinite(number)
+            => number,
         _ => null
     };
 

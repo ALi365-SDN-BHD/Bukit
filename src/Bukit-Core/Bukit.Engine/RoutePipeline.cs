@@ -20,6 +20,9 @@ internal sealed record RoutePipelineResult(
 
     /// <summary>site.queries results by name, or null when none are configured.</summary>
     internal IReadOnlyDictionary<string, object>? Queries { get; init; }
+
+    /// <summary>Runtime errors of content.derivedFields, for <see cref="DerivedFieldResolver.Report"/>.</summary>
+    internal IReadOnlyList<ContentValidationIssue> DerivedFieldIssues { get; init; } = [];
 }
 
 internal sealed class RoutePipeline
@@ -53,7 +56,8 @@ internal sealed class RoutePipeline
         IReadOnlyList<ContentDocument> withoutPage = [.. documents.Where(i => !CollectionPagePolicy.HasPage(i, config.Site))];
         var linkedDocuments = ContentLinkResolver.Apply(config.Content, routedDocuments, withoutPage);
         // Derived values may read the links, and every page consumer below reads the values.
-        linkedDocuments = DerivedFieldResolver.Apply(config.Content, linkedDocuments);
+        var derivedFieldIssues = new List<ContentValidationIssue>();
+        linkedDocuments = DerivedFieldResolver.Apply(config.Content, linkedDocuments, derivedFieldIssues);
         // Queries see the final page fields, backrefs and derived values included.
         var queries = SiteQueryResolver.Resolve(config, linkedDocuments, withoutPage);
 
@@ -67,7 +71,8 @@ internal sealed class RoutePipeline
         return new RoutePipelineResult(contentDocuments, linkedDocuments, listRoutes)
         {
             ListRouteGraph = listRouteGraph,
-            Queries = queries
+            Queries = queries,
+            DerivedFieldIssues = derivedFieldIssues
         };
     }
 

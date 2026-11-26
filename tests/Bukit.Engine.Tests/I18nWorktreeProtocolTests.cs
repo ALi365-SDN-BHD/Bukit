@@ -105,6 +105,37 @@ public sealed class I18nWorktreeProtocolTests : IDisposable
     }
 
     [Fact]
+    public void WorkerConfig_KeepsCollectionRouteWhen()
+    {
+        var config = new AppConfig
+        {
+            Site = new SiteConfig
+            {
+                Name = "s",
+                Title = "S",
+                Collections = new Dictionary<string, CollectionConfig>(StringComparer.OrdinalIgnoreCase)
+                {
+                    ["city"] = new() { Permalink = "/cities/{slug}/", RouteWhen = new CollectionRouteWhenConfig { Field = "has_page", Eq = "true" } }
+                }
+            },
+            Content = new ContentConfig()
+        };
+
+        var json = JsonSerializer.Serialize(config, I18nWorktreeJsonContext.Default.AppConfig);
+        var restored = JsonSerializer.Deserialize(json, I18nWorktreeJsonContext.Default.AppConfig)!;
+
+        var routeWhen = restored.Site.Collections!["city"].RouteWhen;
+        Assert.Equal(("has_page", "true"), (routeWhen?.Field, routeWhen?.Eq));
+        var without = config.Site with
+        {
+            Collections = new Dictionary<string, CollectionConfig>(StringComparer.OrdinalIgnoreCase) { ["city"] = new() { Permalink = "/cities/{slug}/" } }
+        };
+        Assert.NotEqual(
+            I18nWorktreeProtocol.ComputeConfigHash(config, new ConfigOverrides()),
+            I18nWorktreeProtocol.ComputeConfigHash(config with { Site = without }, new ConfigOverrides()));
+    }
+
+    [Fact]
     public void WorkerConfig_KeepsSiteQueries()
     {
         var config = new AppConfig

@@ -64,6 +64,7 @@ public static class ConfigCommand
 
             (config, var pinned) = NotionSnapshotOptions.ApplyPin(command, config);
             ConfigValidator.Validate(config);
+            Bukit.Engine.DerivedFields.DerivedFieldResolver.ValidateTemplates(config.Content);
             snapshot?.EnsureDatabases(config);
 
             Console.WriteLine("✔ Config check passed");

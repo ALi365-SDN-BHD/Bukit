@@ -55,6 +55,24 @@ public sealed class DerivedFieldConfigTests
         Assert.Contains(message, exception.Message, StringComparison.Ordinal);
     }
 
+    [Theory]
+    [InlineData("route", "cities_links")]
+    [InlineData("city", "routes")]
+    [InlineData("city", "routes_count")]
+    public void Validate_FieldThatALinkWrites_Throws(string collection, string field)
+    {
+        var exception = Assert.Throws<ConfigException>(() => ConfigValidator.Validate(Load($$"""
+              links:
+                - { collection: route, field: cities, target: { collection: city }, backref: { name: routes } }
+              derivedFields:
+                {{collection}}:
+                  {{field}}: { value: x, mode: override }
+            """)));
+
+        Assert.Equal(DiagnosticCode.ConfigInvalidValue, exception.Code);
+        Assert.Contains($"content.derivedFields.{collection}.{field} is a field that content.links writes", exception.Message, StringComparison.Ordinal);
+    }
+
     private static AppConfig Load(string contentYaml)
     {
         var yaml = $$"""

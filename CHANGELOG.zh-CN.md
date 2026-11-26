@@ -4,17 +4,17 @@ Bukit 所有重要变更都将记录在此文件中。
 
 ## [Unreleased]
 
-- **枚举标签。** `content.modelSchema` 的 `enum` 项可以写成 `{ value, label }`。模板按定义顺序用 `site.field_enums.<field>` 读取选项（集合作用域的字段在 `site.field_enums.scopes.<collection>.<field>`），标签不再需要单独的数据文件。
+- **枚举标签。** `content.modelSchema` 的 `enum` 项可以写成 `{ value, label }`。模板按定义顺序用 `site.field_enums.<field>` 读取选项（集合作用域的字段在 `site.field_enums.scopes.<collection>.<field>`），标签不再需要单独的数据文件。同一个 `enum` 里重复的值现在会让配置报错（以前可以加载）。
 
 - **CloudBase 按发布版本构建。** `cloudbase.filter.value` 可以读取 `${env:NAME}`（例如 `"${env:RELEASE_ID}"`），在构建读取数据表时解析。变量未设置或为空时构建失败，不会用空值查询。CloudBase 指南说明了“当前线上版本”视图的写法，以及用 Publishable Key 读取未上线版本时的公开窗口。
 
-- **dataIndex 键名支持点号。** `dataIndex` 的键现在接受 `^[A-Za-z0-9][A-Za-z0-9._+-]*$`，`custom.daysHint`、`custom.days.4-5.label` 这类文案键可以原样使用（模板里用方括号读取）。范围（scope）和来源名仍是 `^[a-z][a-z0-9_]*$`；`requiredKeys` 以第一段作为范围。
+- **dataIndex 键名支持点号。** `dataIndex` 的键现在接受 `^[A-Za-z0-9][A-Za-z0-9._+-]*$`，`custom.daysHint`、`custom.days.4-5.label` 这类文案键可以原样使用（模板里用方括号读取）。范围（scope）和来源名仍是 `^[a-z][a-z0-9_]*$`；`requiredKeys` 以第一段作为范围，键名区分大小写。
 
 - **按自定义字段计算相关页面。** `site.related.indices[].field` 可以按任意内容字段的共同值计分，`site.related.collections.<collection>` 给单个集合单独的规则（只在该集合内比较；`threshold` 可以为 0）。结果条目新增 `id` 和 `slug`，同分时保持集合列表顺序。
 
-- **命名查询。** `site.queries.<name>: { from, where, sort, select, distinct, group, limit }` 从一个集合（有页面的条目和没有页面的条目）生成有序列表，模板里用 `site.queries.<name>` 读取。筛选规则与 filteredLists 一致，并支持 `hasBackref`；分组和去重可以做“按月份的路线”“景点类型”这类列表。
+- **命名查询。** `site.queries.<name>: { from, where, sort, select, distinct, group, limit }` 从一个集合（有页面的条目和没有页面的条目）生成有序列表，模板里用 `site.queries.<name>` 读取。筛选规则与 filteredLists 一致，并支持 `hasBackref`（必须是 `from` 集合上的反向引用）；分组和去重可以做“按月份的路线”“景点类型”这类列表。
 
-- **派生字段。** `content.derivedFields.<collection>.<field>: { value, mode }` 用 Scriban 模板根据页面自身字段（包括 `<field>_links`）计算页面字段，例如用中英文名拼出 SEO 标题。`seo.describe <width>` 按显示宽度截取描述。模板结果是确定的；运行时失败报告为 `content.derived_field_failed`。
+- **派生字段。** `content.derivedFields.<collection>.<field>: { value, mode }` 用 Scriban 模板根据页面自身字段（包括 `<field>_links`）计算页面字段，例如用中英文名拼出 SEO 标题。`seo.describe <width>` 按显示宽度截取描述。模板结果是确定的。`config check` 会拒绝无法解析的模板，内容链接写入的字段不能再派生，运行时失败（包括依赖链接数据的失败）按 `schemaFailMode` 报告为 `content.derived_field_failed`。
 
 - **permalink 字段占位符**：集合 permalink 和 `site.permalinks` 可以用 `{fields.<name>}`，取顶层文本或整数字段的值并做 slug 化，例如 `/malaysia/{fields.city}/attractions/{slug}/`。字段缺失、为空或 slug 化后为空的页面会让构建以 `RouteInvalidPattern` 失败；网址重复时照旧报路由冲突。见 [04 site.yaml 配置](guide/user/04-site-yaml-config.md#collections)。
 

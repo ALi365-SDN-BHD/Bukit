@@ -1,5 +1,6 @@
 using Bukit.Config;
 using Bukit.Engine.Abstractions.Content;
+using Bukit.Engine.Stages;
 using Bukit.Rendering.Scriban;
 using Bukit.Shared;
 using Scriban.Syntax;
@@ -13,11 +14,12 @@ namespace Bukit.Engine.DerivedFields;
 /// empty field; <c>override</c> always writes.
 /// </summary>
 /// <remarks>
-/// <see cref="Apply"/> runs in <see cref="RoutePipeline"/> after content links and before anything
-/// reads the pages, so lists, SEO, feeds and search see the values, and the page hash covers them.
-/// <see cref="Validate"/> runs in the validate stage: a template that does not parse fails the build;
-/// a runtime error is reported on the page under its collection's <c>schemaFailMode</c>, and
-/// <see cref="Apply"/> leaves that field unchanged.
+/// <see cref="ValidateTemplates"/> runs with config validation (<c>config check</c> and build
+/// planning), so a template that does not parse fails before content is fetched.
+/// <see cref="Apply"/> runs in <see cref="RoutePipeline"/> after routing and content links and before
+/// anything reads the pages, so lists, SEO, feeds and search see the values, and the page hash covers
+/// them. A runtime error leaves that field unchanged and is collected, with the link data the template
+/// read, then <see cref="Report"/> logs it under the page collection's <c>schemaFailMode</c>.
 /// </remarks>
 internal static class DerivedFieldResolver
 {
@@ -28,7 +30,11 @@ internal static class DerivedFieldResolver
     /// <summary>Names that also set the summary the SEO model and lists read.</summary>
     private static readonly HashSet<string> SummaryFields = new(["summary", "description", "excerpt"], StringComparer.OrdinalIgnoreCase);
 
-    internal static IReadOnlyList<RoutedContentDocument> Apply(ContentConfig content, IReadOnlyList<RoutedContentDocument> routed)
+    /// <param name="problems">Receives one issue per runtime error; null drops them.</param>
+    internal static IReadOnlyList<RoutedContentDocument> Apply(
+        ContentConfig content,
+        IReadOnlyList<RoutedContentDocument> routed,
+        List<ContentValidationIssue>? problems = null)
     {
         if (content.DerivedFields.Count == 0)
         {
@@ -40,28 +46,52 @@ internal static class DerivedFieldResolver
         for (var i = 0; i < routed.Count; i++)
         {
             var page = routed[i];
-            var document = Derive(page.Document, rules, problems: null);
+            var document = Derive(page.Document, rules, problems);
             result[i] = ReferenceEquals(document, page.Document) ? page : page with { Document = document };
         }
 
         return result;
     }
 
-    internal static IEnumerable<ContentValidationIssue> Validate(AppConfig config, IReadOnlyList<ContentDocument> documents)
+    /// <summary>Throws a config error for the first template that does not parse.</summary>
+    internal static void ValidateTemplates(ContentConfig content) => Compile(content.DerivedFields);
+
+    /// <summary>
+    /// Logs the runtime errors <see cref="Apply"/> collected, as the validate stage logs content issues,
+    /// and fails the build when a failing page's collection uses <c>schemaFailMode: strict</c>.
+    /// </summary>
+    internal static void Report(
+        AppConfig config,
+        IReadOnlyList<RoutedContentDocument> routed,
+        IReadOnlyList<ContentValidationIssue> issues,
+        ILogger logger)
     {
-        if (config.Content.DerivedFields.Count == 0)
+        if (issues.Count == 0)
         {
-            return [];
+            return;
         }
 
-        var rules = Compile(config.Content.DerivedFields);
-        var issues = new List<ContentValidationIssue>();
-        foreach (var document in documents.Where(document => CollectionPagePolicy.HasPage(document, config.Site)))
+        var globalMode = (config.Build.SchemaFailMode ?? "warn").Trim().ToLowerInvariant();
+        var documentsById = routed
+            .GroupBy(page => page.Document.Id, StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(group => group.Key, group => group.First().Document, StringComparer.OrdinalIgnoreCase);
+        var strict = 0;
+        foreach (var issue in issues)
         {
-            Derive(document, rules, issues);
+            var mode = ContentGraphValidateStage.ResolveFailMode(issue, documentsById, config, globalMode);
+            if (mode == "off")
+            {
+                continue;
+            }
+
+            strict += mode == "strict" ? 1 : 0;
+            logger.Warn($"event=canonical.validation code={issue.Code} field={issue.Field} source={ContentGraphValidateStage.LogSource(issue.SourcePath, documentsById)} message={issue.Message}");
         }
 
-        return issues;
+        if (strict > 0)
+        {
+            throw new ConfigException($"Derived field validation failed with {strict} error(s).", DiagnosticCode.SchemaStrictModeBlocked);
+        }
     }
 
     /// <summary>Parses every template; a template that does not parse is a config error.</summary>

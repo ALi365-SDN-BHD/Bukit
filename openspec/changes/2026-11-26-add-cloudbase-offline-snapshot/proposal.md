@@ -10,10 +10,9 @@ leaves the design open ("工作量待设计"), so this change records a design t
 
 ## What Changes (proposed)
 
-- Reuse the Notion snapshot flags instead of adding new ones: `--notion-snapshot <dir>` also
-  records CloudBase sources, and `--notion-offline` also reads them without a key or network.
-  Alternative: rename to a provider-neutral `--content-snapshot` / `--content-offline` and keep
-  the Notion flags as aliases.
+- CLI surface (open, design decision 1): add provider-neutral `--content-snapshot <dir>` /
+  `--content-offline` that record and read CloudBase and Notion sources, keeping the Notion flags
+  as aliases (recommended); or reuse `--notion-snapshot` / `--notion-offline` for every provider.
 - Generalize `NotionSnapshotScope` into a content snapshot scope (`IsOffline` for every provider).
 - Record, per CloudBase source, the projected public rows only (after field policy, before
   signing) plus the object names of file fields, under `cloudbase/<source>/rows.json` in the same

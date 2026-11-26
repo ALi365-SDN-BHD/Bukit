@@ -114,9 +114,7 @@ public static class ConfigValidator
         }
 
         ValidateRouteMetadata(config.Content);
-        ValidateContentLinks(config.Content);
-        ValidateDerivedFields(config.Content.DerivedFields);
-        ValidateFieldEnumNames(config.Content.ModelSchema);
+        ValidateContentDerivation(config);
 
         ProviderValidators.ValidateMedia(config.Content.Media);
 
@@ -411,7 +409,8 @@ public static class ConfigValidator
             }
         }
 
-        var required = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        // Keys are case-sensitive, as the data index stores them; the scope is lower case by rule.
+        var required = new HashSet<string>(StringComparer.Ordinal);
         foreach (var key in source.DataIndex.RequiredKeys ?? Array.Empty<string>())
         {
             // The scope is the first segment; the key may itself contain dots.
@@ -491,7 +490,17 @@ public static class ConfigValidator
     internal static readonly IReadOnlySet<string> ContentLinkBaseKeys =
         new HashSet<string>(["key", "title", "slug", "url", "collection"], StringComparer.OrdinalIgnoreCase);
 
-    private static void ValidateContentLinks(ContentConfig content)
+    /// <summary>content.links, content.derivedFields, enum labels and site.queries, which read one another's outputs.</summary>
+    private static void ValidateContentDerivation(AppConfig config)
+    {
+        var linkOutputs = ValidateContentLinks(config.Content);
+        ValidateDerivedFields(config.Content.DerivedFields, linkOutputs);
+        ValidateFieldEnumNames(config.Content.ModelSchema);
+        ValidateQueryBackrefs(config.Site.Queries, config.Content.Links);
+    }
+
+    /// <returns>The fields the links write, as <c>collection\nfield</c>.</returns>
+    private static HashSet<string> ValidateContentLinks(ContentConfig content)
     {
         var links = content.Links;
         // Two links (or backrefs) writing the same page field would overwrite each other.
@@ -532,6 +541,33 @@ public static class ConfigValidator
                 ClaimContentLinkOutput(outputs, link.Target.Collection, backref.Name + "_count", backrefPath);
             }
         }
+
+        return outputs;
+    }
+
+    /// <summary>
+    /// <c>hasBackref</c> reads the backref count, so it must name a backref that lists pages on the
+    /// queried collection; a content field that happens to end in <c>_count</c> must not match.
+    /// </summary>
+    private static void ValidateQueryBackrefs(IReadOnlyList<SiteQueryConfig> queries, IReadOnlyList<ContentLinkConfig> links)
+    {
+        foreach (var query in queries)
+        {
+            for (var i = 0; i < query.Where.Count; i++)
+            {
+                if (query.Where[i].HasBackref is not { } name ||
+                    links.Any(link => link.Backref is { } backref &&
+                        string.Equals(backref.Name, name, StringComparison.OrdinalIgnoreCase) &&
+                        string.Equals(link.Target.Collection.Trim(), query.From, StringComparison.OrdinalIgnoreCase)))
+                {
+                    continue;
+                }
+
+                throw new ConfigException(
+                    $"site.queries.{query.Name}.where[{i}].hasBackref '{name}' is not a content.links backref on collection '{query.From}'.",
+                    DiagnosticCode.ConfigInvalidValue);
+            }
+        }
     }
 
     /// <summary>Fields that decide identity, routing or language; a derived value must not replace them.</summary>
@@ -552,7 +588,7 @@ public static class ConfigValidator
         }
     }
 
-    private static void ValidateDerivedFields(IReadOnlyList<ContentDerivedFieldConfig> derived)
+    private static void ValidateDerivedFields(IReadOnlyList<ContentDerivedFieldConfig> derived, HashSet<string> linkOutputs)
     {
         foreach (var item in derived)
         {
@@ -567,6 +603,14 @@ public static class ConfigValidator
             if (item.Mode is not ("default" or "override"))
             {
                 throw new ConfigException($"{path}.mode must be default or override.", DiagnosticCode.ConfigInvalidValue);
+            }
+
+            // Links run first; a derived value would replace their list or count with text.
+            if (linkOutputs.Contains($"{item.Collection.Trim()}\n{item.Field}"))
+            {
+                throw new ConfigException(
+                    $"{path} is a field that content.links writes in collection '{item.Collection}'.",
+                    DiagnosticCode.ConfigInvalidValue);
             }
         }
     }

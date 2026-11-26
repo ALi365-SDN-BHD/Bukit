@@ -1047,6 +1047,29 @@ public sealed class ConfigLoaderFullCoverageTests : IDisposable
     }
 
     [Fact]
+    public void Validate_RequiredKeysDifferingOnlyInCase_AreDistinct()
+    {
+        var yaml = """
+            site:
+              name: myblog
+              title: My Blog
+            content:
+              sources:
+                - type: markdown
+                  name: settings
+                  mode: data
+                  markdown:
+                    dir: data
+                  dataIndex:
+                    requiredKeys:
+                      - copy.daysHint
+                      - copy.dayshint
+            """;
+
+        ConfigValidator.Validate(ConfigLoader.Load(WriteTempYaml(yaml)));
+    }
+
+    [Fact]
     public void Load_ContentSourceDataIndexWithUnknownField_Throws()
     {
         var yaml = """

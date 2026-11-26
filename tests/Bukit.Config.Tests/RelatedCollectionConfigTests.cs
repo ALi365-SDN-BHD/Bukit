@@ -32,6 +32,7 @@ public sealed class RelatedCollectionConfigTests
     [Theory]
     [InlineData("indices: [{ weight: 1 }]", "site.related.indices[0] needs exactly one of name or field.")]
     [InlineData("indices: [{ name: tags, field: x }]", "site.related.indices[0] needs exactly one of name or field.")]
+    [InlineData("indices: [{ name: field }]", "site.related.indices[0] uses name: field; write field: <name> instead.")]
     [InlineData("indices: [{ field: 'bad name' }]", "site.related.indices[0].field 'bad name' is not a valid field name.")]
     [InlineData("collections: { route: { threshold: 0 } }", "site.related.collections.route.indices must list at least one index.")]
     [InlineData("collections: { route: { limit: 0, indices: [{ field: a }] } }", "site.related.collections.route needs limit of at least 1")]

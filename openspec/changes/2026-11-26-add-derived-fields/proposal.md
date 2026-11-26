@@ -13,8 +13,10 @@ the summary. Today every page carries these by hand. Roadmap item F9
   empty) or `override`.
 - `seo.describe <width>` cuts plain text by display width.
 - Templates are deterministic: invariant culture, loop limit, no clock or random functions.
-- A template that does not parse fails at config load; a runtime failure is reported as
+- A template that does not parse fails `bukit config check` and the build before content is
+  fetched; a runtime failure, found on the linked pages, is reported as
   `content.derived_field_failed` under the collection's `schemaFailMode`.
+- A derived field cannot be a field that a content link writes in that collection.
 
 ## Impact
 

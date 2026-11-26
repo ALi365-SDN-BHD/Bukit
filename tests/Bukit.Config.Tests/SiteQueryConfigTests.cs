@@ -68,7 +68,28 @@ public sealed class SiteQueryConfigTests
         Assert.Contains(message, exception.Message, StringComparison.Ordinal);
     }
 
-    private static AppConfig Load(string siteYaml)
+    [Theory]
+    [InlineData("city", "routes", null)]
+    [InlineData("city", "reviews", "site.queries.q.where[0].hasBackref 'reviews' is not a content.links backref on collection 'city'.")]
+    [InlineData("route", "routes", "site.queries.q.where[0].hasBackref 'routes' is not a content.links backref on collection 'route'.")]
+    public void Validate_HasBackref_MustNameABackrefOnTheCollection(string from, string backref, string? message)
+    {
+        var config = Load(
+            $$"""
+              queries:
+                q: { from: {{from}}, where: [{ hasBackref: {{backref}} }] }
+            """,
+            """
+              links:
+                - { collection: route, field: cities, target: { collection: city }, backref: { name: routes } }
+            """);
+
+        var exception = Record.Exception(() => ConfigValidator.Validate(config));
+
+        Assert.Equal(message, exception?.Message);
+    }
+
+    private static AppConfig Load(string siteYaml, string contentYaml = "")
     {
         var yaml = $$"""
             site:
@@ -80,6 +101,7 @@ public sealed class SiteQueryConfigTests
                 - type: markdown
                   markdown:
                     dir: content
+            {{contentYaml}}
             """;
         var path = Path.Combine(Path.GetTempPath(), $"bukit-queries-{Guid.NewGuid():N}.yaml");
         File.WriteAllText(path, yaml);

@@ -196,6 +196,41 @@ public sealed class ConfigCommandTests : IDisposable
     }
 
     [Fact]
+    public async Task Check_DerivedFieldTemplateThatDoesNotParse_ReturnsOne()
+    {
+        File.WriteAllText(_configPath, """
+                                       site:
+                                         name: test
+                                         title: Test
+                                       content:
+                                         sources:
+                                           - type: markdown
+                                             name: city
+                                             collection: city
+                                             markdown:
+                                               dir: content
+                                         derivedFields:
+                                           city:
+                                             seo_title: { value: "{{ if }}" }
+                                       """);
+
+        using var writer = new StringWriter(new StringBuilder());
+        var originalOut = Console.Out;
+        Console.SetOut(writer);
+        try
+        {
+            var exitCode = await ConfigCommand.RunAsync(CliTestHelper.CreateCommand("config", new[] { "config", "check", "--config", _configPath }));
+
+            Assert.Equal(1, exitCode);
+            Assert.Contains("content.derivedFields.city.seo_title.value does not parse", writer.ToString(), StringComparison.Ordinal);
+        }
+        finally
+        {
+            Console.SetOut(originalOut);
+        }
+    }
+
+    [Fact]
     public async Task Check_MissingConfig_ReturnsOne()
     {
         var missingPath = Path.Combine(_rootDir, "missing.yaml");

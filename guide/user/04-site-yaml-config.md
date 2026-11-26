@@ -300,9 +300,12 @@ Entries start in the collection list order (newest first, then
 [`content.ordering`](#content-ordering)), and each query works on the current language only.
 Filters use the [filtered list](#filtered-lists) matching: text is compared without case, and a
 list field matches when any item matches, so `eq: 3` finds routes whose `best_months` holds 3.
-`hasBackref` keeps entries that at least one page links to through that [backref](#backrefs).
-Sorting is stable, and an entry without the field (or with a value missing from `values`) comes
-last in both directions.
+`hasBackref` keeps entries that at least one page links to through that [backref](#backrefs); it
+must name a backref whose target collection is `from`, or the config fails. A `from` collection
+that has no entries gives an empty result. Sorting is stable, and an entry without the field (or
+with a value missing from `values`) comes last in both directions. A list field sorts by its first
+item. Values of mixed types sort numbers first (text that reads as a number, such as `"10"`,
+counts as a number), then dates, then true/false, then other text without case.
 
 Each entry has `key` (the slug), `title`, `slug`, `url` (null for an entry without a page),
 `collection` and the `select` fields, like a [content link](#content-links). A grouped query
@@ -310,7 +313,9 @@ returns a list of `{ value, items }` in the order of `values`, where `value` is 
 in the config. `distinct` returns plain values in entry order; list fields are flattened, and
 values differing only in case appear once.
 
-Queries see the final page fields, including backrefs and [derived fields](#derived-fields).
+Queries run last, after routing, [content links](#content-links) and
+[derived fields](#derived-fields), so they see backrefs and derived values on pages. Entries
+without a page get links but no derived fields.
 Incremental builds render a page again when a query it reads changes. Per-page queries, such as
 "two experiences in this page's city", stay in templates, filtered with the Scriban array functions.
 
@@ -412,7 +417,8 @@ type to `module`, and is not routed or indexed as a collection page.
 names, and scopes use `^[a-z][a-z0-9_]*$`. Keys use `^[A-Za-z0-9][A-Za-z0-9._+-]*$`, so
 dotted camelCase copy keys (such as a `daysHint` key under `custom.`, or a range like
 `4-5` inside the key) work as written; read them with brackets (`site.data_index.<source>.<scope>["custom.daysHint"]`). In
-`requiredKeys`, the first segment is the scope and the rest is the key. Duplicate scope and key pairs,
+`requiredKeys`, the first segment is the scope and the rest is the key; keys are case-sensitive, so
+`daysHint` and `dayshint` in one scope are different keys. Duplicate scope and key pairs,
 missing required values, unknown value types, invalid email values, and URLs
 other than HTTP(S) or root-relative paths fail the build.
 
@@ -552,11 +558,16 @@ content:
 - Templates run with the invariant culture and a loop limit of 1000. The clock and random functions (`now`, `random` and `uuid`) are not available, so the same content builds the same value every time.
 - A value can read only its own page. It cannot read other pages or `site` data.
 
-Values are computed after content links and before lists, SEO, feeds and search read the pages,
-and incremental builds rebuild a page when a derived value changes. Field names must be valid
-names and cannot be built-in fields such as `slug`, `title`, `route` or `language`. A template
-that does not parse fails when the config loads. A template that fails on a page (for example, by
-hitting the loop limit) leaves the field unchanged and is reported
+The build runs routing, then content links, then derived fields, then
+[named queries](#named-queries), and lists, SEO, feeds and search read the pages after that.
+Incremental builds rebuild a page when a derived value changes. Because of this order, a derived
+value cannot be used in a permalink `{fields.<name>}`, in `routeWhen`, or in a link's `select`
+(the selected field is captured before it is derived), and entries without a page do not get
+derived values. Field names must be valid names and cannot be built-in fields such as `slug`,
+`title`, `route` or `language`, or a field that a content link writes in that collection
+(`<field>_links`, a backref name or `<name>_count`). `bukit config check` and the start of a build
+fail on a template that does not parse. A template that fails on a page (for example, by hitting
+the loop limit while reading its links) leaves the field unchanged and is reported
 (`content.derived_field_failed`) under the collection's `schemaFailMode`.
 
 ## Content Media
@@ -639,6 +650,21 @@ content:
 | `content.modelSchema.canonicalMappings[]` | Maps raw keys to canonical fields with optional semantic type and required flag. |
 | `content.modelSchema.customFields[]` | Defines custom fields with `name`, `fieldType`, `required`, `semanticType`, `label`, `format`, `enum`, `min`, `max`, `default`, `sourcePolicy`, and `reference`. |
 | `content.modelSchema.fieldScopes.<collection>[]` | Collection-scoped custom fields. |
+| `content.modelSchema.entityMappings[]` | Entity extraction mappings with raw key, type, id/name/description/url/sameAs fields, required flag, and reference rule. |
+| `content.modelSchema.relationMappings[]` | Relation mappings with raw key, relation type, target fields, required flag, and reference rule. |
+| `content.modelSchema.media` | Media policy with `requireAlt`, `requireDescription`, `requireLicense`, and `allowedKinds`. |
+| `content.modelSchema.rejectUnknownRawKeys` | Reject raw keys not covered by schema. |
+| `content.modelSchema.requireSummary` | Require summaries. |
+| `content.modelSchema.requireAuthor` | Require author metadata. |
+| `content.modelSchema.requireOrganization` | Require organization metadata. |
+| `content.modelSchema.requireUpdatedAt` | Require updated timestamp. |
+| `content.modelSchema.requireProvenance` | Require provenance metadata. |
+| `content.modelSchema.requireReviewedAt` | Require review timestamp. |
+| `content.modelSchema.requireMediaAlt` | Defaults to `true`. |
+| `content.modelSchema.requireMediaDescription` | Require media descriptions. |
+| `content.modelSchema.requireMediaLicense` | Require media licenses. |
+| `content.modelSchema.requireEntityIds` | Require entity IDs. |
+| `content.modelSchema.requireRelationTargets` | Defaults to `true`. Blank targets are always invalid; when enabled, non-blank targets must resolve to a content record or entity. `translation-of` language keys and absolute HTTP(S) URLs are exempt. |
 
 An `enum` item is a value, or `{ value, label }` to give the value a display label:
 
@@ -656,22 +682,6 @@ Validation still checks the values. Templates read the options in definition ord
 `site.field_enums.<field>`, each with `value` and `label` (the value when no label is given);
 fields of a field scope are under `site.field_enums.scopes.<collection>.<field>`, so a custom enum
 field cannot be named `scopes`. A value may appear only once in an `enum`.
-
-| `content.modelSchema.entityMappings[]` | Entity extraction mappings with raw key, type, id/name/description/url/sameAs fields, required flag, and reference rule. |
-| `content.modelSchema.relationMappings[]` | Relation mappings with raw key, relation type, target fields, required flag, and reference rule. |
-| `content.modelSchema.media` | Media policy with `requireAlt`, `requireDescription`, `requireLicense`, and `allowedKinds`. |
-| `content.modelSchema.rejectUnknownRawKeys` | Reject raw keys not covered by schema. |
-| `content.modelSchema.requireSummary` | Require summaries. |
-| `content.modelSchema.requireAuthor` | Require author metadata. |
-| `content.modelSchema.requireOrganization` | Require organization metadata. |
-| `content.modelSchema.requireUpdatedAt` | Require updated timestamp. |
-| `content.modelSchema.requireProvenance` | Require provenance metadata. |
-| `content.modelSchema.requireReviewedAt` | Require review timestamp. |
-| `content.modelSchema.requireMediaAlt` | Defaults to `true`. |
-| `content.modelSchema.requireMediaDescription` | Require media descriptions. |
-| `content.modelSchema.requireMediaLicense` | Require media licenses. |
-| `content.modelSchema.requireEntityIds` | Require entity IDs. |
-| `content.modelSchema.requireRelationTargets` | Defaults to `true`. Blank targets are always invalid; when enabled, non-blank targets must resolve to a content record or entity. `translation-of` language keys and absolute HTTP(S) URLs are exempt. |
 
 Canonical validation reports `canonical_duplicate_id` when two documents share an id; with two or more `site.languages`, only documents in the same language collide, so translations may share one, and a document without a language counts as the default language, `canonical_relation_target_missing` for a blank target, and `canonical_relation_target_unresolved` when a target cannot be resolved. Content targets resolve by id or slug; entity targets resolve by id or name. Root-relative paths are not treated as external targets.
 

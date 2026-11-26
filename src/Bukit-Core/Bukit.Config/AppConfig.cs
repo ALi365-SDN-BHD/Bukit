@@ -381,7 +381,7 @@ public sealed record ContentConfig
     [System.Text.Json.Serialization.JsonInclude]
     internal IReadOnlyList<ContentLinkConfig> Links { get; init; } = [];
     /// <summary>
-    /// content.derivedFields: page fields computed from Scriban expressions over the page's own fields,
+    /// content.derivedFields: page fields computed from template expressions over the page's own fields,
     /// in declaration order. Empty when unset.
     /// </summary>
     /// <remarks>Internal: configured only through site.yaml, so it does not widen the public API.</remarks>
@@ -429,7 +429,7 @@ internal sealed record ContentDerivedFieldConfig
     public required string Collection { get; init; }
     /// <summary>The page field written.</summary>
     public required string Field { get; init; }
-    /// <summary>A Scriban template evaluated over the page's top-level fields.</summary>
+    /// <summary>A template evaluated over the page's top-level fields.</summary>
     public required string Value { get; init; }
     /// <summary><c>default</c> writes only when the field is missing or empty; <c>override</c> always writes.</summary>
     public string Mode { get; init; } = "default";

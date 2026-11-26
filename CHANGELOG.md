@@ -4,17 +4,17 @@ All notable changes to Bukit will be documented in this file.
 
 ## [Unreleased]
 
-- **Enum labels.** `content.modelSchema` `enum` items can be `{ value, label }`. Templates read the options in definition order as `site.field_enums.<field>` (scoped fields under `site.field_enums.scopes.<collection>.<field>`), so labels no longer need a separate data file.
+- **Enum labels.** `content.modelSchema` `enum` items can be `{ value, label }`. Templates read the options in definition order as `site.field_enums.<field>` (scoped fields under `site.field_enums.scopes.<collection>.<field>`), so labels no longer need a separate data file. A value listed twice in one `enum` now fails the config (it loaded before).
 
 - **CloudBase release builds.** `cloudbase.filter.value` can read `${env:NAME}` (for example `"${env:RELEASE_ID}"`), resolved when the build fetches the table. An unset or empty variable fails the build instead of querying with an empty value. The CloudBase guide covers the live-release view and the exposure window of reading unreleased rows with the Publishable Key.
 
-- **Dotted dataIndex keys.** `dataIndex` keys now accept `^[A-Za-z0-9][A-Za-z0-9._+-]*$`, so copy keys such as `custom.daysHint` or `custom.days.4-5.label` work as written (read them with brackets). Scopes and source names keep `^[a-z][a-z0-9_]*$`; `requiredKeys` take the first segment as the scope.
+- **Dotted dataIndex keys.** `dataIndex` keys now accept `^[A-Za-z0-9][A-Za-z0-9._+-]*$`, so copy keys such as `custom.daysHint` or `custom.days.4-5.label` work as written (read them with brackets). Scopes and source names keep `^[a-z][a-z0-9_]*$`; `requiredKeys` take the first segment as the scope, and keys are case-sensitive.
 
 - **Related pages by custom fields.** `site.related.indices[].field` scores any content field by shared values, and `site.related.collections.<collection>` gives one collection its own rules (compared within the collection; `threshold` may be 0). Entries now include `id` and `slug`, and equal scores keep the collection list order.
 
-- **Named queries.** `site.queries.<name>: { from, where, sort, select, distinct, group, limit }` builds ordered lists from one collection (pages and entries without a page), read in templates as `site.queries.<name>`. Filters match like filtered lists and support `hasBackref`; groups and distinct values cover lists such as routes by month or attraction types.
+- **Named queries.** `site.queries.<name>: { from, where, sort, select, distinct, group, limit }` builds ordered lists from one collection (pages and entries without a page), read in templates as `site.queries.<name>`. Filters match like filtered lists and support `hasBackref` (which must name a backref on the `from` collection); groups and distinct values cover lists such as routes by month or attraction types.
 
-- **Derived fields.** `content.derivedFields.<collection>.<field>: { value, mode }` computes page fields from a Scriban template over the page's own fields (including `<field>_links`), such as an SEO title from two names. `seo.describe <width>` cuts a description by display width. Templates are deterministic; runtime failures are reported as `content.derived_field_failed`.
+- **Derived fields.** `content.derivedFields.<collection>.<field>: { value, mode }` computes page fields from a Scriban template over the page's own fields (including `<field>_links`), such as an SEO title from two names. `seo.describe <width>` cuts a description by display width. Templates are deterministic. `config check` fails on a template that does not parse, a field a content link writes cannot be derived, and runtime failures (including those that depend on link data) are reported as `content.derived_field_failed` under `schemaFailMode`.
 
 - **Field placeholders in permalinks**: a collection permalink or `site.permalinks` pattern can use `{fields.<name>}`, the slugified value of a top-level text or whole-number field, such as `/malaysia/{fields.city}/attractions/{slug}/`. A page whose field is missing, empty or slugifies to nothing fails the build with `RouteInvalidPattern`; duplicate URLs fail as a route conflict, as before. See [04 site.yaml Config](guide/user/04-site-yaml-config.md#collections).
 

@@ -88,6 +88,27 @@ public sealed class SiteQueryResolverTests
     }
 
     [Fact]
+    public void Resolve_MixedValuesSortNumbersAndNumericTextBeforeOtherText()
+    {
+        var pages = new[]
+        {
+            Routed(Doc("a", "route", 4, ("rank", 10L))),
+            Routed(Doc("b", "route", 3, ("rank", "9"))),
+            Routed(Doc("c", "route", 2, ("rank", "1a"))),
+            Routed(Doc("d", "route", 1, ("rank", "2")))
+        };
+
+        var sorted = Query(Config(new SiteQueryConfig
+        {
+            Name = "q",
+            From = "route",
+            Sort = [new SiteQuerySortConfig { Field = "rank" }]
+        }), pages, [], "q");
+
+        Assert.Equal(["d", "b", "a", "c"], Keys(sorted));
+    }
+
+    [Fact]
     public void Resolve_DistinctFlattensListsAndKeepsFirstSpelling()
     {
         var pages = new[]

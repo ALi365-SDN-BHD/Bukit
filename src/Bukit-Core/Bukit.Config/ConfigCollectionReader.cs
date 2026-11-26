@@ -540,7 +540,7 @@ internal static class ConfigCollectionReader
                 case YamlScalarNode:
                     break;
                 case YamlMappingNode option:
-                    if (option.Children.Keys.FirstOrDefault(key => (key as YamlScalarNode)?.Value is not ("value" or "label")) is { } unknown)
+                    if (option.Children.Keys.FirstOrDefault(key => key is not YamlScalarNode { Value: "value" or "label" }) is { } unknown)
                     {
                         throw new ConfigException($"Unknown config field '{path}[{i}].{(unknown as YamlScalarNode)?.Value}'.", DiagnosticCode.ConfigInvalidValue);
                     }

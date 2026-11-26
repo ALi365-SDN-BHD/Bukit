@@ -1,7 +1,6 @@
 using Bukit.Content.CloudBase;
 using Bukit.Engine.Abstractions.Content;
 using Bukit.Engine.ContentLinks;
-using Bukit.Engine.DerivedFields;
 using Bukit.Shared;
 
 namespace Bukit.Engine.Stages;
@@ -19,7 +18,6 @@ internal sealed class ContentGraphValidateStage : IContentStage
             .Concat(ContentModelSchemaValidator.Validate(graph, schema))
             .Concat(input.Documents.SelectMany(ToSchemaErrors))
             .Concat(ContentLinkResolver.Validate(input.Config, input.Documents))
-            .Concat(DerivedFieldResolver.Validate(input.Config, input.Documents))
             .GroupBy(x => $"{x.SourcePath}:{x.Field}:{x.Code}", StringComparer.OrdinalIgnoreCase)
             .Select(x => x.First())
             .ToArray();
@@ -57,14 +55,14 @@ internal sealed class ContentGraphValidateStage : IContentStage
                 diagnostic.SourceId ?? document.Id));
 
     /// <summary>A CloudBase document id holds the row id, which logs show only as a hash (D7).</summary>
-    private static string? LogSource(string? sourcePath, Dictionary<string, ContentDocument> documentsById)
+    internal static string? LogSource(string? sourcePath, IReadOnlyDictionary<string, ContentDocument> documentsById)
         => sourcePath is not null &&
            documentsById.TryGetValue(sourcePath, out var document) &&
            string.Equals(document.Source.Provider, "cloudbase", StringComparison.OrdinalIgnoreCase)
             ? CloudBaseContentSource.LogId(sourcePath)
             : sourcePath;
 
-    private static string ResolveFailMode(
+    internal static string ResolveFailMode(
         ContentValidationIssue issue,
         IReadOnlyDictionary<string, ContentDocument> documentsById,
         Bukit.Config.AppConfig config,

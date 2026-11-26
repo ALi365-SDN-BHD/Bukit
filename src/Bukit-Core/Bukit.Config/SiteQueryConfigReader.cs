@@ -119,7 +119,7 @@ internal static class SiteQueryConfigReader
         };
     }
 
-    private static IReadOnlyList<T> ReadItems<T>(YamlMappingNode query, string key, string path, Func<YamlMappingNode, string, T> read)
+    private static List<T> ReadItems<T>(YamlMappingNode query, string key, string path, Func<YamlMappingNode, string, T> read)
     {
         if (ConfigYamlHelpers.GetOptionalSequence(query, key, path) is not { } sequence)
         {
