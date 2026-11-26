@@ -310,6 +310,7 @@ internal sealed class CloudBaseSnapshot : IDisposable
     private static string ShapeDirectory(string tableDirectory, CloudBaseContentSourceOptions options)
     {
         var all = string.Equals(options.FieldPolicyMode?.Trim(), "all", StringComparison.OrdinalIgnoreCase);
+        // Every file field is read by its exact name, a later one overriding an earlier one: kept as given.
         var shape = string.Join(
             '\n',
             options.Mode.Trim().ToLowerInvariant(),
@@ -319,7 +320,6 @@ internal sealed class CloudBaseSnapshot : IDisposable
             options.PublishAtField,
             options.UpdatedAtField,
             options.BodyField,
-            // Every file field is read by its exact name, a later one overriding an earlier one: kept as given.
             string.Join('\u001f', options.FileFields.Select(name => name.Trim())),
             all ? "ALL" : "WHITELIST",
             all ? PublishesId(options) : NameSet(options.AllowedFields),
