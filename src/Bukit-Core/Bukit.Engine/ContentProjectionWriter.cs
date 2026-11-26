@@ -130,6 +130,8 @@ internal sealed class DefaultContentProjectionWriter : IContentProjectionWriter
                 continue;
             }
 
+            // Representation URLs are public URLs, so the page URL passed to them takes the base URL like the
+            // json and markdown URLs do; the route itself stays relative to the base URL.
             manifestEntries.Add(new AgentManifestEntry(
                 PublicContentProjectionPolicy.ResolvePublicId(record, route.Url),
                 PublicContentProjectionPolicy.ResolvePublicId(record, route.Url),
@@ -137,8 +139,6 @@ internal sealed class DefaultContentProjectionWriter : IContentProjectionWriter
                 documentContext.Language,
                 record.Trust.ReviewStatus,
                 PublicContentProjectionPolicy.SanitizeEntities(record).Select(x => x.Name).ToArray(),
-                // Representation URLs are public URLs, so the page URL takes the base URL like the
-                // json and markdown URLs do; the route itself stays relative to the base URL.
                 BuildAgentManifestRepresentationEntries(
                     route with { Url = I18nRootProjectionPath.CombineBaseUrl(context.BaseUrl, route.Url) },
                     entry,
