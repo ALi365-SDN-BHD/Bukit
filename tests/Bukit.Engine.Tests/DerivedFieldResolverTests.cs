@@ -105,6 +105,24 @@ public sealed class DerivedFieldResolverTests
     }
 
     [Fact]
+    public void ValidateDerived_ResolvesRelationsAgainstUnchangedPagesAndEntries()
+    {
+        var content = Content(Rule("related_to", "{{ target }}", "override"));
+        var config = new AppConfig { Site = new SiteConfig { Name = "t", Title = "t" }, Content = content };
+        var schema = ContentModelSchemaFactory.FromConfig(config);
+        Assert.True(schema.RequireRelationTargets);
+        var post = Routed(Page("p1", "post"));
+        var entry = Page("e1", "place");
+        RoutedContentDocument[] before = [Routed(Page("kl", "city", ("target", "p1"))), post, Routed(Page("pg", "city", ("target", "e1")))];
+
+        var routed = DerivedFieldResolver.Apply(content, before, schema: schema);
+
+        Assert.Empty(DerivedFieldResolver.ValidateDerived(config, schema, before, routed, [entry]));
+        var missing = DerivedFieldResolver.ValidateDerived(config, schema, before, routed, []);
+        Assert.Equal("pg", Assert.Single(missing).SourcePath);
+    }
+
+    [Fact]
     public void Apply_OtherCollectionsAndEmptyDefaultResults_AreUnchanged()
     {
         var content = Content(Rule("seo_title", "{{ missing }}"));
