@@ -173,7 +173,7 @@ bukit build        --content-snapshot /path/outside/the/site/content-snapshot --
   another value fails (`BKT-0B13`) instead of serving the recorded release; a table the snapshot
   does not hold fails with `BKT-0B11`.
 - Each source keeps its own record: `mode`, the mapped fields, `fileFields`, `fieldPolicy`,
-  `sort`, `maxItems` and `storageBucket` are part of it (field lists ignore order, not case). Two
+  `sort`, `maxItems` and `storageBucket` are part of it (`allowed` ignores order, not case; `fileFields` must match exactly). Two
   sources on one table never share rows, and a source changed since the recording fails with
   `BKT-0B13`, in `config check` too, until a new snapshot is recorded.
 - `doctor` skips the CloudBase network checks offline. `--notion-snapshot` and

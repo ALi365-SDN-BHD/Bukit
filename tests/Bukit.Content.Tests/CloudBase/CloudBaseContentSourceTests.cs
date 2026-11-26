@@ -963,6 +963,9 @@ public sealed class CloudBaseContentSourceTests
                 Bukit.Content.CloudBase.CloudBaseSnapshot.EnsureSource(offline, reordered(Options()) with { AllowedFields = ["deep", "city", "tags", "City"] });
                 Assert.Throws<Bukit.Content.Notion.Snapshot.NotionSnapshotException>(
                     () => Bukit.Content.CloudBase.CloudBaseSnapshot.EnsureSource(offline, reordered(Options()) with { AllowedFields = ["deep", "City", "tags", "city"] }));
+                // Every file field is read by its exact name, so the file list must match as recorded.
+                Assert.Throws<Bukit.Content.Notion.Snapshot.NotionSnapshotException>(
+                    () => Bukit.Content.CloudBase.CloudBaseSnapshot.EnsureSource(offline, reordered(Options()) with { FileFields = ["cover"] }));
 
                 var data = await Assert.ThrowsAsync<Bukit.Content.Notion.Snapshot.NotionSnapshotException>(
                     () => Create(offlineApi, options => reordered(options) with { Mode = "data" }).LoadRawAsync());

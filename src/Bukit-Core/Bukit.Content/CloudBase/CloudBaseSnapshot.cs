@@ -303,8 +303,8 @@ internal sealed class CloudBaseSnapshot : IDisposable
         => Path.Combine("cloudbase", Hash($"{envId}\n{table}\n{filterField}"));
 
     /// <summary>
-    /// Hashes the settings that decide which rows, columns and files a query records. Field lists are
-    /// matched ignoring order, so they are hashed that way; the mode decides whether body
+    /// Hashes the settings that decide which rows, columns and files a query records. The allowed list is
+    /// matched ignoring order, so it is hashed that way; the mode decides whether body
     /// images are signed. In all mode only the id publication is hashed from the allowed list.
     /// </summary>
     private static string ShapeDirectory(string tableDirectory, CloudBaseContentSourceOptions options)
@@ -319,7 +319,8 @@ internal sealed class CloudBaseSnapshot : IDisposable
             options.PublishAtField,
             options.UpdatedAtField,
             options.BodyField,
-            NameSet(options.FileFields),
+            // Every file field is read by its exact name, a later one overriding an earlier one: kept as given.
+            string.Join('\u001f', options.FileFields.Select(name => name.Trim())),
             all ? "ALL" : "WHITELIST",
             all ? PublishesId(options) : NameSet(options.AllowedFields),
             options.SortField,
