@@ -242,7 +242,7 @@ internal sealed class CloudBaseSnapshot : IDisposable
     /// <summary>
     /// Hashes the settings that decide which rows, columns and files a query records. Field lists are
     /// matched ignoring case and order, so they are hashed that way; the mode decides whether body
-    /// images are signed.
+    /// images are signed. In all mode only the id publication is hashed from the allowed list.
     /// </summary>
     private static string ShapeDirectory(string tableDirectory, CloudBaseContentSourceOptions options)
     {
@@ -258,13 +258,17 @@ internal sealed class CloudBaseSnapshot : IDisposable
             options.BodyField,
             NameSet(options.FileFields),
             all ? "ALL" : "WHITELIST",
-            all ? string.Empty : NameSet(options.AllowedFields),
+            all ? PublishesId(options) : NameSet(options.AllowedFields),
             options.SortField,
             options.SortDirection,
             options.MaxItems?.ToString(System.Globalization.CultureInfo.InvariantCulture),
             options.StorageBucket);
         return Path.Combine(tableDirectory, Hash(shape));
     }
+
+    /// <summary>In all mode the allowed list only decides whether the id column is published.</summary>
+    private static string PublishesId(CloudBaseContentSourceOptions options)
+        => options.AllowedFields?.Contains(options.IdField, StringComparer.OrdinalIgnoreCase) is true ? "ID" : string.Empty;
 
     private static string NameSet(IEnumerable<string>? names)
         => string.Join('\u001f', (names ?? []).Select(name => name.Trim().ToLowerInvariant()).Distinct().Order(StringComparer.Ordinal));

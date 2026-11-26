@@ -161,7 +161,7 @@ internal static class ContentProviderFactory
         string mode,
         string? filterValue,
         string publishableKey = "")
-        => new CloudBaseContentSourceOptions
+        => new()
         {
             EnvId = cloudBase.EnvId,
             Region = cloudBase.Region,

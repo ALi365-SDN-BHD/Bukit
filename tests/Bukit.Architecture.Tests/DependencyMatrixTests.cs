@@ -227,6 +227,8 @@ public class DependencyMatrixTests
             "Bukit.Rendering->Bukit.Engine.Audit",
             "Bukit.Engine.Abstractions->Bukit.Content",
             "Bukit.Engine.Abstractions->Bukit.Theme",
+            // Shared whole-number field text (ContentFieldReader.WholeNumberText) for permalink placeholders.
+            "Bukit.Engine.Abstractions->Bukit.Routing",
             "Bukit.Engine.Abstractions->Bukit.Content.Notion.Tests",
             "Bukit.Content->Bukit.Content.Notion.Tests",
             "Bukit.Engine->bukit",

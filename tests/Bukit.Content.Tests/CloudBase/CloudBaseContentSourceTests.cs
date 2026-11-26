@@ -886,6 +886,41 @@ public sealed class CloudBaseContentSourceTests
     }
 
     [Fact]
+    public async Task Snapshot_AllModeMatchesTheIdPublication()
+    {
+        var root = Path.Combine(Path.GetTempPath(), "bukit-cloudbase-snapshot-" + Guid.NewGuid().ToString("N"));
+        var directory = Path.Combine(root, "snapshot");
+        try
+        {
+            var api = new FakeCloudBaseApi { Total = 1 };
+            api.Pages[0] = """[{"id":"a1","title":"A","slug":"a","content":"x","city":"KL"}]""";
+            Func<CloudBaseContentSourceOptions, CloudBaseContentSourceOptions> all = options => options with { FieldPolicyMode = "all", AllowedFields = ["city"] };
+            using (var recording = Bukit.Content.Notion.Snapshot.NotionSnapshotSession.BeginWrite(directory))
+            {
+                using (Bukit.Config.NotionSnapshotScope.Enter(recording))
+                {
+                    Assert.Single((await Create(api, all).LoadRawAsync()).Documents);
+                }
+
+                recording.Commit();
+            }
+
+            using var offline = Bukit.Content.Notion.Snapshot.NotionSnapshotSession.OpenOffline(directory);
+            Bukit.Content.CloudBase.CloudBaseSnapshot.EnsureSource(offline, all(Options()) with { AllowedFields = ["tags"] });
+            var check = Assert.Throws<Bukit.Content.Notion.Snapshot.NotionSnapshotException>(
+                () => Bukit.Content.CloudBase.CloudBaseSnapshot.EnsureSource(offline, all(Options()) with { AllowedFields = ["ID"] }));
+            Assert.Contains("different source settings", check.Message, StringComparison.Ordinal);
+        }
+        finally
+        {
+            if (Directory.Exists(root))
+            {
+                Directory.Delete(root, recursive: true);
+            }
+        }
+    }
+
+    [Fact]
     public async Task Snapshot_MatchesFieldListsIgnoringCaseAndOrderButNotTheMode()
     {
         var root = Path.Combine(Path.GetTempPath(), "bukit-cloudbase-snapshot-" + Guid.NewGuid().ToString("N"));
