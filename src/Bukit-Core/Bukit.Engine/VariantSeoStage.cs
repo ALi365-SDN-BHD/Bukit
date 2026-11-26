@@ -70,13 +70,13 @@ internal static class VariantSeoStage
             socialImageFingerprint));
     }
 
-    // Page SEO models gain og:image width, height and type when the image is a local file.
+    // Page SEO models gain og:image width, height and type when the image is a local file. The media cache
+    // directory is the one the provider actually downloads into (content.media.downloadDir).
     private static SeoImageMetadataResolver CreateSocialImageResolver(BuildVariantContext context, ILogger logger)
         => new(
             context.Config.Site.Url,
             [context.BaseUrl, context.RootBaseUrl, context.Config.Site.BaseUrl],
             context.Config.Content.Media.UrlBase,
-            // The media cache directory the provider actually downloads into (content.media.downloadDir).
             ContentProviderFactory.BuildEffectiveMediaConfig(context.Config.Content.Media, context.RootDir, context.MediaDownloadDir).DownloadDir,
             [context.AssetsDir, context.ParentAssetsDir],
             [context.StaticDir, context.ParentStaticDir],

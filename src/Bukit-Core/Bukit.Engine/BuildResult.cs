@@ -97,6 +97,8 @@ internal static class BuildResultFactory
         var cacheHitCount = variants.Sum(v => v.SkippedCount);
         var cacheMissCount = variants.Sum(v => v.RenderedCount);
 
+        // Project paths are portable: the report is copied with the output, so it names no local directories. A
+        // worktree build reports the output it publishes to, not its staging directory.
         return new BuildResult(
             Version: typeof(BuildResultFactory).Assembly.GetName().Version?.ToString() ?? "0.0.0",
             StartedAt: startedAt,
@@ -107,8 +109,6 @@ internal static class BuildResultFactory
                 Runtime: RuntimeInformation.FrameworkDescription,
                 Aot: !System.Runtime.CompilerServices.RuntimeFeature.IsDynamicCodeSupported),
             Project: new BuildProjectInfo(
-                // Portable paths: the report is copied with the output, so it names no local directories. A worktree
-                // build reports the output it publishes to, not its staging directory.
                 Root: ".",
                 Output: ReportedOutputPath(config.Build.Output, rootDir, reportedOutputDir),
                 ContentSource: ContentConfigResolver.Describe(config.Content),
