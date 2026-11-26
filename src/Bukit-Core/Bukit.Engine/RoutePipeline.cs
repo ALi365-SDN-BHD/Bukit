@@ -32,6 +32,7 @@ internal sealed class RoutePipeline
 {
     public RoutePipelineResult Execute(AppConfig config, IReadOnlyList<ContentDocument> documents, ThemeTemplateResolver? templateResolver = null)
     {
+        var siteDocuments = documents;
         var siteLanguages = I18nOutputMerger.GetLanguages(config.Site);
         if (siteLanguages.Count == 0)
         {
@@ -64,7 +65,7 @@ internal sealed class RoutePipeline
         var sourceDocuments = linkedDocuments;
         linkedDocuments = DerivedFieldResolver.Apply(config.Content, linkedDocuments, derivedFieldIssues, schema);
         // The checks of derived values wait for them (see ContentGraphValidateStage).
-        derivedFieldIssues.AddRange(DerivedFieldResolver.ValidateDerived(config, schema, linkedDocuments, withoutPage));
+        derivedFieldIssues.AddRange(DerivedFieldResolver.ValidateDerived(config, schema, linkedDocuments, siteDocuments));
         // Queries see the final page fields, backrefs and derived values included.
         var queries = SiteQueryResolver.Resolve(config, linkedDocuments, withoutPage);
 
