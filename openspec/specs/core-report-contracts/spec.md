@@ -33,8 +33,8 @@ null for unknown modification dates or a valid date-time string for known dates.
 ### Requirement: Release checksums cover stable listed content
 
 The release inventory SHALL exclude the root `.bukit-build-state.json` recovery
-file, retain nested same-name content and retain its existing report-directory
-exclusion. File count, lengths, hashes and bundle aggregate SHALL describe the
+file and every `*.bukit-freshness.json` image freshness sidecar, retain nested
+same-name content and retain its existing report-directory exclusion. File count, lengths, hashes and bundle aggregate SHALL describe the
 actual bytes of every retained file after build completion.
 
 #### Scenario: Recovery state completes after reporting
@@ -42,6 +42,10 @@ actual bytes of every retained file after build completion.
 - **THEN** it is absent from release checksums
 - **AND** a nested `.bukit-build-state.json` remains listed with its actual size/hash
 - **AND** the count and aggregate match retained content without changing transaction or report ordering
+
+#### Scenario: Image freshness sidecars are internal
+- **WHEN** the output holds a resized image and its `*.bukit-freshness.json` sidecar
+- **THEN** the image is listed in release checksums and the sidecar is not
 
 ### Requirement: Audit assertions compare portable output paths
 

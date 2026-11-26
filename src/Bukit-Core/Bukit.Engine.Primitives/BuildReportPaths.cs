@@ -8,6 +8,16 @@ internal static class BuildReportPaths
     internal const string ReportDirectoryName = ".bukit";
 
     /// <summary>
+    /// Suffix of the image-variant freshness records written next to each generated variant. They stay in the
+    /// output so incremental builds can prove a variant's ownership, but they are not public output.
+    /// </summary>
+    internal const string FreshnessSidecarSuffix = ".bukit-freshness.json";
+
+    /// <summary>Whether <paramref name="path"/> names an image-variant freshness record.</summary>
+    internal static bool IsFreshnessSidecar(string path)
+        => path.EndsWith(FreshnessSidecarSuffix, StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>
     /// Report directories relative to the output root: the root <c>.bukit</c> and, in a multilingual
     /// build, each configured language's <c>&lt;lang&gt;/.bukit</c>, where a language written under its
     /// prefix keeps its own reports. None of them is public output.

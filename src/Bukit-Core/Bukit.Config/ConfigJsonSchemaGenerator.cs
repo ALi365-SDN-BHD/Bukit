@@ -208,7 +208,11 @@ public static class ConfigJsonSchemaGenerator
                 ("termTemplate", StringSchema()),
                 ("indexEnabled", BoolSchema()),
                 ("hierarchical", BoolSchema()),
-                ("routePrefix", StringSchema()))))))))));
+                ("routePrefix", StringSchema()),
+                ("i18n", Obj(("type", "object"), ("additionalProperties", Obj(("type", "object"), ("properties", Obj(
+                    ("title", StringSchema()),
+                    ("description", StringSchema()),
+                    ("singularTitlePrefix", StringSchema()))))))))))))))));
 
     private static JsonObject DeploySchema()
         => Obj(("type", "object"), ("properties", Obj(
@@ -517,6 +521,7 @@ public static class ConfigJsonSchemaGenerator
         => Obj(("type", "object"), ("properties", Obj(
             ("title", Obj(("type", "string"), ("minLength", 1))),
             ("description", StringSchema()),
+            ("titleSeparator", StringSchema()),
             ("organization", Obj(("type", "object"), ("properties", Obj(
                 ("name", StringSchema()),
                 ("url", StringSchema()),

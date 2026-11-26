@@ -110,7 +110,7 @@ The build reports these warnings:
 |---|---|
 | `i18n.document.language_unknown` | A page `language` is not in `site.languages`, so the page is dropped. |
 | `i18n.document.i18n_key_duplicate` | Two pages in the same language use the same `i18nKey`; hreflang and merged sitemap alternates can point to only one of them. |
-| `taxonomy.term.i18n_key_duplicate` | Two terms of one kind in the same language use the same `i18nKey`; neither pairs by key, and both fall back to pairing by URL. |
+| `taxonomy.term.i18n_key_duplicate` | Two terms of one kind in the language being built use the same `i18nKey`; neither pairs by key, and both fall back to pairing by URL. A term of another language sharing the key is not a duplicate (see Pairing term pages across languages). |
 | `i18n.config.default_language_layout_ignored` | `site.defaultLanguageInSubdir` is `true`, `site.defaultLanguageRedirect` is `false`, or `site.defaultLanguageLegacyRedirects` is `true`, but `site.languages` has fewer than two languages, so the single-language output is unchanged. |
 | `i18n.config.legacy_redirects_ignored` | `site.defaultLanguageLegacyRedirects` is `true` but the default language is still prefixed (`defaultLanguageInSubdir: true`), so there are no old URLs to redirect. |
 | `i18n.config.shared_assets_ignored` | `site.sharedAssets.enabled` is `true` on a single-language root-layout site, so sharing is ignored. |
@@ -168,8 +168,8 @@ retrying. This is not a power-loss guarantee.
 
 ## Per-language site identity
 
-`site.title`, `site.description` and `site.seo.organization` describe the site in every
-language unless `site.i18n.<lang>` replaces them in that language's build:
+`site.title`, `site.description`, `site.seo.titleSeparator` and `site.seo.organization`
+describe the site in every language unless `site.i18n.<lang>` replaces them in that language's build:
 
 ```yaml
 site:
@@ -183,6 +183,7 @@ site:
   i18n:
     ms:
       title: Nota Jalan Sutera
+      titleSeparator: " – "
       description: Nota tentang perdagangan dan pengembaraan
       organization:
         name: Media Jalan Sutera
@@ -192,11 +193,13 @@ The `ms` build then uses the Malay values everywhere it reads the site identity:
 page `<title>` suffix, `og:site_name`, the default description, JSON-LD `WebSite` and
 `Organization`, its own feeds and `llms.txt`, and `site.title` in templates. Organization
 fields merge one by one, so `url`, `logo`, `sameAs` and `type` above stay the top-level
-values. Outputs merged across languages at the output root (`site.feed.mode: merged`,
+values. `titleSeparator` replaces `site.seo.titleSeparator` for `{separator}` in that
+language's title templates (it may be explicitly empty); a language without one keeps the
+top-level separator. Outputs merged across languages at the output root (`site.feed.mode: merged`,
 the root `llms.txt`) keep the top-level identity.
 
-Only `title`, `description` and `organization` (`name`, `url`, `logo`, `sameAs`) are
-accepted. The language key must be a `site.languages` entry written the same way, and a
+Only `title`, `description`, `titleSeparator` and `organization` (`name`, `url`, `logo`,
+`sameAs`) are accepted. The language key must be a `site.languages` entry written the same way, and a
 single-language site sets its identity with the top-level keys instead.
 
 ## Shared assets
@@ -410,6 +413,33 @@ wording; unsupported languages fall back to English. The built-in Chinese kind
 names are `标签` and `分类`. Custom kinds keep their key when no title is
 configured.
 
+A kind's configured `title`, `description` and `singularTitlePrefix` apply to every
+language. Give a language its own labels with `taxonomy.kinds[].i18n.<lang>`; unset
+labels keep the kind's values:
+
+```yaml
+taxonomy:
+  kinds:
+    - key: tags
+      title: 资讯标签
+      description: 按标签浏览商务资讯。
+      singularTitlePrefix: 标签
+      i18n:
+        en:
+          title: Insight tags
+          description: Browse insights by tag.
+          singularTitlePrefix: Tag
+```
+
+The `en` build then titles a term page `Tag: Malaysia` in its HTML and in its Markdown
+and JSON representations; the Chinese build keeps `标签：Malaysia`. The key must be a
+`site.languages` entry written the same way and needs two or more languages; the labels
+must not be blank.
+
+Derived pages (taxonomy, pagination and archive pages) carry the language of the build
+that derives them, so their JSON and Markdown representations, agent manifest entries and
+JSON-LD name that language instead of `und`.
+
 Term descriptions remain unchanged on page 1. On page 2 and later, Bukit adds
 the current-language page number and visible item range. The effective metadata
 priority is route metadata SEO fields, route metadata visible fields, term
@@ -434,6 +464,20 @@ i18nKey: malaysia
 or as an `i18nKey` field on a `sourceKey: tags` or `sourceKey: categories` data document.
 Term pages with the same kind, key and page number then list each other in hreflang
 and sitemap alternates. Taxonomy index pages still pair by URL.
+
+Each language builds its term pages from its own pages, but terms that no page uses,
+such as Notion select options, reach every language. A term's language in a build is:
+
+1. the language being built, when one of that language's pages uses the term;
+2. otherwise the `language` in its metadata file (`language: zh-CN`), if set;
+3. otherwise unknown.
+
+A term of another language never keeps its key in that build. When one term of the
+built language and terms of unknown language share a key, the built language's term
+keeps it, so a Chinese and an English term may declare the same key. Only two terms of
+the built language, or two of unknown language and none of the built language, sharing
+a key are duplicates. Set `language` on terms that no page uses yet if you want them to
+pair before they have pages.
 
 ## Breadcrumb Route Contract
 

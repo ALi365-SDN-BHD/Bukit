@@ -73,8 +73,8 @@ bukit deploy --force                      # allow a non-fast-forward push
   `bukit deploy` checks the token only after its internal build.
 - Every deploy also needs `<output>/.bukit/publish-audit-report.json`
   (`BKT-DEPLOY-PRIVACY-0002` if missing). Do not delete `.bukit/` before deploying.
-- The deploy copies the output except `.bukit/`, `.bukit-build-state.json`,
-  `.bukit-output-marker`, and symlinks; it always adds `.nojekyll` and adds `CNAME` when
+- The deploy copies the output except `.bukit/` (also `<lang>/.bukit/`),
+  `*.bukit-freshness.json`, `.bukit-build-state.json`, `.bukit-output-marker`, and symlinks; it always adds `.nojekyll` and adds `CNAME` when
   configured. A privacy scan blocks publishing Notion provenance
   (`BKT-DEPLOY-PRIVACY-0001`). An existing `CNAME` on the target branch is kept; delete
   it on the branch to drop a custom domain.

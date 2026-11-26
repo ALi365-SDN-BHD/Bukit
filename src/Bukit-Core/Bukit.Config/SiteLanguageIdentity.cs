@@ -28,6 +28,7 @@ internal static class SiteLanguageIdentity
             {
                 Title = ConfigYamlHelpers.GetOptionalString(node, "title"),
                 Description = ConfigYamlHelpers.GetOptionalString(node, "description"),
+                TitleSeparator = ConfigYamlHelpers.GetOptionalString(node, "titleSeparator"),
                 Organization = organization is null
                     ? null
                     : new SiteLanguageOrganizationConfig
@@ -74,7 +75,7 @@ internal static class SiteLanguageIdentity
         }
     }
 
-    /// <summary>The site identity of <paramref name="language"/>'s build: its <c>site.i18n</c> entry over the top-level values.</summary>
+    /// <summary>The site identity of <paramref name="language"/>'s build: its <c>site.i18n</c> entry over the top-level values (<c>titleSeparator</c> over <c>site.seo.titleSeparator</c>).</summary>
     internal static SiteConfig Apply(SiteConfig site, string language)
     {
         ArgumentNullException.ThrowIfNull(site);
@@ -87,9 +88,13 @@ internal static class SiteLanguageIdentity
         {
             Title = identity.Title ?? site.Title,
             Description = identity.Description ?? site.Description,
-            Seo = identity.Organization is { } organization
-                ? site.Seo with { Organization = Merge(site.Seo.Organization ?? new SeoOrganizationConfig(), organization) }
-                : site.Seo
+            Seo = site.Seo with
+            {
+                TitleSeparator = identity.TitleSeparator ?? site.Seo.TitleSeparator,
+                Organization = identity.Organization is { } organization
+                    ? Merge(site.Seo.Organization ?? new SeoOrganizationConfig(), organization)
+                    : site.Seo.Organization
+            }
         };
     }
 

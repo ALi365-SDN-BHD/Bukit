@@ -80,6 +80,8 @@ internal sealed record SiteLanguageIdentityConfig
 {
     public string? Title { get; init; }
     public string? Description { get; init; }
+    /// <summary>Replaces <c>site.seo.titleSeparator</c>; may be explicitly empty.</summary>
+    public string? TitleSeparator { get; init; }
     /// <summary>Fields that replace the matching <c>site.seo.organization</c> fields; unset fields keep theirs.</summary>
     public SiteLanguageOrganizationConfig? Organization { get; init; }
 }
@@ -825,6 +827,30 @@ public sealed record TaxonomyKindConfig
     public bool? IndexEnabled { get; init; }
     public bool Hierarchical { get; init; }
     public string? RoutePrefix { get; init; }
+    /// <summary>Per-language <c>title</c>, <c>description</c> and <c>singularTitlePrefix</c>, keyed by a <c>site.languages</c> entry.</summary>
+    // JsonInclude: the i18n worktree protocol sends the config to language workers and hashes it.
+    [System.Text.Json.Serialization.JsonInclude]
+    internal IReadOnlyDictionary<string, TaxonomyKindLabelsConfig>? I18n { get; init; }
+
+    /// <summary>The kind's labels in <paramref name="language"/>'s build: its <c>i18n</c> entry over the kind's own values.</summary>
+    internal TaxonomyKindLabelsConfig LabelsFor(string? language)
+    {
+        var labels = language is not null && I18n is not null && I18n.TryGetValue(language, out var entry) ? entry : null;
+        return new TaxonomyKindLabelsConfig
+        {
+            Title = labels?.Title ?? Title,
+            Description = labels?.Description ?? Description,
+            SingularTitlePrefix = labels?.SingularTitlePrefix ?? SingularTitlePrefix
+        };
+    }
+}
+
+/// <summary>Labels of a taxonomy kind that one language replaces.</summary>
+internal sealed record TaxonomyKindLabelsConfig
+{
+    public string? Title { get; init; }
+    public string? Description { get; init; }
+    public string? SingularTitlePrefix { get; init; }
 }
 
 public sealed record LoggingConfig

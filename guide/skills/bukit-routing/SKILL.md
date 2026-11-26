@@ -171,7 +171,9 @@ terms with no pages: `noindex` renders them with `noindex`, `skip` builds no pag
 back to the publish date.
 
 With `kinds`, only listed kinds are built. A kind also accepts `title`, `description`,
-`singularTitlePrefix`, `template` (base for both index and term), and `hierarchical`.
+`singularTitlePrefix`, `template` (base for both index and term), and `hierarchical`;
+`i18n.<lang>` replaces `title`, `description` and `singularTitlePrefix` in one language's
+build (multilingual sites).
 Term pages get `taxonomy` and `items`; index
 pages get the term list in `page.fields.terms.value`. Use `util.term_slug` to build
 term links that match.

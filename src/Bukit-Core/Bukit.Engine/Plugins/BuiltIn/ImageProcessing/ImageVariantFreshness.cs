@@ -11,7 +11,7 @@ namespace Bukit.Engine.Plugins.BuiltIn.ImageProcessing;
 /// </summary>
 internal static class ImageVariantFreshness
 {
-    internal const string FreshnessSuffix = ".bukit-freshness.json";
+    internal const string FreshnessSuffix = BuildReportPaths.FreshnessSidecarSuffix;
     internal const int FreshnessSchemaVersion = 1;
     internal const string FreshnessOwner = "bukit:image-processing";
 

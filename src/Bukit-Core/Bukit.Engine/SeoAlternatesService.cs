@@ -59,6 +59,7 @@ internal static class SeoAlternatesService
                 templateResolver);
             listRouteGraph = AddTaxonomyRoutesForAlternates(
                 config,
+                language,
                 baseUrl,
                 rootDir,
                 layoutsDir,
@@ -103,6 +104,7 @@ internal static class SeoAlternatesService
 
     private static ListRouteGraph AddTaxonomyRoutesForAlternates(
         AppConfig config,
+        string language,
         string baseUrl,
         string? rootDir,
         string? layoutsDir,
@@ -144,7 +146,9 @@ internal static class SeoAlternatesService
 
         var dataDocuments = variantDocuments.Where(ContentFieldReader.IsDataItem).ToList();
         TaxonomyTermsInjector.InjectFromDataDocuments(pluginContext, dataDocuments);
-        var derived = new TaxonomyPlugin(config).DerivePages(pluginContext);
+        // Term pages derive as in that language's build, which decides each term's language.
+        var languageConfig = config with { Site = config.Site with { Language = language } };
+        var derived = new TaxonomyPlugin(languageConfig).DerivePages(pluginContext);
         return ListRouteGraphBuilder.AddDerivedTaxonomyRoutes(listRouteGraph, derived);
     }
 
